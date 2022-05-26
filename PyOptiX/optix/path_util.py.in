@@ -1,0 +1,6 @@
+import os
+
+include_path = "${OptiX_INCLUDE}"
+cuda_tk_path = "${CUDA_INCLUDE_DIRS}"
+stddef_path = "${OptiX_STDDEF_DIR}"
+
