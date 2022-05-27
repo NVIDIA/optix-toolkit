@@ -151,12 +151,12 @@ target_include_directories( DemandLoading PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  ${OptiX_INCLUDE}
   )
 
 target_link_libraries( DemandLoading PUBLIC
   ImageSource
-  ${CUDA_LIBRARIES}
-  ${CUDA_CUDA_LIBRARY}
+  cuda
   )
 
 set_property(TARGET DemandLoading PROPERTY CUDA_ARCHITECTURES "60")

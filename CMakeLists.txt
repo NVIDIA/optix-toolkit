@@ -48,13 +48,13 @@ if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
-# Add our CMake code to the module path, so they can be found automatically by CMake.
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
+#########################################################
+# Build configuration
 
-# Set the default build to Release.  Note this doesn't do anything for the VS
-# default build target which defaults to Debug when you first start it.
+# Set the default build to RelWithDebInfo.  Note this doesn't do anything for
+# the VS default build target which defaults to Debug when you first start it.
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
       "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
       FORCE)
 endif()
@@ -67,6 +67,22 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 #########################################################
+# CMake modules
+
+# Add our CMake code to the module path, so they can be found automatically by CMake.
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
+
+# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
+set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+if (NOT ${OptiX_INSTALL_DIR} STREQUAL OptiX_INSTALL_DIR-NOTFOUND)
+  set(CMAKE_MODULE_PATH "${OptiX_INSTALL_DIR}/SDK/CMake" ${CMAKE_MODULE_PATH})
+  find_package(OptiX REQUIRED)
+else()
+  message(FATAL_ERROR "Please set OptiX_INSTALL_DIR to the install location of OptiX.")
+endif()
+
+#########################################################
 # Subdirectories
 
 add_subdirectory(lib)
+add_subdirectory(tests)

@@ -67,7 +67,7 @@ target_link_libraries( ImageSource PUBLIC OpenEXR::OpenEXR Zlib::Static )
 target_compile_definitions( ImageSource PUBLIC OPTIX_SAMPLE_USE_OPEN_EXR )
 
 # The CoreReader depends on OpenEXR 3.1 or newer
-if( ${OpenEXR_VERSION} VERSION_GREATER_EQUAL "3.1.0" )
+if( ${OpenEXR_VERSION} AND ${OpenEXR_VERSION} VERSION_GREATER_EQUAL "3.1.0" )
   target_sources( ImageSource PRIVATE
     CoreEXRReader.cpp
     include/ImageSource/CoreEXRReader.h )
