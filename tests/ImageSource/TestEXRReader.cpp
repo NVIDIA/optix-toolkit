@@ -85,7 +85,7 @@ static float3 getTexel( unsigned int x, unsigned int y, const std::vector<float4
 
 static std::string getDataFilePath( const std::string& name )
 {
-    return std::string( IMAGE_SOURCE_TEST_DATA ) + '/' + name;
+    return std::string( TEST_IMAGE_SOURCE_DATA ) + '/' + name;
 }
 
 // float3 output operators for more readable EXCEPT failures.

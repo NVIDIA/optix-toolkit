@@ -147,11 +147,13 @@ source_group( "Header Files\\Implementation" FILES
   Util/TraceFile.h
   )
 
-target_include_directories( DemandLoading PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories( DemandLoading
+  PUBLIC
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   ${OptiX_INCLUDE}
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
 target_link_libraries( DemandLoading PUBLIC

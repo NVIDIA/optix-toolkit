@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,6 +26,48 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include <cuda.h>
+#include <cuda_runtime.h>  // for uchar4
 
-#define TEST_IMAGE_SOURCE_DATA "@CMAKE_CURRENT_SOURCE_DIR@/data"
+const unsigned int MIN_TILE_WIDTH               = 64;
+const unsigned int MAX_MIP_LEVEL_WIDTH_IN_TILES = 64;
+const unsigned int MAX_PAGES_PER_MIP_LEVEL      = MAX_MIP_LEVEL_WIDTH_IN_TILES * MAX_MIP_LEVEL_WIDTH_IN_TILES;
+const unsigned int MAX_TEXTURE_DIM              = MIN_TILE_WIDTH * MAX_MIP_LEVEL_WIDTH_IN_TILES;
+
+const unsigned int REQUEST_FINE   = 0;
+const unsigned int REQUEST_COARSE = 1;
+const unsigned int REQUEST_BOTH   = 2;
+
+struct FootprintInputs
+{
+    float x;
+    float y;
+    float level;   // for fooprint2DLod
+    float dPdx_x;  // for footprint2DGrad
+    float dPdx_y;
+    float dPdy_x;
+    float dPdy_y;
+};
+
+struct MipLevelSizes
+{
+    unsigned int   mipLevelStart;
+    unsigned short levelWidthInTiles;
+    unsigned short levelHeightInTiles;
+};
+
+struct Params
+{
+    cudaTextureObject_t           texture;
+    demandLoading::TextureSampler sampler;
+    unsigned int*                 referenceBits;
+    unsigned int*                 residenceBits;
+
+    FootprintInputs* inputs;   // One per launch index.
+    uint4*           outputs;  // One per launch index.
+};
+
+struct RayGenData
+{
+    float r, g, b;
+};

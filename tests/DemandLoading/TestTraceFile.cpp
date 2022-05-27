@@ -44,7 +44,7 @@ class TestTraceFile : public testing::Test
 #ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 TEST_F( TestTraceFile, TestWriteAndRead )
 {
-    std::string textureFilename( std::string( DEMAND_LOADING_TEST_DATA ) + "/TiledMipMapped.exr" );
+    std::string textureFilename( std::string( TEST_DEMAND_LOADING_DATA ) + "/TiledMipMapped.exr" );
     const char* traceFilename = "DemandLoadingTrace.dat";
     {
         TraceFileWriter writer( traceFilename );
