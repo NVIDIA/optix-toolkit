@@ -28,5 +28,4 @@
 
 #pragma once
 
-#define SUTIL_BUILD_DIR "@CMAKE_CURRENT_BINARY_DIR@/CMakeFiles"
 #define SUTIL_EXAMPLES_DIR "@CMAKE_SOURCE_DIR@/examples"

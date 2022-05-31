@@ -31,5 +31,7 @@ if( POLICY CMP0072 )
   cmake_policy(SET CMP0072 NEW)
 endif()
 
+add_subdirectory(optixDemandLoadSimple)
+add_subdirectory(optixDemandTexture)
 add_subdirectory(support)
 add_subdirectory(sutil)
