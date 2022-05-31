@@ -36,7 +36,6 @@
 #include <string>
 
 #include <sutil/sutil.h>
-#include <sutil/sutilapi.h>
 
 namespace sutil
 {
@@ -44,10 +43,9 @@ namespace sutil
 class GLDisplay
 {
 public:
-    SUTILAPI GLDisplay(
-        BufferImageFormat format = sutil::BufferImageFormat::UNSIGNED_BYTE4);
+    GLDisplay(BufferImageFormat format = sutil::BufferImageFormat::UNSIGNED_BYTE4);
 
-    SUTILAPI void display(
+    void display(
             const int32_t  screen_res_x,
             const int32_t  screen_res_y,
             const int32_t  framebuf_res_x,

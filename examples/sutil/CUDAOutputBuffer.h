@@ -28,16 +28,16 @@
 
 #pragma once
 
-#include <glad/glad.h> // Needs to be included before gl_interop
 #include <sutil/Exception.h>
+#include <sutil/sutil.h>
+
+#include <glad/glad.h> // Needs to be included before gl_interop
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
 #include <iostream>
 #include <vector>
-
-#include "sutil.h"
 
 namespace sutil
 {

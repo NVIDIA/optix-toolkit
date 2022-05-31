@@ -25,23 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+
 #pragma once
 
-#include <optix.h>
-
-
-namespace sutil
-{
-
-template <typename T>
-struct Record
-{
-    __align__( OPTIX_SBT_RECORD_ALIGNMENT ) char header[OPTIX_SBT_RECORD_HEADER_SIZE];
-    T data;
-};
-
-struct EmptyData {};
-
-typedef Record<EmptyData> EmptyRecord;
-
-} // end namespace sutil
+#define SUTIL_BUILD_DIR "@CMAKE_CURRENT_BINARY_DIR@/CMakeFiles"
+#define SUTIL_EXAMPLES_DIR "@CMAKE_SOURCE_DIR@/examples"

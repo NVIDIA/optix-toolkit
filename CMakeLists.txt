@@ -34,7 +34,7 @@
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
-project(OptiX-Toolkit LANGUAGES CXX CUDA)
+project(OptiX-Toolkit LANGUAGES C CXX CUDA)
 
 # This enforces a particular version of CMake that we require.
 # We rely on intrinsic support for CUDA, which was finalized in CMake 3.9.
@@ -86,3 +86,4 @@ endif()
 
 add_subdirectory(lib)
 add_subdirectory(tests)
+add_subdirectory(examples)

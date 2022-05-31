@@ -29,9 +29,6 @@
 
 #pragma once
 
-#include "sutilapi.h"
-#include "sampleConfig.h"
-
 #include <cuda_runtime.h>
 #include <vector_types.h>
 
@@ -65,105 +62,48 @@ struct ImageBuffer
     BufferImageFormat pixel_format;
 };
 
-struct Texture
-{
-    cudaArray_t         array;
-    cudaTextureObject_t texture;
-};
-
-// Return a path to a sample data file, or NULL if the file cannot be located.
+// Return a path to an example data file, or NULL if the file cannot be located.
 // The pointer returned may point to a static array.
-SUTILAPI const char* sampleDataFilePath( const char* relativeFilePath );
+const char* getDataFilePath( const char* relativeFilePath );
 
-// Return a path to a sample file inside a sub directory, or NULL if the file cannot be located.
+// Return a path to a file inside an example sub directory, or NULL if the file cannot be located.
 // The pointer returned may point to a static array.
-SUTILAPI const char* sampleFilePath( const char* relativeSubDir, const char* relativePath );
+const char* getFilePath( const char* relativeSubDir, const char* relativePath );
 
-SUTILAPI size_t pixelFormatSize( BufferImageFormat format );
-
-// Create a cudaTextureObject_t for the given image file.  If the filename is
-// empty or if loading the file fails, return 1x1 texture with default color.
-SUTILAPI Texture loadTexture( const char* filename, float3 default_color, cudaTextureDesc* tex_desc = nullptr );
+size_t pixelFormatSize( BufferImageFormat format );
 
 // Floating point image buffers (see BufferImageFormat above) are assumed to be
 // linear and will be converted to sRGB when writing to a file format with 8
 // bits per channel.  This can be skipped if disable_srgb is set to true.
 // Image buffers with format UNSIGNED_BYTE4 are assumed to be in sRGB already
 // and will be written like that.
-SUTILAPI void        saveImage( const char* filename, const ImageBuffer& buffer, bool disable_srgb );
-SUTILAPI ImageBuffer loadImage( const char* filename, int32_t force_components = 0 );
+void        saveImage( const char* filename, const ImageBuffer& buffer, bool disable_srgb );
 
-SUTILAPI void displayBufferWindow( const char* title, const ImageBuffer& buffer );
+void displayBufferWindow( const char* title, const ImageBuffer& buffer );
 
-
-SUTILAPI void        initGL();
-SUTILAPI void        initGLFW();
-SUTILAPI GLFWwindow* initGLFW( const char* window_title, int width, int height );
-SUTILAPI void        initImGui( GLFWwindow* window );
-SUTILAPI GLFWwindow* initUI( const char* window_title, int width, int height );
-SUTILAPI void        cleanupUI( GLFWwindow* window );
-
-SUTILAPI void        beginFrameImGui();
-SUTILAPI void        endFrameImGui();
-
-// Display frames per second, where the OpenGL context
-// is managed by the caller.
-SUTILAPI void displayFPS( unsigned total_frame_count );
-
-SUTILAPI void displayStats( std::chrono::duration<double>& state_update_time,
-                            std::chrono::duration<double>& render_time,
-                            std::chrono::duration<double>& display_time );
-
-// Display a short string starting at x,y.
-SUTILAPI void displayText( const char* text, float x, float y );
-
-// Blocking sleep call
-SUTILAPI void sleep(
-        int seconds );                      // Number of seconds to sleep
-
+void        initGL();
+void        initGLFW();
+GLFWwindow* initGLFW( const char* window_title, int width, int height );
 
 // Parse the string of the form <width>x<height> and return numeric values.
-SUTILAPI void parseDimensions(
+void parseDimensions(
         const char* arg,                    // String of form <width>x<height>
         int& width,                         // [out] width
         int& height );                      // [in]  height
 
 
-SUTILAPI void calculateCameraVariables(
-        float3 eye,
-        float3 lookat,
-        float3 up,
-        float  fov,
-        float  aspect_ratio,
-        float3& U,
-        float3& V,
-        float3& W,
-        bool fov_is_vertical );
-
 // Get current time in seconds for benchmarking/timing purposes.
-double SUTILAPI currentTime();
-
-// Get input data, either pre-compiled with NVCC or JIT compiled by NVRTC.
-SUTILAPI const char* getInputData( const char* sampleName,  // Name of the sample, used to locate the input file. NULL = only search the common /cuda dir
-                                   const char* sampleDir,  // Directory name for the sample (typically the same as the sample name).
-                                   const char* filename,      // Cuda C input file name
-                                   size_t&     dataSize, 
-                                   const char** log = NULL,    // (Optional) pointer to compiler log string. If *log == NULL there is no output. Only valid until the next getInputData call
-                                   const std::vector<const char*>& compilerOptions = {CUDA_NVRTC_OPTIONS} );  // Optional vector of compiler options.
-
-
+double currentTime();
 
 // Ensures that width and height have the minimum size to prevent launch errors.
-SUTILAPI void ensureMinimumSize(
+void ensureMinimumSize(
     int& width,                             // Will be assigned the minimum suitable width if too small.
     int& height);                           // Will be assigned the minimum suitable height if too small.
 
 // Ensures that width and height have the minimum size to prevent launch errors.
-SUTILAPI void ensureMinimumSize(
+void ensureMinimumSize(
     unsigned& width,                        // Will be assigned the minimum suitable width if too small.
     unsigned& height);                      // Will be assigned the minimum suitable height if too small.
-
-SUTILAPI void reportErrorMessage( const char* message );
 
 } // end namespace sutil
 
