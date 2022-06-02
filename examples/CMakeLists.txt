@@ -26,12 +26,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-if( POLICY CMP0072 )
-  # FindOpenGL prefers GLVND by default when available
-  cmake_policy(SET CMP0072 NEW)
-endif()
+FetchContent_Declare(
+  glfw
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG 3.3.7
+)
+FetchContent_MakeAvailable(glfw)
+
+FetchContent_Declare(
+  glad
+  GIT_REPOSITORY https://github.com/Dav1dde/glad
+  GIT_TAG v0.1.36
+)
+FetchContent_MakeAvailable(glad)
 
 add_subdirectory(optixDemandLoadSimple)
 add_subdirectory(optixDemandTexture)
-add_subdirectory(support)
 add_subdirectory(sutil)
