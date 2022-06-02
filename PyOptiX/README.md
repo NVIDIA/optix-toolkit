@@ -4,27 +4,18 @@ Python bindings for OptiX 7.
 
 ## Installation
 
-### OptiX SDK
-Install any [OptiX 7.x SDK](https://developer.nvidia.com/optix/downloads/7.3.0/linux64). 
-
-### Clone Repository
-via ssh:
-```
-git clone --recurse-submodules git@github.com:NVIDIA/optix-toolkit.git 
-```
-or htmls:
-```
-git clone --recurse-submodules https://github.com/NVIDIA/optix-toolkit.git 
-```
-
 
 ### Dependencies
-OptiX python module build requirements:
+
+#### OptiX SDK
+Install any [OptiX 7.x SDK](https://developer.nvidia.com/optix/downloads/7.3.0/linux64). 
+
+#### Build system requirements:
 * [cmake](https://cmake.org/)
 * [pip](https://pypi.org/project/pip/)
 
-To run the PyOptiX examples or tests, the python modules specified in 
-`PyOptiX/requirements.txt` must be installed:
+#### Code sample dependencies
+To run the PyOptiX examples or tests, the python modules specified in `PyOptiX/requirements.txt` must be installed:
 * pytest
 * cupy
 * numpy
@@ -33,7 +24,7 @@ To run the PyOptiX examples or tests, the python modules specified in
 * OpenEXR
 
 ### Virtual Environment
-In most cases, it makes sense to setup a python environment.  Below are examples of how to setup your environment via `Conda` or `venv`.
+In most cases, it makes sense to setup a python environment.  Below are examples of how to setup your environment via either`Conda` or `venv`.
 
 #### `venv` Virtual Environment
 Create and activate a new virtual environment:
@@ -60,7 +51,7 @@ The `pynvrtc` dependency, necessary for running the examples, needs to be instal
 pip install pynvrtc
 ```
 
-### Building the `optix` Module
+### Building and installing the `optix` Python module
 Point `setuptools/CMake` to Optix by setting the following environment variable.
 
 Linux:
