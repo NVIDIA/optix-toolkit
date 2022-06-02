@@ -47,6 +47,7 @@ FetchContent_MakeAvailable(OpenEXR)
 
 add_library( ImageSource STATIC
   ${CMAKE_SOURCE_DIR}/include/ImageSource/CheckerBoardImage.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/CoreEXRReader.h
   ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceConstantImage.h 
   ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceConstantImageParams.h
   ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceMandelbrotImage.h
@@ -56,6 +57,7 @@ add_library( ImageSource STATIC
   ${CMAKE_SOURCE_DIR}/include/ImageSource/MultiCheckerImage.h
   ${CMAKE_SOURCE_DIR}/include/ImageSource/TextureInfo.h
   CheckerBoardImage.cpp
+  CoreEXRReader.cpp
   DeviceConstantImage.cpp
   DeviceConstantImageKernels.cu
   DeviceMandelbrotImage.cpp
@@ -72,16 +74,11 @@ target_include_directories( ImageSource PUBLIC
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
-target_link_libraries( ImageSource PUBLIC OpenEXR::OpenEXR )
-target_compile_definitions( ImageSource PUBLIC OPTIX_SAMPLE_USE_OPEN_EXR )
-
-# The CoreReader depends on OpenEXR 3.1 or newer
-if( ${OpenEXR_VERSION} AND ${OpenEXR_VERSION} VERSION_GREATER_EQUAL "3.1.0" )
-  target_sources( ImageSource PRIVATE
-    CoreEXRReader.cpp
-    include/ImageSource/CoreEXRReader.h )
-  target_compile_definitions( ImageSource PUBLIC OPTIX_SAMPLE_USE_CORE_EXR )
-endif()    
+target_link_libraries( ImageSource PUBLIC OpenEXR::OpenEXR OpenEXR::OpenEXRCore )
+target_compile_definitions( ImageSource PUBLIC 
+  OPTIX_SAMPLE_USE_OPEN_EXR
+  OPTIX_SAMPLE_USE_CORE_EXR
+  )
 
 set_property(TARGET ImageSource PROPERTY CUDA_ARCHITECTURES "60")
 set_property(TARGET ImageSource PROPERTY CUDA_SEPARABLE_COMPILATION ON)
