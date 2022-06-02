@@ -26,15 +26,24 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-find_package( OpenEXR )
-if( NOT OpenEXR_FOUND )
-  message( WARNING "OpenEXR not found (see OpenEXR_ROOT)." )
-endif()
+include(FetchContent)
 
-find_package( ZlibStatic )
-if ( NOT ZlibStatic_FOUND )
-  message( WARNING "Zlib not found (see ZlibStatic_ROOT)." )
-endif()
+FetchContent_Declare(
+  Imath
+  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
+  GIT_TAG v3.1.5
+)
+FetchContent_MakeAvailable(Imath)
+
+set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
+set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
+
+FetchContent_Declare(
+  OpenEXR
+  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
+  GIT_TAG v3.1.5
+)
+FetchContent_MakeAvailable(OpenEXR)
 
 add_library( ImageSource STATIC
   ${CMAKE_SOURCE_DIR}/include/ImageSource/CheckerBoardImage.h
@@ -63,7 +72,7 @@ target_include_directories( ImageSource PUBLIC
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
-target_link_libraries( ImageSource PUBLIC OpenEXR::OpenEXR Zlib::Static )
+target_link_libraries( ImageSource PUBLIC OpenEXR::OpenEXR )
 target_compile_definitions( ImageSource PUBLIC OPTIX_SAMPLE_USE_OPEN_EXR )
 
 # The CoreReader depends on OpenEXR 3.1 or newer

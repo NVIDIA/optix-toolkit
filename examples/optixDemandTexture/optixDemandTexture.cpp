@@ -55,6 +55,7 @@
 #include <sutil/sutil.h>
 
 #include <cassert>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>

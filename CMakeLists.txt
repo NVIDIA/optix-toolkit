@@ -33,20 +33,23 @@
 # https://devtalk.nvidia.com/default/board/90/
 
 #########################################################
-# Set the project name (i.e. the VS solution file).
-project(OptiX-Toolkit LANGUAGES C CXX CUDA)
+# CMake policies
 
-# This enforces a particular version of CMake that we require.
-# We rely on intrinsic support for CUDA, which was finalized in CMake 3.9.
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA
+# language support.
+cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 if(POLICY CMP0074)
   # find_package uses <PackageName>_ROOT variables.
   cmake_policy(SET CMP0074 NEW)
 endif()
+
+#########################################################
+# Set the project name (i.e. the VS solution file).
+project(OptiX-Toolkit LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 #########################################################
 # Build configuration

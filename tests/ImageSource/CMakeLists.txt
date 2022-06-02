@@ -26,8 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-find_package( GTest )
-
 add_executable( testImageSource
   main.cpp
   TestCheckerBoardImage.cpp

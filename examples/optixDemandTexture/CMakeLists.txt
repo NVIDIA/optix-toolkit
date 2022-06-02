@@ -52,6 +52,7 @@ target_include_directories( optixDemandTexture PUBLIC
 target_link_libraries( optixDemandTexture
   DemandLoading
   sutil
+  glad
   )
 
 set_property( TARGET optixDemandTexture PROPERTY CUDA_ARCHITECTURES "60" )
