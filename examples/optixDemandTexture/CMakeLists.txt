@@ -55,4 +55,5 @@ target_link_libraries( optixDemandTexture
   glad
   )
 
+add_dependencies( optixDemandTexture DemandTexture )
 set_property( TARGET optixDemandTexture PROPERTY CUDA_ARCHITECTURES "60" )

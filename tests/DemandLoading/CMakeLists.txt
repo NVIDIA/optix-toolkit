@@ -100,4 +100,5 @@ target_link_libraries( testTextureFootprint
   gtest
   )
 
+add_dependencies( testTextureFootprint TextureFootprint )
 set_property( TARGET testTextureFootprint PROPERTY CUDA_ARCHITECTURES "60" )
