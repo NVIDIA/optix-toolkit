@@ -26,12 +26,34 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_executable( testDemandLoading
-  main.cpp
+# OpenEXR adds a target compile option (/EHsc) that confuses nvcc,
+# so we build CUDA code into a library that doesn't depend on OpenEXR.
+add_library( TestDemandLoadingKernels STATIC
   DemandLoaderTestKernels.cu
   DemandLoaderTestKernels.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
+  TestSparseTexture.cu
+  TestSparseTexture.h
+  )  
+target_include_directories( TestDemandLoadingKernels PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src
+  ${OptiX_INCLUDE}
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  )  
+set_property( TARGET TestDemandLoadingKernels PROPERTY CUDA_ARCHITECTURES "60" )
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG release-1.11.0
+)
+FetchContent_MakeAvailable(googletest)
+
+add_executable( testDemandLoading
+  main.cpp
   TestBulkMemory.cpp
   TestBulkPinnedItemPool.cpp
   TestCheckerBoardImage.cpp
@@ -50,8 +72,6 @@ add_executable( testDemandLoading
   TestPagingSystemKernels.cpp
   TestPinnedItemPool.cpp
   TestSparseTexture.cpp
-  TestSparseTexture.cu
-  TestSparseTexture.h
   TestSparseTextureWrap.cpp
   TestTextureFill.cpp
   TestTextureInstantiation.cpp
@@ -66,15 +86,14 @@ configure_file( Config.h.in Config.h @ONLY )
 
 target_include_directories( testDemandLoading PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src
+  ${CMAKE_SOURCE_DIR}/src
   )
 
 target_link_libraries( testDemandLoading
   DemandLoading
+  TestDemandLoadingKernels
   gtest
   )
-
-set_property( TARGET testDemandLoading PROPERTY CUDA_ARCHITECTURES "60" )
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 add_library( TextureFootprint OBJECT TestTextureFootprint.cu )
@@ -94,7 +113,7 @@ add_executable( testTextureFootprint
 
 target_include_directories( testTextureFootprint PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src
+  ${CMAKE_SOURCE_DIR}/src
   )
 
 target_link_libraries( testTextureFootprint
@@ -103,4 +122,3 @@ target_link_libraries( testTextureFootprint
   )
 
 add_dependencies( testTextureFootprint TextureFootprint )
-set_property( TARGET testTextureFootprint PROPERTY CUDA_ARCHITECTURES "60" )

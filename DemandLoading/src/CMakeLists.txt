@@ -45,6 +45,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(OpenEXR)
 
+# OpenEXR adds a target compile option (/EHsc) that confuses nvcc,
+# so we build CUDA code into a library that doesn't depend on OpenEXR.
+add_library( DemandLoadingKernels STATIC
+  PagingSystemKernels.cu
+  PagingSystemKernels.h
+  ImageSource/DeviceConstantImageKernels.cu
+  ImageSource/DeviceMandelbrotImageKernels.cu
+  )
+target_include_directories( DemandLoadingKernels PUBLIC
+  ${CMAKE_SOURCE_DIR}/include
+  )
+set_property(TARGET DemandLoadingKernels PROPERTY CUDA_ARCHITECTURES "60")
 
 add_library( DemandLoading STATIC
   ${CMAKE_SOURCE_DIR}/include/DemandLoading/DemandLoader.h
@@ -78,8 +90,6 @@ add_library( DemandLoading STATIC
   PageTableManager.h
   PagingSystem.cpp
   PagingSystem.h
-  PagingSystemKernels.cu
-  PagingSystemKernels.h
   RequestContext.h
   RequestHandler.h
   RequestProcessor.cpp
@@ -93,9 +103,7 @@ add_library( DemandLoading STATIC
   ImageSource/CheckerBoardImage.cpp
   ImageSource/CoreEXRReader.cpp
   ImageSource/DeviceConstantImage.cpp
-  ImageSource/DeviceConstantImageKernels.cu
   ImageSource/DeviceMandelbrotImage.cpp
-  ImageSource/DeviceMandelbrotImageKernels.cu
   ImageSource/Exception.h
   ImageSource/EXRReader.cpp
   ImageSource/ImageSource.cpp
@@ -205,13 +213,11 @@ target_include_directories( DemandLoading
   )
 
 target_link_libraries( DemandLoading PUBLIC
+  DemandLoadingKernels
   cuda
   OpenEXR::OpenEXR
   OpenEXR::OpenEXRCore
   )
-
-set_property(TARGET DemandLoading PROPERTY CUDA_ARCHITECTURES "60")
-set_property(TARGET DemandLoading PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 
 # NVTX Profiling
 option( DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )
