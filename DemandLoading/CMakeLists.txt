@@ -27,7 +27,7 @@
 #
 
 #########################################################
-# Welcome to the OptiX Toolkit.
+# Welcome to the OptiX Demand Loading library.
 
 # If you have any questions, we encourage you to post on the OptiX forums:
 # https://devtalk.nvidia.com/default/board/90/
@@ -87,6 +87,6 @@ endif()
 #########################################################
 # Subdirectories
 
-add_subdirectory(lib)
+add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(examples)

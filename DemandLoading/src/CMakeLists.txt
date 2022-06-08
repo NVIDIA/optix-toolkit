@@ -26,6 +26,26 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+include(FetchContent)
+
+FetchContent_Declare(
+  Imath
+  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
+  GIT_TAG v3.1.5
+)
+FetchContent_MakeAvailable(Imath)
+
+set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
+set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
+
+FetchContent_Declare(
+  OpenEXR
+  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
+  GIT_TAG v3.1.5
+)
+FetchContent_MakeAvailable(OpenEXR)
+
+
 add_library( DemandLoading STATIC
   ${CMAKE_SOURCE_DIR}/include/DemandLoading/DemandLoader.h
   ${CMAKE_SOURCE_DIR}/include/DemandLoading/DemandTexture.h
@@ -40,6 +60,16 @@ add_library( DemandLoading STATIC
   ${CMAKE_SOURCE_DIR}/include/DemandLoading/TextureSampler.h
   ${CMAKE_SOURCE_DIR}/include/DemandLoading/Ticket.h
   ${CMAKE_SOURCE_DIR}/include/DemandLoading/TileIndexing.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/CheckerBoardImage.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/CoreEXRReader.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceConstantImage.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceConstantImageParams.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceMandelbrotImage.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/DeviceMandelbrotParams.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/EXRReader.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/ImageSource.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/MultiCheckerImage.h
+  ${CMAKE_SOURCE_DIR}/include/ImageSource/TextureInfo.h
   DemandLoaderImpl.cpp
   DemandLoaderImpl.h
   DeviceContextImpl.cpp
@@ -60,6 +90,17 @@ add_library( DemandLoading STATIC
   ResourceRequestHandler.h
   Ticket.cpp
   TicketImpl.h
+  ImageSource/CheckerBoardImage.cpp
+  ImageSource/CoreEXRReader.cpp
+  ImageSource/DeviceConstantImage.cpp
+  ImageSource/DeviceConstantImageKernels.cu
+  ImageSource/DeviceMandelbrotImage.cpp
+  ImageSource/DeviceMandelbrotImageKernels.cu
+  ImageSource/Exception.h
+  ImageSource/EXRReader.cpp
+  ImageSource/ImageSource.cpp
+  ImageSource/Stopwatch.h
+  ImageSource/TextureInfo.cpp
   Memory/Allocators.h
   Memory/AsyncItemPool.h
   Memory/Buffers.h
@@ -115,6 +156,8 @@ source_group( "Header Files\\Implementation" FILES
   RequestQueue.h
   ResourceRequestHandler.h
   TicketImpl.h
+  ImageSource/Exception.h
+  ImageSource/Stopwatch.h
   Memory/Allocators.h
   Memory/AsyncItemPool.h
   Memory/Buffers.h
@@ -147,6 +190,11 @@ source_group( "Header Files\\Implementation" FILES
   Util/TraceFile.h
   )
 
+target_compile_definitions( DemandLoading PUBLIC 
+  OPTIX_SAMPLE_USE_OPEN_EXR
+  OPTIX_SAMPLE_USE_CORE_EXR
+  )
+
 target_include_directories( DemandLoading
   PUBLIC
   ${CMAKE_SOURCE_DIR}/include
@@ -157,8 +205,9 @@ target_include_directories( DemandLoading
   )
 
 target_link_libraries( DemandLoading PUBLIC
-  ImageSource
   cuda
+  OpenEXR::OpenEXR
+  OpenEXR::OpenEXRCore
   )
 
 set_property(TARGET DemandLoading PROPERTY CUDA_ARCHITECTURES "60")

@@ -34,11 +34,13 @@ add_executable( testDemandLoading
   PagingSystemTestKernels.h
   TestBulkMemory.cpp
   TestBulkPinnedItemPool.cpp
+  TestCheckerBoardImage.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
   TestDeviceContextPool.cpp
+  TestEXRReader.cpp
   TestEventPool.cpp
   TestFixedPool.cpp
   TestItemPool.cpp
@@ -64,7 +66,7 @@ configure_file( Config.h.in Config.h @ONLY )
 
 target_include_directories( testDemandLoading PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  ${CMAKE_SOURCE_DIR}/lib/DemandLoading
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src
   )
 
 target_link_libraries( testDemandLoading
@@ -92,7 +94,7 @@ add_executable( testTextureFootprint
 
 target_include_directories( testTextureFootprint PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  ${CMAKE_SOURCE_DIR}/lib/DemandLoading
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src
   )
 
 target_link_libraries( testTextureFootprint
