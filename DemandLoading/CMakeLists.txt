@@ -76,17 +76,12 @@ endif()
 #########################################################
 # CMake modules
 
-# Add our CMake code to the module path, so they can be found automatically by CMake.
+# Add our CMake code to the module path.
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-if (NOT ${OptiX_INSTALL_DIR} STREQUAL OptiX_INSTALL_DIR-NOTFOUND)
-  set(CMAKE_MODULE_PATH "${OptiX_INSTALL_DIR}/SDK/CMake" ${CMAKE_MODULE_PATH})
-  find_package(OptiX REQUIRED)
-else()
-  message(FATAL_ERROR "Please set OptiX_INSTALL_DIR to the install location of OptiX.")
-endif()
+find_package(OptiX REQUIRED)
 
 #########################################################
 # Subdirectories
