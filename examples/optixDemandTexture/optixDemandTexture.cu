@@ -31,8 +31,8 @@
 #include <DemandLoading/DeviceContext.h>
 #include <DemandLoading/Texture2D.h>
 
-#include <sutil/color.h>
-#include <sutil/vec_math.h>
+#include <OtkCuda/color.h>
+#include <OtkCuda/vec_math.h>
 
 #include <cuda_runtime.h>
 

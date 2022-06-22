@@ -44,8 +44,7 @@ struct GLFWwindow;
 #define OPTIX_SAMPLE_NAME OPTIX_STRINGIFY(OPTIX_SAMPLE_NAME_DEFINE)
 #define OPTIX_SAMPLE_DIR OPTIX_STRINGIFY(OPTIX_SAMPLE_DIR_DEFINE)
 
-namespace sutil
-{
+namespace otk {
 
 enum BufferImageFormat
 {
@@ -62,13 +61,10 @@ struct ImageBuffer
     BufferImageFormat pixel_format;
 };
 
-// Return a path to an example data file, or NULL if the file cannot be located.
-// The pointer returned may point to a static array.
-const char* getDataFilePath( const char* relativeFilePath );
-
-// Return a path to a file inside an example sub directory, or NULL if the file cannot be located.
-// The pointer returned may point to a static array.
-const char* getFilePath( const char* relativeSubDir, const char* relativePath );
+// Return a path to a file in a source subdirectory, falling back on a relative path to the
+// specified subdirectory.  Returns NULL if the file cannot be located.  The pointer returned may
+// point to a static array.
+const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath );
 
 size_t pixelFormatSize( BufferImageFormat format );
 
@@ -105,5 +101,5 @@ void ensureMinimumSize(
     unsigned& width,                        // Will be assigned the minimum suitable width if too small.
     unsigned& height);                      // Will be assigned the minimum suitable height if too small.
 
-} // end namespace sutil
+} // end namespace otk
 

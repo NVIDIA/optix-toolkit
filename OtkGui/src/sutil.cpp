@@ -26,12 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "sutilConfig.h"
+#include "OtkConfig.h" // generated from OtkConfig.h.in
 
-#include <sutil/Exception.h>
-#include <sutil/GLDisplay.h>
-#include <sutil/sutil.h>
-#include <sutil/vec_math.h>
+#include <OtkGui/Exception.h>
+#include <OtkGui/GLDisplay.h>
+#include <OtkGui/sutil.h>
+#include <OtkCuda/vec_math.h>
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -39,8 +39,7 @@
 #include <cstring>
 #include <fstream>
 
-namespace sutil
-{
+namespace otk {
 
 static void errorCallback( int error, const char* description )
 {
@@ -110,14 +109,14 @@ static std::string existingFilePath( const char* directory, const char* relative
     return fileExists( path ) ? path : "";
 }
 
-const char* getFilePath( const char* relativeSubDir, const char* relativePath )
+const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath )
 {
     static std::string s;
 
     // Allow for overrides.
     static const char* directories[] =
     {
-        SUTIL_EXAMPLES_DIR,
+        OTK_SOURCE_DIR,
         "."
     };
     for( const char* directory : directories )
@@ -131,12 +130,7 @@ const char* getFilePath( const char* relativeSubDir, const char* relativePath )
             }
         }
     }
-    throw Exception( ( std::string{ "sutil::sampleDataFilePath couldn't locate " } +relativePath ).c_str() );
-}
-
-const char* getDataFilePath( const char* relativePath )
-{
-    return getFilePath( "data", relativePath );
+    throw Exception( ( std::string{ "otk::sampleDataFilePath couldn't locate " } +relativePath ).c_str() );
 }
 
 size_t pixelFormatSize( BufferImageFormat format )
@@ -150,7 +144,7 @@ size_t pixelFormatSize( BufferImageFormat format )
         case BufferImageFormat::FLOAT4:
             return sizeof( float ) * 4;
         default:
-            throw Exception( "sutil::pixelFormatSize: Unrecognized buffer format" );
+            throw Exception( "otk::pixelFormatSize: Unrecognized buffer format" );
     }
 }
 
@@ -268,7 +262,7 @@ void saveImage( const char* fname, const ImageBuffer& image, bool disable_srgb_c
 {
     const std::string filename( fname );
     if( filename.length() < 5 )
-        throw Exception( "sutil::saveImage(): Failed to determine filename extension" );
+        throw Exception( "otk::saveImage(): Failed to determine filename extension" );
 
     const std::string ext = filename.substr( filename.length()-3 );
     if( ext == "PPM" || ext == "ppm" )
@@ -337,7 +331,7 @@ void saveImage( const char* fname, const ImageBuffer& image, bool disable_srgb_c
 
             default:
             {
-                throw Exception( "sutil::saveImage(): Unrecognized image buffer pixel format.\n" );
+                throw Exception( "otk::saveImage(): Unrecognized image buffer pixel format.\n" );
             }
         }
 
@@ -345,7 +339,7 @@ void saveImage( const char* fname, const ImageBuffer& image, bool disable_srgb_c
     }
     else
     {
-        throw Exception( ( "sutil::saveImage(): Failed unsupported filetype '" + ext + "'" ).c_str() );
+        throw Exception( ( "otk::saveImage(): Failed unsupported filetype '" + ext + "'" ).c_str() );
     }
 }
 
@@ -399,4 +393,4 @@ void ensureMinimumSize( unsigned& w, unsigned& h )
         h = 1;
 }
 
-} // namespace sutil
+} // namespace otk

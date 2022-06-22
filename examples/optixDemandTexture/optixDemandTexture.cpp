@@ -50,9 +50,9 @@
 
 #include <cuda_runtime.h>
 
-#include <sutil/CUDAOutputBuffer.h>
-#include <sutil/Camera.h>
-#include <sutil/sutil.h>
+#include <OtkGui/CUDAOutputBuffer.h>
+#include <OtkGui/Camera.h>
+#include <OtkGui/sutil.h>
 
 #include <cassert>
 #include <fstream>
@@ -78,7 +78,7 @@ int32_t g_bucketSize = 256;
 int g_textureWidth  = 2048;
 int g_textureHeight = 2048;
 
-sutil::Camera g_camera;
+otk::Camera g_camera;
 
 struct PerDeviceSampleState
 {
@@ -273,7 +273,7 @@ std::vector<char> readLibraryFile( const char* libname, const char* filename )
     if( !file )
     {
         std::string msg( "Couldn't open " + input_path );
-        throw sutil::Exception( msg.c_str() );
+        throw otk::Exception( msg.c_str() );
     }
     return std::vector<char>( std::istreambuf_iterator<char>( file ), {} );
 }
@@ -471,7 +471,7 @@ void initLaunchParams( PerDeviceSampleState& state, unsigned int numDevices )
 
 
 // Returns number of requests processed (over all streams and devices).
-unsigned int performLaunches( sutil::CUDAOutputBuffer<uchar4>& output_buffer, std::vector<PerDeviceSampleState>& states, DemandLoader& demandLoader )
+unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std::vector<PerDeviceSampleState>& states, DemandLoader& demandLoader )
 {
     auto startTime = std::chrono::steady_clock::now();
 
@@ -547,7 +547,7 @@ int main( int argc, char* argv[] )
 
     // Image credit: CC0Textures.com (https://cc0textures.com/view.php?tex=Bricks12)
     // Licensed under the Creative Commons CC0 License.
-    std::string textureFile = "Textures/Bricks12_col.exr";  // use --texture "" for procedural texture
+    std::string textureFile = "examples/optixDemandTexture/Textures/Bricks12_col.exr";  // use --texture "" for procedural texture
 
     for( int i = 1; i < argc; ++i )
     {
@@ -564,7 +564,7 @@ int main( int argc, char* argv[] )
         }
         else if( arg.substr( 0, 6 ) == "--dim=" )
         {
-            sutil::parseDimensions( arg.substr( 6 ).c_str(), g_width, g_height );
+            otk::parseDimensions( arg.substr( 6 ).c_str(), g_width, g_height );
         }
         else if( ( arg == "--texture" || arg == "-t" ) && !lastArg )
         {
@@ -572,7 +572,7 @@ int main( int argc, char* argv[] )
         }
         else if( arg.substr( 0, 13 ) == "--textureDim=" )
         {
-            sutil::parseDimensions( arg.substr( 13 ).c_str(), g_textureWidth, g_textureHeight );
+            otk::parseDimensions( arg.substr( 13 ).c_str(), g_textureWidth, g_textureHeight );
         }
         else if( ( arg == "--bias" || arg == "-b" ) && !lastArg )
         {
@@ -628,7 +628,7 @@ int main( int argc, char* argv[] )
 #ifdef OPTIX_SAMPLE_USE_OPEN_EXR
         if( !textureFile.empty() && textureFile != "checkerboard" )
         {
-            std::string textureFilename( sutil::getDataFilePath( textureFile.c_str() ) );
+            std::string textureFilename( otk::getSourceFilePath( ".", textureFile.c_str() ) );
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
             imageSource = g_useCoreExr
                 ? std::unique_ptr<ImageSource>( new CoreEXRReader( textureFilename.c_str() ) )
@@ -662,7 +662,7 @@ int main( int argc, char* argv[] )
         }
 
         // Create the output buffer to hold the rendered image
-        sutil::CUDAOutputBuffer<uchar4> outputBuffer( sutil::CUDAOutputBufferType::ZERO_COPY, g_width, g_height );
+        otk::CUDAOutputBuffer<uchar4> outputBuffer( otk::CUDAOutputBufferType::ZERO_COPY, g_width, g_height );
 
         unsigned int numFilled   = 0;
         const int    maxLaunches = 1024;
@@ -681,15 +681,15 @@ int main( int argc, char* argv[] )
 
         // Display result image
         {
-            sutil::ImageBuffer buffer;
+            otk::ImageBuffer buffer;
             buffer.data         = outputBuffer.getHostPointer();
             buffer.width        = g_width;
             buffer.height       = g_height;
-            buffer.pixel_format = sutil::BufferImageFormat::UNSIGNED_BYTE4;
+            buffer.pixel_format = otk::BufferImageFormat::UNSIGNED_BYTE4;
             if( outfile.empty() )
-                sutil::displayBufferWindow( argv[0], buffer );
+                otk::displayBufferWindow( argv[0], buffer );
             else
-                sutil::saveImage( outfile.c_str(), buffer, false );
+                otk::saveImage( outfile.c_str(), buffer, false );
         }
 
         // Clean up the states, deleting their resources

@@ -27,41 +27,21 @@
 //
 
 
+#include <OtkGui/Camera.h>
 
-#pragma once
+namespace otk {
 
-#include <glad/glad.h>
-
-#include <cstdint>
-#include <string>
-
-#include <sutil/sutil.h>
-
-namespace sutil
+void Camera::UVWFrame(float3& U, float3& V, float3& W) const
 {
+    W = m_lookat - m_eye; // Do not normalize W -- it implies focal length
+    float wlen = length(W);
+    U = normalize(cross(W, m_up));
+    V = normalize(cross(U, W));
 
-class GLDisplay
-{
-public:
-    GLDisplay(BufferImageFormat format = sutil::BufferImageFormat::UNSIGNED_BYTE4);
+    float vlen = wlen * tanf(0.5f * m_fovY * M_PIf / 180.0f);
+    V *= vlen;
+    float ulen = vlen * m_aspectRatio;
+    U *= ulen;
+}
 
-    void display(
-            const int32_t  screen_res_x,
-            const int32_t  screen_res_y,
-            const int32_t  framebuf_res_x,
-            const int32_t  framebuf_res_y,
-            const uint32_t pbo) const;
-
-private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
-
-    sutil::BufferImageFormat m_image_format;
-
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
-};
-
-} // end namespace sutil
+} // namespace otk

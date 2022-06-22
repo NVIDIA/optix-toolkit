@@ -37,8 +37,8 @@ add_library( TestDemandLoadingKernels STATIC
   TestSparseTexture.h
   )  
 target_include_directories( TestDemandLoadingKernels PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src
+  ../include
+  ../src
   ${OptiX_INCLUDE}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )  
@@ -86,7 +86,7 @@ configure_file( Config.h.in Config.h @ONLY )
 
 target_include_directories( testDemandLoading PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  ${CMAKE_SOURCE_DIR}/src
+  ../src
   )
 
 target_link_libraries( testDemandLoading
@@ -100,7 +100,7 @@ add_library( TextureFootprint OBJECT TestTextureFootprint.cu )
 set_property( TARGET TextureFootprint PROPERTY CUDA_PTX_COMPILATION ON )
 set_property( TARGET TextureFootprint PROPERTY CUDA_ARCHITECTURES "60" )
 target_include_directories( TextureFootprint PUBLIC
-  ${CMAKE_SOURCE_DIR}/include
+  ../include
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   ${OptiX_INCLUDE}
   )
@@ -113,7 +113,7 @@ add_executable( testTextureFootprint
 
 target_include_directories( testTextureFootprint PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  ${CMAKE_SOURCE_DIR}/src
+  ../src
   )
 
 target_link_libraries( testTextureFootprint

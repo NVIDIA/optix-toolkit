@@ -28,10 +28,10 @@
 
 #pragma once
 
-#include <sutil/vec_math.h>
+#include <OtkCuda/vec_math.h>
 
 
-namespace sutil {
+namespace otk {
 
 // implementing a perspective camera
 class Camera {
@@ -71,4 +71,4 @@ private:
     float m_aspectRatio;
 };
 
-}
+} // namespace otk

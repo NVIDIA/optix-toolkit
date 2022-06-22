@@ -26,31 +26,47 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-configure_file( sutilConfig.h.in sutilConfig.h @ONLY )
+set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
+set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" )
+set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )
 
-add_library(sutil
-  CUDAOutputBuffer.h
-  Camera.cpp
-  Camera.h
-  Exception.h
-  GLDisplay.cpp
-  GLDisplay.h
-  Preprocessor.h
-  color.h
-  sutil.cpp
-  sutil.h
-  vec_math.h
+include(FetchContent)
+FetchContent_Declare(
+  glfw
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG 3.3.7
+  )
+FetchContent_MakeAvailable(glfw)
+
+FetchContent_Declare(
+  glad
+  GIT_REPOSITORY https://github.com/Dav1dde/glad
+  GIT_TAG v0.1.36
+)
+FetchContent_MakeAvailable(glad)
+
+configure_file( src/OtkConfig.h.in OtkConfig.h @ONLY )
+
+add_library(OtkGui
+  include/OtkGui/CUDAOutputBuffer.h
+  include/OtkGui/Camera.h
+  include/OtkGui/Exception.h
+  include/OtkGui/GLDisplay.h
+  include/OtkGui/sutil.h
+  src/Camera.cpp
+  src/GLDisplay.cpp
+  src/sutil.cpp
   )
 
-target_include_directories(sutil PUBLIC
-  ${CMAKE_CURRENT_BINARY_DIR}  # for sutilConfig.h
-  ${CMAKE_SOURCE_DIR}/examples
+target_include_directories(OtkGui PUBLIC
+  include
+  ${CMAKE_CURRENT_BINARY_DIR}  # for OtkConfig.h
   ${OptiX_INCLUDE}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  ${CMAKE_SOURCE_DIR}/examples/support
   )
 
-target_link_libraries(sutil LINK_PRIVATE
+target_link_libraries(OtkGui PUBLIC
   glfw
   glad
+  OtkCuda
   )

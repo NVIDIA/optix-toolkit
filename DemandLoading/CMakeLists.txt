@@ -26,66 +26,213 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#########################################################
-# Welcome to the OptiX Demand Loading library.
+include(FetchContent)
 
-# If you have any questions, we encourage you to post on the OptiX forums:
-# https://devtalk.nvidia.com/default/board/90/
+FetchContent_Declare(
+  Imath
+  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
+  GIT_TAG v3.1.5
+)
+FetchContent_MakeAvailable(Imath)
 
-#########################################################
-# CMake policies
+set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
+set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA
-# language support.
-cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+FetchContent_Declare(
+  OpenEXR
+  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
+  GIT_TAG v3.1.5
+)
+FetchContent_MakeAvailable(OpenEXR)
 
-if(POLICY CMP0074)
-  # find_package uses <PackageName>_ROOT variables.
-  cmake_policy(SET CMP0074 NEW)
+# OpenEXR adds a target compile option (/EHsc) that confuses nvcc,
+# so we build CUDA code into a library that doesn't depend on OpenEXR.
+add_library( DemandLoadingKernels STATIC
+  src/PagingSystemKernels.cu
+  src/PagingSystemKernels.h
+  src/ImageSource/DeviceConstantImageKernels.cu
+  src/ImageSource/DeviceMandelbrotImageKernels.cu
+  )
+target_include_directories( DemandLoadingKernels
+  PUBLIC
+  include
+  PRIVATE
+  src
+  )
+set_property(TARGET DemandLoadingKernels PROPERTY CUDA_ARCHITECTURES "60")
+
+add_library( DemandLoading STATIC
+  include/DemandLoading/DemandLoader.h
+  include/DemandLoading/DemandTexture.h
+  include/DemandLoading/DeviceContext.h
+  include/DemandLoading/Options.h
+  include/DemandLoading/Resource.h
+  include/DemandLoading/Statistics.h
+  include/DemandLoading/Texture2D.h
+  include/DemandLoading/Texture2DExtended.h
+  include/DemandLoading/Texture2DFootprint.h
+  include/DemandLoading/TextureDescriptor.h
+  include/DemandLoading/TextureSampler.h
+  include/DemandLoading/Ticket.h
+  include/DemandLoading/TileIndexing.h
+  include/ImageSource/CheckerBoardImage.h
+  include/ImageSource/CoreEXRReader.h
+  include/ImageSource/DeviceConstantImage.h
+  include/ImageSource/DeviceConstantImageParams.h
+  include/ImageSource/DeviceMandelbrotImage.h
+  include/ImageSource/DeviceMandelbrotParams.h
+  include/ImageSource/EXRReader.h
+  include/ImageSource/ImageSource.h
+  include/ImageSource/MultiCheckerImage.h
+  include/ImageSource/TextureInfo.h
+  src/DemandLoaderImpl.cpp
+  src/DemandLoaderImpl.h
+  src/DeviceContextImpl.cpp
+  src/DeviceContextImpl.h
+  src/PageMappingsContext.h
+  src/PageTableManager.h
+  src/PagingSystem.cpp
+  src/PagingSystem.h
+  src/RequestContext.h
+  src/RequestHandler.h
+  src/RequestProcessor.cpp
+  src/RequestProcessor.h
+  src/RequestQueue.cpp
+  src/RequestQueue.h
+  src/ResourceRequestHandler.cpp
+  src/ResourceRequestHandler.h
+  src/Ticket.cpp
+  src/TicketImpl.h
+  src/ImageSource/CheckerBoardImage.cpp
+  src/ImageSource/CoreEXRReader.cpp
+  src/ImageSource/DeviceConstantImage.cpp
+  src/ImageSource/DeviceMandelbrotImage.cpp
+  src/ImageSource/EXRReader.cpp
+  src/ImageSource/Exception.h
+  src/ImageSource/ImageSource.cpp
+  src/ImageSource/Stopwatch.h
+  src/ImageSource/TextureInfo.cpp
+  src/Memory/Allocators.h
+  src/Memory/AsyncItemPool.h
+  src/Memory/Buffers.h
+  src/Memory/BulkMemory.h
+  src/Memory/BulkPinnedItemPool.h
+  src/Memory/DeviceContextPool.cpp
+  src/Memory/DeviceContextPool.h
+  src/Memory/DeviceMemoryManager.h
+  src/Memory/EventPool.h
+  src/Memory/FixedPool.h
+  src/Memory/ItemPool.h
+  src/Memory/PinnedItemPool.h
+  src/Memory/PinnedMemoryManager.h
+  src/Memory/PinnedRequestContextPool.h
+  src/Memory/SamplerPool.h
+  src/Memory/TileArena.h
+  src/Memory/TilePool.cpp
+  src/Memory/TilePool.h
+  src/Textures/BaseColorRequestHandler.cpp
+  src/Textures/BaseColorRequestHandler.h
+  src/Textures/DemandTextureImpl.cpp
+  src/Textures/DemandTextureImpl.h
+  src/Textures/DenseTexture.cpp
+  src/Textures/DenseTexture.h
+  src/Textures/SamplerRequestHandler.cpp
+  src/Textures/SamplerRequestHandler.h
+  src/Textures/SparseTexture.cpp
+  src/Textures/SparseTexture.h
+  src/Textures/TextureRequestHandler.cpp
+  src/Textures/TextureRequestHandler.h
+  src/Util/CudaCallback.h
+  src/Util/DeviceSet.cpp
+  src/Util/DeviceSet.h
+  src/Util/Exception.h
+  src/Util/Math.h
+  src/Util/MutexArray.h
+  src/Util/NVTXProfiling.h
+  src/Util/Stopwatch.h
+  src/Util/TraceFile.cpp
+  src/Util/TraceFile.h
+  )
+
+source_group( "Header Files\\Implementation" FILES
+  src/DemandLoaderImpl.h
+  src/DeviceContextImpl.h
+  src/PageMappingsContext.h
+  src/PageTableManager.h
+  src/PagingSystem.h
+  src/PagingSystemKernels.h
+  src/RequestContext.h
+  src/RequestHandler.h
+  src/RequestProcessor.h
+  src/RequestQueue.h
+  src/ResourceRequestHandler.h
+  src/TicketImpl.h
+  src/ImageSource/Exception.h
+  src/ImageSource/Stopwatch.h
+  src/Memory/Allocators.h
+  src/Memory/AsyncItemPool.h
+  src/Memory/Buffers.h
+  src/Memory/BulkMemory.h
+  src/Memory/BulkPinnedItemPool.h
+  src/Memory/DeviceContextPool.h
+  src/Memory/DeviceMemoryManager.h
+  src/Memory/EventPool.h
+  src/Memory/FixedPool.h
+  src/Memory/ItemPool.h
+  src/Memory/PinnedItemPool.h
+  src/Memory/PinnedMemoryManager.h
+  src/Memory/PinnedRequestContextPool.h
+  src/Memory/SamplerPool.h
+  src/Memory/TileArena.h
+  src/Memory/TilePool.h
+  src/Textures/BaseColorRequestHandler.h
+  src/Textures/DemandTextureImpl.h
+  src/Textures/DenseTexture.h
+  src/Textures/SamplerRequestHandler.h
+  src/Textures/SparseTexture.h
+  src/Textures/TextureRequestHandler.h
+  src/Util/CudaCallback.h
+  src/Util/DeviceSet.h
+  src/Util/Exception.h
+  src/Util/Math.h
+  src/Util/MutexArray.h
+  src/Util/NVTXProfiling.h
+  src/Util/Stopwatch.h
+  src/Util/TraceFile.h
+  )
+
+target_compile_definitions( DemandLoading PUBLIC 
+  OPTIX_SAMPLE_USE_OPEN_EXR
+  OPTIX_SAMPLE_USE_CORE_EXR
+  )
+
+target_include_directories( DemandLoading
+  PUBLIC
+  include
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  ${OptiX_INCLUDE}
+  PRIVATE
+  src
+  )
+
+target_link_libraries( DemandLoading PUBLIC
+  DemandLoadingKernels
+  cuda
+  OpenEXR::OpenEXR
+  OpenEXR::OpenEXRCore
+  )
+
+# NVTX Profiling
+option( DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )
+if( DEMAND_LOADING_USE_NVTX )
+    find_package( NVTX )
+    if( NVTX_FOUND )
+        message( "-- Found NVTX: Enabling NVTX profiling in the DemandLoading library" )
+        include_directories( ${NVTX_INCLUDE} )
+        target_compile_definitions( DemandLoading PUBLIC ENABLE_NVTX_PROFILING )
+    else()
+        message( "-- Not Found NVTX: Disabling NVTX profiling in the DemandLoading library" )
+    endif()
 endif()
 
-#########################################################
-# Set the project name (i.e. the VS solution file).
-project(OptiX-Toolkit LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-#########################################################
-# Build configuration
-
-# Set the default build to RelWithDebInfo.  Note this doesn't do anything for
-# the VS default build target which defaults to Debug when you first start it.
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
-      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
-      FORCE)
-endif()
-
-# Put all the runtime stuff in the same directory.  By default, CMake puts each targets'
-# output into their own directory.  We want all the targets to be put in the same
-# directory, and we can do this by setting these variables.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
-if(MSVC)
-  add_definitions(-DNOMINMAX)
-endif()
-
-#########################################################
-# CMake modules
-
-# Add our CMake code to the module path.
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
-
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX REQUIRED)
-
-#########################################################
-# Subdirectories
-
-add_subdirectory(src)
-add_subdirectory(tests)
-add_subdirectory(examples)
+add_subdirectory( tests )

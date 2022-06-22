@@ -53,11 +53,11 @@
     do                                                                         \
     {                                                                          \
         call;                                                                  \
-        ::sutil::glCheck( #call, __FILE__, __LINE__ );                         \
+        ::otk::glCheck( #call, __FILE__, __LINE__ );                         \
     } while( false )
 
 
-#define GL_CHECK_ERRORS() ::sutil::glCheckErrors( __FILE__, __LINE__ )
+#define GL_CHECK_ERRORS() ::otk::glCheckErrors( __FILE__, __LINE__ )
 
 #else
 #define GL_CHECK( call )                                                       \
@@ -80,10 +80,10 @@
 //------------------------------------------------------------------------------
 
 #define OPTIX_CHECK( call )                                                    \
-    ::sutil::optixCheck( call, #call, __FILE__, __LINE__ )
+    ::otk::optixCheck( call, #call, __FILE__, __LINE__ )
 
 #define OPTIX_CHECK_LOG( call )                                                \
-    ::sutil::optixCheckLog( call, log, sizeof( log ), sizeof_log, #call, __FILE__, __LINE__ )
+    ::otk::optixCheckLog( call, log, sizeof( log ), sizeof_log, #call, __FILE__, __LINE__ )
 
 // This version of the log-check macro doesn't require the user do setup
 // a log buffer and size variable in the surrounding context; rather the
@@ -97,12 +97,12 @@
     {                                                                          \
         char   LOG[400];                                                       \
         size_t LOG_SIZE = sizeof( LOG );                                       \
-        ::sutil::optixCheckLog( call, LOG, sizeof( LOG ), LOG_SIZE, #call,     \
+        ::otk::optixCheckLog( call, LOG, sizeof( LOG ), LOG_SIZE, #call,     \
                                 __FILE__, __LINE__ );                          \
     } while( false )
 
 #define OPTIX_CHECK_NOTHROW( call )                                            \
-    ::sutil::optixCheckNoThrow( call, #call, __FILE__, __LINE__ )
+    ::otk::optixCheckNoThrow( call, #call, __FILE__, __LINE__ )
 
 //------------------------------------------------------------------------------
 //
@@ -110,14 +110,14 @@
 //
 //------------------------------------------------------------------------------
 
-#define CUDA_CHECK( call ) ::sutil::cudaCheck( call, #call, __FILE__, __LINE__ )
+#define CUDA_CHECK( call ) ::otk::cudaCheck( call, #call, __FILE__, __LINE__ )
 
-#define CUDA_SYNC_CHECK() ::sutil::cudaSyncCheck( __FILE__, __LINE__ )
+#define CUDA_SYNC_CHECK() ::otk::cudaSyncCheck( __FILE__, __LINE__ )
 
 // A non-throwing variant for use in destructors.
 // An iostream must be provided for output (e.g. std::cerr).
 #define CUDA_CHECK_NOTHROW( call )                                             \
-    ::sutil::cudaCheckNoThrow( call, #call, __FILE__, __LINE__ )
+    ::otk::cudaCheckNoThrow( call, #call, __FILE__, __LINE__ )
 
 //------------------------------------------------------------------------------
 //
@@ -125,16 +125,17 @@
 //
 //------------------------------------------------------------------------------
 
-#define SUTIL_ASSERT( cond )                                                   \
-    ::sutil::assertCond( static_cast<bool>( cond ), #cond, __FILE__, __LINE__ )
+#define OTK_ASSERT( cond )                                                   \
+    ::otk::assertCond( static_cast<bool>( cond ), #cond, __FILE__, __LINE__ )
 
-#define SUTIL_ASSERT_MSG( cond, msg )                                          \
-    ::sutil::assertCondMsg( static_cast<bool>( cond ), #cond, msg, __FILE__, __LINE__ )
+#define OTK_ASSERT_MSG( cond, msg )                                          \
+    ::otk::assertCondMsg( static_cast<bool>( cond ), #cond, msg, __FILE__, __LINE__ )
 
-#define SUTIL_ASSERT_FAIL_MSG( msg )                                           \
-    ::sutil::assertFailMsg( msg, __FILE__, __LINE__ )
 
-namespace sutil {
+#define OTK_ASSERT_FAIL_MSG( msg )                                           \
+    ::otk::assertFailMsg( msg, __FILE__, __LINE__ )
+
+namespace otk {
 
 class Exception : public std::runtime_error
 {
@@ -323,4 +324,4 @@ inline void checkGLError()
     }
 }
 
-}  // end namespace sutil
+}  // end namespace otk

@@ -26,12 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <sutil/Exception.h>
-#include <sutil/GLDisplay.h>
+#include <OtkGui/Exception.h>
+#include <OtkGui/GLDisplay.h>
 
 #include <iostream>
 
-namespace sutil
+namespace otk
 {
 
 //-----------------------------------------------------------------------------
@@ -126,7 +126,7 @@ GLuint createGLProgram(
 GLint getGLUniformLocation( GLuint program, const std::string& name )
 {
 	GLint loc = glGetUniformLocation( program, name.c_str() );
-    SUTIL_ASSERT_MSG( loc != -1, "Failed to get uniform loc for '" + name + "'" );
+    OTK_ASSERT_MSG( loc != -1, "Failed to get uniform loc for '" + name + "'" );
     return loc;
 }
 
@@ -286,4 +286,4 @@ void GLDisplay::display(
     GL_CHECK_ERRORS();
 }
 
-} // namespace sutil
+} // namespace otk

@@ -28,8 +28,8 @@
 
 #pragma once
 
-#include <sutil/Exception.h>
-#include <sutil/sutil.h>
+#include <OtkGui/Exception.h>
+#include <OtkGui/sutil.h>
 
 #include <glad/glad.h> // Needs to be included before gl_interop
 
@@ -39,8 +39,7 @@
 #include <iostream>
 #include <vector>
 
-namespace sutil
-{
+namespace otk {
 
 enum class CUDAOutputBufferType
 {
@@ -103,7 +102,7 @@ CUDAOutputBuffer<PIXEL_FORMAT>::CUDAOutputBuffer( CUDAOutputBufferType type, int
 #if 0
     if( width < 1 || height < 1 )
     {
-        throw sutil::Exception( "CUDAOutputBuffer dimensions must be at least 1 in both x and y." );
+        throw otk::Exception( "CUDAOutputBuffer dimensions must be at least 1 in both x and y." );
     }
 #else
     ensureMinimumSize( width, height );
@@ -117,7 +116,7 @@ CUDAOutputBuffer<PIXEL_FORMAT>::CUDAOutputBuffer( CUDAOutputBufferType type, int
         CUDA_CHECK( cudaDeviceGetAttribute( &is_display_device, cudaDevAttrKernelExecTimeout, current_device ) );
         if( !is_display_device )
         {
-            throw sutil::Exception(
+            throw otk::Exception(
                     "GL interop is only available on display device, please use display device for optimal "
                     "performance.  Alternatively you can disable GL interop with --no-gl-interop and run with "
                     "degraded performance."
@@ -370,4 +369,4 @@ PIXEL_FORMAT* CUDAOutputBuffer<PIXEL_FORMAT>::getHostPointer()
     }
 }
 
-} // end namespace sutil
+} // end namespace otk

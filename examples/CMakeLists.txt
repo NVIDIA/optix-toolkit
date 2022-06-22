@@ -26,24 +26,5 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
-set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" )
-set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )
-
-FetchContent_Declare(
-  glfw
-  GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG 3.3.7
-  )
-FetchContent_MakeAvailable(glfw)
-
-FetchContent_Declare(
-  glad
-  GIT_REPOSITORY https://github.com/Dav1dde/glad
-  GIT_TAG v0.1.36
-)
-FetchContent_MakeAvailable(glad)
-
 add_subdirectory(optixDemandLoadSimple)
 add_subdirectory(optixDemandTexture)
-add_subdirectory(sutil)
