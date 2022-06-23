@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -38,12 +38,6 @@
 
 struct GLFWwindow;
 
-// Some helper macros to stringify the sample's name that comes in as a define
-#define OPTIX_STRINGIFY2(name) #name
-#define OPTIX_STRINGIFY(name) OPTIX_STRINGIFY2(name)
-#define OPTIX_SAMPLE_NAME OPTIX_STRINGIFY(OPTIX_SAMPLE_NAME_DEFINE)
-#define OPTIX_SAMPLE_DIR OPTIX_STRINGIFY(OPTIX_SAMPLE_DIR_DEFINE)
-
 namespace otk {
 
 enum BufferImageFormat
@@ -60,11 +54,6 @@ struct ImageBuffer
     unsigned int      height = 0;
     BufferImageFormat pixel_format;
 };
-
-// Return a path to a file in a source subdirectory, falling back on a relative path to the
-// specified subdirectory.  Returns NULL if the file cannot be located.  The pointer returned may
-// point to a static array.
-const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath );
 
 size_t pixelFormatSize( BufferImageFormat format );
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,41 +26,64 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "OtkConfig.h" // generated from OtkConfig.h.in
 
+#include <OtkUtil/Files.h>
+#include <OtkUtil/Exception.h>
 
-#pragma once
-
-#include <glad/glad.h>
-
-#include <cstdint>
-#include <string>
-
-#include <OtkGui/Window.h>
+#include <fstream>
 
 namespace otk {
 
-class GLDisplay
+static bool fileExists( const char* path )
 {
-public:
-    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
+    std::ifstream str( path );
+    return static_cast<bool>( str );
+}
 
-    void display(
-            const int32_t  screen_res_x,
-            const int32_t  screen_res_y,
-            const int32_t  framebuf_res_x,
-            const int32_t  framebuf_res_y,
-            const uint32_t pbo) const;
+static bool fileExists( const std::string& path )
+{
+    return fileExists( path.c_str() );
+}
 
-private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
+static std::string existingFilePath( const char* directory, const char* relativeSubDir, const char* relativePath )
+{
+    std::string path = directory ? directory : "";
+    if( relativeSubDir )
+    {
+        path += '/';
+        path += relativeSubDir;
+    }
+    if( relativePath )
+    {
+        path += '/';
+        path += relativePath;
+    }
+    return fileExists( path ) ? path : "";
+}
 
-    otk::BufferImageFormat m_image_format;
+const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath )
+{
+    static std::string s;
 
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
-};
+    // Allow for overrides.
+    static const char* directories[] =
+    {
+        OTK_SOURCE_DIR,
+        "."
+    };
+    for( const char* directory : directories )
+    {
+        if( directory )
+        {
+            s = existingFilePath( directory, relativeSubDir, relativePath );
+            if( !s.empty() )
+            {
+                return s.c_str();
+            }
+        }
+    }
+    throw Exception( ( std::string{ "otk::sampleDataFilePath couldn't locate " } +relativePath ).c_str() );
+}
 
-} // end namespace otk
+} // namespace otk

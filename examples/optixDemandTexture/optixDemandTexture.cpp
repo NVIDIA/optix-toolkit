@@ -52,7 +52,8 @@
 
 #include <OtkGui/CUDAOutputBuffer.h>
 #include <OtkGui/Camera.h>
-#include <OtkGui/sutil.h>
+#include <OtkGui/Window.h>
+#include <OtkUtil/Files.h>
 
 #include <cassert>
 #include <fstream>

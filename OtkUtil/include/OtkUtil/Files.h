@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,41 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-
-
 #pragma once
-
-#include <glad/glad.h>
-
-#include <cstdint>
-#include <string>
-
-#include <OtkGui/Window.h>
 
 namespace otk {
 
-class GLDisplay
-{
-public:
-    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
+// Return a path to a file in a source subdirectory, falling back on a relative path to the
+// specified subdirectory.  Returns NULL if the file cannot be located.  The pointer returned may
+// point to a static array.
+const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath );
 
-    void display(
-            const int32_t  screen_res_x,
-            const int32_t  screen_res_y,
-            const int32_t  framebuf_res_x,
-            const int32_t  framebuf_res_y,
-            const uint32_t pbo) const;
-
-private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
-
-    otk::BufferImageFormat m_image_format;
-
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
-};
-
-} // end namespace otk
+} // namespace otk

@@ -88,5 +88,6 @@ find_package(OptiX REQUIRED)
 
 add_subdirectory(OtkCuda)
 add_subdirectory(OtkGui)
+add_subdirectory(OtkUtil)
 add_subdirectory(DemandLoading)
 add_subdirectory(examples)

@@ -52,6 +52,7 @@ target_include_directories( optixDemandTexture PUBLIC
 target_link_libraries( optixDemandTexture
   DemandLoading
   OtkGui
+  OtkUtil
   )
 
 add_dependencies( optixDemandTexture DemandTexture )

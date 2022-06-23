@@ -28,8 +28,8 @@
 
 #pragma once
 
-#include <OtkGui/Exception.h>
-#include <OtkGui/sutil.h>
+#include <OtkGui/Window.h>
+#include <OtkUtil/Exception.h>
 
 #include <glad/glad.h> // Needs to be included before gl_interop
 

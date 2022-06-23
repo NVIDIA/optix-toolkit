@@ -26,42 +26,21 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
-set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" )
-set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )
+configure_file( src/OtkConfig.h.in OtkConfig.h @ONLY )
 
-include(FetchContent)
-FetchContent_Declare(
-  glfw
-  GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG 3.3.7
-  )
-FetchContent_MakeAvailable(glfw)
-
-FetchContent_Declare(
-  glad
-  GIT_REPOSITORY https://github.com/Dav1dde/glad
-  GIT_TAG v0.1.36
-)
-FetchContent_MakeAvailable(glad)
-
-add_library(OtkGui
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
-  src/Camera.cpp
-  src/GLDisplay.cpp
-  src/Window.cpp
+add_library(OtkUtil
+  include/OtkUtil/Exception.h
+  include/OtkUtil/Files.h
+  src/Files.cpp
   )
 
-target_include_directories(OtkGui PUBLIC
+target_include_directories(OtkUtil PUBLIC
   include
+  ${CMAKE_CURRENT_BINARY_DIR}  # for OtkConfig.h
+  ${OptiX_INCLUDE}
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
-target_link_libraries(OtkGui PUBLIC
-  glfw
+target_link_libraries(OtkUtil PUBLIC
   glad
-  OtkCuda
-  OtkUtil
   )

@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OtkGui/Exception.h>
 #include <OtkGui/GLDisplay.h>
+#include <OtkUtil/Exception.h>
 
 #include <iostream>
 

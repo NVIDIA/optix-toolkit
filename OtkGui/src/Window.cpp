@@ -26,12 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "OtkConfig.h" // generated from OtkConfig.h.in
-
-#include <OtkGui/Exception.h>
-#include <OtkGui/GLDisplay.h>
-#include <OtkGui/sutil.h>
 #include <OtkCuda/vec_math.h>
+#include <OtkGui/GLDisplay.h>
+#include <OtkGui/Window.h>
+#include <OtkUtil/Exception.h>
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -79,58 +77,6 @@ static void savePPM( const unsigned char* Pix, const char* fname, int wid, int h
 
     OutFile.write( reinterpret_cast<char*>( const_cast<unsigned char*>( Pix ) ), wid*hgt*chan*( is_float ? 4 : 1 ) );
     OutFile.close();
-}
-
-
-static bool fileExists( const char* path )
-{
-    std::ifstream str( path );
-    return static_cast<bool>( str );
-}
-
-static bool fileExists( const std::string& path )
-{
-    return fileExists( path.c_str() );
-}
-
-static std::string existingFilePath( const char* directory, const char* relativeSubDir, const char* relativePath )
-{
-    std::string path = directory ? directory : "";
-    if( relativeSubDir )
-    {
-        path += '/';
-        path += relativeSubDir;
-    }
-    if( relativePath )
-    {
-        path += '/';
-        path += relativePath;
-    }
-    return fileExists( path ) ? path : "";
-}
-
-const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath )
-{
-    static std::string s;
-
-    // Allow for overrides.
-    static const char* directories[] =
-    {
-        OTK_SOURCE_DIR,
-        "."
-    };
-    for( const char* directory : directories )
-    {
-        if( directory )
-        {
-            s = existingFilePath( directory, relativeSubDir, relativePath );
-            if( !s.empty() )
-            {
-                return s.c_str();
-            }
-        }
-    }
-    throw Exception( ( std::string{ "otk::sampleDataFilePath couldn't locate " } +relativePath ).c_str() );
 }
 
 size_t pixelFormatSize( BufferImageFormat format )
