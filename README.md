@@ -40,5 +40,4 @@ cd ..
 make -j
 ```
 
-If you encounter problems or if you have any questions, we encourage you to post on the OptiX forums:
-https://devtalk.nvidia.com/default/board/90/
+If you encounter problems or if you have any questions, we encourage you to post on the [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
