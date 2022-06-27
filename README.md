@@ -5,8 +5,8 @@ The OptiX Utility Toolkit (OTK) is a collection of libraries and utilities that 
 applications with the [OptiX SDK](https://developer.nvidia.com/designworks/optix/download).  It includes
 the following components:
 
-- PyOptiX: Python bindings for OptiX 7 API calls.
-- DemandLoading: a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
+- [PyOptiX](PyOptiX/README.md): Python bindings for OptiX 7 API calls.
+- [DemandLoading](DemandLoading/README.md): a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
 - OtkGui: convenience code for incorporating OpenGL into OptiX applications.
 - OtkCuda: vector math and other CUDA helper functions for OptiX kernels.
 - OtkUtil: file handling and other utility functions.
