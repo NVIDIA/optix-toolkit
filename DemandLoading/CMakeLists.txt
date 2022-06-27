@@ -45,21 +45,28 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(OpenEXR)
 
-# OpenEXR adds a target compile option (/EHsc) that confuses nvcc,
-# so we build CUDA code into a library that doesn't depend on OpenEXR.
-add_library( DemandLoadingKernels STATIC
-  src/PagingSystemKernels.cu
-  src/PagingSystemKernels.h
-  src/ImageSource/DeviceConstantImageKernels.cu
-  src/ImageSource/DeviceMandelbrotImageKernels.cu
-  )
-target_include_directories( DemandLoadingKernels
-  PUBLIC
-  include
-  PRIVATE
-  src
-  )
-set_property(TARGET DemandLoadingKernels PROPERTY CUDA_ARCHITECTURES "60")
+# Multiple OpenEXR targets have a compile option (/EHsc) that confuses nvcc.
+# We replace it with $<$<COMPILE_LANGUAGE:CXX>:/EHsc>.
+foreach(_package OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
+  get_target_property(_dependencies ${_package} INTERFACE_LINK_LIBRARIES)
+  foreach(_lib ${_package} ${_dependencies})
+    if(TARGET ${_lib})
+      get_target_property(_alias ${_lib} ALIASED_TARGET)
+      if(NOT _alias)
+        set(_alias ${_lib})
+      endif()
+      get_target_property(_options ${_alias} INTERFACE_COMPILE_OPTIONS)
+      if(_options)
+        set(cxx_flag "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>")
+        string(FIND ${_options} ${cxx_flag} has_cxx_flag)
+        if(${has_cxx_flag} EQUAL -1)
+          string(REPLACE "/EHsc" ${cxx_flag} _options "${_options}")
+          set_target_properties(${_alias} PROPERTIES INTERFACE_COMPILE_OPTIONS "${_options}")
+        endif()
+      endif()
+    endif()
+  endforeach()
+endforeach()
 
 add_library( DemandLoading STATIC
   include/DemandLoading/DemandLoader.h
@@ -89,24 +96,12 @@ add_library( DemandLoading STATIC
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
-  src/PageMappingsContext.h
-  src/PageTableManager.h
-  src/PagingSystem.cpp
-  src/PagingSystem.h
-  src/RequestContext.h
-  src/RequestHandler.h
-  src/RequestProcessor.cpp
-  src/RequestProcessor.h
-  src/RequestQueue.cpp
-  src/RequestQueue.h
-  src/ResourceRequestHandler.cpp
-  src/ResourceRequestHandler.h
-  src/Ticket.cpp
-  src/TicketImpl.h
   src/ImageSource/CheckerBoardImage.cpp
   src/ImageSource/CoreEXRReader.cpp
   src/ImageSource/DeviceConstantImage.cpp
+  src/ImageSource/DeviceConstantImageKernels.cu
   src/ImageSource/DeviceMandelbrotImage.cpp
+  src/ImageSource/DeviceMandelbrotImageKernels.cu
   src/ImageSource/EXRReader.cpp
   src/ImageSource/Exception.h
   src/ImageSource/ImageSource.cpp
@@ -130,6 +125,20 @@ add_library( DemandLoading STATIC
   src/Memory/TileArena.h
   src/Memory/TilePool.cpp
   src/Memory/TilePool.h
+  src/PageMappingsContext.h
+  src/PageTableManager.h
+  src/PagingSystem.cpp
+  src/PagingSystem.h
+  src/PagingSystemKernels.cu
+  src/PagingSystemKernels.h
+  src/RequestContext.h
+  src/RequestHandler.h
+  src/RequestProcessor.cpp
+  src/RequestProcessor.h
+  src/RequestQueue.cpp
+  src/RequestQueue.h
+  src/ResourceRequestHandler.cpp
+  src/ResourceRequestHandler.h
   src/Textures/BaseColorRequestHandler.cpp
   src/Textures/BaseColorRequestHandler.h
   src/Textures/DemandTextureImpl.cpp
@@ -142,6 +151,8 @@ add_library( DemandLoading STATIC
   src/Textures/SparseTexture.h
   src/Textures/TextureRequestHandler.cpp
   src/Textures/TextureRequestHandler.h
+  src/Ticket.cpp
+  src/TicketImpl.h
   src/Util/CudaCallback.h
   src/Util/DeviceSet.cpp
   src/Util/DeviceSet.h
@@ -157,16 +168,6 @@ add_library( DemandLoading STATIC
 source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.h
-  src/PageMappingsContext.h
-  src/PageTableManager.h
-  src/PagingSystem.h
-  src/PagingSystemKernels.h
-  src/RequestContext.h
-  src/RequestHandler.h
-  src/RequestProcessor.h
-  src/RequestQueue.h
-  src/ResourceRequestHandler.h
-  src/TicketImpl.h
   src/ImageSource/Exception.h
   src/ImageSource/Stopwatch.h
   src/Memory/Allocators.h
@@ -185,12 +186,22 @@ source_group( "Header Files\\Implementation" FILES
   src/Memory/SamplerPool.h
   src/Memory/TileArena.h
   src/Memory/TilePool.h
+  src/PageMappingsContext.h
+  src/PageTableManager.h
+  src/PagingSystem.h
+  src/PagingSystemKernels.h
+  src/RequestContext.h
+  src/RequestHandler.h
+  src/RequestProcessor.h
+  src/RequestQueue.h
+  src/ResourceRequestHandler.h
   src/Textures/BaseColorRequestHandler.h
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.h
   src/Textures/SamplerRequestHandler.h
   src/Textures/SparseTexture.h
   src/Textures/TextureRequestHandler.h
+  src/TicketImpl.h
   src/Util/CudaCallback.h
   src/Util/DeviceSet.h
   src/Util/Exception.h
@@ -206,6 +217,8 @@ target_compile_definitions( DemandLoading PUBLIC
   OPTIX_SAMPLE_USE_CORE_EXR
   )
 
+set_property(TARGET DemandLoading PROPERTY CUDA_ARCHITECTURES "60")
+
 target_include_directories( DemandLoading
   PUBLIC
   include
@@ -216,7 +229,6 @@ target_include_directories( DemandLoading
   )
 
 target_link_libraries( DemandLoading PUBLIC
-  DemandLoadingKernels
   cuda
   OpenEXR::OpenEXR
   OpenEXR::OpenEXRCore

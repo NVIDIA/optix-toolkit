@@ -26,24 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# OpenEXR adds a target compile option (/EHsc) that confuses nvcc,
-# so we build CUDA code into a library that doesn't depend on OpenEXR.
-add_library( TestDemandLoadingKernels STATIC
-  DemandLoaderTestKernels.cu
-  DemandLoaderTestKernels.h
-  PagingSystemTestKernels.cu
-  PagingSystemTestKernels.h
-  TestSparseTexture.cu
-  TestSparseTexture.h
-  )  
-target_include_directories( TestDemandLoadingKernels PUBLIC
-  ../include
-  ../src
-  ${OptiX_INCLUDE}
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  )  
-set_property( TARGET TestDemandLoadingKernels PROPERTY CUDA_ARCHITECTURES "60" )
-
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -54,6 +36,10 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable( testDemandLoading
   main.cpp
+  DemandLoaderTestKernels.cu
+  DemandLoaderTestKernels.h
+  PagingSystemTestKernels.cu
+  PagingSystemTestKernels.h
   TestBulkMemory.cpp
   TestBulkPinnedItemPool.cpp
   TestCheckerBoardImage.cpp
@@ -72,6 +58,8 @@ add_executable( testDemandLoading
   TestPagingSystemKernels.cpp
   TestPinnedItemPool.cpp
   TestSparseTexture.cpp
+  TestSparseTexture.cu
+  TestSparseTexture.h
   TestSparseTextureWrap.cpp
   TestTextureFill.cpp
   TestTextureInstantiation.cpp
@@ -84,6 +72,8 @@ add_executable( testDemandLoading
 
 configure_file( Config.h.in Config.h @ONLY )
 
+set_property( TARGET testDemandLoading PROPERTY CUDA_ARCHITECTURES "60" )
+
 target_include_directories( testDemandLoading PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
   ../src
@@ -91,7 +81,6 @@ target_include_directories( testDemandLoading PUBLIC
 
 target_link_libraries( testDemandLoading
   DemandLoading
-  TestDemandLoadingKernels
   gtest
   )
 

@@ -30,6 +30,7 @@ add_library(OtkCuda
   include/OtkCuda/color.h
   include/OtkCuda/Preprocessor.h
   include/OtkCuda/vec_math.h
+  src/empty.cpp
   )
 
 target_include_directories(OtkCuda PUBLIC

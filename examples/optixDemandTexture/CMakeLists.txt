@@ -32,10 +32,10 @@ set_property( TARGET DemandTexture PROPERTY CUDA_PTX_COMPILATION ON )
 set_property( TARGET DemandTexture PROPERTY CUDA_ARCHITECTURES "60" )
 target_include_directories( DemandTexture PUBLIC
   ${CMAKE_SOURCE_DIR}/DemandLoading/include
+  ${CMAKE_SOURCE_DIR}/OtkCuda/include
   ${OptiX_INCLUDE}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )  
-target_link_libraries( DemandTexture PRIVATE OtkCuda )
 
 # The configuration file records the path to the object library.
 configure_file( Config.h.in Config.h @ONLY )
