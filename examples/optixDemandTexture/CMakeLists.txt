@@ -29,7 +29,6 @@
 #  OptiX kernel is compiled to PTX.
 add_library( DemandTexture OBJECT optixDemandTexture.cu )
 set_property( TARGET DemandTexture PROPERTY CUDA_PTX_COMPILATION ON )
-set_property( TARGET DemandTexture PROPERTY CUDA_ARCHITECTURES "60" )
 target_include_directories( DemandTexture PUBLIC
   ${CMAKE_SOURCE_DIR}/DemandLoading/include
   ${CMAKE_SOURCE_DIR}/OtkCuda/include
@@ -56,4 +55,3 @@ target_link_libraries( optixDemandTexture
   )
 
 add_dependencies( optixDemandTexture DemandTexture )
-set_property( TARGET optixDemandTexture PROPERTY CUDA_ARCHITECTURES "60" )

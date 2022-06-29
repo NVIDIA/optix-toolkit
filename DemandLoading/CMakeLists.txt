@@ -217,8 +217,6 @@ target_compile_definitions( DemandLoading PUBLIC
   OPTIX_SAMPLE_USE_CORE_EXR
   )
 
-set_property(TARGET DemandLoading PROPERTY CUDA_ARCHITECTURES "60")
-
 target_include_directories( DemandLoading
   PUBLIC
   include

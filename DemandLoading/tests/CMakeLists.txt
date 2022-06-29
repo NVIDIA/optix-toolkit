@@ -72,8 +72,6 @@ add_executable( testDemandLoading
 
 configure_file( Config.h.in Config.h @ONLY )
 
-set_property( TARGET testDemandLoading PROPERTY CUDA_ARCHITECTURES "60" )
-
 target_include_directories( testDemandLoading PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
   ../src
@@ -87,7 +85,6 @@ target_link_libraries( testDemandLoading
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 add_library( TextureFootprint OBJECT TestTextureFootprint.cu )
 set_property( TARGET TextureFootprint PROPERTY CUDA_PTX_COMPILATION ON )
-set_property( TARGET TextureFootprint PROPERTY CUDA_ARCHITECTURES "60" )
 target_include_directories( TextureFootprint PUBLIC
   ../include
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}

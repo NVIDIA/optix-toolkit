@@ -62,6 +62,9 @@ if(NOT CMAKE_BUILD_TYPE)
       FORCE)
 endif()
 
+# optixTexFootprint2D is hardware-accelerated in sm60+
+set(CMAKE_CUDA_ARCHITECTURES "60-real")
+
 # Put all the runtime stuff in the same directory.  By default, CMake puts each targets'
 # output into their own directory.  We want all the targets to be put in the same
 # directory, and we can do this by setting these variables.

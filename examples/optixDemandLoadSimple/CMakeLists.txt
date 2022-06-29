@@ -34,5 +34,3 @@ add_executable( optixDemandLoadSimple
 target_link_libraries( optixDemandLoadSimple
   DemandLoading
   )
-
-set_property( TARGET optixDemandLoadSimple PROPERTY CUDA_ARCHITECTURES "60" )
