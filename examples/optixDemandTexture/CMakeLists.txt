@@ -26,18 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#  OptiX kernel is compiled to PTX.
-add_library( DemandTexture OBJECT optixDemandTexture.cu )
-set_property( TARGET DemandTexture PROPERTY CUDA_PTX_COMPILATION ON )
-target_include_directories( DemandTexture PUBLIC
-  ${CMAKE_SOURCE_DIR}/DemandLoading/include
-  ${CMAKE_SOURCE_DIR}/OtkCuda/include
-  ${OptiX_INCLUDE}
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  )  
-
-# The configuration file records the path to the object library.
-configure_file( Config.h.in Config.h @ONLY )
+include(embed_ptx)
+embed_ptx(
+  OUTPUT_TARGET
+    DemandTexture
+  PTX_LINK_LIBRARIES
+    DemandLoading OtkCuda
+  SOURCES
+    optixDemandTexture.cu
+)
 
 add_executable( optixDemandTexture
   optixDemandTexture.cpp
@@ -49,9 +46,9 @@ target_include_directories( optixDemandTexture PUBLIC
   )
 
 target_link_libraries( optixDemandTexture
+  DemandTexture
   DemandLoading
   OtkGui
   OtkUtil
   )
 
-add_dependencies( optixDemandTexture DemandTexture )

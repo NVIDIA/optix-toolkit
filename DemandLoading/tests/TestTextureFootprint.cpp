@@ -50,6 +50,8 @@
 #include <mutex>
 #include <ostream>
 
+extern "C" char TestTextureFootprint_ptx[];  // generated via CMake by embed_ptx.
+
 template <typename T>
 struct SbtRecord
 {
@@ -316,16 +318,6 @@ class TextureFootprintFixture
         std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << "\n";
     }
 
-    static std::vector<char> readInput( const char* libName, const char* fileName )
-    {
-
-        std::string input_path( std::string( TEST_DEMAND_LOADING_BUILD ) + '/' + libName + ".dir/" + fileName );
-        std::ifstream file( input_path, std::ios::binary );
-        EXPECT_FALSE( !file ) << "Couldn't open " << input_path;
-
-        return std::vector<char>( std::istreambuf_iterator<char>( file ), {} );
-    }
-
   public:
     int runTest( const char*                         entryFunction,
                  const std::vector<FootprintInputs>& inputs,
@@ -374,10 +366,8 @@ class TextureFootprintFixture
                 pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
                 pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-                std::vector<char> input = readInput( "TextureFootprint", m_raygenProgram.c_str() );
-
-                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options,
-                                                       input.data(), input.size(), log, &sizeof_log, &module ) );
+                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, TestTextureFootprint_ptx,
+                                                       ::strlen( TestTextureFootprint_ptx ), log, &sizeof_log, &module ) );
             }
 
             //

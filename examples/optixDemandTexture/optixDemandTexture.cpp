@@ -26,8 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Config.h" // configured by CMake from Config.h.in
-
 #include "optixDemandTexture.h"
 
 #include <DemandLoading/DemandLoader.h>
@@ -64,6 +62,8 @@
 
 using namespace demandLoading;
 using namespace imageSource;
+
+extern "C" char optixDemandTexture_ptx[];  // generated via CMake by embed_ptx.
 
 int          g_numThreads       = 0;
 int          g_totalLaunches    = 0;
@@ -267,18 +267,6 @@ void buildAccel( PerDeviceSampleState& state )
 }
 
 
-std::vector<char> readLibraryFile( const char* libname, const char* filename )
-{
-    std::string   input_path( std::string( DEMAND_TEXTURE_BUILD_DIR ) + '/' + libname + ".dir/" + filename );
-    std::ifstream file( input_path, std::ios::binary );
-    if( !file )
-    {
-        std::string msg( "Couldn't open " + input_path );
-        throw otk::Exception( msg.c_str() );
-    }
-    return std::vector<char>( std::istreambuf_iterator<char>( file ), {} );
-}
-
 void createModule( PerDeviceSampleState& state )
 {
     OptixModuleCompileOptions module_compile_options = {};
@@ -294,13 +282,11 @@ void createModule( PerDeviceSampleState& state )
     state.pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
     state.pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-    size_t      inputSize = 0;
-    std::vector<char> input( readLibraryFile( "DemandTexture", "optixDemandTexture.ptx" ) );
     char   log[2048];
     size_t sizeof_log = sizeof( log );
 
-    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options,
-                                               input.data(), input.size(), log, &sizeof_log, &state.ptx_module ) );
+    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options, optixDemandTexture_ptx,
+                                               ::strlen( optixDemandTexture_ptx ), log, &sizeof_log, &state.ptx_module ) );
 }
 
 

@@ -83,13 +83,15 @@ target_link_libraries( testDemandLoading
   )
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-add_library( TextureFootprint OBJECT TestTextureFootprint.cu )
-set_property( TARGET TextureFootprint PROPERTY CUDA_PTX_COMPILATION ON )
-target_include_directories( TextureFootprint PUBLIC
-  ../include
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  ${OptiX_INCLUDE}
-  )
+include(embed_ptx)
+embed_ptx(
+  OUTPUT_TARGET
+    TextureFootprint
+  PTX_LINK_LIBRARIES
+    DemandLoading
+  SOURCES
+    TestTextureFootprint.cu
+)
 
 add_executable( testTextureFootprint
   main.cpp
@@ -103,6 +105,7 @@ target_include_directories( testTextureFootprint PUBLIC
   )
 
 target_link_libraries( testTextureFootprint
+  TextureFootprint
   DemandLoading
   gtest
   )
