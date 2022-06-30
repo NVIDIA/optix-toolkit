@@ -1,7 +1,7 @@
 
-# OptiX Utility Toolkit
+# OptiX Toolkit
 
-The OptiX Utility Toolkit (OTK) is a collection of libraries and utilities that simplify building
+The OptiX Toolkit (OTK) is a collection of libraries and utilities that simplify building
 applications with the [OptiX SDK](https://developer.nvidia.com/designworks/optix/download).  It includes
 the following components:
 
