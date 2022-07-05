@@ -18,7 +18,7 @@ API documentation for the Demand Loading library can be generated via `make docs
 
 See the [optixDemandLoadSimple](../examples/optixDemandLoadSimple/optixDemandLoadSimple.cpp)
 example, which demonstrates how to use the OptiX Demand Loading library.  The first step is to
-create a `DemandLoader` interface, through which subsequent method calls are invoked:
+create a `DemandLoader` object, through which subsequent method calls are invoked:
 ```
 // Create DemandLoader
 DemandLoader* loader = createDemandLoader( Options() );
@@ -38,7 +38,7 @@ DeviceContext context;
 loader->launchPrepare( deviceIndex, stream, context );
 ```
 The `DeviceContext` structure should be passed to the kernel as a launch parameter, which copies it
-device memory.  In the [kernel device code](../examples/optixDemandLoadSimple/PageRequester.cu), the
+to device memory.  In the [kernel device code](../examples/optixDemandLoadSimple/PageRequester.cu), the
 `pagingMapOrRequest()` function can be used to request a page of data.  It returns a pointer to the
 requested data (or a null pointer if it's not resident), along with a boolean result parameter
 indicating whether the requested page is resident.
@@ -47,7 +47,7 @@ bool isResident;
 void* data = pagingMapOrRequest( context, pageId, &isResident );
 ```
 After the kernel has been launched, the `processRequests()` method is used to initiate processing of any pages requested by the
-kernel.  
+kernel.  In normal usage, the same CUDA stream should be used for `launchPrepare()`, the kernel launch, and `processRequests()`.
 ```
 // Initiate request processing, which returns a Ticket.
 Ticket ticket = loader->processRequests( deviceIndex, stream, context );
