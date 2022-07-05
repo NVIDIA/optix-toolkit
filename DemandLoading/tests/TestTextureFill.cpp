@@ -209,7 +209,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
     // Create temporary ring buffer for transfers
     const unsigned int ringBufferSize = 1 << 24; //texInfo.width * texInfo.height * pixelSize;
-    CUdeviceptr ringBuffer;
+    CUdeviceptr ringBuffer = 0L;
     if( !asyncMalloc )
     {
         CHK( cuMemAlloc( &ringBuffer, ringBufferSize) );
