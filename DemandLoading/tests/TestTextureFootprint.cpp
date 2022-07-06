@@ -357,7 +357,7 @@ class TextureFootprintFixture
                 OptixModuleCompileOptions module_compile_options = {};
                 module_compile_options.maxRegisterCount          = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
                 module_compile_options.optLevel                  = OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-                module_compile_options.debugLevel                = OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
+                module_compile_options.debugLevel                = OPTIX_COMPILE_DEBUG_LEVEL_DEFAULT;
 
                 pipeline_compile_options.usesMotionBlur        = false;
                 pipeline_compile_options.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
