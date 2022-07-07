@@ -68,6 +68,8 @@ foreach(_package OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
   endforeach()
 endforeach()
 
+find_package( CUDAToolkit 10.0 REQUIRED )
+
 add_library( DemandLoading STATIC
   include/DemandLoading/DemandLoader.h
   include/DemandLoading/DemandTexture.h
@@ -220,16 +222,15 @@ target_compile_definitions( DemandLoading PUBLIC
 target_include_directories( DemandLoading
   PUBLIC
   include
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   PRIVATE
   src
   )
 
 target_link_libraries( DemandLoading PUBLIC
-  cuda
   OpenEXR::OpenEXR
   OpenEXR::OpenEXRCore
   OptiX::OptiX
+  CUDA::cuda_driver
   )
 
 # NVTX Profiling
