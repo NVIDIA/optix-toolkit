@@ -25,10 +25,7 @@ endif()
 # set environment
 #------------------------------------------------------------------------------
 
-set(CMAKE_MODULE_PATH
-    "${CMAKE_SOURCE_DIR}/CMake"
-    ${CMAKE_MODULE_PATH}
-    )
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 find_package( OptiX REQUIRED     )
 find_package( CUDAToolkit 10.0 REQUIRED )

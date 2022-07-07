@@ -44,6 +44,8 @@ if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
+set(CMAKE_BUILD_TYPE_INIT RelWithDebInfo)
+
 #########################################################
 # Set the project name (i.e. the VS solution file).
 project(OptiX-Toolkit LANGUAGES C CXX CUDA)
@@ -53,14 +55,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 #########################################################
 # Build configuration
-
-# Set the default build to RelWithDebInfo.  Note this doesn't do anything for
-# the VS default build target which defaults to Debug when you first start it.
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
-      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
-      FORCE)
-endif()
 
 # optixTexFootprint2D is hardware-accelerated in sm60+
 set(CMAKE_CUDA_ARCHITECTURES "60-virtual")
@@ -80,7 +74,7 @@ endif()
 # CMake modules
 
 # Add our CMake code to the module path.
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
