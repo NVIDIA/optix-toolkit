@@ -25,26 +25,23 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
-add_library(OtkGui
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
-  src/Camera.cpp
-  src/GLDisplay.cpp
-  src/Window.cpp
-  )
+#########################################################
+# Build configuration
 
-target_include_directories(OtkGui PUBLIC
-  include
-  )
+# Set the default build type to RelWithDebInfo.
+set(CMAKE_BUILD_TYPE_INIT RelWithDebInfo)
 
-target_link_libraries(OtkGui PUBLIC
-  glfw
-  glad
-  OtkCuda
-  OtkUtil
-  )
+# optixTexFootprint2D is hardware-accelerated in sm60+
+set(CMAKE_CUDA_ARCHITECTURES "60-virtual")
+
+# Put all the runtime stuff in the same directory.  By default, CMake puts each targets'
+# output into their own directory.  We want all the targets to be put in the same
+# directory, and we can do this by setting these variables.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
+if(MSVC)
+  add_definitions(-DNOMINMAX)
+endif()

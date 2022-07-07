@@ -26,47 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(FetchContent)
-
-FetchContent_Declare(
-  Imath
-  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
-  GIT_TAG v3.1.5
-)
-FetchContent_MakeAvailable(Imath)
-
-set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
-set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
-
-FetchContent_Declare(
-  OpenEXR
-  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
-  GIT_TAG v3.1.5
-)
-FetchContent_MakeAvailable(OpenEXR)
-
-# Multiple OpenEXR targets have a compile option (/EHsc) that confuses nvcc.
-# We replace it with $<$<COMPILE_LANGUAGE:CXX>:/EHsc>.
-foreach(_package OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
-  get_target_property(_dependencies ${_package} INTERFACE_LINK_LIBRARIES)
-  foreach(_lib ${_package} ${_dependencies})
-    if(TARGET ${_lib})
-      get_target_property(_alias ${_lib} ALIASED_TARGET)
-      if(NOT _alias)
-        set(_alias ${_lib})
-      endif()
-      get_target_property(_options ${_alias} INTERFACE_COMPILE_OPTIONS)
-      if(_options)
-        set(cxx_flag "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>")
-        string(FIND ${_options} ${cxx_flag} has_cxx_flag)
-        if(${has_cxx_flag} EQUAL -1)
-          string(REPLACE "/EHsc" ${cxx_flag} _options "${_options}")
-          set_target_properties(${_alias} PROPERTIES INTERFACE_COMPILE_OPTIONS "${_options}")
-        endif()
-      endif()
-    endif()
-  endforeach()
-endforeach()
+include(${PROJECT_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 10.0 REQUIRED )
 

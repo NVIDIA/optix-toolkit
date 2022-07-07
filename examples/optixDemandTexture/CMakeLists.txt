@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(embed_ptx)
+include(${PROJECT_SOURCE_DIR}/CMake/embed_ptx.cmake)
 embed_ptx(
   OUTPUT_TARGET
     DemandTexture

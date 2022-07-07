@@ -25,26 +25,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
-add_library(OtkGui
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
-  src/Camera.cpp
-  src/GLDisplay.cpp
-  src/Window.cpp
-  )
+set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
+set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" )
+set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )
 
-target_include_directories(OtkGui PUBLIC
-  include
-  )
-
-target_link_libraries(OtkGui PUBLIC
+include(FetchContent)
+FetchContent_Declare(
   glfw
-  glad
-  OtkCuda
-  OtkUtil
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG 3.3.7
   )
+FetchContent_MakeAvailable(glfw)

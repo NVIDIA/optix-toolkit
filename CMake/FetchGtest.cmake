@@ -25,26 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
-add_library(OtkGui
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
-  src/Camera.cpp
-  src/GLDisplay.cpp
-  src/Window.cpp
-  )
-
-target_include_directories(OtkGui PUBLIC
-  include
-  )
-
-target_link_libraries(OtkGui PUBLIC
-  glfw
-  glad
-  OtkCuda
-  OtkUtil
-  )
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG release-1.11.0
+)
+FetchContent_MakeAvailable(googletest)

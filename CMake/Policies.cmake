@@ -25,26 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
-add_library(OtkGui
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
-  src/Camera.cpp
-  src/GLDisplay.cpp
-  src/Window.cpp
-  )
+if(POLICY CMP0048)
+  # The project() command manages VERSION variables.
+  cmake_policy(SET CMP0048 NEW)
+endif()
 
-target_include_directories(OtkGui PUBLIC
-  include
-  )
-
-target_link_libraries(OtkGui PUBLIC
-  glfw
-  glad
-  OtkCuda
-  OtkUtil
-  )
+if(POLICY CMP0074)
+  # find_package uses <PackageName>_ROOT variables.
+  cmake_policy(SET CMP0074 NEW)
+endif()

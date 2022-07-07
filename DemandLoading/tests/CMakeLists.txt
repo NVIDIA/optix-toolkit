@@ -26,13 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG release-1.11.0
-)
-FetchContent_MakeAvailable(googletest)
+include( ${PROJECT_SOURCE_DIR}/CMake/FetchGtest.cmake )
 
 add_executable( testDemandLoading
   main.cpp

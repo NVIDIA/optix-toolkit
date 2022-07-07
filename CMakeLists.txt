@@ -32,19 +32,10 @@
 # If you have any questions, we encourage you to post on the OptiX forums:
 # https://devtalk.nvidia.com/default/board/90/
 
-#########################################################
-# CMake policies
-
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA
-# language support.
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
-
-if(POLICY CMP0074)
-  # find_package uses <PackageName>_ROOT variables.
-  cmake_policy(SET CMP0074 NEW)
-endif()
-
-set(CMAKE_BUILD_TYPE_INIT RelWithDebInfo)
+include(CMake/Policies.cmake)
+include(CMake/BuildConfig.cmake)
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
@@ -52,23 +43,6 @@ project(OptiX-Toolkit LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-#########################################################
-# Build configuration
-
-# optixTexFootprint2D is hardware-accelerated in sm60+
-set(CMAKE_CUDA_ARCHITECTURES "60-virtual")
-
-# Put all the runtime stuff in the same directory.  By default, CMake puts each targets'
-# output into their own directory.  We want all the targets to be put in the same
-# directory, and we can do this by setting these variables.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
-if(MSVC)
-  add_definitions(-DNOMINMAX)
-endif()
 
 #########################################################
 # CMake modules

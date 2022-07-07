@@ -26,6 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
+
 configure_file( src/OtkConfig.h.in OtkConfig.h @ONLY )
 
 add_library(OtkUtil
