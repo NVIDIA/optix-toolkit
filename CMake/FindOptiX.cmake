@@ -40,7 +40,7 @@ find_package_handle_standard_args(OptiX
   REQUIRED_VARS
     OptiX_ROOT_DIR
   REASON_FAILURE_MESSAGE
-    "OptiX installation not found on CMAKE_PREFIX_PATH (include/optix.h)"
+    "OptiX installation not found. Please use CMAKE_PREFIX_PATH or OptiX_INSTALL_DIR to locate 'include/optix.h'."
 )
 
 set(OptiX_INCLUDE_DIR ${OptiX_ROOT_DIR}/include)
