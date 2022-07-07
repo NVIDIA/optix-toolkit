@@ -37,10 +37,10 @@ add_library(OtkUtil
 target_include_directories(OtkUtil PUBLIC
   include
   ${CMAKE_CURRENT_BINARY_DIR}  # for OtkConfig.h
-  ${OptiX_INCLUDE}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
 target_link_libraries(OtkUtil PUBLIC
   glad
+  OptiX::OptiX
   )

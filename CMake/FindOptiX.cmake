@@ -26,53 +26,36 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+if (TARGET OptiX::OptiX)
+  return()
+endif()
+
+macro(OptiX_config_message)
+  if (NOT DEFINED OptiX_FIND_QUIETLY)
+    message(${ARGN})
+  endif()
+endmacro()
+
 # Locate the OptiX distribution.  Search relative to the SDK first, then look in the system.
 
-# Our initial guess will be within the SDK.
-set(OptiX_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../" CACHE PATH "Path to OptiX installed location.")
+find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR})
 
-# The distribution contains only 64 bit libraries.  Error when we have been mis-configured.
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  if(WIN32)
-    message(SEND_ERROR "Make sure when selecting the generator, you select one with Win64 or x64.")
-  endif()
-  message(FATAL_ERROR "OptiX only supports builds configured for 64 bits.")
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(OptiX
+  FOUND_VAR OptiX_FOUND
+  REQUIRED_VARS
+    OptiX_ROOT_DIR
+  REASON_FAILURE_MESSAGE
+    "OptiX installation not found on CMAKE_PREFIX_PATH (include/optix.h)"
+)
+
+if (NOT OptiX_FOUND)
+  set(OptiX_NOT_FOUND_MESSAGE "Unable to find OptiX, please add your OptiX installation to CMAKE_PREFIX_PATH")
+  return()
 endif()
 
-# search path based on the bit-ness of the build.  (i.e. 64: bin64, lib64; 32:
-# bin, lib).  Note that on Mac, the OptiX library is a universal binary, so we
-# only need to look in lib and not lib64 for 64 bit builds.
-if(NOT APPLE)
-  set(bit_dest "64")
-else()
-  set(bit_dest "")
-endif()
+set(OptiX_INCLUDE_DIR ${OptiX_ROOT_DIR}/include)
 
-# Include
-find_path(OptiX_INCLUDE
-  NAMES optix.h
-  PATHS "${OptiX_INSTALL_DIR}/include"
-  NO_DEFAULT_PATH
-  )
-find_path(OptiX_INCLUDE
-  NAMES optix.h
-  )
-
-# Check to make sure we found what we were looking for
-function(OptiX_report_error error_message required component )
-  if(DEFINED OptiX_FIND_REQUIRED_${component} AND NOT OptiX_FIND_REQUIRED_${component})
-    set(required FALSE)
-  endif()
-  if(OptiX_FIND_REQUIRED AND required)
-    message(FATAL_ERROR "${error_message}  Please locate before proceeding.")
-  else()
-    if(NOT OptiX_FIND_QUIETLY)
-      message(STATUS "${error_message}")
-    endif(NOT OptiX_FIND_QUIETLY)
-  endif()
-endfunction()
-
-if(NOT OptiX_INCLUDE)
-  OptiX_report_error("OptiX headers (optix.h and friends) not found." TRUE headers )
-endif()
+add_library(OptiX::OptiX INTERFACE IMPORTED)
+target_include_directories(OptiX::OptiX INTERFACE ${OptiX_INCLUDE_DIR})
 

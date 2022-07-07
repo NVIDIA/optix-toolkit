@@ -212,7 +212,7 @@ source_group( "Header Files\\Implementation" FILES
   src/Util/TraceFile.h
   )
 
-target_compile_definitions( DemandLoading PUBLIC 
+target_compile_definitions( DemandLoading PUBLIC
   OPTIX_SAMPLE_USE_OPEN_EXR
   OPTIX_SAMPLE_USE_CORE_EXR
   )
@@ -221,7 +221,6 @@ target_include_directories( DemandLoading
   PUBLIC
   include
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  ${OptiX_INCLUDE}
   PRIVATE
   src
   )
@@ -230,6 +229,7 @@ target_link_libraries( DemandLoading PUBLIC
   cuda
   OpenEXR::OpenEXR
   OpenEXR::OpenEXRCore
+  OptiX::OptiX
   )
 
 # NVTX Profiling
