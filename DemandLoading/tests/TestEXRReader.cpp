@@ -26,13 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Config.h" // configured by CMake from Config.h.in
-
 #include <ImageSource/EXRReader.h>
 
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
 #include <ImageSource/CoreEXRReader.h>
 #endif
+
+#include <OtkUtil/Files.h>
 
 #include <gtest/gtest.h>
 
@@ -81,11 +81,6 @@ static float3 getTexel( unsigned int x, unsigned int y, const std::vector<float4
 {
     float4 c = texels[y * width + x];
     return make_float3( c.x, c.y, c.z );
-}
-
-static std::string getDataFilePath( const std::string& name )
-{
-    return std::string( TEST_IMAGE_SOURCE_DATA ) + '/' + name;
 }
 
 // float3 output operators for more readable EXCEPT failures.
@@ -143,7 +138,7 @@ struct TestCoreEXRReader : public testing::Test
 template <class ReaderType>
 void runReadInfo()
 {
-    ReaderType  floatReader( getDataFilePath( "TiledMipMappedFloat.exr" ).c_str() );
+    ReaderType  floatReader( otk::getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -159,7 +154,7 @@ INSTANTIATE_READER_TESTS( ReadInfo );
 template <class ReaderType>
 void runReadInfoScanline()
 {
-    ReaderType  floatReader(getDataFilePath("ScanlineFineFloat.exr").c_str());
+    ReaderType  floatReader( otk::getRuntimeFilePath( "Textures", "ScanlineFineFloat.exr" ) );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW(floatReader.open(&floatInfo));
 
@@ -175,7 +170,7 @@ INSTANTIATE_READER_TESTS(ReadInfoScanline);
 template <class ReaderType>
 void runReadFineTileFloat()
 {
-    ReaderType  floatReader( getDataFilePath( "TiledMipMappedFloat.exr" ).c_str() );
+    ReaderType  floatReader( otk::getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -201,7 +196,7 @@ INSTANTIATE_READER_TESTS( ReadFineTileFloat );
 template <class ReaderType>
 void runReadFineScanlineFloat()
 {
-    ReaderType  floatReader( getDataFilePath( "ScanlineFineFloat.exr" ).c_str() );
+    ReaderType  floatReader( otk::getRuntimeFilePath( "Textures", "ScanlineFineFloat.exr" ) );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -227,7 +222,7 @@ INSTANTIATE_READER_TESTS( ReadFineScanlineFloat );
 template <class ReaderType>
 void runReadCoarseTileFloat()
 {
-    ReaderType floatReader( getDataFilePath( "TiledMipMappedFloat.exr" ).c_str() );
+    ReaderType    floatReader( otk::getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
     TextureInfo   floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -251,7 +246,7 @@ void runReadCoarseTileFloat()
 template <class ReaderType>
 void runReadCoarseScanlineFloat()
 {
-    ReaderType floatReader( getDataFilePath( "ScanlineCoarseFloat.exr" ).c_str() );
+    ReaderType    floatReader( otk::getRuntimeFilePath( "Textures", "ScanlineCoarseFloat.exr" ) );
     TextureInfo   floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -278,7 +273,7 @@ INSTANTIATE_READER_TESTS( ReadCoarseScanlineFloat );
 template <typename ReaderType>
 void runReadLargeTile()
 {
-    ReaderType  floatReader( getDataFilePath( "TiledMipMappedFloat.exr" ).c_str() );
+    ReaderType  floatReader( otk::getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -310,7 +305,7 @@ INSTANTIATE_READER_TESTS( ReadLargeTile );
 template <typename ReaderType>
 void runReadCoarseTileHalf()
 {
-    ReaderType  halfReader( getDataFilePath( "TiledMipMappedHalf.exr" ).c_str() );
+    ReaderType  halfReader( otk::getRuntimeFilePath( "Textures", "TiledMipMappedHalf.exr" ) );
     TextureInfo halfInfo = {};
     ASSERT_NO_THROW( halfReader.open( &halfInfo ) );
 
@@ -339,7 +334,7 @@ INSTANTIATE_READER_TESTS( ReadCoarseTileHalf );
 template <class ReaderType>
 void runReadCoarseScanlineHalf()
 {
-    ReaderType halfReader( getDataFilePath( "ScanlineCoarseHalf.exr" ).c_str() );
+    ReaderType    halfReader( otk::getRuntimeFilePath( "Textures", "ScanlineCoarseHalf.exr" ) );
     TextureInfo   halfInfo = {};
     ASSERT_NO_THROW( halfReader.open( &halfInfo) );
 
@@ -369,11 +364,11 @@ INSTANTIATE_READER_TESTS( ReadCoarseScanlineHalf );
 template <typename ReaderType>
 void runReadPartialTileNonSquare()
 {
-    ReaderType  halfReader( getDataFilePath( "TiledMipMappedHalf.exr" ).c_str() );
+    ReaderType  halfReader( otk::getRuntimeFilePath( "Textures", "TiledMipMappedHalf.exr" ) );
     TextureInfo halfInfo = {};
     ASSERT_NO_THROW( halfReader.open( &halfInfo ) );
 
-    ReaderType  nonSquareReader( getDataFilePath( "TiledMipMapped124x72.exr" ).c_str() );
+    ReaderType  nonSquareReader( otk::getRuntimeFilePath( "Textures", "TiledMipMapped124x72.exr" ) );
     TextureInfo nonSquareInfo = {};
     ASSERT_NO_THROW( nonSquareReader.open( &nonSquareInfo ) );
 

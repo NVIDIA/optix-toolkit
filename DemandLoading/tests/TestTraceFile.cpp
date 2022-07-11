@@ -26,8 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Config.h" // configured by CMake from Config.h.in
-
 #include "Util/TraceFile.h"
 
 #include <DemandLoading/DemandLoader.h>
@@ -37,6 +35,8 @@
 #ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 #include <ImageSource/EXRReader.h>
 #endif
+
+#include <OtkUtil/Files.h>
 
 #include <gtest/gtest.h>
 
@@ -52,7 +52,7 @@ class TestTraceFile : public testing::Test
 #ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 TEST_F( TestTraceFile, TestWriteAndRead )
 {
-    std::string textureFilename( std::string( TEST_DEMAND_LOADING_DATA ) + "/TiledMipMapped.exr" );
+    std::string textureFilename( otk::getRuntimeFilePath( "Textures", "/TiledMipMapped.exr" ) );
     const char* traceFilename = "DemandLoadingTrace.dat";
     {
         TraceFileWriter writer( traceFilename );

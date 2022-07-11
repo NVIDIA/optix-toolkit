@@ -534,7 +534,7 @@ int main( int argc, char* argv[] )
 
     // Image credit: CC0Textures.com (https://cc0textures.com/view.php?tex=Bricks12)
     // Licensed under the Creative Commons CC0 License.
-    std::string textureFile = "examples/optixDemandTexture/Textures/Bricks12_col.exr";  // use --texture "" for procedural texture
+    std::string textureFile = "Bricks12_col.exr";  // use --texture "" for procedural texture
 
     for( int i = 1; i < argc; ++i )
     {
@@ -615,7 +615,7 @@ int main( int argc, char* argv[] )
 #ifdef OPTIX_SAMPLE_USE_OPEN_EXR
         if( !textureFile.empty() && textureFile != "checkerboard" )
         {
-            std::string textureFilename( otk::getSourceFilePath( ".", textureFile.c_str() ) );
+            std::string textureFilename( otk::getRuntimeFilePath( "Textures", textureFile.c_str() ) );
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
             imageSource = g_useCoreExr
                 ? std::unique_ptr<ImageSource>( new CoreEXRReader( textureFilename.c_str() ) )

@@ -62,14 +62,14 @@ static std::string existingFilePath( const char* directory, const char* relative
     return fileExists( path ) ? path : "";
 }
 
-const char* getSourceFilePath( const char* relativeSubDir, const char* relativePath )
+const char* getRuntimeFilePath( const char* relativeSubDir, const char* relativePath )
 {
     static std::string s;
 
     // Allow for overrides.
     static const char* directories[] =
     {
-        OTK_SOURCE_DIR,
+        OTK_RUNTIME_DIR,
         "."
     };
     for( const char* directory : directories )
@@ -83,7 +83,7 @@ const char* getSourceFilePath( const char* relativeSubDir, const char* relativeP
             }
         }
     }
-    throw Exception( ( std::string{ "otk::sampleDataFilePath couldn't locate " } +relativePath ).c_str() );
+    throw Exception( ( std::string{"otk::getRuntimeFilePath couldn't locate "} + relativePath ).c_str() );
 }
 
 } // namespace otk

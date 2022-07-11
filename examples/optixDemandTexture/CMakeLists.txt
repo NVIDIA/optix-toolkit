@@ -27,6 +27,7 @@
 #
 
 include(${PROJECT_SOURCE_DIR}/CMake/embed_ptx.cmake)
+
 embed_ptx(
   OUTPUT_TARGET
     DemandTexture
@@ -52,3 +53,4 @@ target_link_libraries( optixDemandTexture
   OtkUtil
   )
 
+file( INSTALL Textures DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )

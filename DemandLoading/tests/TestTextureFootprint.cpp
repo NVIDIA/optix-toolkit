@@ -26,8 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Config.h" // configured by CMake from Config.h.in
-
 #include "Util/Exception.h"
 
 #include <DemandLoading/Texture2D.h>

@@ -64,8 +64,6 @@ add_executable( testDemandLoading
   TestTraceFile.cpp
   )  
 
-configure_file( Config.h.in Config.h @ONLY )
-
 target_include_directories( testDemandLoading PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
   ../src
@@ -73,6 +71,7 @@ target_include_directories( testDemandLoading PUBLIC
 
 target_link_libraries( testDemandLoading
   DemandLoading
+  OtkUtil
   gtest
   )
 
@@ -105,3 +104,5 @@ target_link_libraries( testTextureFootprint
   )
 
 add_dependencies( testTextureFootprint TextureFootprint )
+
+file( INSTALL Textures DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
