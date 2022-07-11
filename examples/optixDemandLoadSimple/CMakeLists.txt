@@ -32,5 +32,7 @@ add_executable( optixDemandLoadSimple
   )
 
 target_link_libraries( optixDemandLoadSimple
-  DemandLoading
+  OptiXToolkit::DemandLoading
   )
+
+install( TARGETS optixDemandLoadSimple RUNTIME )

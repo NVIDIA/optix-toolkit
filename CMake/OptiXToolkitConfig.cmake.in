@@ -26,50 +26,26 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
+# Compute installation prefix relative to this file.
+get_filename_component(_dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(_prefix "${_dir}/../.." ABSOLUTE)
 
-add_library(OtkUtil
-  src/Files.cpp
-  )
+# Find dependencies.
+include(CMakeFindDependencyMacro)
+find_dependency(glad)
+find_dependency(glfw3)
+find_dependency(OpenEXR)
+find_dependency(CUDAToolkit 11.1)
 
-add_library(OptiXToolkit::OtkUtil ALIAS OtkUtil)
+set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+list(APPEND CMAKE_MODULE_PATH ${_dir})
+find_package(OptiX REQUIRED)
 
-target_sources(OtkUtil 
-  PUBLIC 
-  FILE_SET HEADERS 
-  BASE_DIRS include
-  FILES
-  include/OtkUtil/Exception.h
-  include/OtkUtil/Files.h
-)
+# Import the targets.
+include("${_prefix}/lib/OptiXToolkit-@PROJECT_VERSION@/OtkCudaTargets.cmake")
+include("${_prefix}/lib/OptiXToolkit-@PROJECT_VERSION@/OtkUtilTargets.cmake")
+include("${_prefix}/lib/OptiXToolkit-@PROJECT_VERSION@/OtkGuiTargets.cmake")
+include("${_prefix}/lib/OptiXToolkit-@PROJECT_VERSION@/DemandLoadingTargets.cmake")
 
-target_include_directories(OtkUtil PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>  # for OtkConfig.h
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  ${OptiX_INCLUDE_DIR}
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  )
-
-target_link_libraries(OtkUtil PRIVATE
-  glad
-  OptiX::OptiX
-  )
-
-install(TARGETS OtkUtil
-  EXPORT OtkUtilTargets
-  ARCHIVE DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
-  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
-  )
-
-install(EXPORT OtkUtilTargets
-  FILE OtkUtilTargets.cmake
-  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
-  NAMESPACE OptiXToolkit::
-  )
-
-configure_file( src/OtkConfig.h.in OtkConfig.h @ONLY )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/OtkConfig.h 
-  DESTINATION include/OptiXToolkit-${PROJECT_VERSION}/OtkUtil
-  )
+# Report other information.
+set(OptiXToolkit_INCLUDE_DIRS "${_prefix}/include/OptiXToolkit-@PROJECT_VERSION@")

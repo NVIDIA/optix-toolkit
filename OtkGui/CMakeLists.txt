@@ -29,17 +29,27 @@ include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
 include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
 add_library(OtkGui
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
   src/Camera.cpp
   src/GLDisplay.cpp
   src/Window.cpp
   )
 
+add_library(OptiXToolkit::OtkGui ALIAS OtkGui)
+
+target_sources(OtkGui 
+  PUBLIC 
+  FILE_SET HEADERS 
+  BASE_DIRS include
+  FILES
+  include/OtkGui/CUDAOutputBuffer.h
+  include/OtkGui/Camera.h
+  include/OtkGui/GLDisplay.h
+  include/OtkGui/Window.h
+)
+
 target_include_directories(OtkGui PUBLIC
-  include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
 target_link_libraries(OtkGui PUBLIC
@@ -47,4 +57,16 @@ target_link_libraries(OtkGui PUBLIC
   glad
   OtkCuda
   OtkUtil
+  )
+
+install(TARGETS OtkGui
+  EXPORT OtkGuiTargets
+  ARCHIVE DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
+  )
+
+install(EXPORT OtkGuiTargets
+  FILE OtkGuiTargets.cmake
+  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  NAMESPACE OptiXToolkit::
   )

@@ -28,32 +28,9 @@
 
 include(${PROJECT_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
 
-find_package( CUDAToolkit 10.0 REQUIRED )
+find_package( CUDAToolkit 11.1 REQUIRED )
 
 add_library( DemandLoading STATIC
-  include/DemandLoading/DemandLoader.h
-  include/DemandLoading/DemandTexture.h
-  include/DemandLoading/DeviceContext.h
-  include/DemandLoading/Options.h
-  include/DemandLoading/Resource.h
-  include/DemandLoading/Statistics.h
-  include/DemandLoading/Texture2D.h
-  include/DemandLoading/Texture2DExtended.h
-  include/DemandLoading/Texture2DFootprint.h
-  include/DemandLoading/TextureDescriptor.h
-  include/DemandLoading/TextureSampler.h
-  include/DemandLoading/Ticket.h
-  include/DemandLoading/TileIndexing.h
-  include/ImageSource/CheckerBoardImage.h
-  include/ImageSource/CoreEXRReader.h
-  include/ImageSource/DeviceConstantImage.h
-  include/ImageSource/DeviceConstantImageParams.h
-  include/ImageSource/DeviceMandelbrotImage.h
-  include/ImageSource/DeviceMandelbrotParams.h
-  include/ImageSource/EXRReader.h
-  include/ImageSource/ImageSource.h
-  include/ImageSource/MultiCheckerImage.h
-  include/ImageSource/TextureInfo.h
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.cpp
@@ -127,6 +104,38 @@ add_library( DemandLoading STATIC
   src/Util/TraceFile.h
   )
 
+add_library(OptiXToolkit::DemandLoading ALIAS DemandLoading)
+
+target_sources(DemandLoading
+  PUBLIC 
+  FILE_SET HEADERS 
+  BASE_DIRS include
+  FILES
+  include/DemandLoading/DemandLoader.h
+  include/DemandLoading/DemandTexture.h
+  include/DemandLoading/DeviceContext.h
+  include/DemandLoading/Options.h
+  include/DemandLoading/Resource.h
+  include/DemandLoading/Statistics.h
+  include/DemandLoading/Texture2D.h
+  include/DemandLoading/Texture2DExtended.h
+  include/DemandLoading/Texture2DFootprint.h
+  include/DemandLoading/TextureDescriptor.h
+  include/DemandLoading/TextureSampler.h
+  include/DemandLoading/Ticket.h
+  include/DemandLoading/TileIndexing.h
+  include/ImageSource/CheckerBoardImage.h
+  include/ImageSource/CoreEXRReader.h
+  include/ImageSource/DeviceConstantImage.h
+  include/ImageSource/DeviceConstantImageParams.h
+  include/ImageSource/DeviceMandelbrotImage.h
+  include/ImageSource/DeviceMandelbrotParams.h
+  include/ImageSource/EXRReader.h
+  include/ImageSource/ImageSource.h
+  include/ImageSource/MultiCheckerImage.h
+  include/ImageSource/TextureInfo.h
+)
+
 source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.h
@@ -181,7 +190,10 @@ target_compile_definitions( DemandLoading PUBLIC
 
 target_include_directories( DemandLoading
   PUBLIC
-  include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  ${OptiX_INCLUDE_DIR}
   PRIVATE
   src
   )
@@ -205,5 +217,17 @@ if( DEMAND_LOADING_USE_NVTX )
         message( "-- Not Found NVTX: Disabling NVTX profiling in the DemandLoading library" )
     endif()
 endif()
+
+install(TARGETS DemandLoading
+  EXPORT DemandLoadingTargets
+  ARCHIVE DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
+  )
+
+install(EXPORT DemandLoadingTargets
+  FILE DemandLoadingTargets.cmake
+  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  NAMESPACE OptiXToolkit::
+  )
 
 add_subdirectory( tests )

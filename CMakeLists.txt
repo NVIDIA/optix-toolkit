@@ -39,7 +39,7 @@ include(CMake/BuildConfig.cmake)
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
-project(OptiX-Toolkit LANGUAGES C CXX CUDA)
+project(OptiXToolkit LANGUAGES C CXX CUDA VERSION 1.0)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -55,10 +55,26 @@ set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX ins
 find_package(OptiX REQUIRED)
 
 #########################################################
+# Create and install package configuration and version files.
+
+configure_file(
+  ${OptiXToolkit_SOURCE_DIR}/CMake/OptiXToolkitConfig.cmake.in
+  ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake @ONLY)
+
+configure_file(
+  ${OptiXToolkit_SOURCE_DIR}/CMake/OptiXToolkitConfigVersion.cmake.in
+  ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfigVersion.cmake @ONLY)
+
+install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
+  ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfigVersion.cmake
+  CMake/FindOptiX.cmake
+  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION})
+
+#########################################################
 # Subdirectories
 
 add_subdirectory(OtkCuda)
-add_subdirectory(OtkGui)
 add_subdirectory(OtkUtil)
+add_subdirectory(OtkGui)
 add_subdirectory(DemandLoading)
 add_subdirectory(examples)

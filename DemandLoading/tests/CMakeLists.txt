@@ -76,7 +76,7 @@ target_link_libraries( testDemandLoading
   )
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(embed_ptx)
+include(${PROJECT_SOURCE_DIR}/CMake/embed_ptx.cmake)
 embed_ptx(
   OUTPUT_TARGET
     TextureFootprint

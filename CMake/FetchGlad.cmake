@@ -27,6 +27,9 @@
 #
 
 include(FetchContent)
+
+set( GLAD_INSTALL ON CACHE BOOL "Generate glad installation target" )
+
 FetchContent_Declare(
   glad
   GIT_REPOSITORY https://github.com/Dav1dde/glad

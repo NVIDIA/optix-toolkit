@@ -26,12 +26,31 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(OtkCuda INTERFACE
+add_library(OtkCuda INTERFACE)
+add_library(OptiXToolkit::OtkCuda ALIAS OtkCuda)
+
+target_sources(OtkCuda
+  PUBLIC 
+  FILE_SET HEADERS 
+  BASE_DIRS include
+  FILES
   include/OtkCuda/color.h
   include/OtkCuda/Preprocessor.h
   include/OtkCuda/vec_math.h
   )
 
 target_include_directories(OtkCuda INTERFACE
-  include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+
+install(TARGETS OtkCuda
+  EXPORT OtkCudaTargets
+  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
+  )
+
+install(EXPORT OtkCudaTargets
+  FILE OtkCudaTargets.cmake
+  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  NAMESPACE OptiXToolkit::
   )

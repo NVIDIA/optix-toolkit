@@ -42,15 +42,14 @@ add_executable( optixDemandTexture
   optixDemandTexture.h
   )
 
-target_include_directories( optixDemandTexture PUBLIC
-  ${CMAKE_CURRENT_BINARY_DIR}  # for Config.h
-  )
-
 target_link_libraries( optixDemandTexture
   DemandTexture
-  DemandLoading
-  OtkGui
-  OtkUtil
+  OptiXToolkit::DemandLoading
+  OptiXToolkit::OtkGui
+  OptiXToolkit::OtkUtil
   )
 
 file( INSTALL Textures DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
+
+install( TARGETS optixDemandTexture RUNTIME )
+install( DIRECTORY Textures TYPE BIN )
