@@ -26,17 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(OtkCuda
+add_library(OtkCuda INTERFACE
   include/OtkCuda/color.h
   include/OtkCuda/Preprocessor.h
   include/OtkCuda/vec_math.h
-  src/empty.cpp
   )
 
-target_include_directories(OtkCuda PUBLIC
+target_include_directories(OtkCuda INTERFACE
   include
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
-
-# Silence CMake error "Cannot determine link language" (it's currently a header-only library).
-set_target_properties(OtkCuda PROPERTIES LINKER_LANGUAGE CXX)

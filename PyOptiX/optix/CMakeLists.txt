@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.17)
 project(optix)
 
 #------------------------------------------------------------------------------
@@ -22,21 +22,13 @@ if(NOT pybind11_POPULATED)
 endif()
 
 #------------------------------------------------------------------------------
-# set environment 
+# set environment
 #------------------------------------------------------------------------------
 
-set(CMAKE_MODULE_PATH
-    "${CMAKE_SOURCE_DIR}/CMake"
-    ${CMAKE_MODULE_PATH}
-    )
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 find_package( OptiX REQUIRED     )
-find_package( CUDA 10.0 REQUIRED )
-
-include_directories(
-    "${OptiX_INCLUDE}"
-    "${CUDA_INCLUDE_DIRS}"
-    )
+find_package( CUDAToolkit 10.0 REQUIRED )
 
 configure_file("${CMAKE_SOURCE_DIR}/path_util.py.in" "${CMAKE_SOURCE_DIR}/../examples/path_util.py")
 
@@ -48,15 +40,16 @@ configure_file("${CMAKE_SOURCE_DIR}/path_util.py.in" "${CMAKE_SOURCE_DIR}/../exa
 pybind11_add_module(optix main.cpp)
 
 target_link_libraries( optix PRIVATE
-	"${CUDA_LIBRARIES}"
+  OptiX::OptiX
+  CUDA::cuda_driver
 	)
-target_compile_features( optix PRIVATE 
+target_compile_features( optix PRIVATE
     cxx_std_17
     )
 add_custom_command(
     TARGET optix POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${OptiX_INCLUDE}
+    ${OptiX_INCLUDE_DIR}
     $<TARGET_FILE_DIR:optix>/include
     )
 
