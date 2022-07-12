@@ -35,7 +35,6 @@
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 include(CMake/Policies.cmake)
-include(CMake/BuildConfig.cmake)
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
@@ -43,6 +42,8 @@ project(OptiXToolkit LANGUAGES C CXX CUDA VERSION 1.0)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+include(CMake/BuildConfig.cmake)
 
 #########################################################
 # CMake modules
