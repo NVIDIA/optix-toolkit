@@ -33,9 +33,7 @@
 #include <DemandLoading/TextureDescriptor.h>
 
 #include <ImageSource/CheckerBoardImage.h>
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 #include <ImageSource/EXRReader.h>
-#endif
 
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
 #include <ImageSource/CoreEXRReader.h>
@@ -123,9 +121,7 @@ void printUsageAndExit( const char* argv0 )
         << "Options: --help | -h                         Print this usage message\n"
         << "         --file | -f <filename>              Specify file for image output\n"
         << "         --dim=<width>x<height>              Set image dimensions\n"
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
         << "         --texture | -t <filename>           Texture to render (path relative to data folder). Use checkerboard for procedural texture.\n"
-#endif
         << "         --textureDim=<width>x<height>       Set dimensions of procedural texture (default 2048x2048).\n"
         << "         --bias | -b <bias>                  Mip level bias (default 0.0)\n"
         << "         --textureScale <s>                  Texture scale (how many times to wrap the texture around the sphere) (default 1.0f)\n"
@@ -612,7 +608,6 @@ int main( int argc, char* argv[] )
         std::unique_ptr<ImageSource> imageSource;
 
 // Make an exr reader or a procedural texture reader based on the textureFile name
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
         if( !textureFile.empty() && textureFile != "checkerboard" )
         {
             std::string textureFilename( otk::getRuntimeFilePath( "Textures", textureFile.c_str() ) );
@@ -624,7 +619,6 @@ int main( int argc, char* argv[] )
             imageSource = std::unique_ptr<ImageSource>( new EXRReader( textureFilename.c_str() ) );
 #endif
         }
-#endif
         if( imageSource == nullptr )
         {
             const int  squaresPerSide = 32;

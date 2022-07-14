@@ -36,6 +36,8 @@
 
 #include <gtest/gtest.h>
 
+#include <half.h> // Imath
+
 #include <vector_functions.h> // CUDA
 
 #include <algorithm>

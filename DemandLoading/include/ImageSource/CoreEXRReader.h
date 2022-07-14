@@ -31,12 +31,13 @@
 #include <ImageSource/ImageSource.h>
 #include <ImageSource/TextureInfo.h>
 
-#include <openexr.h>
-
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
+
+// OpenEXRCore forward declaration.
+typedef struct _priv_exr_context_t* exr_context_t;    
 
 namespace imageSource {
 
@@ -45,14 +46,10 @@ class CoreEXRReader : public MipTailImageSource
 {
   public:
     /// The constructor copies the given filename.  The file is not opened until open() is called.
-    explicit CoreEXRReader( const char* filename, bool readBaseColor = true )
-        : m_filename( filename )
-        , m_readBaseColor( readBaseColor )
-    {
-    }
+    explicit CoreEXRReader( const char* filename, bool readBaseColor = true );
 
     /// Destructor
-    ~CoreEXRReader() override { close(); }
+    ~CoreEXRReader() override;
 
     /// Open the image and read header info, including dimensions and format.  Throws an exception on error.
     void open( TextureInfo* info ) override;
@@ -123,9 +120,9 @@ class CoreEXRReader : public MipTailImageSource
     int m_levelWidths[20]  = { 0 };
     int m_levelHeights[20] = { 0 };
 
-    exr_pixel_type_t      m_pixelType = EXR_PIXEL_LAST_TYPE;
-    exr_tile_round_mode_t m_roundMode;
-    exr_tile_level_mode_t m_levelMode;
+    unsigned int m_pixelType;
+    unsigned int m_roundMode;
+    unsigned int m_levelMode;
 
     // We are only supporting one-part files for now
     static constexpr int m_partIndex = 0;

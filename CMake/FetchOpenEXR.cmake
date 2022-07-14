@@ -35,8 +35,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Imath)
 
+set( OPENEXR_BUILD_EXAMPLES OFF CACHE BOOL "Enables building of utility programs" )
 set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
+
 set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
+set( OPENEXR_INSTALL_TOOLS OFF CACHE BOOL "Install OpenEXR examples" )
 
 FetchContent_Declare(
   OpenEXR

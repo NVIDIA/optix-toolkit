@@ -27,16 +27,13 @@
 //
 #pragma once
 
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 #include <ImageSource/EXRReader.h>
-#endif
-
 #include <ImageSource/ImageSource.h>
 #include <ImageSource/TextureInfo.h>
-#include <vector>
 
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 #ifndef ubyte
 typedef unsigned char ubyte;
@@ -55,7 +52,6 @@ struct ubyte2
 };
 #endif
 
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 struct half4
 {
     half x, y, z, w;
@@ -65,7 +61,6 @@ struct half2
 {
     half x, y;
 };
-#endif
 
 namespace imageSource {
 
@@ -94,7 +89,6 @@ void convertType( float4 a, ubyte2& b ) { b = {ubyte(a.x*255.0f), ubyte(a.y*255.
 void convertType( float4 a, ubyte& b ) { b = ubyte(255.0f * (a.x + a.y + a.z) / 3.0f); }
 void convertType( float4 a, unsigned int& b ) { b = (a.x+a.y+a.z > 0.1f) ? (1<<30) : 0; }
 
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 unsigned int getNumChannels( half4& x ) { return 4; }
 unsigned int getNumChannels( half2& x ) { return 2; }
 unsigned int getNumChannels( half&  x ) { return 1; }
@@ -104,7 +98,6 @@ CUarray_format_enum getFormat( half&  x ) { return CU_AD_FORMAT_HALF; }
 void convertType( float4 a, half4& b ) { b = {half(a.x), half(a.y), half(a.z), half(a.w)}; }
 void convertType( float4 a, half2& b ) { b = {half(a.x), half(a.y)}; }
 void convertType( float4 a, half& b ) { b = half((a.x + a.y + a.z) / 3.0f); }
-#endif
 // clang-format on
 
 /// This image generates a procedural pattern in many different formats.

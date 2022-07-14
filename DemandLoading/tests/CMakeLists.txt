@@ -72,6 +72,7 @@ target_include_directories( testDemandLoading PUBLIC
 target_link_libraries( testDemandLoading
   DemandLoading
   OtkUtil
+  OpenEXR::OpenEXR # for half
   gtest
   )
 

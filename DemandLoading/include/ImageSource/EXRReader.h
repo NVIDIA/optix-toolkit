@@ -34,16 +34,19 @@
 #include <ImageSource/ImageSource.h>
 #include <ImageSource/TextureInfo.h>
 
-#include <ImfFrameBuffer.h>
-#include <ImfHeader.h>
-#include <ImfInputFile.h>
-#include <ImfTiledInputFile.h>
-
 #include <iosfwd>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
+
+// Forward declarations of OpenEXR classes.
+namespace OTK_IMF_NAMESPACE
+{
+    class FrameBuffer;
+    class InputFile;
+    class TiledInputFile;
+}
 
 namespace imageSource {
 
@@ -52,14 +55,10 @@ class EXRReader : public MipTailImageSource
 {
   public:
     /// The constructor copies the given filename.  The file is not opened until open() is called.
-    explicit EXRReader( const char* filename, bool readBaseColor = true )
-        : m_filename( filename )
-        , m_readBaseColor( readBaseColor )
-    {
-    }
+    explicit EXRReader( const char* filename, bool readBaseColor = true );
 
     /// Destructor
-    ~EXRReader() override { close(); }
+    ~EXRReader() override;
 
     /// Open the image and read header info, including dimensions and format.  Throws an exception on error.
     void open( TextureInfo* info ) override;
@@ -129,24 +128,25 @@ class EXRReader : public MipTailImageSource
     static std::shared_ptr<ImageSource> deserialize( std::istream& stream );
 
   private:
-    std::string                          m_firstChannelName = { "R" };
-    std::string                          m_filename;
-    std::unique_ptr<Imf::TiledInputFile> m_tiledInputFile;
-    std::unique_ptr<Imf::InputFile>      m_inputFile;
+    std::string m_firstChannelName = {"R"};
+    std::string m_filename;
 
-    TextureInfo                          m_info{};
-    Imf::PixelType                       m_pixelType = Imf::NUM_PIXELTYPES;
-    unsigned int                         m_tileWidth{};
-    unsigned int                         m_tileHeight{};
-    float4                               m_baseColor{};
-    bool                                 m_readBaseColor = false;
-    bool                                 m_baseColorWasRead = false;
-    mutable std::mutex                   m_mutex;
-    unsigned long long                   m_numTilesRead  = 0;
-    unsigned long long                   m_numBytesRead  = 0;
-    double                               m_totalReadTime = 0.0;
+    std::unique_ptr<OTK_IMF_NAMESPACE::TiledInputFile> m_tiledInputFile;
+    std::unique_ptr<OTK_IMF_NAMESPACE::InputFile>      m_inputFile;
 
-    void setupFrameBuffer( Imf::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride );
+    TextureInfo        m_info{};
+    unsigned int       m_pixelType;
+    unsigned int       m_tileWidth{};
+    unsigned int       m_tileHeight{};
+    float4             m_baseColor{};
+    bool               m_readBaseColor    = false;
+    bool               m_baseColorWasRead = false;
+    mutable std::mutex m_mutex;
+    unsigned long long m_numTilesRead  = 0;
+    unsigned long long m_numBytesRead  = 0;
+    double             m_totalReadTime = 0.0;
+
+    void setupFrameBuffer( OTK_IMF_NAMESPACE::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride );
     void readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY );
     void readScanlineData( char* dest );
 };

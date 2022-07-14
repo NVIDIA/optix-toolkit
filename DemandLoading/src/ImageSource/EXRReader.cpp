@@ -35,6 +35,8 @@
 
 #include <half.h>
 #include <ImfChannelList.h>
+#include <ImfFrameBuffer.h>
+#include <ImfHeader.h>
 #include <ImfInputFile.h>
 #include <ImfTiledInputFile.h>
 
@@ -47,6 +49,18 @@ using namespace Imf;
 using namespace Imath;
 
 namespace imageSource {
+
+EXRReader::EXRReader( const char* filename, bool readBaseColor )
+    : m_filename( filename )
+    , m_pixelType( Imf::NUM_PIXELTYPES )
+    , m_readBaseColor( readBaseColor )
+{
+}
+
+EXRReader::~EXRReader()
+{
+    close();
+}
 
 CUarray_format pixelTypeToArrayFormat( PixelType type )
 {
@@ -119,7 +133,7 @@ void EXRReader::open( TextureInfo* info )
 
             DEMAND_ASSERT_MSG( R, "First channel is missing in EXR file" );
             m_pixelType   = R->type;
-            m_info.format = pixelTypeToArrayFormat( m_pixelType );
+            m_info.format = pixelTypeToArrayFormat( static_cast<Imf::PixelType>( m_pixelType ) );
 
             // CUDA textures don't support float3, so we round up to four channels.
             m_info.numChannels = A ? 4 : ( B ? 4 : ( G ? 2 : 1 ) );
@@ -174,16 +188,16 @@ void EXRReader::open( TextureInfo* info )
 void EXRReader::setupFrameBuffer( Imf::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride )
 {
     const unsigned int channelSize = getBytesPerChannel( m_info.format );
-    frameBuffer.insert( m_firstChannelName, Slice( m_pixelType, base, xStride, yStride ) );
+    frameBuffer.insert( m_firstChannelName, Slice( static_cast<Imf::PixelType>( m_pixelType ), base, xStride, yStride ) );
     if( m_info.numChannels > 1 )
     {
-        frameBuffer.insert( "G", Slice( m_pixelType, &base[1 * channelSize], xStride, yStride ) );
+        frameBuffer.insert( "G", Slice( static_cast<Imf::PixelType>( m_pixelType ), &base[1 * channelSize], xStride, yStride ) );
     }
     if( m_info.numChannels > 2 )
     {
         // CUDA textures don't support float3, so we round up to four channels.
-        frameBuffer.insert( "B", Slice( m_pixelType, &base[2 * channelSize], xStride, yStride ) );
-        frameBuffer.insert( "A", Slice( m_pixelType, &base[3 * channelSize], xStride, yStride ) );
+        frameBuffer.insert( "B", Slice( static_cast<Imf::PixelType>( m_pixelType ), &base[2 * channelSize], xStride, yStride ) );
+        frameBuffer.insert( "A", Slice( static_cast<Imf::PixelType>( m_pixelType ), &base[3 * channelSize], xStride, yStride ) );
     }
 }
 

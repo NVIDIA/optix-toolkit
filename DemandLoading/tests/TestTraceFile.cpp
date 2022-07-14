@@ -31,10 +31,7 @@
 #include <DemandLoading/DemandLoader.h>
 #include <DemandLoading/Options.h>
 #include <DemandLoading/TextureDescriptor.h>
-
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 #include <ImageSource/EXRReader.h>
-#endif
 
 #include <OtkUtil/Files.h>
 
@@ -49,7 +46,6 @@ class TestTraceFile : public testing::Test
 {
 };
 
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 TEST_F( TestTraceFile, TestWriteAndRead )
 {
     std::string textureFilename( otk::getRuntimeFilePath( "Textures", "/TiledMipMapped.exr" ) );
@@ -71,4 +67,3 @@ TEST_F( TestTraceFile, TestWriteAndRead )
 
     replayTraceFile( traceFilename );
 }
-#endif

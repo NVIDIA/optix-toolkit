@@ -32,10 +32,7 @@
 
 #include <DemandLoading/Options.h>
 #include <DemandLoading/TextureDescriptor.h>
-
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
 #include <ImageSource/EXRReader.h>
-#endif
 
 #include <cassert>
 
@@ -88,8 +85,6 @@ void TraceFileWriter::recordTexture( std::shared_ptr<imageSource::ImageSource> i
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
-
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
     // For now, only EXRReader can be serialized.
     std::shared_ptr<imageSource::EXRReader> exrReader( std::dynamic_pointer_cast<imageSource::EXRReader>( imageSource ) );
     if( !exrReader )
@@ -105,9 +100,6 @@ void TraceFileWriter::recordTexture( std::shared_ptr<imageSource::ImageSource> i
     write( desc.mipmapFilterMode );
     write( desc.maxAnisotropy );
     write( desc.flags );
-#else
-    throw Exception( "Cannot serialize ImageSource (EXRReader not available)" );
-#endif
 }
 
 // CUDA streams are assigned integer identifiers as they are encountered.
@@ -230,7 +222,6 @@ class TraceFileReader
 
     void replayCreateTexture( DemandLoader* loader )
     {
-#ifdef OPTIX_SAMPLE_USE_OPEN_EXR
         std::shared_ptr<imageSource::ImageSource> imageSource( imageSource::EXRReader::deserialize( m_file ) );
 
         TextureDescriptor desc;
@@ -242,9 +233,6 @@ class TraceFileReader
         read( &desc.flags );
 
         loader->createTexture( imageSource, desc );
-#else
-        throw Exception("Cannot deserialize ImageSource (EXRReader is not available)");
-#endif
     }
 
     CUstream getStream( unsigned int deviceIndex, unsigned int streamId )

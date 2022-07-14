@@ -184,8 +184,8 @@ source_group( "Header Files\\Implementation" FILES
   )
 
 target_compile_definitions( DemandLoading PUBLIC
-  OPTIX_SAMPLE_USE_OPEN_EXR
   OPTIX_SAMPLE_USE_CORE_EXR
+  OTK_IMF_NAMESPACE=Imf_3_1
   )
 
 target_include_directories( DemandLoading
@@ -198,11 +198,13 @@ target_include_directories( DemandLoading
   src
   )
 
-target_link_libraries( DemandLoading PUBLIC
-  OpenEXR::OpenEXR
-  OpenEXR::OpenEXRCore
+target_link_libraries( DemandLoading
+  PUBLIC
   OptiX::OptiX
   CUDA::cuda_driver
+  PRIVATE
+  OpenEXR::OpenEXR
+  OpenEXR::OpenEXRCore
   )
 
 # NVTX Profiling

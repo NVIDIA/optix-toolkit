@@ -34,6 +34,7 @@
 #include <cuda_runtime.h>
 
 #include <half.h>
+#include <openexr.h>
 
 #include <algorithm>
 #include <cmath>
@@ -41,6 +42,16 @@
 
 namespace imageSource {
 
+
+CoreEXRReader::CoreEXRReader( const char* filename, bool readBaseColor )
+    : m_filename( filename )
+    , m_pixelType( EXR_PIXEL_LAST_TYPE )
+    , m_readBaseColor( readBaseColor )
+{
+}
+
+CoreEXRReader::~CoreEXRReader() { close(); }
+    
 CUarray_format pixelTypeToArrayFormat( exr_pixel_type_t type )
 {
     switch( type )
@@ -94,7 +105,9 @@ void CoreEXRReader::open( TextureInfo* info )
             if( !m_isScanline )
             {
                 // Get the tile specifications.
-                DEMAND_ASSERT( exr_get_tile_descriptor( m_exrCtx, m_partIndex, &m_tileWidth, &m_tileHeight, &m_levelMode, &m_roundMode )
+                DEMAND_ASSERT( exr_get_tile_descriptor( m_exrCtx, m_partIndex, &m_tileWidth, &m_tileHeight,
+                                                        reinterpret_cast<exr_tile_level_mode_t*>( &m_levelMode ),
+                                                        reinterpret_cast<exr_tile_round_mode_t*>( &m_roundMode ) )
                                == EXR_ERR_SUCCESS );
 
                 // Cache the level dimensions and tile tile dimensions for each mip level
@@ -119,9 +132,9 @@ void CoreEXRReader::open( TextureInfo* info )
 
             // CUDA textures don't support float3, so we round up to four channels.
             m_info.numChannels = ( chlist->num_channels == 3 ) ? 4 : chlist->num_channels;
-            m_pixelType        = chlist->entries[0].pixel_type;
-            m_info.format      = pixelTypeToArrayFormat( m_pixelType );
-            
+            m_pixelType        = static_cast<exr_pixel_type_t>( chlist->entries[0].pixel_type );
+            m_info.format      = pixelTypeToArrayFormat( static_cast<exr_pixel_type_t>( m_pixelType ) );
+
             m_info.isTiled = !m_isScanline;
             m_info.isValid = true;
         }
