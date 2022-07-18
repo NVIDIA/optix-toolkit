@@ -15,7 +15,7 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 - OptiX 7.4 or later.
 - CUDA 11.1 or later.
 - C++ compiler (e.g. gcc under Linux, Visual Studio under Windows)
-- CMake 3.20 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
+- CMake 3.23 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
 language support.
 
 ## Building OTK
