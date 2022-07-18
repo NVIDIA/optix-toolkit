@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+include(GNUInstallDirs)
 include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
 add_library(OtkUtil
@@ -59,17 +60,17 @@ target_link_libraries(OtkUtil PRIVATE
 
 install(TARGETS OtkUtil
   EXPORT OtkUtilTargets
-  ARCHIVE DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
-  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT OtkUtilTargets
   FILE OtkUtilTargets.cmake
-  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )
 
 configure_file( src/OtkConfig.h.in OtkConfig.h @ONLY )
 install( FILES ${CMAKE_CURRENT_BINARY_DIR}/OtkConfig.h 
-  DESTINATION include/OptiXToolkit-${PROJECT_VERSION}/OtkUtil
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OtkUtil
   )

@@ -26,6 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+include(GNUInstallDirs)
+
 add_library(OtkCuda INTERFACE)
 add_library(OptiXToolkit::OtkCuda ALIAS OtkCuda)
 
@@ -46,11 +48,11 @@ target_include_directories(OtkCuda INTERFACE
 
 install(TARGETS OtkCuda
   EXPORT OtkCudaTargets
-  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT OtkCudaTargets
   FILE OtkCudaTargets.cmake
-  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )

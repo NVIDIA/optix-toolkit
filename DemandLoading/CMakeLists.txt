@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+include(GNUInstallDirs)
 include(${PROJECT_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
@@ -222,13 +223,13 @@ endif()
 
 install(TARGETS DemandLoading
   EXPORT DemandLoadingTargets
-  ARCHIVE DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
-  FILE_SET HEADERS DESTINATION include/OptiXToolkit-${PROJECT_VERSION}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT DemandLoadingTargets
   FILE DemandLoadingTargets.cmake
-  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )
 

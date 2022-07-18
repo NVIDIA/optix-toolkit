@@ -58,6 +58,8 @@ find_package(OptiX REQUIRED)
 #########################################################
 # Create and install package configuration and version files.
 
+include(GNUInstallDirs)
+
 configure_file(
   ${OptiXToolkit_SOURCE_DIR}/CMake/OptiXToolkitConfig.cmake.in
   ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake @ONLY)
@@ -69,7 +71,7 @@ configure_file(
 install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
   ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfigVersion.cmake
   CMake/FindOptiX.cmake
-  DESTINATION lib/OptiXToolkit-${PROJECT_VERSION})
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit)
 
 #########################################################
 # Subdirectories
