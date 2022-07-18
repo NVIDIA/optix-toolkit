@@ -1,17 +1,16 @@
 
 # OptiX Toolkit
 
-The OptiX Toolkit (OTK) is a collection of libraries and utilities that simplify building
-applications with the [OptiX SDK](https://developer.nvidia.com/designworks/optix/download).  It includes
-the following components:
+A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
-- [PyOptiX](PyOptiX/README.md): Python bindings for OptiX 7 API calls.
+## Current Utilities
+- **PyOptiX** - Complete Python bindings for the OptiX host API.
 - [DemandLoading](DemandLoading/README.md): a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
 - OtkGui: convenience code for incorporating OpenGL into OptiX applications.
 - OtkCuda: vector math and other CUDA helper functions for OptiX kernels.
 - OtkUtil: file handling and other utility functions.
 
-# Requirements
+## Requirements
 
 - OptiX 7.4 or later.
 - CUDA 11.1 or later.
@@ -19,7 +18,7 @@ the following components:
 - CMake 3.20 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
 language support.
 
-# Building OTK
+## Building OTK
 
 - In the directory containing the OTK source code, create a subdirectory called `build` and `cd` to that directory.
 ```
