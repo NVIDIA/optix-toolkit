@@ -28,7 +28,7 @@
 
 include(FetchContent)
 
-set( GLAD_INSTALL ON CACHE BOOL "Generate glad installation target" )
+set( GLAD_INSTALL OFF CACHE BOOL "Generate glad installation target" )
 
 FetchContent_Declare(
   glad
@@ -36,3 +36,5 @@ FetchContent_Declare(
   GIT_TAG v0.1.36
 )
 FetchContent_MakeAvailable(glad)
+
+set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)

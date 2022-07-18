@@ -31,7 +31,7 @@ include(${PROJECT_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
-add_library( DemandLoading STATIC
+add_library( DemandLoading SHARED
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.cpp
@@ -203,6 +203,8 @@ target_link_libraries( DemandLoading
   PUBLIC
   OptiX::OptiX
   CUDA::cuda_driver
+  CUDA::cudart_static
+  ${CMAKE_DL_LIBS}  
   PRIVATE
   OpenEXR::OpenEXR
   OpenEXR::OpenEXRCore
@@ -223,6 +225,8 @@ endif()
 
 install(TARGETS DemandLoading
   EXPORT DemandLoadingTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )

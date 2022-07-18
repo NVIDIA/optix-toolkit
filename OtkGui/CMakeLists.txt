@@ -30,7 +30,7 @@ include(GNUInstallDirs)
 include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
 include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
-add_library(OtkGui
+add_library(OtkGui SHARED
   src/Camera.cpp
   src/GLDisplay.cpp
   src/Window.cpp
@@ -54,15 +54,19 @@ target_include_directories(OtkGui PUBLIC
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-target_link_libraries(OtkGui PUBLIC
-  glfw
-  glad
+target_link_libraries(OtkGui
+  PUBLIC
   OtkCuda
   OtkUtil
+  PRIVATE
+  glfw
+  glad
   )
 
 install(TARGETS OtkGui
   EXPORT OtkGuiTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )

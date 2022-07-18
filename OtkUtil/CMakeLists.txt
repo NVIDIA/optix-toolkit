@@ -29,7 +29,10 @@
 include(GNUInstallDirs)
 include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
 
-add_library(OtkUtil
+find_package( CUDAToolkit 10.0 REQUIRED )
+
+add_library(OtkUtil SHARED
+  src/Exception.cpp
   src/Files.cpp
   )
 
@@ -56,10 +59,13 @@ target_include_directories(OtkUtil PUBLIC
 target_link_libraries(OtkUtil PRIVATE
   glad
   OptiX::OptiX
+  CUDA::cudart_static
   )
 
 install(TARGETS OtkUtil
   EXPORT OtkUtilTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )

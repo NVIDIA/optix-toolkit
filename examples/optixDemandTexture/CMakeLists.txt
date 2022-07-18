@@ -47,7 +47,11 @@ target_link_libraries( optixDemandTexture
   OptiXToolkit::DemandLoading
   OptiXToolkit::OtkGui
   OptiXToolkit::OtkUtil
+  glad
   )
+
+
+set_target_properties( optixDemandTexture PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" )
 
 file( INSTALL Textures DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
 

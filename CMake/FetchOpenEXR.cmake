@@ -35,11 +35,19 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Imath)
 
+# Note: Imath does not permit installation to be disabled.
+# set( IMATH_INSTALL OFF CACHE BOOL "Install Imath" )
+
 set( OPENEXR_BUILD_EXAMPLES OFF CACHE BOOL "Enables building of utility programs" )
 set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
 
+set( OPENEXR_INSTALL OFF CACHE BOOL "Install OpenEXR libraries" )
 set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
 set( OPENEXR_INSTALL_TOOLS OFF CACHE BOOL "Install OpenEXR examples" )
+
+# Note: disabling pkgconfig installation appears to have no effect.
+set( IMATH_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install Imath.pc file" )
+set( OPENEXR_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install OpenEXR.pc file" )
 
 FetchContent_Declare(
   OpenEXR

@@ -36,6 +36,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <iostream>
 
 namespace otk {
 

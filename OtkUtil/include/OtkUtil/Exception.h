@@ -26,17 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #pragma once
 
 #include <cuda_runtime_api.h>
-#include <driver_types.h>
-#include <optix.h>
+#include <optix_types.h>
 
-#include <glad/glad.h>
-
-#include <iostream>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -131,7 +125,6 @@
 #define OTK_ASSERT_MSG( cond, msg )                                          \
     ::otk::assertCondMsg( static_cast<bool>( cond ), #cond, msg, __FILE__, __LINE__ )
 
-
 #define OTK_ASSERT_FAIL_MSG( msg )                                           \
     ::otk::assertFailMsg( msg, __FILE__, __LINE__ )
 
@@ -151,177 +144,29 @@ class Exception : public std::runtime_error
     }
 
   private:
-    std::string createMessage( OptixResult res, const char* msg )
-    {
-        std::ostringstream out;
-        out << optixGetErrorName( res ) << ": " << msg;
-        return out.str();
-    }
+    std::string createMessage( OptixResult res, const char* msg );
 };
 
-inline void optixCheck( OptixResult res, const char* call, const char* file, unsigned int line )
-{
-    if( res != OPTIX_SUCCESS )
-    {
-        std::stringstream ss;
-        ss << "Optix call '" << call << "' failed: " << file << ':' << line << ")\n";
-        throw Exception( res, ss.str().c_str() );
-    }
-}
+void optixCheck( OptixResult res, const char* call, const char* file, unsigned int line );
 
-inline void optixCheckLog( OptixResult  res,
-                           const char*  log,
-                           size_t       sizeof_log,
-                           size_t       sizeof_log_returned,
-                           const char*  call,
-                           const char*  file,
-                           unsigned int line )
-{
-    if( res != OPTIX_SUCCESS )
-    {
-        std::stringstream ss;
-        ss << "Optix call '" << call << "' failed: " << file << ':' << line << ")\nLog:\n"
-           << log << ( sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "" ) << '\n';
-        throw Exception( res, ss.str().c_str() );
-    }
-}
+void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, size_t sizeof_log_returned, const char* call, const char* file, unsigned int line );
 
-inline void optixCheckNoThrow( OptixResult res, const char* call, const char* file, unsigned int line )
-{
-    if( res != OPTIX_SUCCESS )
-    {
-        std::cerr << "Optix call '" << call << "' failed: " << file << ':' << line << ")\n";
-        std::terminate();
-    }
-}
+void optixCheckNoThrow( OptixResult res, const char* call, const char* file, unsigned int line );
 
-inline void cudaCheck( cudaError_t error, const char* call, const char* file, unsigned int line )
-{
-    if( error != cudaSuccess )
-    {
-        std::stringstream ss;
-        ss << "CUDA call (" << call << " ) failed with error: '"
-           << cudaGetErrorString( error ) << "' (" << file << ":" << line << ")\n";
-        throw Exception( ss.str().c_str() );
-    }
-}
+void cudaCheck( cudaError_t error, const char* call, const char* file, unsigned int line );
 
-inline void cudaSyncCheck( const char* file, unsigned int line )
-{
-    cudaDeviceSynchronize();
-    cudaError_t error = cudaGetLastError();
-    if( error != cudaSuccess )
-    {
-        std::stringstream ss;
-        ss << "CUDA error on synchronize with error '"
-           << cudaGetErrorString( error ) << "' (" << file << ":" << line << ")\n";
-        throw Exception( ss.str().c_str() );
-    }
-}
+void cudaSyncCheck( const char* file, unsigned int line );
 
-inline void cudaCheckNoThrow( cudaError_t error, const char* call, const char* file, unsigned int line )
-{
-    if( error != cudaSuccess )
-    {
-        std::cerr << "CUDA call (" << call << " ) failed with error: '"
-                  << cudaGetErrorString( error ) << "' (" << file << ":" << line << ")\n";
-        std::terminate();
-    }
-}
+void cudaCheckNoThrow( cudaError_t error, const char* call, const char* file, unsigned int line );
 
-inline void assertCond( bool result, const char* cond, const char* file, unsigned int line )
-{
-    if( !result )
-    {
-        std::stringstream ss;
-        ss << file << " (" << line << "): " << cond;
-        throw Exception( ss.str().c_str() );
-    }
-}
+void assertCond( bool result, const char* cond, const char* file, unsigned int line );
 
-inline void assertCondMsg( bool               result,
-                           const char*        cond,
-                           const std::string& msg,
-                           const char*        file,
-                           unsigned int       line )
-{
-    if( !result )
-    {
-        std::stringstream ss;
-        ss << msg << ": " << file << " (" << line << "): " << cond;
-        throw Exception( ss.str().c_str() );
-    }
-}
+void assertCondMsg( bool result, const char* cond, const std::string& msg, const char* file, unsigned int line );
 
-[[noreturn]] inline void assertFailMsg( const std::string& msg, const char* file, unsigned int line )
-{
-    std::stringstream ss;
-    ss << msg << ": " << file << " (" << line << ')';
-    throw Exception( ss.str().c_str() );
-}
+[[noreturn]] void assertFailMsg( const std::string& msg, const char* file, unsigned int line );
 
-inline const char* getGLErrorString( GLenum error )
-{
-    switch( error )
-    {
-        case GL_NO_ERROR:
-            return "No error";
-        case GL_INVALID_ENUM:
-            return "Invalid enum";
-        case GL_INVALID_VALUE:
-            return "Invalid value";
-        case GL_INVALID_OPERATION:
-            return "Invalid operation";
-        //case GL_STACK_OVERFLOW:      return "Stack overflow";
-        //case GL_STACK_UNDERFLOW:     return "Stack underflow";
-        case GL_OUT_OF_MEMORY:
-            return "Out of memory";
-        //case GL_TABLE_TOO_LARGE:     return "Table too large";
-        default:
-            return "Unknown GL error";
-    }
-}
+void glCheck( const char* call, const char* file, unsigned int line );
 
-inline void glCheck( const char* call, const char* file, unsigned int line )
-{
-    GLenum err = glGetError();
-    if( err != GL_NO_ERROR )
-    {
-        std::stringstream ss;
-        ss << "GL error " << getGLErrorString( err ) << " at " << file << "("
-           << line << "): " << call << '\n';
-        std::cerr << ss.str() << std::endl;
-        throw Exception( ss.str().c_str() );
-    }
-}
-
-inline void glCheckErrors( const char* file, unsigned int line )
-{
-    GLenum err = glGetError();
-    if( err != GL_NO_ERROR )
-    {
-        std::stringstream ss;
-        ss << "GL error " << getGLErrorString( err ) << " at " << file << "("
-           << line << ")";
-        std::cerr << ss.str() << std::endl;
-        throw Exception( ss.str().c_str() );
-    }
-}
-
-inline void checkGLError()
-{
-    GLenum err = glGetError();
-    if( err != GL_NO_ERROR )
-    {
-        std::ostringstream oss;
-        do
-        {
-            oss << "GL error: " << getGLErrorString( err ) << '\n';
-            err = glGetError();
-        } while( err != GL_NO_ERROR );
-
-        throw Exception( oss.str().c_str() );
-    }
-}
+void glCheckErrors( const char* file, unsigned int line );
 
 }  // end namespace otk
