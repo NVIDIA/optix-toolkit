@@ -26,7 +26,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(${PROJECT_SOURCE_DIR}/CMake/embed_ptx.cmake)
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+include(../../CMake/Policies.cmake)
+
+project(OptiXDemandLoadSimple LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(OptiXToolkit REQUIRED)
+endif()
+
+include(../../CMake/embed_ptx.cmake)
 
 embed_ptx(
   OUTPUT_TARGET
@@ -53,7 +66,8 @@ target_link_libraries( optixDemandTexture
 
 set_target_properties( optixDemandTexture PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" )
 
-file( INSTALL Textures DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
+get_target_property( _bin optixDemandTexture RUNTIME_OUTPUT_DIRECTORY )
+file( INSTALL Textures DESTINATION ${_bin} )
 
 install( TARGETS optixDemandTexture RUNTIME )
 install( DIRECTORY Textures TYPE BIN )

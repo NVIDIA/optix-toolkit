@@ -26,10 +26,28 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+include(../CMake/Policies.cmake)
+
+project(DemandLoading LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 include(GNUInstallDirs)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
+include(../CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
+
+# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
+set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../CMake)
+find_package(OptiX REQUIRED)
+
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(OptiXToolkit REQUIRED)
+endif()
 
 add_library( DemandLoading SHARED
   src/DemandLoaderImpl.cpp
@@ -105,7 +123,9 @@ add_library( DemandLoading SHARED
   src/Util/TraceFile.h
   )
 
-add_library(OptiXToolkit::DemandLoading ALIAS DemandLoading)
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::DemandLoading ALIAS DemandLoading)
+endif()
 
 target_sources(DemandLoading
   PUBLIC 
@@ -116,11 +136,12 @@ target_sources(DemandLoading
   include/DemandLoading/DemandTexture.h
   include/DemandLoading/DeviceContext.h
   include/DemandLoading/Options.h
+  include/DemandLoading/Paging.h
   include/DemandLoading/Resource.h
   include/DemandLoading/Statistics.h
-  include/DemandLoading/Texture2D.h
   include/DemandLoading/Texture2DExtended.h
   include/DemandLoading/Texture2DFootprint.h
+  include/DemandLoading/Texture2D.h
   include/DemandLoading/TextureDescriptor.h
   include/DemandLoading/TextureSampler.h
   include/DemandLoading/Ticket.h

@@ -26,17 +26,33 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+include(../CMake/Policies.cmake)
+
+project(OtkUtil LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 include(GNUInstallDirs)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
+include(../CMake/FetchGlad.cmake)
 
 find_package( CUDAToolkit 10.0 REQUIRED )
+
+# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
+set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../CMake)
+find_package(OptiX REQUIRED)
 
 add_library(OtkUtil SHARED
   src/Exception.cpp
   src/Files.cpp
   )
 
-add_library(OptiXToolkit::OtkUtil ALIAS OtkUtil)
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::OtkUtil ALIAS OtkUtil)
+endif()
 
 target_sources(OtkUtil 
   PUBLIC 

@@ -26,9 +26,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+include(../CMake/Policies.cmake)
+
+project(OtkGui LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 include(GNUInstallDirs)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlfw.cmake)
-include(${PROJECT_SOURCE_DIR}/CMake/FetchGlad.cmake)
+include(../CMake/BuildConfig.cmake)
+include(../CMake/FetchGlfw.cmake)
+include(../CMake/FetchGlad.cmake)
+
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(OptiXToolkit REQUIRED)
+endif()
 
 add_library(OtkGui SHARED
   src/Camera.cpp
@@ -36,7 +50,9 @@ add_library(OtkGui SHARED
   src/Window.cpp
   )
 
-add_library(OptiXToolkit::OtkGui ALIAS OtkGui)
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::OtkGui ALIAS OtkGui)
+endif()
 
 target_sources(OtkGui 
   PUBLIC 

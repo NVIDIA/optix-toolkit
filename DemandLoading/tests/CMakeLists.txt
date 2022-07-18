@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include( ${PROJECT_SOURCE_DIR}/CMake/FetchGtest.cmake )
+include( ../../CMake/FetchGtest.cmake )
 
 add_executable( testDemandLoading
   main.cpp
@@ -77,7 +77,7 @@ target_link_libraries( testDemandLoading
   )
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(${PROJECT_SOURCE_DIR}/CMake/embed_ptx.cmake)
+include(../../CMake/embed_ptx.cmake)
 embed_ptx(
   OUTPUT_TARGET
     TextureFootprint
@@ -106,4 +106,5 @@ target_link_libraries( testTextureFootprint
 
 add_dependencies( testTextureFootprint TextureFootprint )
 
-file( INSTALL Textures DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
+get_target_property( _bin testDemandLoading RUNTIME_OUTPUT_DIRECTORY )
+file( INSTALL Textures DESTINATION ${_bin} )

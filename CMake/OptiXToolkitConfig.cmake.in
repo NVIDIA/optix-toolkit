@@ -32,9 +32,6 @@ get_filename_component(_prefix "${_dir}/../.." ABSOLUTE)
 
 # Find dependencies.
 include(CMakeFindDependencyMacro)
-find_dependency(glad)
-find_dependency(glfw3)
-find_dependency(OpenEXR)
 find_dependency(CUDAToolkit 11.1)
 
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
