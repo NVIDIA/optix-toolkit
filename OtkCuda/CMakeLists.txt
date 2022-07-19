@@ -48,7 +48,7 @@ target_include_directories(OtkCuda INTERFACE
 
 install(TARGETS OtkCuda
   EXPORT OtkCudaTargets
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit
   )
 
 install(EXPORT OtkCudaTargets
