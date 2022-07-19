@@ -36,6 +36,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
+include(../CMake/BuildConfig.cmake)
 include(../CMake/FetchGlad.cmake)
 
 find_package( CUDAToolkit 10.0 REQUIRED )

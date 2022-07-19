@@ -17,6 +17,7 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 - C++ compiler (e.g. gcc under Linux, Visual Studio under Windows)
 - CMake 3.23 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
 language support.
+- git (any modern version).
 
 ## Building OTK
 
@@ -40,3 +41,8 @@ make -j
 ```
 
 If you encounter problems or if you have any questions, we encourage you to post on the [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
+
+## Troubleshooting
+
+Problem: CMake configuration error: "could not find git for clone of glad-populate"
+Solution: [git is required](https://git-scm.com/download) in order to download third party libraries (e.g. glad)

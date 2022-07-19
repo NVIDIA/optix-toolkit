@@ -30,7 +30,7 @@
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(../../CMake/Policies.cmake)
 
-project(OptiXDemandLoadSimple LANGUAGES C CXX CUDA)
+project(OptiXDemandTexture LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
