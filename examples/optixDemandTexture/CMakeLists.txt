@@ -35,17 +35,19 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(../../CMake/BuildConfig.cmake)
+include(../../CMake/FetchGlad.cmake)
+include(../../CMake/embed_ptx.cmake)
+
 if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
-
-include(../../CMake/embed_ptx.cmake)
 
 embed_ptx(
   OUTPUT_TARGET
     DemandTexture
   PTX_LINK_LIBRARIES
-    DemandLoading OtkCuda
+    OptiXToolkit::DemandLoading OptiXToolkit::OtkCuda
   SOURCES
     optixDemandTexture.cu
 )

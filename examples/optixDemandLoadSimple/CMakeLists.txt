@@ -35,6 +35,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(../../CMake/BuildConfig.cmake)
+
 if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
