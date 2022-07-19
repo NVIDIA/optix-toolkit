@@ -44,8 +44,12 @@ If you encounter problems or if you have any questions, we encourage you to post
 
 ## Troubleshooting
 
-Problem: CMake configuration error: "could not find git for clone of glad-populate"
+Problem: CMake configuration error: "could not find git for clone of glad-populate" <br>
 Solution: [git is required](https://git-scm.com/download) in order to download third party libraries (e.g. glad)
 
-Problem: Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed
+Problem: Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed <br>
 Solution: [Download newer driver](https://www.nvidia.com/download)
+
+Problem: Windows Debug link error: cannot open file '..\zlib-install\lib\zlibstatic.lib' <br>
+Solution: Build Release configuration first, then build Debug configuration. 
+
