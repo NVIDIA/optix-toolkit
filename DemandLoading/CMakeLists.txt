@@ -220,6 +220,10 @@ target_include_directories( DemandLoading
   src
   )
 
+# Bundle OpenEXR libraries to work around export problem.
+add_library(OpenEXR_OTK INTERFACE IMPORTED)
+target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
+
 target_link_libraries( DemandLoading
   PUBLIC
   OptiX::OptiX
@@ -227,8 +231,7 @@ target_link_libraries( DemandLoading
   CUDA::cudart_static
   ${CMAKE_DL_LIBS}  
   PRIVATE
-  OpenEXR::OpenEXR
-  OpenEXR::OpenEXRCore
+  OpenEXR_OTK
   )
 
 # NVTX Profiling
