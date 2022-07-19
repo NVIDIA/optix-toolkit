@@ -79,6 +79,8 @@ target_link_libraries(OtkGui
   glad
   )
 
+set_target_properties(OtkGui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 install(TARGETS OtkGui
   EXPORT OtkGuiTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

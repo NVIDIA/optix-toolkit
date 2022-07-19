@@ -79,6 +79,8 @@ target_link_libraries(OtkUtil PRIVATE
   CUDA::cudart_static
   )
 
+set_target_properties(OtkUtil PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 install(TARGETS OtkUtil
   EXPORT OtkUtilTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

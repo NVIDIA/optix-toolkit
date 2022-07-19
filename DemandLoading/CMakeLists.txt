@@ -235,6 +235,8 @@ target_link_libraries( DemandLoading
   OpenEXR_OTK
   )
 
+set_target_properties(DemandLoading PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 # NVTX Profiling
 option( DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )
 if( DEMAND_LOADING_USE_NVTX )

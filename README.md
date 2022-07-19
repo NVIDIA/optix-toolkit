@@ -46,3 +46,6 @@ If you encounter problems or if you have any questions, we encourage you to post
 
 Problem: CMake configuration error: "could not find git for clone of glad-populate"
 Solution: [git is required](https://git-scm.com/download) in order to download third party libraries (e.g. glad)
+
+Problem: Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed
+Solution: [Download newer driver](https://www.nvidia.com/download)
