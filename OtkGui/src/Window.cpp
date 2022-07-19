@@ -27,6 +27,7 @@
 //
 
 #include <OtkCuda/vec_math.h>
+#include <OtkGui/GLCheck.h>
 #include <OtkGui/GLDisplay.h>
 #include <OtkGui/Window.h>
 #include <OtkUtil/Exception.h>

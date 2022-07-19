@@ -37,7 +37,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(../CMake/BuildConfig.cmake)
-include(../CMake/FetchGlad.cmake)
 
 find_package( CUDAToolkit 10.0 REQUIRED )
 
@@ -74,7 +73,6 @@ target_include_directories(OtkUtil PUBLIC
   )
 
 target_link_libraries(OtkUtil PRIVATE
-  glad
   OptiX::OptiX
   CUDA::cudart_static
   )

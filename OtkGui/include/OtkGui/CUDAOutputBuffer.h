@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <OtkGui/GLCheck.h>
 #include <OtkGui/Window.h>
 #include <OtkUtil/Exception.h>
 

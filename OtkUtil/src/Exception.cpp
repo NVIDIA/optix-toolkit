@@ -31,8 +31,6 @@
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
 
-#include <glad/glad.h>
-
 #include <iostream>
 #include <sstream>
 
@@ -133,68 +131,6 @@ void assertCondMsg( bool result, const char* cond, const std::string& msg, const
     std::stringstream ss;
     ss << msg << ": " << file << " (" << line << ')';
     throw Exception( ss.str().c_str() );
-}
-
-const char* getGLErrorString( GLenum error )
-{
-    switch( error )
-    {
-        case GL_NO_ERROR:
-            return "No error";
-        case GL_INVALID_ENUM:
-            return "Invalid enum";
-        case GL_INVALID_VALUE:
-            return "Invalid value";
-        case GL_INVALID_OPERATION:
-            return "Invalid operation";
-        //case GL_STACK_OVERFLOW:      return "Stack overflow";
-        //case GL_STACK_UNDERFLOW:     return "Stack underflow";
-        case GL_OUT_OF_MEMORY:
-            return "Out of memory";
-        //case GL_TABLE_TOO_LARGE:     return "Table too large";
-        default:
-            return "Unknown GL error";
-    }
-}
-
-void glCheck( const char* call, const char* file, unsigned int line )
-{
-    GLenum err = glGetError();
-    if( err != GL_NO_ERROR )
-    {
-        std::stringstream ss;
-        ss << "GL error " << getGLErrorString( err ) << " at " << file << "(" << line << "): " << call << '\n';
-        std::cerr << ss.str() << std::endl;
-        throw Exception( ss.str().c_str() );
-    }
-}
-
-void glCheckErrors( const char* file, unsigned int line )
-{
-    GLenum err = glGetError();
-    if( err != GL_NO_ERROR )
-    {
-        std::stringstream ss;
-        ss << "GL error " << getGLErrorString( err ) << " at " << file << "(" << line << ")";
-        std::cerr << ss.str() << std::endl;
-        throw Exception( ss.str().c_str() );
-    }
-}
-
-void checkGLError()
-{
-    GLenum err = glGetError();
-    if( err != GL_NO_ERROR )
-    {
-        std::ostringstream oss;
-        do
-        {
-            oss << "GL error: " << getGLErrorString( err ) << '\n';
-            err = glGetError();
-        } while( err != GL_NO_ERROR );
-
-        throw Exception( oss.str().c_str() );
-    }
 }
 
 }  // namespace otk

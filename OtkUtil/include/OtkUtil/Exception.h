@@ -36,39 +36,6 @@
 
 //------------------------------------------------------------------------------
 //
-// GL error-checking
-//
-//------------------------------------------------------------------------------
-
-#define DO_GL_CHECK
-#ifdef DO_GL_CHECK
-
-#define GL_CHECK( call )                                                       \
-    do                                                                         \
-    {                                                                          \
-        call;                                                                  \
-        ::otk::glCheck( #call, __FILE__, __LINE__ );                         \
-    } while( false )
-
-
-#define GL_CHECK_ERRORS() ::otk::glCheckErrors( __FILE__, __LINE__ )
-
-#else
-#define GL_CHECK( call )                                                       \
-    do                                                                         \
-    {                                                                          \
-        call;                                                                  \
-    } while( 0 )
-#define GL_CHECK_ERRORS()                                                      \
-    do                                                                         \
-    {                                                                          \
-        ;                                                                      \
-    } while( 0 )
-#endif
-
-
-//------------------------------------------------------------------------------
-//
 // OptiX error-checking
 //
 //------------------------------------------------------------------------------
@@ -164,9 +131,5 @@ void assertCond( bool result, const char* cond, const char* file, unsigned int l
 void assertCondMsg( bool result, const char* cond, const std::string& msg, const char* file, unsigned int line );
 
 [[noreturn]] void assertFailMsg( const std::string& msg, const char* file, unsigned int line );
-
-void glCheck( const char* call, const char* file, unsigned int line );
-
-void glCheckErrors( const char* file, unsigned int line );
 
 }  // end namespace otk

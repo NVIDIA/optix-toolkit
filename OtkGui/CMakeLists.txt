@@ -46,6 +46,7 @@ endif()
 
 add_library(OtkGui SHARED
   src/Camera.cpp
+  src/GLCheck.cpp
   src/GLDisplay.cpp
   src/Window.cpp
   )
@@ -61,6 +62,7 @@ target_sources(OtkGui
   FILES
   include/OtkGui/CUDAOutputBuffer.h
   include/OtkGui/Camera.h
+  include/OtkGui/GLCheck.h
   include/OtkGui/GLDisplay.h
   include/OtkGui/Window.h
 )
