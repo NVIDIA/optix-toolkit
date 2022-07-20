@@ -268,3 +268,8 @@ set( OTK_BUILD_TESTS ON CACHE BOOL "Enable build of OptiXToolkit tests" )
 if( ${OTK_BUILD_TESTS} )
   add_subdirectory( tests )
 endif()
+
+set( OTK_BUILD_DOCS ON CACHE BOOL "Enable build of OptiXToolkit documentation" )
+if( ${OTK_BUILD_DOCS} )
+  add_subdirectory( docs/API )
+endif()
