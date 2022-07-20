@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandLoading/Paging.h>
+#include <OptiXToolkit/DemandLoading/Paging.h>
 
 using namespace demandLoading;
 

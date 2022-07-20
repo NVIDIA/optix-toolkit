@@ -60,11 +60,11 @@ target_sources(OtkGui
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
-  include/OtkGui/CUDAOutputBuffer.h
-  include/OtkGui/Camera.h
-  include/OtkGui/GLCheck.h
-  include/OtkGui/GLDisplay.h
-  include/OtkGui/Window.h
+  include/OptiXToolkit/Gui/CUDAOutputBuffer.h
+  include/OptiXToolkit/Gui/Camera.h
+  include/OptiXToolkit/Gui/GLCheck.h
+  include/OptiXToolkit/Gui/GLDisplay.h
+  include/OptiXToolkit/Gui/Window.h
 )
 
 target_include_directories(OtkGui PUBLIC
@@ -86,9 +86,9 @@ set_target_properties(OtkGui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 install(TARGETS OtkGui
   EXPORT OtkGuiTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT OtkGuiTargets

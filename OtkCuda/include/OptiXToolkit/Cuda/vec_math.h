@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include <OtkCuda/Preprocessor.h>
+#include <OptiXToolkit/Cuda/Preprocessor.h>
 
 #include <vector_functions.h>
 #include <vector_types.h>

@@ -26,11 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OtkCuda/vec_math.h>
-#include <OtkGui/GLCheck.h>
-#include <OtkGui/GLDisplay.h>
-#include <OtkGui/Window.h>
-#include <OtkUtil/Exception.h>
+#include <OptiXToolkit/Cuda/vec_math.h>
+#include <OptiXToolkit/Gui/GLCheck.h>
+#include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/Util/Exception.h>
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>

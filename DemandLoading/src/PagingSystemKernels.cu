@@ -29,7 +29,7 @@
 #include "PagingSystemKernels.h"
 #include "Util/Exception.h"
 
-#include <DemandLoading/Paging.h>
+#include <OptiXToolkit/DemandLoading/Paging.h>
 
 namespace demandLoading {
 

@@ -26,41 +26,41 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+
+
 #pragma once
 
-#include <vector_types.h>
-#include <OtkCuda/vec_math.h>
+#include <glad/glad.h>
 
+#include <cstdint>
+#include <string>
 
-__forceinline__ __device__ float3 toSRGB( const float3& c )
-{
-    float  invGamma = 1.0f / 2.4f;
-    float3 powed    = make_float3( powf( c.x, invGamma ), powf( c.y, invGamma ), powf( c.z, invGamma ) );
-    return make_float3(
-        c.x < 0.0031308f ? 12.92f * c.x : 1.055f * powed.x - 0.055f,
-        c.y < 0.0031308f ? 12.92f * c.y : 1.055f * powed.y - 0.055f,
-        c.z < 0.0031308f ? 12.92f * c.z : 1.055f * powed.z - 0.055f );
-}
+#include <OptiXToolkit/Gui/Window.h>
 
-//__forceinline__ __device__ float dequantizeUnsigned8Bits( const unsigned char i )
-//{
-//    enum { N = (1 << 8) - 1 };
-//    return min((float)i / (float)N), 1.f)
-//}
-__forceinline__ __device__ unsigned char quantizeUnsigned8Bits( float x )
-{
-    x = clamp( x, 0.0f, 1.0f );
-    enum { N = (1 << 8) - 1, Np1 = (1 << 8) };
-    return (unsigned char)min((unsigned int)(x * (float)Np1), (unsigned int)N);
-}
+namespace otk {
 
-__forceinline__ __device__ uchar4 make_color( const float3& c )
+class GLDisplay
 {
-    // first apply gamma, then convert to unsigned char
-    float3 srgb = toSRGB( clamp( c, 0.0f, 1.0f ) );
-    return make_uchar4( quantizeUnsigned8Bits( srgb.x ), quantizeUnsigned8Bits( srgb.y ), quantizeUnsigned8Bits( srgb.z ), 255u );
-}
-__forceinline__ __device__ uchar4 make_color( const float4& c )
-{
-    return make_color( make_float3( c.x, c.y, c.z ) );
-}
+public:
+    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
+
+    void display(
+            const int32_t  screen_res_x,
+            const int32_t  screen_res_y,
+            const int32_t  framebuf_res_x,
+            const int32_t  framebuf_res_y,
+            const uint32_t pbo) const;
+
+private:
+    GLuint   m_render_tex = 0u;
+    GLuint   m_program = 0u;
+    GLint    m_render_tex_uniform_loc = -1;
+    GLuint   m_quad_vertex_buffer = 0;
+
+    otk::BufferImageFormat m_image_format;
+
+    static const std::string s_vert_source;
+    static const std::string s_frag_source;
+};
+
+} // end namespace otk

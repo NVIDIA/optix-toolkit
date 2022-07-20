@@ -32,10 +32,10 @@
 #include "Textures/TextureRequestHandler.h"
 #include "Util/Exception.h"
 
-#include <DemandLoading/DemandTexture.h>
-#include <DemandLoading/TextureDescriptor.h>
-#include <DemandLoading/TextureSampler.h>
-#include <ImageSource/ImageSource.h>
+#include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <cuda.h>
 

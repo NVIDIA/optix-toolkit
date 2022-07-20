@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,32 +27,30 @@
 //
 #pragma once
 
-#include <ImageSource/ImageSource.h>
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
-#include <ImageSource/DeviceConstantImageParams.h>
+#include <vector_types.h>
 
-#include <algorithm>
-#include <sstream>
-#include <stdexcept>
 #include <vector>
 
 namespace imageSource {
 
-/// This image makes a solid color per mip level on the GPU
-class DeviceConstantImage : public MipTailImageSource
+/// If OpenEXR is not available, this test image is used.  It generates a
+/// procedural pattern, rather than loading image data from disk.
+class CheckerBoardImage : public MipTailImageSource
 {
   public:
     /// Create a test image with the specified dimensions.
-    DeviceConstantImage( unsigned int width, unsigned int height, const std::vector<float4>& mipColors );
+    CheckerBoardImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps = true, bool tiled = true );
 
     /// The destructor is virtual.
-    ~DeviceConstantImage( ) override {}
+    ~CheckerBoardImage() override {}
 
-    /// The open method initializes the given image info struct.
+    /// The open method simply initializes the given image info struct.
     void open( TextureInfo* info ) override;
 
-    /// The close operation.
+    /// The close operation is a no-op.
     void close() override {}
 
     /// Check if image is currently open.
@@ -62,35 +60,31 @@ class DeviceConstantImage : public MipTailImageSource
     const TextureInfo& getInfo() const override { return m_info; }
 
     /// Return the mode in which the image fills part of itself
-    CUmemorytype getFillType() const override { return CU_MEMORYTYPE_DEVICE; }
+    virtual CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
+    /// Throws an exception on error.
     void readTile( char*        dest,
                    unsigned int mipLevel,
                    unsigned int tileX,
                    unsigned int tileY,
                    unsigned int tileWidth,
                    unsigned int tileHeight,
-                   CUstream     stream ) override;
+                   CUstream     stream = 0 ) override;
 
-    /// Read the specified mipLevel.  Returns true for success.
-    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
-
-    /// Read the mip tail into a single buffer
-    void readMipTail( char*        dest,
-                      unsigned int mipTailFirstLevel,
-                      unsigned int numMipLevels,
-                      const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
-                      CUstream     stream ) override;
+    /// Read the specified mipLevel. Throws an exception on error.
+    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream = 0 ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
-    bool readBaseColor( float4& dest ) override;
+    bool readBaseColor( float4& dest ) override { return false; }
 
   private:
-    TextureInfo m_info;
-    std::vector<float4> m_mipColors;
+    bool isOddChecker( float x, float y, unsigned int squaresPerSide );
+
+    unsigned int        m_squaresPerSide;
+    TextureInfo         m_info;
+    std::vector<float4> m_mipLevelColors;
 };
 
 }  // namespace imageSource

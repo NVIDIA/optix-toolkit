@@ -33,7 +33,7 @@
 #include "Textures/SparseTexture.h"
 #include "Util/Exception.h"
 
-#include <ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gtest/gtest.h>
 

@@ -26,13 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <ImageSource/EXRReader.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
 
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
-#include <ImageSource/CoreEXRReader.h>
+#include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #endif
 
-#include <OtkUtil/Files.h>
+#include <OptiXToolkit/Util/Files.h>
 
 #include <gtest/gtest.h>
 

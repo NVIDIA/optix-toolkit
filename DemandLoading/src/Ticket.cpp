@@ -28,7 +28,7 @@
 
 #include "TicketImpl.h"
 
-#include <DemandLoading/Ticket.h>
+#include <OptiXToolkit/DemandLoading/Ticket.h>
 
 
 namespace demandLoading {

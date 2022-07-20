@@ -28,9 +28,9 @@
 
 #include "Util/Exception.h"
 
-#include <DemandLoading/Texture2D.h>
-#include <DemandLoading/TextureSampler.h>
-#include <DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
 #include "TestTextureFootprint.h"
 

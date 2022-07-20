@@ -33,11 +33,11 @@
 
 #include <optix.h>
 
-#include <DemandLoading/DeviceContext.h>
-#include <DemandLoading/Paging.h>
-#include <DemandLoading/Texture2DFootprint.h>
-#include <DemandLoading/TextureSampler.h>
-#include <DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Paging.h>
+#include <OptiXToolkit/DemandLoading/Texture2DFootprint.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
 #ifndef __CUDACC_RTC__
 #include <cuda.h>

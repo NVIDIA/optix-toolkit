@@ -34,9 +34,9 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Util/Exception.h"
 
-#include <DemandLoading/DemandTexture.h>
-#include <DemandLoading/TextureDescriptor.h>
-#include <ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gtest/gtest.h>
 

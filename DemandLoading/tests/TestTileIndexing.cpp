@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandLoading/DemandTexture.h>
-#include <DemandLoading/TextureSampler.h>
-#include <DemandLoading/TileIndexing.h>
-#include <ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gtest/gtest.h>
 

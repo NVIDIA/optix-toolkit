@@ -31,7 +31,7 @@
 /// \file Texture2DExtended.h 
 /// Extended device-side entry points for fetching from demand-loaded sparse textures.
 
-#include <DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
 
 namespace demandLoading {
 

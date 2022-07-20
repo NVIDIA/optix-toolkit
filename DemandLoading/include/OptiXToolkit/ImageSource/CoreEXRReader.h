@@ -28,8 +28,8 @@
 
 #pragma once
 
-#include <ImageSource/ImageSource.h>
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <memory>
 #include <mutex>

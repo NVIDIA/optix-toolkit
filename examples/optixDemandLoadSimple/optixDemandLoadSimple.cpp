@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/DemandLoader.h>
 
 #include <cuda_runtime.h>
 

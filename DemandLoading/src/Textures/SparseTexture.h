@@ -29,8 +29,8 @@
 
 #include "Util/Exception.h"
 
-#include <DemandLoading/TextureDescriptor.h>
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <vector_types.h>
 

@@ -31,13 +31,13 @@
 /// \file DemandLoader.h 
 /// Primary interface of the Demand Loading library.
 
-#include <DemandLoading/DemandTexture.h>
-#include <DemandLoading/DeviceContext.h>
-#include <DemandLoading/Options.h>
-#include <DemandLoading/Resource.h>
-#include <DemandLoading/Statistics.h>
-#include <DemandLoading/TextureDescriptor.h>
-#include <DemandLoading/Ticket.h>
+#include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Resource.h>
+#include <OptiXToolkit/DemandLoading/Statistics.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/DemandLoading/Ticket.h>
 
 #include <cuda.h>
 

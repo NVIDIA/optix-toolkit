@@ -29,7 +29,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include <ImageSource/DeviceConstantImageParams.h>
+#include <OptiXToolkit/ImageSource/DeviceConstantImageParams.h>
 
 namespace imageSource {
 

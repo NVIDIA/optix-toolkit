@@ -28,11 +28,11 @@
 
 #include "optixDemandTexture.h"
 
-#include <DemandLoading/DeviceContext.h>
-#include <DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
 
-#include <OtkCuda/color.h>
-#include <OtkCuda/vec_math.h>
+#include <OptiXToolkit/Cuda/color.h>
+#include <OptiXToolkit/Cuda/vec_math.h>
 
 #include <cuda_runtime.h>
 

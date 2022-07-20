@@ -35,8 +35,8 @@
 #include "Util/TraceFile.h"
 #include "TicketImpl.h"
 
-#include <DemandLoading/DeviceContext.h>
-#include <DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
 #include <cuda.h>
 

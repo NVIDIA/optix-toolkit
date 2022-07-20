@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <ImageSource/EXRReader.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
 
 #include "Exception.h"
 #include "Stopwatch.h"

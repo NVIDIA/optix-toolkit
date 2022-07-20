@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gtest/gtest.h>
 

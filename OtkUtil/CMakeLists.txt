@@ -59,14 +59,14 @@ target_sources(OtkUtil
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
-  include/OtkUtil/Exception.h
-  include/OtkUtil/Files.h
+  include/OptiXToolkit/Util/Exception.h
+  include/OptiXToolkit/Util/Files.h
 )
 
 target_include_directories(OtkUtil PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>  # for OtkConfig.h
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for OtkConfig.h
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${OptiX_INCLUDE_DIR}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
@@ -82,9 +82,9 @@ set_target_properties(OtkUtil PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 install(TARGETS OtkUtil
   EXPORT OtkUtilTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT OtkUtilTargets
@@ -93,7 +93,7 @@ install(EXPORT OtkUtilTargets
   NAMESPACE OptiXToolkit::
   )
 
-configure_file( src/OtkConfig.h.in OtkConfig.h @ONLY )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/OtkConfig.h 
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit/OtkUtil
+configure_file( src/Config.h.in include/OptiXToolkit/Util/Config.h @ONLY )
+install( FILES ${CMAKE_CURRENT_BINARY_DIR}/include/OptiXToolkit/Util/Config.h 
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit/Util
   )

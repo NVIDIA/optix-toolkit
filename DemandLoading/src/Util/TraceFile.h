@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <DemandLoading/Statistics.h>
+#include <OptiXToolkit/DemandLoading/Statistics.h>
 
 #include <cuda.h>
 

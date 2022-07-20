@@ -28,7 +28,7 @@
 
 #include "Memory/DeviceContextPool.h"
 
-#include <DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
 
 namespace demandLoading {
 

@@ -26,10 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "OtkConfig.h" // generated from OtkConfig.h.in
-
-#include <OtkUtil/Files.h>
-#include <OtkUtil/Exception.h>
+#include <OptiXToolkit/Util/Config.h> // generated from Util/src/Config.h.in
+#include <OptiXToolkit/Util/Files.h>
+#include <OptiXToolkit/Util/Exception.h>
 
 #include <fstream>
 

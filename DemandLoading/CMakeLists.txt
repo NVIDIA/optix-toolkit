@@ -133,30 +133,30 @@ target_sources(DemandLoading
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
-  include/DemandLoading/DemandLoader.h
-  include/DemandLoading/DemandTexture.h
-  include/DemandLoading/DeviceContext.h
-  include/DemandLoading/Options.h
-  include/DemandLoading/Paging.h
-  include/DemandLoading/Resource.h
-  include/DemandLoading/Statistics.h
-  include/DemandLoading/Texture2DExtended.h
-  include/DemandLoading/Texture2DFootprint.h
-  include/DemandLoading/Texture2D.h
-  include/DemandLoading/TextureDescriptor.h
-  include/DemandLoading/TextureSampler.h
-  include/DemandLoading/Ticket.h
-  include/DemandLoading/TileIndexing.h
-  include/ImageSource/CheckerBoardImage.h
-  include/ImageSource/CoreEXRReader.h
-  include/ImageSource/DeviceConstantImage.h
-  include/ImageSource/DeviceConstantImageParams.h
-  include/ImageSource/DeviceMandelbrotImage.h
-  include/ImageSource/DeviceMandelbrotParams.h
-  include/ImageSource/EXRReader.h
-  include/ImageSource/ImageSource.h
-  include/ImageSource/MultiCheckerImage.h
-  include/ImageSource/TextureInfo.h
+  include/OptiXToolkit/DemandLoading/DemandLoader.h
+  include/OptiXToolkit/DemandLoading/DemandTexture.h
+  include/OptiXToolkit/DemandLoading/DeviceContext.h
+  include/OptiXToolkit/DemandLoading/Options.h
+  include/OptiXToolkit/DemandLoading/Paging.h
+  include/OptiXToolkit/DemandLoading/Resource.h
+  include/OptiXToolkit/DemandLoading/Statistics.h
+  include/OptiXToolkit/DemandLoading/Texture2DExtended.h
+  include/OptiXToolkit/DemandLoading/Texture2DFootprint.h
+  include/OptiXToolkit/DemandLoading/Texture2D.h
+  include/OptiXToolkit/DemandLoading/TextureDescriptor.h
+  include/OptiXToolkit/DemandLoading/TextureSampler.h
+  include/OptiXToolkit/DemandLoading/Ticket.h
+  include/OptiXToolkit/DemandLoading/TileIndexing.h
+  include/OptiXToolkit/ImageSource/CheckerBoardImage.h
+  include/OptiXToolkit/ImageSource/CoreEXRReader.h
+  include/OptiXToolkit/ImageSource/DeviceConstantImage.h
+  include/OptiXToolkit/ImageSource/DeviceConstantImageParams.h
+  include/OptiXToolkit/ImageSource/DeviceMandelbrotImage.h
+  include/OptiXToolkit/ImageSource/DeviceMandelbrotParams.h
+  include/OptiXToolkit/ImageSource/EXRReader.h
+  include/OptiXToolkit/ImageSource/ImageSource.h
+  include/OptiXToolkit/ImageSource/MultiCheckerImage.h
+  include/OptiXToolkit/ImageSource/TextureInfo.h
 )
 
 source_group( "Header Files\\Implementation" FILES
@@ -253,9 +253,9 @@ endif()
 install(TARGETS DemandLoading
   EXPORT DemandLoadingTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT DemandLoadingTargets

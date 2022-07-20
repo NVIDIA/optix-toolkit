@@ -29,7 +29,7 @@
 #include "Textures/DenseTexture.h"
 #include "Util/Exception.h"
 
-#include <ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <algorithm>
 #include <cmath>

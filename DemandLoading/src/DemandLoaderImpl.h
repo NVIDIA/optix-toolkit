@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/DemandLoader.h>
 
 #include "Memory/DeviceMemoryManager.h"
 #include "Memory/PinnedMemoryManager.h"

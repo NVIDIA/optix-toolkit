@@ -28,8 +28,8 @@
 
 #pragma once
 
-#include <DemandLoading/DeviceContext.h>  // for PageMapping
-#include <DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
+#include <OptiXToolkit/DemandLoading/Options.h>
 
 namespace demandLoading {
 

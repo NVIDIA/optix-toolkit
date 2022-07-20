@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <cstddef>  // for size_t
 

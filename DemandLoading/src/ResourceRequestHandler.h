@@ -30,7 +30,7 @@
 
 #include "RequestHandler.h"
 
-#include <DemandLoading/Resource.h>
+#include <OptiXToolkit/DemandLoading/Resource.h>
 
 namespace demandLoading {
 

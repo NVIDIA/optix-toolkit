@@ -30,7 +30,7 @@
 
 #include "Util/Exception.h"
 
-#include <DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
 
 using namespace demandLoading;
 

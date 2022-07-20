@@ -34,8 +34,8 @@
 #include "Util/Math.h"
 #include "Util/Stopwatch.h"
 
-#include <DemandLoading/TileIndexing.h>
-#include <ImageSource/ImageSource.h>
+#include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <cuda.h>
 

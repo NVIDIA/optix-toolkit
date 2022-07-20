@@ -32,7 +32,7 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Util/NVTXProfiling.h"
 
-#include <DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
 #include "TransferBufferDesc.h"
 

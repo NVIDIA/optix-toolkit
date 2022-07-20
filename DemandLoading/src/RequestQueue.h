@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <DemandLoading/Ticket.h>
+#include <OptiXToolkit/DemandLoading/Ticket.h>
 
 #include <cuda.h>
 

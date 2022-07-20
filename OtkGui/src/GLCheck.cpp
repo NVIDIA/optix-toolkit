@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OtkUtil/Exception.h>
+#include <OptiXToolkit/Util/Exception.h>
 
 #include <glad/glad.h>
 

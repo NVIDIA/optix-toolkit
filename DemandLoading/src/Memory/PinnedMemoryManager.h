@@ -34,8 +34,8 @@
 #include "Memory/PinnedRequestContextPool.h"
 #include "PageMappingsContext.h"
 
-#include <DemandLoading/Options.h>
-#include <DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 #include <algorithm>
 

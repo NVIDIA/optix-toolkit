@@ -28,8 +28,8 @@
 
 #pragma once
 
-#include <DemandLoading/DeviceContext.h>  // for StalePage
-#include <DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for StalePage
+#include <OptiXToolkit/DemandLoading/Options.h>
 
 namespace demandLoading {
 

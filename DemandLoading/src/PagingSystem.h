@@ -29,9 +29,9 @@
 
 #include "Util/Exception.h"
 
-#include <DemandLoading/DeviceContext.h>  // for PageMapping
-#include <DemandLoading/Options.h>
-#include <DemandLoading/Ticket.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Ticket.h>
 
 #include <cuda.h>
 

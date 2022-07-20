@@ -27,9 +27,9 @@
 //
 #pragma once
 
-#include <ImageSource/EXRReader.h>
-#include <ImageSource/ImageSource.h>
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <sstream>
 #include <stdexcept>

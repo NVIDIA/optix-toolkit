@@ -31,8 +31,8 @@
 /// \file EXRReader.h
 /// OpenEXR image reader.
 
-#include <ImageSource/ImageSource.h>
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <iosfwd>
 #include <memory>

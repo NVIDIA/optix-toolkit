@@ -27,10 +27,10 @@
 //
 
 
-#include <DemandLoading/Options.h>
-#include <DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include "Memory/Buffers.h"
 #include "Memory/PinnedItemPool.h"

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <ImageSource/DeviceConstantImage.h>
+#include <OptiXToolkit/ImageSource/DeviceConstantImage.h>
 
 #include <gtest/gtest.h>
 

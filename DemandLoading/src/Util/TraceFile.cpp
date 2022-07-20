@@ -30,9 +30,9 @@
 #include "DemandLoaderImpl.h"
 #include "Util/Exception.h"
 
-#include <DemandLoading/Options.h>
-#include <DemandLoading/TextureDescriptor.h>
-#include <ImageSource/EXRReader.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
 
 #include <cassert>
 

@@ -48,9 +48,9 @@ target_sources(OtkCuda
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
-  include/OtkCuda/color.h
-  include/OtkCuda/Preprocessor.h
-  include/OtkCuda/vec_math.h
+  include/OptiXToolkit/Cuda/color.h
+  include/OptiXToolkit/Cuda/Preprocessor.h
+  include/OptiXToolkit/Cuda/vec_math.h
   )
 
 target_include_directories(OtkCuda INTERFACE
@@ -60,7 +60,7 @@ target_include_directories(OtkCuda INTERFACE
 
 install(TARGETS OtkCuda
   EXPORT OtkCudaTargets
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 install(EXPORT OtkCudaTargets

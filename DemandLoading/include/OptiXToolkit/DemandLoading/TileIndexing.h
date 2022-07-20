@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 #ifndef __CUDACC_RTC__
 #include <cuda.h>

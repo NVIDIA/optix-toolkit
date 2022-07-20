@@ -28,15 +28,15 @@
 
 #include "optixDemandTexture.h"
 
-#include <DemandLoading/DemandLoader.h>
-#include <DemandLoading/DemandTexture.h>
-#include <DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 
-#include <ImageSource/CheckerBoardImage.h>
-#include <ImageSource/EXRReader.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
 
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
-#include <ImageSource/CoreEXRReader.h>
+#include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #endif
 
 #include <optix.h>
@@ -46,10 +46,10 @@
 
 #include <cuda_runtime.h>
 
-#include <OtkGui/CUDAOutputBuffer.h>
-#include <OtkGui/Camera.h>
-#include <OtkGui/Window.h>
-#include <OtkUtil/Files.h>
+#include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
+#include <OptiXToolkit/Gui/Camera.h>
+#include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/Util/Files.h>
 
 #include <cassert>
 #include <fstream>

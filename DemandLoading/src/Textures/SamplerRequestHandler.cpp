@@ -36,7 +36,7 @@
 
 #include <algorithm>
 
-#include <DemandLoading/Paging.h>  // for NON_EVICTABLE_LRU_VAL
+#include <OptiXToolkit/DemandLoading/Paging.h>  // for NON_EVICTABLE_LRU_VAL
 
 namespace demandLoading {
 

@@ -31,7 +31,7 @@
 #include "Memory/Allocators.h"
 #include "Memory/ItemPool.h"
 
-#include <DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 namespace demandLoading {
 

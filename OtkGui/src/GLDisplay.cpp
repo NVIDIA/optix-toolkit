@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OtkGui/GLCheck.h>
-#include <OtkGui/GLDisplay.h>
-#include <OtkUtil/Exception.h>
+#include <OptiXToolkit/Gui/GLCheck.h>
+#include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Util/Exception.h>
 
 #include <iostream>
 

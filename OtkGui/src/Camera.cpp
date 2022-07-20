@@ -27,7 +27,7 @@
 //
 
 
-#include <OtkGui/Camera.h>
+#include <OptiXToolkit/Gui/Camera.h>
 
 namespace otk {
 

@@ -28,12 +28,12 @@
 
 #include "Util/TraceFile.h"
 
-#include <DemandLoading/DemandLoader.h>
-#include <DemandLoading/Options.h>
-#include <DemandLoading/TextureDescriptor.h>
-#include <ImageSource/EXRReader.h>
+#include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
 
-#include <OtkUtil/Files.h>
+#include <OptiXToolkit/Util/Files.h>
 
 #include <gtest/gtest.h>
 

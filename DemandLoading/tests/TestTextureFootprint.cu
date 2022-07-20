@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
 
 #include "TestTextureFootprint.h"
 

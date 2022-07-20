@@ -43,6 +43,3 @@ include("${_prefix}/cmake/OptiXToolkit/OtkCudaTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/OtkUtilTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/OtkGuiTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/DemandLoadingTargets.cmake")
-
-# Report other information.
-set(OptiXToolkit_INCLUDE_DIRS "${_prefix}/include/OptiXToolkit-@PROJECT_VERSION@")

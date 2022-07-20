@@ -29,7 +29,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include <ImageSource/DeviceMandelbrotParams.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotParams.h>
 
 namespace imageSource {
 

@@ -29,7 +29,7 @@
 
 #include <optix.h>
 
-#include <DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
 
 #include <cuda_runtime.h>
 

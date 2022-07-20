@@ -26,41 +26,49 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-
-
 #pragma once
 
-#include <glad/glad.h>
+#include <OptiXToolkit/Cuda/vec_math.h>
 
-#include <cstdint>
-#include <string>
-
-#include <OtkGui/Window.h>
 
 namespace otk {
 
-class GLDisplay
-{
+// implementing a perspective camera
+class Camera {
 public:
-    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
+    Camera()
+        : m_eye(make_float3(1.0f)), m_lookat(make_float3(0.0f)), m_up(make_float3(0.0f, 1.0f, 0.0f)), m_fovY(35.0f), m_aspectRatio(1.0f)
+    {
+    }
 
-    void display(
-            const int32_t  screen_res_x,
-            const int32_t  screen_res_y,
-            const int32_t  framebuf_res_x,
-            const int32_t  framebuf_res_y,
-            const uint32_t pbo) const;
+    Camera(const float3& eye, const float3& lookat, const float3& up, float fovY, float aspectRatio)
+        : m_eye(eye), m_lookat(lookat), m_up(up), m_fovY(fovY), m_aspectRatio(aspectRatio)
+    {
+    }
+
+    float3 direction() const { return normalize(m_lookat - m_eye); }
+    void setDirection(const float3& dir) { m_lookat = m_eye + length(m_lookat - m_eye) * dir; }
+
+    const float3& eye() const { return m_eye; }
+    void setEye(const float3& val) { m_eye = val; }
+    const float3& lookat() const { return m_lookat; }
+    void setLookat(const float3& val) { m_lookat = val; }
+    const float3& up() const { return m_up; }
+    void setUp(const float3& val) { m_up = val; }
+    const float& fovY() const { return m_fovY; }
+    void setFovY(const float& val) { m_fovY = val; }
+    const float& aspectRatio() const { return m_aspectRatio; }
+    void setAspectRatio(const float& val) { m_aspectRatio = val; }
+
+    // UVW forms an orthogonal, but not orthonormal basis!
+    void UVWFrame(float3& U, float3& V, float3& W) const;
 
 private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
-
-    otk::BufferImageFormat m_image_format;
-
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
+    float3 m_eye;
+    float3 m_lookat;
+    float3 m_up;
+    float m_fovY;
+    float m_aspectRatio;
 };
 
-} // end namespace otk
+} // namespace otk

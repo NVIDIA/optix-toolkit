@@ -32,7 +32,7 @@
 #include <cuda.h>
 #include <cuda_fp16.h>
 
-#include <ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 namespace imageSource {
 
