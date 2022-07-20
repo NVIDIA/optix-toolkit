@@ -39,7 +39,7 @@ list(APPEND CMAKE_MODULE_PATH ${_dir})
 find_package(OptiX REQUIRED)
 
 # Import the targets.
-include("${_prefix}/cmake/OptiXToolkit/OtkCudaTargets.cmake")
-include("${_prefix}/cmake/OptiXToolkit/OtkUtilTargets.cmake")
-include("${_prefix}/cmake/OptiXToolkit/OtkGuiTargets.cmake")
+include("${_prefix}/cmake/OptiXToolkit/CudaTargets.cmake")
+include("${_prefix}/cmake/OptiXToolkit/UtilTargets.cmake")
+include("${_prefix}/cmake/OptiXToolkit/GuiTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/DemandLoadingTargets.cmake")

@@ -71,7 +71,7 @@ target_include_directories( testDemandLoading PUBLIC
 
 target_link_libraries( testDemandLoading
   DemandLoading
-  OptiXToolkit::OtkUtil
+  OptiXToolkit::Util
   OpenEXR::OpenEXR # for half
   gtest
   )

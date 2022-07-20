@@ -30,7 +30,7 @@
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(../CMake/Policies.cmake)
 
-project(OtkUtil LANGUAGES C CXX CUDA)
+project(Cuda LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -40,60 +40,31 @@ include(../CMake/BuildConfig.cmake)
 
 find_package( CUDAToolkit 10.0 REQUIRED )
 
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../CMake)
-find_package(OptiX REQUIRED)
+add_library(Cuda INTERFACE)
+add_library(OptiXToolkit::Cuda ALIAS Cuda)
 
-add_library(OtkUtil SHARED
-  src/Exception.cpp
-  src/Files.cpp
-  )
-
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::OtkUtil ALIAS OtkUtil)
-endif()
-
-target_sources(OtkUtil 
+target_sources(Cuda
   PUBLIC 
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
-  include/OptiXToolkit/Util/Exception.h
-  include/OptiXToolkit/Util/Files.h
-)
+  include/OptiXToolkit/Cuda/color.h
+  include/OptiXToolkit/Cuda/Preprocessor.h
+  include/OptiXToolkit/Cuda/vec_math.h
+  )
 
-target_include_directories(OtkUtil PUBLIC
+target_include_directories(Cuda INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for OtkConfig.h
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  ${OptiX_INCLUDE_DIR}
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
-target_link_libraries(OtkUtil PRIVATE
-  OptiX::OptiX
-  CUDA::cudart_static
-  )
-
-set_target_properties(OtkUtil PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
-install(TARGETS OtkUtil
-  EXPORT OtkUtilTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+install(TARGETS Cuda
+  EXPORT CudaTargets
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
-install(EXPORT OtkUtilTargets
-  FILE OtkUtilTargets.cmake
+install(EXPORT CudaTargets
+  FILE CudaTargets.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
-  )
-
-configure_file( src/Config.h.in include/OptiXToolkit/Util/Config.h @ONLY )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/include/OptiXToolkit/Util/Config.h 
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit/Util
   )

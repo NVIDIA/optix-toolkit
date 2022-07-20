@@ -30,7 +30,7 @@
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(../CMake/Policies.cmake)
 
-project(OtkGui LANGUAGES C CXX CUDA)
+project(Gui LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -44,7 +44,7 @@ if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
 
-add_library(OtkGui SHARED
+add_library(Gui SHARED
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp
@@ -52,10 +52,10 @@ add_library(OtkGui SHARED
   )
 
 if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::OtkGui ALIAS OtkGui)
+  add_library(OptiXToolkit::Gui ALIAS Gui)
 endif()
 
-target_sources(OtkGui 
+target_sources(Gui 
   PUBLIC 
   FILE_SET HEADERS 
   BASE_DIRS include
@@ -67,32 +67,32 @@ target_sources(OtkGui
   include/OptiXToolkit/Gui/Window.h
 )
 
-target_include_directories(OtkGui PUBLIC
+target_include_directories(Gui PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-target_link_libraries(OtkGui
+target_link_libraries(Gui
   PUBLIC
-  OptiXToolkit::OtkCuda
-  OptiXToolkit::OtkUtil
+  OptiXToolkit::Cuda
+  OptiXToolkit::Util
   PRIVATE
   glfw
   glad
   )
 
-set_target_properties(OtkGui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(Gui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-install(TARGETS OtkGui
-  EXPORT OtkGuiTargets
+install(TARGETS Gui
+  EXPORT GuiTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
-install(EXPORT OtkGuiTargets
-  FILE OtkGuiTargets.cmake
+install(EXPORT GuiTargets
+  FILE GuiTargets.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )

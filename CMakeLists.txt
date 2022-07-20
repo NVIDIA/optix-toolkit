@@ -66,9 +66,9 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 #########################################################
 # Subdirectories
 
-add_subdirectory(OtkCuda)
-add_subdirectory(OtkUtil)
-add_subdirectory(OtkGui)
+add_subdirectory(Cuda)
+add_subdirectory(Util)
+add_subdirectory(Gui)
 add_subdirectory(DemandLoading)
 
 set( OTK_BUILD_EXAMPLES ON CACHE BOOL "Enable build of OptiXToolkit examples" )

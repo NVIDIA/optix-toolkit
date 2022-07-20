@@ -50,6 +50,6 @@ target_link_libraries( optixDemandLoadSimple
   OptiXToolkit::DemandLoading
   )
 
-set_target_properties( optixDemandLoadSimple PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" )
+set_target_properties( optixDemandLoadSimple PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
 
 install( TARGETS optixDemandLoadSimple RUNTIME )

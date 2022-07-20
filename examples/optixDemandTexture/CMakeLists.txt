@@ -47,7 +47,7 @@ embed_ptx(
   OUTPUT_TARGET
     DemandTexture
   PTX_LINK_LIBRARIES
-    OptiXToolkit::DemandLoading OptiXToolkit::OtkCuda
+    OptiXToolkit::DemandLoading OptiXToolkit::Cuda
   SOURCES
     optixDemandTexture.cu
 )
@@ -60,13 +60,12 @@ add_executable( optixDemandTexture
 target_link_libraries( optixDemandTexture
   DemandTexture
   OptiXToolkit::DemandLoading
-  OptiXToolkit::OtkGui
-  OptiXToolkit::OtkUtil
+  OptiXToolkit::Gui
+  OptiXToolkit::Util
   glad
   )
 
-
-set_target_properties( optixDemandTexture PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" )
+set_target_properties( optixDemandTexture PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
 
 get_target_property( _bin optixDemandTexture RUNTIME_OUTPUT_DIRECTORY )
 file( INSTALL Textures DESTINATION ${_bin} )
