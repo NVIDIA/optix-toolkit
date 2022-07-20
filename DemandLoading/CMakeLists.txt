@@ -264,4 +264,7 @@ install(EXPORT DemandLoadingTargets
   NAMESPACE OptiXToolkit::
   )
 
-add_subdirectory( tests )
+set( OTK_BUILD_TESTS ON CACHE BOOL "Enable build of OptiXToolkit tests" )
+if( ${OTK_BUILD_TESTS} )
+  add_subdirectory( tests )
+endif()
