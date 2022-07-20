@@ -28,78 +28,22 @@
 
 include( ../../CMake/FetchGtest.cmake )
 
-add_executable( testDemandLoading
+add_executable( testImageSource
   main.cpp
-  DemandLoaderTestKernels.cu
-  DemandLoaderTestKernels.h
-  PagingSystemTestKernels.cu
-  PagingSystemTestKernels.h
-  TestBulkMemory.cpp
-  TestBulkPinnedItemPool.cpp
-  TestDemandLoader.cpp
-  TestDemandTexture.cpp
-  TestDenseTexture.cpp
-  TestDeviceContextImpl.cpp
-  TestDeviceContextPool.cpp
-  TestEventPool.cpp
-  TestFixedPool.cpp
-  TestItemPool.cpp
-  TestMutexArray.cpp
-  TestPageTableManager.cpp
-  TestPagingSystem.cpp
-  TestPagingSystemKernels.cpp
-  TestPinnedItemPool.cpp
-  TestSparseTexture.cpp
-  TestSparseTexture.cu
-  TestSparseTexture.h
-  TestSparseTextureWrap.cpp
-  TestTextureFill.cpp
-  TestTextureInstantiation.cpp
-  TestTicket.cpp
-  TestTileArena.cpp
-  TestTileIndexing.cpp
-  TestTilePool.cpp
-  TestTraceFile.cpp
+  TestCheckerBoardImage.cpp
+  TestEXRReader.cpp
   )  
 
-target_include_directories( testDemandLoading PUBLIC
+target_include_directories( testImageSource PUBLIC
   ../src
   )
 
-target_link_libraries( testDemandLoading
-  DemandLoading
+target_link_libraries( testImageSource
+  ImageSource
   OptiXToolkit::Util
+  OpenEXR::OpenEXR # for half
   gtest
   )
 
-# The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(../../CMake/embed_ptx.cmake)
-embed_ptx(
-  OUTPUT_TARGET
-    TextureFootprint
-  PTX_LINK_LIBRARIES
-    DemandLoading
-  SOURCES
-    TestTextureFootprint.cu
-)
-
-add_executable( testTextureFootprint
-  main.cpp
-  TestTextureFootprint.cpp
-  TestTextureFootprint.h
-  )
-
-target_include_directories( testTextureFootprint PUBLIC
-  ../src
-  )
-
-target_link_libraries( testTextureFootprint
-  TextureFootprint
-  DemandLoading
-  gtest
-  )
-
-add_dependencies( testTextureFootprint TextureFootprint )
-
-get_target_property( _bin testDemandLoading RUNTIME_OUTPUT_DIRECTORY )
+get_target_property( _bin testImageSource RUNTIME_OUTPUT_DIRECTORY )
 file( INSTALL Textures DESTINATION ${_bin} )

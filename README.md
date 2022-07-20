@@ -6,9 +6,10 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 ## Current Utilities
 - **PyOptiX** - Complete Python bindings for the OptiX host API.
 - **[DemandLoading](DemandLoading/README.md)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
-- **OtkGui** - convenience code for incorporating OpenGL into OptiX applications.
-- **OtkCuda** - vector math and other CUDA helper functions for OptiX kernels.
-- **OtkUtil** - file handling and other utility functions.
+- **ImageSource** - wrapper for OpenEXR image library (adaptable to other image formats).
+- **Gui** - convenience code for incorporating OpenGL into OptiX applications.
+- **Cuda** - vector math and other CUDA helper functions for OptiX kernels.
+- **Util** - file handling and other utility functions.
 
 ## Requirements
 

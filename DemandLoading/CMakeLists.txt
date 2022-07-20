@@ -37,7 +37,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(../CMake/BuildConfig.cmake)
-include(../CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
@@ -55,17 +54,6 @@ add_library( DemandLoading SHARED
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
-  src/ImageSource/CheckerBoardImage.cpp
-  src/ImageSource/CoreEXRReader.cpp
-  src/ImageSource/DeviceConstantImage.cpp
-  src/ImageSource/DeviceConstantImageKernels.cu
-  src/ImageSource/DeviceMandelbrotImage.cpp
-  src/ImageSource/DeviceMandelbrotImageKernels.cu
-  src/ImageSource/EXRReader.cpp
-  src/ImageSource/Exception.h
-  src/ImageSource/ImageSource.cpp
-  src/ImageSource/Stopwatch.h
-  src/ImageSource/TextureInfo.cpp
   src/Memory/Allocators.h
   src/Memory/AsyncItemPool.h
   src/Memory/Buffers.h
@@ -147,23 +135,11 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/TextureSampler.h
   include/OptiXToolkit/DemandLoading/Ticket.h
   include/OptiXToolkit/DemandLoading/TileIndexing.h
-  include/OptiXToolkit/ImageSource/CheckerBoardImage.h
-  include/OptiXToolkit/ImageSource/CoreEXRReader.h
-  include/OptiXToolkit/ImageSource/DeviceConstantImage.h
-  include/OptiXToolkit/ImageSource/DeviceConstantImageParams.h
-  include/OptiXToolkit/ImageSource/DeviceMandelbrotImage.h
-  include/OptiXToolkit/ImageSource/DeviceMandelbrotParams.h
-  include/OptiXToolkit/ImageSource/EXRReader.h
-  include/OptiXToolkit/ImageSource/ImageSource.h
-  include/OptiXToolkit/ImageSource/MultiCheckerImage.h
-  include/OptiXToolkit/ImageSource/TextureInfo.h
 )
 
 source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.h
-  src/ImageSource/Exception.h
-  src/ImageSource/Stopwatch.h
   src/Memory/Allocators.h
   src/Memory/AsyncItemPool.h
   src/Memory/Buffers.h
@@ -206,11 +182,6 @@ source_group( "Header Files\\Implementation" FILES
   src/Util/TraceFile.h
   )
 
-target_compile_definitions( DemandLoading PUBLIC
-  OPTIX_SAMPLE_USE_CORE_EXR
-  OTK_IMF_NAMESPACE=Imf_3_1
-  )
-
 target_include_directories( DemandLoading
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -221,18 +192,13 @@ target_include_directories( DemandLoading
   src
   )
 
-# Bundle OpenEXR libraries to work around export problem.
-add_library(OpenEXR_OTK INTERFACE IMPORTED)
-target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
-
 target_link_libraries( DemandLoading
   PUBLIC
+  OptiXToolkit::ImageSource
   OptiX::OptiX
   CUDA::cuda_driver
   CUDA::cudart_static
   ${CMAKE_DL_LIBS}  
-  PRIVATE
-  OpenEXR_OTK
   )
 
 set_target_properties(DemandLoading PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
