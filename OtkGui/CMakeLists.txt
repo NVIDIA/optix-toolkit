@@ -74,8 +74,8 @@ target_include_directories(OtkGui PUBLIC
 
 target_link_libraries(OtkGui
   PUBLIC
-  OtkCuda
-  OtkUtil
+  OptiXToolkit::OtkCuda
+  OptiXToolkit::OtkUtil
   PRIVATE
   glfw
   glad
