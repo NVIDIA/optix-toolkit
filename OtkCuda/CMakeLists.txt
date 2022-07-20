@@ -26,7 +26,19 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+include(../CMake/Policies.cmake)
+
+project(OtkCuda LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 include(GNUInstallDirs)
+include(../CMake/BuildConfig.cmake)
+
+find_package( CUDAToolkit 10.0 REQUIRED )
 
 add_library(OtkCuda INTERFACE)
 add_library(OptiXToolkit::OtkCuda ALIAS OtkCuda)
