@@ -28,28 +28,28 @@
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(../../CMake/Policies.cmake)
+include(../../../CMake/Policies.cmake)
 
-project(OptiXDemandLoadSimple LANGUAGES C CXX CUDA)
+project(DemandLoadSimple LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(../../CMake/BuildConfig.cmake)
+include(../../../CMake/BuildConfig.cmake)
 
 if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
 
-add_executable( optixDemandLoadSimple
-  optixDemandLoadSimple.cpp
+add_executable( demandLoadSimple
+  simple.cpp
   PageRequester.cu
   )
 
-target_link_libraries( optixDemandLoadSimple
+target_link_libraries( demandLoadSimple
   OptiXToolkit::DemandLoading
   )
 
-set_target_properties( optixDemandLoadSimple PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
+set_target_properties( demandLoadSimple PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
 
-install( TARGETS optixDemandLoadSimple RUNTIME )
+install( TARGETS demandLoadSimple RUNTIME )

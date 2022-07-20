@@ -26,49 +26,5 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(../../CMake/Policies.cmake)
-
-project(OptiXDemandTexture LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-include(../../CMake/BuildConfig.cmake)
-include(../../CMake/FetchGlad.cmake)
-include(../../CMake/embed_ptx.cmake)
-
-if(PROJECT_IS_TOP_LEVEL)
-  find_package(OptiXToolkit REQUIRED)
-endif()
-
-embed_ptx(
-  OUTPUT_TARGET
-    DemandTexture
-  PTX_LINK_LIBRARIES
-    OptiXToolkit::DemandLoading OptiXToolkit::Cuda
-  SOURCES
-    optixDemandTexture.cu
-)
-
-add_executable( optixDemandTexture
-  optixDemandTexture.cpp
-  optixDemandTexture.h
-  )
-
-target_link_libraries( optixDemandTexture
-  DemandTexture
-  OptiXToolkit::DemandLoading
-  OptiXToolkit::Gui
-  OptiXToolkit::Util
-  glad
-  )
-
-set_target_properties( optixDemandTexture PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
-
-get_target_property( _bin optixDemandTexture RUNTIME_OUTPUT_DIRECTORY )
-file( INSTALL Textures DESTINATION ${_bin} )
-
-install( TARGETS optixDemandTexture RUNTIME )
-install( DIRECTORY Textures TYPE BIN )
+add_subdirectory(Simple)
+add_subdirectory(Texture)

@@ -20,7 +20,7 @@ This document describes the Demand Loading API.  For a higher-level discussion, 
 (https://raytracing-docs.nvidia.com/optix7/guide/index.html#demand_loading#demand-loaded-sparse-textures)
 
 The DemandLoader class is the primary interface of the Demand Loading library.  Here is some sample
-code (adapted from examples/DemandLoading/simple) that demonstrates how to launch a kernel that
+code (adapted from examples/DemandLoading/Simple) that demonstrates how to launch a kernel that
 requests a demand-loaded resource:
 
 \code
