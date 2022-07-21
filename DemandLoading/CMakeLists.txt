@@ -206,14 +206,7 @@ set_target_properties(DemandLoading PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 # NVTX Profiling
 option( DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )
 if( DEMAND_LOADING_USE_NVTX )
-    find_package( NVTX )
-    if( NVTX_FOUND )
-        message( "-- Found NVTX: Enabling NVTX profiling in the DemandLoading library" )
-        include_directories( ${NVTX_INCLUDE} )
-        target_compile_definitions( DemandLoading PUBLIC ENABLE_NVTX_PROFILING )
-    else()
-        message( "-- Not Found NVTX: Disabling NVTX profiling in the DemandLoading library" )
-    endif()
+  target_compile_definitions( DemandLoading PUBLIC ENABLE_NVTX_PROFILING )
 endif()
 
 install(TARGETS DemandLoading
