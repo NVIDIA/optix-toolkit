@@ -49,7 +49,7 @@ if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
 
-add_library( DemandLoading SHARED
+add_library( DemandLoading
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.cpp
@@ -198,7 +198,6 @@ target_link_libraries( DemandLoading
   OptiX::OptiX
   CUDA::cuda_driver
   CUDA::cudart_static
-  ${CMAKE_DL_LIBS}  
   )
 
 set_target_properties(DemandLoading PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

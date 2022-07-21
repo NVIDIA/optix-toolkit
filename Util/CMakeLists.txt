@@ -45,7 +45,7 @@ set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX ins
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../CMake)
 find_package(OptiX REQUIRED)
 
-add_library(Util SHARED
+add_library(Util
   src/Exception.cpp
   src/Files.cpp
   )
