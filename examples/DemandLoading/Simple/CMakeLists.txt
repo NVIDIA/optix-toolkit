@@ -35,6 +35,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(GNUInstallDirs)
 include(../../../CMake/BuildConfig.cmake)
 
 if(PROJECT_IS_TOP_LEVEL)
@@ -53,3 +54,13 @@ target_link_libraries( demandLoadSimple
 set_target_properties( demandLoadSimple PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
 
 install( TARGETS demandLoadSimple RUNTIME )
+
+# Copy shared libraries that the built executable depends on.
+add_custom_command(TARGET demandLoadSimple POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
+  COMMAND_EXPAND_LISTS
+  )
+
+# Install shared libraries that the installed executable depends on.
+install( PROGRAMS $<TARGET_RUNTIME_DLLS:demandLoadSimple>
+         DESTINATION ${CMAKE_INSTALL_BINDIR} )

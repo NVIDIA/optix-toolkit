@@ -35,6 +35,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(GNUInstallDirs)
 include(../../../CMake/BuildConfig.cmake)
 include(../../../CMake/FetchGlad.cmake)
 include(../../../CMake/embed_ptx.cmake)
@@ -72,3 +73,13 @@ file( INSTALL Textures DESTINATION ${_bin} )
 
 install( TARGETS demandLoadTexture RUNTIME )
 install( DIRECTORY Textures TYPE BIN )
+
+# Copy shared libraries that the built executable depends on.
+add_custom_command(TARGET demandLoadTexture POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadTexture> $<TARGET_FILE_DIR:demandLoadTexture>
+  COMMAND_EXPAND_LISTS
+  )
+
+# Install shared libraries that the installed executable depends on.
+install( PROGRAMS $<TARGET_RUNTIME_DLLS:demandLoadTexture>
+         DESTINATION ${CMAKE_INSTALL_BINDIR} )

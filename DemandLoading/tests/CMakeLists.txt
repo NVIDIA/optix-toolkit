@@ -72,6 +72,13 @@ target_link_libraries( testDemandLoading
   gtest
   )
 
+# Copy shared libraries that the built executable depends on.
+add_custom_command(TARGET testDemandLoading POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testDemandLoading> $<TARGET_FILE_DIR:testDemandLoading>
+  COMMAND_EXPAND_LISTS
+  )
+
+
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include(../../CMake/embed_ptx.cmake)
 embed_ptx(
@@ -101,5 +108,12 @@ target_link_libraries( testTextureFootprint
 
 add_dependencies( testTextureFootprint TextureFootprint )
 
+# Copy shared libraries that the built executable depends on.
+add_custom_command(TARGET testTextureFootprint POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testTextureFootprint> $<TARGET_FILE_DIR:testTextureFootprint>
+  COMMAND_EXPAND_LISTS
+  )
+
 get_target_property( _bin testDemandLoading RUNTIME_OUTPUT_DIRECTORY )
 file( INSTALL Textures DESTINATION ${_bin} )
+
