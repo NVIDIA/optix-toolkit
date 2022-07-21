@@ -1,4 +1,4 @@
-## Adapted from OWL: https://github.com/owl-project/owl/blob/master/owl/cmake/embed_ptx.cmake
+## Adapted from OWL: https://github.com/owl-project/owl/blob/master/owl/cmake/embed_ptx.cmake 
 ## Copyright 2021 Jefferson Amstutz
 ## SPDX-License-Identifier: Apache-2.0
 

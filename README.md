@@ -54,3 +54,8 @@ Solution: [Download newer driver](https://www.nvidia.com/download)
 Problem: Windows Debug link error: cannot open file '..\zlib-install\lib\zlibstatic.lib' <br>
 Solution: Build Release configuration first, then build Debug configuration. 
 
+## Attributions
+
+This project contains build logic from the [OptiX Wrapper Library (OWL)]
+(https://github.com/owl-project/owl), which is redistributed under the terms of the
+[Apache License Version 2.0](https://github.com/owl-project/owl/blob/master/LICENSE).
