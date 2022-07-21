@@ -46,10 +46,11 @@ target_link_libraries( testImageSource
   )
 
 # Copy shared libraries that the built executable depends on.
-add_custom_command(TARGET testImageSource POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testImageSource> $<TARGET_FILE_DIR:testImageSource>
-  COMMAND_EXPAND_LISTS
-  )
+if( $<TARGET_RUNTIME_DLLS:testImageSource> )
+  add_custom_command( TARGET testImageSource POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testImageSource> $<TARGET_FILE_DIR:testImageSource>
+    COMMAND_EXPAND_LISTS )
+endif()
 
 get_target_property( _bin testImageSource RUNTIME_OUTPUT_DIRECTORY )
 file( INSTALL Textures DESTINATION ${_bin} )

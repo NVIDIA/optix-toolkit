@@ -51,15 +51,16 @@ target_link_libraries( demandLoadSimple
   OptiXToolkit::DemandLoading
   )
 
-set_target_properties( demandLoadSimple PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
+set_target_properties( demandLoadSimple PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 install( TARGETS demandLoadSimple RUNTIME )
 
 # Copy shared libraries that the built executable depends on.
-add_custom_command(TARGET demandLoadSimple POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
-  COMMAND_EXPAND_LISTS
-  )
+if( $<TARGET_RUNTIME_DLLS:demandLoadSimple> )
+  add_custom_command( TARGET demandLoadSimple POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
+    COMMAND_EXPAND_LISTS )
+endif()
 
 # Install shared libraries that the installed executable depends on.
 install( PROGRAMS $<TARGET_RUNTIME_DLLS:demandLoadSimple>

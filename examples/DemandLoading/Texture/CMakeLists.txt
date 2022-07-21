@@ -66,7 +66,7 @@ target_link_libraries( demandLoadTexture
   glad
   )
 
-set_target_properties( demandLoadTexture PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/OptiXToolkit" )
+set_target_properties( demandLoadTexture PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 get_target_property( _bin demandLoadTexture RUNTIME_OUTPUT_DIRECTORY )
 file( INSTALL Textures DESTINATION ${_bin} )
@@ -75,10 +75,11 @@ install( TARGETS demandLoadTexture RUNTIME )
 install( DIRECTORY Textures TYPE BIN )
 
 # Copy shared libraries that the built executable depends on.
-add_custom_command(TARGET demandLoadTexture POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadTexture> $<TARGET_FILE_DIR:demandLoadTexture>
-  COMMAND_EXPAND_LISTS
-  )
+if( $<TARGET_RUNTIME_DLLS:demandLoadTexture> )
+  add_custom_command( TARGET demandLoadTexture POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadTexture> $<TARGET_FILE_DIR:demandLoadTexture>
+    COMMAND_EXPAND_LISTS )
+endif()
 
 # Install shared libraries that the installed executable depends on.
 install( PROGRAMS $<TARGET_RUNTIME_DLLS:demandLoadTexture>
