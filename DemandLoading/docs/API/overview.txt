@@ -1,0 +1,52 @@
+
+namespace demandLoading {
+
+/** \mainpage Overview
+
+The OptiX Demand Loading library allows hardware-accelerated sparse textures to be loaded on demand,
+which greatly reduces memory requirements, bandwidth, and disk I/O compared to preloading textures.
+
+It works by maintaining a page table that tracks which texture tiles have been loaded into GPU
+memory. An OptiX closest-hit program fetches from a texture by calling library device code
+(e.g. \ref tex2DGrad) that checks the page table to see if the required tiles are present. If not,
+the library records a page request, which is processed by library host code after the kernel has
+terminated. Kernel launches are repeated until no tiles are missing, typically using adaptive
+sampling to avoid redundant work. Although it is currently focused on texturing, much of the library
+is generic and can be adapted to load arbitrary data on demand, such as per-vertex data like colors
+or normals.
+
+This document describes the Demand Loading API.  For a higher-level discussion, please see the
+[Optix Programming Guide]
+(https://raytracing-docs.nvidia.com/optix7/guide/index.html#demand_loading#demand-loaded-sparse-textures)
+
+The DemandLoader class is the primary interface of the Demand Loading library.  Here is some sample
+code (adapted from examples/DemandLoading/Simple) that demonstrates how to launch a kernel that
+requests a demand-loaded resource:
+
+\code
+    // Create DemandLoader and a demand-loaded resource.
+    DemandLoader* loader    = createDemandLoader( Options() );
+    unsigned int  startPage = loader->createResource( numPages, callback );
+
+    // Prepare for launch, obtaining DeviceContext.
+    DeviceContext context;
+    loader->launchPrepare( deviceIndex, stream, context );
+
+    // Launch the kernel, using the DeviceContext to make page requests.
+    myKernel<<<numBlocks, threadsPerBlock, 0U, stream>>>( context );
+
+    // Initiate request processing, which returns a Ticket.
+    Ticket ticket = loader->processRequests( deviceIndex, stream, context );
+
+    // Wait for any page requests to be processed.
+    ticket.wait();
+
+    // Launch the kernel again, using the DeviceContext to locate the requested pages.
+    myKernel<<<numBlocks, threadsPerBlock, 0U, stream>>>( context );
+
+    // Clean up.
+    destroyDemandLoader( loader );
+\endcode
+*/
+
+} // namespace demandLoading
