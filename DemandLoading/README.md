@@ -16,7 +16,7 @@ API documentation for the Demand Loading library can be generated via `make docs
 
 ## Quick start
 
-See the [optixDemandLoadSimple](../examples/optixDemandLoadSimple/optixDemandLoadSimple.cpp)
+See the [simple demand loading example](../examples/DemandLoading/Simple/simple.cpp)
 example, which demonstrates how to use the OptiX Demand Loading library.  The first step is to
 create a `DemandLoader` object, through which subsequent method calls are invoked:
 ```
