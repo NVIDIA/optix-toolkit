@@ -113,7 +113,7 @@ WARN_LOGFILE           =
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = \
-  @CMAKE_SOURCE_DIR@/DemandLoading/include/DemandLoading \
+  @CMAKE_SOURCE_DIR@/DemandLoading/include/OptiXToolkit/DemandLoading \
   @CMAKE_SOURCE_DIR@/DemandLoading/src \
   @CMAKE_CURRENT_SOURCE_DIR@
 INPUT_ENCODING         = UTF-8
