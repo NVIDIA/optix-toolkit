@@ -54,6 +54,9 @@ Solution: [Download newer driver](https://www.nvidia.com/download)
 Problem: Windows Debug link error: cannot open file '..\zlib-install\lib\zlibstatic.lib' <br>
 Solution: Build Release configuration first, then build Debug configuration.
 
+Problem: CMake configuration error: "Failed to detect a default cuda architecture" <br>
+Solution: Set configuration variable `CMAKE_CUDA_COMPILER` to the full path of the NVCC compiler.
+
 ## Attributions
 
 This project contains build logic from the
