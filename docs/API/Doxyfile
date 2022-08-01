@@ -4,9 +4,9 @@
 # Project related configuration options
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME           = "OptiX Demand Loading library"
+PROJECT_NAME           = "OptiX Toolkit"
 PROJECT_NUMBER         =
-PROJECT_BRIEF          = "OptiX Demand Loading library"
+PROJECT_BRIEF          = "OptiX Toolkit"
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       =
 CREATE_SUBDIRS         = NO
@@ -113,11 +113,21 @@ WARN_LOGFILE           =
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = \
-  @CMAKE_SOURCE_DIR@/include/OptiXToolkit/DemandLoading \
-  @CMAKE_SOURCE_DIR@/src \
-  @CMAKE_CURRENT_SOURCE_DIR@/overview.txt
+  @CMAKE_CURRENT_SOURCE_DIR@ \
+  @CMAKE_SOURCE_DIR@/Cuda/include/OptiXToolkit/Cuda \
+  @CMAKE_SOURCE_DIR@/DemandLoading/include/OptiXToolkit/DemandLoading \
+  @CMAKE_SOURCE_DIR@/DemandLoading/src \
+  @CMAKE_SOURCE_DIR@/DemandLoading/src/Memory \
+  @CMAKE_SOURCE_DIR@/DemandLoading/src/Textures \
+  @CMAKE_SOURCE_DIR@/DemandLoading/src/Util \
+  @CMAKE_SOURCE_DIR@/Gui/include/OptiXToolkit/Gui \
+  @CMAKE_SOURCE_DIR@/Gui/src \
+  @CMAKE_SOURCE_DIR@/ImageSource/include/OptiXToolkit/ImageSource \
+  @CMAKE_SOURCE_DIR@/ImageSource/src \
+  @CMAKE_SOURCE_DIR@/Util/include/OptiXToolkit/Util \
+  @CMAKE_SOURCE_DIR@/Util/src
 INPUT_ENCODING         = UTF-8
-FILE_PATTERNS          = *.h
+FILE_PATTERNS          = *.h overview.txt
 RECURSIVE              = NO
 EXCLUDE                =
 EXCLUDE_SYMLINKS       = NO
@@ -156,7 +166,7 @@ IGNORE_PREFIX          =
 # Configuration options related to the HTML output
 #---------------------------------------------------------------------------
 GENERATE_HTML          = YES
-HTML_OUTPUT            = html
+HTML_OUTPUT            = API
 HTML_FILE_EXTENSION    = .html
 HTML_HEADER            =
 HTML_FOOTER            =
@@ -220,8 +230,8 @@ MAKEINDEX_CMD_NAME     = makeindex
 COMPACT_LATEX          = YES
 PAPER_TYPE             = a4
 EXTRA_PACKAGES         =
-LATEX_HEADER           = header.tex
-LATEX_FOOTER           = footer.tex
+LATEX_HEADER           =
+LATEX_FOOTER           =
 LATEX_EXTRA_STYLESHEET =
 LATEX_EXTRA_FILES      =
 PDF_HYPERLINKS         = YES

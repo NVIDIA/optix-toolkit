@@ -12,11 +12,11 @@ adapted to load arbitrary data on demand, such as per-vertex data like colors or
 
 A quick start guide is provided below.  For additional information, please see the [OptiX Programming Guide Guide](https://raytracing-docs.nvidia.com/optix7/guide/index.html#demand_loading#demand-loaded-sparse-textures) (section 15).
 
-API documentation for the Demand Loading library can be generated via `make docs` (after configuring CMake, as described in the [top-level README](../README.md).
+API documentation for the Demand Loading library can be generated via `make docs` after configuring CMake.
 
 ## Quick start
 
-See the [optixDemandLoadSimple](../examples/optixDemandLoadSimple/optixDemandLoadSimple.cpp)
+See the [simple demand loading example](../examples/DemandLoading/Simple/simple.cpp)
 example, which demonstrates how to use the OptiX Demand Loading library.  The first step is to
 create a `DemandLoader` object, through which subsequent method calls are invoked:
 ```

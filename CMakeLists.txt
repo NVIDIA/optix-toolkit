@@ -76,3 +76,8 @@ set( OTK_BUILD_EXAMPLES ON CACHE BOOL "Enable build of OptiXToolkit examples" )
 if( ${OTK_BUILD_EXAMPLES} )
   add_subdirectory(examples)
 endif()
+
+set( OTK_BUILD_DOCS ON CACHE BOOL "Enable build of OptiXToolkit documentation" )
+if( OTK_BUILD_DOCS )
+  add_subdirectory( docs/API )
+endif()

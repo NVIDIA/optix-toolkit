@@ -4,12 +4,12 @@
 A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
 ## Current Utilities
-- **PyOptiX** - Complete Python bindings for the OptiX host API.
+- **[PyOptiX](PyOptiX/README.md)** - Complete Python bindings for the OptiX host API.
 - **[DemandLoading](DemandLoading/README.md)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
-- **ImageSource** - wrapper for OpenEXR image library (adaptable to other image formats).
-- **Gui** - convenience code for incorporating OpenGL into OptiX applications.
-- **Cuda** - vector math and other CUDA helper functions for OptiX kernels.
-- **Util** - file handling and other utility functions.
+- **[ImageSource](ImageSource/README.md)** - wrapper for OpenEXR image library (adaptable to other image formats).
+- **[Gui](Gui/README.md)** - convenience code for incorporating OpenGL into OptiX applications.
+- **[Cuda](Cuda/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
+- **[Util](Util/README.md)** - file handling and other utility functions.
 
 ## Requirements
 
@@ -52,7 +52,10 @@ Problem: Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixIn
 Solution: [Download newer driver](https://www.nvidia.com/download)
 
 Problem: Windows Debug link error: cannot open file '..\zlib-install\lib\zlibstatic.lib' <br>
-Solution: Build Release configuration first, then build Debug configuration. 
+Solution: Build Release configuration first, then build Debug configuration.
+
+Problem: CMake configuration error: "Failed to detect a default cuda architecture" <br>
+Solution: Set configuration variable `CMAKE_CUDA_COMPILER` to the full path of the NVCC compiler.
 
 ## Attributions
 
