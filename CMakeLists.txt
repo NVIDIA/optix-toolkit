@@ -66,18 +66,23 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 #########################################################
 # Subdirectories
 
+option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON )
+option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
+option( OTK_BUILD_GUI "Enable build of Gui library" ON )
+
+if( OTK_BUILD_GUI OR OTK_BUILD_EXAMPLES )
+  add_subdirectory(Gui)
+endif()  
+
 add_subdirectory(Cuda)
 add_subdirectory(Util)
-add_subdirectory(Gui)
 add_subdirectory(ImageSource)
 add_subdirectory(DemandLoading)
 
-set( OTK_BUILD_EXAMPLES ON CACHE BOOL "Enable build of OptiXToolkit examples" )
-if( ${OTK_BUILD_EXAMPLES} )
-  add_subdirectory(examples)
+if( OTK_BUILD_EXAMPLES )
+   add_subdirectory(examples)
 endif()
 
-set( OTK_BUILD_DOCS ON CACHE BOOL "Enable build of OptiXToolkit documentation" )
 if( OTK_BUILD_DOCS )
   add_subdirectory( docs/API )
 endif()
