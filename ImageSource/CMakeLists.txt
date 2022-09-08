@@ -45,7 +45,9 @@ if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
 
-add_library( ImageSource SHARED
+option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
+
+add_library( ImageSource
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
   src/DeviceConstantImage.cpp

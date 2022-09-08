@@ -26,6 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
+if( NOT OTK_FETCH_CONTENT )
+  find_package( GTest REQUIRED )
+  return()
+endif()
+
 include(FetchContent)
 
 set( INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest" )

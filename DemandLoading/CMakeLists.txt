@@ -49,7 +49,9 @@ if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
 
-add_library( DemandLoading SHARED
+option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
+
+add_library( DemandLoading
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DeviceContextImpl.cpp

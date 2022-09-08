@@ -63,7 +63,7 @@ target_link_libraries( demandLoadTexture
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
   OptiXToolkit::Util
-  glad
+  glad::glad
   )
 
 set_target_properties( demandLoadTexture PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
