@@ -26,6 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
+if( NOT OTK_FETCH_CONTENT )
+  find_package( glfw3 REQUIRED )
+  return()
+endif()
+
 set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
 set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" )
 set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )

@@ -44,7 +44,9 @@ if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
 endif()
 
-add_library(Gui SHARED
+option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
+
+add_library(Gui
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp
@@ -78,7 +80,7 @@ target_link_libraries(Gui
   OptiXToolkit::Util
   PRIVATE
   glfw
-  glad
+  glad::glad
   )
 
 set_target_properties(Gui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

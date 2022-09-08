@@ -43,6 +43,57 @@ make -j
 
 If you encounter problems or if you have any questions, we encourage you to post on the [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
 
+### Building statically linked libraries
+
+OptiX Toolkit components are compiled into dynamic libraries (DSOs/DLLs) to simplify linking client
+applications.  This eliminates the need for client applications to link with third-party libraries
+like OpenEXR and GLFW.
+
+Some clients of the OptiX Toolkit might prefer to use statically linked libraries.  This can be accomplished
+by setting the CMake configuration variable `BUILD_SHARED_LIBS=OFF`.
+
+Important: when building statically linked libraries, the CMake configuration variable
+`OTK_FETCH_CONTENT` should be set to `OFF`, and various third party libraries must be installed as
+described below.
+
+### Installing third-party libraries.
+
+Normally the OptiX Toolkit CMake files use `FetchContent` to download and build various third-party
+libraries:
+- Imath 3.1.5 or later
+- OpenEXR 3.1.5 or later
+- GLFW 3.3 or later
+- glad (any recent version)
+
+This behavior can be disabled by setting `OTK_FETCH_CONTENT=OFF` during CMake configuration,
+which is necessary when building statically linked libraries, as described above.
+
+When `FetchContent` is disabled, the following CMake configuration variables should be used to
+specify the locations of the third-party libraries: `Imath_DIR`, `OpenEXR_DIR`, `glfw3_DIR`, and
+`glad_DIR`.  The directory specified for each of these variables should be the location of the
+project's CMake configuration file.  For example:
+```
+cd build
+cmake \
+-DBUILD_SHARED_LIBS=OFF \
+-DOTK_FETCH_CONTENT=OFF \
+-DImath_DIR=/usr/local/Imath/lib/cmake/Imath \
+-DOpenEXR_DIR=/usr/local/OpenEXR/lib/cmake/OpenEXR \
+-Dglfw3_DIR=/usr/local/glfw3/lib/cmake/glfw3 \
+-Dglad_DIR=/usr/local/glad/lib/cmake/glad \
+-DOptiX_ROOT_DIR=/usr/local/OptiX-SDK-7.5 \
+..
+```
+
+As of this writing, OpenEXR 3.1 binaries are not yet available via most package managers, so we
+recommend building these third party libraries from source code downloaded from the following
+locations:
+
+- Imath 3.1.5: https://github.com/AcademySoftwareFoundation/Imath.git
+- OpenEXR 3.1.5: https://github.com/AcademySoftwareFoundation/openexr.git
+- GLFW 3.3: https://github.com/glfw/glfw.git
+- glad: https://github.com/Dav1dde/glad
+
 ## Troubleshooting
 
 Problem: CMake configuration error: "could not find git for clone of glad-populate" <br>
