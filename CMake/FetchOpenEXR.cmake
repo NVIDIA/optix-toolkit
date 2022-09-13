@@ -29,38 +29,37 @@
 option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
 if( NOT OTK_FETCH_CONTENT )
   find_package( OpenEXR 3.1 REQUIRED )
-  return()
+else()
+  include(FetchContent)
+
+  FetchContent_Declare(
+    Imath
+    GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
+    GIT_TAG v3.1.5
+  )
+  FetchContent_MakeAvailable(Imath)
+
+  # Note: Imath does not permit installation to be disabled.
+  # set( IMATH_INSTALL OFF CACHE BOOL "Install Imath" )
+
+  set( OPENEXR_BUILD_EXAMPLES OFF CACHE BOOL "Enables building of utility programs" )
+  set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
+
+  set( OPENEXR_INSTALL OFF CACHE BOOL "Install OpenEXR libraries" )
+  set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
+  set( OPENEXR_INSTALL_TOOLS OFF CACHE BOOL "Install OpenEXR examples" )
+
+  # Note: disabling pkgconfig installation appears to have no effect.
+  set( IMATH_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install Imath.pc file" )
+  set( OPENEXR_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install OpenEXR.pc file" )
+
+  FetchContent_Declare(
+    OpenEXR
+    GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
+    GIT_TAG v3.1.5
+  )
+  FetchContent_MakeAvailable(OpenEXR)
 endif()
-
-include(FetchContent)
-
-FetchContent_Declare(
-  Imath
-  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
-  GIT_TAG v3.1.5
-)
-FetchContent_MakeAvailable(Imath)
-
-# Note: Imath does not permit installation to be disabled.
-# set( IMATH_INSTALL OFF CACHE BOOL "Install Imath" )
-
-set( OPENEXR_BUILD_EXAMPLES OFF CACHE BOOL "Enables building of utility programs" )
-set( OPENEXR_BUILD_TOOLS OFF CACHE BOOL "Enables building of utility programs" )
-
-set( OPENEXR_INSTALL OFF CACHE BOOL "Install OpenEXR libraries" )
-set( OPENEXR_INSTALL_EXAMPLES OFF CACHE BOOL "Install OpenEXR examples" )
-set( OPENEXR_INSTALL_TOOLS OFF CACHE BOOL "Install OpenEXR examples" )
-
-# Note: disabling pkgconfig installation appears to have no effect.
-set( IMATH_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install Imath.pc file" )
-set( OPENEXR_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install OpenEXR.pc file" )
-
-FetchContent_Declare(
-  OpenEXR
-  GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
-  GIT_TAG v3.1.5
-)
-FetchContent_MakeAvailable(OpenEXR)
 
 # Multiple OpenEXR targets have a compile option (/EHsc) that confuses nvcc.
 # We replace it with $<$<COMPILE_LANGUAGE:CXX>:/EHsc>.
