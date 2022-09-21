@@ -106,7 +106,8 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     // The array lengths are accumulated across multiple device threads, so they must be initialized to zero.
-    DEMAND_CUDA_CHECK( cudaMemsetAsync( context.arrayLengths.data, 0, context.arrayLengths.capacity * sizeof( unsigned int ), stream ) );
+    DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ), 0,
+                                        context.arrayLengths.capacity * sizeof( unsigned int ), stream ) );
 
     DEMAND_ASSERT( startPage <= endPage );
     DEMAND_ASSERT( endPage < m_options.numPages );
@@ -224,10 +225,10 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
 
     // Zero out the reference bits
     unsigned int referenceBitsSizeInBytes = idivCeil( context.maxNumPages, 8 );
-    DEMAND_CUDA_CHECK( cudaMemsetAsync( context.referenceBits, 0, referenceBitsSizeInBytes, stream ) );
+    DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.referenceBits ), 0, referenceBitsSizeInBytes, stream ) );
 
     // Record the event in the stream. pushMappings will be complete when it returns cudaSuccess
-    DEMAND_CUDA_CHECK( cudaEventRecord( m_pushMappingsEvent->event, stream ) );
+    DEMAND_CUDA_CHECK( cuEventRecord( m_pushMappingsEvent->event, stream ) );
     m_pushMappingsEvent->recorded = true;
 
     // Make a new event for the next time pushMappings is called
@@ -276,7 +277,7 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    while( !m_stagedPages.empty() && ( m_stagedPages[0].event->query() == cudaSuccess ) )
+    while( !m_stagedPages.empty() && ( m_stagedPages[0].event->query() == CUDA_SUCCESS ) )
     {
         // Advance to the next list if the beginning list is empty
         if( m_stagedPages[0].mappings.empty() )

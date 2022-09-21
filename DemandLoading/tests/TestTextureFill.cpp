@@ -254,8 +254,8 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
     CHK( cuTexObjectCreate( &texture, &rd, &td, 0 ) );
 
     unsigned int streamId = 0;
-    cudaEvent_t event;
-    CHK( cudaEventCreate( &event ) );
+    CUevent event;
+    CHK( cuEventCreate( &event, CU_EVENT_DEFAULT ) );
 
     // Batch mode: Reading/Mapping/Copying separated
     if( batchMode )
@@ -381,7 +381,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
     }
     
     // Free resources
-    CHK( cudaEventDestroy( event ) );
+    CHK( cuEventDestroy( event ) );
     if( !asyncMalloc )
     {
         CHK( cuMemFree( ringBuffer ) );

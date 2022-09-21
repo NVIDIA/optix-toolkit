@@ -123,12 +123,12 @@ class PagingSystem
     // Synchronization event for pushMappings
     struct FutureEvent
     {
-        FutureEvent() { DEMAND_CUDA_CHECK( cudaEventCreate( &event ) ); }
-        ~FutureEvent() { DEMAND_CUDA_CHECK( cudaEventDestroy( event ) ); }
-        cudaError_t query() { return recorded ? cudaEventQuery( event ) : cudaErrorNotReady; }
+        FutureEvent() { DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) ); }
+        ~FutureEvent() { DEMAND_CUDA_CHECK( cuEventDestroy( event ) ); }
+        CUresult query() { return recorded ? cuEventQuery( event ) : CUDA_ERROR_NOT_READY; }
 
-        cudaEvent_t event{};
-        bool        recorded = false;
+        CUevent event{};
+        bool    recorded = false;
     };
     std::shared_ptr<FutureEvent> m_pushMappingsEvent = nullptr;
 

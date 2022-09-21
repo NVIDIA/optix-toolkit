@@ -85,7 +85,7 @@ TEST_F( TestPagingSystemKernels, TestEmptyPullRequests )
 TEST_F( TestPagingSystemKernels, TestInvalidatePages )
 {
     // Set first word to all 1's
-    DEMAND_CUDA_CHECK( cudaMemset( getContext().residenceBits, 0xFF, 4) );
+    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0xFF, 4 ) );
 
     // Invalidate the following this list of pages
     std::vector<unsigned int> invalidatedPages = { 1, 2, 4, 8 };
@@ -112,7 +112,7 @@ TEST_F( TestPagingSystemKernels, TestInvalidatePages )
 TEST_F( TestPagingSystemKernels, TestGetStalePages )
 {
     // Set first word to all 0's (not resident)
-    DEMAND_CUDA_CHECK( cudaMemset( getContext().residenceBits, 0xFF, 4) );
+    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0xFF, 4 ) );
 
     // Set LRU values for the first 16 pages to be the same as the page id.
     // Note that 0xF is the non-evictable value, so it should not show up as a stale page.
@@ -146,8 +146,8 @@ TEST_F( TestPagingSystemKernels, TestGetStalePages )
 TEST_F( TestPagingSystemKernels, TestPullRequests )
 {
     // Set some bits as resident, but request all bits in first word
-    DEMAND_CUDA_CHECK( cudaMemset( getContext().residenceBits, 0x0F, 4) );
-    DEMAND_CUDA_CHECK( cudaMemset( getContext().referenceBits, 0xFF, 4) );
+    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0x0F, 4 ) );
+    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().referenceBits ), 0xFF, 4 ) );
     std::vector<unsigned int> expectedPages = { 4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31 };
 
     // Launch pullRequests

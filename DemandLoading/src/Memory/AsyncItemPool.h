@@ -195,7 +195,7 @@ class AsyncItemPool
 
     bool oldestFreedItemAvailable() 
     {
-        return !m_freedItems.empty() && ( cudaEventQuery( m_freedItems.front().event ) == cudaSuccess );
+        return !m_freedItems.empty() && ( cuEventQuery( m_freedItems.front().event ) == CUDA_SUCCESS );
     }
 };
 

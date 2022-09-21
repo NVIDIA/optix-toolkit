@@ -492,12 +492,12 @@ class TextureFootprintFixture
             unsigned int  referenceBitsSizeInBytes = demandLoading::MAX_TILE_LEVELS * MAX_PAGES_PER_MIP_LEVEL / 8;
             unsigned int* d_referenceBits;
             DEMAND_CUDA_CHECK( cudaMalloc( (void**)&d_referenceBits, referenceBitsSizeInBytes ) );
-            DEMAND_CUDA_CHECK( cudaMemset( (void*)d_referenceBits, 0, referenceBitsSizeInBytes ) );
+            DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_referenceBits ), 0, referenceBitsSizeInBytes ) );
 
             unsigned int  residenceBitsSizeInBytes = referenceBitsSizeInBytes;
             unsigned int* d_residenceBits;
             DEMAND_CUDA_CHECK( cudaMalloc( (void**)&d_residenceBits, residenceBitsSizeInBytes ) );
-            DEMAND_CUDA_CHECK( cudaMemset( (void*)d_residenceBits, 0, residenceBitsSizeInBytes ) );
+            DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_residenceBits ), 0, residenceBitsSizeInBytes ) );
 
             //
             // Launch

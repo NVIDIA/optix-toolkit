@@ -63,7 +63,7 @@ class DeviceAllocator
     void setToZero( void* data, size_t numBytes )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaMemset( data, 0, numBytes ) );
+        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( data ), 0, numBytes ) );
     }
 
   private:

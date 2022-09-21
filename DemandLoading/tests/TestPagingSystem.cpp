@@ -83,7 +83,7 @@ class DevicePaging
         unsigned long long* devPages;
         size_t              sizeofPages = numPages * sizeof( unsigned long long );
         DEMAND_CUDA_CHECK( cudaMalloc( &devPages, sizeofPages ) );
-        DEMAND_CUDA_CHECK( cudaMemset( devPages, 0xDEADBEEF, sizeofPages ) );
+        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPages ), 0xFF, sizeofPages ) );
 
         // Launch kernel
         DeviceContext* context = m_contextPool.allocate();
