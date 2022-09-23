@@ -39,7 +39,7 @@ public:
     {
         // Initialize CUDA.
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        cudaFree( nullptr );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
     }
 
     unsigned int m_deviceIndex = 0;

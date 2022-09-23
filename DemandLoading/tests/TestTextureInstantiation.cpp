@@ -225,7 +225,7 @@ TEST_F( TestTextureInstantiation, t512_10000_sparse_52GB )
 }
 
 // TODO: this reports a spurious CUDA_ERROR_OUT_OF_MEMORY error in
-// cudaMallocAsync under Windows in single Ampere configurations only.
+// cuMemAllocAsync under Windows in single Ampere configurations only.
 TEST_F( TestTextureInstantiation, DISABLED_t4096_1000_sparse_333GB )
 {
     testMipmapTextures( 4096, 4096, 1000, CUDA_ARRAY3D_SPARSE );

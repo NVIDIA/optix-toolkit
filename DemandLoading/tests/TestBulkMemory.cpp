@@ -39,6 +39,7 @@ static bool isAligned( void* ptr, size_t alignment )
 
 class TestBulkMemory : public testing::Test
 {
+    void SetUp() { DEMAND_CUDA_CHECK( cudaFree( nullptr ) ); }
 };
 
 TEST_F( TestBulkMemory, TestAlignment )

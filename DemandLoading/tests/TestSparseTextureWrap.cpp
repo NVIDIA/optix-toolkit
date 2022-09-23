@@ -184,7 +184,7 @@ TEST_F( TestSparseTextureWrap, Test )
     const int    outHeight = 512;
     float4*      devOutput;
     const size_t outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -201,7 +201,7 @@ TEST_F( TestSparseTextureWrap, Test )
     savePPM( "testWrap.ppm", outWidth, outHeight, hostOutput.data() );
     std::cout << "Wrote testWrap.ppm" << std::endl;
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mipLevel, const char* outFileName )
@@ -266,7 +266,7 @@ void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mip
     const int    outHeight = 256;
     float4*      devOutput;
     const size_t outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -283,7 +283,7 @@ void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mip
     savePPM( outFileName, outWidth, outHeight, hostOutput.data() );
     std::cout << "wrote " << outFileName << std::endl;
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 // This test is too slow for inclusion in the smoke tests.

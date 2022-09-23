@@ -100,7 +100,8 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     TextureSampler* devSampler  = samplerPool->allocate();
 
     // Copy sampler to device memory.
-    DEMAND_CUDA_CHECK( cudaMemcpyAsync( devSampler, pinnedSampler, sizeof( TextureSampler ), cudaMemcpyHostToDevice, stream ) );
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
+                                      reinterpret_cast<CUdeviceptr>( pinnedSampler ), sizeof( TextureSampler ), stream ) );
 
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
     // the stream, and the buffer isn't reused until all preceding operations are complete,

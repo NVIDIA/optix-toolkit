@@ -334,7 +334,7 @@ class TextureFootprintFixture
             CUdevice           device;
             {
                 // Initialize CUDA
-                DEMAND_CUDA_CHECK( cudaFree( 0 ) );
+                DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
 
                 CUcontext cuCtx = 0;  // zero means take the current context
                 OPTIX_CHECK( optixInit() );
@@ -442,7 +442,7 @@ class TextureFootprintFixture
             {
                 CUdeviceptr  raygen_record;
                 const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-                DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &raygen_record ), raygen_record_size ) );
+                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &raygen_record ), raygen_record_size ) );
                 RayGenSbtRecord rg_sbt;
                 OPTIX_CHECK( optixSbtRecordPackHeader( raygen_prog_group, &rg_sbt ) );
                 rg_sbt.data = {0.462f, 0.725f, 0.f};
@@ -451,14 +451,14 @@ class TextureFootprintFixture
 
                 CUdeviceptr miss_record;
                 size_t      miss_record_size = sizeof( MissSbtRecord );
-                DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &miss_record ), miss_record_size ) );
+                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &miss_record ), miss_record_size ) );
                 RayGenSbtRecord ms_sbt;
                 OPTIX_CHECK( optixSbtRecordPackHeader( miss_prog_group, &ms_sbt ) );
                 DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
 
                 CUdeviceptr hitgroup_record;
                 size_t      hitgroup_record_size = sizeof( HitGroupSbtRecord );
-                DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &hitgroup_record ), hitgroup_record_size ) );
+                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &hitgroup_record ), hitgroup_record_size ) );
                 RayGenSbtRecord hg_sbt;
                 OPTIX_CHECK( optixSbtRecordPackHeader( hitgroup_prog_group, &hg_sbt ) );
                 DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( hitgroup_record ), &hg_sbt,
@@ -479,24 +479,24 @@ class TextureFootprintFixture
 
             // Copy inputs to device
             FootprintInputs* d_inputs;
-            DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_inputs ), inputs.size() * sizeof( FootprintInputs ) ) );
+            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_inputs ), inputs.size() * sizeof( FootprintInputs ) ) );
             DEMAND_CUDA_CHECK( cudaMemcpy( d_inputs, inputs.data(), inputs.size() * sizeof( FootprintInputs ), cudaMemcpyHostToDevice ) );
 
             // Create output buffer.
             size_t numOutputs = inputs.size();
             uint4* d_outputs;
-            DEMAND_CUDA_CHECK( cudaMalloc( (void**)&d_outputs, 2 * numOutputs * sizeof( uint4 ) ) );
+            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_outputs ), 2 * numOutputs * sizeof( uint4 ) ) );
 
             // Create usage bits
             unsigned int  referenceBitsSizeInWords = demandLoading::MAX_TILE_LEVELS * MAX_PAGES_PER_MIP_LEVEL / 32;
             unsigned int  referenceBitsSizeInBytes = demandLoading::MAX_TILE_LEVELS * MAX_PAGES_PER_MIP_LEVEL / 8;
             unsigned int* d_referenceBits;
-            DEMAND_CUDA_CHECK( cudaMalloc( (void**)&d_referenceBits, referenceBitsSizeInBytes ) );
+            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_referenceBits ), referenceBitsSizeInBytes ) );
             DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_referenceBits ), 0, referenceBitsSizeInBytes ) );
 
             unsigned int  residenceBitsSizeInBytes = referenceBitsSizeInBytes;
             unsigned int* d_residenceBits;
-            DEMAND_CUDA_CHECK( cudaMalloc( (void**)&d_residenceBits, residenceBitsSizeInBytes ) );
+            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_residenceBits ), residenceBitsSizeInBytes ) );
             DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_residenceBits ), 0, residenceBitsSizeInBytes ) );
 
             //
@@ -549,13 +549,13 @@ class TextureFootprintFixture
                 }
 
                 CUdeviceptr d_params;
-                DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_params ), sizeof( Params ) ) );
+                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_params ), sizeof( Params ) ) );
                 DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_params ), &params, sizeof( params ), cudaMemcpyHostToDevice ) );
 
                 OPTIX_CHECK( optixLaunch( pipeline, stream, d_params, sizeof( Params ), &sbt,
                                           static_cast<unsigned int>( inputs.size() ), 1, 1 ) );
                 CUDA_SYNC_CHECK();
-                DEMAND_CUDA_CHECK( cudaFree( reinterpret_cast<void*>( d_params ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_params ) ) );
             }
 
             // Copy output to host (returned via result parameter)
@@ -576,14 +576,14 @@ class TextureFootprintFixture
             //
             {
                 destroyTexture();
-                DEMAND_CUDA_CHECK( cudaFree( d_inputs ) );
-                DEMAND_CUDA_CHECK( cudaFree( d_outputs ) );
-                DEMAND_CUDA_CHECK( cudaFree( d_referenceBits ) );
-                DEMAND_CUDA_CHECK( cudaFree( d_residenceBits ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_inputs ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_outputs ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_referenceBits ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_residenceBits ) ) );
 
-                DEMAND_CUDA_CHECK( cudaFree( reinterpret_cast<void*>( sbt.raygenRecord ) ) );
-                DEMAND_CUDA_CHECK( cudaFree( reinterpret_cast<void*>( sbt.missRecordBase ) ) );
-                DEMAND_CUDA_CHECK( cudaFree( reinterpret_cast<void*>( sbt.hitgroupRecordBase ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( sbt.raygenRecord ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( sbt.missRecordBase ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( sbt.hitgroupRecordBase ) ) );
 
                 OPTIX_CHECK( optixPipelineDestroy( pipeline ) );
                 OPTIX_CHECK( optixProgramGroupDestroy( hitgroup_prog_group ) );

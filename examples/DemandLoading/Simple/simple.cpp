@@ -59,6 +59,9 @@ void* callback( unsigned int deviceIndex, cudaStream_t stream, unsigned int page
 
 int main()
 {
+    // Initialize CUDA.
+    check( cudaFree( nullptr ) );
+    
     // Create DemandLoader
     DemandLoader*             loader = createDemandLoader( Options() );
 

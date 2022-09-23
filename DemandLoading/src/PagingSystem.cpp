@@ -121,16 +121,19 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
 
     // Copy the requested page list from this device.  The actual length is unknown, so we copy the entire capacity
     // and update the length below.
-    DEMAND_CUDA_CHECK( cudaMemcpyAsync( pinnedContext->requestedPages, context.requestedPages.data,
-                                        pinnedContext->maxRequestedPages * sizeof( unsigned int ), cudaMemcpyDeviceToHost, stream ) );
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedContext->requestedPages ),
+                                      reinterpret_cast<CUdeviceptr>( context.requestedPages.data ),
+                                      pinnedContext->maxRequestedPages * sizeof( unsigned int ), stream ) );
 
     // Get the stale pages from the device. This may be a subset of the actual stale pages.
-    DEMAND_CUDA_CHECK( cudaMemcpyAsync( pinnedContext->stalePages, context.stalePages.data,
-                                        pinnedContext->maxStalePages * sizeof( StalePage ), cudaMemcpyDeviceToHost, stream ) );
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedContext->stalePages ),
+                                      reinterpret_cast<CUdeviceptr>( context.stalePages.data ),
+                                      pinnedContext->maxStalePages * sizeof( StalePage ), stream ) );
 
     // Get the sizes of the requested/stale page lists.
-    DEMAND_CUDA_CHECK( cudaMemcpyAsync( pinnedContext->arrayLengths, context.arrayLengths.data,
-                                        pinnedContext->numArrayLengths * sizeof( unsigned int ), cudaMemcpyDeviceToHost, stream ) );
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedContext->arrayLengths ),
+                                      reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ),
+                                      pinnedContext->numArrayLengths * sizeof( unsigned int ), stream ) );
 
     // Enqueue host function call to process the page requests once the kernel launch and copies have completed.
     CudaCallback::enqueue( stream, new ProcessRequestsCallback( this, context, pinnedContext, stream, ticket ) );
@@ -210,16 +213,18 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
     const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
     if( numFilledPages > 0 )
     {
-        DEMAND_CUDA_CHECK( cudaMemcpyAsync( context.filledPages.data, m_pageMappingsContext->filledPages,
-                                            numFilledPages * sizeof( PageMapping ), cudaMemcpyHostToDevice, stream ) );
+        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
+                                          reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
+                                          numFilledPages * sizeof( PageMapping ), stream ) );
         launchPushMappings( stream, context, numFilledPages );
     }
 
     const unsigned int numInvalidatedPages = m_pageMappingsContext->numInvalidatedPages;
     if( numInvalidatedPages > 0 )
     {
-        DEMAND_CUDA_CHECK( cudaMemcpyAsync( context.invalidatedPages.data, m_pageMappingsContext->invalidatedPages,
-                                            numInvalidatedPages * sizeof( unsigned int ), cudaMemcpyHostToDevice, stream ) );
+        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
+                                          reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),
+                                          numInvalidatedPages * sizeof( unsigned int ), stream ) );
         launchInvalidatePages( stream, context, numInvalidatedPages );
     }
 

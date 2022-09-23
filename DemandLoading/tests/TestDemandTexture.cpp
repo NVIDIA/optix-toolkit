@@ -136,7 +136,7 @@ TEST_F( TestDemandTexture, TestFillTile )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -161,7 +161,7 @@ TEST_F( TestDemandTexture, TestFillTile )
         }
     }
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestReadMipTail )
@@ -220,7 +220,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -247,7 +247,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
         }
     }
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestDenseTexture )
@@ -269,7 +269,7 @@ TEST_F( TestDemandTexture, TestDenseTexture )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -301,7 +301,7 @@ TEST_F( TestDemandTexture, TestDenseTexture )
         }
     }
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
@@ -323,7 +323,7 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -355,7 +355,7 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
         }
     }
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
@@ -389,7 +389,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
@@ -414,5 +414,5 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
         }
     }
 
-    DEMAND_CUDA_CHECK( cudaFree( devOutput ) );
+    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }

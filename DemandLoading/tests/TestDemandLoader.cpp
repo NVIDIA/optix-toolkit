@@ -97,7 +97,7 @@ class TestDemandLoader : public testing::Test
 
         // Copy DeviceContext to device.
         DeviceContext* devContext;
-        DEMAND_CUDA_CHECK( cudaMalloc( &devContext, sizeof( DeviceContext ) ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devContext ), sizeof( DeviceContext ) ) );
         DEMAND_CUDA_CHECK( cudaMemcpy( devContext, &context, sizeof( DeviceContext ), cudaMemcpyHostToDevice ) );
 
         // Call the given function to launch the kernel.
@@ -107,7 +107,7 @@ class TestDemandLoader : public testing::Test
         Ticket ticket = m_loader->processRequests( deviceIndex, stream, context );
         ticket.wait();
 
-        DEMAND_CUDA_CHECK( cudaFree( devContext ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devContext ) ) );
 
         return ticket.numTasksTotal();
     }
@@ -143,7 +143,7 @@ TEST_F( TestDemandLoader, TestSamplerRequest )
 
         // Allocate device memory for kernel output.
         bool* devIsResident;
-        DEMAND_CUDA_CHECK( cudaMalloc( &devIsResident, sizeof( bool ) ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devIsResident ), sizeof( bool ) ) );
 
         // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
         // The helper function processes any requests.
@@ -167,7 +167,7 @@ TEST_F( TestDemandLoader, TestSamplerRequest )
 
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
         DEMAND_CUDA_CHECK( cudaMemcpy( &isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
-        DEMAND_CUDA_CHECK( cudaFree( devIsResident ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devIsResident ) ) );
         EXPECT_TRUE( isResident );
     }
 }
@@ -191,7 +191,7 @@ TEST_F( TestDemandLoader, TestResourceRequest )
 
         // Allocate device memory for kernel output.
         bool* devIsResident;
-        DEMAND_CUDA_CHECK( cudaMalloc( &devIsResident, sizeof( bool ) ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devIsResident ), sizeof( bool ) ) );
 
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
@@ -215,7 +215,7 @@ TEST_F( TestDemandLoader, TestResourceRequest )
 
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
         DEMAND_CUDA_CHECK( cudaMemcpy( &isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
-        DEMAND_CUDA_CHECK( cudaFree( devIsResident ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devIsResident ) ) );
         EXPECT_TRUE( isResident );
     }
 }

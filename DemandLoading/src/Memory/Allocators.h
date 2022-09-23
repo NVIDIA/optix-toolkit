@@ -50,14 +50,14 @@ class DeviceAllocator
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         void* result;
-        DEMAND_CUDA_CHECK( cudaMalloc( &result, numBytes ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
         return result;
     }
 
     void free( void* data )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( data ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( data ) ) );
     }
 
     void setToZero( void* data, size_t numBytes )
@@ -78,11 +78,11 @@ class PinnedAllocator
     static void* allocate( size_t numBytes )
     {
         void* result;
-        DEMAND_CUDA_CHECK( cudaMallocHost( &result, numBytes, 0U ) );
+        DEMAND_CUDA_CHECK( cuMemAllocHost( &result, numBytes ) );
         return result;
     }
 
-    static void free( void* data ) { DEMAND_CUDA_CHECK( cudaFreeHost( data ) ); }
+    static void free( void* data ) { DEMAND_CUDA_CHECK( cuMemFreeHost( data ) ); }
 
     static void setToZero( void* data, size_t numBytes ) { memset( data, 0, numBytes ); }
 };

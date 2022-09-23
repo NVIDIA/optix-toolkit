@@ -99,7 +99,7 @@ CUDAOutputBuffer<PIXEL_FORMAT>::CUDAOutputBuffer( CUDAOutputBufferType type, int
     : m_type( type )
 {
     // Output dimensions must be at least 1 in both x and y to avoid an error
-    // with cudaMalloc.
+    // with cuMemAlloc.
 #if 0
     if( width < 1 || height < 1 )
     {
@@ -136,7 +136,7 @@ CUDAOutputBuffer<PIXEL_FORMAT>::~CUDAOutputBuffer()
         makeCurrent();
         if( m_type == CUDAOutputBufferType::CUDA_DEVICE || m_type == CUDAOutputBufferType::CUDA_P2P )
         {
-            CUDA_CHECK( cudaFree( reinterpret_cast<void*>( m_device_pixels ) ) );
+            CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_device_pixels ) ) );
         }
         else if( m_type == CUDAOutputBufferType::ZERO_COPY )
         {
@@ -164,7 +164,7 @@ template <typename PIXEL_FORMAT>
 void CUDAOutputBuffer<PIXEL_FORMAT>::resize( int32_t width, int32_t height )
 {
     // Output dimensions must be at least 1 in both x and y to avoid an error
-    // with cudaMalloc.
+    // with cuMemAlloc.
     ensureMinimumSize( width, height );
 
     if( m_width == width && m_height == height )
@@ -177,12 +177,8 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::resize( int32_t width, int32_t height )
 
     if( m_type == CUDAOutputBufferType::CUDA_DEVICE || m_type == CUDAOutputBufferType::CUDA_P2P )
     {
-        CUDA_CHECK( cudaFree( reinterpret_cast<void*>( m_device_pixels ) ) );
-        CUDA_CHECK( cudaMalloc(
-                    reinterpret_cast<void**>( &m_device_pixels ),
-                    m_width*m_height*sizeof(PIXEL_FORMAT)
-                    ) );
-
+        CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_device_pixels ) ) );
+        CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_device_pixels ), m_width * m_height * sizeof( PIXEL_FORMAT ) ) );
     }
 
     if( m_type == CUDAOutputBufferType::GL_INTEROP || m_type == CUDAOutputBufferType::CUDA_P2P )

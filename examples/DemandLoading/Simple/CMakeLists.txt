@@ -49,6 +49,7 @@ add_executable( demandLoadSimple
 
 target_link_libraries( demandLoadSimple
   OptiXToolkit::DemandLoading
+  OptiXToolkit::Util
   )
 
 set_target_properties( demandLoadSimple PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )

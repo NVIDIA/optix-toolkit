@@ -76,13 +76,13 @@ class DevicePaging
         // Copy given pageIds to device.
         size_t        numPages = pageIds.size();
         unsigned int* devPageIds;
-        DEMAND_CUDA_CHECK( cudaMalloc( &devPageIds, numPages * sizeof( unsigned int ) ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPageIds ), numPages * sizeof( unsigned int ) ) );
         DEMAND_CUDA_CHECK( cudaMemcpy( devPageIds, pageIds.data(), numPages * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
 
         // Allocate buffer of output pages.
         unsigned long long* devPages;
         size_t              sizeofPages = numPages * sizeof( unsigned long long );
-        DEMAND_CUDA_CHECK( cudaMalloc( &devPages, sizeofPages ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPages ), sizeofPages ) );
         DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPages ), 0xFF, sizeofPages ) );
 
         // Launch kernel
@@ -95,8 +95,8 @@ class DevicePaging
 
         // Clean up.
         m_contextPool.free( context );
-        DEMAND_CUDA_CHECK( cudaFree( devPageIds ) );
-        DEMAND_CUDA_CHECK( cudaFree( devPages ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPageIds ) ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPages ) ) );
 
         return pages;
     }

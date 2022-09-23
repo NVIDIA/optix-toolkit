@@ -69,8 +69,6 @@ struct Params
     // Texture data
     float                        mipLevelBias;
     demandLoading::DeviceContext demandTextureContext;
-    cudaMipmappedArray_t         nonDemandTextureArray;
-    cudaTextureObject_t          nonDemandTexture;
 
     // Render mode
     float diffScale;

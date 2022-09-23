@@ -271,9 +271,10 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
             if( asyncMalloc )
             {
 #if OTK_USE_CUDA_MEMORY_POOLS
-                CHK( cudaMallocAsync( &tempTileBuffs, texInfo.width * tileHeight * pixelSize, streams[streamId] ) );
+                CHK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &tempTileBuffs ),
+                                      texInfo.width * tileHeight * pixelSize, streams[streamId] ) );
 #else
-                CHK( cudaMalloc( &tempTileBuffs, texInfo.width * tileHeight * pixelSize ) );
+                CHK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &tempTileBuffs ), texInfo.width * tileHeight * pixelSize ) );
 #endif
             }
 
@@ -317,9 +318,9 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
             if( asyncMalloc )
             {
 #if OTK_USE_CUDA_MEMORY_POOLS
-                CHK( cudaFreeAsync( tempTileBuffs, streams[streamId] ) );
+                CHK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( tempTileBuffs ), streams[streamId] ) );
 #else
-                CHK( cudaFree( tempTileBuffs ) );
+                CHK( cuMemFree( tempTileBuffs ) );
 #endif
             }
 
@@ -345,9 +346,10 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                 char* tempTileBuff = nullptr; 
                 if( asyncMalloc )
 #if OTK_USE_CUDA_MEMORY_POOLS
-                    CHK( cudaMallocAsync( &tempTileBuff, tileWidth * tileHeight * pixelSize, streams[streamId] ) );
+                    CHK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &tempTileBuff ),
+                                          tileWidth * tileHeight * pixelSize, streams[streamId] ) );
 #else
-                    CHK( cudaMalloc( &tempTileBuff, tileWidth * tileHeight * pixelSize ) );
+                    CHK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &tempTileBuff ), tileWidth * tileHeight * pixelSize ) );
 #endif
                 else
                     tempTileBuff = reinterpret_cast<char*>( ringBuffer + ringBufferPos );
@@ -363,9 +365,9 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                 // Free tile
                 if( asyncMalloc )
 #if OTK_USE_CUDA_MEMORY_POOLS
-                    CHK( cudaFreeAsync( tempTileBuff, streams[streamId] ) );
+                    CHK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( tempTileBuff ), streams[streamId] ) );
 #else
-                    CHK( cudaFree( tempTileBuff ) );
+                    CHK( cuMemFree( tempTileBuff ) );
 #endif
                 else 
                     ringBufferPos = ( ringBufferPos + tileWidth * tileHeight * pixelSize ) % ringBufferSize;
@@ -478,7 +480,7 @@ TEST_F( TestTextureFill, ringBufferAlloc_readImage )
     doTextureFillTest( numStreams, testImage, readImage, asyncAlloc, mapTiles, transferTexture, batchMode );
 }
 
-// Test lreading speed using cudaMallocAsync
+// Test lreading speed using cuMemAllocAsync
 TEST_F( TestTextureFill, asyncAlloc_readImage )
 {
     int  numStreams      = 1;

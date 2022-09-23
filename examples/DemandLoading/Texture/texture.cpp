@@ -162,7 +162,7 @@ unsigned int getNumDevices()
 void createContext( PerDeviceSampleState& state )
 {
     // Initialize CUDA on this device
-    CUDA_CHECK( cudaFree( 0 ) );
+    CUDA_CHECK( cudaFree( nullptr ) );
 
     OptixDeviceContext        context;
     CUcontext                 cuCtx   = 0;  // zero means take the current context
@@ -203,7 +203,7 @@ void buildAccel( PerDeviceSampleState& state )
     // AABB build input
     OptixAabb   aabb = {-1.5f, -1.5f, -1.5f, 1.5f, 1.5f, 1.5f};
     CUdeviceptr d_aabb_buffer;
-    CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_aabb_buffer ), sizeof( OptixAabb ) ) );
+    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_aabb_buffer ), sizeof( OptixAabb ) ) );
     CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_aabb_buffer ), &aabb, sizeof( OptixAabb ), cudaMemcpyHostToDevice ) );
 
     OptixBuildInput aabb_input = {};
@@ -219,12 +219,12 @@ void buildAccel( PerDeviceSampleState& state )
     OptixAccelBufferSizes gas_buffer_sizes;
     OPTIX_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &aabb_input, 1, &gas_buffer_sizes ) );
     CUdeviceptr d_temp_buffer_gas;
-    CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_temp_buffer_gas ), gas_buffer_sizes.tempSizeInBytes ) );
+    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_temp_buffer_gas ), gas_buffer_sizes.tempSizeInBytes ) );
 
     // non-compacted output
     CUdeviceptr d_buffer_temp_output_gas_and_compacted_size;
     size_t      compactedSizeOffset = roundUp<size_t>( gas_buffer_sizes.outputSizeInBytes, 8ull );
-    CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_buffer_temp_output_gas_and_compacted_size ), compactedSizeOffset + 8 ) );
+    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_buffer_temp_output_gas_and_compacted_size ), compactedSizeOffset + 8 ) );
 
     OptixAccelEmitDesc emitProperty = {};
     emitProperty.type               = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
@@ -240,21 +240,21 @@ void buildAccel( PerDeviceSampleState& state )
                                   1               // num emitted properties
                                   ) );
 
-    CUDA_CHECK( cudaFree( (void*)d_temp_buffer_gas ) );
-    CUDA_CHECK( cudaFree( (void*)d_aabb_buffer ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_temp_buffer_gas ) ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_aabb_buffer ) ) );
 
     size_t compacted_gas_size;
     CUDA_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
 
     if( compacted_gas_size < gas_buffer_sizes.outputSizeInBytes )
     {
-        CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &state.d_gas_output_buffer ), compacted_gas_size ) );
+        CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &state.d_gas_output_buffer ), compacted_gas_size ) );
 
         // use handle as input and output
         OPTIX_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer,
                                         compacted_gas_size, &state.gas_handle ) );
 
-        CUDA_CHECK( cudaFree( (void*)d_buffer_temp_output_gas_and_compacted_size ) );
+        CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_buffer_temp_output_gas_and_compacted_size ) ) );
     }
     else
     {
@@ -363,14 +363,14 @@ void createSBT( PerDeviceSampleState& state, const DemandTexture& texture, float
 {
     CUdeviceptr  raygen_record;
     const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-    CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &raygen_record ), raygen_record_size ) );
+    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &raygen_record ), raygen_record_size ) );
     RayGenSbtRecord rg_sbt = {};
     OPTIX_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &rg_sbt ) );
     CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( raygen_record ), &rg_sbt, raygen_record_size, cudaMemcpyHostToDevice ) );
 
     CUdeviceptr miss_record;
     size_t      miss_record_size = sizeof( MissSbtRecord );
-    CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &miss_record ), miss_record_size ) );
+    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &miss_record ), miss_record_size ) );
     MissSbtRecord ms_sbt;
     ms_sbt.data = {0.05f, 0.05f, 0.3f};
     OPTIX_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &ms_sbt ) );
@@ -379,7 +379,7 @@ void createSBT( PerDeviceSampleState& state, const DemandTexture& texture, float
     // The demand-loaded texture id is passed to the closest hit program via the hitgroup record.
     CUdeviceptr hitgroup_record;
     size_t      hitgroup_record_size = sizeof( HitGroupSbtRecord );
-    CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &hitgroup_record ), hitgroup_record_size ) );
+    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &hitgroup_record ), hitgroup_record_size ) );
     HitGroupSbtRecord hg_sbt;
     hg_sbt.data = {1.5f /*radius*/, texture.getId(), texture_scale, texture_lod};
     OPTIX_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hg_sbt ) );
@@ -406,16 +406,11 @@ void cleanupState( PerDeviceSampleState& state )
     CUDA_CHECK( cudaSetDevice( state.device_idx ) );
     CUDA_CHECK( cudaStreamDestroy( state.stream ) );
 
-    CUDA_CHECK( cudaFree( reinterpret_cast<void*>( state.sbt.raygenRecord ) ) );
-    CUDA_CHECK( cudaFree( reinterpret_cast<void*>( state.sbt.missRecordBase ) ) );
-    CUDA_CHECK( cudaFree( reinterpret_cast<void*>( state.sbt.hitgroupRecordBase ) ) );
-    CUDA_CHECK( cudaFree( reinterpret_cast<void*>( state.d_gas_output_buffer ) ) );
-    CUDA_CHECK( cudaFree( reinterpret_cast<void*>( state.d_params ) ) );
-
-    if( state.params.nonDemandTexture != 0 )
-        CUDA_CHECK( cudaDestroyTextureObject( state.params.nonDemandTexture ) );
-    if( state.params.nonDemandTextureArray != 0 )
-        CUDA_CHECK( cudaFreeMipmappedArray( state.params.nonDemandTextureArray ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.sbt.raygenRecord ) ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.sbt.missRecordBase ) ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.sbt.hitgroupRecordBase ) ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.d_gas_output_buffer ) ) );
+    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.d_params ) ) );
 }
 
 
@@ -443,13 +438,11 @@ void initLaunchParams( PerDeviceSampleState& state, unsigned int numDevices )
     state.params.num_devices    = numDevices;
     state.params.mipLevelBias   = g_mipLevelBias;
 
-    // state.params.nonDemandTextureArray and state.params.nonDemandTexture set in makeStaticTexture
-
     state.params.eye = g_camera.eye();
     g_camera.UVWFrame( state.params.U, state.params.V, state.params.W );
 
     if( state.d_params == nullptr )
-        CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &state.d_params ), sizeof( Params ) ) );
+        CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &state.d_params ), sizeof( Params ) ) );
 }
 
 
@@ -489,8 +482,8 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
 
             // Perform the rendering launches
             CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-            CUDA_CHECK( cudaMemcpyAsync( reinterpret_cast<void*>( state.d_params ), &state.params, sizeof( Params ),
-                                         cudaMemcpyHostToDevice, state.stream ) );
+            CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( state.d_params ),
+                                       reinterpret_cast<CUdeviceptr>( &state.params ), sizeof( Params ), state.stream ) );
             OPTIX_CHECK( optixLaunch( state.pipeline,
                                       state.stream,
                                       reinterpret_cast<CUdeviceptr>( state.d_params ),

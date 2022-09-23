@@ -45,6 +45,13 @@
 
 namespace {
 
+unsigned int getNumDevices()
+{
+    int numDevices;
+    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+    return static_cast<unsigned int>( numDevices );
+}
+
 demandLoading::Options configure( demandLoading::Options options )
 {
     // If maxTexMemPerDevice is 0, consider it to be unlimited
@@ -56,9 +63,7 @@ demandLoading::Options configure( demandLoading::Options options )
         options.maxFilledPages = options.maxRequestedPages;
 
     // Anticipate at lease one active stream per device.
-    int deviceCount;
-    DEMAND_CUDA_CHECK( cudaGetDeviceCount( &deviceCount ) );
-    options.maxActiveStreams = std::max( static_cast<unsigned int>( deviceCount ), options.maxActiveStreams );
+    options.maxActiveStreams = std::max( getNumDevices(), options.maxActiveStreams );
 
     return options;
 }
@@ -74,13 +79,6 @@ bool supportsSparseTextures( unsigned int deviceIndex )
     DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, deviceIndex ) );
 
     return sparseSupport && !inTccMode;
-}
-
-unsigned int getNumDevices()
-{
-    int numDevices;
-    DEMAND_CUDA_CHECK( cudaGetDeviceCount( &numDevices ) );
-    return static_cast<unsigned int>( numDevices );
 }
 
 }  // anonymous namespace
@@ -348,9 +346,9 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
     {
         char* ptr;
 #if OTK_USE_CUDA_MEMORY_POOLS
-        DEMAND_CUDA_CHECK( cudaMallocAsync( (void**)&ptr, size, stream ) );
-#else 
-        DEMAND_CUDA_CHECK( cudaMalloc( (void**)&ptr, size ) );
+        DEMAND_CUDA_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &ptr ), size, stream ) );
+#else
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &ptr ), size ) );
 #endif
         return TransferBufferDesc{ deviceIndex, memoryType, ptr, size };
     }
@@ -380,9 +378,9 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
     {
 #if OTK_USE_CUDA_MEMORY_POOLS
-        DEMAND_CUDA_CHECK( cudaFreeAsync( transferBuffer.buffer, stream ) );
+        DEMAND_CUDA_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>(transferBuffer.buffer), stream ) );
 #else 
-        DEMAND_CUDA_CHECK( cudaFree( transferBuffer.buffer ) );
+        DEMAND_CUDA_CHECK( cuMemFree( transferBuffer.buffer ) );
 #endif
     }
     else 

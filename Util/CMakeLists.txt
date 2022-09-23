@@ -76,7 +76,6 @@ target_include_directories(Util PUBLIC
 
 target_link_libraries(Util PRIVATE
   OptiX::OptiX
-  CUDA::cudart_static
   )
 
 set_target_properties(Util PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

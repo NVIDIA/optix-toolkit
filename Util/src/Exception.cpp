@@ -83,6 +83,18 @@ void cudaCheck( cudaError_t error, const char* call, const char* file, unsigned 
     }
 }
 
+void cudaCheck( CUresult result, const char* expr, const char* file, unsigned int line )
+{
+    if( result != CUDA_SUCCESS )
+    {
+        const char* errorStr;
+        cuGetErrorString( result, &errorStr );
+        std::stringstream ss;
+        ss << "CUDA call (" << expr << " ) failed with error: '" << errorStr << "' (" << file << ":" << line << ")\n";
+        throw Exception( ss.str().c_str() );
+    }
+}
+
 void cudaSyncCheck( const char* file, unsigned int line )
 {
     cudaDeviceSynchronize();
@@ -95,12 +107,23 @@ void cudaSyncCheck( const char* file, unsigned int line )
     }
 }
 
-void cudaCheckNoThrow( cudaError_t error, const char* call, const char* file, unsigned int line )
+void cudaCheckNoThrow( cudaError_t error, const char* call, const char* file, unsigned int line ) noexcept
 {
     if( error != cudaSuccess )
     {
         std::cerr << "CUDA call (" << call << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
                   << ":" << line << ")\n";
+        std::terminate();
+    }
+}
+
+void cudaCheckNoThrow( CUresult result, const char* expr, const char* file, unsigned int line ) noexcept
+{
+    if( result != CUDA_SUCCESS )
+    {
+        const char* errorStr;
+        cuGetErrorString( result, &errorStr );
+        std::cerr << "CUDA call (" << expr << " ) failed with error: '" << errorStr << "' (" << file << ":" << line << ")\n";
         std::terminate();
     }
 }

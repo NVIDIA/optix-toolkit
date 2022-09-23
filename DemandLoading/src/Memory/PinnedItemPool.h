@@ -51,13 +51,13 @@ class PinnedItemPool : public AsyncItemPool<Item>
         capacity = ( capacity > 0 ) ? capacity : 1ull;
         size_t itemSize = align( sizeof( Item ), alignof( Item ) );
         m_capacityInBytes = itemSize * capacity;
-        DEMAND_CUDA_CHECK( cudaMallocHost( &m_data, m_capacityInBytes, 0U ) );
+        DEMAND_CUDA_CHECK( cuMemAllocHost( reinterpret_cast<void**>( &m_data ), m_capacityInBytes ) );
 
         AsyncItemPool<Item>::init( m_data, capacity );
     }
 
     /// Destroy the PinnedItemPool, reclaiming memory.
-    ~PinnedItemPool() { DEMAND_CUDA_CHECK( cudaFreeHost( m_data ) ); }
+    ~PinnedItemPool() { DEMAND_CUDA_CHECK( cuMemFreeHost( m_data ) ); }
 
     /// Get the total amount of pinned memory allocated.
     size_t getTotalPinnedMemory() const { return m_capacityInBytes; }

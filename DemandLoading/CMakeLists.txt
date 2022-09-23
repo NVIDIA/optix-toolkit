@@ -205,7 +205,6 @@ target_link_libraries( DemandLoading
   OptiXToolkit::ImageSource
   OptiX::OptiX
   CUDA::cuda_driver
-  CUDA::cudart_static
   ${CMAKE_DL_LIBS}  
   )
 
