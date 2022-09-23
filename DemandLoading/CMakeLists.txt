@@ -40,6 +40,12 @@ include(../CMake/BuildConfig.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
+if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
+  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
+else()
+  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
+endif()
+
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../CMake)
@@ -204,6 +210,10 @@ target_link_libraries( DemandLoading
   )
 
 set_target_properties(DemandLoading PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+if( OTK_USE_CUDA_MEMORY_POOLS )
+  target_compile_options( DemandLoading PRIVATE "-DOTK_USE_CUDA_MEMORY_POOLS" )
+endif()
 
 # NVTX Profiling
 option( DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )

@@ -347,7 +347,7 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
     {
         char* ptr;
-#if CUDA_VERSION >= 11020
+#if OTK_USE_CUDA_MEMORY_POOLS
         DEMAND_CUDA_CHECK( cudaMallocAsync( (void**)&ptr, size, stream ) );
 #else 
         DEMAND_CUDA_CHECK( cudaMalloc( (void**)&ptr, size ) );
@@ -379,7 +379,7 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
     }
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
     {
-#if CUDA_VERSION >= 11020
+#if OTK_USE_CUDA_MEMORY_POOLS
         DEMAND_CUDA_CHECK( cudaFreeAsync( transferBuffer.buffer, stream ) );
 #else 
         DEMAND_CUDA_CHECK( cudaFree( transferBuffer.buffer ) );

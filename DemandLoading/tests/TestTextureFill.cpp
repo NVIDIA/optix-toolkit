@@ -270,7 +270,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
             char* tempTileBuffs = (char*)ringBuffer; 
             if( asyncMalloc )
             {
-#if CUDA_VERSION >= 11020
+#if OTK_USE_CUDA_MEMORY_POOLS
                 CHK( cudaMallocAsync( &tempTileBuffs, texInfo.width * tileHeight * pixelSize, streams[streamId] ) );
 #else
                 CHK( cudaMalloc( &tempTileBuffs, texInfo.width * tileHeight * pixelSize ) );
@@ -316,7 +316,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
             if( asyncMalloc )
             {
-#if CUDA_VERSION >= 11020
+#if OTK_USE_CUDA_MEMORY_POOLS
                 CHK( cudaFreeAsync( tempTileBuffs, streams[streamId] ) );
 #else
                 CHK( cudaFree( tempTileBuffs ) );
@@ -344,7 +344,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                 // Allocate tile buffer
                 char* tempTileBuff = nullptr; 
                 if( asyncMalloc )
-#if CUDA_VERSION >= 11020
+#if OTK_USE_CUDA_MEMORY_POOLS
                     CHK( cudaMallocAsync( &tempTileBuff, tileWidth * tileHeight * pixelSize, streams[streamId] ) );
 #else
                     CHK( cudaMalloc( &tempTileBuff, tileWidth * tileHeight * pixelSize ) );
@@ -362,7 +362,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
                 // Free tile
                 if( asyncMalloc )
-#if CUDA_VERSION >= 11020
+#if OTK_USE_CUDA_MEMORY_POOLS
                     CHK( cudaFreeAsync( tempTileBuff, streams[streamId] ) );
 #else
                     CHK( cudaFree( tempTileBuff ) );

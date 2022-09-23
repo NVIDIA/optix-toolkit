@@ -72,6 +72,10 @@ target_link_libraries( testDemandLoading
   gtest
   )
 
+if( OTK_USE_CUDA_MEMORY_POOLS )
+  target_compile_options( testDemandLoading PRIVATE "-DOTK_USE_CUDA_MEMORY_POOLS" )
+endif()
+
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testDemandLoading> )
   add_custom_command( TARGET testDemandLoading POST_BUILD
