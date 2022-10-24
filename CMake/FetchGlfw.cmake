@@ -26,10 +26,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+if( TARGET glfw )
+    return()
+endif()
+
 option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
 if( NOT OTK_FETCH_CONTENT )
-  find_package( glfw3 REQUIRED )
-  return()
+    find_package( glfw3 REQUIRED )
+    return()
 endif()
 
 set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
@@ -39,8 +43,24 @@ set( GLFW_INSTALL OFF CACHE BOOL "Generate GLFW installation target")
 
 include(FetchContent)
 FetchContent_Declare(
-  glfw
-  GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG 3.3.7
-  )
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 3.3.7
+    )
 FetchContent_MakeAvailable(glfw)
+
+
+
+install(TARGETS glfw
+    EXPORT GlfwTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+    FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+install(EXPORT GlfwTargets 
+    FILE GlfwTargets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+    NAMESPACE OptiXToolkit::
+    )
