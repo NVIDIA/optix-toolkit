@@ -27,3 +27,4 @@
 #
 
 add_subdirectory(DemandLoading)
+add_subdirectory(Gui)

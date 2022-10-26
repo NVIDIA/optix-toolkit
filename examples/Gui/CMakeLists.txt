@@ -28,7 +28,7 @@
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(../CMake/Policies.cmake)
+include("${CMAKE_SOURCE_DIR}/CMake/Policies.cmake")
 
 project(Gui LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
@@ -36,9 +36,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
-include(../CMake/BuildConfig.cmake)
-include(../CMake/FetchGlfw.cmake)
-include(../CMake/FetchGlad.cmake)
+include("${CMAKE_SOURCE_DIR}/CMake/BuildConfig.cmake")
+include("${CMAKE_SOURCE_DIR}/CMake/FetchGlfw.cmake")
+include("${CMAKE_SOURCE_DIR}/CMake/FetchGlad.cmake")
 
 if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
