@@ -40,8 +40,6 @@ find_package(OptiX REQUIRED)
 
 # Import the targets.
 include("${_prefix}/cmake/OptiXToolkit/CudaTargets.cmake")
-include("${_prefix}/cmake/OptiXToolkit/GladTargets.cmake")
-include("${_prefix}/cmake/OptiXToolkit/GlfwTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/UtilTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/ImageSourceTargets.cmake")
 include("${_prefix}/cmake/OptiXToolkit/DemandLoadingTargets.cmake")
