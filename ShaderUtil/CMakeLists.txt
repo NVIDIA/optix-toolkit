@@ -30,7 +30,7 @@
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(../CMake/Policies.cmake)
 
-project(Cuda LANGUAGES C CXX CUDA)
+project(ShaderUtil LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -40,31 +40,31 @@ include(../CMake/BuildConfig.cmake)
 
 find_package( CUDAToolkit 10.0 REQUIRED )
 
-add_library(Cuda INTERFACE)
-add_library(OptiXToolkit::Cuda ALIAS Cuda)
+add_library(ShaderUtil INTERFACE)
+add_library(OptiXToolkit::ShaderUtil ALIAS ShaderUtil)
 
-target_sources(Cuda
+target_sources(ShaderUtil
   PUBLIC 
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
-  include/OptiXToolkit/Cuda/color.h
-  include/OptiXToolkit/Cuda/Preprocessor.h
-  include/OptiXToolkit/Cuda/vec_math.h
+  include/OptiXToolkit/ShaderUtil/color.h
+  include/OptiXToolkit/ShaderUtil/Preprocessor.h
+  include/OptiXToolkit/ShaderUtil/vec_math.h
   )
 
-target_include_directories(Cuda INTERFACE
+target_include_directories(ShaderUtil INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-install(TARGETS Cuda
-  EXPORT CudaTargets
+install(TARGETS ShaderUtil
+  EXPORT ShaderUtilTargets
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
-install(EXPORT CudaTargets
-  FILE CudaTargets.cmake
+install(EXPORT ShaderUtilTargets
+  FILE ShaderUtilTargets.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )
