@@ -48,19 +48,3 @@ FetchContent_Declare(
     GIT_TAG 3.3.7
     )
 FetchContent_MakeAvailable(glfw)
-
-
-
-install(TARGETS glfw
-    EXPORT GlfwTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-    FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-
-install(EXPORT GlfwTargets 
-    FILE GlfwTargets.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
-    NAMESPACE OptiXToolkit::
-    )

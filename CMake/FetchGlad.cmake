@@ -56,20 +56,6 @@ endif()
 
 set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-install(TARGETS glad
-    EXPORT GladTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-    FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-
-install(EXPORT GladTargets 
-    FILE GladTargets.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
-    NAMESPACE OptiXToolkit::
-    )
-
 if (NOT TARGET glad::glad)
     add_library(glad::glad ALIAS glad)
 endif()
