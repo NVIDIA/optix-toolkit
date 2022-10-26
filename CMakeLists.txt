@@ -69,10 +69,10 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON )
 option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
 
-add_subdirectory(Cuda)
-add_subdirectory(Util)
-add_subdirectory(ImageSource)
 add_subdirectory(DemandLoading)
+add_subdirectory(ImageSource)
+add_subdirectory(ShaderUtil)
+add_subdirectory(Util)
 
 if( OTK_BUILD_EXAMPLES )
    add_subdirectory(examples)

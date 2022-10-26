@@ -114,14 +114,12 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 INPUT                  = \
   @CMAKE_CURRENT_SOURCE_DIR@ \
-  @CMAKE_SOURCE_DIR@/Cuda/include/OptiXToolkit/Cuda \
+  @CMAKE_SOURCE_DIR@/ShaderUtil/include/OptiXToolkit/ShaderUtil \
   @CMAKE_SOURCE_DIR@/DemandLoading/include/OptiXToolkit/DemandLoading \
   @CMAKE_SOURCE_DIR@/DemandLoading/src \
   @CMAKE_SOURCE_DIR@/DemandLoading/src/Memory \
   @CMAKE_SOURCE_DIR@/DemandLoading/src/Textures \
   @CMAKE_SOURCE_DIR@/DemandLoading/src/Util \
-  @CMAKE_SOURCE_DIR@/Gui/include/OptiXToolkit/Gui \
-  @CMAKE_SOURCE_DIR@/Gui/src \
   @CMAKE_SOURCE_DIR@/ImageSource/include/OptiXToolkit/ImageSource \
   @CMAKE_SOURCE_DIR@/ImageSource/src \
   @CMAKE_SOURCE_DIR@/Util/include/OptiXToolkit/Util \

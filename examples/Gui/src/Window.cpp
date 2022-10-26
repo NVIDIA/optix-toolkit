@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/Cuda/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Gui/GLCheck.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Window.h>

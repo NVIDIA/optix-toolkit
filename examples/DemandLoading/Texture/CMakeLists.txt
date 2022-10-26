@@ -48,7 +48,8 @@ embed_ptx(
   OUTPUT_TARGET
     TextureKernel
   PTX_LINK_LIBRARIES
-    OptiXToolkit::DemandLoading OptiXToolkit::Cuda
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::ShaderUtil
   SOURCES
     textureKernel.cu
 )

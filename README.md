@@ -8,7 +8,7 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 - **[DemandLoading](DemandLoading/README.md)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
 - **[ImageSource](ImageSource/README.md)** - wrapper for OpenEXR image library (adaptable to other image formats).
 - **[Gui](Gui/README.md)** - convenience code for incorporating OpenGL into OptiX applications.
-- **[Cuda](Cuda/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
+- **[ShaderOps](ShaderOps/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
 - **[Util](Util/README.md)** - file handling and other utility functions.
 
 ## Requirements

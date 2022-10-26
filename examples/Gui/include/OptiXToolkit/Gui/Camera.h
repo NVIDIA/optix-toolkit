@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <OptiXToolkit/Cuda/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 
 namespace otk {

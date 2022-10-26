@@ -76,7 +76,7 @@ target_include_directories(Gui PUBLIC
 
 target_link_libraries(Gui
   PUBLIC
-  OptiXToolkit::Cuda
+  OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
   PRIVATE
   glfw

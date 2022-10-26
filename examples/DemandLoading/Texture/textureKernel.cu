@@ -31,8 +31,8 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
 
-#include <OptiXToolkit/Cuda/color.h>
-#include <OptiXToolkit/Cuda/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/color.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <cuda_runtime.h>
 
