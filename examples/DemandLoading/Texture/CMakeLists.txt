@@ -69,6 +69,10 @@ target_link_libraries( demandLoadTexture
 
 set_target_properties( demandLoadTexture PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
+# Copy subdirectory of texture files to bin directory.
+get_target_property( _bin demandLoadTexture RUNTIME_OUTPUT_DIRECTORY )
+file( INSTALL Textures DESTINATION ${_bin} )
+
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:demandLoadTexture> )
   add_custom_command( TARGET demandLoadTexture POST_BUILD
