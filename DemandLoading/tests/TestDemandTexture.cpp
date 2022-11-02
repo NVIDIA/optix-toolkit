@@ -63,7 +63,9 @@ class TestDemandTexture : public testing::Test
 
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,
         // and it's provides a PageTableManager that's needed by initSampler().
-        m_loader.reset( new DemandLoaderImpl( Options() ) );
+        demandLoading::Options options{};
+        options.useSmallTextureOptimization = true;
+        m_loader.reset( new DemandLoaderImpl( options ) );
 
         // Use the first capable device.
         m_deviceIndex = m_loader->getDevices().at(0);

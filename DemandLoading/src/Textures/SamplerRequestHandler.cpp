@@ -120,12 +120,13 @@ void SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
     const imageSource::TextureInfo& info = texture->getInfo();
 
     // Try to get transfer buffer
-    size_t textureSizeInBytes = getTextureSizeInBytes( info );
+    // The buffer needs to be a little larger than the texture size for some reason to prevent a crash
+    size_t transferBufferSize = getTextureSizeInBytes( info ) * 4 / 3;
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, texture->getImageSource()->getFillType(), textureSizeInBytes, stream );
+        m_loader->allocateTransferBuffer( deviceIndex, texture->getImageSource()->getFillType(), transferBufferSize, stream );
 
     // Make a backup buffer on the host if the transfer buffer was unsuccessful
-    size_t hostBufferSize = ( transferBuffer.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? textureSizeInBytes : 0;
+    size_t hostBufferSize = ( transferBuffer.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
     std::vector<char> hostBuffer( hostBufferSize );
 
     // Get the final data pointer
