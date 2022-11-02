@@ -247,7 +247,13 @@ bool DemandTextureImpl::isMipmapped() const
 bool DemandTextureImpl::useSparseTexture() const
 {
     DEMAND_ASSERT( m_info.isValid );
-    return m_loader->getOptions().useSparseTextures && ( m_info.width * m_info.height > SPARSE_TEXTURE_THRESHOLD ) && m_info.isTiled;
+
+    if( !m_loader->getOptions().useSparseTextures || !m_info.isTiled )
+        return false;
+    else if( !m_loader->getOptions().useSmallTextureOptimization )
+        return true;
+    else 
+        return ( m_info.width * m_info.height > SPARSE_TEXTURE_THRESHOLD );
 }
 
 unsigned int DemandTextureImpl::getMipTailFirstLevel() const
