@@ -26,7 +26,55 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_subdirectory(DemandTextureAppBase)
-add_subdirectory(DemandTextureViewer)
-add_subdirectory(Simple)
-add_subdirectory(Texture)
+# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+include(../../../CMake/Policies.cmake)
+
+project(DemandLoadTexture LANGUAGES C CXX CUDA)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+include(GNUInstallDirs)
+include(../../../CMake/BuildConfig.cmake)
+include(../../../CMake/FetchGlfw.cmake)
+include(../../../CMake/FetchGlad.cmake)
+include(../../../CMake/embed_ptx.cmake)
+
+if(PROJECT_IS_TOP_LEVEL)
+  find_package(OptiXToolkit REQUIRED)
+endif()
+
+embed_ptx(
+  OUTPUT_TARGET
+    DemandTextureViewer
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    DemandTextureViewer.cu
+)
+
+add_executable( demandTextureViewer
+  DemandTextureViewer.cpp
+  )
+
+target_link_libraries( demandTextureViewer
+  DemandTextureViewer
+  OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::Gui
+  OptiXToolkit::Util
+  glad::glad
+  glfw
+  )
+
+set_target_properties( demandTextureViewer PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+
+# Copy shared libraries that the built executable depends on.
+if( $<TARGET_RUNTIME_DLLS:demandTextureViewer> )
+  add_custom_command( TARGET demandTextureViewer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandTextureViewer> $<TARGET_FILE_DIR:demandTextureViewer>
+    COMMAND_EXPAND_LISTS )
+endif()

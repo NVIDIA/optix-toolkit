@@ -27,7 +27,7 @@
 //
 #pragma once
 
-#include <OptiXToolkit/ImageSource/EXRReader.h>
+#include <cuda_fp16.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
@@ -35,69 +35,59 @@
 #include <stdexcept>
 #include <vector>
 
-#ifndef ubyte
 typedef unsigned char ubyte;
-#endif
 
-#ifndef ubyte4
 struct ubyte4
 {
     ubyte x, y, z, w;
 };
-#endif
-#ifndef ubyte2 
+
 struct ubyte2 
 {
     ubyte x, y;
 };
-#endif
 
 struct half4
 {
     half x, y, z, w;
 };
 
-struct half2
-{
-    half x, y;
-};
-
 namespace imageSource {
 
 // clang-format off
-unsigned int getNumChannels( float4& x ) { return 4; }
-unsigned int getNumChannels( float2& x ) { return 2; }
-unsigned int getNumChannels( float&  x ) { return 1; }
-unsigned int getNumChannels( ubyte4& x ) { return 4; }
-unsigned int getNumChannels( ubyte2& x ) { return 2; }
-unsigned int getNumChannels( ubyte&  x ) { return 1; }
-unsigned int getNumChannels( unsigned int& x ) { return 1; }
+inline unsigned int getNumChannels( float4& x ) { return 4; }
+inline unsigned int getNumChannels( float2& x ) { return 2; }
+inline unsigned int getNumChannels( float&  x ) { return 1; }
+inline unsigned int getNumChannels( ubyte4& x ) { return 4; }
+inline unsigned int getNumChannels( ubyte2& x ) { return 2; }
+inline unsigned int getNumChannels( ubyte&  x ) { return 1; }
+inline unsigned int getNumChannels( unsigned int& x ) { return 1; }
 
-CUarray_format_enum getFormat( float4& x ) { return CU_AD_FORMAT_FLOAT; }
-CUarray_format_enum getFormat( float2& x ) { return CU_AD_FORMAT_FLOAT; }
-CUarray_format_enum getFormat( float&  x ) { return CU_AD_FORMAT_FLOAT; }
-CUarray_format_enum getFormat( ubyte4& x ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
-CUarray_format_enum getFormat( ubyte2& x ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
-CUarray_format_enum getFormat( ubyte&  x ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
-CUarray_format_enum getFormat( unsigned int& x ) { return CU_AD_FORMAT_UNSIGNED_INT32; }
+inline CUarray_format_enum getFormat( float4& x ) { return CU_AD_FORMAT_FLOAT; }
+inline CUarray_format_enum getFormat( float2& x ) { return CU_AD_FORMAT_FLOAT; }
+inline CUarray_format_enum getFormat( float&  x ) { return CU_AD_FORMAT_FLOAT; }
+inline CUarray_format_enum getFormat( ubyte4& x ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
+inline CUarray_format_enum getFormat( ubyte2& x ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
+inline CUarray_format_enum getFormat( ubyte&  x ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
+inline CUarray_format_enum getFormat( unsigned int& x ) { return CU_AD_FORMAT_UNSIGNED_INT32; }
 
-void convertType( float4 a, float4& b ) { b = a; }
-void convertType( float4 a, float2& b ) { b = {a.x, (a.y+a.z)}; }
-void convertType( float4 a, float& b  ) { b = (a.x + a.y + a.z) / 3.0f; }
-void convertType( float4 a, ubyte4& b ) { b = {ubyte(a.x*255.0f), ubyte(a.y*255.0f), ubyte(a.z*255.0f), ubyte(a.w*255.0f)}; }
-void convertType( float4 a, ubyte2& b ) { b = {ubyte(a.x*255.0f), ubyte(a.y*255.0f)}; }
-void convertType( float4 a, ubyte& b ) { b = ubyte(255.0f * (a.x + a.y + a.z) / 3.0f); }
-void convertType( float4 a, unsigned int& b ) { b = (a.x+a.y+a.z > 0.1f) ? (1<<30) : 0; }
+inline void convertType( float4 a, float4& b ) { b = a; }
+inline void convertType( float4 a, float2& b ) { b = {a.x, (a.y+a.z)}; }
+inline void convertType( float4 a, float& b  ) { b = (a.x + a.y + a.z) / 3.0f; }
+inline void convertType( float4 a, ubyte4& b ) { b = {ubyte(a.x*255.0f), ubyte(a.y*255.0f), ubyte(a.z*255.0f), ubyte(a.w*255.0f)}; }
+inline void convertType( float4 a, ubyte2& b ) { b = {ubyte(a.x*255.0f), ubyte(a.y*255.0f)}; }
+inline void convertType( float4 a, ubyte& b ) { b = ubyte(255.0f * (a.x + a.y + a.z) / 3.0f); }
+inline void convertType( float4 a, unsigned int& b ) { b = (a.x+a.y+a.z > 0.1f) ? (1<<30) : 0; }
 
-unsigned int getNumChannels( half4& x ) { return 4; }
-unsigned int getNumChannels( half2& x ) { return 2; }
-unsigned int getNumChannels( half&  x ) { return 1; }
-CUarray_format_enum getFormat( half4& x ) { return CU_AD_FORMAT_HALF; }
-CUarray_format_enum getFormat( half2& x ) { return CU_AD_FORMAT_HALF; }
-CUarray_format_enum getFormat( half&  x ) { return CU_AD_FORMAT_HALF; }
-void convertType( float4 a, half4& b ) { b = {half(a.x), half(a.y), half(a.z), half(a.w)}; }
-void convertType( float4 a, half2& b ) { b = {half(a.x), half(a.y)}; }
-void convertType( float4 a, half& b ) { b = half((a.x + a.y + a.z) / 3.0f); }
+inline unsigned int getNumChannels( half4& x ) { return 4; }
+inline unsigned int getNumChannels( half2& x ) { return 2; }
+inline unsigned int getNumChannels( half&  x ) { return 1; }
+inline CUarray_format_enum getFormat( half4& x ) { return CU_AD_FORMAT_HALF; }
+inline CUarray_format_enum getFormat( half2& x ) { return CU_AD_FORMAT_HALF; }
+inline CUarray_format_enum getFormat( half&  x ) { return CU_AD_FORMAT_HALF; }
+inline void convertType( float4 a, half4& b ) { b = half4{half(a.x), half(a.y), half(a.z), half(a.w)}; }
+inline void convertType( float4 a, half2& b ) { b = half2{half(a.x), half(a.y)}; }
+inline void convertType( float4 a, half& b ) { b = half((a.x + a.y + a.z) / 3.0f); }
 // clang-format on
 
 /// This image generates a procedural pattern in many different formats.
@@ -276,6 +266,5 @@ bool MultiCheckerImage<TYPE>::readBaseColor( float4& dest )
     dest = float4{1.0f, 1.0f, 0.0f, 0.0f};
     return ( m_info.numMipLevels > 1 ) || ( m_info.width == 1 && m_info.height == 1 );
 }
-
 
 }  // namespace imageSource
