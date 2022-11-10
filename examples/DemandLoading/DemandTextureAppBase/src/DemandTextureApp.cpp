@@ -576,10 +576,6 @@ void DemandTextureApp::startLaunchLoop()
             m_numFilledRequests += performLaunches();
             ++m_launchCycles;
             displayFrame();
-
-            //otk::beginFrameImGui();
-            //otk::displayFPS( m_launchCycles );
-            //otk::endFrameImGui();
             glfwSwapBuffers( getWindow() );
         }
     }
