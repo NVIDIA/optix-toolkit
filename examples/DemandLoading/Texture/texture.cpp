@@ -240,8 +240,8 @@ void buildAccel( PerDeviceSampleState& state )
                                   1               // num emitted properties
                                   ) );
 
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_temp_buffer_gas ) ) );
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_aabb_buffer ) ) );
+    CUDA_CHECK( cuMemFree( d_temp_buffer_gas ) );
+    CUDA_CHECK( cuMemFree( d_aabb_buffer ) );
 
     size_t compacted_gas_size;
     CUDA_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
@@ -254,7 +254,7 @@ void buildAccel( PerDeviceSampleState& state )
         OPTIX_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer,
                                         compacted_gas_size, &state.gas_handle ) );
 
-        CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_buffer_temp_output_gas_and_compacted_size ) ) );
+        CUDA_CHECK( cuMemFree( d_buffer_temp_output_gas_and_compacted_size ) );
     }
     else
     {
@@ -406,10 +406,10 @@ void cleanupState( PerDeviceSampleState& state )
     CUDA_CHECK( cudaSetDevice( state.device_idx ) );
     CUDA_CHECK( cudaStreamDestroy( state.stream ) );
 
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.sbt.raygenRecord ) ) );
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.sbt.missRecordBase ) ) );
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.sbt.hitgroupRecordBase ) ) );
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.d_gas_output_buffer ) ) );
+    CUDA_CHECK( cuMemFree( state.sbt.raygenRecord ) );
+    CUDA_CHECK( cuMemFree( state.sbt.missRecordBase ) );
+    CUDA_CHECK( cuMemFree( state.sbt.hitgroupRecordBase ) );
+    CUDA_CHECK( cuMemFree( state.d_gas_output_buffer ) );
     CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.d_params ) ) );
 }
 

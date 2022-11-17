@@ -47,7 +47,7 @@ endif()
 
 embed_ptx(
   OUTPUT_TARGET
-    DemandTextureViewer
+    DemandTextureViewerKernel
   PTX_LINK_LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
@@ -61,7 +61,7 @@ add_executable( demandTextureViewer
   )
 
 target_link_libraries( demandTextureViewer
-  DemandTextureViewer
+  DemandTextureViewerKernel
   OptiXToolkit::DemandLoading
   OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui

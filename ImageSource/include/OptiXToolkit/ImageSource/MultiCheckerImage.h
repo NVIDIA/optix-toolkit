@@ -31,6 +31,7 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
+#include <algorithm>
 #include <sstream>
 #include <stdexcept>
 #include <vector>

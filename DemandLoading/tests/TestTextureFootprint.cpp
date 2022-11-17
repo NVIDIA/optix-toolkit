@@ -555,7 +555,7 @@ class TextureFootprintFixture
                 OPTIX_CHECK( optixLaunch( pipeline, stream, d_params, sizeof( Params ), &sbt,
                                           static_cast<unsigned int>( inputs.size() ), 1, 1 ) );
                 CUDA_SYNC_CHECK();
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_params ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( d_params ) );
             }
 
             // Copy output to host (returned via result parameter)
@@ -581,9 +581,9 @@ class TextureFootprintFixture
                 DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_referenceBits ) ) );
                 DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_residenceBits ) ) );
 
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( sbt.raygenRecord ) ) );
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( sbt.missRecordBase ) ) );
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( sbt.hitgroupRecordBase ) ) );
+                DEMAND_CUDA_CHECK( cuMemFree( sbt.raygenRecord ) );
+                DEMAND_CUDA_CHECK( cuMemFree( sbt.missRecordBase ) );
+                DEMAND_CUDA_CHECK( cuMemFree( sbt.hitgroupRecordBase ) );
 
                 OPTIX_CHECK( optixPipelineDestroy( pipeline ) );
                 OPTIX_CHECK( optixProgramGroupDestroy( hitgroup_prog_group ) );
