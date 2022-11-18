@@ -32,6 +32,14 @@ endif()
 
 find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR})
 
+file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
+string(REGEX MATCH "OPTIX_VERSION ([0-9]*)" _ ${header})
+set(OPTIX_VERSION ${CMAKE_MATCH_1})
+
+if(OPTIX_VERSION STRLESS "70400")
+  message(FATAL_ERROR "OptiX 7.4 or greater is required")
+endif()
+
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OptiX
   FOUND_VAR OptiX_FOUND
