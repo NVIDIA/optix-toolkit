@@ -26,9 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Common CMake files are included from a top-level directory, but otherwise
+# this directory can be built as a standalone project.
+set(OTK_SOURCE_DIR ".." CACHE PATH "OptiX Toolkit source directory")
+
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(../CMake/Policies.cmake)
+include(${OTK_SOURCE_DIR}/CMake/Policies.cmake)
 
 project(ImageSource LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
@@ -36,8 +40,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
-include(../CMake/BuildConfig.cmake)
-include(../CMake/FetchOpenEXR.cmake)
+include(${OTK_SOURCE_DIR}/CMake/BuildConfig.cmake)
+include(${OTK_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 

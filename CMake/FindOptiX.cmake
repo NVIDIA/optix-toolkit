@@ -36,8 +36,8 @@ file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
 string(REGEX MATCH "OPTIX_VERSION ([0-9]*)" _ ${header})
 set(OPTIX_VERSION ${CMAKE_MATCH_1})
 
-if(OPTIX_VERSION STRLESS "70400")
-  message(FATAL_ERROR "OptiX 7.4 or greater is required")
+if(OPTIX_VERSION STRLESS "70600")
+  message(FATAL_ERROR "OptiX 7.6 or greater is required")
 endif()
 
 include(FindPackageHandleStandardArgs)

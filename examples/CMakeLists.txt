@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+add_subdirectory(CuOmmBaking)
 add_subdirectory(DemandLoading)
 add_subdirectory(Gui)
 add_subdirectory(Simple)

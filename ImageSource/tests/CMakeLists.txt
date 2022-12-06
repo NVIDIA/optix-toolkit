@@ -26,7 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include( ../../CMake/FetchGtest.cmake )
+# Common CMake files are included from a top-level directory.
+set(OTK_SOURCE_DIR "../.." CACHE PATH "OptiX Toolkit source directory")
+
+include( ${OTK_SOURCE_DIR}/CMake/FetchGtest.cmake )
 
 add_executable( testImageSource
   main.cpp

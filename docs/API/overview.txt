@@ -6,6 +6,7 @@ namespace otk {
 The OptiX Toolkit is a set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
 - **PyOptiX** - Complete Python bindings for the OptiX host API.
+- **CuOmmBaking** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
 - **DemandLoading** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
 - **ImageSource** - wrapper for OpenEXR image library (adaptable to other image formats).
 - **ShaderUtil** - vector math and other helper functions for OptiX kernels.

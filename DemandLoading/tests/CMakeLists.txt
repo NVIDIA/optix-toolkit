@@ -26,7 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include( ../../CMake/FetchGtest.cmake )
+# Common CMake files are included from a top-level directory.
+set(OTK_SOURCE_DIR "../.." CACHE PATH "OptiX Toolkit source directory")
+
+include( ${OTK_SOURCE_DIR}/CMake/FetchGtest.cmake )
 
 add_executable( testDemandLoading
   main.cpp
@@ -84,7 +87,7 @@ if( $<TARGET_RUNTIME_DLLS:testDemandLoading> )
 endif()
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(../../CMake/embed_ptx.cmake)
+include(${OTK_SOURCE_DIR}/CMake/embed_ptx.cmake)
 embed_ptx(
   OUTPUT_TARGET
     TextureFootprint

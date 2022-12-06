@@ -66,9 +66,19 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 #########################################################
 # Subdirectories
 
-option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON )
-option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
+set(OTK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "OptiX Toolkit source directory")
 
+if(PROJECT_IS_TOP_LEVEL)
+  option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON)
+  option( OTK_BUILD_TESTS "Enable build of OptiXToolkit tests" ON)
+  option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
+else()
+  option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" OFF)
+  option( OTK_BUILD_TESTS "Enable build of OptiXToolkit tests" OFF)
+  option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" OFF)
+endif()
+
+add_subdirectory(CuOmmBaking)
 add_subdirectory(DemandLoading)
 add_subdirectory(ImageSource)
 add_subdirectory(ShaderUtil)
@@ -78,7 +88,6 @@ if( OTK_BUILD_EXAMPLES )
    add_subdirectory(examples)
 endif()
 
-set( OTK_BUILD_DOCS ON CACHE BOOL "Enable build of OptiXToolkit documentation" )
 if( OTK_BUILD_DOCS )
   add_subdirectory( docs/API )
 endif()
