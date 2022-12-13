@@ -30,7 +30,8 @@ if (TARGET OptiX::OptiX)
   return()
 endif()
 
-find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR})
+file(GLOB OPTIX_SDK_DIR "$ENV{ProgramData}/NVIDIA Corporation/OptiX SDK 7.6.*")
+find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR} ${OPTIX_SDK_DIR} REQUIRED)
 
 file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
 string(REGEX MATCH "OPTIX_VERSION ([0-9]*)" _ ${header})
