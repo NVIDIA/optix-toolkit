@@ -60,7 +60,7 @@ export PYOPTIX_CMAKE_ARGS="-DOptiX_INSTALL_DIR=<optix install dir>"
 ```
 Windows:
 ```
-set PYOPTIX_CMAKE_ARGS=-DOptix_INSTALL_DIR=C:\ProgramData\NVIDIA Corporation\OptiX SDK 7.0.0
+set PYOPTIX_CMAKE_ARGS=-DOptiX_INSTALL_DIR=C:\ProgramData\NVIDIA Corporation\OptiX SDK 7.0.0
 ```
 
 Build and install using `setuptools`:
