@@ -380,7 +380,7 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
 #if OTK_USE_CUDA_MEMORY_POOLS
         DEMAND_CUDA_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>(transferBuffer.buffer), stream ) );
 #else 
-        DEMAND_CUDA_CHECK( cuMemFree( transferBuffer.buffer ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>(transferBuffer.buffer) ) );
 #endif
     }
     else 
