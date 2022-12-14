@@ -47,7 +47,7 @@ find_package( CUDAToolkit 11.1 REQUIRED )
 if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
   option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
 else()
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
+  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" OFF )
 endif()
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
