@@ -10,7 +10,7 @@ are repeated until no tiles are missing, typically using adaptive sampling to av
 work. Although it is currently focused on texturing, much of the library is generic and can be
 adapted to load arbitrary data on demand, such as per-vertex data like colors or normals.
 
-A quick start guide is provided below.  For additional information, please see the [OptiX Programming Guide Guide](https://raytracing-docs.nvidia.com/optix7/guide/index.html#demand_loading#demand-loaded-sparse-textures) (section 15).
+A quick start guide is provided below.  For additional information, please the [user guide in the docs subdirectory](docs/README.md).
 
 API documentation for the Demand Loading library can be generated via `make docs` after configuring CMake.
 
