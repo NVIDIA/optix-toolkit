@@ -1,7 +1,3 @@
-[submodule "DemandLoading"]
-	path = DemandLoading
-	url = https://gitlab-master.nvidia.com/raven/otk-demand-loading.git
-	branch = master
 [submodule "examples"]
 	path = examples
 	url = https://gitlab-master.nvidia.com/raven/otk-examples.git
