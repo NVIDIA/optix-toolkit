@@ -39,11 +39,13 @@ add_executable( testDemandLoading
   PagingSystemTestKernels.h
   TestBulkMemory.cpp
   TestBulkPinnedItemPool.cpp
+  TestCheckerBoardImage.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
   TestDeviceContextPool.cpp
+  TestEXRReader.cpp
   TestEventPool.cpp
   TestFixedPool.cpp
   TestItemPool.cpp
@@ -72,6 +74,7 @@ target_include_directories( testDemandLoading PUBLIC
 target_link_libraries( testDemandLoading
   DemandLoading
   OptiXToolkit::Util
+  OpenEXR::OpenEXR # for half
   gtest
   )
 

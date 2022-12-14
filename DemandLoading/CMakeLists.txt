@@ -41,6 +41,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(${OTK_SOURCE_DIR}/CMake/BuildConfig.cmake)
+include(${OTK_SOURCE_DIR}/CMake/FetchOpenEXR.cmake)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
@@ -234,6 +235,89 @@ install(TARGETS DemandLoading
 
 install(EXPORT DemandLoadingTargets
   FILE DemandLoadingTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
+
+add_library( ImageSource
+  src/ImageSource/CheckerBoardImage.cpp
+  src/ImageSource/CoreEXRReader.cpp
+  src/ImageSource/DeviceConstantImage.cpp
+  src/ImageSource/DeviceConstantImageKernels.cu
+  src/ImageSource/DeviceMandelbrotImage.cpp
+  src/ImageSource/DeviceMandelbrotImageKernels.cu
+  src/ImageSource/EXRReader.cpp
+  src/ImageSource/Exception.h
+  src/ImageSource/ImageSource.cpp
+  src/ImageSource/Stopwatch.h
+  src/ImageSource/TextureInfo.cpp
+  )
+
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::ImageSource ALIAS ImageSource)
+endif()
+
+target_sources(ImageSource
+  PUBLIC 
+  FILE_SET HEADERS 
+  BASE_DIRS include
+  FILES
+  include/OptiXToolkit/ImageSource/CheckerBoardImage.h
+  include/OptiXToolkit/ImageSource/CoreEXRReader.h
+  include/OptiXToolkit/ImageSource/DeviceConstantImage.h
+  include/OptiXToolkit/ImageSource/DeviceConstantImageParams.h
+  include/OptiXToolkit/ImageSource/DeviceMandelbrotImage.h
+  include/OptiXToolkit/ImageSource/DeviceMandelbrotParams.h
+  include/OptiXToolkit/ImageSource/EXRReader.h
+  include/OptiXToolkit/ImageSource/ImageSource.h
+  include/OptiXToolkit/ImageSource/MultiCheckerImage.h
+  include/OptiXToolkit/ImageSource/TextureInfo.h
+)
+
+source_group( "Header Files\\Implementation" FILES
+  src/ImageSource/Exception.h
+  src/ImageSource/Stopwatch.h
+  )
+
+target_compile_definitions( ImageSource PUBLIC
+  OPTIX_SAMPLE_USE_CORE_EXR
+  OTK_IMF_NAMESPACE=Imf_3_1
+  )
+
+target_include_directories( ImageSource
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  PRIVATE
+  src
+  )
+
+# Bundle OpenEXR libraries to work around export problem.
+add_library(OpenEXR_OTK INTERFACE IMPORTED)
+target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
+
+target_link_libraries( ImageSource
+  PUBLIC
+  CUDA::cuda_driver
+  CUDA::cudart
+  ${CMAKE_DL_LIBS}  
+  PRIVATE
+  OpenEXR_OTK
+  )
+
+set_target_properties(ImageSource PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+install(TARGETS ImageSource
+  EXPORT ImageSourceTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT ImageSourceTargets
+  FILE ImageSourceTargets.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )

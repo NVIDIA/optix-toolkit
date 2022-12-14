@@ -80,7 +80,6 @@ endif()
 
 add_subdirectory(CuOmmBaking)
 add_subdirectory(DemandLoading)
-add_subdirectory(ImageSource)
 add_subdirectory(ShaderUtil)
 add_subdirectory(Util)
 
