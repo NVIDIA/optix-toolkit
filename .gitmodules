@@ -1,0 +1,3 @@
+[submodule "OptiXToolkit"]
+	path = OptiXToolkit
+	url = https://gitlab-master.nvidia.com/raven/optix-toolkit.git

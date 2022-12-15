@@ -26,13 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Common CMake files are included from a top-level directory, but otherwise
-# this directory can be built as a standalone project.
-set(OTK_SOURCE_DIR "../.." CACHE PATH "OptiX Toolkit source directory")
-
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include("${OTK_SOURCE_DIR}/CMake/Policies.cmake")
+include(Policies)
 
 project(Gui LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
@@ -40,9 +36,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
-include("${OTK_SOURCE_DIR}/CMake/BuildConfig.cmake")
-include("${OTK_SOURCE_DIR}/CMake/FetchGlfw.cmake")
-include("${OTK_SOURCE_DIR}/CMake/FetchGlad.cmake")
+include(BuildConfig)
+include(FetchGlfw)
+include(FetchGlad)
 
 if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)

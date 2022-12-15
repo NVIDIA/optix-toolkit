@@ -28,7 +28,7 @@
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(../../../CMake/Policies.cmake)
+include(Policies)
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
@@ -41,7 +41,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
-include(../../../CMake/BuildConfig.cmake)
+include(BuildConfig)
 
 if(PROJECT_IS_TOP_LEVEL)
   find_package(OptiXToolkit REQUIRED)
@@ -67,3 +67,6 @@ if( $<TARGET_RUNTIME_DLLS:ommBakingSimple> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:ommBakingSimple> $<TARGET_FILE_DIR:ommBakingSimple>
     COMMAND_EXPAND_LISTS )
 endif()
+
+get_target_property( _bin ommBakingSimple RUNTIME_OUTPUT_DIRECTORY )
+file( INSTALL Textures DESTINATION ${_bin} )
