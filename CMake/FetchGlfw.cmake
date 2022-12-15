@@ -26,29 +26,25 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#########################################################
-# Welcome to the OptiX Toolkit (OTK)
+if( TARGET glfw )
+    return()
+endif()
 
-# If you have any questions, we encourage you to post on the OptiX forums:
-# https://devtalk.nvidia.com/default/board/90/
+option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
+if( NOT OTK_FETCH_CONTENT )
+    find_package( glfw3 REQUIRED )
+    return()
+endif()
 
-# CMake helper files are located in the CMake and OptiXToolkit/CMake subdirectories.
-list(APPEND CMAKE_MODULE_PATH 
-  ${CMAKE_CURRENT_SOURCE_DIR}/CMake
-  ${CMAKE_CURRENT_SOURCE_DIR}/OptiXToolkit/CMake
-  )
+set( GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" )
+set( GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" )
+set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )
+set( GLFW_INSTALL OFF CACHE BOOL "Generate GLFW installation target")
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
-
-project(OptiXToolkitExamples LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-add_subdirectory(OptiXToolkit)
-add_subdirectory(CuOmmBaking)
-add_subdirectory(DemandLoading)
-add_subdirectory(Gui)
-add_subdirectory(Simple)
+include(FetchContent)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 3.3.7
+    )
+FetchContent_MakeAvailable(glfw)

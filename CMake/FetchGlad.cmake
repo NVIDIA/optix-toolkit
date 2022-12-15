@@ -26,29 +26,36 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#########################################################
-# Welcome to the OptiX Toolkit (OTK)
+if( TARGET glad::glad )
+    return()
+endif()
 
-# If you have any questions, we encourage you to post on the OptiX forums:
-# https://devtalk.nvidia.com/default/board/90/
+option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
+if( NOT OTK_FETCH_CONTENT )
+  find_package( glad REQUIRED )
+  return()
+endif()
 
-# CMake helper files are located in the CMake and OptiXToolkit/CMake subdirectories.
-list(APPEND CMAKE_MODULE_PATH 
-  ${CMAKE_CURRENT_SOURCE_DIR}/CMake
-  ${CMAKE_CURRENT_SOURCE_DIR}/OptiXToolkit/CMake
-  )
+include(FetchContent)
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
+set( GLAD_INSTALL OFF CACHE BOOL "Generate glad installation target" )
 
-project(OptiXToolkitExamples LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
+FetchContent_Declare(
+  glad
+  GIT_REPOSITORY https://github.com/Dav1dde/glad
+  GIT_TAG v0.1.36
+)
+FetchContent_GetProperties(glad)
+if(NOT glad_POPULATED)
+    FetchContent_Populate(glad)
+    set(GLAD_PROFILE "core" CACHE STRING "OpenGL profile")
+    set(GLAD_API "gl=" CACHE STRING "API type/version pairs, like \"gl=3.2,gles=\", no version means latest")
+    set(GLAD_GENERATOR "c" CACHE STRING "Language to generate the binding for")
+    add_subdirectory(${glad_SOURCE_DIR} ${glad_BINARY_DIR})
+endif()
 
-add_subdirectory(OptiXToolkit)
-add_subdirectory(CuOmmBaking)
-add_subdirectory(DemandLoading)
-add_subdirectory(Gui)
-add_subdirectory(Simple)
+set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+if (NOT TARGET glad::glad)
+    add_library(glad::glad ALIAS glad)
+endif()
