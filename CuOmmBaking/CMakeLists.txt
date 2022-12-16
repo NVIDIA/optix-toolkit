@@ -108,10 +108,6 @@ target_link_libraries( CuOmmBaking
   ${CMAKE_DL_LIBS}  
   )
 
-target_compile_options(CuOmmBaking PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-                       --use_fast_math
-                       >)
-
 set_target_properties(CuOmmBaking PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON FOLDER CmOmmBaking)
 
 # NVTX Profiling

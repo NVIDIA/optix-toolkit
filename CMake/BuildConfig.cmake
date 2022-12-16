@@ -45,3 +45,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 if(MSVC)
   add_definitions(-DNOMINMAX)
 endif()
+
+# Use fast math for CUDA code.
+add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
