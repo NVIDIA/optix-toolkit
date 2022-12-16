@@ -60,10 +60,6 @@ embed_ptx(
     CuOmmBakingViewer.cu
 )
 
-target_compile_options(CuOmmBakingViewerKernel_ptx PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-                       --use_fast_math
-                       >)
-
 add_executable( ommBakingViewer
   CuOmmBakingViewer.cpp
   CuOmmBakingApp.cu
