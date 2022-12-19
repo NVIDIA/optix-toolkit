@@ -27,12 +27,13 @@
 //
 
 #include "Textures/SamplerRequestHandler.h"
+
 #include "DemandLoaderImpl.h"
+#include "Memory/DeviceMemoryManager.h"
 #include "PagingSystem.h"
 #include "Textures/DemandTextureImpl.h"
-#include "Util/NVTXProfiling.h"
-
 #include "TransferBufferDesc.h"
+#include "Util/NVTXProfiling.h"
 
 #include <algorithm>
 
@@ -89,16 +90,15 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     }
 
     // Allocate sampler buffer in pinned memory.
-    PinnedItemPool<TextureSampler>* pinnedSamplerPool = m_loader->getPinnedMemoryManager()->getPinnedSamplerPool();
-    TextureSampler*                 pinnedSampler     = pinnedSamplerPool->allocate();
+    MemoryBlockDesc pinnedBlock = m_loader->getPinnedMemoryPool()->alloc( sizeof( TextureSampler ), alignof( TextureSampler ) );
+    TextureSampler* pinnedSampler = reinterpret_cast<TextureSampler*>( pinnedBlock.ptr );
 
     // Copy the canonical sampler from the DemandTexture and set its CUDA texture object, which differs per device.
     *pinnedSampler         = texture->getSampler();
     pinnedSampler->texture = texture->getTextureObject( deviceIndex );
 
-    // Allocate device memory for sampler.
-    SamplerPool*    samplerPool = m_loader->getDeviceMemoryManager( deviceIndex )->getSamplerPool();
-    TextureSampler* devSampler  = samplerPool->allocate();
+    // Allocate device memory for device-side sampler.
+    TextureSampler* devSampler = m_loader->getDeviceMemoryManager( deviceIndex )->allocateSampler();
 
     // Copy sampler to device memory.
     DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
@@ -107,7 +107,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
     // the stream, and the buffer isn't reused until all preceding operations are complete,
     // including the asynchronous memcpy issued by fillTile().
-    pinnedSamplerPool->free( pinnedSampler, deviceIndex, stream );
+    m_loader->getPinnedMemoryPool()->freeAsync( pinnedBlock, deviceIndex, stream );
 
     // Push mapping for sampler to update page table.
     m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
@@ -127,12 +127,12 @@ bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
         m_loader->allocateTransferBuffer( deviceIndex, texture->getFillType(), transferBufferSize, stream );
 
     // Make a backup buffer on the host if the transfer buffer was unsuccessful
-    size_t hostBufferSize = ( transferBuffer.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
+    size_t hostBufferSize = ( transferBuffer.memoryBlock.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
     std::vector<char> hostBuffer( hostBufferSize );
 
     // Get the final data pointer
-    char* dataPtr = ( transferBuffer.size > 0 ) ? transferBuffer.buffer : hostBuffer.data();
-    size_t bufferSize = std::max( hostBuffer.size(), transferBuffer.size );
+    char* dataPtr = ( transferBuffer.memoryBlock.size > 0 ) ? reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ) : hostBuffer.data();
+    size_t bufferSize = std::max( hostBuffer.size(), transferBuffer.memoryBlock.size );
     DEMAND_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense textures." );
 
     // Read the texture data into the buffer
@@ -144,8 +144,8 @@ bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
 
     // Copy texture data from the buffer to the texture array on the device
     if( satisfied )
-        texture->fillDenseTexture( deviceIndex, stream, dataPtr, info.width, info.height, transferBuffer.size > 0 );
-    if( transferBuffer.size > 0 )
+        texture->fillDenseTexture( deviceIndex, stream, dataPtr, info.width, info.height, transferBuffer.memoryBlock.size > 0 );
+    if( transferBuffer.memoryBlock.size > 0 )
     {
         m_loader->freeTransferBuffer( transferBuffer, stream );
     }

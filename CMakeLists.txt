@@ -62,23 +62,14 @@ add_library( DemandLoading
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
   src/Memory/Allocators.h
-  src/Memory/AsyncItemPool.h
-  src/Memory/Buffers.h
-  src/Memory/BulkMemory.h
-  src/Memory/BulkPinnedItemPool.h
-  src/Memory/DeviceContextPool.cpp
-  src/Memory/DeviceContextPool.h
+  src/Memory/BinnedSuballocator.h
+  src/Memory/DeviceMemoryManager.cpp
   src/Memory/DeviceMemoryManager.h
-  src/Memory/EventPool.h
-  src/Memory/FixedPool.h
-  src/Memory/ItemPool.h
-  src/Memory/PinnedItemPool.h
-  src/Memory/PinnedMemoryManager.h
-  src/Memory/PinnedRequestContextPool.h
-  src/Memory/SamplerPool.h
-  src/Memory/TileArena.h
-  src/Memory/TilePool.cpp
-  src/Memory/TilePool.h
+  src/Memory/FixedSuballocator.h
+  src/Memory/HeapSuballocator.h
+  src/Memory/MemoryBlockDesc.h
+  src/Memory/MemoryPool.h
+  src/Memory/RingSuballocator.h
   src/PageMappingsContext.h
   src/PageTableManager.h
   src/PagingSystem.cpp

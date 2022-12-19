@@ -28,9 +28,7 @@
 
 #include "PagingSystemTestKernels.h"
 
-#include "Memory/DeviceContextPool.h"
 #include "Memory/DeviceMemoryManager.h"
-#include "Memory/PinnedMemoryManager.h"
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
@@ -40,6 +38,11 @@
 
 #include <cuda.h>
 
+#include <memory>
+
+const unsigned long long PINNED_ALLOC = 2u << 20;
+const unsigned long long MAX_PINNED_MEM = 32u << 20;
+
 using namespace demandLoading;
 
 class DevicePaging
@@ -47,17 +50,15 @@ class DevicePaging
   public:
     const unsigned int  m_deviceIndex;
     DeviceMemoryManager m_deviceMemoryManager;
-    PinnedMemoryManager m_pinnedMemoryManager;
-    PagingSystem        m_paging;
-    DeviceContextPool   m_contextPool;
-    CUstream            m_stream{};
+    MemoryPool<PinnedAllocator, RingSuballocator> m_pinnedMemoryPool;
+    PagingSystem      m_paging;
+    CUstream          m_stream{};
 
     DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
         , m_deviceMemoryManager( m_deviceIndex, options )
-        , m_pinnedMemoryManager( options )
-        , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryManager, requestProcessor )
-        , m_contextPool( deviceIndex, options )
+        , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC ), PINNED_ALLOC, MAX_PINNED_MEM )
+        , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryPool, requestProcessor )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );
@@ -86,7 +87,7 @@ class DevicePaging
         DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPages ), 0xFF, sizeofPages ) );
 
         // Launch kernel
-        DeviceContext* context = m_contextPool.allocate();
+        DeviceContext* context = m_deviceMemoryManager.allocateDeviceContext();
         launchPageRequester( m_stream, *context, static_cast<unsigned int>( numPages ), devPageIds, devPages );
 
         // Copy output pages to host.
@@ -94,7 +95,7 @@ class DevicePaging
         DEMAND_CUDA_CHECK( cudaMemcpy( pages.data(), devPages, sizeofPages, cudaMemcpyDeviceToHost ) );
 
         // Clean up.
-        m_contextPool.free( context );
+        m_deviceMemoryManager.freeDeviceContext( context );
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPageIds ) ) );
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPages ) ) );
 
@@ -103,9 +104,9 @@ class DevicePaging
 
     unsigned int pushMappings()
     {
-        DeviceContext* context     = m_contextPool.allocate();
+        DeviceContext* context     = m_deviceMemoryManager.allocateDeviceContext();
         unsigned int   numMappings = m_paging.pushMappings( *context, m_stream );
-        m_contextPool.free( context );
+        m_deviceMemoryManager.freeDeviceContext( context );
         return numMappings;
     }
 };
@@ -126,7 +127,7 @@ class TestPagingSystem : public testing::Test
         m_options.useLruTable         = true;
         m_options.maxActiveStreams    = 4;
 
-        m_pageTableManager.reset( new PageTableManager( m_options.numPages ) );
+        m_pageTableManager = std::make_shared<PageTableManager>( m_options.numPages );
         m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, m_options ) );
 
         // Create per-device PagingSystem, etc.

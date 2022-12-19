@@ -30,8 +30,10 @@
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 
-#include "Memory/DeviceMemoryManager.h"
-#include "Memory/PinnedMemoryManager.h"
+#include "Memory/Allocators.h"
+#include "Memory/MemoryPool.h"
+#include "Memory/RingSuballocator.h"
+
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
@@ -55,6 +57,7 @@ class ImageSource;
 namespace demandLoading {
 
 struct DeviceContext;
+class DeviceMemoryManager;
 class DemandTexture;
 class RequestProcessor;
 struct TextureDescriptor;
@@ -85,7 +88,13 @@ class DemandLoaderImpl : public DemandLoader
                                             int baseTextureId ) override;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
+    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
+
+    /// Schedule a list of textures to be unloaded when launchPrepare is called next.
+    void unloadTextureTiles( unsigned int textureId ) override;
+
+    /// Replace the indicated texture, clearing out the old texture as needed
+    void replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
 
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to
@@ -107,13 +116,16 @@ class DemandLoaderImpl : public DemandLoader
     Statistics getStatistics() const override;
 
     /// Get the demand loading configuration options.
-    const Options& getOptions() const;
+    const Options& getOptions() const override;
 
     /// Get indices of the devices that can be employed by the DemandLoader.
     std::vector<unsigned int> getDevices() const override;
 
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
+
+    /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
+    void setMaxTextureMemory( size_t maxMem ) override;
 
     /// Check whether the specified device is active.
     bool isActiveDevice( unsigned int deviceIndex ) const;
@@ -122,8 +134,8 @@ class DemandLoaderImpl : public DemandLoader
     DeviceMemoryManager* getDeviceMemoryManager( unsigned int deviceIndex ) const;
 
     /// Get the pinned memory manager.
-    PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
-
+    MemoryPool<PinnedAllocator, RingSuballocator>* getPinnedMemoryPool();
+    
     /// Get the specified texture.
     DemandTextureImpl* getTexture( unsigned int textureId ) { return m_textures.at( textureId ).get(); }
 
@@ -136,7 +148,7 @@ class DemandLoaderImpl : public DemandLoader
     /// Free some staged tiles if there are some that are ready
     void freeStagedTiles( unsigned int deviceIndex, CUstream stream );
 
-    /// Allocate a temporary buffer of the given memory type
+    /// Allocate a temporary buffer of the given memory type, used as a staging point for an asset such as a texture tile.
     const TransferBufferDesc allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream );
 
     /// Free a temporary buffer after current work in the stream finishes 
@@ -145,21 +157,27 @@ class DemandLoaderImpl : public DemandLoader
   private:
     mutable std::mutex        m_mutex;
 
-    std::shared_ptr<PageTableManager>     m_pageTableManager;
+    std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.
     std::unique_ptr<DemandPageLoaderImpl> m_pageLoader;
 
     std::vector<std::unique_ptr<DemandTextureImpl>>   m_textures;  // demand-loaded textures, indexed by texture id.
+    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // facilitate fast lookup from image* to textureId
 
     BaseColorRequestHandler    m_baseColorRequestHandler;  // Handles base colors for textures.
     SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
-    PinnedMemoryManager        m_pinnedMemoryManager;
+
+#if CUDA_VERSION >= 11020
+    std::vector< MemoryPool<DeviceAsyncAllocator, RingSuballocator> > m_deviceTransferPools;
+#else
+    std::vector< MemoryPool<DeviceAllocator, RingSuballocator> > m_deviceTransferPools;
+#endif
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
     double m_totalProcessingTime = 0.0;
 
-    /// Unmap the backing storage associated with a texture tile or mip tail
+    // Unmap the backing storage associated with a texture tile or mip tail
     void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
 };
 

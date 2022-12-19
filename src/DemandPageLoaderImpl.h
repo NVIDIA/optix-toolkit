@@ -30,8 +30,10 @@
 
 #include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
 
+#include "Memory/Allocators.h"
 #include "Memory/DeviceMemoryManager.h"
-#include "Memory/PinnedMemoryManager.h"
+#include "Memory/MemoryPool.h"
+#include "Memory/RingSuballocator.h"
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ResourceRequestHandler.h"
@@ -72,7 +74,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
     ~DemandPageLoaderImpl() override = default;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
+    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
 
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to
@@ -113,11 +115,14 @@ class DemandPageLoaderImpl : public DemandPageLoader
         return m_deviceMemoryManagers[deviceIndex].get();
     }
 
-    /// Get the pinned memory manager.
-    PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
+    MemoryPool<PinnedAllocator, RingSuballocator> *getPinnedMemoryPool() { return &m_pinnedMemoryPool; }
 
     /// Get the PagingSystem for the specified device.
     PagingSystem* getPagingSystem( unsigned int deviceIndex ) const { return m_pagingSystems[deviceIndex].get(); }
+
+    void setMaxTextureMemory( size_t maxMem );
+
+    void invalidatePageRange( unsigned int deviceIndex, unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate );
 
 private:
     mutable std::mutex        m_mutex;
@@ -128,9 +133,18 @@ private:
     std::vector<std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per device)
     std::vector<std::unique_ptr<PagingSystem>>        m_pagingSystems;  // Manages device interaction (one per device)
 
+    struct InvalidationRange
+    {
+        unsigned int startPage;
+        unsigned int endPage;
+        PageInvalidatorPredicate* predicate;
+    };
+    std::vector<std::vector<InvalidationRange>> m_pagesToInvalidate;
+
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
-    PinnedMemoryManager m_pinnedMemoryManager;
+
+    MemoryPool<PinnedAllocator, RingSuballocator> m_pinnedMemoryPool;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
@@ -140,6 +154,9 @@ private:
 
     /// Unmap the backing storage associated with a texture tile or mip tail
     void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+
+    // Invalidate the pages for this device in m_pagesToInvalidate
+    void invalidatePages( unsigned int deviceIndex, CUstream stream, DeviceContext& context );
 };
 
 }  // namespace demandLoading

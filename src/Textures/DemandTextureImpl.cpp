@@ -28,7 +28,7 @@
 
 #include "Textures/DemandTextureImpl.h"
 #include "DemandLoaderImpl.h"
-#include "Memory/TilePool.h"
+#include "Memory/MemoryBlockDesc.h"
 #include "PageTableManager.h"
 #include "Textures/TextureRequestHandler.h"
 #include "Util/Math.h"
@@ -54,7 +54,23 @@ DemandTextureImpl::DemandTextureImpl( unsigned int                              
     : m_id( id )
     , m_descriptor( descriptor )
     , m_image( image )
+    , m_masterTexture( nullptr )
     , m_loader( loader )
+{
+    initPerDeviceTextures( maxNumDevices );
+}
+
+DemandTextureImpl::DemandTextureImpl( unsigned int id, DemandTextureImpl* masterTexture, const TextureDescriptor& descriptor, DemandLoaderImpl* loader )
+    : m_id( id )
+    , m_descriptor( descriptor )
+    , m_image( masterTexture->m_image )
+    , m_masterTexture( masterTexture )
+    , m_loader( loader )
+{
+    initPerDeviceTextures( static_cast<unsigned int>( masterTexture->m_sparseTextures.size() ) );
+}
+
+void DemandTextureImpl::initPerDeviceTextures( unsigned int maxNumDevices )
 {
     // Construct per-device sparse and dense textures.  These are just empty shells until they are initialized.  
     // Note that the vectors do not grow after construction, which is important for thread safety.
@@ -69,6 +85,54 @@ DemandTextureImpl::DemandTextureImpl( unsigned int                              
     m_sampler = {0};
 }
 
+bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> image )
+{
+    std::unique_lock<std::mutex> lock( m_initMutex );
+
+    // If the original image was not opened, just replace it
+    if( !m_image->isOpen() )
+    {
+        m_descriptor = descriptor;
+        m_image = image;
+        return false;
+    }
+
+    // If the two images are the same size and format, replace the image and use the existing textures
+    imageSource::TextureInfo newInfo;
+    image->open( &newInfo );
+    DEMAND_ASSERT( m_info.isValid );
+    if( ( descriptor == m_descriptor ) && ( newInfo == m_info ) )
+    {
+        m_descriptor = descriptor;
+        m_image      = image;
+        return false;
+    }
+
+    // If there is a size or format mismatch, create new textures
+    // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
+    m_info       = newInfo;
+    m_descriptor = descriptor;
+    m_image      = image;
+
+    unsigned int maxNumDevices = static_cast<unsigned int>( m_sparseTextures.size() );
+    m_sparseTextures.clear();
+    m_denseTextures.clear();
+    m_sparseTextures.reserve( maxNumDevices );
+    m_denseTextures.reserve( maxNumDevices );
+
+    for( unsigned int i = 0; i < maxNumDevices; ++i )
+    {
+        m_sparseTextures.emplace_back( i );
+        m_denseTextures.emplace_back( i );
+    }
+    m_sampler       = {0};
+    m_isInitialized = false;
+
+    // Return true, the sampler needs to be replaced on the devices.  The cuda arrays and cuda textures 
+    // will be updated when the sparse/dense textures for each device are re-initialized.
+    return true; 
+}
+
 unsigned int DemandTextureImpl::getId() const
 {
     return m_id;
@@ -78,13 +142,22 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
+    if( m_masterTexture && !m_masterTexture->m_isInitialized )
+        m_masterTexture->init( deviceIndex );
+
     // Initialize the sparse or dense texture for the specified device.
     if( useSparseTexture() )
     {
         // Per-device initialization.
         DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
+        
+        // Get the master array (backing store) if there is master texture
+        std::shared_ptr<SparseArray> masterArray( nullptr );
+        if( m_masterTexture )
+            masterArray = m_masterTexture->m_sparseTextures[deviceIndex].getSparseArray();
+
         SparseTexture& sparseTexture = m_sparseTextures[deviceIndex];
-        sparseTexture.init( m_descriptor, m_info );
+        sparseTexture.init( m_descriptor, m_info, masterArray );
 
         // Device-independent initialization.
         if( !m_isInitialized )
@@ -98,7 +171,7 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
             m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? sparseTexture.getMipTailSize() : 0;
 
             // Verify that the tile size agrees with TilePool.
-            DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= sizeof( TileBuffer ) );
+            DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= TILE_SIZE_IN_BYTES );
 
             // Record the dimensions of each miplevel.
             const unsigned int numMipLevels = m_info.numMipLevels;
@@ -115,8 +188,14 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
     {
         // Per-device initialization.
         DEMAND_ASSERT( deviceIndex < m_denseTextures.size() );
+
+        // Get the master array (backing store) if there is master texture
+        std::shared_ptr<CUmipmappedArray> masterArray( nullptr );
+        if( m_masterTexture )
+            masterArray = m_masterTexture->m_denseTextures[deviceIndex].getDenseArray();
+
         DenseTexture& denseTexture = m_denseTextures[deviceIndex];
-        denseTexture.init( m_descriptor, m_info );
+        denseTexture.init( m_descriptor, m_info, masterArray );
 
         // Device-independent initialization.
         if( !m_isInitialized )
@@ -189,8 +268,15 @@ void DemandTextureImpl::initSampler()
 
         // Reserve a range of page table entries, one per tile, associated with the page request
         // handler for this texture.
-        m_requestHandler.reset( new TextureRequestHandler( this, m_loader ) );
-        m_sampler.startPage = m_loader->getPageTableManager()->reserve( m_sampler.numPages, m_requestHandler.get() );
+        if( m_masterTexture )
+        {
+            m_sampler.startPage = m_masterTexture->m_sampler.startPage;
+        }
+        else
+        {
+            m_requestHandler.reset( new TextureRequestHandler( this, m_loader ) );
+            m_sampler.startPage = m_loader->getPageTableManager()->reserve( m_sampler.numPages, m_requestHandler.get() );       
+        }
     }
     else // Dense texture 
     {
@@ -351,7 +437,7 @@ void DemandTextureImpl::fillTile( unsigned int                 deviceIndex,
 {
     DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
-    DEMAND_ASSERT( tileSize <= sizeof( TileBuffer ) );
+    DEMAND_ASSERT( tileSize <= TILE_SIZE_IN_BYTES );
 
     m_sparseTextures[deviceIndex].fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
 }

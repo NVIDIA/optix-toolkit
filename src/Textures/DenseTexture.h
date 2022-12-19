@@ -34,6 +34,7 @@
 
 #include <vector_types.h>
 
+#include <memory>
 #include <vector>
 
 namespace demandLoading {
@@ -53,7 +54,7 @@ class DenseTexture
 
     /// Initialize texture from the given descriptor (which specifies clamping/wrapping and
     /// filtering) and the given texture info (which describes the dimensions, format, etc.)
-    void init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info );
+    void init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<CUmipmappedArray> masterArray );
 
     /// Check whether the texture has been initialized.
     bool isInitialized() const { return m_isInitialized; }
@@ -70,12 +71,15 @@ class DenseTexture
     /// Get total number of bytes filled
     size_t getNumBytesFilled() const { return m_numBytesFilled; }
 
+    /// Get the mipmapped array backing store for the texture
+    std::shared_ptr<CUmipmappedArray> getDenseArray() { return m_array; }
+
   private:
-    bool                     m_isInitialized = false;
-    unsigned int             m_deviceIndex;
-    imageSource::TextureInfo m_info;
-    CUmipmappedArray         m_array{};
-    CUtexObject              m_texture{};
+    bool                              m_isInitialized = false;
+    unsigned int                      m_deviceIndex;
+    imageSource::TextureInfo          m_info;
+    std::shared_ptr<CUmipmappedArray> m_array;
+    CUtexObject                       m_texture{};
 
     mutable size_t m_numBytesFilled = 0;
 };

@@ -77,7 +77,8 @@ enum ArrayLengthsIndex
 {
     PAGE_REQUESTS_LENGTH   = 0,
     STALE_PAGES_LENGTH     = 1,
-    EVICTABLE_PAGES_LENGTH = 2
+    EVICTABLE_PAGES_LENGTH = 2,
+    NUM_ARRAY_LENGTHS
 };
 
 }  // namespace demandLoading

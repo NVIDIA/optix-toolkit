@@ -28,14 +28,15 @@
 
 #pragma once
 
+#include "Memory/MemoryBlockDesc.h"
+
 namespace demandLoading {
 
 struct TransferBufferDesc
 {
     unsigned int deviceIndex;
     CUmemorytype memoryType;
-    char* buffer;
-    size_t size;
+    MemoryBlockDesc memoryBlock;
 };
 
 } // namespace demandLoading

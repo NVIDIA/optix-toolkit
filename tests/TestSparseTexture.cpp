@@ -70,7 +70,7 @@ TEST_F( TestSparseTexture, TestInit )
     SparseTexture texture( m_deviceIndex );
     EXPECT_FALSE( texture.isInitialized() );
 
-    texture.init( m_desc, m_info );
+    texture.init( m_desc, m_info, nullptr );
 
     EXPECT_TRUE( texture.isInitialized() );
     EXPECT_EQ( 64U, texture.getTileWidth() );

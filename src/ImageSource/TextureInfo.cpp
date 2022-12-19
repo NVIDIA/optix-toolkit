@@ -75,4 +75,15 @@ size_t getTextureSizeInBytes( const TextureInfo& info )
     return texSize;
 }
 
+bool operator==( const TextureInfo& ainfo, const TextureInfo& binfo )
+{
+    return ainfo.width == binfo.width                   //
+           && ainfo.height == binfo.height              //
+           && ainfo.format == binfo.format              //
+           && ainfo.numChannels == binfo.numChannels    //
+           && ainfo.numMipLevels == binfo.numMipLevels  //
+           && ainfo.isValid == binfo.isValid            //
+           && ainfo.isTiled == binfo.isTiled;
+}
+
 }  // namespace imageSource

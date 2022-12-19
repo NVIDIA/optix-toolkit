@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "Memory/MemoryBlockDesc.h"
+
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
 
@@ -43,27 +45,36 @@ struct PageMappingsContext
     unsigned int  numInvalidatedPages;
     unsigned int  maxInvalidatedPages;
 
-    static void reserve( BulkPinnedMemory* memory, const Options& options )
-    {
-        memory->reserve<PageMapping>( options.maxFilledPages );
-        memory->reserve<unsigned int>( options.maxInvalidatedPages );
-    }
-
-    void allocate( BulkPinnedMemory* memory, const Options& options )
-    {
-        filledPages        = memory->allocate<PageMapping>( options.maxFilledPages );
-        numFilledPages     = 0;
-        maxFilledPages     = options.maxFilledPages;
-
-        invalidatedPages    = memory->allocate<unsigned int>( options.maxInvalidatedPages );
-        numInvalidatedPages = 0;
-        maxInvalidatedPages = options.maxInvalidatedPages;
-    }
-
     void clear()
     {
         numFilledPages      = 0;
         numInvalidatedPages = 0;
+    }
+
+    // Return the size required for the struct + filledPages + invalidatedPages
+    static uint64_t getAllocationSize( const Options& options )
+    {
+        uint64_t allocSize = alignVal( sizeof( PageMappingsContext ), alignof( PageMapping ) );
+        allocSize += options.maxFilledPages * sizeof( PageMapping );
+        allocSize += options.maxInvalidatedPages * sizeof( unsigned int );
+        return allocSize;
+    }
+
+    // Initialize the struct and array pointers, assuming that the this pointer points
+    // to a free memory block of sufficient size, as calculated in getAllocationSize.
+    void init( const Options& options )
+    {
+        char* start = reinterpret_cast<char*>( this );
+        char* filledPagesStart = start + alignVal( sizeof( PageMappingsContext ), sizeof( PageMapping ) );
+        char* invalidatedPagesStart = filledPagesStart + options.maxFilledPages * sizeof(PageMapping);
+
+        filledPages    = reinterpret_cast<PageMapping*>( filledPagesStart );
+        numFilledPages = 0;
+        maxFilledPages = options.maxFilledPages;
+
+        invalidatedPages = reinterpret_cast<unsigned int*>( invalidatedPagesStart );
+        numInvalidatedPages = 0;
+        maxInvalidatedPages = options.maxInvalidatedPages;
     }
 };
 

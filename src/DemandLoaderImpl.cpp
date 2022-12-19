@@ -33,7 +33,6 @@
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
-#include "Util/TraceFile.h"
 #include "TicketImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
@@ -42,9 +41,46 @@
 #include <cuda.h>
 
 #include <algorithm>
+#include <memory>
 #include <set>
 
 namespace demandLoading {
+
+// Predicate that returns pages (assumed to represent texture tiles) to a tile pool
+class TilePoolReturnPredicate : public PageInvalidatorPredicate
+{
+  public:
+    TilePoolReturnPredicate( DeviceMemoryManager* deviceMemoryManager )
+        : m_deviceMemoryManager( deviceMemoryManager )
+    {
+    }
+    bool operator()( unsigned int pageId, unsigned long long pageVal ) override
+    {
+        m_deviceMemoryManager->freeTileBlock( TileBlockDesc( pageVal ) );
+        return true;
+    }
+    ~TilePoolReturnPredicate() override {}
+  private:
+    DeviceMemoryManager* m_deviceMemoryManager;
+};
+
+// Predicate that returns TextureSamplers to texture sampler pool
+class TextureSamplerReturnPredicate : public PageInvalidatorPredicate
+{
+  public:
+    TextureSamplerReturnPredicate( DeviceMemoryManager* deviceMemoryManager )
+        : m_deviceMemoryManager( deviceMemoryManager )
+    {
+    }
+    bool operator()( unsigned int pageId, unsigned long long pageVal ) override
+    {
+        m_deviceMemoryManager->freeSampler( reinterpret_cast<TextureSampler*>( pageVal ) );
+        return true;
+    }
+    ~TextureSamplerReturnPredicate() override {}
+  private:
+    DeviceMemoryManager* m_deviceMemoryManager;
+};
 
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages ) )
@@ -52,8 +88,21 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
     , m_baseColorRequestHandler( this )
     , m_samplerRequestHandler( this )
-    , m_pinnedMemoryManager( options )
 {
+
+    // Create transfer buffer pools
+    for( unsigned int deviceIndex = 0; deviceIndex < m_pageLoader->getNumDevices(); ++deviceIndex )
+    {
+#if CUDA_VERSION >= 11020
+        DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator( deviceIndex );
+        m_deviceTransferPools.emplace_back( allocator, nullptr, 8 * (1<<20), 64 * (1<<20) );
+#else
+        DeviceAllocator* allocator = new DeviceAllocator( deviceIndex );
+        RingSuballocator* suballocator = new RingSuballocator( 4 << 20 );
+        m_deviceTransferPools.emplace_back( allocator, suballocator, 8 * (1<<20), 64 * (1<<20) );
+#endif
+    }
+
     // Reserve virtual address space for texture samplers, which is associated with the sampler request handler.
     // Note that the max number of samplers/textures is half the number of page table entries.
     m_pageTableManager->reserve( m_pageLoader->getOptions().numPageTableEntries / 2, &m_samplerRequestHandler );
@@ -80,7 +129,19 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
 
     // Add new texture to the end of the list of textures.  The texture holds a pointer to the
     // image, from which tile data is obtained on demand.
-    m_textures.emplace_back( new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDesc, imageSource, this ) );
+    auto imageIt = m_imageToTextureId.find( imageSource.get() );
+    if( imageIt == m_imageToTextureId.end() )
+    {
+        // image was not found. Make a new texture.
+        m_textures.emplace_back( new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDesc, imageSource, this ) );
+        m_imageToTextureId[imageSource.get()] = textureId;
+    }
+    else
+    {
+        // image was found. Make a variant texture.
+        DemandTextureImpl* masterTexture = m_textures[imageIt->second].get();
+        m_textures.emplace_back( new DemandTextureImpl( textureId, masterTexture, textureDesc, this ) );
+    }
 
     // Record the image reader and texture descriptor.
     m_requestProcessor.recordTexture( imageSource, textureDesc );
@@ -138,9 +199,56 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
     return (baseTextureId >= 0) ? *m_textures[baseTextureId] : *m_textures[entryPointIndex];
 }
 
-unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* context )
+unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )
 {
-    return m_pageLoader->createResource( numPages, callback, context );
+    return m_pageLoader->createResource( numPages, callback, callbackContext );
+}
+
+void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
+{
+    std::unique_lock<std::mutex> lock( m_mutex );
+    DEMAND_ASSERT_MSG( textureId < m_textures.size(), "Unknown texture id" );
+
+    // Enqueue page ranges to invalidate when launchPrepare is called
+    if( m_textures[textureId]->isOpen() )
+    {
+        m_textures[textureId]->init( m_pageLoader->getDevices()[0] );
+        TextureSampler sampler   = m_textures[textureId]->getSampler();
+        unsigned int   startPage = sampler.startPage;
+        unsigned int   endPage   = sampler.startPage + sampler.numPages;
+
+        for( unsigned int deviceIndex : m_pageLoader->getDevices() )
+        {
+            // Unload texture tiles
+            TilePoolReturnPredicate* predicate = new TilePoolReturnPredicate( getDeviceMemoryManager( deviceIndex ) );
+            m_pageLoader->invalidatePageRange( deviceIndex, startPage, endPage, predicate );
+
+            // Unload base color
+            unsigned int baseColorId = getPagingSystem( deviceIndex )->getBaseColorPageId( textureId );
+            m_pageLoader->invalidatePageRange( deviceIndex, baseColorId, baseColorId + 1, nullptr );
+        }
+    }
+}
+
+void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc )
+{
+    unloadTextureTiles( textureId );
+    std::unique_lock<std::mutex> lock( m_mutex );
+    bool                         samplerNeedsReset = m_textures[textureId]->setImage( textureDesc, image );
+
+    // Invalidate the texture sampler
+    if( samplerNeedsReset )
+    {
+        for( unsigned int deviceIndex : m_pageLoader->getDevices() )
+        {
+            TextureSamplerReturnPredicate* predicate =
+                new TextureSamplerReturnPredicate( getDeviceMemoryManager( deviceIndex ) );
+            m_pageLoader->invalidatePageRange( deviceIndex, textureId, textureId + 1, predicate );
+        }
+    }
+
+    // Record the image reader and texture descriptor.
+    m_requestProcessor.recordTexture( image, textureDesc );
 }
 
 // Returns false if the device doesn't support sparse textures.
@@ -184,16 +292,15 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
     std::unique_lock<std::mutex> lock( m_mutex );
 
     PagingSystem* pagingSystem = getPagingSystem( deviceIndex );
-    TilePool*     tilePool     = getDeviceMemoryManager( deviceIndex )->getTilePool();
     PageMapping   mapping;
 
-    while( tilePool->getTotalFreeTiles() < tilePool->getDesiredFreeTiles() )
+    while( getDeviceMemoryManager( deviceIndex )->needTileBlocksFreed()  )
     {
         pagingSystem->activateEviction( true );
         if( pagingSystem->freeStagedPage( &mapping ) )
         {
             unmapTileResource( deviceIndex, stream, mapping.id );
-            tilePool->freeBlock( mapping.page );
+            getDeviceMemoryManager( deviceIndex )->freeTileBlock( mapping.page );
         }
         else 
         {
@@ -202,71 +309,33 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
     }
 }
 
+
 const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-
+    const unsigned int alignment = 4096;
+    
+    MemoryBlockDesc memoryBlock{};
     if( memoryType == CU_MEMORYTYPE_HOST )
-    {
-        DEMAND_ASSERT_MSG( size <= sizeof( MipTailBuffer ), "Requested buffer size too large." );
-        if( size <= sizeof(TileBuffer) )
-        {
-            PinnedItemPool<TileBuffer>* pinnedTilePool = m_pinnedMemoryManager.getPinnedTilePool();
-            char* buffer = reinterpret_cast<char*>( pinnedTilePool->allocate() );
-            return TransferBufferDesc{ deviceIndex, memoryType, buffer, sizeof(TileBuffer) };
-        }
-        if( size < sizeof( MipTailBuffer ) )
-        {
-            PinnedItemPool<MipTailBuffer>* pinnedMipTailPool = m_pinnedMemoryManager.getPinnedMipTailPool();
-            char* buffer = reinterpret_cast<char*>( pinnedMipTailPool->allocate() );
-            return TransferBufferDesc{ deviceIndex, memoryType, buffer, sizeof(MipTailBuffer) };
-        }
-    }
+        memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
-    {
-        char* ptr;
-#if OTK_USE_CUDA_MEMORY_POOLS
-        DEMAND_CUDA_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &ptr ), size, stream ) );
-#else
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &ptr ), size ) );
-#endif
-        return TransferBufferDesc{ deviceIndex, memoryType, ptr, size };
-    }
-    return TransferBufferDesc{};
+        memoryBlock = m_deviceTransferPools[deviceIndex].alloc( size, alignment );
+
+    DEMAND_ASSERT_MSG( memoryBlock.isGood(), "Transfer buffer allocation failed." );
+    return TransferBufferDesc{ deviceIndex, memoryType, memoryBlock };
 }
 
  
 void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream )
 {
-    // Note: This doesn't immediately reclaim the buffer. An event is recorded on
-    // the stream, and the buffer isn't reused until all preceding operations are complete.
+    // Free the transfer buffer after the stream clears
 
     if( transferBuffer.memoryType == CU_MEMORYTYPE_HOST )
-    {
-        DEMAND_ASSERT_MSG( transferBuffer.size <= sizeof( MipTailBuffer ), "Buffer size too large." );
-        if( transferBuffer.size <= sizeof(TileBuffer) )
-        {
-            PinnedItemPool<TileBuffer>* pinnedTilePool = m_pinnedMemoryManager.getPinnedTilePool();
-            pinnedTilePool->free( reinterpret_cast<TileBuffer*>( transferBuffer.buffer ), transferBuffer.deviceIndex, stream );
-        }
-        else if( transferBuffer.size <= sizeof( MipTailBuffer ) )
-        {
-            PinnedItemPool<MipTailBuffer>* pinnedMipTailPool = m_pinnedMemoryManager.getPinnedMipTailPool();
-            pinnedMipTailPool->free( reinterpret_cast<MipTailBuffer*>( transferBuffer.buffer ), transferBuffer.deviceIndex, stream );
-        }
-    }
+        m_pageLoader->getPinnedMemoryPool()->freeAsync( transferBuffer.memoryBlock, transferBuffer.deviceIndex, stream );
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
-    {
-#if OTK_USE_CUDA_MEMORY_POOLS
-        DEMAND_CUDA_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>(transferBuffer.buffer), stream ) );
-#else 
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>(transferBuffer.buffer) ) );
-#endif
-    }
+        m_deviceTransferPools[ transferBuffer.deviceIndex ].freeAsync( transferBuffer.memoryBlock, transferBuffer.deviceIndex, stream );
     else 
-    {
         DEMAND_ASSERT_MSG( false, "Unknown memory type." );
-    }
 }
 
 
@@ -321,6 +390,16 @@ bool DemandLoaderImpl::isActiveDevice( unsigned int deviceIndex ) const
 DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int deviceIndex ) const
 {
     return m_pageLoader->getDeviceMemoryManager( deviceIndex );
+}
+
+MemoryPool<PinnedAllocator, RingSuballocator>* DemandLoaderImpl::getPinnedMemoryPool()
+{
+    return m_pageLoader->getPinnedMemoryPool();
+}
+
+void DemandLoaderImpl::setMaxTextureMemory( size_t maxMem )
+{
+    m_pageLoader->setMaxTextureMemory( maxMem );
 }
 
 DemandLoader* createDemandLoader( const Options& options )

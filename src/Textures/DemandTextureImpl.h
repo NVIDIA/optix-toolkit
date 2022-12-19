@@ -71,6 +71,10 @@ class DemandTextureImpl : public DemandTexture
                        std::shared_ptr<imageSource::ImageSource> image,
                        DemandLoaderImpl*                         loader );
 
+    /// Construct a variant demand loaded texture based on mainTexture.  The variant will use the same
+    /// sparse texture backing store as mainTexture, so texture tiles can be shared between the textures.
+    DemandTextureImpl( unsigned int id, DemandTextureImpl* masterTexture, const TextureDescriptor& descriptor, DemandLoaderImpl* loader );
+
     /// Default destructor.
     ~DemandTextureImpl() override = default;
 
@@ -89,6 +93,9 @@ class DemandTextureImpl : public DemandTexture
 
     /// Get the memory fill type for this texture.
     CUmemorytype getFillType() const { return m_image->getFillType(); }
+
+    /// Replace the current texture image. Return true if the sampler for the texture needs to be updated.
+    bool setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> image );
 
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
@@ -187,6 +194,8 @@ class DemandTextureImpl : public DemandTexture
     /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
     void open();
 
+    bool isOpen() const { return m_isOpen; }
+
     /// Set this texture as an entry point to a udim texture array
     void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture );
     
@@ -205,7 +214,10 @@ class DemandTextureImpl : public DemandTexture
     TextureDescriptor m_descriptor{};
 
     // The image provides a read() method that fills requested miplevels.
-    const std::shared_ptr<imageSource::ImageSource> m_image;
+    std::shared_ptr<imageSource::ImageSource> m_image;
+
+    // Master texture, if this is a texture variant (shares image backing store with master texture). 
+    DemandTextureImpl* m_masterTexture;
 
     // The DemandLoader provides access to the PageTableManager, etc.
     DemandLoaderImpl* const m_loader;
@@ -238,6 +250,8 @@ class DemandTextureImpl : public DemandTexture
 
     // Threshold number of pixels to switch between sparse and dense texture
     const unsigned int SPARSE_TEXTURE_THRESHOLD = 1024;
+
+    void initPerDeviceTextures( unsigned int maxNumDevices );
 };
 
 }  // namespace demandLoading

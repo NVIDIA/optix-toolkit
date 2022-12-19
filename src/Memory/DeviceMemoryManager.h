@@ -28,51 +28,67 @@
 
 #pragma once
 
-#include "Memory/DeviceContextPool.h"
-#include "Memory/SamplerPool.h"
-#include "Memory/TilePool.h"
+#include <cstddef>
+#include <vector>
 
+#include "Memory/Allocators.h"
+#include "Memory/FixedSuballocator.h"
+#include "Memory/HeapSuballocator.h"
+#include "Memory/MemoryPool.h"
+
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/Statistics.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 namespace demandLoading {
-
-class DemandLoaderImpl;
 
 class DeviceMemoryManager
 {
   public:
-    DeviceMemoryManager( unsigned int deviceIndex, const Options& options )
-        : m_deviceIndex( deviceIndex )
-        , m_deviceContextPool( m_deviceIndex, options )
-        , m_samplerPool( m_deviceIndex )
-        , m_tilePool( m_deviceIndex, options.maxTexMemPerDevice )
-    {
-    }
+    DeviceMemoryManager( unsigned int deviceIndex, const Options& options );
+    ~DeviceMemoryManager();
 
-    /// Get the DeviceContextPool for this device.
-    DeviceContextPool* getDeviceContextPool() { return &m_deviceContextPool; }
+    /// Allocate a DeviceContext for this device.
+    DeviceContext* allocateDeviceContext();
+    /// Free a DeviceContext for this device.
+    void freeDeviceContext( DeviceContext* context );
 
-    /// Get the SamplerPool for this device.
-    SamplerPool* getSamplerPool() { return &m_samplerPool; }
+    /// Allocate a Sampler for this device.
+    TextureSampler* allocateSampler() { return reinterpret_cast<TextureSampler*>( m_samplerPool.allocItem() ); }
+    /// Free a Sampler for this device.
+    void freeSampler( TextureSampler* sampler ) { m_samplerPool.freeItem( reinterpret_cast<uint64_t>( sampler ) ); }
 
-    /// Get the TilePool for this device.
-    TilePool* getTilePool() { return &m_tilePool; }
+    /// Allocate a TileBlock for this device.
+    TileBlockHandle allocateTileBlock( size_t numBytes ) { return m_tilePool.allocTextureTiles( numBytes ); }
+    /// Free a TileBlock for this device.
+    void freeTileBlock( const TileBlockDesc& blockDesc ) { m_tilePool.freeTextureTiles( blockDesc ); }
     
+    /// Returns true if TileBlocks need to be freed.
+    bool needTileBlocksFreed() const { return m_tilePool.allocatableSpace() < m_tilePool.allocationGranularity(); };
+    /// Returns the arena size for m_tilePool.
+    size_t getTilePoolArenaSize() const { return static_cast<size_t>( m_tilePool.allocationGranularity() ); }
+    /// Set the max texture memory
+    void setMaxTextureTileMemory( size_t maxMemory ) { m_tilePool.setMaxSize( static_cast<uint64_t>( maxMemory ) ); }
+
     /// Returns the amount of device memory allocated.
     size_t getTotalDeviceMemory() const
     {
-        return m_deviceContextPool.getTotalDeviceMemory() + m_samplerPool.getTotalDeviceMemory() + m_tilePool.getTotalDeviceMemory();
+        return m_samplerPool.trackedSize() + m_deviceContextMemory.trackedSize() + m_tilePool.trackedSize();
     }
 
     void accumulateStatistics( DeviceStatistics& stats ) { stats.memoryUsed += getTotalDeviceMemory(); }
 
   private:
-    unsigned int      m_deviceIndex;
-    DemandLoaderImpl* m_loader;
-    DeviceContextPool m_deviceContextPool;
-    SamplerPool       m_samplerPool;
-    TilePool          m_tilePool;
+    unsigned int m_deviceIndex;
+    Options      m_options;
+
+    MemoryPool<DeviceAllocator, FixedSuballocator>     m_samplerPool;
+    MemoryPool<DeviceAllocator, HeapSuballocator>      m_deviceContextMemory;
+    MemoryPool<TextureTileAllocator, HeapSuballocator> m_tilePool;
+
+    std::vector<DeviceContext*> m_deviceContextPool;
+    std::vector<DeviceContext*> m_deviceContextFreeList;
 };
 
 }  // namespace demandLoading

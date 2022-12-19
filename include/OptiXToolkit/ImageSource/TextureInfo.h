@@ -49,5 +49,7 @@ unsigned int getBytesPerChannel( const CUarray_format format );
 /// Get total texture size
 size_t getTextureSizeInBytes( const TextureInfo& info );
 
+/// Check equality
+bool operator==( const TextureInfo& ainfo, const TextureInfo& binfo );
 
 }  // namespace imageSource

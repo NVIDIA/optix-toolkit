@@ -28,12 +28,16 @@
 
 #include "TestSparseTexture.h"
 
-#include "Memory/Buffers.h"
-#include "Memory/TilePool.h"
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
+
+#include "Memory/Allocators.h"
+#include "Memory/FixedSuballocator.h"
+#include "Memory/HeapSuballocator.h"
+#include "Memory/MemoryPool.h"
+
 #include "Textures/SparseTexture.h"
 #include "Util/Exception.h"
-
-#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gtest/gtest.h>
 
@@ -120,15 +124,35 @@ bool savePPM( const char* filename, size_t width, size_t height, const float4* b
 
 class TestSparseTextureWrap : public testing::Test
 {
+  public:
+    void SetUp() override
+    {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
+        m_tilePool.reset(                                                             //
+            new MemoryPool<TextureTileAllocator, HeapSuballocator>(                   //
+                new TextureTileAllocator( m_deviceIndex ),                            // allocator
+                new HeapSuballocator(),                                               // suballocator
+                TextureTileAllocator::getRecommendedAllocationSize( m_deviceIndex ),  // allocation granularity
+                m_options.maxTexMemPerDevice                                          // max size
+                ) );
+    }
+
   protected:
-    CUstream     m_stream{};
+    void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mipLevel, const char* outFileName );
+
+    const unsigned int m_deviceIndex = 0;
+    CUstream m_stream{};
+    Options m_options{};
+    std::unique_ptr<MemoryPool<TextureTileAllocator, HeapSuballocator>> m_tilePool;
 };
 
 TEST_F( TestSparseTextureWrap, Test )
 {
     // Initialize CUDA.
-    const unsigned int deviceIndex = 0;
-    DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
     DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
 
     // Create sparse texture.
@@ -143,17 +167,16 @@ TEST_F( TestSparseTextureWrap, Test )
         1024, 1024, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, 11 /*numMipLevels*/
     };
 
-    SparseTexture texture( deviceIndex );
-    texture.init( desc, info );
+    SparseTexture texture( m_deviceIndex );
+    texture.init( desc, info, nullptr );
 
     // Allocate tile buffer.
     const unsigned int  tileWidth  = texture.getTileWidth();
     const unsigned int  tileHeight = texture.getTileHeight();
     std::vector<float4> tileBuffer( tileWidth * tileHeight );
-    ASSERT_TRUE( tileBuffer.size() <= sizeof(TileBuffer) );
+    ASSERT_TRUE( tileBuffer.size() * sizeof( float4 ) <= TILE_SIZE_IN_BYTES );
 
     const unsigned int  mipLevel = 0;
-    TilePool            tilePool( deviceIndex, TEX_MEM_PER_DEVICE );
     std::vector<float4> colors( getColors() );
 
     // Fill all the tiles on the finest miplevel.
@@ -168,14 +191,15 @@ TEST_F( TestSparseTextureWrap, Test )
             std::fill( tileBuffer.begin(), tileBuffer.end(), colors[colorIndex] );
 
             // Allocate tile backing storage.
-            CUmemGenericAllocationHandle handle;
-            size_t                       offset;
-            TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );
-            tilePool.getHandle( tileBlock, &handle, &offset );
+            TileBlockHandle bh = m_tilePool->allocTextureTiles( TILE_SIZE_IN_BYTES );
 
             // Map and fill tile.
-            texture.fillTile( m_stream, mipLevel, i, j, reinterpret_cast<const char*>( tileBuffer.data() ),
-                              CU_MEMORYTYPE_HOST, tileBuffer.size(), handle, offset );
+            texture.fillTile( m_stream,                                                  // stream to fill tile on
+                              mipLevel, i, j,                                            // tile to fill
+                              reinterpret_cast<const char*>( tileBuffer.data() ),        // src data
+                              CU_MEMORYTYPE_HOST, tileBuffer.size() * sizeof( float4 ),  // src type and size
+                              bh.handle, bh.block.offset()                               // dest
+                              );
         }
     }
 
@@ -204,13 +228,8 @@ TEST_F( TestSparseTextureWrap, Test )
     DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
-void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mipLevel, const char* outFileName )
+void TestSparseTextureWrap::testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mipLevel, const char* outFileName )
 {
-    // Initialize CUDA.
-    const unsigned int deviceIndex = 0;
-    DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-    DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
     // Create sparse texture.
     TextureDescriptor desc;
     desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
@@ -223,16 +242,14 @@ void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mip
 
     TextureInfo info{res, res, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, numMipLevels};
 
-    SparseTexture texture( deviceIndex );
-    texture.init( desc, info );
+    SparseTexture texture( m_deviceIndex );
+    texture.init( desc, info, nullptr );
 
     // Allocate tile buffer.
     const unsigned int  tileWidth  = texture.getTileWidth();
     const unsigned int  tileHeight = texture.getTileHeight();
     std::vector<float4> tileBuffer( tileWidth * tileHeight );
-    ASSERT_TRUE( tileBuffer.size() <= sizeof( TileBuffer ) );
-
-    TilePool            tilePool( deviceIndex, TEX_MEM_PER_DEVICE );
+    ASSERT_TRUE( tileBuffer.size() * sizeof( float4 ) <= TILE_SIZE_IN_BYTES );
     std::vector<float4> colors( getColors() );
 
     // Fill all the tiles on the specified miplevel.
@@ -250,14 +267,15 @@ void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mip
             std::fill( tileBuffer.begin(), tileBuffer.end(), colors[colorIndex] );
 
             // Allocate tile backing storage.
-            CUmemGenericAllocationHandle handle;
-            size_t                       offset;
-            TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );
-            tilePool.getHandle( tileBlock, &handle, &offset );
+            TileBlockHandle bh = m_tilePool->allocTextureTiles( TILE_SIZE_IN_BYTES );
 
             // Map and fill tile.
-            texture.fillTile( stream, mipLevel, i, j, reinterpret_cast<const char*>( tileBuffer.data() ),
-                              CU_MEMORYTYPE_HOST, tileBuffer.size(), handle, offset );
+            texture.fillTile( stream,                                              // stream
+                              mipLevel, i, j,                                      // Tile to fill
+                              reinterpret_cast<const char*>( tileBuffer.data() ),  // source data
+                              CU_MEMORYTYPE_HOST, TILE_SIZE_IN_BYTES,              // source type and size
+                              bh.handle, bh.block.offset()                         // dest
+                              );
         }
     }
 

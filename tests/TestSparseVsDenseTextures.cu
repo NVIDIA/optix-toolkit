@@ -26,43 +26,29 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Memory/Buffers.h"
-#include "Memory/TileArena.h"
+#include "TestSparseVsDenseTextures.h"
 
-#include <gtest/gtest.h>
+#include "Util/Exception.h"
 
-using namespace demandLoading;
-
-class TestTileArena : public testing::Test
+__global__ static void sparseVsDenseTextureKernel( CUtexObject texture )
 {
-  public:
-    void SetUp() override
-    {
-        size_t arenaSize = TileArena::getRecommendedSize( m_deviceIndex );
-        m_arena          = TileArena::create( m_deviceIndex, arenaSize );
-    }
-
-    void TearDown() override { m_arena.destroy(); }
-
-  protected:
-    unsigned int m_deviceIndex = 0;
-    TileArena    m_arena;
-};
-
-TEST_F( TestTileArena, CreateDestroy )
-{
-    EXPECT_EQ( 0U, m_arena.size() );
-    EXPECT_GT( m_arena.capacity(), 0U );
+    bool   isResident = false;
+    float  x          = 0.5f;
+    float  y          = 0.5f;
+//    float2 ddx        = make_float2(0.1f, 0.0f);
+//    float2 ddy        = make_float2(0.0f, 0.1f);
+    float2 ddx        = make_float2(0.0f, 0.0f);
+    float2 ddy        = make_float2(0.0f, 0.0f);
+    
+    // This should print 0 (0 0 0) since no tiles were loaded, but prints 1 (0 0 0)
+    float4 val = tex2DGrad<float4>( texture, x, y, ddx, ddy, &isResident );
+    printf("%d (%1.1f %1.1f %1.1f)\n", isResident, val.x, val.y, val.z);
 }
 
-
-TEST_F( TestTileArena, Allocate )
+__host__ void launchSparseVsDenseTextureKernel( CUtexObject texture )
 {
-    size_t offset = m_arena.allocate( sizeof( TileBuffer ) );
-    EXPECT_EQ( 0U, offset );
-    EXPECT_EQ( sizeof( TileBuffer ), m_arena.size() );
-
-    offset = m_arena.allocate( sizeof( TileBuffer ) );
-    EXPECT_EQ( sizeof( TileBuffer ), offset );
-    EXPECT_EQ( 2 * sizeof( TileBuffer ), m_arena.size() );
+    dim3 dimBlock( 1 );
+    dim3 dimGrid( 1 );
+    sparseVsDenseTextureKernel<<<dimGrid, dimBlock>>>( texture );
+    DEMAND_CUDA_CHECK( cudaGetLastError() );
 }

@@ -51,16 +51,24 @@ class PageTableManager
     {
     }
 
-    unsigned int getAvailablePages() const { return m_totalPages - m_nextPage; }
+    unsigned int getAvailablePages() const
+    {
+        std::unique_lock<std::mutex> lock( m_mutex );
+        return getAvailablePagesUnsafe();
+    }
 
-    unsigned int getHighestUsedPage() const { return m_nextPage - 1; }
+    unsigned int getHighestUsedPage() const
+    {
+        std::unique_lock<std::mutex> lock( m_mutex );
+        return m_nextPage - 1;
+    }
 
     /// Reserve the specified number of contiguous page table entries, associating them with the
     /// specified request handler.  Returns the first page reserved.
     unsigned int reserve( unsigned int numPages, RequestHandler* handler )
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        DEMAND_ASSERT_MSG( getAvailablePages() >= numPages, "Insufficient pages in demand loading page table" );
+        DEMAND_ASSERT_MSG( getAvailablePagesUnsafe() >= numPages, "Insufficient pages in demand loading page table" );
 
         unsigned int firstPage = m_nextPage;
         handler->setPageRange( firstPage, numPages );
@@ -87,6 +95,11 @@ class PageTableManager
     }
 
   private:
+    unsigned int getAvailablePagesUnsafe() const
+    {
+        return m_totalPages - m_nextPage;
+    }
+
     struct PageMapping
     {
         unsigned int    firstPage;

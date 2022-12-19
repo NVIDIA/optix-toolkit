@@ -53,4 +53,14 @@ struct TextureDescriptor
     unsigned int flags = CU_TRSF_DISABLE_TRILINEAR_OPTIMIZATION;
 };
 
+inline bool operator==( const TextureDescriptor& adesc, const TextureDescriptor& bdesc )
+{
+    return adesc.addressMode[0] == bdesc.addressMode[0]         //
+           && adesc.addressMode[1] == bdesc.addressMode[1]      //
+           && adesc.filterMode == bdesc.filterMode              //
+           && adesc.mipmapFilterMode == bdesc.mipmapFilterMode  //
+           && adesc.maxAnisotropy == bdesc.maxAnisotropy        //
+           && adesc.flags == bdesc.flags;
+}
+
 }  // namespace demandLoading

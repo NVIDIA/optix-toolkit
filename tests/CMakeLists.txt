@@ -33,8 +33,8 @@ include( embed_ptx )
 embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
     OUTPUT_TARGET testDemandLoadingKernels
     PTX_LINK_LIBRARIES
-        OptiXToolkit::DemandLoading
-        OptiXToolkit::ShaderUtil
+        DemandLoading
+        ShaderUtil
     SOURCES DeferredImageLoadingKernels.cu
     FOLDER DemandLoading/tests
 )
@@ -47,33 +47,33 @@ add_executable( testDemandLoading
   ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
-  TestBulkMemory.cpp
-  TestBulkPinnedItemPool.cpp
-  TestCheckerBoardImage.cpp
+  TestAllocators.cpp
+  TestBinnedSuballocator.cpp
+  TestCheckerboardImage.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
-  TestDeviceContextPool.cpp
   TestEXRReader.cpp
-  TestEventPool.cpp
-  TestFixedPool.cpp
-  TestItemPool.cpp
+  TestFixedSuballocator.cpp
+  TestHeapSuballocator.cpp
+  TestMemoryPool.cpp
   TestMutexArray.cpp
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
-  TestPinnedItemPool.cpp
+  TestRingSuballocator.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
   TestSparseTexture.h
   TestSparseTextureWrap.cpp
+  TestSparseVsDenseTextures.cpp
+  TestSparseVsDenseTextures.cu
+  TestSparseVsDenseTextures.h
   TestTextureFill.cpp
   TestTextureInstantiation.cpp
   TestTicket.cpp
-  TestTileArena.cpp
   TestTileIndexing.cpp
-  TestTilePool.cpp
   TestTraceFile.cpp
   )
 
