@@ -85,6 +85,8 @@ if( $<TARGET_RUNTIME_DLLS:testDemandLoading> )
     COMMAND_EXPAND_LISTS )
 endif()
 
+set_property(TARGET testDemandLoading PROPERTY FOLDER DemandLoading/tests)
+
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include( embed_ptx )
 embed_ptx(
@@ -120,6 +122,8 @@ if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testTextureFootprint> $<TARGET_FILE_DIR:testTextureFootprint>
     COMMAND_EXPAND_LISTS )
 endif()
+
+set_property(TARGET testTextureFootprint PROPERTY FOLDER DemandLoading/tests)
 
 get_target_property( _bin testDemandLoading RUNTIME_OUTPUT_DIRECTORY )
 file( INSTALL Textures DESTINATION ${_bin} )
