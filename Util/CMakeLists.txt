@@ -84,7 +84,9 @@ target_link_libraries(Util PRIVATE
   CUDA::cudart
   )
 
-set_target_properties(Util PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(Util PROPERTIES
+  FOLDER Util
+  WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 install(TARGETS Util
   EXPORT UtilTargets

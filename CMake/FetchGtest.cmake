@@ -26,9 +26,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+function(gtest_folders)
+  foreach(_target gtest gtest_main gmock gmock_main)
+    set_property(TARGET ${_target} PROPERTY FOLDER ThirdParty/gtest)
+  endforeach()
+endfunction()
+
 option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
 if( NOT OTK_FETCH_CONTENT )
   find_package( GTest REQUIRED )
+  gtest_folders()
   return()
 endif()
 
@@ -42,3 +49,5 @@ FetchContent_Declare(
   GIT_TAG release-1.11.0
 )
 FetchContent_MakeAvailable(googletest)
+
+gtest_folders()

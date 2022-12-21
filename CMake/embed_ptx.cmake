@@ -9,11 +9,11 @@ cmake_minimum_required(VERSION 3.12)
 set(EMBED_PTX_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
 
 function(embed_ptx)
-  set(oneArgs OUTPUT_TARGET PTX_TARGET)
+  set(oneArgs OUTPUT_TARGET PTX_TARGET FOLDER)
   set(multiArgs PTX_LINK_LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
   cmake_parse_arguments(EMBED_PTX "" "${oneArgs}" "${multiArgs}" ${ARGN})
 
-  if (EMBED_PTX_EMBEDDED_SYMBOL_NAMES)
+  if(EMBED_PTX_EMBEDDED_SYMBOL_NAMES)
     list(LENGTH EMBED_PTX_EMBEDDED_SYMBOL_NAMES NUM_NAMES)
     list(LENGTH EMBED_PTX_SOURCES NUM_SOURCES)
     if (NOT ${NUM_SOURCES} EQUAL ${NUM_NAMES})
@@ -64,6 +64,9 @@ function(embed_ptx)
   target_link_libraries(${PTX_TARGET} PRIVATE ${EMBED_PTX_PTX_LINK_LIBRARIES})
   set_property(TARGET ${PTX_TARGET} PROPERTY CUDA_PTX_COMPILATION ON)
   target_compile_options(${PTX_TARGET} PRIVATE "-lineinfo")
+  if(EMBED_PTX_FOLDER)
+    set_property(TARGET ${PTX_TARGET} PROPERTY FOLDER ${EMBED_PTX_FOLDER})
+  endif()
 
   ## Create command to run the bin2c via the CMake script ##
 
@@ -84,4 +87,7 @@ function(embed_ptx)
 
   add_library(${EMBED_PTX_OUTPUT_TARGET} OBJECT)
   target_sources(${EMBED_PTX_OUTPUT_TARGET} PRIVATE ${EMBED_PTX_C_FILE})
+  if(EMBED_PTX_FOLDER)
+    set_property(TARGET ${EMBED_PTX_OUTPUT_TARGET} PROPERTY FOLDER ${EMBED_PTX_FOLDER})
+  endif()
 endfunction()
