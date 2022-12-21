@@ -59,7 +59,7 @@ target_link_libraries( ommBakingSimple
   OptiX::OptiX
   )
 
-set_target_properties( ommBakingSimple PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit FOLDER examples/CmOmmBaking )
+set_target_properties( ommBakingSimple PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit FOLDER Examples/CmOmmBaking )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:ommBakingSimple> )

@@ -83,5 +83,7 @@ target_link_libraries(Gui
   glad::glad
   )
 
-set_target_properties(Gui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(Gui PROPERTIES
+  FOLDER Examples/Gui
+  WINDOWS_EXPORT_ALL_SYMBOLS ON)
 

@@ -56,7 +56,9 @@ target_link_libraries( demandLoadSimple
   OptiXToolkit::Util
   )
 
-set_target_properties( demandLoadSimple PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+set_target_properties( demandLoadSimple PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:demandLoadSimple> )
