@@ -52,6 +52,8 @@ endif()
 embed_ptx(
   OUTPUT_TARGET
     UdimTextureViewerKernel
+  FOLDER
+    Examples/DemandLoading
   PTX_LINK_LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
@@ -74,7 +76,9 @@ target_link_libraries( udimTextureViewer
   glfw
   )
 
-set_target_properties( udimTextureViewer PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+set_target_properties( udimTextureViewer PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:udimTextureViewer> )

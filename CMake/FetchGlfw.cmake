@@ -30,9 +30,18 @@ if( TARGET glfw )
     return()
 endif()
 
+function(glfw_folders)
+  foreach(_target glfw update_mappings)
+    if(TARGET ${_target})
+      set_property(TARGET ${_target} PROPERTY FOLDER ThirdParty/GLFW3)
+    endif()
+  endforeach()
+endfunction()
+
 option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
 if( NOT OTK_FETCH_CONTENT )
     find_package( glfw3 REQUIRED )
+    glfw_folders()
     return()
 endif()
 
@@ -48,3 +57,5 @@ FetchContent_Declare(
     GIT_TAG 3.3.7
     )
 FetchContent_MakeAvailable(glfw)
+
+glfw_folders()

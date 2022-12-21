@@ -53,6 +53,8 @@ embed_ptx(
     CuOmmBakingViewerKernel
   PTX_TARGET
     CuOmmBakingViewerKernel_ptx
+  FOLDER
+    Examples/CmOmmBaking
   PTX_LINK_LIBRARIES
     OptiXToolkit::CuOmmBaking 
     OptiXToolkit::ShaderUtil
@@ -95,8 +97,9 @@ target_link_libraries( ommBakingViewer
   glad::glad
   )
 
-set_target_properties( CuOmmBakingViewerKernel CuOmmBakingViewerKernel_ptx PROPERTIES FOLDER examples/CmOmmBaking )
-set_target_properties( ommBakingViewer PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit FOLDER examples/CmOmmBaking )
+set_target_properties( ommBakingViewer PROPERTIES
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit
+  FOLDER Examples/CmOmmBaking )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:ommBakingViewer> )

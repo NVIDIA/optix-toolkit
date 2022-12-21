@@ -58,6 +58,8 @@ endif()
 embed_ptx(
   OUTPUT_TARGET
     DrawSolidColor
+  FOLDER
+    Examples/Simple
   PTX_LINK_LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
@@ -82,7 +84,9 @@ target_link_libraries( otkHello
   ${CMAKE_DL_LIBS}  
   )
 
-set_target_properties( otkHello PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+set_target_properties( otkHello PROPERTIES
+  FOLDER Examples/Simple
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:otkHello> )

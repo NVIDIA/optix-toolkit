@@ -85,5 +85,6 @@ target_link_libraries(DemandTextureAppBase
   glad::glad
   )
 
-set_target_properties(DemandTextureAppBase PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
+set_target_properties(DemandTextureAppBase PROPERTIES
+    FOLDER Examples/DemandLoading
+    WINDOWS_EXPORT_ALL_SYMBOLS ON)

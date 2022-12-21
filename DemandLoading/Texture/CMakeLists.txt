@@ -51,6 +51,8 @@ endif()
 embed_ptx(
   OUTPUT_TARGET
     TextureKernel
+  FOLDER
+    Examples/DemandLoading
   PTX_LINK_LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::ShaderUtil
@@ -71,7 +73,9 @@ target_link_libraries( demandLoadTexture
   glad::glad
   )
 
-set_target_properties( demandLoadTexture PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+set_target_properties( demandLoadTexture PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy subdirectory of texture files to bin directory.
 get_target_property( _bin demandLoadTexture RUNTIME_OUTPUT_DIRECTORY )
