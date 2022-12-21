@@ -118,6 +118,7 @@ add_library( DemandLoading
   src/Util/TraceFile.cpp
   src/Util/TraceFile.h
   )
+set_property(TARGET DemandLoading PROPERTY FOLDER DemandLoading)
 
 if(NOT PROJECT_IS_TOP_LEVEL)
   add_library(OptiXToolkit::DemandLoading ALIAS DemandLoading)
@@ -209,7 +210,9 @@ target_link_libraries( DemandLoading
   ${CMAKE_DL_LIBS}  
   )
 
-set_target_properties(DemandLoading PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(DemandLoading PROPERTIES
+  FOLDER DemandLoading
+  WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 # Embed CMAKE_RUNTIME_OUTPUT_DIRECTORY in Config.h (used by getRuntimeFilePath).
 configure_file( src/Util/Config.h.in include/Util/Config.h @ONLY )
@@ -251,6 +254,7 @@ add_library( ImageSource
   src/ImageSource/Stopwatch.h
   src/ImageSource/TextureInfo.cpp
   )
+set_property(TARGET ImageSource PROPERTY FOLDER DemandLoading)
 
 add_library(OptiXToolkit::ImageSource ALIAS ImageSource)
 
