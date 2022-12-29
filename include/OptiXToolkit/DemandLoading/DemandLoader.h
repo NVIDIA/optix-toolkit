@@ -50,8 +50,6 @@ class ImageSource;
 
 namespace demandLoading {
 
-class DemandLoaderImpl;
-
 /// DemandLoader loads sparse textures on demand.
 class DemandLoader
 {
