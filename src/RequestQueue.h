@@ -75,7 +75,7 @@ class RequestQueue
     /// Push a batch of page requests from the specified device.  Notifies any threads waiting in
     /// popOrWait().  Updates the given Ticket with the number of requests, and retains it for
     /// notifications as requests are filled.
-    void push( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket );
+    void push( const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket );
 
     /// Shut down the queue, signalling any waiting threads to exit.  Clients must call shutDown()
     /// and join with any waiting threads before invoking the RequestQueue destructor.

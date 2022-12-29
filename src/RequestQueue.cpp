@@ -58,7 +58,7 @@ bool RequestQueue::popOrWait( PageRequest* requestPtr )
     return true;
 }
 
-void RequestQueue::push( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
+void RequestQueue::push( const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 

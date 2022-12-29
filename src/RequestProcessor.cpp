@@ -58,7 +58,7 @@ void RequestProcessor::stop()
 
 void RequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
 {
-    m_requests.push( deviceIndex, stream, pageIds, numPageIds, ticket );
+    m_requests.push( pageIds, numPageIds, ticket);
 
     // If recording is enabled, write the requests to the trace file.
     if( m_traceFile && numPageIds > 0 )
