@@ -34,7 +34,7 @@
 #include "Memory/PinnedMemoryManager.h"
 #include "PageTableManager.h"
 #include "PagingSystem.h"
-#include "RequestProcessor.h"
+#include "ThreadPoolRequestProcessor.h"
 #include "ResourceRequestHandler.h"
 #include "Textures/BaseColorRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
@@ -159,11 +159,11 @@ class DemandLoaderImpl : public DemandLoader
     std::vector<std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per device)
     std::vector<std::unique_ptr<PagingSystem>>        m_pagingSystems;  // Manages device interaction (one per device)
 
-    BaseColorRequestHandler m_baseColorRequestHandler;  // Handles base colors for textures.
-    SamplerRequestHandler   m_samplerRequestHandler;    // Handles requests for texture samplers.
-    PageTableManager        m_pageTableManager;         // Allocates ranges of virtual pages.
-    RequestProcessor        m_requestProcessor;         // Asynchronously processes page requests.
-    PinnedMemoryManager     m_pinnedMemoryManager;
+    BaseColorRequestHandler    m_baseColorRequestHandler;  // Handles base colors for textures.
+    SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
+    PageTableManager           m_pageTableManager;         // Allocates ranges of virtual pages.
+    ThreadPoolRequestProcessor m_requestProcessor;         // Asynchronously processes page requests.
+    PinnedMemoryManager        m_pinnedMemoryManager;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 

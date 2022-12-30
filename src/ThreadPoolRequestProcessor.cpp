@@ -33,7 +33,7 @@
 
 namespace demandLoading {
 
-void RequestProcessor::start( unsigned int maxThreads )
+void ThreadPoolRequestProcessor::start( unsigned int maxThreads )
 {
     if (maxThreads == 0)
         maxThreads = std::thread::hardware_concurrency();
@@ -41,11 +41,11 @@ void RequestProcessor::start( unsigned int maxThreads )
     m_threads.reserve( maxThreads );
     for( unsigned int i = 0; i < maxThreads; ++i )
     {
-        m_threads.emplace_back( &RequestProcessor::worker, this );
+        m_threads.emplace_back( &ThreadPoolRequestProcessor::worker, this );
     }
 }
 
-void RequestProcessor::stop()
+void ThreadPoolRequestProcessor::stop()
 {
     // Any threads that are waiting in RequestQueue::popOrWait will be notified when the queue is
     // shut down.
@@ -56,7 +56,7 @@ void RequestProcessor::stop()
     }
 }
 
-void RequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
+void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
 {
     m_requests.push( pageIds, numPageIds, ticket);
 
@@ -67,7 +67,7 @@ void RequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, c
     }
 }
 
-void RequestProcessor::worker()
+void ThreadPoolRequestProcessor::worker()
 {
     try
     {

@@ -85,7 +85,6 @@ add_library( DemandLoading
   src/PagingSystemKernels.h
   src/RequestContext.h
   src/RequestHandler.h
-  src/RequestProcessor.cpp
   src/RequestProcessor.h
   src/RequestQueue.cpp
   src/RequestQueue.h
@@ -103,6 +102,8 @@ add_library( DemandLoading
   src/Textures/SparseTexture.h
   src/Textures/TextureRequestHandler.cpp
   src/Textures/TextureRequestHandler.h
+  src/ThreadPoolRequestProcessor.cpp
+  src/ThreadPoolRequestProcessor.h
   src/Ticket.cpp
   src/TicketImpl.h
   src/Util/CudaCallback.h
@@ -177,6 +178,7 @@ source_group( "Header Files\\Implementation" FILES
   src/Textures/SamplerRequestHandler.h
   src/Textures/SparseTexture.h
   src/Textures/TextureRequestHandler.h
+  src/ThreadPoolRequestProcessor.h
   src/TicketImpl.h
   src/Util/CudaCallback.h
   src/Util/DeviceSet.h
