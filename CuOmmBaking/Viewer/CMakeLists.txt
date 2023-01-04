@@ -32,7 +32,6 @@ include(Policies)
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../../CMake)
 find_package(OptiX REQUIRED)
 
 project(ommBakingViewer LANGUAGES C CXX CUDA)
