@@ -26,23 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
-
-project(DemandLoadTexture LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlad)
 include(embed_ptx)
-
-if(PROJECT_IS_TOP_LEVEL)
-  find_package(OptiXToolkit REQUIRED)
-endif()
 
 embed_ptx(
   OUTPUT_TARGET

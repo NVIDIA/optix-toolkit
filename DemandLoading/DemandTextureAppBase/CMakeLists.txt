@@ -26,23 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
-
-project(DemandTextureAppBase LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
-
-if(PROJECT_IS_TOP_LEVEL)
-  find_package(OptiXToolkit REQUIRED)
-endif()
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
@@ -50,9 +37,7 @@ add_library(DemandTextureAppBase
   src/DemandTextureApp.cpp
   )
 
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::DemandTextureAppBase ALIAS DemandTextureAppBase)
-endif()
+add_library(OptiXToolkit::DemandTextureAppBase ALIAS DemandTextureAppBase)
 
 target_sources(DemandTextureAppBase 
   PUBLIC 
