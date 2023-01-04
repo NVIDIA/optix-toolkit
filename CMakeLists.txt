@@ -49,7 +49,6 @@ endif()
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-list(APPEND CMAKE_MODULE_PATH ${OTK_SOURCE_DIR}/CMake)
 find_package(OptiX REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
