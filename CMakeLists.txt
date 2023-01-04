@@ -32,10 +32,9 @@
 # If you have any questions, we encourage you to post on the OptiX forums:
 # https://devtalk.nvidia.com/default/board/90/
 
-# CMake helper files are located in the CMake and OptiXToolkit/CMake subdirectories.
+# CMake helper files are located in the CMake subdirectory.
 list(APPEND CMAKE_MODULE_PATH 
   ${CMAKE_CURRENT_SOURCE_DIR}/CMake
-  ${CMAKE_CURRENT_SOURCE_DIR}/OptiXToolkit/CMake
   )
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
@@ -47,7 +46,6 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_subdirectory(OptiXToolkit)
 add_subdirectory(CuOmmBaking)
 add_subdirectory(DemandLoading)
 add_subdirectory(Gui)
