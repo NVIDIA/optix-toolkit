@@ -69,8 +69,6 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 #########################################################
 # Subdirectories
 
-set(OTK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "OptiX Toolkit source directory")
-
 if(PROJECT_IS_TOP_LEVEL)
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON)
   option( OTK_BUILD_TESTS "Enable build of OptiXToolkit tests" ON)

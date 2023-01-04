@@ -28,7 +28,7 @@
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(../CMake/Policies.cmake)
+include(Policies)
 
 project(CuOmmBaking LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
@@ -36,13 +36,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
-include(../CMake/BuildConfig.cmake)
+include(BuildConfig)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../CMake)
 find_package(OptiX REQUIRED)
 
 if(PROJECT_IS_TOP_LEVEL)
