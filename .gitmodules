@@ -1,3 +1,8 @@
 [submodule "DemandLoading"]
 	path = DemandLoading
 	url = https://gitlab-master.nvidia.com/mleone/demand-loading.git
+	branch = master
+[submodule "examples"]
+	path = examples
+	url = https://gitlab-master.nvidia.com/mleone/optix-toolkit-examples
+	branch = master
