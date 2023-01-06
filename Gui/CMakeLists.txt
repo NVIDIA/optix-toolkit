@@ -37,6 +37,7 @@ add_library(Gui
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp
+  src/Trackball.cpp
   src/Window.cpp
   )
 
@@ -51,6 +52,7 @@ target_sources(Gui
   include/OptiXToolkit/Gui/Camera.h
   include/OptiXToolkit/Gui/GLCheck.h
   include/OptiXToolkit/Gui/GLDisplay.h
+  include/OptiXToolkit/Gui/Trackball.h
   include/OptiXToolkit/Gui/Window.h
 )
 
