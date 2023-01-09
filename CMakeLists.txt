@@ -79,7 +79,7 @@ else()
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" OFF)
 endif()
 
-add_subdirectory(CuOmmBaking)
+add_subdirectory(OmmBaking)
 add_subdirectory(DemandLoading)
 add_subdirectory(ShaderUtil)
 add_subdirectory(Util)

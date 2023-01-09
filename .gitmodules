@@ -6,3 +6,7 @@
 	path = examples
 	url = https://gitlab-master.nvidia.com/raven/optix-toolkit-examples.git
 	branch = master
+[submodule "OmmBaking"]
+	path = OmmBaking
+	url = https://gitlab-master.nvidia.com/raven/omm-baking.git
+	branch = master

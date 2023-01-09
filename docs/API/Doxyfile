@@ -116,8 +116,8 @@ INPUT                  = \
   @CMAKE_SOURCE_DIR@/README.md \
   @CMAKE_SOURCE_DIR@/ShaderUtil/include \
   @CMAKE_SOURCE_DIR@/ShaderUtil/README.md \
-  @CMAKE_SOURCE_DIR@/CuOmmBaking/include \
-  @CMAKE_SOURCE_DIR@/CuOmmBaking/README.md \
+  @CMAKE_SOURCE_DIR@/OmmBaking/include \
+  @CMAKE_SOURCE_DIR@/OmmBaking/README.md \
   @CMAKE_SOURCE_DIR@/DemandLoading/include \
   @CMAKE_SOURCE_DIR@/DemandLoading/README.md \
   @CMAKE_SOURCE_DIR@/PyOptiX/README.md \

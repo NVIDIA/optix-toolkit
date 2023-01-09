@@ -1,9 +1,0 @@
-This license confers the right to use textures owned by 3dmd.net in free and commercial productions.
-
-The user may make unlimited use of the textures in animations, games and other projects that don't brake the following rule:
-
-1. If the user market or redistribute the texture with their project as in a real time game or simulation, the 3dmd.net project should be included in the credits. If technicaly possible a link to 3dmd.net should be also included.
-
-It is not allowed to sell or redistribute the textures as a competing product - by itself, as texture packs or as scrapbooking packs, not even when the textures are modified.
-
-Any violations of these terms will be punishable by law and will constitute grounds for the immediate cancellation of the license for use of 3dmd.net textures.
