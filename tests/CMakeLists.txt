@@ -103,6 +103,7 @@ embed_ptx(
     TextureFootprint
   PTX_LINK_LIBRARIES
     DemandLoading
+  FOLDER DemandLoading/tests
   SOURCES
     TestTextureFootprint.cu
 )
