@@ -26,6 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <cuda.h>
+#include <optix.h>
+#include <cstdint>
+
 struct Params
 {
     uchar4*                image;
@@ -35,7 +39,6 @@ struct Params
     float3                 cam_u, cam_v, cam_w;
     OptixTraversableHandle handle;
 };
-
 
 struct RayGenData
 {
