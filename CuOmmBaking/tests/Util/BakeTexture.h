@@ -30,6 +30,7 @@
 
 #include <cuda.h>
 #include <optix.h>
+#include <cstdint>
 
 struct TextureToStateParams
 {
