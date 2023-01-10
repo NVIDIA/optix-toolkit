@@ -33,7 +33,7 @@
 #include "Memory/PinnedMemoryManager.h"
 #include "PageTableManager.h"
 #include "PagingSystem.h"
-#include "RequestProcessor.h"
+#include "ThreadPoolRequestProcessor.h"
 #include "Util/Exception.h"
 
 #include <gtest/gtest.h>
@@ -127,7 +127,7 @@ class TestPagingSystem : public testing::Test
         m_options.maxActiveStreams    = 4;
 
         m_pageTableManager.reset( new PageTableManager( m_options.numPages ) );
-        m_requestProcessor.reset( new RequestProcessor( m_pageTableManager.get(), m_options.maxRequestQueueSize ) );
+        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, m_options ) );
 
         // Create per-device PagingSystem, etc.
         int numDevices;
@@ -149,7 +149,7 @@ class TestPagingSystem : public testing::Test
 
   protected:
     Options                                    m_options;
-    std::unique_ptr<PageTableManager>          m_pageTableManager;
+    std::shared_ptr<PageTableManager>          m_pageTableManager;
     std::unique_ptr<RequestProcessor>          m_requestProcessor;
     std::vector<std::unique_ptr<DevicePaging>> m_devices;
     DevicePaging*                              m_firstDevice;

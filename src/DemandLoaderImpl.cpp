@@ -28,6 +28,7 @@
 
 #include "DemandLoaderImpl.h"
 
+#include "DemandPageLoaderImpl.h"
 #include "RequestProcessor.h"
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
@@ -43,98 +44,22 @@
 #include <algorithm>
 #include <set>
 
-namespace {
-
-unsigned int getNumDevices()
-{
-    int numDevices;
-    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    return static_cast<unsigned int>( numDevices );
-}
-
-demandLoading::Options configure( demandLoading::Options options )
-{
-    // If maxTexMemPerDevice is 0, consider it to be unlimited
-    if( options.maxTexMemPerDevice == 0 )
-        options.maxTexMemPerDevice = 0xfffffffffffffffful;
-
-    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
-    if( options.maxFilledPages < options.maxRequestedPages )
-        options.maxFilledPages = options.maxRequestedPages;
-
-    // Anticipate at lease one active stream per device.
-    options.maxActiveStreams = std::max( getNumDevices(), options.maxActiveStreams );
-
-    return options;
-}
-
-bool supportsSparseTextures( unsigned int deviceIndex )
-{
-    int sparseSupport = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, deviceIndex ) );
-
-    // Skip devices in TCC mode.  This guards against an "operation not supported" error when
-    // querying the recommended allocation granularity via cuMemGetAllocationGranularity.
-    int inTccMode = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, deviceIndex ) );
-
-    return sparseSupport && !inTccMode;
-}
-
-}  // anonymous namespace
-
 namespace demandLoading {
 
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
-    : m_options( configure( options ) )
-    , m_numDevices( getNumDevices() )
-    , m_deviceMemoryManagers( m_numDevices )
-    , m_pagingSystems( m_numDevices )
+    : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages ) )
+    , m_requestProcessor( m_pageTableManager, options )
+    , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
     , m_baseColorRequestHandler( this )
     , m_samplerRequestHandler( this )
-    , m_pageTableManager( options.numPages )
-    , m_requestProcessor( &m_pageTableManager, options.maxRequestQueueSize )
     , m_pinnedMemoryManager( options )
 {
-    // Determine which devices to use.  Look for devices supporting sparse textures first
-    for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
-    {
-        if( m_options.useSparseTextures && supportsSparseTextures( deviceIndex ) )
-            m_devices.push_back( deviceIndex );
-    }
-
-    // Fall back to dense textures if no devices supporting sparse textures were found
-    if( m_devices.empty() )
-    {
-        // FIXME: log a warning here that we are falling back to dense textures if m_options.useSparseTextures is true.
-        //throw Exception( "No devices that support CUDA sparse textures were found (sm_60+ required)." );
-        m_options.useSparseTextures = false;
-        for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
-            m_devices.push_back( deviceIndex );
-    }
-
-    // Create deviceMemoryManagers and pagingSystems for the devices
-    for( unsigned int deviceIndex : m_devices )
-    {
-        m_deviceMemoryManagers[deviceIndex].reset( new DeviceMemoryManager( deviceIndex, m_options ) );
-        m_pagingSystems[deviceIndex].reset( new PagingSystem(
-            deviceIndex, m_options, m_deviceMemoryManagers[deviceIndex].get(), &m_pinnedMemoryManager, &m_requestProcessor ) );
-    }
-
     // Reserve virtual address space for texture samplers, which is associated with the sampler request handler.
     // Note that the max number of samplers/textures is half the number of page table entries.
-    m_pageTableManager.reserve( m_options.numPageTableEntries / 2, &m_samplerRequestHandler );
-    m_pageTableManager.reserve( m_options.numPageTableEntries / 2, &m_baseColorRequestHandler );
+    m_pageTableManager->reserve( m_pageLoader->getOptions().numPageTableEntries / 2, &m_samplerRequestHandler );
+    m_pageTableManager->reserve( m_pageLoader->getOptions().numPageTableEntries / 2, &m_baseColorRequestHandler );
 
-    // If tracing is enabled, open the trace output file.
-    if( !options.traceFile.empty() )
-    {
-        m_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
-        m_traceFile->recordOptions( options );
-        m_requestProcessor.setTraceFile( m_traceFile.get() );
-    }
-
-    m_requestProcessor.start( m_options.maxThreads );
+    m_requestProcessor.start( options.maxThreads );
 }
 
 DemandLoaderImpl::~DemandLoaderImpl()
@@ -155,13 +80,10 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
 
     // Add new texture to the end of the list of textures.  The texture holds a pointer to the
     // image, from which tile data is obtained on demand.
-    m_textures.emplace_back( new DemandTextureImpl( textureId, m_numDevices, textureDesc, imageSource, this ) );
+    m_textures.emplace_back( new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDesc, imageSource, this ) );
 
-    // If tracing is enabled, record the image reader and texture descriptor.
-    if( m_traceFile )
-    {
-        m_traceFile->recordTexture( imageSource, textureDesc );
-    }
+    // Record the image reader and texture descriptor.
+    m_requestProcessor.recordTexture( imageSource, textureDesc );
 
     return *m_textures.back();
 }
@@ -196,12 +118,11 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
             {
                 if( textureId < entryPointIndex )
                     entryPointIndex = textureId;
-                DemandTextureImpl* tex = new DemandTextureImpl( textureId, m_numDevices, textureDescs[imageIndex], imageSources[imageIndex], this );
+                DemandTextureImpl* tex = new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDescs[imageIndex], imageSources[imageIndex], this );
                 m_textures[textureId].reset( tex );
                 
-                // If tracing is enabled, record the image reader and texture descriptor.
-                if( m_traceFile )
-                    m_traceFile->recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
+                // Record the image reader and texture descriptor.
+                m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
             else 
             {
@@ -219,91 +140,51 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
 
 unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback )
 {
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    // Create a request handler that wraps the callback.  These are individually allocated to avoid
-    // dangling pointers in the PageTableManager when the request handler vector is resized.
-    m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, this ) );
-
-    // Reserve virtual address space for the resource, which is associated with the request handler.
-    m_pageTableManager.reserve( numPages, m_resourceRequestHandlers.back().get() );
-
-    // Return the start page.
-    return m_resourceRequestHandlers.back()->getStartPage();
+    return m_pageLoader->createResource( numPages, callback );
 }
 
 // Returns false if the device doesn't support sparse textures.
 bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
 {
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    PagingSystem* pagingSystem = m_pagingSystems.at( deviceIndex ).get();
-    if( pagingSystem == nullptr )
-        return false;
-
-    // Get DeviceContext from pool and copy it to output parameter.
-    context = *m_deviceMemoryManagers[deviceIndex]->getDeviceContextPool()->allocate();
-    context.requestIfResident = m_options.evictionActive;
-
-    pagingSystem->pushMappings( context, stream );
-    return true;
+    return m_pageLoader->launchPrepare( deviceIndex, stream, context );
 }
 
 // Process page requests.
 Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
 {
-    Stopwatch stopwatch;
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket( TicketImpl::create( deviceIndex, stream ) );
-
-    // Pull requests from the device.  This launches a kernel on the given stream to scan the
-    // request bits copies the requested page ids to host memory (asynchronously).
-    PagingSystem* pagingSystem = m_pagingSystems[deviceIndex].get();
-    unsigned int  startPage    = 0;
-    unsigned int  endPage      = m_pageTableManager.getHighestUsedPage();
-    pagingSystem->pullRequests( context, stream, startPage, endPage, ticket );
-
-    m_totalProcessingTime += stopwatch.elapsed();
-    return ticket;
+    return m_pageLoader->processRequests( deviceIndex, stream, context );
 }
 
 Ticket DemandLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    // Flush any page mappings that have accumulated for the specified device.
-    m_pagingSystems.at( deviceIndex )->flushMappings();
-
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket( TicketImpl::create( deviceIndex, stream ) );
-
-    m_requestProcessor.addRequests( deviceIndex, stream, requestedPages, numRequestedPages, ticket );
-
-    return ticket;
+    return m_pageLoader->replayRequests( deviceIndex, stream, requestedPages, numRequestedPages );
 }
 
 
 void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.
-    TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager.getRequestHandler( pageId ) );
+    TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager->getRequestHandler( pageId ) );
     DEMAND_ASSERT_MSG( handler != nullptr, "Page request does not correspond to a known resource" );
     handler->unmapTileResource( deviceIndex, stream, pageId );
 }
 
+PagingSystem* DemandLoaderImpl::getPagingSystem( unsigned int deviceIndex ) const
+{
+    return m_pageLoader->getPagingSystem( deviceIndex );
+}
+
+PageTableManager* DemandLoaderImpl::getPageTableManager()
+{
+    return m_pageTableManager.get();
+}
 
 void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
     PagingSystem* pagingSystem = getPagingSystem( deviceIndex );
-    TilePool*     tilePool     = m_deviceMemoryManagers[deviceIndex]->getTilePool();
+    TilePool*     tilePool     = getDeviceMemoryManager( deviceIndex )->getTilePool();
     PageMapping   mapping;
 
     while( tilePool->getTotalFreeTiles() < tilePool->getDesiredFreeTiles() )
@@ -321,7 +202,6 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
     }
 }
 
-
 const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
@@ -335,7 +215,7 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
             char* buffer = reinterpret_cast<char*>( pinnedTilePool->allocate() );
             return TransferBufferDesc{ deviceIndex, memoryType, buffer, sizeof(TileBuffer) };
         }
-        else if( size < sizeof( MipTailBuffer ) )
+        if( size < sizeof( MipTailBuffer ) )
         {
             PinnedItemPool<MipTailBuffer>* pinnedMipTailPool = m_pinnedMemoryManager.getPinnedMipTailPool();
             char* buffer = reinterpret_cast<char*>( pinnedMipTailPool->allocate() );
@@ -400,7 +280,7 @@ Statistics DemandLoaderImpl::getStatistics() const
     // Multiple textures might share the same ImageSource, so we create a set as we go to avoid
     // duplicate counting.
     std::set<imageSource::ImageSource*> images;
-    for( auto& tex : m_textures )
+    for( const std::unique_ptr<DemandTextureImpl>& tex : m_textures )
     {
         // Skip null textures
         if( tex == nullptr ) 
@@ -445,13 +325,38 @@ Statistics DemandLoaderImpl::getStatistics() const
     }
 
     size_t maxNumDevices = sizeof( Statistics::memoryUsedPerDevice ) / sizeof( size_t );
-    for( unsigned int i = 0; i < m_deviceMemoryManagers.size() && i < maxNumDevices; ++i )
+    for( unsigned int i = 0; i < m_pageLoader->getNumDevices() && i < maxNumDevices; ++i )
     {
-        if( m_deviceMemoryManagers[i] )
-            stats.memoryUsedPerDevice[i] += m_deviceMemoryManagers[i]->getTotalDeviceMemory();
+        if( DeviceMemoryManager* manager = getDeviceMemoryManager( i ) )
+            stats.memoryUsedPerDevice[i] += manager->getTotalDeviceMemory();
     }
 
     return stats;
+}
+
+const Options& DemandLoaderImpl::getOptions() const
+{
+    return m_pageLoader->getOptions();
+}
+
+std::vector<unsigned> DemandLoaderImpl::getDevices() const
+{
+    return m_pageLoader->getDevices();
+}
+
+void DemandLoaderImpl::enableEviction( bool evictionActive )
+{
+    m_pageLoader->enableEviction( evictionActive );
+}
+
+bool DemandLoaderImpl::isActiveDevice( unsigned int deviceIndex ) const
+{
+    return m_pageLoader->isActiveDevice( deviceIndex );
+}
+
+DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int deviceIndex ) const
+{
+    return m_pageLoader->getDeviceMemoryManager( deviceIndex );
 }
 
 DemandLoader* createDemandLoader( const Options& options )

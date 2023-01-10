@@ -28,12 +28,15 @@
 
 #pragma once
 
+#include <OptiXToolkit/DemandLoading/Options.h>
+
 #include "RequestProcessor.h"
 #include "RequestQueue.h"
 #include "Util/TraceFile.h"
 
 #include <cuda.h>
 
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -44,35 +47,30 @@ class TraceFileWriter;
 
 class ThreadPoolRequestProcessor : public RequestProcessor
 {
-public:
+  public:
     /// Construct request processor, which uses the given PageTableManager to
     /// find the RequestHandler associated with a range of pages.
-    ThreadPoolRequestProcessor(PageTableManager *pageTableManager,
-                               unsigned int maxRequestQueueSize)
-        : m_pageTableManager( pageTableManager )
-        , m_requests( maxRequestQueueSize )
-    {
-    }
+    ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options );
     ~ThreadPoolRequestProcessor() override = default;
 
-    /// Add a batch of page requests from the specified device to the request queue.
-    void addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) override;
-
-    /// Start processing requests using the specified number of threads.  If the number of specified
-    /// threads is zero, std::thread::hardware_concurrency is used.
+    /// Start processing requests using the specified number of threads.  Options supplies
+    /// the number of specified threads (if zero, std::thread::hardware_concurrency is used),
+    /// the trace file and the size of the request queue.
     void start( unsigned int maxThreads );
 
     /// Stop processing requests, terminating threads.
     void stop();
 
-    /// Set the trace file for recording page requests.
-    void setTraceFile( TraceFileWriter* traceFile) { m_traceFile = traceFile; }
+    /// Add a batch of page requests from the specified device to the request queue.
+    void addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) override;
 
-  private:
-    PageTableManager*        m_pageTableManager;
-    RequestQueue             m_requests;
-    std::vector<std::thread> m_threads;
-    TraceFileWriter*         m_traceFile = nullptr;
+    void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
+
+private:
+    std::shared_ptr<PageTableManager> m_pageTableManager;
+    std::unique_ptr<RequestQueue>     m_requests;
+    std::vector<std::thread>          m_threads;
+    std::unique_ptr<TraceFileWriter>  m_traceFile{};
 
     // Per-thread worker function.
     void worker();

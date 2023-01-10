@@ -27,7 +27,7 @@
 //
 
 #include "ResourceRequestHandler.h"
-#include "DemandLoaderImpl.h"
+#include "DemandPageLoaderImpl.h"
 
 #include <OptiXToolkit/DemandLoading/Paging.h> // for NON_EVICTABLE_LRU_VAL
 

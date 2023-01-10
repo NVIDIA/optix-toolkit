@@ -41,10 +41,10 @@ class RequestHandler
 {
   public:
     /// Construct RequestHandler, which shares state with the DemandLoader.
-    RequestHandler() { }
+    RequestHandler() = default;
 
     /// The destructor is virtual.
-    virtual ~RequestHandler() { }
+    virtual ~RequestHandler() = default;
 
     /// Set the range of pages assigned to this corresponding resource by the PageTableManager.
     /// These values are invariant once established.

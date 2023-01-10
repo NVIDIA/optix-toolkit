@@ -33,11 +33,21 @@
 
 namespace demandLoading {
 
+ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )
+    : m_pageTableManager( std::move( pageTableManager ) )
+{
+    m_requests.reset( new RequestQueue( options.maxRequestQueueSize ) );
+    if( !options.traceFile.empty() )
+    {
+        m_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
+        m_traceFile->recordOptions( options );
+    }
+}
+
 void ThreadPoolRequestProcessor::start( unsigned int maxThreads )
 {
-    if (maxThreads == 0)
+    if( maxThreads == 0 )
         maxThreads = std::thread::hardware_concurrency();
-
     m_threads.reserve( maxThreads );
     for( unsigned int i = 0; i < maxThreads; ++i )
     {
@@ -49,7 +59,7 @@ void ThreadPoolRequestProcessor::stop()
 {
     // Any threads that are waiting in RequestQueue::popOrWait will be notified when the queue is
     // shut down.
-    m_requests.shutDown();
+    m_requests->shutDown();
     for( std::thread& thread : m_threads )
     {
         thread.join();
@@ -58,12 +68,20 @@ void ThreadPoolRequestProcessor::stop()
 
 void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
 {
-    m_requests.push( pageIds, numPageIds, ticket);
+    m_requests->push( pageIds, numPageIds, ticket);
 
     // If recording is enabled, write the requests to the trace file.
     if( m_traceFile && numPageIds > 0 )
     {
         m_traceFile->recordRequests( deviceIndex, stream, pageIds, numPageIds );
+    }
+}
+
+void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc )
+{
+    if( m_traceFile )
+    {
+        m_traceFile->recordTexture( imageSource, textureDesc );
     }
 }
 
@@ -75,7 +93,7 @@ void ThreadPoolRequestProcessor::worker()
         while( true )
         {
             // Pop a request from the queue, waiting if necessary until the queue is non-empty or shut down.
-            if( !m_requests.popOrWait( &request ) )
+            if( !m_requests->popOrWait( &request ) )
                 return;  // Exit thread when queue is shut down.
 
             // Ask the PageTableManager for the request handler associated with the range of pages in

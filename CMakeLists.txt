@@ -57,6 +57,8 @@ option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 add_library( DemandLoading
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
+  src/DemandPageLoaderImpl.cpp
+  src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
   src/Memory/Allocators.h
@@ -129,6 +131,7 @@ target_sources(DemandLoading
   BASE_DIRS include
   FILES
   include/OptiXToolkit/DemandLoading/DemandLoader.h
+  include/OptiXToolkit/DemandLoading/DemandPageLoader.h
   include/OptiXToolkit/DemandLoading/DemandTexture.h
   include/OptiXToolkit/DemandLoading/DeviceContext.h
   include/OptiXToolkit/DemandLoading/Options.h
@@ -146,6 +149,7 @@ target_sources(DemandLoading
 
 source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
+  src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.h
   src/Memory/Allocators.h
   src/Memory/AsyncItemPool.h
