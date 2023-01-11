@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 #include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Files.h>
-#include <OptiXToolkit/Util/CuBuffer.h>
 
 #include "Util/Image.h"
 #include "Util/Mesh.h"

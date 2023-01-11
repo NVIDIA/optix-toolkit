@@ -22,9 +22,9 @@
 
 #include "../../src/Util/VecMath.h"
 
+#include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 #include <OptiXToolkit/Util/Exception.h>
-#include <OptiXToolkit/Util/CuBuffer.h>
 
 struct Mesh_format
 {

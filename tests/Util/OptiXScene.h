@@ -7,7 +7,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include <OptiXToolkit/Util/CuBuffer.h>
+#include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include "OptiXOmmArray.h"
 #include "OptiXKernels.h"
 

@@ -40,8 +40,8 @@
 
 #include <optix.h>
 
+#include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-#include <OptiXToolkit/Util/CuBuffer.h>
 
 class OptixOmmArray
 {

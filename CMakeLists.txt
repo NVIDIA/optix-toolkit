@@ -89,6 +89,7 @@ target_sources(CuOmmBaking
   BASE_DIRS include
   FILES
   include/OptiXToolkit/CuOmmBaking/CuOmmBaking.h
+  include/OptiXToolkit/CuOmmBaking/CuBuffer.h
 )
 
 target_include_directories( CuOmmBaking
