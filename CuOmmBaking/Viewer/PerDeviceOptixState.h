@@ -27,7 +27,7 @@
 //
 #pragma once
 
-#include <OptiXToolkit/Util/CuBuffer.h>
+#include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 
 namespace ommBakingApp
 {

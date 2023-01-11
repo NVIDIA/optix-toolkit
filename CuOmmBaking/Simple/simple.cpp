@@ -42,8 +42,8 @@
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 
+#include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/Util/Files.h>
-#include <OptiXToolkit/Util/CuBuffer.h>
 
 #include <atomic>
 #include <cstdio>
