@@ -30,8 +30,8 @@
 
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-#include <OptiXToolkit/Util/Exception.h>
 
+#include "Util/Exception.h"
 #include "Util/Image.h"
 #include "Util/Mesh.h"
 #include "Util/OptiXOmmArray.h"
@@ -118,7 +118,7 @@ protected:
 
         for( size_t i = 0; i < opt.meshes.size(); ++i )
         {
-            CUDA_CHECK( meshes[i].create( opt.meshes[i].vertMin, opt.meshes[i].vertMax, opt.meshes[i].uvMin, opt.meshes[i].uvMax, opt.meshes[i].meshResolution, opt.meshes[i].textures.size(), opt.meshes[i].format));
+            OMM_CUDA_CHECK( meshes[i].create( opt.meshes[i].vertMin, opt.meshes[i].vertMax, opt.meshes[i].uvMin, opt.meshes[i].uvMax, opt.meshes[i].meshResolution, opt.meshes[i].textures.size(), opt.meshes[i].format));
         }
 
         textures.resize( opt.textures.size() );
@@ -143,7 +143,7 @@ protected:
             texDesc.addressMode[0] = opt.textures[i].addressMode[0];
             texDesc.addressMode[1] = opt.textures[i].addressMode[1];
 
-            CUDA_CHECK( textures[i].createFromFile(opt.textures[i].texture.c_str(), 0, &texDesc, &opt.textures[i].desc));
+            OMM_CUDA_CHECK( textures[i].createFromFile(opt.textures[i].texture.c_str(), 0, &texDesc, &opt.textures[i].desc));
 
             cuOmmBaking::TextureDesc cudaTexDesc = {};
             cudaTexDesc.type = cuOmmBaking::TextureType::CUDA;
@@ -160,19 +160,19 @@ protected:
                 cudaExtent            extent = {};
 
                 cudaTextureObject_t texObject = textures[i].getTexture();
-                CUDA_CHECK( cudaGetTextureObjectResourceDesc( &resDesc, texObject ) );
+                OMM_CUDA_CHECK( cudaGetTextureObjectResourceDesc( &resDesc, texObject ) );
 
                 switch( resDesc.resType )
                 {
                 case cudaResourceTypeArray: {
-                    CUDA_CHECK( cudaGetChannelDesc( &chanDesc, resDesc.res.array.array ) );
-                    CUDA_CHECK( cudaArrayGetInfo( 0, &extent, 0, resDesc.res.array.array ) );
+                    OMM_CUDA_CHECK( cudaGetChannelDesc( &chanDesc, resDesc.res.array.array ) );
+                    OMM_CUDA_CHECK( cudaArrayGetInfo( 0, &extent, 0, resDesc.res.array.array ) );
                 } break;
                 case cudaResourceTypeMipmappedArray: {
                     cudaArray_t d_topLevelArray;
-                    CUDA_CHECK( cudaGetMipmappedArrayLevel( &d_topLevelArray, resDesc.res.mipmap.mipmap, 0 ) );
-                    CUDA_CHECK( cudaGetChannelDesc( &chanDesc, d_topLevelArray ) );
-                    CUDA_CHECK( cudaArrayGetInfo( 0, &extent, 0, d_topLevelArray ) );
+                    OMM_CUDA_CHECK( cudaGetMipmappedArrayLevel( &d_topLevelArray, resDesc.res.mipmap.mipmap, 0 ) );
+                    OMM_CUDA_CHECK( cudaGetChannelDesc( &chanDesc, d_topLevelArray ) );
+                    OMM_CUDA_CHECK( cudaArrayGetInfo( 0, &extent, 0, d_topLevelArray ) );
                 } break;
                 case cudaResourceTypePitch2D: {
                     extent.width = resDesc.res.pitch2D.width;
@@ -200,7 +200,7 @@ protected:
                 params.pitchInBits = pitchInBits;
                 params.buffer = (uint32_t*)bakedTextures[i].get();
                 
-                CUDA_CHECK( launchTextureToState( params, 0 ) );
+                OMM_CUDA_CHECK( launchTextureToState( params, 0 ) );
 
                 cuOmmBaking::TextureDesc stateTexDesc = {};
                 stateTexDesc.type = cuOmmBaking::TextureType::STATE;
@@ -261,7 +261,7 @@ protected:
     {
         // Build optix scene corresponding to the omm build inputs
         OptixOmmScene scene;
-        OPTIX_CHECK( scene.build( optixContext, 0, 0, ommArray, bakeInputs.data(), ( uint32_t )bakeInputs.size() ) );
+        EXPECT_EQ( OPTIX_SUCCESS, scene.build( optixContext, 0, 0, ommArray, bakeInputs.data(), ( uint32_t )bakeInputs.size() ) );
 
         // Render a frame
 
@@ -284,7 +284,7 @@ protected:
 
         const int width = 1024;
         const int height = 1024;
-        OPTIX_CHECK( scene.render( width, height, renderOptions ) );
+        EXPECT_EQ( OPTIX_SUCCESS, scene.render( width, height, renderOptions ) );
 
         // validate that the omms where conservative.
         EXPECT_EQ( scene.getErrorCount(), 0u );

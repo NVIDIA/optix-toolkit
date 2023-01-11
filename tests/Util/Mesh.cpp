@@ -69,7 +69,7 @@ cudaError_t Mesh::create( float3 vertMin, float3 vertMax, float2 uvMin, float2 u
         indices.clear();
     }
 
-    CUDA_CHECK( create( texCoords, vertices, indices, textures, format ) );
+    OMM_CUDA_CHECK( create( texCoords, vertices, indices, textures, format ) );
 
     return cudaSuccess;
 }
@@ -194,10 +194,10 @@ cudaError_t Mesh::create( const std::vector<float2>& texCoords, const std::vecto
         }
     }
 
-    CUDA_CHECK( m_vertices.allocAndUpload( raw_vertices ) );
-    CUDA_CHECK( m_texCoords.allocAndUpload( raw_texCoords ) );
-    CUDA_CHECK( m_indices.allocAndUpload( raw_indices ) );
-    CUDA_CHECK( m_textures.allocAndUpload( raw_textures ) );
+    OMM_CUDA_CHECK( m_vertices.allocAndUpload( raw_vertices ) );
+    OMM_CUDA_CHECK( m_texCoords.allocAndUpload( raw_texCoords ) );
+    OMM_CUDA_CHECK( m_indices.allocAndUpload( raw_indices ) );
+    OMM_CUDA_CHECK( m_textures.allocAndUpload( raw_textures ) );
 
     m_numVertices  = (uint32_t)vertices.size();
     m_numTexCoords = (uint32_t)texCoords.size();

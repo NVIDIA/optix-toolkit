@@ -28,8 +28,8 @@
 
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-#include <OptiXToolkit/Util/Exception.h>
 
+#include "Util/Exception.h"
 #include "Util/Image.h"
 #include "Util/Mesh.h"
 #include "Util/OptiXOmmArray.h"

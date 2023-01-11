@@ -20,11 +20,11 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "../../src/Util/VecMath.h"
+#include "Util/Exception.h"
+#include "Util/VecMath.h"
 
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-#include <OptiXToolkit/Util/Exception.h>
 
 struct Mesh_format
 {

@@ -86,7 +86,6 @@ target_link_libraries( testCuOmmBaking
   testCuOmmBakingKernels
   CuOmmBaking
   OptiX::OptiX
-  OptiXToolkit::Util
   )
 
 add_dependencies( testCuOmmBaking testCuOmmBakingKernels )
