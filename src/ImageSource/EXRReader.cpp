@@ -50,7 +50,7 @@ using namespace Imath;
 
 namespace imageSource {
 
-EXRReader::EXRReader( const char* filename, bool readBaseColor )
+EXRReader::EXRReader( const std::string& filename, bool readBaseColor )
     : m_filename( filename )
     , m_pixelType( Imf::NUM_PIXELTYPES )
     , m_readBaseColor( readBaseColor )

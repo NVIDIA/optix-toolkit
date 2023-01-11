@@ -43,7 +43,7 @@
 namespace imageSource {
 
 
-CoreEXRReader::CoreEXRReader( const char* filename, bool readBaseColor )
+CoreEXRReader::CoreEXRReader( const std::string& filename, bool readBaseColor )
     : m_filename( filename )
     , m_pixelType( EXR_PIXEL_LAST_TYPE )
     , m_readBaseColor( readBaseColor )

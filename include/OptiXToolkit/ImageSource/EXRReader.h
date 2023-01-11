@@ -55,7 +55,7 @@ class EXRReader : public MipTailImageSource
 {
   public:
     /// The constructor copies the given filename.  The file is not opened until open() is called.
-    explicit EXRReader( const char* filename, bool readBaseColor = true );
+    explicit EXRReader( const std::string& filename, bool readBaseColor = true );
 
     /// Destructor
     ~EXRReader() override;
