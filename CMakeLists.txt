@@ -46,7 +46,14 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_subdirectory(CuOmmBaking)
-add_subdirectory(DemandLoading)
 add_subdirectory(Gui)
 add_subdirectory(Simple)
+
+# Skip examples if the libraries they depend upon were not built.
+if(TARGET OptiXToolkit::CuOmmBaking)
+  add_subdirectory(CuOmmBaking)
+endif()
+if(TARGET OptiXToolkit::DemandLoading)
+  add_subdirectory(DemandLoading)
+endif()
+
