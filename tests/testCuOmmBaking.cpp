@@ -26,10 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "SourceDir.h"  // generated from SourceDir.h.in
+
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 #include <OptiXToolkit/Util/Exception.h>
-#include <OptiXToolkit/Util/Files.h>
 
 #include "Util/Image.h"
 #include "Util/Mesh.h"
@@ -70,7 +71,7 @@ protected:
             struct cudaChannelFormatDesc      desc = cudaCreateChannelDesc<uchar4>();
             cuOmmBaking::CudaTextureAlphaMode alphaMode = cuOmmBaking::CudaTextureAlphaMode::DEFAULT;
 
-            std::string texture = { otk::getRuntimeFilePath( "Textures/base", "base.png" ) };
+            std::string texture = { getSourceDir() + "/Textures/base/base.png" };
 
             float transparencyCutoff = 0.f;
             float opacityCutoff = 1.f;
@@ -314,7 +315,7 @@ protected:
 TEST_F( OmmBakingTest, Base )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath("Textures/DuckHole", "DuckHole.png");
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes[0].meshResolution = {1, 1};
 
     cuOmmBaking::Result res = runTest( opt, "OmmBakingTest_Base" );
@@ -332,7 +333,7 @@ class OmmBakingStateTexture : public OmmBakingTest {};
 TEST_F( OmmBakingStateTexture, Base )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.textures[0].bakeToState = true;
     opt.meshes[0].meshResolution = { 1, 1 };
 
@@ -351,7 +352,7 @@ TEST_F( OmmBakingStateTexture, Mixed )
     TestOptions opt = {};
     opt.textures[0].bakeToState = true;
     opt.textures.push_back( TestOptions::Texture() );
-    opt.textures[1].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[1].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.textures[1].bakeToState = false;
     opt.meshes[0].meshResolution = { 2, 2 };
     opt.meshes[0].textures = { 0, 1 };
@@ -369,7 +370,7 @@ TEST_F( OmmBakingStateTexture, Mixed )
 TEST_F( OmmBakingStateTexture, Pitch )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.textures[0].bakeToState = true;
     opt.textures[0].statePaddingInBits = 68;
     opt.meshes[0].meshResolution = { 1, 1 };
@@ -604,7 +605,7 @@ TEST_F( OmmBakingOptionsTest, FilterWidth )
 {
     TestOptions opt = {};
     opt.filterKernelWidthInTexels = 10.f;
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
 
     cuOmmBaking::Result res = runTest( opt, "OmmBakingOptionsTest_FilterWidth" );
     ASSERT_EQ( res, cuOmmBaking::Result::SUCCESS );
@@ -673,7 +674,7 @@ TEST_F( OmmBakingInputTest, Subdivision )
 {
     TestOptions opt = {};
     opt.options.maximumSizeInBytes = /*2 triangles*/2 * (/*large input*/4 + /*small input*/1) * ( 1 << ( 2 */*level*/5 - 2 ) ) + /*precision guard*/1;
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes.push_back( TestOptions::MeshOptions() );
     opt.meshes[0].meshResolution = { 1, 1 };
     opt.meshes[1].meshResolution = { 1, 1 };
@@ -763,7 +764,7 @@ TEST_F( OmmBakingInputTest, TextureIndices )
 {
     TestOptions opt = {};
     opt.textures.push_back( TestOptions::Texture() );
-    opt.textures[1].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[1].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes[0].textures.push_back( 1 );
     opt.meshes[0].meshResolution = { 2,2 };
     opt.meshes[0].uvMax = { 2,2 };
@@ -780,7 +781,7 @@ TEST_F( OmmBakingInputTest, TextureIndicesFormatShort )
 {
     TestOptions opt = {};
     opt.textures.push_back( TestOptions::Texture() );
-    opt.textures[1].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[1].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes[0].textures.push_back( 1 );
     opt.meshes[0].meshResolution = { 2,2 };
     opt.meshes[0].uvMax = { 2,2 };
@@ -798,7 +799,7 @@ TEST_F( OmmBakingInputTest, TextureIndicesWideStride )
 {
     TestOptions opt = {};
     opt.textures.push_back( TestOptions::Texture() );
-    opt.textures[1].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[1].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes[0].textures.push_back( 1 );
     opt.meshes[0].meshResolution = { 4,4 };
     opt.meshes[0].uvMax = { 2,2 };
@@ -817,7 +818,7 @@ TEST_F( OmmBakingInputTest, MultiTexture )
     TestOptions opt = {};
 
     opt.textures.push_back( TestOptions::Texture() );
-    opt.textures[1].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[1].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
 
     opt.meshes[0].textures = { 0, 1 };
     opt.meshes[0].meshResolution = { 4,4 };
@@ -839,7 +840,7 @@ TEST_F( OmmBakingInputTest, MultiTexture )
 TEST_F( OmmBakingInputTest, ManyTriangles )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes[0].meshResolution = { 256, 256 };
 
     cuOmmBaking::Result res = runTest( opt, "OmmBakingInputTest_ManyTriangles" );
@@ -855,7 +856,7 @@ class OmmBakingCudaTextureTest : public OmmBakingTest {};
 TEST_F( OmmBakingCudaTextureTest, Linear )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.textures[0].filterMode = cudaFilterModeLinear;
     opt.meshes[0].meshResolution = { 1, 1 };
     
@@ -870,7 +871,7 @@ TEST_F( OmmBakingCudaTextureTest, Linear )
 TEST_F( OmmBakingCudaTextureTest, Point )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.textures[0].filterMode = cudaFilterModePoint;
     opt.meshes[0].meshResolution = { 1, 1 };
 
@@ -885,7 +886,7 @@ TEST_F( OmmBakingCudaTextureTest, Point )
 TEST_F( OmmBakingCudaTextureTest, OddSized )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/odd_sized.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/odd_sized.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned char>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -902,7 +903,7 @@ TEST_F( OmmBakingCudaTextureTest, OddSized )
 TEST_F( OmmBakingCudaTextureTest, BC1 )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHoleDXT1.dds" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHoleDXT1.dds" ;
 
     cuOmmBaking::Result res = runTest( opt, "OmmBakingCudaTextureTest_BC1" );
     ASSERT_EQ( res, cuOmmBaking::Result::SUCCESS );
@@ -915,7 +916,7 @@ TEST_F( OmmBakingCudaTextureTest, BC1 )
 TEST_F( OmmBakingCudaTextureTest, BC3 )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHoleDXT5.dds" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHoleDXT5.dds" ;
 
     cuOmmBaking::Result res = runTest( opt, "OmmBakingCudaTextureTest_BC3" );
     ASSERT_EQ( res, cuOmmBaking::Result::SUCCESS );
@@ -1023,7 +1024,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeInt4 )
 TEST_F( OmmBakingCudaTextureTest, ReadModeUChar )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned char>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -1040,7 +1041,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeUChar )
 TEST_F( OmmBakingCudaTextureTest, ReadModeChar )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<char>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -1056,7 +1057,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeChar )
 TEST_F( OmmBakingCudaTextureTest, ReadModeUShort )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned short>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -1073,7 +1074,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeUShort )
 TEST_F( OmmBakingCudaTextureTest, ReadModeShort )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<short>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -1090,7 +1091,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeShort )
 TEST_F( OmmBakingCudaTextureTest, ReadModeUInt )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned int>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -1107,7 +1108,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeUInt )
 TEST_F( OmmBakingCudaTextureTest, ReadModeInt )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].readMode = cudaReadModeElementType;
     opt.textures[0].desc = cudaCreateChannelDesc<int>();
     opt.textures[0].transparencyCutoff = 0.f;
@@ -1124,7 +1125,7 @@ TEST_F( OmmBakingCudaTextureTest, ReadModeInt )
 TEST_F( OmmBakingCudaTextureTest, ChannelX )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].alphaMode = cuOmmBaking::CudaTextureAlphaMode::CHANNEL_X;
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1140,7 +1141,7 @@ TEST_F( OmmBakingCudaTextureTest, ChannelX )
 TEST_F( OmmBakingCudaTextureTest, ChannelY )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].alphaMode = cuOmmBaking::CudaTextureAlphaMode::CHANNEL_Y;
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1156,7 +1157,7 @@ TEST_F( OmmBakingCudaTextureTest, ChannelY )
 TEST_F( OmmBakingCudaTextureTest, ChannelZ )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].alphaMode = cuOmmBaking::CudaTextureAlphaMode::CHANNEL_Z;
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1172,7 +1173,7 @@ TEST_F( OmmBakingCudaTextureTest, ChannelZ )
 TEST_F( OmmBakingCudaTextureTest, ChannelW )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_inverted.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_inverted.png" ;
     opt.textures[0].alphaMode = cuOmmBaking::CudaTextureAlphaMode::CHANNEL_W;
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1188,7 +1189,7 @@ TEST_F( OmmBakingCudaTextureTest, ChannelW )
 TEST_F( OmmBakingCudaTextureTest, RGBIntensity )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].alphaMode = cuOmmBaking::CudaTextureAlphaMode::RGB_INTENSITY;
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1204,7 +1205,7 @@ TEST_F( OmmBakingCudaTextureTest, RGBIntensity )
 TEST_F( OmmBakingCudaTextureTest, DefaultUChar4 )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].desc = cudaCreateChannelDesc<uchar4>();
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1220,7 +1221,7 @@ TEST_F( OmmBakingCudaTextureTest, DefaultUChar4 )
 TEST_F( OmmBakingCudaTextureTest, DefaultUChar2 )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].desc = cudaCreateChannelDesc<uchar2>();
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1236,7 +1237,7 @@ TEST_F( OmmBakingCudaTextureTest, DefaultUChar2 )
 TEST_F( OmmBakingCudaTextureTest, DefaultUChar1 )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_rainbow.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_rainbow.png" ;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned char>();
     opt.textures[0].transparencyCutoff = 0.25f;
     opt.textures[0].opacityCutoff = 0.75f;
@@ -1310,7 +1311,7 @@ TEST_F( OmmBakingCudaTextureTest, AlphaCutoff )
 TEST_F( OmmBakingCudaTextureTest, Layered )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/3dmd", "leaf_layered.dds" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/3dmd/leaf_layered.dds" ;
     opt.textures[0].transparencyCutoff = 0.025f;
     opt.textures[0].opacityCutoff = 0.975f;
 
@@ -1334,7 +1335,7 @@ TEST_F( OmmBakingCudaTextureTest, Layered )
 TEST_F( OmmBakingCudaTextureTest, MipMap )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures/DuckHole", "DuckHole.dds" );
+    opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.dds" ;
     opt.meshes[0].meshResolution = { 1, 1 };
 
     cuOmmBaking::Result res = runTest( opt, "OmmBakingCudaTextureTest_MipMap" );
@@ -1348,7 +1349,7 @@ TEST_F( OmmBakingCudaTextureTest, MipMap )
 TEST_F( OmmBakingCudaTextureTest, ChannelFormatUChar )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].transparencyCutoff = 0.025f;
     opt.textures[0].opacityCutoff = 0.975f;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned char>();
@@ -1364,7 +1365,7 @@ TEST_F( OmmBakingCudaTextureTest, ChannelFormatUChar )
 TEST_F( OmmBakingCudaTextureTest, ChannelFormatUShort )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].transparencyCutoff = 0.025f;
     opt.textures[0].opacityCutoff = 0.975f;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned short>();
@@ -1380,7 +1381,7 @@ TEST_F( OmmBakingCudaTextureTest, ChannelFormatUShort )
 TEST_F( OmmBakingCudaTextureTest, ChannelFormatFloat )
 {
     TestOptions opt = {};
-    opt.textures[0].texture = otk::getRuntimeFilePath( "Textures", "/3dmd/leaf_mask.png" );
+    opt.textures[0].texture = getSourceDir() + "/Textures//3dmd/leaf_mask.png" ;
     opt.textures[0].transparencyCutoff = 0.025f;
     opt.textures[0].opacityCutoff = 0.975f;
     opt.textures[0].desc = cudaCreateChannelDesc<unsigned short>();

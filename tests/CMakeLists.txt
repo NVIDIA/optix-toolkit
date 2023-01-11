@@ -75,7 +75,11 @@ set_target_properties(testCuOmmBaking PROPERTIES FOLDER CmOmmBaking/tests )
 target_include_directories( testCuOmmBaking PUBLIC
   ../support
   ../src
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
   )
+
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testCuOmmBaking
   gtest
@@ -93,6 +97,3 @@ if( $<TARGET_RUNTIME_DLLS:testCuOmmBaking> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testCuOmmBaking> $<TARGET_FILE_DIR:testCuOmmBaking>
     COMMAND_EXPAND_LISTS )
 endif()
-
-get_target_property( _bin testCuOmmBaking RUNTIME_OUTPUT_DIRECTORY )
-file( INSTALL Textures DESTINATION ${_bin} )

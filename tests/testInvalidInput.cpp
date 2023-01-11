@@ -29,7 +29,6 @@
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 #include <OptiXToolkit/Util/Exception.h>
-#include <OptiXToolkit/Util/Files.h>
 
 #include "Util/Image.h"
 #include "Util/Mesh.h"
