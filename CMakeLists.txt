@@ -88,7 +88,6 @@ endfunction()
 addOptionalSubdirectory(OmmBaking)
 addOptionalSubdirectory(DemandLoading)
 addOptionalSubdirectory(ShaderUtil)
-addOptionalSubdirectory(Util)
 
 if( OTK_BUILD_EXAMPLES )
    addOptionalSubdirectory(examples)
