@@ -80,7 +80,7 @@ else()
 endif()
 
 function(addOptionalSubdirectory dir)
-  if(EXISTS ${CMAKE_SOURCE_DIR}/${dir}/CMakeLists.txt)
+  if(EXISTS ${PROJECT_SOURCE_DIR}/${dir}/CMakeLists.txt)
     add_subdirectory(${dir})
   endif()
 endfunction()
