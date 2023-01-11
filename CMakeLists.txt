@@ -108,8 +108,6 @@ add_library( DemandLoading
   src/Util/DeviceSet.cpp
   src/Util/DeviceSet.h
   src/Util/Exception.h
-  src/Util/Files.cpp
-  src/Util/Files.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
@@ -182,7 +180,6 @@ source_group( "Header Files\\Implementation" FILES
   src/Util/CudaCallback.h
   src/Util/DeviceSet.h
   src/Util/Exception.h
-  src/Util/Files.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
@@ -194,7 +191,6 @@ target_include_directories( DemandLoading
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for Config.h
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   ${OptiX_INCLUDE_DIR}
   PRIVATE
@@ -212,9 +208,6 @@ target_link_libraries( DemandLoading
 set_target_properties(DemandLoading PROPERTIES
   FOLDER DemandLoading
   WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
-# Embed CMAKE_RUNTIME_OUTPUT_DIRECTORY in Config.h (used by getRuntimeFilePath).
-configure_file( src/Util/Config.h.in include/Util/Config.h @ONLY )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
   target_compile_options( DemandLoading PRIVATE "-DOTK_USE_CUDA_MEMORY_POOLS" )

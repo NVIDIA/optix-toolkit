@@ -66,7 +66,11 @@ add_executable( testDemandLoading
 
 target_include_directories( testDemandLoading PUBLIC
   ../src
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
   )
+
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testDemandLoading
   DemandLoading
@@ -124,7 +128,3 @@ if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
 endif()
 
 set_property(TARGET testTextureFootprint PROPERTY FOLDER DemandLoading/tests)
-
-get_target_property( _bin testDemandLoading RUNTIME_OUTPUT_DIRECTORY )
-file( INSTALL Textures DESTINATION ${_bin} )
-

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Util/Files.h"
+#include "SourceDir.h"  // generated from SourceDir.h.in
 
 #include <OptiXToolkit/ImageSource/EXRReader.h>
 
@@ -45,7 +45,6 @@
 #include <vector>
 
 using namespace imageSource;
-using namespace demandLoading;
 
 // Some possible half pixel types
 struct half2
@@ -141,7 +140,7 @@ struct TestCoreEXRReader : public testing::Test
 template <class ReaderType>
 void runReadInfo()
 {
-    ReaderType  floatReader( getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
+    ReaderType  floatReader( getSourceDir() + "/Textures/TiledMipMappedFloat.exr" );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -157,7 +156,7 @@ INSTANTIATE_READER_TESTS( ReadInfo );
 template <class ReaderType>
 void runReadInfoScanline()
 {
-    ReaderType  floatReader( getRuntimeFilePath( "Textures", "ScanlineFineFloat.exr" ) );
+    ReaderType  floatReader( getSourceDir() + "/Textures/ScanlineFineFloat.exr" );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW(floatReader.open(&floatInfo));
 
@@ -173,7 +172,7 @@ INSTANTIATE_READER_TESTS(ReadInfoScanline);
 template <class ReaderType>
 void runReadFineTileFloat()
 {
-    ReaderType  floatReader( getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
+    ReaderType  floatReader( getSourceDir() + "/Textures/TiledMipMappedFloat.exr" );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -199,7 +198,7 @@ INSTANTIATE_READER_TESTS( ReadFineTileFloat );
 template <class ReaderType>
 void runReadFineScanlineFloat()
 {
-    ReaderType  floatReader( getRuntimeFilePath( "Textures", "ScanlineFineFloat.exr" ) );
+    ReaderType  floatReader( getSourceDir() + "/Textures/ScanlineFineFloat.exr" );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -225,7 +224,7 @@ INSTANTIATE_READER_TESTS( ReadFineScanlineFloat );
 template <class ReaderType>
 void runReadCoarseTileFloat()
 {
-    ReaderType    floatReader( getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
+    ReaderType    floatReader( getSourceDir() + "/Textures/TiledMipMappedFloat.exr" );
     TextureInfo   floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -249,7 +248,7 @@ void runReadCoarseTileFloat()
 template <class ReaderType>
 void runReadCoarseScanlineFloat()
 {
-    ReaderType    floatReader( getRuntimeFilePath( "Textures", "ScanlineCoarseFloat.exr" ) );
+    ReaderType    floatReader( getSourceDir() + "/Textures/ScanlineCoarseFloat.exr" );
     TextureInfo   floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -276,7 +275,7 @@ INSTANTIATE_READER_TESTS( ReadCoarseScanlineFloat );
 template <typename ReaderType>
 void runReadLargeTile()
 {
-    ReaderType  floatReader( getRuntimeFilePath( "Textures", "TiledMipMappedFloat.exr" ) );
+    ReaderType  floatReader( getSourceDir() + "/Textures/TiledMipMappedFloat.exr" );
     TextureInfo floatInfo = {};
     ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
 
@@ -308,7 +307,7 @@ INSTANTIATE_READER_TESTS( ReadLargeTile );
 template <typename ReaderType>
 void runReadCoarseTileHalf()
 {
-    ReaderType  halfReader( getRuntimeFilePath( "Textures", "TiledMipMappedHalf.exr" ) );
+    ReaderType  halfReader( getSourceDir() + "/Textures/TiledMipMappedHalf.exr" );
     TextureInfo halfInfo = {};
     ASSERT_NO_THROW( halfReader.open( &halfInfo ) );
 
@@ -337,7 +336,7 @@ INSTANTIATE_READER_TESTS( ReadCoarseTileHalf );
 template <class ReaderType>
 void runReadCoarseScanlineHalf()
 {
-    ReaderType    halfReader( getRuntimeFilePath( "Textures", "ScanlineCoarseHalf.exr" ) );
+    ReaderType    halfReader( getSourceDir() + "/Textures/ScanlineCoarseHalf.exr" );
     TextureInfo   halfInfo = {};
     ASSERT_NO_THROW( halfReader.open( &halfInfo) );
 
@@ -367,11 +366,11 @@ INSTANTIATE_READER_TESTS( ReadCoarseScanlineHalf );
 template <typename ReaderType>
 void runReadPartialTileNonSquare()
 {
-    ReaderType  halfReader( getRuntimeFilePath( "Textures", "TiledMipMappedHalf.exr" ) );
+    ReaderType  halfReader( getSourceDir() + "/Textures/TiledMipMappedHalf.exr" );
     TextureInfo halfInfo = {};
     ASSERT_NO_THROW( halfReader.open( &halfInfo ) );
 
-    ReaderType  nonSquareReader( getRuntimeFilePath( "Textures", "TiledMipMapped124x72.exr" ) );
+    ReaderType  nonSquareReader( getSourceDir() + "/Textures/TiledMipMapped124x72.exr" );
     TextureInfo nonSquareInfo = {};
     ASSERT_NO_THROW( nonSquareReader.open( &nonSquareInfo ) );
 

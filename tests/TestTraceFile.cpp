@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Util/Files.h"
+#include "SourceDir.h"  // generated from SourceDir.h.in
 #include "Util/TraceFile.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -47,7 +47,7 @@ class TestTraceFile : public testing::Test
 
 TEST_F( TestTraceFile, TestWriteAndRead )
 {
-    std::string textureFilename( getRuntimeFilePath( "Textures", "/TiledMipMapped.exr" ) );
+    std::string textureFilename( getSourceDir() + "/Textures/TiledMipMapped.exr" );
     const char* traceFilename = "DemandLoadingTrace.dat";
     {
         TraceFileWriter writer( traceFilename );
