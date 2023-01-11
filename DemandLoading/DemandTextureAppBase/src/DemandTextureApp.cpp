@@ -48,8 +48,6 @@
 #include <OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 
-#include <OptiXToolkit/Util/Files.h>
-
 #include <GLFW/glfw3.h>
 
 namespace demandTextureApp
@@ -374,14 +372,13 @@ demandLoading::TextureDescriptor DemandTextureApp::makeTextureDescriptor( CUaddr
 }
 
 
-imageSource::ImageSource* DemandTextureApp::createExrImage( const char* fileName )
+imageSource::ImageSource* DemandTextureApp::createExrImage( const char* filePath )
 {
     try
     {
-        if( fileName == nullptr || fileName[0] == '\0' )
+        if( filePath == nullptr || filePath[0] == '\0' )
             return nullptr;
-        std::string textureFilename( otk::getRuntimeFilePath( "Textures", fileName ) );
-        return new imageSource::EXRREADER( textureFilename.c_str(), true );
+        return new imageSource::EXRREADER( filePath, true );
     }
     catch( ... )
     {

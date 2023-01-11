@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "SourceDir.h"  // generated from SourceDir.h.in
+
 #include <iostream>
 #include <iomanip>
 
@@ -43,7 +45,6 @@
 #include "PerDeviceOptixState.h"
 #include "CuOmmBakingApp.h"
 
-#include <OptiXToolkit/Util/Files.h>
 #include <OptiXToolkit/Util/Exception.h>
 
 #include <GLFW/glfw3.h>
@@ -60,7 +61,7 @@ CudaTexture::CudaTexture( std::string textureName )
     if( textureName.empty() && textureName[0] == '\0' )
         throw std::runtime_error( "Invalid texture name" );
 
-    std::string textureFilename( otk::getRuntimeFilePath( "Textures", textureName.c_str() ) );
+    std::string textureFilename( getSourceDir() + "/../Textures/" + textureName );
     imageSource::ImageSource* img = new imageSource::EXRREADER( textureFilename.c_str(), true );
     std::unique_ptr<imageSource::ImageSource> imageSource( img );
     create( img );
@@ -345,7 +346,7 @@ imageSource::ImageSource* OmmBakingApp::createExrImage( const char* fileName )
     {
         if( fileName == nullptr || fileName[0] == '\0' )
             return nullptr;
-        std::string textureFilename( otk::getRuntimeFilePath( "Textures", fileName ) );
+        std::string textureFilename( getSourceDir() + "/../Textures/" + fileName );
         return new imageSource::EXRREADER( textureFilename.c_str(), true );
     }
     catch( ... )

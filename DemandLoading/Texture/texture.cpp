@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "SourceDir.h"  // generated from SourceDir.h.in
 #include "textureKernel.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -49,7 +50,6 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/Window.h>
-#include <OptiXToolkit/Util/Files.h>
 
 #include <cassert>
 #include <fstream>
@@ -603,7 +603,7 @@ int main( int argc, char* argv[] )
 // Make an exr reader or a procedural texture reader based on the textureFile name
         if( !textureFile.empty() && textureFile != "checkerboard" )
         {
-            std::string textureFilename( otk::getRuntimeFilePath( "Textures", textureFile.c_str() ) );
+            std::string textureFilename( getSourceDir() + "/Textures/" + textureFile );
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
             imageSource = g_useCoreExr
                 ? std::unique_ptr<ImageSource>( new CoreEXRReader( textureFilename.c_str() ) )

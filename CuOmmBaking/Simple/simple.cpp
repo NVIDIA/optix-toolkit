@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "SourceDir.h"  // generated from SourceDir.h.in
+
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
@@ -43,7 +45,6 @@
 #include <cuda_fp16.h>
 
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
-#include <OptiXToolkit/Util/Files.h>
 
 #include <atomic>
 #include <cstdio>
@@ -184,7 +185,7 @@ int main( int argc, char* argv[] )
     // Make an exr reader or a procedural texture reader based on the textureFile name
     if( !textureFile.empty() && textureFile != "checkerboard" )
     {
-        std::string textureFilename( otk::getRuntimeFilePath( "Textures", textureFile.c_str() ) );
+        std::string textureFilename( getSourceDir() + "/../Textures/" + textureFile );
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
         imageSource = g_useCoreExr
             ? std::unique_ptr<ImageSource>( new CoreEXRReader( textureFilename.c_str() ) )

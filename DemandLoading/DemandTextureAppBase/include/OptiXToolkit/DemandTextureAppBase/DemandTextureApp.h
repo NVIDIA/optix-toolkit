@@ -88,7 +88,7 @@ class DemandTextureApp
 
     // Demand loading and texturing system
     demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, CUfilter_mode filterMode );
-    imageSource::ImageSource* createExrImage( const char* fileName );
+    imageSource::ImageSource* createExrImage( const char* filePath );
     
     // OptiX launches
     void initView();

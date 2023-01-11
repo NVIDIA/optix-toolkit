@@ -67,7 +67,11 @@ source_group( "Header Files\\Util" FILES
 target_include_directories(ommBakingViewer PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
   )
+
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( ommBakingViewer
   PUBLIC  

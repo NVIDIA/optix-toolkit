@@ -56,13 +56,16 @@ target_link_libraries( demandLoadTexture
   glad::glad
   )
 
+target_include_directories( demandLoadTexture PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
+  )
+
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
+
 set_target_properties( demandLoadTexture PROPERTIES
   FOLDER Examples/DemandLoading
   INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
-
-# Copy subdirectory of texture files to bin directory.
-get_target_property( _bin demandLoadTexture RUNTIME_OUTPUT_DIRECTORY )
-file( INSTALL Textures DESTINATION ${_bin} )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:demandLoadTexture> )

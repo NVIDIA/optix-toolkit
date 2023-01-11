@@ -45,6 +45,13 @@ target_link_libraries( ommBakingSimple
   OptiX::OptiX
   )
 
+target_include_directories(ommBakingSimple PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
+  )
+
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
+
 set_target_properties( ommBakingSimple PROPERTIES INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit FOLDER Examples/CmOmmBaking )
 
 # Copy shared libraries that the built executable depends on.
@@ -53,6 +60,3 @@ if( $<TARGET_RUNTIME_DLLS:ommBakingSimple> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:ommBakingSimple> $<TARGET_FILE_DIR:ommBakingSimple>
     COMMAND_EXPAND_LISTS )
 endif()
-
-get_target_property( _bin ommBakingSimple RUNTIME_OUTPUT_DIRECTORY )
-file( INSTALL Textures DESTINATION ${_bin} )
