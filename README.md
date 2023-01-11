@@ -7,12 +7,16 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 - **[PyOptiX](PyOptiX/README.md)** - Complete Python bindings for the OptiX host API.
 - **[OmmBaking](CuOmmBaking/README.md)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
 - **[DemandLoading](DemandLoading/README.md)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
-- **[ShaderOps](ShaderOps/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
+- **[ShaderUtil](ShaderUtil/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
 
 Each of these components is stored in a separate git repository, which is referenced as a git submodule.
 After checking out the OptiX Toolkit repository, be sure to update the submodules, e.g.
 ```
 git submodule update --init --recursive
+```
+Alternatively, a subset of the submodules can be specified, for example:
+```
+git submodule update --init --recursive DemandLoading ShaderUtil
 ```
 
 ## Requirements
