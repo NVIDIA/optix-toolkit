@@ -26,35 +26,38 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#########################################################
-# Welcome to the OptiX Toolkit (OTK)
+find_package( CUDAToolkit 10.0 REQUIRED )
 
-# If you have any questions, we encourage you to post on the OptiX forums:
-# https://devtalk.nvidia.com/default/board/90/
+# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
+set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+find_package(OptiX REQUIRED)
 
-# CMake helper files are located in the CMake subdirectory.
-list(APPEND CMAKE_MODULE_PATH 
-  ${CMAKE_CURRENT_SOURCE_DIR}/CMake
+add_library(Util
+  src/Exception.cpp
   )
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
+add_library(OptiXToolkit::Util ALIAS Util)
 
-project(OptiXToolkitExamples LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
+target_sources(Util 
+  PUBLIC 
+  FILE_SET HEADERS 
+  BASE_DIRS include
+  FILES
+  include/OptiXToolkit/Util/Exception.h
+)
 
-add_subdirectory(Util)
-add_subdirectory(Gui)
-add_subdirectory(Simple)
+target_include_directories(Util PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${OptiX_INCLUDE_DIR}
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  )
 
-# Skip examples if the libraries they depend upon were not built.
-if(TARGET OptiXToolkit::CuOmmBaking)
-  add_subdirectory(CuOmmBaking)
-endif()
-if(TARGET OptiXToolkit::DemandLoading)
-  add_subdirectory(DemandLoading)
-endif()
+target_link_libraries(Util PRIVATE
+  OptiX::OptiX
+  CUDA::cuda_driver
+  CUDA::cudart
+  )
 
+set_target_properties(Util PROPERTIES
+  FOLDER Util
+  WINDOWS_EXPORT_ALL_SYMBOLS ON)
