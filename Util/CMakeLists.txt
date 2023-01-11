@@ -48,7 +48,6 @@ option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 add_library(Util
   src/Exception.cpp
-  src/Files.cpp
   )
 
 if(NOT PROJECT_IS_TOP_LEVEL)
@@ -61,13 +60,11 @@ target_sources(Util
   BASE_DIRS include
   FILES
   include/OptiXToolkit/Util/Exception.h
-  include/OptiXToolkit/Util/Files.h
 )
 
 target_include_directories(Util PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for Config.h
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${OptiX_INCLUDE_DIR}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
@@ -95,9 +92,4 @@ install(EXPORT UtilTargets
   FILE UtilTargets.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
-  )
-
-configure_file( src/Config.h.in include/OptiXToolkit/Util/Config.h @ONLY )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/include/OptiXToolkit/Util/Config.h 
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/OptiXToolkit/Util
   )
