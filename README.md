@@ -5,7 +5,7 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 
 ## Current Utilities
 - **[PyOptiX](PyOptiX/README.md)** - Complete Python bindings for the OptiX host API.
-- **[OmmBaking](CuOmmBaking/README.md)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
+- **[OmmBaking](OmmBaking/README.md)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
 - **[DemandLoading](DemandLoading/README.md)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
 - **[ShaderUtil](ShaderUtil/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
 
