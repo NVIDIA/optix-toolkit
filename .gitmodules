@@ -1,12 +1,12 @@
 [submodule "DemandLoading"]
 	path = DemandLoading
-	url = https://gitlab-master.nvidia.com/raven/demand-loading.git
+	url = https://gitlab-master.nvidia.com/raven/otk-demand-loading.git
 	branch = master
 [submodule "examples"]
 	path = examples
-	url = https://gitlab-master.nvidia.com/raven/optix-toolkit-examples.git
+	url = https://gitlab-master.nvidia.com/raven/otk-examples.git
 	branch = master
 [submodule "OmmBaking"]
 	path = OmmBaking
-	url = https://gitlab-master.nvidia.com/raven/omm-baking.git
+	url = https://gitlab-master.nvidia.com/raven/otk-omm-baking.git
 	branch = master
