@@ -10,3 +10,11 @@
 	path = OmmBaking
 	url = https://gitlab-master.nvidia.com/raven/otk-omm-baking.git
 	branch = master
+[submodule "ShaderUtil"]
+	path = ShaderUtil
+	url = https://gitlab-master.nvidia.com/raven/otk-shader-util.git
+	branch = master
+[submodule "PyOptiX"]
+	path = PyOptiX
+	url = https://gitlab-master.nvidia.com/raven/otk-pyoptix.git
+	branch = master

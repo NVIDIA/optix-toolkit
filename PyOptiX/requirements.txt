@@ -1,6 +1,0 @@
-cupy
-numpy
-Pillow
-pynvrtc
-pytest
-OpenEXR
