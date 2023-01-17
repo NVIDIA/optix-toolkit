@@ -274,3 +274,38 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
         EXPECT_TRUE( isResident3 );
     }
 }
+
+TEST_F( TestDemandLoader, TestTextureVariants )
+{
+    unsigned int deviceIndex = 0;
+
+    // Make first texture
+    TextureDescriptor  texDesc1 = m_descriptor;
+    DemandTextureImpl* texture1 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc1 ).getId() );
+    texture1->init( deviceIndex );
+
+    // Make second texture with different descriptor
+    TextureDescriptor texDesc2  = m_descriptor;
+    texDesc2.addressMode[0]     = CU_TR_ADDRESS_MODE_CLAMP;
+    texDesc2.addressMode[1]     = CU_TR_ADDRESS_MODE_CLAMP;
+    texDesc2.filterMode         = CU_TR_FILTER_MODE_POINT;
+    texDesc2.mipmapFilterMode   = CU_TR_FILTER_MODE_POINT;
+    DemandTextureImpl* texture2 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc2 ).getId() );
+    texture2->init( deviceIndex );
+
+    // The image sources should be the same, but the texture id's different
+    EXPECT_EQ( texture1->getImageSource(), texture2->getImageSource() );
+    EXPECT_NE( texture1->getId(), texture2->getId() );
+
+    // The texture descriptors should be what the textures were constructed with
+    EXPECT_EQ( texture1->getDescriptor(), texDesc1 );
+    EXPECT_EQ( texture2->getDescriptor(), texDesc2 );
+
+    // Texture1 should have a request handler, but texture2 should not (uses the same one)
+    EXPECT_TRUE( texture1->getRequestHandler() != nullptr );
+    EXPECT_TRUE( texture2->getRequestHandler() == nullptr );
+
+    // The textures should use the same demand load pages
+    EXPECT_EQ( texture1->getSampler().startPage, texture2->getSampler().startPage );
+    EXPECT_EQ( texture1->getSampler().numPages, texture2->getSampler().numPages ); 
+}
