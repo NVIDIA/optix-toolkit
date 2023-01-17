@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -210,7 +210,9 @@ TEST_F( TestMemoryPool, AllocFreeAsync )
 
     for( int i = 0; i < 1000; ++i )
     {
-        blocks.push_back( pool.alloc( 65536, 1 ) );
+        MemoryBlockDesc block = pool.alloc( 65536, 1 );
+        ASSERT_TRUE( block.isGood() ); // It should always return a good block in this test
+        blocks.push_back( block );
         if( blocks.size() > 30 )
         {
             pool.freeAsync( blocks.front(), deviceIndex, stream );

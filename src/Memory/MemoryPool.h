@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -117,7 +117,7 @@ class MemoryPool
     MemoryBlockDesc alloc( uint64_t size = 0, uint64_t alignment = 1, CUstream stream = 0 )
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        freeStagedBlocks();
+        freeStagedBlocks( false );
         size = ( size ) ? size : m_allocationGranularity;
 
         // If no suballocator, use the allocator directly
@@ -142,6 +142,14 @@ class MemoryPool
             }
             block = m_suballocator->alloc( size, alignment );
         }
+
+        // If the allocation failed, wait on all the staged blocks and try the suballocator one last time
+        if( block.isBad() )
+        {
+            freeStagedBlocks( true );
+            block = m_suballocator->alloc( size, alignment );
+        }
+
         return block;
     }
 
@@ -189,7 +197,7 @@ class MemoryPool
     void freeAsync( const MemoryBlockDesc& block, unsigned int deviceIndex, CUstream stream )
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        freeStagedBlocks();
+        freeStagedBlocks( false );
         m_stagedBlocks.push_back( StagedBlock{block, getEvent( deviceIndex ), deviceIndex} );
         DEMAND_CUDA_CHECK( cudaEventRecord( m_stagedBlocks.back().event, stream ) );
     }
@@ -265,10 +273,18 @@ class MemoryPool
     }
 
     // Free blocks with events that have finished
-    inline void freeStagedBlocks()
+    inline void freeStagedBlocks( bool waitOnEvents )
     {
-        while( !m_stagedBlocks.empty() && ( cudaEventQuery( m_stagedBlocks.front().event ) != cudaErrorNotReady ) )
+        while( !m_stagedBlocks.empty() )
         {
+            if( cudaEventQuery( m_stagedBlocks.front().event ) == cudaErrorNotReady )
+            {
+                if( waitOnEvents )
+                    cudaEventSynchronize(  m_stagedBlocks.front().event );
+                else 
+                    break;
+            }
+
             if( m_suballocator )
                 m_suballocator->free( m_stagedBlocks.front().block );
             else
