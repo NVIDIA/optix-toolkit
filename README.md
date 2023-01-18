@@ -3,6 +3,8 @@
 
 A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
+See the [CHANGELOG](CHANGELOG.md) for recent changes.
+
 ## Current Utilities
 - **[PyOptiX](PyOptiX/README.md)** - Complete Python bindings for the OptiX host API.
 - **[OmmBaking](OmmBaking/README.md)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
