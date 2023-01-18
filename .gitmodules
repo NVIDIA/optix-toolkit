@@ -18,3 +18,7 @@
 	path = PyOptiX
 	url = https://gitlab-master.nvidia.com/raven/otk-pyoptix.git
 	branch = master
+[submodule "CMake"]
+	path = CMake
+	url = https://gitlab-master.nvidia.com/raven/otk-cmake
+	branch = master
