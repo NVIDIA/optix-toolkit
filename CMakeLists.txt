@@ -44,10 +44,6 @@ find_package( CUDAToolkit 11.1 REQUIRED )
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
 find_package(OptiX REQUIRED)
 
-if(PROJECT_IS_TOP_LEVEL)
-  find_package(OptiXToolkit REQUIRED)
-endif()
-
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 add_library( CuOmmBaking
