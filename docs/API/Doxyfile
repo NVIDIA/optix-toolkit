@@ -113,21 +113,18 @@ WARN_LOGFILE           =
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = \
-  @CMAKE_CURRENT_SOURCE_DIR@ \
-  @CMAKE_SOURCE_DIR@/ShaderUtil/include/OptiXToolkit/ShaderUtil \
-  @CMAKE_SOURCE_DIR@/CuOmmBaking/include/OptiXToolkit/CuOmmBaking \
-  @CMAKE_SOURCE_DIR@/DemandLoading/include/OptiXToolkit/DemandLoading \
-  @CMAKE_SOURCE_DIR@/DemandLoading/src \
-  @CMAKE_SOURCE_DIR@/DemandLoading/src/Memory \
-  @CMAKE_SOURCE_DIR@/DemandLoading/src/Textures \
-  @CMAKE_SOURCE_DIR@/DemandLoading/src/Util \
-  @CMAKE_SOURCE_DIR@/ImageSource/include/OptiXToolkit/ImageSource \
-  @CMAKE_SOURCE_DIR@/ImageSource/src \
-  @CMAKE_SOURCE_DIR@/Util/include/OptiXToolkit/Util \
-  @CMAKE_SOURCE_DIR@/Util/src
+  @CMAKE_SOURCE_DIR@/README.md \
+  @CMAKE_SOURCE_DIR@/ShaderUtil/include \
+  @CMAKE_SOURCE_DIR@/ShaderUtil/README.md \
+  @CMAKE_SOURCE_DIR@/OmmBaking/include \
+  @CMAKE_SOURCE_DIR@/OmmBaking/README.md \
+  @CMAKE_SOURCE_DIR@/DemandLoading/include \
+  @CMAKE_SOURCE_DIR@/DemandLoading/README.md \
+  @CMAKE_SOURCE_DIR@/PyOptiX/README.md \
+  @CMAKE_SOURCE_DIR@/Util/include
 INPUT_ENCODING         = UTF-8
-FILE_PATTERNS          = *.h overview.txt
-RECURSIVE              = NO
+FILE_PATTERNS          = *.h 
+RECURSIVE              = YES
 EXCLUDE                =
 EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       =
@@ -140,7 +137,7 @@ INPUT_FILTER           =
 FILTER_PATTERNS        =
 FILTER_SOURCE_FILES    = YES
 FILTER_SOURCE_PATTERNS =
-USE_MDFILE_AS_MAINPAGE =
+USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
 #---------------------------------------------------------------------------
@@ -165,7 +162,7 @@ IGNORE_PREFIX          =
 # Configuration options related to the HTML output
 #---------------------------------------------------------------------------
 GENERATE_HTML          = YES
-HTML_OUTPUT            = API
+HTML_OUTPUT            = 
 HTML_FILE_EXTENSION    = .html
 HTML_HEADER            =
 HTML_FOOTER            =

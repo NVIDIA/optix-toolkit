@@ -32,9 +32,12 @@
 # If you have any questions, we encourage you to post on the OptiX forums:
 # https://devtalk.nvidia.com/default/board/90/
 
+# CMake helper files are located in the CMake subdirectory.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
+
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(CMake/Policies.cmake)
+include(Policies)
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
@@ -43,7 +46,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(CMake/BuildConfig.cmake)
+include(BuildConfig)
 
 #########################################################
 # Create and install package configuration and version files.
@@ -66,8 +69,6 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 #########################################################
 # Subdirectories
 
-set(OTK_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "OptiX Toolkit source directory")
-
 if(PROJECT_IS_TOP_LEVEL)
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON)
   option( OTK_BUILD_TESTS "Enable build of OptiXToolkit tests" ON)
@@ -78,16 +79,20 @@ else()
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" OFF)
 endif()
 
-add_subdirectory(CuOmmBaking)
-add_subdirectory(DemandLoading)
-add_subdirectory(ImageSource)
-add_subdirectory(ShaderUtil)
-add_subdirectory(Util)
+function(addOptionalSubdirectory dir)
+  if(EXISTS ${PROJECT_SOURCE_DIR}/${dir}/CMakeLists.txt)
+    add_subdirectory(${dir})
+  endif()
+endfunction()
+
+addOptionalSubdirectory(OmmBaking)
+addOptionalSubdirectory(DemandLoading)
+addOptionalSubdirectory(ShaderUtil)
 
 if( OTK_BUILD_EXAMPLES )
-   add_subdirectory(examples)
+   addOptionalSubdirectory(examples)
 endif()
 
 if( OTK_BUILD_DOCS )
-  add_subdirectory( docs/API )
+  addOptionalSubdirectory( docs/API )
 endif()

@@ -3,18 +3,27 @@
 
 A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
+See the [CHANGELOG](CHANGELOG.md) for recent changes.
+
 ## Current Utilities
 - **[PyOptiX](PyOptiX/README.md)** - Complete Python bindings for the OptiX host API.
-- **[CuOmmBaking](CuOmmBaking/README.md)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
+- **[OmmBaking](OmmBaking/README.md)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
 - **[DemandLoading](DemandLoading/README.md)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
-- **[ImageSource](ImageSource/README.md)** - wrapper for OpenEXR image library (adaptable to other image formats).
-- **[Gui](Gui/README.md)** - convenience code for incorporating OpenGL into OptiX applications.
-- **[ShaderOps](ShaderOps/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
-- **[Util](Util/README.md)** - file handling and other utility functions.
+- **[ShaderUtil](ShaderUtil/README.md)** - vector math and other CUDA helper functions for OptiX kernels.
+
+Each of these components is stored in a separate git repository, which is referenced as a git submodule.
+After checking out the OptiX Toolkit repository, be sure to update the submodules, e.g.
+```
+git submodule update --init --recursive
+```
+Alternatively, a subset of the submodules can be specified, for example:
+```
+git submodule update --init --recursive DemandLoading ShaderUtil
+```
 
 ## Requirements
 
-- OptiX 7.4 or later.
+- OptiX 7.6 or later.
 - CUDA 11.1 or later.
 - C++ compiler (e.g. gcc under Linux, Visual Studio under Windows)
 - CMake 3.23 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
@@ -36,11 +45,7 @@ Under Windows, it might be necessary to specify a generator and a toolset.
 ```
 cmake -G "Visual Studio 15 2017 Win64" -T host=x64 -DOptiX_INSTALL_DIR=/path/to/optix ..
 ```
-- If the configuration is successful, build the OTK libraries.  Under Windows, simply load the Visual Studio solution file from the `build` directory.  Under Linux:
-```
-cd ..
-make -j
-```
+- If the configuration is successful, build the OTK libraries.  Under Windows, simply load the Visual Studio solution file from the `build` directory.  Under Linux, run `make -j` in the `build` directory.
 
 If you encounter problems or if you have any questions, we encourage you to post on the [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
 
@@ -102,9 +107,6 @@ Solution: [git is required](https://git-scm.com/download) in order to download t
 
 Problem: Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed <br>
 Solution: [Download newer driver](https://www.nvidia.com/download)
-
-Problem: Windows Debug link error: cannot open file '..\zlib-install\lib\zlibstatic.lib' <br>
-Solution: Build Release configuration first, then build Debug configuration.
 
 Problem: CMake configuration error: "Failed to detect a default cuda architecture" <br>
 Solution: Set configuration variable `CMAKE_CUDA_COMPILER` to the full path of the NVCC compiler.
