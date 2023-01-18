@@ -1,4 +1,4 @@
-# Cuda Opacticy Micromap Baking Library
+# Cuda Opacity Micromap Baking Library
 
 The OptiX cuda Opacity Micromap Baking library allows hardware-accelerated baking of 
 OptiX Opacity Micromap Arrays from textured goemetry. 
