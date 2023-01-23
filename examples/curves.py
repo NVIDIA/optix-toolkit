@@ -46,7 +46,7 @@ import path_util
 
 #-------------------------------------------------------------------------------
 #
-# Util 
+# Util
 #
 #-------------------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ def log_callback( level, tag, mssg ):
 
 
 def round_up( val, mult_of ):
-    return val if val % mult_of == 0 else val + mult_of - val % mult_of 
+    return val if val % mult_of == 0 else val + mult_of - val % mult_of
 
 
 def  get_aligned_itemsize( formats, alignment ):
@@ -73,9 +73,9 @@ def  get_aligned_itemsize( formats, alignment ):
     for i in range( len(formats ) ):
         names.append( 'x'+str(i) )
 
-    temp_dtype = np.dtype( { 
+    temp_dtype = np.dtype( {
         'names'   : names,
-        'formats' : formats, 
+        'formats' : formats,
         'align'   : True
         } )
     return round_up( temp_dtype.itemsize, alignment )
@@ -109,22 +109,25 @@ def compile_cuda( cuda_file ):
     prog = Program( src.decode(), cuda_file,
                     lib_name= nvrtc_dll )
     compile_options = [
-        '-use_fast_math', 
+        '-use_fast_math',
         '-lineinfo',
         '-default-device',
         '-std=c++11',
         '-rdc',
         'true',
-        #'-IC:\\Program Files\\NVIDIA GPU Computing Toolkit\CUDA\\v11.1\include'
-        f'-I{path_util.cuda_tk_path}',
-        f'-I{path_util.include_path}'
+        f'-I{path_util.include_path}',
+        f'-I{path_util.cuda_tk_path}'
     ]
+
     # Optix 7.0 compiles need path to system stddef.h
     # the value of optix.stddef_path is compiled in constant. When building
     # the module, the value can be specified via an environment variable, e.g.
     #   export PYOPTIX_STDDEF_DIR="/usr/include/linux"
-    if (optix.version()[1] == 0):
+    #if (optix.version()[1] == 0):
+    if (path_util.stddef_path):
         compile_options.append( f'-I{path_util.stddef_path}' )
+
+    print("pynvrtc compile options = {}".format(compile_options))
 
     ptx  = prog.compile( compile_options )
     return ptx
@@ -149,19 +152,19 @@ def create_ctx():
     # which stores any data needed
     global logger
     logger = Logger()
-    
+
     # OptiX param struct fields can be set with optional
     # keyword constructor arguments.
-    ctx_options = optix.DeviceContextOptions( 
+    ctx_options = optix.DeviceContextOptions(
             logCallbackFunction = logger,
             logCallbackLevel    = 4
             )
 
     # They can also be set and queried as properties on the struct
     if optix.version()[1] >= 2:
-        ctx_options.validationMode = optix.DEVICE_CONTEXT_VALIDATION_MODE_ALL 
+        ctx_options.validationMode = optix.DEVICE_CONTEXT_VALIDATION_MODE_ALL
 
-    cu_ctx = 0 
+    cu_ctx = 0
     return optix.deviceContextCreate( cu_ctx, ctx_options )
 device_context = create_ctx()
 
@@ -217,7 +220,7 @@ def create_accel():
         gas_buffer_sizes.outputSizeInBytes,
         []  # emitted properties
         )
-    
+
     return ( gas_handle, d_gas_output_buffer )
 gas_handle, d_gas_output_buffer = create_accel()
 
@@ -246,13 +249,13 @@ def create_module():
 
     intersector_options = optix.BuiltinISOptions(
         builtinISModuleType = optix.PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE,
-        usesMotionBlur = False 
+        usesMotionBlur = False
         )
 
-    device_context.builtinISModuleGet( 
-        module_compile_options, 
-        pipeline_compile_options, 
-        intersector_options 
+    device_context.builtinISModuleGet(
+        module_compile_options,
+        pipeline_compile_options,
+        intersector_options
         )
 
     curves_cu = os.path.join(os.path.dirname(__file__), 'curves.cu' )
@@ -264,12 +267,12 @@ def create_module():
         curves_ptx
         )
 
-    geometry_module = device_context.builtinISModuleGet( 
-        module_compile_options, 
-        pipeline_compile_options, 
-        intersector_options 
+    geometry_module = device_context.builtinISModuleGet(
+        module_compile_options,
+        pipeline_compile_options,
+        intersector_options
         )
-    
+
     print( "\tModule create log: <<<{}>>>".format( log ) )
     return geometry_module, shading_module
 geometry_module, shading_module = create_module()
@@ -363,23 +366,23 @@ def create_sbt():
     #
     formats  = [ header_format ]
     itemsize = get_aligned_itemsize( formats, optix.SBT_RECORD_ALIGNMENT )
-    dtype = np.dtype( { 
+    dtype = np.dtype( {
         'names'   : ['header' ],
-        'formats' : formats, 
+        'formats' : formats,
         'itemsize': itemsize,
         'align'   : True
         } )
     h_raygen_sbt = np.array( [ 0 ], dtype=dtype )
     optix.sbtRecordPackHeader( raygen_prog_group, h_raygen_sbt )
-    global d_raygen_sbt 
-    d_raygen_sbt = array_to_device_memory( h_raygen_sbt )   
+    global d_raygen_sbt
+    d_raygen_sbt = array_to_device_memory( h_raygen_sbt )
 
     #
     # miss record
     #
     formats  = [ header_format, 'f4', 'f4', 'f4']
     itemsize = get_aligned_itemsize( formats, optix.SBT_RECORD_ALIGNMENT )
-    dtype = np.dtype( { 
+    dtype = np.dtype( {
         'names'   : ['header', 'r', 'g', 'b' ],
         'formats' : formats,
         'itemsize': itemsize,
@@ -387,15 +390,15 @@ def create_sbt():
         } )
     h_miss_sbt = np.array( [ (0, 0.0, 0.2, 0.6) ], dtype=dtype )
     optix.sbtRecordPackHeader( miss_prog_group, h_miss_sbt )
-    global d_miss_sbt 
+    global d_miss_sbt
     d_miss_sbt = array_to_device_memory( h_miss_sbt )
-    
+
     #
     # hitgroup record
     #
     formats  = [ header_format ]
     itemsize = get_aligned_itemsize( formats, optix.SBT_RECORD_ALIGNMENT )
-    dtype = np.dtype( { 
+    dtype = np.dtype( {
         'names'   : ['header' ],
         'formats' : formats,
         'itemsize': itemsize,
@@ -405,7 +408,7 @@ def create_sbt():
     optix.sbtRecordPackHeader( hitgroup_prog_group, h_hitgroup_sbt )
     global d_hitgroup_sbt
     d_hitgroup_sbt = array_to_device_memory( h_hitgroup_sbt )
-    
+
     return optix.ShaderBindingTable(
         raygenRecord                = d_raygen_sbt.ptr,
         missRecordBase              = d_miss_sbt.ptr,
@@ -449,12 +452,12 @@ def launch():
         ( 'u8', 'trav_handle',  gas_handle     )
     ]
 
-    formats = [ x[0] for x in params ] 
-    names   = [ x[1] for x in params ] 
-    values  = [ x[2] for x in params ] 
+    formats = [ x[0] for x in params ]
+    names   = [ x[1] for x in params ]
+    values  = [ x[2] for x in params ]
     itemsize = get_aligned_itemsize( formats, 8 )
-    params_dtype = np.dtype( { 
-        'names'   : names, 
+    params_dtype = np.dtype( {
+        'names'   : names,
         'formats' : formats,
         'itemsize': itemsize,
         'align'   : True
@@ -463,11 +466,11 @@ def launch():
     d_params = array_to_device_memory( h_params )
 
     stream = cp.cuda.Stream()
-    optix.launch( 
-        pipeline, 
-        stream.ptr, 
-        d_params.ptr, 
-        h_params.dtype.itemsize, 
+    optix.launch(
+        pipeline,
+        stream.ptr,
+        d_params.ptr,
+        h_params.dtype.itemsize,
         sbt,
         width,
         height,

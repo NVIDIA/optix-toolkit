@@ -14,7 +14,7 @@ FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11
     GIT_TAG        v2.9.2
-)
+    )
 FetchContent_GetProperties(pybind11)
 if(NOT pybind11_POPULATED)
     FetchContent_Populate(pybind11)
@@ -40,9 +40,10 @@ configure_file("${CMAKE_SOURCE_DIR}/path_util.py.in" "${CMAKE_SOURCE_DIR}/../exa
 pybind11_add_module(optix main.cpp)
 
 target_link_libraries( optix PRIVATE
-  OptiX::OptiX
-  CUDA::cuda_driver
-	)
+    OptiX::OptiX
+    CUDA::cuda_driver
+    CUDA::cudart
+    )
 target_compile_features( optix PRIVATE
     cxx_std_17
     )

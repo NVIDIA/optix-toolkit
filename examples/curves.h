@@ -26,9 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cuda.h>
+#include <vector_types.h>
 #include <optix.h>
-#include <cstdint>
 
 struct Params
 {

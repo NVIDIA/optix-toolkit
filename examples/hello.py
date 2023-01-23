@@ -90,12 +90,11 @@ def compile_cuda( cuda_file ):
         '-std=c++11',
         '-rdc',
         'true',
-        #'-IC:\\Program Files\\NVIDIA GPU Computing Toolkit\CUDA\\v11.1\include'
-        f'-I{path_util.cuda_tk_path}',
-        f'-I{path_util.include_path}'
+        f'-I{path_util.include_path}',
+        f'-I{path_util.cuda_tk_path}'
     ]
+    print("pynvrtc compile options = {}".format(compile_options))
 
-    print("include_path = {}".format(path_util.include_path))
     # Optix 7.0 compiles need path to system stddef.h
     # the value of optix.stddef_path is compiled in constant. When building
     # the module, the value can be specified via an environment variable, e.g.
