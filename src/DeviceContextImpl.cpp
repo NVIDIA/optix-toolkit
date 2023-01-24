@@ -35,6 +35,7 @@ inline Type* allocItems( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool,
 {
     alignment             = alignment ? alignment : alignof( Type );
     MemoryBlockDesc block = memPool->alloc( numItems * sizeof( Type ), alignment );
+    DEMAND_CUDA_CHECK( cuMemsetD8( static_cast<CUdeviceptr>( block.ptr ), 0, numItems * sizeof( Type ) ) );
     return reinterpret_cast<Type*>( block.ptr );
 }
 
