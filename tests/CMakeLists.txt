@@ -27,6 +27,7 @@
 #
 
 include( FetchGtest )
+include( GoogleTest )
 
 add_executable( testDemandLoading
   main.cpp
@@ -91,6 +92,9 @@ endif()
 
 set_property(TARGET testDemandLoading PROPERTY FOLDER DemandLoading/tests)
 
+# Register test cases with CTest.
+gtest_discover_tests(testDemandLoading)
+
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include( embed_ptx )
 embed_ptx(
@@ -128,3 +132,6 @@ if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
 endif()
 
 set_property(TARGET testTextureFootprint PROPERTY FOLDER DemandLoading/tests)
+
+# Register test cases with CTest.
+gtest_discover_tests(testTextureFootprint)
