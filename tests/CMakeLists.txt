@@ -54,6 +54,9 @@ add_executable( testDemandLoading
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
+  TestDeviceMemoryPools.cpp
+  TestDeviceMemoryPools.cu
+  TestDeviceMemoryPools.h
   TestEXRReader.cpp
   TestFixedSuballocator.cpp
   TestHeapSuballocator.cpp
