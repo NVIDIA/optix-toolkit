@@ -47,6 +47,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(BuildConfig)
+include(CTest)
 
 #########################################################
 # Create and install package configuration and version files.
@@ -71,11 +72,9 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
 
 if(PROJECT_IS_TOP_LEVEL)
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON)
-  option( OTK_BUILD_TESTS "Enable build of OptiXToolkit tests" ON)
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
 else()
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" OFF)
-  option( OTK_BUILD_TESTS "Enable build of OptiXToolkit tests" OFF)
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" OFF)
 endif()
 
