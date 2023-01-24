@@ -37,6 +37,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(CTest)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
@@ -126,8 +127,7 @@ install(EXPORT CuOmmBakingTargets
   NAMESPACE OptiXToolkit::
   )
 
-set( OTK_BUILD_TESTS ON CACHE BOOL "Enable build of OptiXToolkit tests" )
-if( OTK_BUILD_TESTS )
+if( BUILD_TESTING )
   add_subdirectory( tests )
 endif()
 

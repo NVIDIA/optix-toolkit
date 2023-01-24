@@ -27,6 +27,7 @@
 #
 
 include(FetchGtest)
+include(GoogleTest)
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
@@ -96,3 +97,6 @@ if( $<TARGET_RUNTIME_DLLS:testCuOmmBaking> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testCuOmmBaking> $<TARGET_FILE_DIR:testCuOmmBaking>
     COMMAND_EXPAND_LISTS )
 endif()
+
+# Register test cases with CTest.
+gtest_discover_tests(testCuOmmBaking)
