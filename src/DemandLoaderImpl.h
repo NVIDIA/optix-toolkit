@@ -85,7 +85,7 @@ class DemandLoaderImpl : public DemandLoader
                                             int baseTextureId ) override;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    unsigned int createResource( unsigned int numPages, ResourceCallback callback ) override;
+    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
 
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to

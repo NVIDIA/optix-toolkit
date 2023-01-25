@@ -130,14 +130,14 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
 }
 
 
-unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback )
+unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Create a request handler that wraps the callback.  These are individually allocated to avoid
     // dangling pointers in the PageTableManager when the request handler vector is resized.
-    m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, this ) );
+    m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, context, this ) );
 
     // Reserve virtual address space for the resource, which is associated with the request handler.
     m_pageTableManager->reserve( numPages, m_resourceRequestHandlers.back().get() );

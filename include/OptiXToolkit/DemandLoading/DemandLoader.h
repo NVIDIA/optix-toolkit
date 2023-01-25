@@ -73,8 +73,9 @@ class DemandLoader
                                                     int baseTextureId ) = 0;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    /// Returns the starting index of the resource in the page table.
-    virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback ) = 0;
+    /// Returns the starting index of the resource in the page table.  The user-supplied callbackContext
+    /// value is forwarded to the callback during request processing.
+    virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) = 0;
 
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to

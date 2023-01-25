@@ -41,8 +41,9 @@ class ResourceRequestHandler : public RequestHandler
 {
   public:
     /// Construct resource page request handler.
-    ResourceRequestHandler( ResourceCallback callback, DemandPageLoaderImpl* loader )
+    ResourceRequestHandler( ResourceCallback callback, void *callbackContext, DemandPageLoaderImpl* loader )
         : m_callback( callback )
+        , m_callbackContext( callbackContext )
         , m_loader( loader )
     {
     }
@@ -54,7 +55,8 @@ class ResourceRequestHandler : public RequestHandler
     unsigned int getStartPage() const { return m_startPage; }
 
   private:
-    ResourceCallback  m_callback;
+    ResourceCallback      m_callback;
+    void*                 m_callbackContext;
     DemandPageLoaderImpl* m_loader;
 };
 

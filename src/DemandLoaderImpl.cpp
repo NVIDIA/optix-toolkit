@@ -138,9 +138,9 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
     return (baseTextureId >= 0) ? *m_textures[baseTextureId] : *m_textures[entryPointIndex];
 }
 
-unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback )
+unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* context )
 {
-    return m_pageLoader->createResource( numPages, callback );
+    return m_pageLoader->createResource( numPages, callback, context );
 }
 
 // Returns false if the device doesn't support sparse textures.
