@@ -34,16 +34,12 @@ file(GLOB OPTIX_SDK_DIR "$ENV{ProgramData}/NVIDIA Corporation/OptiX SDK 7.6.*")
 find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR} ${OPTIX_SDK_DIR} REQUIRED)
 
 file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
-string(REGEX MATCH "OPTIX_VERSION ([0-9]*)" _ ${header})
-set(OPTIX_VERSION ${CMAKE_MATCH_1})
-
-if(OPTIX_VERSION STRLESS "70600")
-  message(FATAL_ERROR "OptiX 7.6 or greater is required")
-endif()
+string(REGEX REPLACE "^.*OPTIX_VERSION ([0-9]+)([0-9][0-9])([0-9][0-9])[^0-9].*$" "\\1.\\2.\\3" OPTIX_VERSION ${header})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OptiX
   FOUND_VAR OptiX_FOUND
+  VERSION_VAR OPTIX_VERSION
   REQUIRED_VARS
     OptiX_ROOT_DIR
   REASON_FAILURE_MESSAGE
@@ -54,4 +50,3 @@ set(OptiX_INCLUDE_DIR ${OptiX_ROOT_DIR}/include)
 
 add_library(OptiX::OptiX INTERFACE IMPORTED)
 target_include_directories(OptiX::OptiX INTERFACE ${OptiX_INCLUDE_DIR})
-
