@@ -53,7 +53,6 @@ target_link_libraries( demandLoadTexture
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
   OptiXToolkit::Util
-  glad::glad
   )
 
 target_include_directories( demandLoadTexture PUBLIC

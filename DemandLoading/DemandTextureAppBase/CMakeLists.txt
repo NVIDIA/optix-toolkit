@@ -61,9 +61,6 @@ target_link_libraries(DemandTextureAppBase
   OptiXToolkit::Gui
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
-  PRIVATE
-  glfw
-  glad::glad
   )
 
 set_target_properties(DemandTextureAppBase PROPERTIES

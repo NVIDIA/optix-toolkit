@@ -55,8 +55,6 @@ target_link_libraries( demandTextureViewer
   OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui
   OptiXToolkit::Util
-  glad::glad
-  glfw
   )
 
 set_target_properties( demandTextureViewer PROPERTIES

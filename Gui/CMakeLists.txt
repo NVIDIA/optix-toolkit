@@ -63,12 +63,11 @@ target_include_directories(Gui PUBLIC
 
 target_link_libraries(Gui
   PUBLIC
-  OptiXToolkit::ShaderUtil
-  OptiXToolkit::Util
-  PRIVATE
-  glfw
-  glad::glad
-  )
+    OptiXToolkit::ShaderUtil
+    OptiXToolkit::Util
+    glfw
+    glad::glad
+)
 
 set_target_properties(Gui PROPERTIES
   FOLDER Examples

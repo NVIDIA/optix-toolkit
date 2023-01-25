@@ -59,8 +59,6 @@ target_link_libraries( otkHello
   OptiXToolkit::Gui
   OptiXToolkit::Util
   OptiX::OptiX
-  glfw
-  glad::glad
   CUDA::cuda_driver
   CUDA::cudart
   ${CMAKE_DL_LIBS}  
