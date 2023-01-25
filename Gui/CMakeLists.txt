@@ -71,6 +71,5 @@ target_link_libraries(Gui
   )
 
 set_target_properties(Gui PROPERTIES
-  FOLDER Examples/Gui
+  FOLDER Examples
   WINDOWS_EXPORT_ALL_SYMBOLS ON)
-

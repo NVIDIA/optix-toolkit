@@ -59,5 +59,5 @@ target_link_libraries(Util PRIVATE
   )
 
 set_target_properties(Util PROPERTIES
-  FOLDER Util
+  FOLDER Examples
   WINDOWS_EXPORT_ALL_SYMBOLS ON)
