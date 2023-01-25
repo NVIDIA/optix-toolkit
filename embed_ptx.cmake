@@ -9,9 +9,10 @@ cmake_minimum_required(VERSION 3.12)
 set(EMBED_PTX_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
 
 function(embed_ptx)
+  set(noArgs CONST HEADER)
   set(oneArgs OUTPUT_TARGET PTX_TARGET FOLDER)
-  set(multiArgs PTX_LINK_LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
-  cmake_parse_arguments(EMBED_PTX "" "${oneArgs}" "${multiArgs}" ${ARGN})
+  set(multiArgs PTX_INCLUDE_DIRECTORIES PTX_LINK_LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
+  cmake_parse_arguments(EMBED_PTX "${noArgs}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
   if(EMBED_PTX_EMBEDDED_SYMBOL_NAMES)
     list(LENGTH EMBED_PTX_EMBEDDED_SYMBOL_NAMES NUM_NAMES)
@@ -61,6 +62,7 @@ function(embed_ptx)
 
   add_library(${PTX_TARGET} OBJECT)
   target_sources(${PTX_TARGET} PRIVATE ${EMBED_PTX_SOURCES})
+  target_include_directories(${PTX_TARGET} PRIVATE ${EMBED_PTX_PTX_INCLUDE_DIRECTORIES})
   target_link_libraries(${PTX_TARGET} PRIVATE ${EMBED_PTX_PTX_LINK_LIBRARIES})
   set_property(TARGET ${PTX_TARGET} PROPERTY CUDA_PTX_COMPILATION ON)
   target_compile_options(${PTX_TARGET} PRIVATE "-lineinfo")
@@ -71,6 +73,9 @@ function(embed_ptx)
   ## Create command to run the bin2c via the CMake script ##
 
   set(EMBED_PTX_C_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_PTX_OUTPUT_TARGET}.c)
+  if(EMBED_PTX_HEADER)
+    set(EMBED_PTX_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_PTX_OUTPUT_TARGET}.h)
+  endif()
   get_filename_component(OUTPUT_FILE_NAME ${EMBED_PTX_C_FILE} NAME)
   add_custom_command(
     OUTPUT ${EMBED_PTX_C_FILE}
@@ -79,6 +84,8 @@ function(embed_ptx)
       "-DOBJECTS=$<TARGET_OBJECTS:${PTX_TARGET}>"
       "-DSYMBOL_NAMES=${EMBED_PTX_EMBEDDED_SYMBOL_NAMES}"
       "-DOUTPUT=${EMBED_PTX_C_FILE}"
+      "-DCONST=${EMBED_PTX_CONST}"
+      "-DHEADER=${EMBED_PTX_HEADER}"
       -P ${EMBED_PTX_RUN}
     VERBATIM
     DEPENDS $<TARGET_OBJECTS:${PTX_TARGET}> ${PTX_TARGET}
@@ -87,6 +94,10 @@ function(embed_ptx)
 
   add_library(${EMBED_PTX_OUTPUT_TARGET} OBJECT)
   target_sources(${EMBED_PTX_OUTPUT_TARGET} PRIVATE ${EMBED_PTX_C_FILE})
+  if(EMBED_PTX_HEADER)
+    target_sources(${EMBED_PTX_OUTPUT_TARGET} PRIVATE ${EMBED_PTX_HEADER})
+    target_include_directories(${EMBED_PTX_OUTPUT_TARGET} PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
   if(EMBED_PTX_FOLDER)
     set_property(TARGET ${EMBED_PTX_OUTPUT_TARGET} PROPERTY FOLDER ${EMBED_PTX_FOLDER})
   endif()
