@@ -44,6 +44,7 @@ target_sources(Util
   BASE_DIRS include
   FILES
   include/OptiXToolkit/Util/Exception.h
+  include/OptiXToolkit/Util/Record.h
 )
 
 target_include_directories(Util PUBLIC
