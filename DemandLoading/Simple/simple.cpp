@@ -51,7 +51,7 @@ inline void check( cudaError_t status )
 std::atomic<int> g_numRequestsProcessed( 0 );
 
 // This callback is invoked by the demand loading library when a page request is processed.
-void* callback( unsigned int deviceIndex, cudaStream_t stream, unsigned int pageIndex )
+void* callback( unsigned int deviceIndex, cudaStream_t stream, unsigned int pageIndex, void* context )
 {
     ++g_numRequestsProcessed;
     return nullptr;
@@ -67,7 +67,7 @@ int main()
 
     // Create a resource, using the given callback to handle page requests.
     const unsigned int numPages  = 128;
-    unsigned int       startPage = loader->createResource( numPages, callback );
+    unsigned int       startPage = loader->createResource( numPages, callback, nullptr );
 
     // Create a stream on the first supported device, which is used for asynchronous operations.
     unsigned int deviceIndex = loader->getDevices().at( 0 );
