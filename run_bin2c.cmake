@@ -26,17 +26,17 @@ foreach(obj ${OBJECTS})
     )
     if(CONST)
         set(size_contents 
-          "#ifdef __cpluplus\nextern \"C\" {\n#endif\n\nconst size_t ${obj_name}_size = sizeof(${obj_name})/sizeof(${obj_name}[0]);\n\n#ifdef __cplusplus\n}\n#endif\n")
+          "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nconst size_t ${obj_name}_size = sizeof(${obj_name})/sizeof(${obj_name}[0]);\n\n#ifdef __cplusplus\n}\n#endif\n")
         if(HEADER)
           set(header_decl
-            "#ifdef __cpluplus\nextern \"C\" {\n#endif\n\nextern const unsigned char ${obj_name}[];\nextern const size_t ${obj_name}_size;\n\n#ifdef __cplusplus\n}\n#endif\n")
+            "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nextern const unsigned char ${obj_name}[];\nextern const size_t ${obj_name}_size;\n\n#ifdef __cplusplus\n}\n#endif\n")
         endif()
     else()
         set(size_contents 
-          "#ifdef __cpluplus\nextern \"C\" {\n#endif\n\nsize_t ${obj_name}_size = sizeof(${obj_name})/sizeof(${obj_name}[0]);\n\n#ifdef __cplusplus\n}\n#endif\n")
+          "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nsize_t ${obj_name}_size = sizeof(${obj_name})/sizeof(${obj_name}[0]);\n\n#ifdef __cplusplus\n}\n#endif\n")
         if(HEADER)
           set(header_decl
-            "#ifdef __cpluplus\nextern \"C\" {\n#endif\n\nextern unsigned char ${obj_name}[];\nextern size_t ${obj_name}_size;\n\n#ifdef __cplusplus\n}\n#endif\n")
+            "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nextern unsigned char ${obj_name}[];\nextern size_t ${obj_name}_size;\n\n#ifdef __cplusplus\n}\n#endif\n")
         endif()
     endif()
     set(file_contents "${file_contents}\n${output}\n${size_contents}\n")
