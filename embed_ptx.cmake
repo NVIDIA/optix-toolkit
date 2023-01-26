@@ -8,6 +8,29 @@ cmake_minimum_required(VERSION 3.12)
 #             use it yet.
 set(EMBED_PTX_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
 
+# embed_ptx
+#
+# Compile CUDA sources to PTX and use bin2c from the CUDA SDK to create data arrays
+# containing the resulting PTX output.
+#
+# Keyword arguments:
+# CONST             Pass --const to bin2c to generate constant data arrays.
+#
+# Single value arguments:
+# OUTPUT_TARGET     Name of the target that contains the generated C file.
+#                   Required.
+# PTX_TARGET        Name of the target that compiles CUDA to PTX.
+#                   Default: ${OUTPUT_TAGET}_ptx
+# FOLDER            IDE folder property for generated targets, if any.
+# HEADER            Generate a header file with the given name to contain
+#                   declarations for the generated data arrays.
+#
+# Multiple value arguments:
+# PTX_INCLUDE_DIRECTORIES   List of directories to search when compiling to PTX.
+# PTX_LINK_LIBRARIES        List of libraries to link against when compiling PTX.
+# SOURCES                   List of CUDA source files to compile to PTX.
+# EMBEDDED_SYMBOL_NAMES     List of names for embedded data arrays, one per source file.
+#
 function(embed_ptx)
   set(noArgs CONST HEADER)
   set(oneArgs OUTPUT_TARGET PTX_TARGET FOLDER)
