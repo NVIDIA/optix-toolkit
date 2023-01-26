@@ -29,12 +29,12 @@
 
 #include <string>
 
+#include <UdimTextureViewerKernelPTX.h>
+
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
 using namespace demandTextureApp;
-
-extern "C" char UdimTextureViewer_ptx[];  // generated via CMake by embed_ptx.
 
 //------------------------------------------------------------------------------
 // UdimTextureApp
@@ -194,7 +194,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
-    app.initOptixPipelines( UdimTextureViewer_ptx );
+    app.initOptixPipelines( reinterpret_cast<const char*>( UdimTextureViewer_ptx ) );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 

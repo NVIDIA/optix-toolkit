@@ -27,11 +27,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <DemandTextureViewerKernelPTX.h>
+
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 using namespace demandTextureApp;
-
-extern "C" char DemandTextureViewer_ptx[];  // generated via CMake by embed_ptx.
 
 //------------------------------------------------------------------------------
 // DemandTextureViewer
@@ -108,7 +108,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( DemandTextureViewer_ptx );
+    app.initOptixPipelines( reinterpret_cast<const char*>( DemandTextureViewer_ptx ) );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

@@ -27,6 +27,9 @@
 //
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
+
+#include <TextureKernelPTX.h>
+
 #include "textureKernel.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -60,8 +63,6 @@
 
 using namespace demandLoading;
 using namespace imageSource;
-
-extern "C" char textureKernel_ptx[];  // generated via CMake by embed_ptx.
 
 int          g_numThreads       = 0;
 int          g_totalLaunches    = 0;
@@ -281,8 +282,8 @@ void createModule( PerDeviceSampleState& state )
     char   log[2048];
     size_t sizeof_log = sizeof( log );
 
-    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options, textureKernel_ptx,
-                                               ::strlen( textureKernel_ptx ), log, &sizeof_log, &state.ptx_module ) );
+    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options, reinterpret_cast<const char*>( textureKernel_ptx ),
+                                               textureKernel_ptx_size, log, &sizeof_log, &state.ptx_module ) );
 }
 
 

@@ -31,13 +31,13 @@
 #include <optix_stack_size.h>
 #include <optix_stubs.h>
 
+#include <CuOmmBakingViewerKernelPTX.h>
+
 #include "CuOmmBakingApp.h"
 #include "LaunchParams.h"
 using namespace ommBakingApp;
 
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-
-extern "C" char CuOmmBakingViewer_ptx[];  // generated via CMake by embed_ptx.
 
 __host__ void launchEvaluateOmmOpacity(
     uint32_t width,
@@ -586,7 +586,7 @@ int main( int argc, char* argv[] )
 
     OmmBakingViewer app( "Opacity Micromap Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.setTextureName( textureName );
-    app.initOptixPipelines( CuOmmBakingViewer_ptx );
+    app.initOptixPipelines( reinterpret_cast<const char*>( CuOmmBakingViewer_ptx ) );
     app.startLaunchLoop();
     
     return 0;

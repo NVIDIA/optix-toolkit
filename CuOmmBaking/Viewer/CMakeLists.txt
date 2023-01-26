@@ -35,6 +35,7 @@ include(BuildConfig)
 
 include(embed_ptx)
 embed_ptx(
+  CONST HEADER CuOmmBakingViewerKernelPTX.h
   OUTPUT_TARGET
     CuOmmBakingViewerKernel
   PTX_TARGET

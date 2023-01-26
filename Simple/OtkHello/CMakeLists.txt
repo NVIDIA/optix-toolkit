@@ -38,6 +38,7 @@ set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX ins
 find_package(OptiX 7.6.0 EXACT REQUIRED)
 
 embed_ptx(
+  CONST HEADER DrawSolidColorPTX.h
   OUTPUT_TARGET
     DrawSolidColor
   FOLDER

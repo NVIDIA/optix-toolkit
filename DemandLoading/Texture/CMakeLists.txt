@@ -32,6 +32,7 @@ include(FetchGlad)
 include(embed_ptx)
 
 embed_ptx(
+  CONST HEADER TextureKernelPTX.h
   OUTPUT_TARGET
     TextureKernel
   FOLDER

@@ -33,6 +33,7 @@ include(FetchGlad)
 include(embed_ptx)
 
 embed_ptx(
+  CONST HEADER DemandTextureViewerKernelPTX.h
   OUTPUT_TARGET
     DemandTextureViewerKernel
   FOLDER
