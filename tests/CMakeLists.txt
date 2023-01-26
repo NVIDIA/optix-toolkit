@@ -98,6 +98,7 @@ gtest_discover_tests(testDemandLoading)
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include( embed_ptx )
 embed_ptx(
+  CONST HEADER TextureFootprintPTX.h
   OUTPUT_TARGET
     TextureFootprint
   PTX_LINK_LIBRARIES
