@@ -32,10 +32,14 @@ set(EMBED_PTX_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
 # EMBEDDED_SYMBOL_NAMES     List of names for embedded data arrays, one per source file.
 #
 function(embed_ptx)
-  set(noArgs CONST HEADER)
-  set(oneArgs OUTPUT_TARGET PTX_TARGET FOLDER)
+  set(noArgs CONST)
+  set(oneArgs OUTPUT_TARGET PTX_TARGET FOLDER HEADER)
   set(multiArgs PTX_INCLUDE_DIRECTORIES PTX_LINK_LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
   cmake_parse_arguments(EMBED_PTX "${noArgs}" "${oneArgs}" "${multiArgs}" ${ARGN})
+
+  if(NOT EMBED_PTX_OUTPUT_TARGET)
+    message(FATAL_ERROR "Missing required OUTPUT_TARGET argument")
+  endif()
 
   if(EMBED_PTX_EMBEDDED_SYMBOL_NAMES)
     list(LENGTH EMBED_PTX_EMBEDDED_SYMBOL_NAMES NUM_NAMES)
@@ -97,7 +101,7 @@ function(embed_ptx)
 
   set(EMBED_PTX_C_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_PTX_OUTPUT_TARGET}.c)
   if(EMBED_PTX_HEADER)
-    set(EMBED_PTX_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_PTX_OUTPUT_TARGET}.h)
+    set(EMBED_PTX_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_PTX_HEADER})
   endif()
   get_filename_component(OUTPUT_FILE_NAME ${EMBED_PTX_C_FILE} NAME)
   add_custom_command(
