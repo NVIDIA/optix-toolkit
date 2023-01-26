@@ -1,3 +1,5 @@
+#include <testCuOmmBakingKernelsPTX.h>
+
 #include <cuda_runtime.h>
 
 #include <optix.h>
@@ -12,8 +14,6 @@
 #include <unordered_map>
 
 #include "OptiXScene.h"
-
-extern "C" char OptiXKernels_ptx[];   // generated via CMake by embed_ptx.
 
 #ifndef NDEBUG
 
@@ -456,7 +456,7 @@ OptixResult OptixOmmScene::buildPipeline( const char* ptxInput, const size_t ptx
         OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, ptxInput, ptxInputSize, 0, 0, &m_moduleDC ) );
     }
 
-    OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_ptx, ::strlen( OptiXKernels_ptx ), 0, 0, &m_module));
+    OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, reinterpret_cast<const char*>( OptiXKernels_ptx ), OptiXKernels_ptx_size, 0, 0, &m_module));
 
     // Set up program groups
 

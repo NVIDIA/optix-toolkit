@@ -36,6 +36,7 @@ find_package(OptiX 7.6.0 EXACT REQUIRED)
 # The omm baking test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include(embed_ptx)
 embed_ptx(
+  CONST HEADER testCuOmmBakingKernelsPTX.h
   OUTPUT_TARGET
     testCuOmmBakingKernels
   EMBED_PTX_PTX_TARGET
