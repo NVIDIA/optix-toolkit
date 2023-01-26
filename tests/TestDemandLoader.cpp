@@ -172,7 +172,7 @@ TEST_F( TestDemandLoader, TestSamplerRequest )
     }
 }
 
-void* callback( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex )
+void* callback( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void* context )
 {
     return nullptr;
 }
@@ -180,7 +180,7 @@ void* callback( unsigned int deviceIndex, CUstream stream, unsigned int pageInde
 TEST_F( TestDemandLoader, TestResourceRequest )
 {
     const unsigned int numPages  = 256;
-    const unsigned int startPage = m_loader->createResource( numPages, callback );
+    const unsigned int startPage = m_loader->createResource( numPages, callback, nullptr );
 
     // TODO: this fails with multiple GPUs under both Windows and Linux.
     // for( unsigned int deviceIndex : m_loader->getDevices() )
