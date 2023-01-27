@@ -456,7 +456,7 @@ OptixResult OptixOmmScene::buildPipeline( const char* ptxInput, const size_t ptx
         OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, ptxInput, ptxInputSize, 0, 0, &m_moduleDC ) );
     }
 
-    OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, reinterpret_cast<const char*>( OptiXKernels_ptx ), OptiXKernels_ptx_size, 0, 0, &m_module));
+    OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_ptx_text(), OptiXKernels_ptx_size, 0, 0, &m_module));
 
     // Set up program groups
 
