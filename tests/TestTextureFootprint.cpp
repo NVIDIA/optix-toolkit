@@ -363,7 +363,7 @@ class TextureFootprintFixture
                 pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
                 pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, reinterpret_cast<const char*>( TestTextureFootprint_ptx ),
+                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, TestTextureFootprint_ptx_text(),
                                                        TestTextureFootprint_ptx_size, log, &sizeof_log, &module ) );
             }
 
