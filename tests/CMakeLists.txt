@@ -54,7 +54,6 @@ add_definitions( -DTEST_OMM_BAKING_TEXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Text
 add_definitions( -DTEST_OMM_BAKING_GOLD_DIR="${CMAKE_CURRENT_SOURCE_DIR}/gold/" )
 
 add_executable( testCuOmmBaking
-  main.cpp
   testCommon.h
   testCommon.cpp
   testCuOmmBaking.cpp
@@ -84,7 +83,7 @@ target_include_directories( testCuOmmBaking PUBLIC
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testCuOmmBaking
-  gtest
+  gtest_main
   testCuOmmBakingKernels
   CuOmmBaking
   OptiX::OptiX
