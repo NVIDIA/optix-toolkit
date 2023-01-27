@@ -30,7 +30,6 @@ include( FetchGtest )
 include( GoogleTest )
 
 add_executable( testDemandLoading
-  main.cpp
   DemandLoaderTestKernels.cu
   DemandLoaderTestKernels.h
   PagingSystemTestKernels.cu
@@ -76,7 +75,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 target_link_libraries( testDemandLoading
   DemandLoading
   OpenEXR::OpenEXR # for half
-  gtest
+  gtest_main
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
@@ -109,7 +108,6 @@ embed_ptx(
 )
 
 add_executable( testTextureFootprint
-  main.cpp
   TestTextureFootprint.cpp
   TestTextureFootprint.h
   )
@@ -121,7 +119,7 @@ target_include_directories( testTextureFootprint PUBLIC
 target_link_libraries( testTextureFootprint
   TextureFootprint
   DemandLoading
-  gtest
+  gtest_main
   )
 
 add_dependencies( testTextureFootprint TextureFootprint )
