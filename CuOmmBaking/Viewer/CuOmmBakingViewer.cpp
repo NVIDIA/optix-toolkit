@@ -586,7 +586,7 @@ int main( int argc, char* argv[] )
 
     OmmBakingViewer app( "Opacity Micromap Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.setTextureName( textureName );
-    app.initOptixPipelines( reinterpret_cast<const char*>( CuOmmBakingViewer_ptx ) );
+    app.initOptixPipelines( CuOmmBakingViewer_ptx_text() );
     app.startLaunchLoop();
     
     return 0;

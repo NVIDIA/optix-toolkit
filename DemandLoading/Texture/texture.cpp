@@ -282,7 +282,7 @@ void createModule( PerDeviceSampleState& state )
     char   log[2048];
     size_t sizeof_log = sizeof( log );
 
-    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options, reinterpret_cast<const char*>( textureKernel_ptx ),
+    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options, textureKernel_ptx_text(),
                                                textureKernel_ptx_size, log, &sizeof_log, &state.ptx_module ) );
 }
 

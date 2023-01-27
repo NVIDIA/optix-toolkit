@@ -108,7 +108,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( reinterpret_cast<const char*>( DemandTextureViewer_ptx ) );
+    app.initOptixPipelines( DemandTextureViewer_ptx_text() );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

@@ -143,7 +143,7 @@ int main( int argc, char* argv[] )
             pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
             pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-            OPTIX_CHECK_LOG2( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, reinterpret_cast<const char*>( draw_solid_color_ptx ),
+            OPTIX_CHECK_LOG2( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, draw_solid_color_ptx_text(),
                                                         draw_solid_color_ptx_size, LOG, &LOG_SIZE, &module ) );
         }
 

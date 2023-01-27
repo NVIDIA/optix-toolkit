@@ -194,7 +194,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
-    app.initOptixPipelines( reinterpret_cast<const char*>( UdimTextureViewer_ptx ) );
+    app.initOptixPipelines( UdimTextureViewer_ptx_text() );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 
