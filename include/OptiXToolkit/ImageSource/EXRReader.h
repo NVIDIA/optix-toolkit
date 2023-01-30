@@ -128,7 +128,7 @@ class EXRReader : public MipTailImageSource
     static std::shared_ptr<ImageSource> deserialize( std::istream& stream );
 
   private:
-    std::string m_firstChannelName = {"R"};
+    std::string m_firstChannelName{"R"};
     std::string m_filename;
 
     std::unique_ptr<OTK_IMF_NAMESPACE::TiledInputFile> m_tiledInputFile;

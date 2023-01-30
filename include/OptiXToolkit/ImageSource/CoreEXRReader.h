@@ -115,10 +115,10 @@ class CoreEXRReader : public MipTailImageSource
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;
 
-    int m_tileWidths[20]   = { 0 };
-    int m_tileHeights[20]  = { 0 };
-    int m_levelWidths[20]  = { 0 };
-    int m_levelHeights[20] = { 0 };
+    int m_tileWidths[20]{};
+    int m_tileHeights[20]{};
+    int m_levelWidths[20]{};
+    int m_levelHeights[20]{};
 
     unsigned int m_pixelType;
     unsigned int m_roundMode;

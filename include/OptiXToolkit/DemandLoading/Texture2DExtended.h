@@ -213,7 +213,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
     // sample from up to 4 subtextures and add the results. (this only works if the subtextures are defined
     // using CU_TR_ADDRESS_MODE_BORDER, which puts black on the edges. Adding multiple samples in border mode blends
     // across texture boundaries.)  If subtextures are not found, use the baseSampler instead, if available.
-    TextureSampler* samplers[4] = {0, 0, 0, 0};
+    TextureSampler* samplers[4]{};
 
     // Find subtexture for texture coordinate (x,y)
     const CUaddress_mode wrapMode0 = CU_TR_ADDRESS_MODE_WRAP;  // always using wrap mode
