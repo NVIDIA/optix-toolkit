@@ -105,14 +105,14 @@ class EXRReader : public MipTailImageSource
     {
         std::unique_lock<std::mutex> lock( m_mutex );
         return m_numTilesRead;
-    };
+    }
 
     /// Returns the number of bytes that have been read.
     unsigned long long getNumBytesRead() const override
     {
         std::unique_lock<std::mutex> lock( m_mutex );
         return m_numBytesRead;
-    };
+    }
 
     /// Returns the time in seconds spent reading image tiles.
     double getTotalReadTime() const override

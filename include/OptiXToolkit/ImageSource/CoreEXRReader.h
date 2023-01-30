@@ -92,10 +92,10 @@ class CoreEXRReader : public MipTailImageSource
     unsigned int getTileHeight() const { return m_tileHeight; }
 
     /// Returns the number of tiles that have been read.
-    unsigned long long getNumTilesRead() const override { return m_numTilesRead; };
+    unsigned long long getNumTilesRead() const override { return m_numTilesRead; }
 
     /// Returns the number of bytes that have been read.
-    unsigned long long getNumBytesRead() const override { return m_numBytesRead; };
+    unsigned long long getNumBytesRead() const override { return m_numBytesRead; }
 
     /// Returns the time in seconds spent reading image tiles.
     double getTotalReadTime() const override { return m_totalReadTime; }
