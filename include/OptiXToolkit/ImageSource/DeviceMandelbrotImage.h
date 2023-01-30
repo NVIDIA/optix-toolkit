@@ -97,7 +97,6 @@ class DeviceMandelbrotImage : public MipTailImageSource
 
   private:
     TextureInfo  m_info;
-    unsigned int m_max_iterations;
     MandelbrotParams m_params;
 };
 
