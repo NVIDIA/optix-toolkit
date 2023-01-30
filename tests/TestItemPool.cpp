@@ -47,6 +47,7 @@ class IntPool : public ItemPool<int, PinnedAllocator>
 
 class TestItemPool : public testing::Test
 {
+    void SetUp() { cudaFree( nullptr ); }
 };
 
 TEST_F( TestItemPool, Unused )

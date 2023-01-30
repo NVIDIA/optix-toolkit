@@ -52,14 +52,18 @@ const unsigned long long TEX_MEM_PER_DEVICE = 1u << 30; // 1 GB
 class TestDemandTexture : public testing::Test
 {
   public:
+    void SetUp()
+    {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cuInit( 0 ) );
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+    }
+
     void initTexture( unsigned int width, unsigned int height, bool useMipMaps = true, bool tiledImage = true )
     {
         m_width = width;
         m_height = height;
-
-        // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
 
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,
         // and it's provides a PageTableManager that's needed by initSampler().

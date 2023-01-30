@@ -49,6 +49,8 @@ class TestDeviceContextPool : public testing::Test
         m_options.useLruTable       = true;
         m_options.maxActiveStreams  = 2;
     }
+
+    void SetUp() { cudaFree( nullptr ); }
 };
 
 TEST_F( TestDeviceContextPool, Test )
