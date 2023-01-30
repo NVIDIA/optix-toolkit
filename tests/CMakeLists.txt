@@ -99,7 +99,7 @@ include( embed_ptx )
 embed_ptx(
   CONST HEADER TextureFootprintPTX.h
   OUTPUT_TARGET
-    TextureFootprint
+    testTextureFootprintKernel
   PTX_LINK_LIBRARIES
     DemandLoading
   FOLDER DemandLoading/tests
@@ -117,12 +117,10 @@ target_include_directories( testTextureFootprint PUBLIC
   )
 
 target_link_libraries( testTextureFootprint
-  TextureFootprint
+  testTextureFootprintKernel
   DemandLoading
   gtest_main
   )
-
-add_dependencies( testTextureFootprint TextureFootprint )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
