@@ -59,7 +59,7 @@ class CudaCallback
     // Given a type-erased CudaCallback object, invoke the virtual callback method and then destroy it.
     static void staticCallback( void* arg )
     {
-        CudaCallback* callback = reinterpret_cast<CudaCallback*>( arg );
+        CudaCallback* callback = static_cast<CudaCallback*>( arg );
         callback->callback();
         delete callback;
     }
