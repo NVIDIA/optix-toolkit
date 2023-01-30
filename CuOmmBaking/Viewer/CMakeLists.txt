@@ -37,9 +37,7 @@ include(embed_ptx)
 embed_ptx(
   CONST HEADER CuOmmBakingViewerKernelPTX.h
   OUTPUT_TARGET
-    CuOmmBakingViewerKernel
-  PTX_TARGET
-    CuOmmBakingViewerKernel_ptx
+    ommBakingViewerKernel
   FOLDER
     Examples/CmOmmBaking
   PTX_LINK_LIBRARIES
@@ -83,7 +81,7 @@ target_link_libraries( ommBakingViewer
   OptiXToolkit::Util
   OptiX::OptiX
   PRIVATE
-  CuOmmBakingViewerKernel
+  ommBakingViewerKernel
   glfw
   glad::glad
   )

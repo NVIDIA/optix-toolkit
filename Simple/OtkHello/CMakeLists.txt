@@ -38,9 +38,9 @@ set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX ins
 find_package(OptiX 7.6.0 EXACT REQUIRED)
 
 embed_ptx(
-  CONST HEADER DrawSolidColorPTX.h
+  CONST HEADER otkHelloKernelPTX.h
   OUTPUT_TARGET
-    DrawSolidColor
+    otkHelloKernel
   FOLDER
     Examples/Simple
   PTX_LINK_LIBRARIES
@@ -56,7 +56,7 @@ add_executable( otkHello
   )
 
 target_link_libraries( otkHello
-  DrawSolidColor
+  otkHelloKernel
   OptiXToolkit::Gui
   OptiXToolkit::Util
   OptiX::OptiX

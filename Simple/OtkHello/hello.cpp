@@ -28,7 +28,7 @@
 
 #include "hello.h"
 
-#include <DrawSolidColorPTX.h>
+#include <otkHelloKernelPTX.h>
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Window.h>

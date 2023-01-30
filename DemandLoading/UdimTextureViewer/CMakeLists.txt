@@ -35,7 +35,7 @@ include(embed_ptx)
 embed_ptx(
   CONST HEADER UdimTextureViewerKernelPTX.h
   OUTPUT_TARGET
-    UdimTextureViewerKernel
+    udimTextureViewerKernel
   FOLDER
     Examples/DemandLoading
   PTX_LINK_LIBRARIES
@@ -51,7 +51,7 @@ add_executable( udimTextureViewer
   )
 
 target_link_libraries( udimTextureViewer
-  UdimTextureViewerKernel
+  udimTextureViewerKernel
   OptiXToolkit::DemandLoading
   OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui

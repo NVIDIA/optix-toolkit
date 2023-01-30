@@ -34,7 +34,7 @@ include(embed_ptx)
 embed_ptx(
   CONST HEADER TextureKernelPTX.h
   OUTPUT_TARGET
-    TextureKernel
+    demandLoadTextureKernel
   FOLDER
     Examples/DemandLoading
   PTX_LINK_LIBRARIES
@@ -50,7 +50,7 @@ add_executable( demandLoadTexture
   )
 
 target_link_libraries( demandLoadTexture
-  TextureKernel
+  demandLoadTextureKernel
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
   OptiXToolkit::Util
