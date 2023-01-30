@@ -14,6 +14,7 @@ FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11
     GIT_TAG        v2.9.2
+    GIT_SHALLOW    TRUE
     )
 FetchContent_GetProperties(pybind11)
 if(NOT pybind11_POPULATED)
