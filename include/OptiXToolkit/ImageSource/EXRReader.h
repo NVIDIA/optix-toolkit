@@ -75,7 +75,7 @@ class EXRReader : public MipTailImageSource
     const TextureInfo& getInfo() const override { return m_info;  }
 
     /// Return the mode in which the image fills part of itself
-    virtual CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
+    CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
@@ -92,7 +92,7 @@ class EXRReader : public MipTailImageSource
     void readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream = 0 ) override;
 
     /// Read the base color of the image (1x1 mip level) as an array of floats. Returns true on success.
-    virtual bool readBaseColor( float4& dest ) override;
+    bool readBaseColor( float4& dest ) override;
 
     /// Get tile width (used only for testing).
     unsigned int getTileWidth() const { return m_tileWidth; }

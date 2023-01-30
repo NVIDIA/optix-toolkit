@@ -60,7 +60,7 @@ class CheckerBoardImage : public MipTailImageSource
     const TextureInfo& getInfo() const override { return m_info; }
 
     /// Return the mode in which the image fills part of itself
-    virtual CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
+    CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
