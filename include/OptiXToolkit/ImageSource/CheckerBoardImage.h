@@ -74,7 +74,7 @@ class CheckerBoardImage : public MipTailImageSource
                    CUstream     stream = 0 ) override;
 
     /// Read the specified mipLevel. Throws an exception on error.
-    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream = 0 ) override;
+    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     bool readBaseColor( float4& dest ) override { return false; }

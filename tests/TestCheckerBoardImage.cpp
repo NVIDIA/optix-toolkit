@@ -78,7 +78,7 @@ TEST_F( TestCheckerBoardImage, ReadMipLevel )
 
     std::vector<float4> buffer( levelWidth * levelHeight );
     float4*             texels = buffer.data();
-    ASSERT_NO_THROW( image.readMipLevel( reinterpret_cast<char*>( texels ), mipLevel, levelWidth, levelHeight ) );
+    ASSERT_NO_THROW( image.readMipLevel( reinterpret_cast<char*>( texels ), mipLevel, levelWidth, levelHeight, nullptr ) );
 
     // For now, we print the pixels for visual inspection.
     for( unsigned int y = 0; y < levelHeight; ++y )
