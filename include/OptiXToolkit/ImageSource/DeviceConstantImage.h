@@ -47,7 +47,7 @@ class DeviceConstantImage : public MipTailImageSource
     DeviceConstantImage( unsigned int width, unsigned int height, const std::vector<float4>& mipColors );
 
     /// The destructor is virtual.
-    ~DeviceConstantImage( ) override {}
+    ~DeviceConstantImage( ) override = default;
 
     /// The open method initializes the given image info struct.
     void open( TextureInfo* info ) override;

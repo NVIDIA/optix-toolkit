@@ -54,7 +54,7 @@ class DeviceMandelbrotImage : public MipTailImageSource
                            const std::vector<float4>& colors );
 
     /// The destructor is virtual.
-    ~DeviceMandelbrotImage() override {}
+    ~DeviceMandelbrotImage() override = default;
 
     /// The open method initializes the given image info struct.
     void open( TextureInfo* info ) override;

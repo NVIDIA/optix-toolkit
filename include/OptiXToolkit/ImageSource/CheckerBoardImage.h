@@ -45,7 +45,7 @@ class CheckerBoardImage : public MipTailImageSource
     CheckerBoardImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps = true, bool tiled = true );
 
     /// The destructor is virtual.
-    ~CheckerBoardImage() override {}
+    ~CheckerBoardImage() override = default;
 
     /// The open method simply initializes the given image info struct.
     void open( TextureInfo* info ) override;
