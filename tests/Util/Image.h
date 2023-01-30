@@ -155,7 +155,7 @@ class CuTexture
     // create a plain cuda texture from a file
     cudaError_t createFromFile( const char* fname, int32_t force_components = 0, const struct cudaTextureDesc* overrideTexDesc = 0, const struct cudaChannelFormatDesc* overrideDesc = 0 );
 
-    cudaTextureObject_t getTexture() const { return m_tex; };
+    cudaTextureObject_t getTexture() const { return m_tex; }
 
     void destroy();
 
