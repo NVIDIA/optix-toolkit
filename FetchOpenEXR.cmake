@@ -36,6 +36,7 @@ else()
     Imath
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
     GIT_TAG v3.1.5
+    GIT_SHALLOW TRUE
   )
   FetchContent_MakeAvailable(Imath)
 
@@ -57,6 +58,7 @@ else()
     OpenEXR
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
     GIT_TAG v3.1.5
+    GIT_SHALLOW TRUE
     PATCH_COMMAND git restore . && git apply --ignore-space-change --ignore-whitespace ${CMAKE_CURRENT_LIST_DIR}/OpenEXRSetup.cmake.patch
   )
   FetchContent_MakeAvailable(OpenEXR)
