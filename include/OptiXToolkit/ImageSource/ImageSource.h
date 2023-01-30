@@ -115,7 +115,7 @@ class ImageSource
 class MipTailImageSource : public ImageSource
 {
   public:
-    virtual ~MipTailImageSource() = default;
+    ~MipTailImageSource() override = default;
 
     void readMipTail( char*        dest,
                       unsigned int mipTailFirstLevel,
