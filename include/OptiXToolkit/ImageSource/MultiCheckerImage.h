@@ -36,7 +36,7 @@
 #include <stdexcept>
 #include <vector>
 
-typedef unsigned char ubyte;
+using ubyte = unsigned char;
 
 struct ubyte4
 {

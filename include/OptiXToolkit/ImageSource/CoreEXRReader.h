@@ -37,7 +37,7 @@
 #include <vector>
 
 // OpenEXRCore forward declaration.
-typedef struct _priv_exr_context_t* exr_context_t;    
+using exr_context_t = struct _priv_exr_context_t*;
 
 namespace imageSource {
 
