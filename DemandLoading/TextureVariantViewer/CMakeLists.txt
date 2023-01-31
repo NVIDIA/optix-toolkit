@@ -26,9 +26,46 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_subdirectory(DemandTextureAppBase)
-add_subdirectory(DemandTextureViewer)
-add_subdirectory(Simple)
-add_subdirectory(Texture)
-add_subdirectory(TextureVariantViewer)
-add_subdirectory(UdimTextureViewer)
+include(GNUInstallDirs)
+include(BuildConfig)
+include(FetchGlfw)
+include(FetchGlad)
+include(embed_ptx)
+
+embed_ptx(
+  OUTPUT_TARGET
+    TextureVariantViewerKernel
+  FOLDER
+    Examples/DemandLoading
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    TextureVariantViewer.cu
+)
+
+add_executable( textureVariantViewer
+  TextureVariantViewer.cpp
+  )
+
+target_link_libraries( textureVariantViewer
+  TextureVariantViewerKernel
+  OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::Gui
+  OptiXToolkit::Util
+  glad::glad
+  glfw
+  )
+
+set_target_properties( textureVariantViewer PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+
+# Copy shared libraries that the built executable depends on.
+if( $<TARGET_RUNTIME_DLLS:textureVariantViewer> )
+  add_custom_command( TARGET textureVariantViewer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:textureVariantViewer> $<TARGET_FILE_DIR:textureVariantViewer>
+    COMMAND_EXPAND_LISTS )
+endif()
