@@ -405,7 +405,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = !sampler->desc.isSparseTexture;
     if( context.requestIfResident == false )
-        rval = tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy, isResident );
+        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
     if( *isResident == false && sampler->desc.isSparseTexture)
@@ -413,14 +413,14 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
+        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
 
     // Debug Code: This checks consistency between residency result from requestTexFootprint2DGrad and predicated tex2DGrad
     /*
     if( *isResident && context.requestIfResident )
     {
         bool texResident;
-        rval = tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy, &texResident );
+        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy, &texResident );
         if( !texResident )
             printf("ERROR: Mipmap mismatch between tex2DGrad and requestTexFootprint2DGrad!\n");
     }
@@ -465,7 +465,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = false;
     if( context.requestIfResident == false )
-        rval = tex2DLod<TYPE>( sampler->texture, x, y, lod, isResident );
+        rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
     if( *isResident == false && sampler->desc.isSparseTexture )
@@ -473,7 +473,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
+        rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
 
     return rval;
 }
