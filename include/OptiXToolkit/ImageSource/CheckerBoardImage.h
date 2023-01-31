@@ -65,7 +65,7 @@ class CheckerBoardImage : public MipTailImageSource
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    void readTile( char*        dest,
+    bool readTile( char*        dest,
                    unsigned int mipLevel,
                    unsigned int tileX,
                    unsigned int tileY,
@@ -74,7 +74,7 @@ class CheckerBoardImage : public MipTailImageSource
                    CUstream     stream ) override;
 
     /// Read the specified mipLevel. Throws an exception on error.
-    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
+    bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     bool readBaseColor( float4& dest ) override { return false; }

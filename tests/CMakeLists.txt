@@ -28,10 +28,23 @@
 
 include( FetchGtest )
 include( GoogleTest )
+include( embed_ptx )
+
+embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
+    OUTPUT_TARGET testDemandLoadingKernels
+    PTX_LINK_LIBRARIES
+        OptiXToolkit::DemandLoading
+        OptiXToolkit::ShaderUtil
+    SOURCES DeferredImageLoadingKernels.cu
+    FOLDER DemandLoading/tests
+)
 
 add_executable( testDemandLoading
+  DeferredImageLoading.cpp
+  DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu
   DemandLoaderTestKernels.h
+  ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
   TestBulkMemory.cpp
@@ -62,7 +75,9 @@ add_executable( testDemandLoading
   TestTileIndexing.cpp
   TestTilePool.cpp
   TestTraceFile.cpp
-  )  
+  )
+
+source_group( "CUDA Files" REGULAR_EXPRESSION ".*\.cu" )
 
 target_include_directories( testDemandLoading PUBLIC
   ../src
@@ -73,13 +88,15 @@ target_include_directories( testDemandLoading PUBLIC
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testDemandLoading
+  testDemandLoadingKernels
+  OptiX::OptiX
   DemandLoading
   OpenEXR::OpenEXR # for half
-  gtest_main
+  gmock_main
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
-  target_compile_options( testDemandLoading PRIVATE "-DOTK_USE_CUDA_MEMORY_POOLS" )
+  target_compile_definitions( testDemandLoading PRIVATE OTK_USE_CUDA_MEMORY_POOLS )
 endif()
 
 # Copy shared libraries that the built executable depends on.

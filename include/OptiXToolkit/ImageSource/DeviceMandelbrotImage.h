@@ -73,7 +73,7 @@ class DeviceMandelbrotImage : public MipTailImageSource
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
-    void readTile( char*        dest,
+    bool readTile( char*        dest,
                    unsigned int mipLevel,
                    unsigned int tileX,
                    unsigned int tileY,
@@ -82,15 +82,15 @@ class DeviceMandelbrotImage : public MipTailImageSource
                    CUstream     stream ) override;
 
     /// Read the specified mipLevel.  Returns true for success.
-    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
+    bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
 
     /// Read the mip tail into a single buffer
-    void readMipTail( char*        dest,
+    bool readMipTail( char* dest,
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
                       unsigned int pixelSizeInBytes,
-                      CUstream     stream ) override;
+                      CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     bool readBaseColor( float4& dest ) override;

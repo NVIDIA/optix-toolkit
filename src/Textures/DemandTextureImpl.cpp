@@ -78,6 +78,9 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
+    if( m_isInitialized )
+        return;
+
     // Initialize the sparse or dense texture for the specified device.
     if( useSparseTexture() )
     {
@@ -85,29 +88,24 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
         SparseTexture& sparseTexture = m_sparseTextures[deviceIndex];
         sparseTexture.init( m_descriptor, m_info );
 
-        if( !m_isInitialized )
+        // Retain various properties for subsequent use.  (They're the same on all devices.)
+        m_tileWidth         = sparseTexture.getTileWidth();
+        m_tileHeight        = sparseTexture.getTileHeight();
+        m_mipTailFirstLevel = sparseTexture.getMipTailFirstLevel();
+        m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? sparseTexture.getMipTailSize() : 0;
+
+        // Verify that the tile size agrees with TilePool.
+        DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= sizeof( TileBuffer ) );
+
+        // Record the dimensions of each miplevel.
+        const unsigned int numMipLevels = m_info.numMipLevels;
+        m_mipLevelDims.resize( numMipLevels );
+        for( unsigned int i = 0; i < numMipLevels; ++i )
         {
-            m_isInitialized = true;
-
-            // Retain various properties for subsequent use.  (They're the same on all devices.)
-            m_tileWidth         = sparseTexture.getTileWidth();
-            m_tileHeight        = sparseTexture.getTileHeight();
-            m_mipTailFirstLevel = sparseTexture.getMipTailFirstLevel();
-            m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? sparseTexture.getMipTailSize() : 0;
-
-            // Verify that the tile size agrees with TilePool.
-            DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( getInfo().format ) <= sizeof( TileBuffer ) );
-
-            // Record the dimensions of each miplevel.
-            const unsigned int numMipLevels = getInfo().numMipLevels;
-            m_mipLevelDims.resize( numMipLevels );
-            for( unsigned int i = 0; i < numMipLevels; ++i )
-            {
-                m_mipLevelDims[i] = sparseTexture.getMipLevelDims( i );
-            }
-
-            initSampler();
+            m_mipLevelDims[i] = sparseTexture.getMipLevelDims( i );
         }
+
+        initSampler();
     }
     else // dense texture
     {
@@ -115,28 +113,25 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
         DenseTexture& denseTexture = m_denseTextures[deviceIndex];
         denseTexture.init( m_descriptor, m_info );
 
-        if( !m_isInitialized )
+        // Set dummy properties (not used for dense textures)
+        m_tileWidth         = 64;
+        m_tileHeight        = 64;
+        m_mipTailFirstLevel = 0;
+        m_mipTailSize       = 0;
+
+        // Record the dimensions of each miplevel.
+        const unsigned int numMipLevels = m_info.numMipLevels;
+        m_mipLevelDims.resize( numMipLevels );
+        for( unsigned int i = 0; i < numMipLevels; ++i )
         {
-            m_isInitialized = true;
-
-            // Set dummy properties (not used for dense textures)
-            m_tileWidth         = 64;
-            m_tileHeight        = 64;
-            m_mipTailFirstLevel = 0;
-            m_mipTailSize       = 0;
-
-            // Record the dimensions of each miplevel.
-            const unsigned int numMipLevels = getInfo().numMipLevels;
-            m_mipLevelDims.resize( numMipLevels );
-            for( unsigned int i = 0; i < numMipLevels; ++i )
-            {
-                m_mipLevelDims[i] = denseTexture.getMipLevelDims( i );
-                m_mipTailSize    += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
-            }
-
-            initSampler();
+            m_mipLevelDims[i] = denseTexture.getMipLevelDims( i );
+            m_mipTailSize    += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
         }
+
+        initSampler();
     }
+
+    m_isInitialized = true;
 }
 
 void DemandTextureImpl::initSampler()
@@ -147,23 +142,23 @@ void DemandTextureImpl::initSampler()
     // Note: m_sampler zeroed out in constructor, so that the udim fields can be initialized before calling initSampler.
 
     // Descriptions
-    m_sampler.desc.numMipLevels     = getInfo().numMipLevels;
-    m_sampler.desc.logTileWidth     = static_cast<unsigned int>( log2f( static_cast<float>( getTileWidth() ) ) );
-    m_sampler.desc.logTileHeight    = static_cast<unsigned int>( log2f( static_cast<float>( getTileHeight() ) ) );
+    m_sampler.desc.numMipLevels     = m_info.numMipLevels;
+    m_sampler.desc.logTileWidth     = static_cast<unsigned int>( log2f( static_cast<float>( m_tileWidth ) ) );
+    m_sampler.desc.logTileHeight    = static_cast<unsigned int>( log2f( static_cast<float>( m_tileHeight ) ) );
     m_sampler.desc.isSparseTexture  = useSparseTexture() ? 1 : 0;
-    m_sampler.desc.wrapMode0        = static_cast<int>( getDescriptor().addressMode[0] );
-    m_sampler.desc.wrapMode1        = static_cast<int>( getDescriptor().addressMode[1] );
-    m_sampler.desc.mipmapFilterMode = getDescriptor().mipmapFilterMode;
-    m_sampler.desc.maxAnisotropy    = getDescriptor().maxAnisotropy;
+    m_sampler.desc.wrapMode0        = static_cast<int>( m_descriptor.addressMode[0] );
+    m_sampler.desc.wrapMode1        = static_cast<int>( m_descriptor.addressMode[1] );
+    m_sampler.desc.mipmapFilterMode = m_descriptor.mipmapFilterMode;
+    m_sampler.desc.maxAnisotropy    = m_descriptor.maxAnisotropy;
 
     // Dimensions
-    m_sampler.width             = getInfo().width;
-    m_sampler.height            = getInfo().height;
-    m_sampler.mipTailFirstLevel = getMipTailFirstLevel();
+    m_sampler.width             = m_info.width;
+    m_sampler.height            = m_info.height;
+    m_sampler.mipTailFirstLevel = m_mipTailFirstLevel;
 
     // Initialize mipLevelSizes
-    demandLoading::TextureSampler::MipLevelSizes* mls = m_sampler.mipLevelSizes;
-    memset( mls, 0, MAX_TILE_LEVELS * sizeof( demandLoading::TextureSampler::MipLevelSizes ) );
+    TextureSampler::MipLevelSizes* mls = m_sampler.mipLevelSizes;
+    memset( mls, 0, MAX_TILE_LEVELS * sizeof(TextureSampler::MipLevelSizes ) );
 
     if( m_sampler.desc.isSparseTexture )
     {
@@ -176,9 +171,9 @@ void DemandTextureImpl::initSampler()
                 mls[mipLevel].mipLevelStart = 0;
 
             mls[mipLevel].levelWidthInTiles = static_cast<unsigned short>(
-                getLevelDimInTiles( m_sampler.width, static_cast<unsigned int>( mipLevel ), getTileWidth() ) );
+                getLevelDimInTiles( m_sampler.width, static_cast<unsigned int>( mipLevel ), m_tileWidth ) );
             mls[mipLevel].levelHeightInTiles = static_cast<unsigned short>(
-                getLevelDimInTiles( m_sampler.height, static_cast<unsigned int>( mipLevel ), getTileHeight() ) );
+                getLevelDimInTiles( m_sampler.height, static_cast<unsigned int>( mipLevel ), m_tileHeight ) );
         }
         m_sampler.numPages = mls[0].mipLevelStart + getNumTilesInLevel( 0 );
 
@@ -243,10 +238,9 @@ bool DemandTextureImpl::useSparseTexture() const
 
     if( !m_loader->getOptions().useSparseTextures || !m_info.isTiled )
         return false;
-    else if( !m_loader->getOptions().useSmallTextureOptimization )
+    if( !m_loader->getOptions().useSmallTextureOptimization )
         return true;
-    else 
-        return ( m_info.width * m_info.height > SPARSE_TEXTURE_THRESHOLD );
+    return m_info.width * m_info.height > SPARSE_TEXTURE_THRESHOLD;
 }
 
 unsigned int DemandTextureImpl::getMipTailFirstLevel() const
@@ -263,16 +257,14 @@ CUtexObject DemandTextureImpl::getTextureObject( unsigned int deviceIndex ) cons
         DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
         return m_sparseTextures[deviceIndex].getTextureObject();
     }
-    else 
-    {
-        DEMAND_ASSERT( deviceIndex < m_denseTextures.size() );
-        return m_denseTextures[deviceIndex].getTextureObject();
-    }
+
+    DEMAND_ASSERT(deviceIndex < m_denseTextures.size());
+    return m_denseTextures[deviceIndex].getTextureObject();
 }
 
 unsigned int DemandTextureImpl::getNumTilesInLevel( unsigned int mipLevel ) const
 {
-    if( mipLevel > getMipTailFirstLevel() || mipLevel >= getInfo().numMipLevels )
+    if( mipLevel > m_mipTailFirstLevel || mipLevel >= m_info.numMipLevels )
         return 0;
 
     unsigned int levelWidthInTiles  = getLevelDimInTiles( m_mipLevelDims[0].x, mipLevel, m_tileWidth );
@@ -321,7 +313,8 @@ void DemandTextureImpl::accumulateStatistics( Statistics& stats, std::set<imageS
 
 // Tiles can be read concurrently.  The EXRReader currently locks, however, because the OpenEXR 2.x
 // tile reading API is stateful.  That should be fixed in OpenEXR 3.0.
-void DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer, size_t tileBufferSize, CUstream stream ) const
+bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer,
+                                  size_t tileBufferSize, CUstream stream ) const
 {
     DEMAND_ASSERT( m_isInitialized );
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
@@ -331,7 +324,7 @@ void DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, uns
     const unsigned int bytesPerTile  = getTileWidth() * getTileHeight() * bytesPerPixel;
     DEMAND_ASSERT_MSG( bytesPerTile <= tileBufferSize, "Maximum tile size exceeded" );
 
-    m_image->readTile( tileBuffer, mipLevel, tileX, tileY, getTileWidth(), getTileHeight(), stream );
+    return m_image->readTile( tileBuffer, mipLevel, tileX, tileY, getTileWidth(), getTileHeight(), stream );
 }
 
 // Tiles can be filled concurrently.
@@ -361,24 +354,24 @@ void DemandTextureImpl::unmapTile( unsigned int deviceIndex, CUstream stream, un
     m_sparseTextures[deviceIndex].unmapTile( stream, mipLevel, tileX, tileY );
 }
 
-void DemandTextureImpl::readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const
+bool DemandTextureImpl::readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const
 {
     DEMAND_ASSERT( m_isInitialized );
     DEMAND_ASSERT( m_info.numMipLevels == 1 );
     DEMAND_ASSERT_MSG( m_mipTailSize <= bufferSize, "Provided buffer is too small." );
 
-    m_image->readMipLevel( buffer, 0, getInfo().width, getInfo().height, stream );
+    return m_image->readMipLevel( buffer, 0, getInfo().width, getInfo().height, stream );
 }
 
-void DemandTextureImpl::readMipTail( char* buffer, size_t bufferSize, CUstream stream ) const
+bool DemandTextureImpl::readMipTail( char* buffer, size_t bufferSize, CUstream stream ) const
 {
-    readMipLevels( buffer, bufferSize, getMipTailFirstLevel(), stream );
+    return readMipLevels( buffer, bufferSize, getMipTailFirstLevel(), stream );
 }
 
 // Request deduplication will ensure that concurrent calls to readMipTail do not occur.  Note that
 // EXRReader currently locks, since it uses the OpenEXR 2.x tile reading API, which is stateful.  
 // CoreEXRReader uses OpenEXR 3.0, which fixes the issue.
-void DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const
+bool DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const
 {
     DEMAND_ASSERT( m_isInitialized );
     DEMAND_ASSERT( startLevel < getInfo().numMipLevels );
@@ -388,7 +381,7 @@ void DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned
 
     DEMAND_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
 
-    m_image->readMipTail( buffer, startLevel, getInfo().numMipLevels, m_mipLevelDims.data(), pixelSize, stream );
+    return m_image->readMipTail( buffer, startLevel, getInfo().numMipLevels, m_mipLevelDims.data(), pixelSize, stream );
 } 
 
 void DemandTextureImpl::fillMipTail( unsigned int                 deviceIndex,

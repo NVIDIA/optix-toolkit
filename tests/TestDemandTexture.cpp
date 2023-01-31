@@ -126,7 +126,7 @@ TEST_F( TestDemandTexture, TestFillTile )
         // Read tile.
         unsigned int tileX = tileCoords[i].x;
         unsigned int tileY = tileCoords[i].y;
-        m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} );
+        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} ) );
 
         // Fill tile.
         TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );
@@ -379,7 +379,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
         // Read tile.
         unsigned int tileX = tileCoords[i].x;
         unsigned int tileY = tileCoords[i].y;
-        m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} );
+        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} ) );
 
         // Fill tile.
         TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );

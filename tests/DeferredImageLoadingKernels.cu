@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,30 +26,31 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include "DeferredImageLoadingKernels.h"
 
-#include <cstddef>  // for size_t
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
 
-namespace imageSource {
+#include <optix.h>
 
-bool MipTailImageSource::readMipTail( char* dest,
-                                      unsigned int mipTailFirstLevel,
-                                      unsigned int numMipLevels,
-                                      const uint2* mipLevelDims,
-                                      unsigned int pixelSizeInBytes,
-                                      CUstream stream )
+#include <vector_types.h>
+
+extern "C" __constant__ Params params;
+
+extern "C" __global__ void __raygen__sampleTexture()
 {
-    size_t offset = 0;
-    for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
+    const uint3 launchIndex = optixGetLaunchIndex();
+    if( launchIndex.x >= params.m_width || launchIndex.y >= params.m_height )
     {
-        const uint2 levelDims = mipLevelDims[mipLevel];
-        readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
-
-        // Increment offset.
-        offset += levelDims.x * levelDims.y * pixelSizeInBytes;
+        printf("launchIndex %u,%u %ux%u\n", launchIndex.x, launchIndex.y, params.m_width, params.m_height );
+        return;
     }
 
-    return true;
-}
+    const float s = launchIndex.x / (float)params.m_width;
+    const float t = launchIndex.y / (float)params.m_height;
 
-}  // namespace imageSource
+    bool         isResident = false;
+    const float4 pixel      = demandLoading::tex2DLod<float4>( params.m_context, params.m_textureId, s, t, 0.0f, &isResident );
+
+    const RayGenData* rayGenData = reinterpret_cast<RayGenData*>( optixGetSbtDataPointer() );
+    params.m_output[launchIndex.y * params.m_width + launchIndex.x] = isResident ? pixel : rayGenData->m_nonResidentColor;
+}

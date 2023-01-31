@@ -76,7 +76,7 @@ void DeviceMandelbrotImage::open( TextureInfo* info )
         *info = m_info;
 }
 
-void DeviceMandelbrotImage::readTile( char*        dest,
+bool DeviceMandelbrotImage::readTile( char*        dest,
                                       unsigned int mipLevel,
                                       unsigned int tileX,
                                       unsigned int tileY,
@@ -108,9 +108,11 @@ void DeviceMandelbrotImage::readTile( char*        dest,
     params.output_buffer = reinterpret_cast<float4*>( dest );
 
     launchReadMandelbrotImage( params, stream );
+
+    return true;
 }
 
-void DeviceMandelbrotImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
+bool DeviceMandelbrotImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
 {
     DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -128,14 +130,16 @@ void DeviceMandelbrotImage::readMipLevel( char* dest, unsigned int mipLevel, uns
     params.output_buffer    = reinterpret_cast<float4*>( dest );
 
     launchReadMandelbrotImage( params, stream );
+
+    return true;
 }
 
-void DeviceMandelbrotImage::readMipTail( char*        dest,
-                      unsigned int mipTailFirstLevel,
-                      unsigned int numMipLevels,
-                      const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
-                      CUstream     stream ) 
+bool DeviceMandelbrotImage::readMipTail( char* dest,
+                                         unsigned int mipTailFirstLevel,
+                                         unsigned int numMipLevels,
+                                         const uint2* mipLevelDims,
+                                         unsigned int pixelSizeInBytes,
+                                         CUstream stream ) 
 {
     DEMAND_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -151,6 +155,8 @@ void DeviceMandelbrotImage::readMipTail( char*        dest,
     params.output_buffer    = reinterpret_cast<float4*>( dest );
 
     launchReadMandelbrotImage( params, stream );
+
+    return true;
 }
 
 bool DeviceMandelbrotImage::readBaseColor( float4& dest )

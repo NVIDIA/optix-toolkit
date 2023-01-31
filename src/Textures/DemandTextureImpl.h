@@ -139,7 +139,8 @@ class DemandTextureImpl : public DemandTexture
 
     /// Read the specified tile into the given buffer.
     /// Throws an exception on error.
-    void readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer, size_t tileBufferSize, CUstream stream ) const;
+    bool readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer,
+                   size_t tileBufferSize, CUstream stream ) const;
 
     /// Fill the device tile backing storage for a texture tile and with the given data.
     void fillTile( unsigned int                 deviceIndex,
@@ -158,15 +159,15 @@ class DemandTextureImpl : public DemandTexture
 
     /// Read the entire non-mipmapped texture into the buffer.
     /// Throws an exception on error.
-    void readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const;
+    bool readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const;
 
     /// Read all the levels in the mip tail into the given buffer.
     /// Throws an exception on error.
-    void readMipTail( char* buffer, size_t bufferSize, CUstream stream ) const;
+    bool readMipTail( char* buffer, size_t bufferSize, CUstream stream ) const;
 
     /// Read all the levels from startLevel into the given buffer.
     /// Throws an exception on error.
-    void readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const;
+    bool readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const;
 
     /// Fill the device backing storage for the mip tail with the given data.
     void fillMipTail( unsigned int                 deviceIndex,

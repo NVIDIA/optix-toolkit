@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,30 +26,22 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ImageSource/ImageSource.h>
+#pragma once
 
-#include <cstddef>  // for size_t
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
 
-namespace imageSource {
+#include <vector_types.h>
 
-bool MipTailImageSource::readMipTail( char* dest,
-                                      unsigned int mipTailFirstLevel,
-                                      unsigned int numMipLevels,
-                                      const uint2* mipLevelDims,
-                                      unsigned int pixelSizeInBytes,
-                                      CUstream stream )
+struct Params
 {
-    size_t offset = 0;
-    for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
-    {
-        const uint2 levelDims = mipLevelDims[mipLevel];
-        readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
+    demandLoading::DeviceContext m_context;
+    float4* m_output;
+    unsigned int m_textureId;
+    unsigned int m_width;
+    unsigned int m_height;
+};
 
-        // Increment offset.
-        offset += levelDims.x * levelDims.y * pixelSizeInBytes;
-    }
-
-    return true;
-}
-
-}  // namespace imageSource
+struct RayGenData
+{
+    float4 m_nonResidentColor;
+};
