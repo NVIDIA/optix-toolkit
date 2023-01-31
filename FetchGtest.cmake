@@ -52,3 +52,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 gtest_folders()
+
+# Without this interface definition, clients of gmock will get this link error:
+#   unresolved external symbol "class testing::internal::Mutex testing::internal::g_gmock_mutex"
+#   unresolved external symbol "class testing::internal::ThreadLocal<class testing::Sequence *> testing::internal::g_gmock_implicit_sequence"
+target_compile_definitions( gmock INTERFACE GTEST_LINKED_AS_SHARED_LIBRARY )
