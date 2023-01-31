@@ -86,7 +86,7 @@ class EXRReader : public MipTailImageSource
                    unsigned int tileY,
                    unsigned int tileWidth,
                    unsigned int tileHeight,
-                   CUstream     stream = 0 ) override;
+                   CUstream     stream ) override;
 
     /// Read the specified mipLevel.  Throws an exception on error.
     void readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) override;

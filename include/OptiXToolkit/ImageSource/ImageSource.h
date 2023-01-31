@@ -76,7 +76,7 @@ class ImageSource
                            unsigned int tileY,
                            unsigned int tileWidth,
                            unsigned int tileHeight,
-                           CUstream     stream ) = 0;
+                           CUstream stream ) = 0;
 
     /// Read the specified mipLevel. Throws an exception on error.
     virtual void readMipLevel( char*        dest,

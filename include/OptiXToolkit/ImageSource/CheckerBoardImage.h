@@ -71,7 +71,7 @@ class CheckerBoardImage : public MipTailImageSource
                    unsigned int tileY,
                    unsigned int tileWidth,
                    unsigned int tileHeight,
-                   CUstream     stream = 0 ) override;
+                   CUstream     stream ) override;
 
     /// Read the specified mipLevel. Throws an exception on error.
     void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;

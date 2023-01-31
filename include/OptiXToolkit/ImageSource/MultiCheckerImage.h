@@ -125,7 +125,7 @@ class MultiCheckerImage : public MipTailImageSource
                    unsigned int tileY,
                    unsigned int tileWidth,
                    unsigned int tileHeight,
-                   CUstream     stream = 0 ) override;
+                   CUstream     stream ) override;
 
     /// Read the specified mipLevel.  Returns true for success.
     void readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
