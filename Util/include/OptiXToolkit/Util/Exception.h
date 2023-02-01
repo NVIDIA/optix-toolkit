@@ -87,14 +87,19 @@
 //
 //------------------------------------------------------------------------------
 
-#define OTK_ASSERT( cond )                                                   \
+#define OTK_REQUIRE( cond )                                                   \
     ::otk::assertCond( static_cast<bool>( cond ), #cond, __FILE__, __LINE__ )
 
-#define OTK_ASSERT_MSG( cond, msg )                                          \
+#define OTK_REQUIRE_MSG( cond, msg )                                          \
     ::otk::assertCondMsg( static_cast<bool>( cond ), #cond, msg, __FILE__, __LINE__ )
 
-#define OTK_ASSERT_FAIL_MSG( msg )                                           \
-    ::otk::assertFailMsg( msg, __FILE__, __LINE__ )
+#ifndef NDEBUG
+#define OTK_ASSERT( cond ) OTK_REQUIRE( cond )
+#define OTK_ASSERT_MSG( cond, msg ) OTK_REQUIRE_MSG( cond, msg )
+#else
+#define OTK_ASSERT( cond )
+#define OTK_ASSERT_MSG( cond, msg )
+#endif
 
 namespace otk {
 
@@ -134,7 +139,5 @@ void cudaCheckNoThrow( CUresult result, const char* expr, const char* file, unsi
 void assertCond( bool result, const char* cond, const char* file, unsigned int line );
 
 void assertCondMsg( bool result, const char* cond, const std::string& msg, const char* file, unsigned int line );
-
-[[noreturn]] void assertFailMsg( const std::string& msg, const char* file, unsigned int line );
 
 }  // end namespace otk

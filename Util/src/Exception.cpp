@@ -149,11 +149,4 @@ void assertCondMsg( bool result, const char* cond, const std::string& msg, const
     }
 }
 
-[[noreturn]] void assertFailMsg( const std::string& msg, const char* file, unsigned int line )
-{
-    std::stringstream ss;
-    ss << msg << ": " << file << " (" << line << ')';
-    throw Exception( ss.str().c_str() );
-}
-
 }  // namespace otk
