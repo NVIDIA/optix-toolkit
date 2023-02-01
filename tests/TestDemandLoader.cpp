@@ -282,6 +282,7 @@ TEST_F( TestDemandLoader, TestTextureVariants )
     // Make first texture
     TextureDescriptor  texDesc1 = m_descriptor;
     DemandTextureImpl* texture1 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc1 ).getId() );
+    texture1->open();
     texture1->init( deviceIndex );
 
     // Make second texture with different descriptor
@@ -291,10 +292,11 @@ TEST_F( TestDemandLoader, TestTextureVariants )
     texDesc2.filterMode         = CU_TR_FILTER_MODE_POINT;
     texDesc2.mipmapFilterMode   = CU_TR_FILTER_MODE_POINT;
     DemandTextureImpl* texture2 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc2 ).getId() );
+    texture2->open();
     texture2->init( deviceIndex );
 
     // The image sources should be the same, but the texture id's different
-    EXPECT_EQ( texture1->getImageSource(), texture2->getImageSource() );
+    EXPECT_EQ( texture1->getInfo(), texture2->getInfo() );
     EXPECT_NE( texture1->getId(), texture2->getId() );
 
     // The texture descriptors should be what the textures were constructed with

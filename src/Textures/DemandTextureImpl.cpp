@@ -142,7 +142,7 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
-    if( m_masterTexture && !m_masterTexture->m_isInitialized )
+    if( m_masterTexture && !m_masterTexture->m_sparseTextures[deviceIndex].isInitialized() )
         m_masterTexture->init( deviceIndex );
 
     // Initialize the sparse or dense texture for the specified device.

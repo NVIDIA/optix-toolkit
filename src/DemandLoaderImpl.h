@@ -179,6 +179,9 @@ class DemandLoaderImpl : public DemandLoader
 
     // Unmap the backing storage associated with a texture tile or mip tail
     void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+
+    // Create a normal or variant version of a demand texture, based on the imageSource 
+    DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
 };
 
 }  // namespace demandLoading

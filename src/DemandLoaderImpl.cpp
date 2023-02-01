@@ -129,19 +129,8 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
 
     // Add new texture to the end of the list of textures.  The texture holds a pointer to the
     // image, from which tile data is obtained on demand.
-    auto imageIt = m_imageToTextureId.find( imageSource.get() );
-    if( imageIt == m_imageToTextureId.end() )
-    {
-        // image was not found. Make a new texture.
-        m_textures.emplace_back( new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDesc, imageSource, this ) );
-        m_imageToTextureId[imageSource.get()] = textureId;
-    }
-    else
-    {
-        // image was found. Make a variant texture.
-        DemandTextureImpl* masterTexture = m_textures[imageIt->second].get();
-        m_textures.emplace_back( new DemandTextureImpl( textureId, masterTexture, textureDesc, this ) );
-    }
+    DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDesc, imageSource );
+    m_textures.emplace_back( tex );
 
     // Record the image reader and texture descriptor.
     m_requestProcessor.recordTexture( imageSource, textureDesc );
@@ -179,7 +168,9 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
             {
                 if( textureId < entryPointIndex )
                     entryPointIndex = textureId;
-                DemandTextureImpl* tex = new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDescs[imageIndex], imageSources[imageIndex], this );
+                
+                // Create the texture and put it in the list of textures
+                DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures[textureId].reset( tex );
                 
                 // Record the image reader and texture descriptor.
@@ -197,6 +188,25 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
         m_textures[baseTextureId]->setUdimTexture( startIndex, udim, vdim, true );
 
     return (baseTextureId >= 0) ? *m_textures[baseTextureId] : *m_textures[entryPointIndex];
+}
+
+DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureId, 
+                                                           const TextureDescriptor& textureDesc, 
+                                                           std::shared_ptr<imageSource::ImageSource>& imageSource )
+{
+    auto imageIt = m_imageToTextureId.find( imageSource.get() );
+    if( imageIt == m_imageToTextureId.end() )
+    {
+        // image was not found. Make a new texture.
+        m_imageToTextureId[imageSource.get()] = textureId;
+        return new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDesc, imageSource, this );
+    }
+    else
+    {
+        // image was found. Make a variant texture.
+        DemandTextureImpl* masterTexture = m_textures[imageIt->second].get();
+        return new DemandTextureImpl( textureId, masterTexture, textureDesc, this );
+    }
 }
 
 unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )

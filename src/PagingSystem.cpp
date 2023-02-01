@@ -55,6 +55,7 @@ PagingSystem::PagingSystem( unsigned int         deviceIndex,
 {
     DEMAND_ASSERT( m_options.maxFilledPages >= m_options.maxRequestedPages );
     DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+    DEMAND_CUDA_CHECK( cudaFree( 0 ) );
 
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
