@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2020 NVIDIA Corporation.  All rights reserved.
+#  Copyright (c) 2023 NVIDIA Corporation.  All rights reserved.
 #
 #  NVIDIA Corporation and its licensors retain all intellectual property and proprietary
 #  rights in and to this software, related documentation and any modifications thereto.
@@ -32,3 +32,4 @@ target_include_directories(imgtool PRIVATE
   ${stb_image_SOURCE_DIR}
   ${stb_image_write_SOURCE_DIR}
   )
+set_target_properties(imgtool PROPERTIES FOLDER Examples/Tests)
