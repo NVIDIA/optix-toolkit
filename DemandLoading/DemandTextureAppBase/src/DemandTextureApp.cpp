@@ -69,7 +69,10 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
         setGLFWCallbacks( this );
     }
 
-    glInterop = glInterop && isInteractive();
+    int numDevices;
+    CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+
+    glInterop = glInterop && isInteractive() && (numDevices==1);
     otk::CUDAOutputBufferType outputBufferType =
         glInterop ? otk::CUDAOutputBufferType::GL_INTEROP : otk::CUDAOutputBufferType::ZERO_COPY;
     m_outputBuffer.reset( new otk::CUDAOutputBuffer<uchar4>( outputBufferType, m_windowWidth, m_windowHeight ) );
@@ -537,6 +540,14 @@ unsigned int DemandTextureApp::performLaunches( )
                                   1                                                 // launch depth
                                   ) );
 
+        // If interactive, wait on the ticket from the previous launch just before the next launch.
+        // This gives requests as long as possible to complete before waiting on them.
+        if( isInteractive() )
+        {
+            state.ticket.wait();
+            numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
+        }
+
         // Begin to process demand load requests. This pulls a batch of requests from the device and
         // places them in a queue for asynchronous processing.  The progress of the batch
         // can be polled using the returned ticket.
@@ -545,11 +556,14 @@ unsigned int DemandTextureApp::performLaunches( )
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();
     }
-    
+
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-        // note: We don't wait on the ticket in interactive mode, and performLaunches returns 0
+
+        // If not interactive (final frame render), wait on the ticket after the current launch
+        // so that all requests are filled before the next launch, and the application
+        // can use numProcessRequests to decide whether to launch again.
         if( !isInteractive() )
         {
             state.ticket.wait();
