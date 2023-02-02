@@ -98,9 +98,9 @@ inline void FixedSuballocator::track( uint64_t ptr, uint64_t size )
     // Align tracked block with item size
     uint64_t p = alignVal( ptr, m_alignment );
     uint64_t s = size - ( p - ptr );
-    s -= s % m_alignment;
+    s -= s % m_itemSize;
 
-    m_trackedSize += size;
+    m_trackedSize += s;
     free( MemoryBlockDesc{p, s} );
 }
 
