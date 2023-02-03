@@ -36,12 +36,22 @@
 
 #include <cuda_fp16.h>
 
+#include <cstring>
+
 namespace demandLoading {
 
 struct half4
 {
     half x, y, z, w;
 };
+
+inline unsigned long long toPageTableEntry( const float4& color )
+{
+    const half4        value{ color.x, color.y, color.z, color.w };
+    unsigned long long result;
+    std::memcpy( &result, &value, sizeof( result ) );
+    return result;
+}
 
 void BaseColorRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
 {
@@ -55,19 +65,17 @@ void BaseColorRequestHandler::fillRequest( unsigned int deviceIndex, CUstream st
     if( m_loader->getPagingSystem( deviceIndex )->isResident( pageId ) )
         return;
 
-    float4 fBaseColor = float4{1.0f, 0.0f, 1.0f, 0.0f};
-    bool hasBaseColor = false;
+    float4 baseColor;
+    bool hasBaseColor{};
     if( texture != nullptr )
     {
         texture->open();
-        hasBaseColor = texture->readBaseColor( fBaseColor );
+        hasBaseColor = texture->readBaseColor( baseColor );
     }
 
     // Store the base color as a half4 in the page table
-    unsigned long long  noColor   = 0xFFFFFFFFFFFFFFFFull; // four half NaNs, to indicate when no baseColor exists
-    half4               baseColor = half4{fBaseColor.x, fBaseColor.y, fBaseColor.z, fBaseColor.w};
-    unsigned long long* baseVal   = ( hasBaseColor ) ? reinterpret_cast<unsigned long long*>( &baseColor ) : &noColor;
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, *baseVal );
+    static const unsigned long long noColor = 0XFFFFFFFFFFFFFFFFULL;  // four half NaNs, to indicate when no baseColor exists
+    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, hasBaseColor ? toPageTableEntry( baseColor ) : noColor );
 }
 
 }  // namespace demandLoading
