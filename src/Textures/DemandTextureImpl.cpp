@@ -288,6 +288,44 @@ unsigned int DemandTextureImpl::getNumTilesInLevel( unsigned int mipLevel ) cons
     return calculateNumTilesInLevel( levelWidthInTiles, levelHeightInTiles );
 }
 
+void DemandTextureImpl::accumulateStatistics( Statistics& stats, std::set<imageSource::ImageSource*>& images )
+{
+    // This image has already been accounted for in the statistics.
+    if( images.find( m_image.get() ) != images.end() )
+        return;
+
+    // Get the size of the texture, and number of bytes read
+    images.insert( m_image.get() );
+    stats.numTilesRead += m_image->getNumTilesRead();
+    stats.numBytesRead += m_image->getNumBytesRead();
+    stats.readTime += m_image->getTotalReadTime();
+
+    // Calculate size (total number of bytes) in virtual texture
+    const imageSource::TextureInfo &info = m_image->getInfo();
+    if( info.isValid )  // texture initialized
+    {
+        stats.virtualTextureBytes += getTextureSizeInBytes( info );
+    }
+
+    // Get the number of bytes filled (transferred) per device
+    for( unsigned int i = 0; i < m_sparseTextures.size(); ++i )
+    {
+        stats.perDevice[i].bytesTransferred += m_sparseTextures[i].getNumBytesFilled();
+        stats.perDevice[i].numEvictions += m_sparseTextures[i].getNumUnmappings();
+    }
+
+    for( unsigned int i = 0; i < m_denseTextures.size(); ++i )
+    {
+        stats.perDevice[i].bytesTransferred += m_denseTextures[i].getNumBytesFilled();
+        // Count memory used per device for dense texture data
+        if( m_denseTextures[i].isInitialized() && m_denseTextures[i].getTextureObject() != 0 )
+        {
+            imageSource::TextureInfo info = m_image->getInfo();
+            stats.perDevice[i].memoryUsed += getTextureSizeInBytes( info );
+        }
+    }
+}
+
 // Tiles can be read concurrently.  The EXRReader currently locks, however, because the OpenEXR 2.x
 // tile reading API is stateful.  That should be fixed in OpenEXR 3.0.
 void DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer, size_t tileBufferSize, CUstream stream ) const

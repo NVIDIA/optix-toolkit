@@ -33,6 +33,7 @@
 #include "Memory/TilePool.h"
 
 #include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Statistics.h>
 
 namespace demandLoading {
 
@@ -63,6 +64,8 @@ class DeviceMemoryManager
     {
         return m_deviceContextPool.getTotalDeviceMemory() + m_samplerPool.getTotalDeviceMemory() + m_tilePool.getTotalDeviceMemory();
     }
+
+    void accumulateStatistics( DeviceStatistics& stats ) { stats.memoryUsed += getTotalDeviceMemory(); }
 
   private:
     unsigned int      m_deviceIndex;

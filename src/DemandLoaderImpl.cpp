@@ -285,50 +285,14 @@ Statistics DemandLoaderImpl::getStatistics() const
         // Skip null textures
         if( tex == nullptr ) 
             continue; 
-            
-        // Get the size of the texture, and number of bytes read
-        imageSource::ImageSource* image = tex->getImageSource();
-        if( images.find( image ) == images.end() )
-        {
-            images.insert( image );
-            stats.numTilesRead += image->getNumTilesRead();
-            stats.numBytesRead += image->getNumBytesRead();
-            stats.readTime += image->getTotalReadTime();
 
-            // Calculate size (total number of bytes) in virtual texture
-            imageSource::TextureInfo info = image->getInfo();
-            if( info.isValid )  // texture initialized
-            {
-                stats.virtualTextureBytes += getTextureSizeInBytes( info );
-            }
-        }
-
-        // Get the number of bytes filled (transferred) per device
-        const std::vector<SparseTexture>& sparseTextures = tex->getSparseTextures();
-        for(unsigned int i=0; i<sparseTextures.size(); ++i)
-        {
-            stats.bytesTransferredPerDevice[i] += sparseTextures[i].getNumBytesFilled();
-            stats.numEvictionsPerDevice[i] += sparseTextures[i].getNumUnmappings();
-        }
-
-        const std::vector<DenseTexture>& denseTextures = tex->getDenseTextures();
-        for(unsigned int i=0; i<denseTextures.size(); ++i)
-        {
-            stats.bytesTransferredPerDevice[i] += denseTextures[i].getNumBytesFilled();
-            // Count memory used per device for dense texture data
-            if( denseTextures[i].isInitialized() && denseTextures[i].getTextureObject() != 0 )
-            {
-                imageSource::TextureInfo info = image->getInfo();
-                stats.memoryUsedPerDevice[i] += getTextureSizeInBytes( info );
-            }
-        }
+        tex->accumulateStatistics( stats, images );
     }
 
-    size_t maxNumDevices = sizeof( Statistics::memoryUsedPerDevice ) / sizeof( size_t );
-    for( unsigned int i = 0; i < m_pageLoader->getNumDevices() && i < maxNumDevices; ++i )
+    for( unsigned int i = 0; i < m_pageLoader->getNumDevices() && i < Statistics::NUM_DEVICES; ++i )
     {
         if( DeviceMemoryManager* manager = getDeviceMemoryManager( i ) )
-            stats.memoryUsedPerDevice[i] += manager->getTotalDeviceMemory();
+            manager->accumulateStatistics( stats.perDevice[i] );
     }
 
     return stats;

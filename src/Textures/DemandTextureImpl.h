@@ -42,6 +42,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <vector>
 
 namespace imageSource {
@@ -51,6 +52,7 @@ class ImageSource;
 namespace demandLoading {
 
 class DemandLoaderImpl;
+class Statistics;
 class TilePool;
 
 /// Demand-loaded textures are created by the DemandLoader.
@@ -116,8 +118,8 @@ class DemandTextureImpl : public DemandTexture
     /// Get the request handler for this texture.
     TextureRequestHandler* getRequestHandler() { return m_requestHandler.get(); }
 
-    /// Get the ImageSource (for gathering statistics).
-    imageSource::ImageSource* getImageSource() const { return m_image.get(); }
+    /// Accumulate statistics for this texture, if the associated ImageSource is not in the set.
+    void accumulateStatistics( Statistics& stats, std::set<imageSource::ImageSource*>& images );
 
     /// Read the specified tile into the given buffer.
     /// Throws an exception on error.
@@ -177,12 +179,6 @@ class DemandTextureImpl : public DemandTexture
     
     /// Return the size of the mip tail if the texture is initialized.
     size_t getMipTailSize(); 
-
-    /// Get the vector of sparse textures 
-    const std::vector<SparseTexture>& getSparseTextures() { return m_sparseTextures; }
-
-    /// Get the vector of dense textures 
-    const std::vector<DenseTexture>& getDenseTextures() { return m_denseTextures; }
 
   private:
     // A mutex guards against concurrent initialization, which can arise when the sampler

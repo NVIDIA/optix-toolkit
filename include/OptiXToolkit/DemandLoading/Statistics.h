@@ -35,9 +35,26 @@
 
 namespace demandLoading {
 
+struct DeviceStatistics
+{
+    /// Amount of device memory allocated per device.
+    size_t memoryUsed;
+
+    /// Amount of texture image data transferred to each device
+    size_t bytesTransferred;
+
+    /// Number of tiles evicted by demand loading system
+    unsigned int numEvictions;
+};
+
 /// Demand loading statistics.  \see DemandLoader::getStatistics
 struct Statistics
 {
+    enum
+    {
+        NUM_DEVICES = 16
+    };
+
     /// Time in seconds spent processing page requests.
     double requestProcessingTime;
 
@@ -57,14 +74,8 @@ struct Statistics
     /// the cumulative time and does not take into account simultaneous reads, e.g. by multiple threads.
     double readTime;
 
-    /// Amount of device memory allocated per device.
-    size_t memoryUsedPerDevice[16];
-
-    /// Amount of texture image data transferred to each device
-    size_t bytesTransferredPerDevice[16];
-
-    /// Number of tiles evicted by demand loading system
-    unsigned int numEvictionsPerDevice[16];
+    /// Statistics per device.
+    DeviceStatistics perDevice[NUM_DEVICES];
 };
 
 }  // namespace demandLoading
