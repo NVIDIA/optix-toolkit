@@ -442,7 +442,7 @@ void DemandTextureApp::printDemandLoadingStats()
     std::cout << "Max device memory used:   ";
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        const double deviceMemory = stats.memoryUsedPerDevice[state.device_idx] / (1024.0 * 1024.0);
+        const double deviceMemory = stats.perDevice[state.device_idx].memoryUsed / (1024.0 * 1024.0);
         std::cout << "[GPU-" << state.device_idx << ": " << deviceMemory << " MiB]  ";
     }
     std::cout << "\n";
@@ -450,8 +450,8 @@ void DemandTextureApp::printDemandLoadingStats()
     std::cout << "Texture data transferred: ";
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        const size_t tilesTransferred = stats.bytesTransferredPerDevice[state.device_idx] / 65536;
-        const double transferData = stats.bytesTransferredPerDevice[state.device_idx] / (1024.0 * 1024.0);
+        const size_t tilesTransferred = stats.perDevice[state.device_idx].bytesTransferred / 65536;
+        const double transferData = stats.perDevice[state.device_idx].bytesTransferred / (1024.0 * 1024.0);
         std::cout << "[GPU-" << state.device_idx << ": " << tilesTransferred << " tiles (" << transferData << " MiB)]  ";
     }
     std::cout << "\n";
@@ -459,7 +459,7 @@ void DemandTextureApp::printDemandLoadingStats()
     std::cout << "Evicted tiles:            ";
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        std::cout << "[GPU-" << state.device_idx << ": " << stats.numEvictionsPerDevice[state.device_idx] << "]  ";
+        std::cout << "[GPU-" << state.device_idx << ": " << stats.perDevice[state.device_idx].numEvictions << "]  ";
     }
     std::cout << "\n" << std::endl;
 }
