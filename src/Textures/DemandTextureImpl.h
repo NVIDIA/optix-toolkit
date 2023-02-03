@@ -74,6 +74,22 @@ class DemandTextureImpl : public DemandTexture
     /// Default destructor.
     ~DemandTextureImpl() override = default;
 
+    /// DemandTextureImpl cannot be copied because the PageTableManager holds a pointer to the
+    /// RequestHandler it provides.
+    DemandTextureImpl( const DemandTextureImpl& ) = delete;
+
+    /// Not assignable.
+    DemandTextureImpl& operator=( const DemandTextureImpl& ) = delete;
+
+    /// A degenerate texture is handled by a base color.
+    bool isDegenerate() const { return m_info.width <= 1 && m_info.height <= 1; }
+
+    /// Read the base color of the associated image.
+    bool readBaseColor( float4& baseColor ) const { return m_image->readBaseColor( baseColor ); }
+
+    /// Get the memory fill type for this texture.
+    CUmemorytype getFillType() const { return m_image->getFillType(); }
+
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
 
@@ -167,12 +183,8 @@ class DemandTextureImpl : public DemandTexture
     /// Create and fill the dense texture on the given device
     void fillDenseTexture( unsigned int deviceIndex, CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned );
 
-    /// DemandTextureImpl cannot be copied because the PageTableManager holds a pointer to the
-    /// RequestHandler it provides.
-    DemandTextureImpl( const DemandTextureImpl& ) = delete;
-
-    /// Not assignable.
-    DemandTextureImpl& operator=( const DemandTextureImpl& ) = delete;
+    /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
+    void open();
 
     /// Set this texture as an entry point to a udim texture array
     void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture );
@@ -197,8 +209,11 @@ class DemandTextureImpl : public DemandTexture
     // The DemandLoader provides access to the PageTableManager, etc.
     DemandLoaderImpl* const m_loader;
 
-    // The image is lazily opened.  Invariant after init().
-    bool m_isInitialized = false;
+    // The image is lazily opened.  Invariant after open().
+    bool m_isOpen{};
+
+    // The texture is lazily initialized.  Invariant after init().
+    bool m_isInitialized{};
 
     // Image info, including dimensions and format.  Invariant after init(), and not valid before then.
     imageSource::TextureInfo m_info{};

@@ -78,13 +78,6 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
-    // Open the image if necessary, fetching the dimensions and other info.
-    if( !m_isInitialized )
-    {
-        m_image->open( &m_info );
-        DEMAND_ASSERT( m_info.isValid );
-    }
-
     // Initialize the sparse or dense texture for the specified device.
     if( useSparseTexture() )
     {
@@ -423,6 +416,20 @@ void DemandTextureImpl::fillDenseTexture( unsigned int deviceIndex, CUstream str
 {
     DEMAND_ASSERT( deviceIndex < m_denseTextures.size() );
     m_denseTextures[deviceIndex].fillTexture( stream, textureData, width, height, bufferPinned );
+}
+
+// Lazily open the associated image source.
+void DemandTextureImpl::open()
+{
+    std::unique_lock<std::mutex> lock( m_initMutex );
+
+    // Open the image if necessary, fetching the dimensions and other info.
+    if( !m_isOpen )
+    {
+        m_image->open( &m_info );
+        DEMAND_ASSERT( m_info.isValid );
+        m_isOpen = true;
+    }
 }
 
 // Set this texture as an entry point for a udim texture array.

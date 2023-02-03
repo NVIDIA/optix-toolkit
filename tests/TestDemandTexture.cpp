@@ -87,6 +87,7 @@ class TestDemandTexture : public testing::Test
 
         // Construct and initialize DemandTexture
         m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_numDevices, m_desc, image, m_loader.get() ) );
+        m_texture->open();
         m_texture->init( m_deviceIndex );
     }
 

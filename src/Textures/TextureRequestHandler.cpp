@@ -82,7 +82,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
 
     // Allocate a transfer buffer.
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getImageSource()->getFillType(), sizeof( TileBuffer ), stream );
+        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), sizeof( TileBuffer ), stream );
     if( transferBuffer.size == 0 )
     {
         tilePool->freeBlock( tileLocator );
@@ -129,7 +129,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
 
     // Allocate a transfer buffer.
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getImageSource()->getFillType(), mipTailSize, stream );
+        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), mipTailSize, stream );
     if( transferBuffer.size == 0 )
     {
         tilePool->freeBlock( tileBlock );

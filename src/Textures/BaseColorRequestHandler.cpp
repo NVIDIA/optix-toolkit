@@ -59,8 +59,8 @@ void BaseColorRequestHandler::fillRequest( unsigned int deviceIndex, CUstream st
     bool hasBaseColor = false;
     if( texture != nullptr )
     {
-        texture->getImageSource()->open( nullptr );
-        hasBaseColor = texture->getImageSource()->readBaseColor( fBaseColor );
+        texture->open();
+        hasBaseColor = texture->readBaseColor( fBaseColor );
     }
 
     // Store the base color as a half4 in the page table
