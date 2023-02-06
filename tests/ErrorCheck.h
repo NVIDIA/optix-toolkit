@@ -31,6 +31,7 @@
 
 #include <optix.h>
 
+#include <cuda.h>
 #include <cuda_runtime.h>
 
 #include <sstream>
@@ -41,7 +42,7 @@ template <typename T>
 const char* getErrorMessage( T result );
 
 template <>
-const char* getErrorName( CUresult result )
+inline const char* getErrorName( CUresult result )
 {
     const char* errorName;
     if( cuGetErrorName( result, &errorName ) )
@@ -50,19 +51,19 @@ const char* getErrorName( CUresult result )
 }
 
 template <>
-const char* getErrorName( cudaError_t result )
+inline const char* getErrorName( cudaError_t result )
 {
     return cudaGetErrorName( result );
 }
 
 template <>
-const char* getErrorName( OptixResult result )
+inline const char* getErrorName( OptixResult result )
 {
     return optixGetErrorName( result );
 }
 
 template <>
-const char* getErrorMessage( CUresult result )
+inline const char* getErrorMessage( CUresult result )
 {
     const char* errorMessage;
     if( cuGetErrorString( result, &errorMessage ) )
@@ -71,13 +72,13 @@ const char* getErrorMessage( CUresult result )
 }
 
 template <>
-const char* getErrorMessage( cudaError_t result )
+inline const char* getErrorMessage( cudaError_t result )
 {
     return cudaGetErrorString( result );
 }
 
 template <>
-const char* getErrorMessage( OptixResult result )
+inline const char* getErrorMessage( OptixResult result )
 {
     return optixGetErrorString( result );
 }
