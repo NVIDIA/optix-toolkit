@@ -45,13 +45,14 @@ void ResourceRequestHandler::fillRequest( unsigned int deviceIndex, CUstream str
         return;
 
     // Invoke the callback that was provided when the resource was created, which returns a new page table entry.
-    void* pageTableEntry = m_callback( deviceIndex, stream, pageIndex, m_callbackContext );
-
-    // Add a page table mapping from the requested page index to the new page table entry.
-    // Page table updates are accumulated in the PagingSystem until launchPrepare is called, which
-    // sends them to the device (via PagingSystem::pushMappings).
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageIndex, NON_EVICTABLE_LRU_VAL,
-                                                          reinterpret_cast<unsigned long long>( pageTableEntry ) );
+    void* pageTableEntry;
+    if( m_callback( deviceIndex, stream, pageIndex, m_callbackContext, &pageTableEntry ) )
+    {
+        // Add a page table mapping from the requested page index to the new page table entry.
+        // Page table updates are accumulated in the PagingSystem until launchPrepare is called, which
+        // sends them to the device (via PagingSystem::pushMappings).
+        m_loader->getPagingSystem( deviceIndex )->addMapping( pageIndex, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( pageTableEntry ) );
+    }
 }
 
 };

@@ -32,6 +32,7 @@
 
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cuda_runtime.h>
@@ -114,9 +115,9 @@ class TestDemandLoader : public testing::Test
 
   protected:
     std::vector<CUstream>        m_streams;
-    DemandLoaderImpl*            m_loader;
+    DemandLoaderImpl*            m_loader{};
     std::shared_ptr<ImageSource> m_imageSource;
-    TextureDescriptor            m_descriptor;
+    TextureDescriptor            m_descriptor{};
 };
 
 TEST_F( TestDemandLoader, TestCreateDestroy )
@@ -130,92 +131,146 @@ TEST_F( TestDemandLoader, TestCreateTexture )
     // The texture is opaque, so we can't really validate it.
 }
 
-TEST_F( TestDemandLoader, TestSamplerRequest )
+class TestDemandLoaderResident : public TestDemandLoader
+{
+  public:
+    void SetUp() override
+    {
+        TestDemandLoader::SetUp();
+        // Allocate device memory for kernel output.
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident ), sizeof( bool ) ) );
+    }
+
+    void TearDown() override
+    {
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident ) ) );
+        TestDemandLoader::TearDown();
+    }
+
+protected:
+    int launchKernelAndSynchronize( unsigned int deviceIndex, unsigned int pageId, bool* isResident )
+    {
+        bool*    devIsResident = m_devIsResident;
+        CUstream stream        = m_streams[deviceIndex];
+        const int numFilled = launchKernel( deviceIndex, stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
+            launchPageRequester( stream, context, pageId, devIsResident );
+        } );
+        // Copy isResident result to host.
+        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
+        DEMAND_CUDA_CHECK( cudaMemcpy( isResident, m_devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
+        return numFilled;
+    }
+
+    bool* m_devIsResident{};
+};
+
+TEST_F( TestDemandLoaderResident, TestSamplerRequest )
 {
     const DemandTexture& texture = m_loader->createTexture( m_imageSource, m_descriptor );
+    const unsigned int   pageId  = texture.getId();
 
     // TODO: this fails with multiple GPUs under both Windows and Linux.
     // for( unsigned int deviceIndex : m_loader->getDevices() )
-    unsigned int deviceIndex = 0;
+    for( unsigned int deviceIndex = 0; deviceIndex < 1; ++deviceIndex )
     {
+        bool isResident1{true};
+        bool isResident2{};
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-        CUstream stream = m_streams[deviceIndex];
-
-        // Allocate device memory for kernel output.
-        bool* devIsResident;
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devIsResident ), sizeof( bool ) ) );
 
         // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
         // The helper function processes any requests.
-        unsigned int pageId = texture.getId();
-        int numFilled = launchKernel( deviceIndex, stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
-            launchPageRequester( stream, context, pageId, devIsResident );
-        } );
-        EXPECT_EQ( 1, numFilled );
-
-        // Copy isResident result to host.
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        bool isResident;
-        DEMAND_CUDA_CHECK( cudaMemcpy( &isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
-        EXPECT_FALSE( isResident );
-
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
         // Launch the kernel again.  The sampler should now be resident.
-        numFilled = launchKernel( deviceIndex, stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
-            launchPageRequester( stream, context, pageId, devIsResident );
-        } );
-        EXPECT_EQ( 0, numFilled );
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
 
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( &isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devIsResident ) ) );
-        EXPECT_TRUE( isResident );
+        EXPECT_EQ( 1, numFilled1 );
+        EXPECT_FALSE( isResident1 );
+        EXPECT_EQ( 0, numFilled2 );
+        EXPECT_TRUE( isResident2 );
     }
 }
 
-void* callback( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void* context )
+class MockResourceLoader
 {
-    return nullptr;
-}
+  public:
+    MOCK_METHOD( bool, loadResource, ( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void** pageTableEntry ) );
 
-TEST_F( TestDemandLoader, TestResourceRequest )
-{
-    const unsigned int numPages  = 256;
-    const unsigned int startPage = m_loader->createResource( numPages, callback, nullptr );
-
-    // TODO: this fails with multiple GPUs under both Windows and Linux.
-    // for( unsigned int deviceIndex : m_loader->getDevices() )
-    unsigned int deviceIndex = 0;
+    static bool callback( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void* context, void** pageTableEntry )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-        CUstream stream = m_streams[deviceIndex];
+        return static_cast<MockResourceLoader*>( context )->loadResource( deviceIndex, stream, pageIndex, pageTableEntry );
+    }
+};
 
-        // Allocate device memory for kernel output.
-        bool* devIsResident;
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devIsResident ), sizeof( bool ) ) );
+TEST_F( TestDemandLoaderResident, TestResourceRequest )
+{
+    // TODO: this fails with multiple GPUs under both Windows and Linux.
+    //const std::vector<unsigned int> devices = m_loader->getDevices();
+    const unsigned int devices[] = { 0 };
+    using namespace testing;
+    const unsigned int numPages  = 256;
+    StrictMock<MockResourceLoader> resLoader;
+    const unsigned int startPage = m_loader->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
+    // Must configure mocks before making any method calls.
+    for( unsigned int deviceIndex : devices )
+    {
+        EXPECT_CALL( resLoader, loadResource( deviceIndex, _, startPage, NotNull() ) )
+           .WillOnce( DoAll( SetArgPointee<3>( nullptr ), Return( true ) ) );
+    }
+
+    for( unsigned int deviceIndex : devices )
+    {
+        bool isResident1{true};
+        bool isResident2{};
+        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
         unsigned int pageId = startPage + deviceIndex;
-        int numFilled = launchKernel( deviceIndex, stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
-            launchPageRequester( stream, context, pageId, devIsResident );
-        } );
-        EXPECT_EQ( 1, numFilled );
-
-        // Copy isResident result to host.
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        bool isResident;
-        DEMAND_CUDA_CHECK( cudaMemcpy( &isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
-        EXPECT_FALSE( isResident );
-
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
         // Launch the kernel again.  The page should now be resident.
-        numFilled = launchKernel( deviceIndex, stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
-            launchPageRequester( stream, context, pageId, devIsResident );
-        } );
-        EXPECT_EQ( 0, numFilled );
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
 
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( &isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devIsResident ) ) );
-        EXPECT_TRUE( isResident );
+        EXPECT_EQ( 1, numFilled1 );
+        EXPECT_FALSE( isResident1 );
+        EXPECT_EQ( 0, numFilled2 );
+        EXPECT_TRUE( isResident2 );
+    }
+}
+
+TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
+{
+    // TODO: this fails with multiple GPUs under both Windows and Linux.
+    //const std::vector<unsigned int> devices = m_loader->getDevices();
+    const unsigned int devices[] = { 0 };
+    using namespace testing;
+    StrictMock<MockResourceLoader> resLoader;
+    const unsigned int             numPages = 256;
+    const unsigned int startPage = m_loader->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
+    // Must configure mocks before making any method calls.
+    for( unsigned int deviceIndex : devices )
+    {
+        EXPECT_CALL( resLoader, loadResource( deviceIndex, _, startPage, NotNull() ) )
+            .WillOnce( Return( false ) )
+            .WillOnce( DoAll( SetArgPointee<3>( nullptr ), Return( true ) ) );
+    }
+
+    for( unsigned int deviceIndex : devices )
+    {
+        const unsigned int pageId = startPage + deviceIndex;
+        bool isResident1{true};
+        bool isResident2{true};
+        bool isResident3{};
+        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 ); // request deferred
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 ); // request fulfilled
+        const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident3 ); // resource already loaded
+
+        EXPECT_EQ( 1, numFilled1 );
+        EXPECT_FALSE( isResident1 );
+        EXPECT_EQ( 1, numFilled2 );
+        EXPECT_FALSE( isResident2 );
+        EXPECT_EQ( 0, numFilled3 );
+        EXPECT_TRUE( isResident3 );
     }
 }
