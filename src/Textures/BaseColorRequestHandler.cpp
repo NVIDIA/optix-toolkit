@@ -75,7 +75,8 @@ void BaseColorRequestHandler::fillRequest( unsigned int deviceIndex, CUstream st
 
     // Store the base color as a half4 in the page table
     static const unsigned long long noColor = 0XFFFFFFFFFFFFFFFFULL;  // four half NaNs, to indicate when no baseColor exists
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, hasBaseColor ? toPageTableEntry( baseColor ) : noColor );
+    m_loader->setPageTableEntry( deviceIndex, pageId, false,
+                                 reinterpret_cast<void*>( hasBaseColor ? toPageTableEntry( baseColor ) : noColor ) );
 }
 
 }  // namespace demandLoading

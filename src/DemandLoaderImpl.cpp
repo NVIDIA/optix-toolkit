@@ -29,13 +29,13 @@
 #include "DemandLoaderImpl.h"
 
 #include "DemandPageLoaderImpl.h"
-#include "RequestProcessor.h"
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
 #include "TicketImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
 #include <cuda.h>
@@ -116,9 +116,8 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
     , m_samplerRequestHandler( this )
 {
-
     // Create transfer buffer pools
-    for( unsigned int deviceIndex = 0; deviceIndex < m_pageLoader->getNumDevices(); ++deviceIndex )
+    for( unsigned int deviceIndex : m_pageLoader->getDevices() )
     {
 #if CUDA_VERSION >= 11020
         DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator( deviceIndex );
@@ -232,7 +231,9 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
 
 unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )
 {
-    return m_pageLoader->createResource( numPages, callback, callbackContext );
+    m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, callbackContext, this ) );
+    const unsigned int startPage = m_pageTableManager->reserveBackedPages( numPages, m_resourceRequestHandlers.back().get() );
+    return startPage;
 }
 
 void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
@@ -286,19 +287,39 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
 bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
 {
     ContextSaver contextSaver;
-    return m_pageLoader->launchPrepare( deviceIndex, stream, context );
+    return m_pageLoader->pushMappings( deviceIndex, stream, context );
 }
 
 // Process page requests.
 Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
 {
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Create a Ticket that the caller can use to track request processing.
+    Ticket ticket = TicketImpl::create( deviceIndex, stream );
+    const unsigned int id = m_ticketId++;
+    m_requestProcessor.setTicket( id, ticket);
+
     ContextSaver contextSaver;
-    return m_pageLoader->processRequests( deviceIndex, stream, context );
+    m_pageLoader->pullRequests( deviceIndex, stream, context, id );
+
+    return ticket;
 }
 
 Ticket DemandLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
-    return m_pageLoader->replayRequests( deviceIndex, stream, requestedPages, numRequestedPages );
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Create a Ticket that the caller can use to track request processing.
+    Ticket ticket = TicketImpl::create( deviceIndex, stream );
+    const unsigned int id = m_ticketId++;
+    m_requestProcessor.setTicket( id, ticket );
+
+    m_pageLoader->replayRequests( deviceIndex, stream, id, requestedPages, numRequestedPages );
+
+    return ticket;
 }
 
 
@@ -308,6 +329,11 @@ void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream str
     TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager->getRequestHandler( pageId ) );
     DEMAND_ASSERT_MSG( handler != nullptr, "Page request does not correspond to a known resource" );
     handler->unmapTileResource( deviceIndex, stream, pageId );
+}
+
+void DemandLoaderImpl::setPageTableEntry( unsigned deviceIndex, unsigned pageId, bool evictable, void* pageTableEntry )
+{
+    m_pageLoader->setPageTableEntry( deviceIndex, pageId, evictable, pageTableEntry);
 }
 
 PagingSystem* DemandLoaderImpl::getPagingSystem( unsigned int deviceIndex ) const
@@ -376,7 +402,7 @@ Statistics DemandLoaderImpl::getStatistics() const
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     Statistics                   stats{};
-    stats.requestProcessingTime = m_totalProcessingTime;
+    stats.requestProcessingTime = m_pageLoader->getTotalProcessingTime();
     stats.numTextures           = m_textures.size();
 
     // Multiple textures might share the same ImageSource, so we create a set as we go to avoid

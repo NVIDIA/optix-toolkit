@@ -34,5 +34,5 @@ namespace demandLoading {
 struct DeviceContext;
 }
 
-void launchPageRequester( CUstream stream, const demandLoading::DeviceContext& context, unsigned int pageId, bool* isResident );
+void launchPageRequester( CUstream stream, const demandLoading::DeviceContext& context, unsigned int pageId, bool* devIsResident );
 

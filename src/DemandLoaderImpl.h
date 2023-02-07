@@ -30,10 +30,10 @@
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 
+#include "DemandPageLoaderImpl.h"
 #include "Memory/Allocators.h"
 #include "Memory/MemoryPool.h"
 #include "Memory/RingSuballocator.h"
-
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
@@ -69,7 +69,7 @@ class DemandLoaderImpl : public DemandLoader
     DemandLoaderImpl( const Options& options );
 
     /// Destroy demand loading system.
-    ~DemandLoaderImpl() override;;
+    ~DemandLoaderImpl() override;
 
     /// Create a demand-loaded texture for the given image.  The texture initially has no backing
     /// storage.  The readTile() method is invoked on the image to fill each required tile.  The
@@ -153,6 +153,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
 
+    void setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry);
+
   private:
     mutable std::mutex        m_mutex;
 
@@ -173,7 +175,7 @@ class DemandLoaderImpl : public DemandLoader
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
-    double m_totalProcessingTime = 0.0;
+    unsigned int m_ticketId{};
 
     // Unmap the backing storage associated with a texture tile or mip tail
     void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );

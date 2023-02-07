@@ -34,14 +34,14 @@
 
 namespace demandLoading {
 
-class DemandPageLoaderImpl;
+class DemandLoaderImpl;
 
 /// Page request handler for user-defined resources.
 class ResourceRequestHandler : public RequestHandler
 {
   public:
     /// Construct resource page request handler.
-    ResourceRequestHandler( ResourceCallback callback, void *callbackContext, DemandPageLoaderImpl* loader )
+    ResourceRequestHandler( ResourceCallback callback, void *callbackContext, DemandLoaderImpl* loader )
         : m_callback( callback )
         , m_callbackContext( callbackContext )
         , m_loader( loader )
@@ -55,9 +55,9 @@ class ResourceRequestHandler : public RequestHandler
     unsigned int getStartPage() const { return m_startPage; }
 
   private:
-    ResourceCallback      m_callback;
-    void*                 m_callbackContext;
-    DemandPageLoaderImpl* m_loader;
+    ResourceCallback  m_callback;
+    void*             m_callbackContext;
+    DemandLoaderImpl* m_loader;
 };
 
 }  // namespace demandLoading

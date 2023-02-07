@@ -115,8 +115,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
                              );
 
         // Add a mapping for the tile, which will be sent to the device in pushMappings().
-        const unsigned int lruVal = 0;
-        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, bh.block.data );
+        m_loader->setPageTableEntry( deviceIndex, pageId, true, reinterpret_cast<void*>( bh.block.data ) );
     }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
@@ -166,8 +165,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
                                 );
 
         // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
-        unsigned int lruVal = 0;
-        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, bh.block.data );
+        m_loader->setPageTableEntry( deviceIndex, pageId, true, reinterpret_cast<void*>( bh.block.data ) );
     }
     else
     {

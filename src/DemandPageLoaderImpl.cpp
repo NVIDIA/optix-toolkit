@@ -28,7 +28,6 @@
 
 #include "DemandPageLoaderImpl.h"
 
-#include "RequestProcessor.h"
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
@@ -36,6 +35,8 @@
 #include "TicketImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Paging.h>
+#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
 #include <cuda.h>
@@ -99,33 +100,6 @@ namespace demandLoading {
 DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
     : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )
 {
-    // Determine which devices to use.  Look for devices supporting sparse textures first
-    for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
-    {
-        if( m_options.useSparseTextures && supportsSparseTextures( deviceIndex ) && !tccModeEnabled( deviceIndex ) )
-            m_devices.push_back( deviceIndex );
-    }
-
-    // Fall back to dense textures if no devices supporting sparse textures were found
-    if( m_devices.empty() )
-    {
-        // FIXME: log a warning here that we are falling back to dense textures if m_options.useSparseTextures is true.
-        //throw Exception( "No devices that support CUDA sparse textures were found (sm_60+ required)." );
-        m_options.useSparseTextures = false;
-        for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
-        {
-            if( !tccModeEnabled( deviceIndex ) )
-                m_devices.push_back( deviceIndex );
-        }
-    }
-
-    // Create deviceMemoryManagers and pagingSystems for the devices
-    for( unsigned int deviceIndex : m_devices )
-    {
-        m_deviceMemoryManagers[deviceIndex].reset( new DeviceMemoryManager( deviceIndex, m_options ) );
-        m_pagingSystems[deviceIndex].reset( new PagingSystem(
-            deviceIndex, m_options, m_deviceMemoryManagers[deviceIndex].get(), &m_pinnedMemoryPool, m_requestProcessor ) );
-    }
 }
 
 const static unsigned long long PINNED_ALLOC_SIZE = 2 * 1024 * 1024;
@@ -169,27 +143,23 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
     }
 }
 
-
-unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )
+unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    // Create a request handler that wraps the callback.  These are individually allocated to avoid
-    // dangling pointers in the PageTableManager when the request handler vector is resized.
-    m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, callbackContext, this ) );
+    return backed ? m_pageTableManager->reserveBackedPages( numPages, nullptr ) :
+                    m_pageTableManager->reserveUnbackedPages( numPages, nullptr );
+}
 
-    // Reserve virtual address space for the resource, which is associated with the request handler.
-    m_pageTableManager->reserveBackedPages( numPages, m_resourceRequestHandlers.back().get() );
-
-    // Return the start page.
-    return m_resourceRequestHandlers.back()->getStartPage();
-
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+void DemandPageLoaderImpl::setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry )
+{
+    return m_pagingSystems[deviceIndex]->addMapping( pageId, evictable ? 0U : NON_EVICTABLE_LRU_VAL,
+                                                     reinterpret_cast<unsigned long long>( pageTableEntry ) );
 }
 
 // Returns false if the device doesn't support sparse textures.
-bool DemandPageLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+bool DemandPageLoaderImpl::pushMappings( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -224,27 +194,23 @@ void DemandPageLoaderImpl::invalidatePages( unsigned int deviceIndex, CUstream s
 
 
 // Process page requests.
-Ticket DemandPageLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
+void DemandPageLoaderImpl::pullRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context, unsigned int id )
 {
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket( TicketImpl::create( deviceIndex, stream ) );
 
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
     // request bits copies the requested page ids to host memory (asynchronously).
     PagingSystem* pagingSystem = m_pagingSystems[deviceIndex].get();
     unsigned int  startPage    = 0;
     unsigned int  endPage      = m_pageTableManager->getHighestUsedPage();
-    pagingSystem->pullRequests( context, stream, startPage, endPage, ticket );
+    pagingSystem->pullRequests( context, stream, id, startPage, endPage);
 
     std::unique_lock<std::mutex> lock( m_mutex );
     m_totalProcessingTime += stopwatch.elapsed();
-    return ticket;
 }
 
-Ticket DemandPageLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
+void DemandPageLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
@@ -252,12 +218,7 @@ Ticket DemandPageLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream 
     // Flush any page mappings that have accumulated for the specified device.
     m_pagingSystems.at( deviceIndex )->flushMappings();
 
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket( TicketImpl::create( deviceIndex, stream ) );
-
-    m_requestProcessor->addRequests( deviceIndex, stream, requestedPages, numRequestedPages, ticket );
-
-    return ticket;
+    m_requestProcessor->addRequests( deviceIndex, stream, id, pageIds, numPageIds);
 }
 
 // Predicate that returns pages to a tile pool if the arenaId is high enough

@@ -78,7 +78,6 @@ add_library( DemandLoading
   src/PagingSystemKernels.h
   src/RequestContext.h
   src/RequestHandler.h
-  src/RequestProcessor.h
   src/RequestQueue.cpp
   src/RequestQueue.h
   src/ResourceRequestHandler.cpp
@@ -125,6 +124,7 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/DeviceContext.h
   include/OptiXToolkit/DemandLoading/Options.h
   include/OptiXToolkit/DemandLoading/Paging.h
+  include/OptiXToolkit/DemandLoading/RequestProcessor.h
   include/OptiXToolkit/DemandLoading/Resource.h
   include/OptiXToolkit/DemandLoading/Statistics.h
   include/OptiXToolkit/DemandLoading/Texture2DExtended.h

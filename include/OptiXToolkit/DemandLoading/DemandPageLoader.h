@@ -58,21 +58,23 @@ class DemandPageLoader
     /// Base class destructor.
     virtual ~DemandPageLoader() = default;
 
-    /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    /// Returns the starting index of the resource in the page table.
-    virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) = 0;
+    /// Allocate a contiguous range of page ids.  Returns the first page id in the the allocated range.
+    virtual unsigned int allocatePages( unsigned int numPages, bool backed ) = 0;
 
-    /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
+    /// Set the page table entry for the given page.  Sets the associated page as resident.
+    virtual void setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry ) = 0;
+
+    /// Prepare for launch by pushing mapped pages to the device.
+    /// Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to
     /// device memory (typically along with OptiX kernel launch parameters), so that it can be
     /// passed to Tex2D().
-    virtual bool launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context ) = 0;
+    virtual bool pushMappings( unsigned int deviceIndex, CUstream stream, DeviceContext& context ) = 0;
 
     /// Fetch page requests from the given device context and enqueue them for background
     /// processing.  The given DeviceContext must reside in host memory.  The given stream is used
-    /// when copying tile data to the device.  Returns a ticket that is notified when the requests
-    /// have been filled on the host side.
-    virtual Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) = 0;
+    /// to launch a kernel to obtain requested page ids and asynchronously copy them to host memory.
+    virtual void pullRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext, unsigned int id ) = 0;
 
     /// Get indices of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
     virtual std::vector<unsigned int> getDevices() const = 0;

@@ -61,6 +61,7 @@ add_executable( testDemandLoading
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
   TestDemandLoader.cpp
+  TestDemandPageLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp

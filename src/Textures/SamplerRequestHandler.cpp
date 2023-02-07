@@ -71,7 +71,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // If the texture is 1x1 or null, don't create a sampler.
     if( texture->isDegenerate() && !texture->isUdimEntryPoint() )
     {
-        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, 0ULL );
+        m_loader->setPageTableEntry( deviceIndex, pageId, false, nullptr );
         return;
     }
 
@@ -116,7 +116,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     m_loader->getPinnedMemoryPool()->freeAsync( pinnedBlock, deviceIndex, stream );
 
     // Push mapping for sampler to update page table.
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
+    m_loader->setPageTableEntry( deviceIndex, pageId, false, devSampler );
 }
 
 bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )

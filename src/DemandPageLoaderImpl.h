@@ -73,24 +73,24 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Destroy demand loading system.
     ~DemandPageLoaderImpl() override = default;
 
-    /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
+    unsigned int allocatePages( unsigned int numPages, bool backed ) override;
+
+    void setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry ) override;
 
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to
     /// device memory (typically along with OptiX kernel launch parameters), so that it can be
     /// passed to Tex2D().
-    bool launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& demandTextureContext ) override;
+    bool pushMappings( unsigned int deviceIndex, CUstream stream, DeviceContext& demandTextureContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background
     /// processing.  The given stream is used when copying tile data to the device.  Returns a
     /// ticket that is notified when the requests have been filled.
-    Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) override;
+    void pullRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext, unsigned int id ) override;
 
-    /// Replay the given page requests (from a trace file), adding them to the page requeuest queue
-    /// for asynchronous processing.  Returns a ticket that is notified when the requests have been
-    /// filled.
-    Ticket replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
+    /// Replay the given page requests (from a trace file), adding them to the page request queue
+    /// for asynchronous processing.
+    void replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
 
     /// Get the demand loading configuration options.
     const Options& getOptions() const { return m_options; }
@@ -124,6 +124,8 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     void invalidatePageRange( unsigned int deviceIndex, unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate );
 
+    double getTotalProcessingTime() const { return m_totalProcessingTime; }
+
 private:
     mutable std::mutex        m_mutex;
     Options                   m_options;
@@ -131,7 +133,7 @@ private:
     std::vector<unsigned int> m_devices;  // Indices of supported devices.
 
     std::vector<std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per device)
-    std::vector<std::unique_ptr<PagingSystem>>        m_pagingSystems;  // Manages device interaction (one per device)
+    std::vector<std::unique_ptr<PagingSystem>>        m_pagingSystems;   // Manages device interaction (one per device)
 
     struct InvalidationRange
     {
@@ -146,14 +148,9 @@ private:
 
     MemoryPool<PinnedAllocator, RingSuballocator> m_pinnedMemoryPool;
 
-    std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
+    double m_totalProcessingTime{};
 
-    std::unique_ptr<TraceFileWriter> m_traceFile{};  // Empty if tracing is disabled.
-
-    double m_totalProcessingTime = 0.0;
-
-    /// Unmap the backing storage associated with a texture tile or mip tail
-    void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    std::vector<std::unique_ptr<RequestHandler>> m_requestHandlers;
 
     // Invalidate the pages for this device in m_pagesToInvalidate
     void invalidatePages( unsigned int deviceIndex, CUstream stream, DeviceContext& context );

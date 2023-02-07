@@ -82,7 +82,8 @@ class PageTableManager
         DEMAND_ASSERT_MSG(m_nextBackedPage + numPages <= m_backedPages, "Insufficient backed pages in demand loading page table" );
 
         unsigned int firstPage = m_nextBackedPage;
-        handler->setPageRange( firstPage, numPages );
+        if( handler )
+            handler->setPageRange( firstPage, numPages );
 
         unsigned int lastPage =  firstPage + numPages - 1;
         const PageMapping mapping{firstPage, lastPage, handler};
@@ -98,7 +99,8 @@ class PageTableManager
         DEMAND_ASSERT_MSG( m_nextUnbackedPage + numPages <= m_totalPages, "Insufficient unbacked pages in demand loading page table" );
 
         unsigned int firstPage = m_nextUnbackedPage;
-        handler->setPageRange( firstPage, numPages );
+        if( handler )
+            handler->setPageRange( firstPage, numPages );
 
         unsigned int lastPage =  m_nextUnbackedPage + numPages - 1;
         const PageMapping mapping{firstPage, lastPage, handler};

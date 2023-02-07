@@ -33,9 +33,10 @@
 #include "PageMappingsContext.h"
 #include "PagingSystemKernels.h"
 #include "RequestContext.h"
-#include "RequestProcessor.h"
 #include "Util/CudaCallback.h"
 #include "Util/Math.h"
+
+#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 
 #include <algorithm>
 #include <set>
@@ -95,26 +96,26 @@ void PagingSystem::updateLruThreshold( unsigned int returnedStalePages, unsigned
 class ProcessRequestsCallback : public CudaCallback
 {
   public:
-    ProcessRequestsCallback( PagingSystem* pagingSystem, DeviceContext context, RequestContext* pinnedRequestContext, CUstream stream, Ticket ticket )
+    ProcessRequestsCallback( PagingSystem* pagingSystem, DeviceContext context, RequestContext* pinnedRequestContext, CUstream stream, unsigned int id )
         : m_pagingSystem( pagingSystem )
         , m_context( context )
         , m_pinnedRequestContext( pinnedRequestContext )
         , m_stream( stream )
-        , m_ticket( ticket )
+        , m_id( id )
     {
     }
 
-    void callback() override { m_pagingSystem->processRequests( m_context, m_pinnedRequestContext, m_stream, m_ticket ); }
+    void callback() override { m_pagingSystem->processRequests( m_context, m_pinnedRequestContext, m_stream, m_id ); }
 
   private:
     PagingSystem*   m_pagingSystem;
     DeviceContext   m_context;
     RequestContext* m_pinnedRequestContext;
     CUstream        m_stream;
-    Ticket          m_ticket;
+    unsigned int    m_id;
 };
 
-void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, unsigned int startPage, unsigned int endPage, Ticket ticket )
+void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
@@ -159,11 +160,11 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
                                       pinnedRequestContext->numArrayLengths * sizeof( unsigned int ), stream ) );
 
     // Enqueue host function call to process the page requests once the kernel launch and copies have completed.
-    CudaCallback::enqueue( stream, new ProcessRequestsCallback( this, context, pinnedRequestContext, stream, ticket ) );
+    CudaCallback::enqueue( stream, new ProcessRequestsCallback( this, context, pinnedRequestContext, stream, id ) );
 }
 
 // Note: this method must not make any CUDA API calls, because it's invoked via cuLaunchHostFunc.
-void PagingSystem::processRequests( const DeviceContext& context, RequestContext* pinnedRequestContext, CUstream stream, Ticket ticket )
+void PagingSystem::processRequests( const DeviceContext& context, RequestContext* pinnedRequestContext, CUstream stream, unsigned int id )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -185,8 +186,9 @@ void PagingSystem::processRequests( const DeviceContext& context, RequestContext
     }
     pinnedRequestContext->arrayLengths[PAGE_REQUESTS_LENGTH] = numRequestedPages;
 
-    // Enqueue the requests for asynchronous processing.
-    m_requestProcessor->addRequests( m_deviceIndex, stream, pinnedRequestContext->requestedPages, numRequestedPages, ticket );
+    // Enqueue the requests for processing.
+    // Must do this even when zero pages are requested to get proper end-to-end asynchronous communication via the Ticket mechanism.
+    m_requestProcessor->addRequests( m_deviceIndex, stream, id, pinnedRequestContext->requestedPages, numRequestedPages );
 
     // Sort and stage stale pages, and update the LRU threshold
     unsigned int medianLruVal = 0;

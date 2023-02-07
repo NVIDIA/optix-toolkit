@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "RequestProcessor.h"
+#include "ThreadPoolRequestProcessor.h"
+
 #include "DemandLoaderImpl.h"
 #include "RequestHandler.h"
 #include "TicketImpl.h"
@@ -66,9 +67,14 @@ void ThreadPoolRequestProcessor::stop()
     }
 }
 
-void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
+void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
-    m_requests->push( pageIds, numPageIds, ticket);
+    auto it = m_tickets.find( id );
+    DEMAND_ASSERT( it != m_tickets.end() );
+    Ticket ticket = it->second;
+    // We won't be issued this id again, so we can discard it from the map.
+    m_tickets.erase( it );
+    m_requests->push( pageIds, numPageIds, ticket );
 
     // If recording is enabled, write the requests to the trace file.
     if( m_traceFile && numPageIds > 0 )
@@ -83,6 +89,11 @@ void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::Ima
     {
         m_traceFile->recordTexture( imageSource, textureDesc );
     }
+}
+
+void ThreadPoolRequestProcessor::setTicket( unsigned int id, Ticket ticket )
+{
+    m_tickets[id] = ticket;
 }
 
 void ThreadPoolRequestProcessor::worker()

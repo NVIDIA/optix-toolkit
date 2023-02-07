@@ -76,7 +76,7 @@ class PagingSystem
     virtual ~PagingSystem();
     
     /// Pull requests from device to system memory.
-    void pullRequests( const DeviceContext& context, CUstream stream, unsigned int startPage, unsigned int endPage, Ticket ticket );
+    void pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage );
 
     /// Get the device index for this paging system.
     unsigned int getDeviceIndex() const { return m_deviceIndex; }
@@ -166,7 +166,7 @@ class PagingSystem
     friend class ProcessRequestsCallback;
 
     // Process requests, inserting them in the global request queue.
-    void processRequests( const DeviceContext& context, RequestContext* pinnedRequestContext, CUstream stream, Ticket ticket );
+    void processRequests( const DeviceContext& context, RequestContext* pinnedRequestContext, CUstream stream, unsigned int id );
 
     // Update the lru threshold value
     void updateLruThreshold( unsigned int returnedStalePages, unsigned int requestedStalePages, unsigned int medianLruVal );
