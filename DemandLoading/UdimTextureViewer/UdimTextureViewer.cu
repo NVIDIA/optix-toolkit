@@ -80,12 +80,8 @@ extern "C" __global__ void __raygen__rg()
     float time = 0.0f;
     traceRay( params.traversable_handle, RAY_TYPE_RADIANCE, origin, direction, tmin, tmax, time, &payload );
 
-    // Blend result of ray trace with tile display color
-    float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
-    float4 color  = ( 1.0f - tcolor.w ) * payload.color + tcolor.w * tcolor;
-
     // Put the final color in the result buffer
-    params.result_buffer[px.y * params.image_width + px.x] = make_color( color );
+    params.result_buffer[px.y * params.image_width + px.x] = make_color( payload.color );
 }
 
 extern "C" __global__ void __miss__ms()
