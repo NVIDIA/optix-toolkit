@@ -168,7 +168,7 @@ static __forceinline__ __device__ float4 tileDisplayColor( const DeviceContext& 
     // Get the texture sampler
     bool resident;
     unsigned long long samplerPage = pagingMapOrRequest( context, texture_id, &resident );
-    if( !resident )
+    if( samplerPage == 0 )
         return make_float4( 0.0f );
     demandLoading::TextureSampler* info = reinterpret_cast<demandLoading::TextureSampler*>( samplerPage );
 
