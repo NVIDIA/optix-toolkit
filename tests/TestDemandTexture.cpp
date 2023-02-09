@@ -56,7 +56,6 @@ class TestDemandTexture : public testing::Test
     {
         // Initialize CUDA.
         DEMAND_CUDA_CHECK( cuInit( 0 ) );
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
     }
 
@@ -73,6 +72,7 @@ class TestDemandTexture : public testing::Test
 
         // Use the first capable device.
         m_deviceIndex = m_loader->getDevices().at(0);
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         // Create TextureDescriptor.
         m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
