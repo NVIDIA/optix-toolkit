@@ -220,7 +220,7 @@ class MemoryPool
     uint64_t currentFreeSpace() const { return m_suballocator ? m_suballocator->freeSpace() : 0; }
 
     /// Return the amount of space that can be allocated in the pool without freeing anything
-    uint64_t allocatableSpace() const { return ( maxSize() - trackedSize() ) + currentFreeSpace(); }
+    uint64_t allocatableSpace() const { return currentFreeSpace() + maxSize() - std::min( maxSize(), trackedSize() ); }
 
     /// Return the amount of memory currently tracked (free or giving out) by the pool
     uint64_t trackedSize() const { return m_suballocator ? m_suballocator->trackedSize() : 0; }
