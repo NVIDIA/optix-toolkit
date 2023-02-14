@@ -29,6 +29,7 @@
 
 #include <assert.h>
 
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 using namespace demandTextureApp;
@@ -75,8 +76,8 @@ void TextureVariantApp::createTexture()
     const demandLoading::DemandTexture& texture2 = m_demandLoader->createTexture( imageSource, texDesc2 );
     m_textureIds.push_back( texture2.getId() );
 
-    // The OptiX closest hit program assumes the textures have consecutive ids.
-    assert( texture2.getId() == texture1.getId() + 1 ); 
+    // The OptiX closest hit program assumes the textures are consecutive.
+    assert( texture2.getId() == texture1.getId() + PAGES_PER_TEXTURE ); 
 }
 
 //------------------------------------------------------------------------------

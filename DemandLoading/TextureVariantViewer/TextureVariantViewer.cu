@@ -136,7 +136,7 @@ extern "C" __global__ void __closesthit__ch()
     // Use the variant texture on the right half of the image
     uint2 px = getPixelIndex( params.num_devices, params.device_idx );
     if( px.x * 2 > params.image_width )
-        ++textureId; 
+        textureId += PAGES_PER_TEXTURE; 
 
     // Sample the texture or variant, and return this value in the ray payload
     bool resident  = false;
