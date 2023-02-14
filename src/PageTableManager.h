@@ -46,38 +46,65 @@ class RequestHandler;
 class PageTableManager
 {
   public:
-    explicit PageTableManager( unsigned int totalPages )
+    explicit PageTableManager( unsigned int totalPages, unsigned int backedPages )
         : m_totalPages( totalPages )
+        , m_backedPages( backedPages )
+        , m_nextUnbackedPage( backedPages )
     {
     }
 
-    unsigned int getAvailablePages() const
+    unsigned int getAvailableBackedPages() const
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        return getAvailablePagesUnsafe();
+        return m_backedPages - m_nextBackedPage;
+    }
+
+    unsigned int getAvailableUnbackedPages() const 
+    {
+        std::unique_lock<std::mutex> lock( m_mutex );
+        return m_totalPages - m_nextUnbackedPage;
     }
 
     unsigned int getHighestUsedPage() const
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        return m_nextPage - 1;
+        if(m_nextUnbackedPage > m_backedPages)  
+            return m_nextUnbackedPage - 1; 
+        else 
+            return m_nextBackedPage - 1;
     }
 
     /// Reserve the specified number of contiguous page table entries, associating them with the
     /// specified request handler.  Returns the first page reserved.
-    unsigned int reserve( unsigned int numPages, RequestHandler* handler )
+    unsigned int reserveBackedPages( unsigned int numPages, RequestHandler* handler ) 
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        DEMAND_ASSERT_MSG( getAvailablePagesUnsafe() >= numPages, "Insufficient pages in demand loading page table" );
+        DEMAND_ASSERT_MSG(m_nextBackedPage + numPages <= m_backedPages, "Insufficient backed pages in demand loading page table" );
 
-        unsigned int firstPage = m_nextPage;
+        unsigned int firstPage = m_nextBackedPage;
         handler->setPageRange( firstPage, numPages );
 
-        unsigned int lastPage =  m_nextPage + numPages - 1;
+        unsigned int lastPage =  firstPage + numPages - 1;
         const PageMapping mapping{firstPage, lastPage, handler};
         m_mappings.push_back( mapping );
 
-        m_nextPage += numPages;
+        m_nextBackedPage += numPages;
+        return firstPage;
+    }
+
+    unsigned int reserveUnbackedPages( unsigned int numPages, RequestHandler* handler )
+    {
+        std::unique_lock<std::mutex> lock( m_mutex );
+        DEMAND_ASSERT_MSG( m_nextUnbackedPage + numPages <= m_totalPages, "Insufficient unbacked pages in demand loading page table" );
+
+        unsigned int firstPage = m_nextUnbackedPage;
+        handler->setPageRange( firstPage, numPages );
+
+        unsigned int lastPage =  m_nextUnbackedPage + numPages - 1;
+        const PageMapping mapping{firstPage, lastPage, handler};
+        m_mappings.push_back( mapping );
+
+        m_nextUnbackedPage += numPages;
         return firstPage;
     }
 
@@ -95,11 +122,6 @@ class PageTableManager
     }
 
   private:
-    unsigned int getAvailablePagesUnsafe() const
-    {
-        return m_totalPages - m_nextPage;
-    }
-
     struct PageMapping
     {
         unsigned int    firstPage;
@@ -108,7 +130,11 @@ class PageTableManager
     };
 
     unsigned int             m_totalPages;
-    unsigned int             m_nextPage{};
+    unsigned int             m_backedPages;
+
+    unsigned int             m_nextBackedPage{};
+    unsigned int             m_nextUnbackedPage{};
+
     std::vector<PageMapping> m_mappings;
     mutable std::mutex       m_mutex;
 };

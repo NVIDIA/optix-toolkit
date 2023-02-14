@@ -38,7 +38,6 @@
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
 #include "ResourceRequestHandler.h"
-#include "Textures/BaseColorRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
@@ -161,10 +160,9 @@ class DemandLoaderImpl : public DemandLoader
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.
     std::unique_ptr<DemandPageLoaderImpl> m_pageLoader;
 
-    std::vector<std::unique_ptr<DemandTextureImpl>>   m_textures;  // demand-loaded textures, indexed by texture id.
-    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // facilitate fast lookup from image* to textureId
+    std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures;     // demand-loaded textures, indexed by textureId
+    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // lookup from image* to textureId
 
-    BaseColorRequestHandler    m_baseColorRequestHandler;  // Handles base colors for textures.
     SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
 
 #if CUDA_VERSION >= 11020
@@ -182,6 +180,8 @@ class DemandLoaderImpl : public DemandLoader
 
     // Create a normal or variant version of a demand texture, based on the imageSource 
     DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
+
+    unsigned int allocateTexturePages( unsigned int numTextures );
 };
 
 }  // namespace demandLoading

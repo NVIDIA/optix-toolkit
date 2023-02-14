@@ -83,8 +83,6 @@ add_library( DemandLoading
   src/RequestQueue.h
   src/ResourceRequestHandler.cpp
   src/ResourceRequestHandler.h
-  src/Textures/BaseColorRequestHandler.cpp
-  src/Textures/BaseColorRequestHandler.h
   src/Textures/DemandTextureImpl.cpp
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.cpp

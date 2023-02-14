@@ -37,7 +37,6 @@
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ResourceRequestHandler.h"
-#include "Textures/BaseColorRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"

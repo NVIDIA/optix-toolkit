@@ -97,7 +97,7 @@ bool tccModeEnabled( unsigned int deviceIndex )
 namespace demandLoading {
 
 DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
-    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages ), requestProcessor, options )
+    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )
 {
     // Determine which devices to use.  Look for devices supporting sparse textures first
     for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
@@ -182,10 +182,12 @@ unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, Resour
     m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, callbackContext, this ) );
 
     // Reserve virtual address space for the resource, which is associated with the request handler.
-    m_pageTableManager->reserve( numPages, m_resourceRequestHandlers.back().get() );
+    m_pageTableManager->reserveBackedPages( numPages, m_resourceRequestHandlers.back().get() );
 
     // Return the start page.
     return m_resourceRequestHandlers.back()->getStartPage();
+
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
 }
 
 // Returns false if the device doesn't support sparse textures.

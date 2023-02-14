@@ -83,10 +83,9 @@ class TextureSamplerReturnPredicate : public PageInvalidatorPredicate
 };
 
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
-    : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages ) )
+    : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages, options.numPageTableEntries ) )
     , m_requestProcessor( m_pageTableManager, options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
-    , m_baseColorRequestHandler( this )
     , m_samplerRequestHandler( this )
 {
 
@@ -103,10 +102,8 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
 #endif
     }
 
-    // Reserve virtual address space for texture samplers, which is associated with the sampler request handler.
-    // Note that the max number of samplers/textures is half the number of page table entries.
-    m_pageTableManager->reserve( m_pageLoader->getOptions().numPageTableEntries / 2, &m_samplerRequestHandler );
-    m_pageTableManager->reserve( m_pageLoader->getOptions().numPageTableEntries / 2, &m_baseColorRequestHandler );
+    // Reserve bits in the sampler request handler for all possible textures.
+    m_samplerRequestHandler.setPageRange( 0, options.numPageTableEntries );
 
     m_requestProcessor.start( options.maxThreads );
 }
@@ -124,18 +121,17 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    // The texture id will be the next index in the texture array.
-    unsigned int textureId = static_cast<unsigned int>( m_textures.size() );
-
     // Add new texture to the end of the list of textures.  The texture holds a pointer to the
     // image, from which tile data is obtained on demand.
+    unsigned int textureId = allocateTexturePages( 1 );
+
     DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDesc, imageSource );
-    m_textures.emplace_back( tex );
+    m_textures.emplace( textureId, tex );
 
     // Record the image reader and texture descriptor.
     m_requestProcessor.recordTexture( imageSource, textureDesc );
 
-    return *m_textures.back();
+    return *m_textures[textureId];
 }
 
 // Create a demand-loaded UDIM texture.  The images are not opened until the texture samplers are requested
@@ -149,45 +145,42 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    // Create all the slots we need in textures array
-    unsigned int startIndex = 0;
-    {
-        startIndex = static_cast<unsigned int>( m_textures.size() );
-        m_textures.resize( startIndex + udim*vdim );
-    }
+    // Allocate demand loader pages for the udim grid
+    DEMAND_ASSERT_MSG( udim * vdim > 0, "Udim and vdim must both be positive." );
+    unsigned int startTextureId = allocateTexturePages( udim * vdim );
 
-    // Fill the slots in the textures array
-    unsigned int entryPointIndex = static_cast<unsigned int>( m_textures.size() );
+    // Fill the textures in
+    unsigned int entryPointId = 0xFFFFFFFF;
     for( unsigned int v=0; v<vdim; ++v )
     {
         for( unsigned int u=0; u<udim; ++u )
         {
             unsigned int imageIndex = v*udim + u;
-            unsigned int textureId = startIndex + imageIndex;
+            unsigned int textureId = startTextureId + imageIndex * PAGES_PER_TEXTURE;
             if(imageIndex < imageSources.size() && imageSources[imageIndex].get() != nullptr )
             {
-                if( textureId < entryPointIndex )
-                    entryPointIndex = textureId;
-                
                 // Create the texture and put it in the list of textures
+                entryPointId = std::min( textureId, entryPointId );
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
-                m_textures[textureId].reset( tex );
+                m_textures.emplace( textureId, tex );
                 
                 // Record the image reader and texture descriptor.
                 m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
             else 
             {
-                m_textures[textureId].reset( nullptr );
+                m_textures.emplace( textureId, nullptr );
             }
         }
     }
 
-    m_textures[entryPointIndex]->setUdimTexture( startIndex, udim, vdim, false );
+    m_textures[entryPointId]->setUdimTexture( startTextureId, udim, vdim, false );
     if( baseTextureId >= 0 )
-        m_textures[baseTextureId]->setUdimTexture( startIndex, udim, vdim, true );
-
-    return (baseTextureId >= 0) ? *m_textures[baseTextureId] : *m_textures[entryPointIndex];
+    {
+        m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, true );
+        return *m_textures[baseTextureId];
+    }
+    return *m_textures[entryPointId];
 }
 
 DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureId, 
@@ -217,13 +210,13 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    DEMAND_ASSERT_MSG( textureId < m_textures.size(), "Unknown texture id" );
 
     // Enqueue page ranges to invalidate when launchPrepare is called
-    if( m_textures[textureId]->isOpen() )
+    DemandTextureImpl* texture = m_textures.at( textureId ).get();
+    if( texture->isOpen() )
     {
-        m_textures[textureId]->init( m_pageLoader->getDevices()[0] );
-        TextureSampler sampler   = m_textures[textureId]->getSampler();
+        texture->init( m_pageLoader->getDevices()[0] );
+        TextureSampler sampler   = texture->getSampler();
         unsigned int   startPage = sampler.startPage;
         unsigned int   endPage   = sampler.startPage + sampler.numPages;
 
@@ -234,7 +227,7 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
             m_pageLoader->invalidatePageRange( deviceIndex, startPage, endPage, predicate );
 
             // Unload base color
-            unsigned int baseColorId = getPagingSystem( deviceIndex )->getBaseColorPageId( textureId );
+            unsigned int baseColorId = textureId + BASE_COLOR_OFFSET;
             m_pageLoader->invalidatePageRange( deviceIndex, baseColorId, baseColorId + 1, nullptr );
         }
     }
@@ -244,9 +237,9 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
 {
     unloadTextureTiles( textureId );
     std::unique_lock<std::mutex> lock( m_mutex );
-    bool                         samplerNeedsReset = m_textures[textureId]->setImage( textureDesc, image );
+    bool samplerNeedsReset = m_textures.at( textureId )->setImage( textureDesc, image );
 
-    // Invalidate the texture sampler
+    // Invalidate the texture sampler 
     if( samplerNeedsReset )
     {
         for( unsigned int deviceIndex : m_pageLoader->getDevices() )
@@ -254,7 +247,7 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
             TextureSamplerReturnPredicate* predicate =
                 new TextureSamplerReturnPredicate( getDeviceMemoryManager( deviceIndex ) );
             m_pageLoader->invalidatePageRange( deviceIndex, textureId, textureId + 1, predicate );
-        }
+        } 
     }
 
     // Record the image reader and texture descriptor.
@@ -359,9 +352,10 @@ Statistics DemandLoaderImpl::getStatistics() const
     // Multiple textures might share the same ImageSource, so we create a set as we go to avoid
     // duplicate counting.
     std::set<imageSource::ImageSource*> images;
-    for( const std::unique_ptr<DemandTextureImpl>& tex : m_textures )
+    for( auto texIt = m_textures.begin(); texIt != m_textures.end(); ++texIt )
     {
         // Skip null textures
+        DemandTextureImpl* tex = texIt->second.get();
         if( tex == nullptr ) 
             continue; 
 
@@ -410,6 +404,19 @@ MemoryPool<PinnedAllocator, RingSuballocator>* DemandLoaderImpl::getPinnedMemory
 void DemandLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     m_pageLoader->setMaxTextureMemory( maxMem );
+}
+
+unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
+{
+    // Allocate enough pages per texture, aligned to PAGES_PER_TEXTURE
+    unsigned int textureId = m_pageTableManager->reserveBackedPages( PAGES_PER_TEXTURE * numTextures, &m_samplerRequestHandler );
+    if( textureId % PAGES_PER_TEXTURE != 0 )
+    {
+        unsigned int alignmentPages = PAGES_PER_TEXTURE - (textureId % PAGES_PER_TEXTURE);
+        m_pageTableManager->reserveBackedPages( alignmentPages, &m_samplerRequestHandler );
+        textureId = textureId + alignmentPages;
+    }
+    return textureId;
 }
 
 DemandLoader* createDemandLoader( const Options& options )

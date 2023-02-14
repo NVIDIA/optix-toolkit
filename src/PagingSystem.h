@@ -104,12 +104,6 @@ class PagingSystem
     /// Flush accumulated page mappings.  Used during trace file playback.
     void flushMappings();
 
-    /// Get the page id of the base color for a texture
-    unsigned int getBaseColorPageId( unsigned int textureId )
-    {
-        return textureId + ( m_options.numPageTableEntries >> 1 );
-    }
-
     /// Invalidate some pages based on a predicate
     void invalidatePages( unsigned int startId, unsigned int endId, PageInvalidatorPredicate* predicate, const DeviceContext& context, CUstream stream );
 

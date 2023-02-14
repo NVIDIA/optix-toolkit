@@ -127,7 +127,7 @@ class TestPagingSystem : public testing::Test
         m_options.useLruTable         = true;
         m_options.maxActiveStreams    = 4;
 
-        m_pageTableManager = std::make_shared<PageTableManager>( m_options.numPages );
+        m_pageTableManager = std::make_shared<PageTableManager>( m_options.numPages, m_options.numPageTableEntries );
         m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, m_options ) );
 
         // Create per-device PagingSystem, etc.

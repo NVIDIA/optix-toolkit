@@ -95,7 +95,7 @@ class DemandTextureImpl : public DemandTexture
     CUmemorytype getFillType() const { return m_image->getFillType(); }
 
     /// Replace the current texture image. Return true if the sampler for the texture needs to be updated.
-    bool setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> image );
+    bool setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage );
 
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
@@ -198,6 +198,9 @@ class DemandTextureImpl : public DemandTexture
 
     /// Set this texture as an entry point to a udim texture array
     void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture );
+
+    /// Return true if the texture is an entry point for a udim texture
+    bool isUdimEntryPoint() { return ( m_sampler.udim > 0 ); }
     
     /// Return the size of the mip tail if the texture is initialized.
     size_t getMipTailSize(); 

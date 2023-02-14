@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <Util/Exception.h>
 #include "Util/MutexArray.h"
 
 #include <cuda.h>
@@ -50,10 +51,18 @@ class RequestHandler
     /// These values are invariant once established.
     void setPageRange( unsigned int startPage, unsigned int numPages )
     {
+        // If a page range has already been set, make sure the new range is a subset
+        // of the existing range.
+        if( m_mutex.get() != nullptr )
+        {
+            DEMAND_ASSERT_MSG( startPage >= m_startPage && startPage + numPages <= m_startPage + m_numPages,
+                               "Cannot change request handler page range" );
+            return;
+        }
+
+        // The MutexArray is used by fillRequest to ensure mutual exclusion on a per-page basis.
         m_startPage = startPage;
         m_numPages  = numPages;
-
-        // The MutexArray can be used by fillRequest to ensure mutual exclusion on a per-page basis.
         m_mutex.reset( new MutexArray( numPages ) );
     }
 

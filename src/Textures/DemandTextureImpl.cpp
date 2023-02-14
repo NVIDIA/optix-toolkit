@@ -85,7 +85,7 @@ void DemandTextureImpl::initPerDeviceTextures( unsigned int maxNumDevices )
     m_sampler = {0};
 }
 
-bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> image )
+bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
@@ -93,18 +93,18 @@ bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
     if( !m_image->isOpen() )
     {
         m_descriptor = descriptor;
-        m_image = image;
+        m_image = newImage;
         return false;
     }
 
     // If the two images are the same size and format, replace the image and use the existing textures
     imageSource::TextureInfo newInfo;
-    image->open( &newInfo );
+    newImage->open( &newInfo );
     DEMAND_ASSERT( m_info.isValid );
     if( ( descriptor == m_descriptor ) && ( newInfo == m_info ) )
     {
         m_descriptor = descriptor;
-        m_image      = image;
+        m_image      = newImage;
         return false;
     }
 
@@ -112,7 +112,7 @@ bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
     // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
     m_info       = newInfo;
     m_descriptor = descriptor;
-    m_image      = image;
+    m_image      = newImage;
 
     unsigned int maxNumDevices = static_cast<unsigned int>( m_sparseTextures.size() );
     m_sparseTextures.clear();
@@ -275,7 +275,7 @@ void DemandTextureImpl::initSampler()
         else
         {
             m_requestHandler.reset( new TextureRequestHandler( this, m_loader ) );
-            m_sampler.startPage = m_loader->getPageTableManager()->reserve( m_sampler.numPages, m_requestHandler.get() );       
+            m_sampler.startPage = m_loader->getPageTableManager()->reserveUnbackedPages( m_sampler.numPages, m_requestHandler.get() );
         }
     }
     else // Dense texture 
