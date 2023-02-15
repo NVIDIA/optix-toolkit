@@ -58,11 +58,12 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     , m_windowHeight( height )
     , m_outputFileName( outFileName )
 {
+    CUDA_CHECK( cudaSetDevice( 0 ) );
+    CUDA_CHECK( cudaFree( 0 ) );
+
     // Create display window for interactive mode
     if( isInteractive() )
     {
-        CUDA_CHECK( cudaSetDevice( 0 ) );
-        CUDA_CHECK( cudaFree( 0 ) );
         m_window = otk::initGLFW( appName, width, height );
         otk::initGL();
         m_glDisplay.reset( new otk::GLDisplay( otk::BufferImageFormat::UNSIGNED_BYTE4 ) );
