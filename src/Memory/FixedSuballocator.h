@@ -44,12 +44,12 @@ namespace demandLoading {
 class FixedSuballocator
 {
   public:
-    FixedSuballocator( uint64_t itemSize, uint64_t alignment )
+    FixedSuballocator( uint64_t itemSize = 1, uint64_t alignment = 1 )
         : m_itemSize( alignVal( itemSize, std::max( alignment, static_cast<uint64_t>( 1ULL ) ) ) )
         , m_alignment( std::max( alignment, static_cast<uint64_t>( 1ULL ) ) )
     {
     }
-    ~FixedSuballocator() {}
+    ~FixedSuballocator() = default;
 
     /// Tell the pool to track a memory segment.
     /// This can be called multiple times to track multiple segments.

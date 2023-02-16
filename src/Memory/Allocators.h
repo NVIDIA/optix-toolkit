@@ -69,7 +69,7 @@ class PinnedAllocator
 class DeviceAllocator
 {
   public:
-    DeviceAllocator( unsigned int deviceIndex )
+    DeviceAllocator( unsigned int deviceIndex = 0 )
         : m_deviceIndex( deviceIndex )
     {
     }
@@ -107,7 +107,7 @@ class DeviceAllocator
 class DeviceAsyncAllocator
 {
   public:
-    DeviceAsyncAllocator( unsigned int deviceIndex )
+    DeviceAsyncAllocator( unsigned int deviceIndex = 0 )
         : m_deviceIndex( deviceIndex )
     {
     }
@@ -145,7 +145,7 @@ class DeviceAsyncAllocator
 class TextureTileAllocator
 {
   public:
-    TextureTileAllocator( unsigned int deviceIndex )
+    TextureTileAllocator( unsigned int deviceIndex = 0 )
         : m_deviceIndex( deviceIndex )
         , m_allocationProp( makeAllocationProp( deviceIndex ) )
     {

@@ -52,12 +52,11 @@ class TestMemoryPool : public testing::Test
     }
 };
 
-TEST_F( TestMemoryPool, AddressPool )
+TEST_F( TestMemoryPool, TestNullAllocator )
 {
-    // An AddressPool is a MemoryPool with no allocator. It keeps track of
-    // ranges of addresses in a hypothetical memory space
+    // With a null allocator, the pool keeps track address ranges given to it by calling track
 
-    AddressPool<HeapSuballocator> pool( new HeapSuballocator() );
+    MemoryPool<NullAllocator, HeapSuballocator> pool( nullptr, new HeapSuballocator() );
     pool.track( 0, 1 << 20 );
 
     for( unsigned int i = 1; i <= 2000; i++ )
@@ -68,7 +67,7 @@ TEST_F( TestMemoryPool, AddressPool )
     }
 }
 
-TEST_F( TestMemoryPool, NullSuballocator )
+TEST_F( TestMemoryPool, TestNullSuballocator )
 {
     // With a null suballocator, the memory pool allocates and frees directly from the allocator
 
@@ -77,13 +76,14 @@ TEST_F( TestMemoryPool, NullSuballocator )
 
     HostAllocator* allocator = new HostAllocator();
 
-    MemoryPool<HostAllocator, HeapSuballocator> pool( allocator, nullptr, allocSize, maxSize );
+    MemoryPool<HostAllocator, NullSuballocator> pool( allocator, nullptr, allocSize, maxSize );
     MemoryBlockDesc m = pool.alloc( 1024, 1 );
 
     EXPECT_TRUE( m.ptr != 0 && m.size == 1024 );
 
     pool.free( m );
 }
+
 
 TEST_F( TestMemoryPool, RingSuballocator )
 {
@@ -249,4 +249,41 @@ TEST_F( TestMemoryPool, TextureTile )
         pool.freeTextureTiles( tbh.block );
         EXPECT_TRUE( beforeFreeSpace + tbh.block.numTiles * TILE_SIZE_IN_BYTES == pool.currentFreeSpace() );
     }
+}
+
+TEST_F( TestMemoryPool, TestAllocItem )
+{
+    MemoryPool<HostAllocator, FixedSuballocator> pool( new FixedSuballocator( 32, 1 ) );
+    uint64_t a = pool.allocItem();
+
+    char* p = (char*) a;
+    p[31] = 'x';
+    EXPECT_TRUE( p[31] == 'x' );
+
+    pool.freeItem( a );
+}
+
+TEST_F( TestMemoryPool, TestAllocObject )
+{
+    MemoryPool<HostAllocator, HeapSuballocator> pool;
+
+    int* i = pool.allocObject<int>();
+    *i = 1;
+    EXPECT_TRUE( *i == 1 );
+    pool.freeObject<int>( i );
+
+    float4* f = pool.allocObject<float4>();
+    f->z = 1.0f;
+    EXPECT_TRUE( f->z == 1.0f );
+    pool.freeObject<float4>( f );
+}
+
+TEST_F( TestMemoryPool, TestAllocObjects )
+{
+    MemoryPool<HostAllocator, HeapSuballocator> pool;
+
+    float4* f = pool.allocObjects<float4>( 1024 );
+    f[1023].z = 1.0f;
+    EXPECT_TRUE( f[1023].z == 1.0f );
+    pool.freeObjects<float4>( f, 1024 );
 }

@@ -39,7 +39,7 @@ DeviceMemoryManager::DeviceMemoryManager( unsigned int deviceIndex, const Option
     , m_samplerPool( new DeviceAllocator( m_deviceIndex ),
                      new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ),
                      SAMPLER_POOL_ALLOC_SIZE )
-    , m_deviceContextMemory( new DeviceAllocator( m_deviceIndex ) )
+    , m_deviceContextMemory( new DeviceAllocator( m_deviceIndex ), nullptr )
     , m_tilePool( new TextureTileAllocator( m_deviceIndex ),
                   new HeapSuballocator(),
                   TextureTileAllocator::getRecommendedAllocationSize( m_deviceIndex ),

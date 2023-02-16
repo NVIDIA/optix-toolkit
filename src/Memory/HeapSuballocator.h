@@ -52,8 +52,8 @@ namespace demandLoading {
 class HeapSuballocator
 {
   public:
-    HeapSuballocator() {}
-    ~HeapSuballocator() {}
+    HeapSuballocator() = default;
+    ~HeapSuballocator() = default;
 
     /// Tell the suballocator to track a memory segment.
     /// This can be called multiple times to track multiple segments.
@@ -65,7 +65,7 @@ class HeapSuballocator
 
     /// Allocate a block from tracked memory. Returns the address to the allocated block.
     /// On failure, BAD_ADDR is returned in the memory block.
-    MemoryBlockDesc alloc( uint64_t size, uint64_t alignment );
+    MemoryBlockDesc alloc( uint64_t size, uint64_t alignment = 1 );
 
     /// Free a block. The size must be correct to ensure correctness.
     void free( const MemoryBlockDesc& memBlock );

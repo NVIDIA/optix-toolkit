@@ -46,7 +46,7 @@ namespace demandLoading {
 class RingSuballocator
 {
   public:
-    RingSuballocator( uint64_t arenaSize )
+    RingSuballocator( uint64_t arenaSize = DEFAULT_ALLOC_SIZE )
         : m_arenaSize( arenaSize ){};
     ~RingSuballocator() {}
 

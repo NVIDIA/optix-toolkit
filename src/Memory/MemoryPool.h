@@ -41,6 +41,9 @@
 #include <Memory/MemoryBlockDesc.h>
 #include <Util/Exception.h>
 
+#define NullAllocator HostAllocator
+#define NullSuballocator HeapSuballocator
+
 namespace demandLoading {
 
 // MemoryPool is a thread-safe memory pool class that allocates and tracks memory using an allocator and suballocator.
@@ -51,8 +54,9 @@ template <class Allocator, class SubAllocator>
 class MemoryPool
 {
   public:
-    /// Constructor specifying both allocator and suballocator
-    MemoryPool( Allocator* allocator, SubAllocator* suballocator, uint64_t allocationGranularity = 0, uint64_t maxSize = 0 )
+    /// Constructor specifying both allocator and suballocator, one of which could be nullptr
+    MemoryPool( Allocator* allocator, SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
+
         : m_allocator( allocator )
         , m_suballocator( suballocator )
         , m_allocationGranularity( allocationGranularity )
@@ -62,15 +66,21 @@ class MemoryPool
         m_eventPool.resize( MAX_DEVICES );
     }
 
-    /// Constructor for when the suballocator is null
-    MemoryPool( Allocator* allocator, uint64_t allocationGranularity = 0, uint64_t maxSize = 0 )
-        : MemoryPool( allocator, nullptr, allocationGranularity, maxSize )
+    /// Constructor for when the suballocator has a default constructor
+    MemoryPool( Allocator* allocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
+        : MemoryPool( allocator, new SubAllocator(), allocationGranularity, maxSize )
     {
     }
 
-    /// Constructor for when the allocator is null
-    MemoryPool( SubAllocator* suballocator, uint64_t allocationGranularity = 0, uint64_t maxSize = 0 )
-        : MemoryPool( nullptr, suballocator, allocationGranularity, maxSize )
+    /// Constructor for when the allocator has a default constructor
+    MemoryPool( SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
+        : MemoryPool( new Allocator(), suballocator, allocationGranularity, maxSize )
+    {
+    }
+
+    /// Constructor for when both the allocator and suballocator have default constructors
+    MemoryPool( uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
+        : MemoryPool( new Allocator(), new SubAllocator(), allocationGranularity, maxSize )
     {
     }
 
@@ -153,8 +163,23 @@ class MemoryPool
         return block;
     }
 
-    /// Allocate a fixed size item, retaining a pointer to it. Works with FixedSuballocator
-    uint64_t allocItem() { return alloc( m_suballocator->itemSize() ).ptr; }
+    /// Allocate a single item. Works with FixedSuballocator.
+    uint64_t allocItem( CUstream stream = 0 ) { return alloc( m_suballocator->itemSize(), 1, stream ).ptr; }
+
+    /// Allocate an object of a given type, returning a pointer to it
+    template <typename TYPE>
+    TYPE* allocObject( CUstream stream = 0 )
+    {
+        return reinterpret_cast<TYPE*>( alloc( sizeof( TYPE ), alignof( TYPE ), stream ).ptr );
+    }
+
+    /// Allocate an array of objects, returning a pointer to the array.
+    template <typename TYPE>
+    TYPE* allocObjects( size_t numItems, CUstream stream = 0 )
+    {
+        return reinterpret_cast<TYPE*>( alloc( sizeof( TYPE ) * numItems, alignof( TYPE ), stream ).ptr );
+    }
+
 
     /// Allocate a number of texture tiles.  Works with TextureTileAllocator.
     TileBlockHandle allocTextureTiles( uint64_t sizeInBytes )
@@ -172,6 +197,12 @@ class MemoryPool
         return TileBlockHandle{handle, {arenaId, tileId, numTiles}};
     }
 
+    // Get the allocation handle backing a block of texture tiles
+    uint64_t getAllocationHandle( unsigned int arenaId )
+    {
+        return reinterpret_cast<CUmemGenericAllocationHandle>( m_allocations[arenaId] );
+    }
+
     /// Free block immediately on the specified stream.
     void free( const MemoryBlockDesc& block, CUstream stream = 0 )
     {
@@ -182,8 +213,22 @@ class MemoryPool
             m_allocator->free( reinterpret_cast<void*>( block.ptr ), stream );
     }
 
-    /// Free a fixed size item immediately from a pointer to it
-    void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr, m_suballocator->itemSize()} ); }
+    /// Free a single item (used with FixedSuballocator).
+    void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr,  m_suballocator->itemSize()} ); }
+
+    /// Free an object (not compatible with RingSuballocator).
+    template <typename TYPE>
+    void freeObject( TYPE* ptr )
+    {
+        free( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE )} );
+    }
+
+    /// Free an array of objects (not compatible with RingSuballocator)
+    template <typename TYPE>
+    void freeObjects( TYPE* ptr, uint64_t numObjects )
+    {
+        free( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE )} );
+    }
 
     /// Free texture tiles immediately
     void freeTextureTiles( const TileBlockDesc& tileBlock )
@@ -202,11 +247,26 @@ class MemoryPool
         DEMAND_CUDA_CHECK( cudaEventRecord( m_stagedBlocks.back().event, stream ) );
     }
 
-    /// Async free of a fixed size item
+    /// Async free of a single address slot (not compatible with RingSuballocator)
     void freeItemAsync( uint64_t ptr, unsigned int deviceIndex, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{ptr, m_suballocator.itemSize()}, deviceIndex, stream );
+        freeAsync( MemoryBlockDesc{ptr,  m_suballocator->itemSize()}, deviceIndex, stream );
     }
+
+    /// Async free an object (not compatible with RingSuballocator)
+    template <typename TYPE>
+    void freeObjectAsync( TYPE* ptr, unsigned int deviceIndex, CUstream stream = 0 )
+    {
+        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE )}, deviceIndex, stream );
+    }
+
+    /// Free an array of objects (not compatible with RingSuballocator)
+    template <typename TYPE>
+    void freeObjectsAsync( TYPE* ptr, uint64_t numObjects, unsigned int deviceIndex, CUstream stream = 0 )
+    {
+        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE )}, deviceIndex, stream );
+    }
+
 
     /// Async free of texture tiles
     void freeTextureTilesAsync( const TileBlockDesc& tileBlock, unsigned int deviceIndex, CUstream stream = 0 )
@@ -306,13 +366,6 @@ class MemoryPool
 
     // Get the offset within a texture tile arena for a given memory block when allocations are handles
     uint64_t getArenaOffset( const MemoryBlockDesc& block ) { return block.ptr % getArenaSpacing(); }
-
-    // Get the cuda memory allocation for a memory block when allocations are handles
-    uint64_t getHandle( const MemoryBlockDesc& block ) { return m_allocations[getArenaId( block )]; }
 };
-
-/// specialization of MemoryPool with null allocator
-template <class Suballocator>
-using AddressPool = MemoryPool<HostAllocator, Suballocator>;
 
 }  // namespace demandLoading
