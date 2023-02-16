@@ -78,60 +78,70 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
-    if( m_isInitialized )
-        return;
-
     // Initialize the sparse or dense texture for the specified device.
     if( useSparseTexture() )
     {
+        // Per-device initialization.
         DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
         SparseTexture& sparseTexture = m_sparseTextures[deviceIndex];
         sparseTexture.init( m_descriptor, m_info );
 
-        // Retain various properties for subsequent use.  (They're the same on all devices.)
-        m_tileWidth         = sparseTexture.getTileWidth();
-        m_tileHeight        = sparseTexture.getTileHeight();
-        m_mipTailFirstLevel = sparseTexture.getMipTailFirstLevel();
-        m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? sparseTexture.getMipTailSize() : 0;
-
-        // Verify that the tile size agrees with TilePool.
-        DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= sizeof( TileBuffer ) );
-
-        // Record the dimensions of each miplevel.
-        const unsigned int numMipLevels = m_info.numMipLevels;
-        m_mipLevelDims.resize( numMipLevels );
-        for( unsigned int i = 0; i < numMipLevels; ++i )
+        // Device-independent initialization.
+        if( !m_isInitialized )
         {
-            m_mipLevelDims[i] = sparseTexture.getMipLevelDims( i );
-        }
+            m_isInitialized = true;
 
-        initSampler();
+            // Retain various properties for subsequent use.  (They're the same on all devices.)
+            m_tileWidth         = sparseTexture.getTileWidth();
+            m_tileHeight        = sparseTexture.getTileHeight();
+            m_mipTailFirstLevel = sparseTexture.getMipTailFirstLevel();
+            m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? sparseTexture.getMipTailSize() : 0;
+
+            // Verify that the tile size agrees with TilePool.
+            DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= sizeof( TileBuffer ) );
+
+            // Record the dimensions of each miplevel.
+            const unsigned int numMipLevels = m_info.numMipLevels;
+            m_mipLevelDims.resize( numMipLevels );
+            for( unsigned int i = 0; i < numMipLevels; ++i )
+            {
+                m_mipLevelDims[i] = sparseTexture.getMipLevelDims( i );
+            }
+
+            initSampler();
+        }
     }
     else // dense texture
     {
+        // Per-device initialization.
         DEMAND_ASSERT( deviceIndex < m_denseTextures.size() );
         DenseTexture& denseTexture = m_denseTextures[deviceIndex];
         denseTexture.init( m_descriptor, m_info );
 
-        // Set dummy properties (not used for dense textures)
-        m_tileWidth         = 64;
-        m_tileHeight        = 64;
-        m_mipTailFirstLevel = 0;
-        m_mipTailSize       = 0;
-
-        // Record the dimensions of each miplevel.
-        const unsigned int numMipLevels = m_info.numMipLevels;
-        m_mipLevelDims.resize( numMipLevels );
-        for( unsigned int i = 0; i < numMipLevels; ++i )
+        // Device-independent initialization.
+        if( !m_isInitialized )
         {
-            m_mipLevelDims[i] = denseTexture.getMipLevelDims( i );
-            m_mipTailSize    += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
+            m_isInitialized = true;
+
+            // Set dummy properties (not used for dense textures)
+            m_tileWidth         = 64;
+            m_tileHeight        = 64;
+            m_mipTailFirstLevel = 0;
+            m_mipTailSize       = 0;
+
+            // Record the dimensions of each miplevel.
+            const unsigned int numMipLevels = m_info.numMipLevels;
+            m_mipLevelDims.resize( numMipLevels );
+            for( unsigned int i = 0; i < numMipLevels; ++i )
+            {
+                m_mipLevelDims[i] = denseTexture.getMipLevelDims( i );
+                m_mipTailSize += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels
+                                 * imageSource::getBytesPerChannel( m_info.format );
+            }
+
+            initSampler();
         }
-
-        initSampler();
     }
-
-    m_isInitialized = true;
 }
 
 void DemandTextureImpl::initSampler()
