@@ -44,6 +44,33 @@
 #include <algorithm>
 #include <set>
 
+namespace { // anonymous
+
+void initCuda()
+{
+    DEMAND_CUDA_CHECK( cuInit( 0 ) );
+    int numDevices;
+    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+    for( int i = 0; i < numDevices; ++i )
+    {
+        DEMAND_CUDA_CHECK( cudaInitDevice( i, 0, 0 ) );
+    }
+}
+
+// Save and restore CUDA context.
+class ContextSaver
+{
+  public:
+    ContextSaver() { DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) ); }
+
+    ~ContextSaver() { DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) ); }
+
+  private:
+    CUcontext m_context;
+};
+
+} // anonymous namespace
+
 namespace demandLoading {
 
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
@@ -146,12 +173,14 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 // Returns false if the device doesn't support sparse textures.
 bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
 {
+    ContextSaver contextSaver;
     return m_pageLoader->launchPrepare( deviceIndex, stream, context );
 }
 
 // Process page requests.
 Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
 {
+    ContextSaver contextSaver;
     return m_pageLoader->processRequests( deviceIndex, stream, context );
 }
 
@@ -326,12 +355,15 @@ DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int devi
 DemandLoader* createDemandLoader( const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    initCuda();
+    ContextSaver contextSaver;
     return new DemandLoaderImpl( options );
 }
 
 void destroyDemandLoader( DemandLoader* manager )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    ContextSaver contextSaver;
     delete manager;
 }
 
