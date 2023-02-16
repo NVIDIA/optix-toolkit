@@ -67,7 +67,7 @@ struct DeviceFixedPool
             hostItemGroups[itemGroupId] = buffer + ( itemSize * ws * itemGroupId );
 
         DEMAND_CUDA_CHECK( cudaMemcpy( itemGroupsCopy, hostItemGroups.data(), itemGroupsBuffSize, cudaMemcpyHostToDevice ) );
-        launchPrepare( 0 );
+        clear( 0 );
     }
 
     /// Free all of the buffers allocated for the pool
@@ -79,8 +79,8 @@ struct DeviceFixedPool
         DEMAND_CUDA_CHECK( cudaFree( nextItemGroupId ) );
     }
 
-    /// Prepare for a CUDA launch
-    __host__ void launchPrepare( CUstream stream )
+    /// Clear the allocator
+    __host__ void clear( CUstream stream )
     {
         DEMAND_CUDA_CHECK( cudaMemsetAsync( nextItemGroupId, 0, 2 * sizeof(unsigned int), stream ) ) ;
         DEMAND_CUDA_CHECK( cudaMemcpyAsync( itemGroups, itemGroupsCopy, numItemGroups * sizeof(char*), cudaMemcpyDeviceToDevice, stream ) );

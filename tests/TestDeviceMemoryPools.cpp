@@ -76,7 +76,7 @@ TEST_F( TestDeviceMemoryPools, TestRingBuffer )
     // Create DeviceRingBuffer allocate by thread, and launch test kernel
     DeviceRingBuffer ringBuffer;
     ringBuffer.init( 32 * 65536, false );
-    ringBuffer.launchPrepare( 0 );
+    ringBuffer.clear( 0 );
     launchDeviceRingBufferTest( ringBuffer, devOutput, outputSize );
 
     // Copy output buffer back to host, and do a range check on the buffer elements
@@ -87,7 +87,7 @@ TEST_F( TestDeviceMemoryPools, TestRingBuffer )
 
     // Create DeviceRingBuffer allocate by warp, and launch test kernel
     ringBuffer.init( 32 * 65536, true );
-    ringBuffer.launchPrepare( 0 );
+    ringBuffer.clear( 0 );
     launchDeviceRingBufferTest( ringBuffer, devOutput, outputSize );
     
     // Copy output buffer back to host, and do a range check on the buffer elements
@@ -110,7 +110,7 @@ TEST_F( TestDeviceMemoryPools, TestFixedPool )
     // Create DeviceFixedPool allocate by thread, and launch test kernel
     DeviceFixedPool fixedPool;
     fixedPool.init( 32, 65536, false );
-    fixedPool.launchPrepare( 0 );
+    fixedPool.clear( 0 );
     launchDeviceFixedPoolTest( fixedPool, devOutput, outputSize );
 
     // Copy output buffer back to host, and do a range check on the buffer elements
@@ -121,7 +121,7 @@ TEST_F( TestDeviceMemoryPools, TestFixedPool )
 
     // Create DeviceFixedPool allocate by warp, and launch test kernel
     fixedPool.init( 32, 65536, true );
-    fixedPool.launchPrepare( 0 );
+    fixedPool.clear( 0 );
     launchDeviceFixedPoolTest( fixedPool, devOutput, outputSize );
     // Copy output buffer back to host, and do a range check on the buffer elements
     DEMAND_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );

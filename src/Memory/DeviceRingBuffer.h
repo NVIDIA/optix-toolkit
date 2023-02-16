@@ -64,6 +64,7 @@ struct DeviceRingBuffer
         buffSize = _buffSize;
         DEMAND_CUDA_CHECK( cudaMalloc( &buffer, buffSize ) );
         DEMAND_CUDA_CHECK( cudaMalloc( &nextStart, sizeof(unsigned long long) ) );
+        clear( 0 );
     }
 
     /// Tear down, freeing all the memory
@@ -73,8 +74,8 @@ struct DeviceRingBuffer
         DEMAND_CUDA_CHECK( cudaFree( nextStart ) );
     }
 
-    /// Prepare for a CUDA launch
-    __host__ void launchPrepare( CUstream stream = 0 )
+    /// Clear the allocator
+    __host__ void clear( CUstream stream = 0 )
     {
         DEMAND_CUDA_CHECK( cudaMemsetAsync( nextStart, 0, sizeof(unsigned long long), stream ) ) ;
     }
