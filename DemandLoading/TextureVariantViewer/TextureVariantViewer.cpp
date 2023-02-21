@@ -29,6 +29,8 @@
 
 #include <assert.h>
 
+#include "TextureVariantViewer.h"
+
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
