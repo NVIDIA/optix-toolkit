@@ -49,6 +49,7 @@ add_executable( testDemandLoading
   PagingSystemTestKernels.h
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
+  TestCheckerBoardImage.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
