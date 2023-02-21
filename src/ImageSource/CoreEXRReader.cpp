@@ -310,7 +310,7 @@ void CoreEXRReader::readScanlineData( char* dest )
     }
 }
 
-void CoreEXRReader::readTile( char*        dest,
+bool CoreEXRReader::readTile( char*        dest,
                               unsigned int mipLevel,
                               unsigned int tileX,
                               unsigned int tileY,
@@ -359,9 +359,11 @@ void CoreEXRReader::readTile( char*        dest,
         std::unique_lock<std::mutex> lock( m_mutex );
         m_totalReadTime += stopwatch.elapsed();
     }
+
+    return true;
 }
 
-void CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream )
+bool CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream )
 {
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
@@ -397,6 +399,8 @@ void CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned in
         std::unique_lock<std::mutex> lock( m_mutex );
         m_totalReadTime += stopwatch.elapsed();
     }
+
+    return true;
 }
 
 bool CoreEXRReader::readBaseColor( float4& dest )

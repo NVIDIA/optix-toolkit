@@ -27,11 +27,24 @@
 #
 
 include( FetchGtest )
+include( GoogleTest )
+include( embed_ptx )
+
+embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
+    OUTPUT_TARGET testDemandLoadingKernels
+    PTX_LINK_LIBRARIES
+        OptiXToolkit::DemandLoading
+        OptiXToolkit::ShaderUtil
+    SOURCES DeferredImageLoadingKernels.cu
+    FOLDER DemandLoading/tests
+)
 
 add_executable( testDemandLoading
-  main.cpp
+  DeferredImageLoading.cpp
+  DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu
   DemandLoaderTestKernels.h
+  ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
   TestBulkMemory.cpp
@@ -62,7 +75,9 @@ add_executable( testDemandLoading
   TestTileIndexing.cpp
   TestTilePool.cpp
   TestTraceFile.cpp
-  )  
+  )
+
+source_group( "CUDA Files" REGULAR_EXPRESSION ".*\.cu" )
 
 target_include_directories( testDemandLoading PUBLIC
   ../src
@@ -73,13 +88,15 @@ target_include_directories( testDemandLoading PUBLIC
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testDemandLoading
+  testDemandLoadingKernels
+  OptiX::OptiX
   DemandLoading
   OpenEXR::OpenEXR # for half
-  gtest
+  gmock_main
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
-  target_compile_options( testDemandLoading PRIVATE "-DOTK_USE_CUDA_MEMORY_POOLS" )
+  target_compile_definitions( testDemandLoading PRIVATE OTK_USE_CUDA_MEMORY_POOLS )
 endif()
 
 # Copy shared libraries that the built executable depends on.
@@ -91,19 +108,23 @@ endif()
 
 set_property(TARGET testDemandLoading PROPERTY FOLDER DemandLoading/tests)
 
+# Register test cases with CTest.
+gtest_discover_tests(testDemandLoading)
+
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include( embed_ptx )
 embed_ptx(
+  CONST HEADER TextureFootprintPTX.h
   OUTPUT_TARGET
-    TextureFootprint
+    testTextureFootprintKernel
   PTX_LINK_LIBRARIES
     DemandLoading
+  FOLDER DemandLoading/tests
   SOURCES
     TestTextureFootprint.cu
 )
 
 add_executable( testTextureFootprint
-  main.cpp
   TestTextureFootprint.cpp
   TestTextureFootprint.h
   )
@@ -113,12 +134,10 @@ target_include_directories( testTextureFootprint PUBLIC
   )
 
 target_link_libraries( testTextureFootprint
-  TextureFootprint
+  testTextureFootprintKernel
   DemandLoading
-  gtest
+  gtest_main
   )
-
-add_dependencies( testTextureFootprint TextureFootprint )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
@@ -128,3 +147,6 @@ if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
 endif()
 
 set_property(TARGET testTextureFootprint PROPERTY FOLDER DemandLoading/tests)
+
+# Register test cases with CTest.
+gtest_discover_tests(testTextureFootprint)

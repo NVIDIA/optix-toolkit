@@ -253,7 +253,7 @@ void EXRReader::readScanlineData( char* dest )
     m_inputFile->readPixels( dw.min.y, dw.max.y );
 }
 
-void EXRReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream )
+bool EXRReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
@@ -303,9 +303,11 @@ void EXRReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX,
     // Stats tracking
     m_numTilesRead += 1;
     m_totalReadTime += stopwatch.elapsed();
+
+    return true;
 }
 
-void EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream )
+bool EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
@@ -364,6 +366,8 @@ void EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int ex
             m_totalReadTime += stopwatch.elapsed();
         }
     }
+
+    return true;
 }
 
 bool EXRReader::readBaseColor( float4& dest )

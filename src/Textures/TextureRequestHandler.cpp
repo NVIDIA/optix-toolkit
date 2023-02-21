@@ -82,17 +82,18 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
 
     // Allocate a transfer buffer.
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getImageSource()->getFillType(), sizeof( TileBuffer ), stream );
+        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), sizeof( TileBuffer ), stream );
     if( transferBuffer.size == 0 )
     {
         tilePool->freeBlock( tileLocator );
         return;
     }
 
-    // Read the tile (possibly from disk) into the transfer buffer.  
+    // Read the tile (possibly from disk) into the transfer buffer.
+    bool satisfied{};
     try
     {
-        m_texture->readTile( mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.size, stream );
+        satisfied = m_texture->readTile( mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.size, stream );
     }
     catch( const std::exception& e )
     {
@@ -102,15 +103,18 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
     }
 
     // Copy data from transfer buffer to the sparse texture on the device
-    CUmemGenericAllocationHandle handle;
-    size_t                       offset;
-    tilePool->getHandle( tileLocator, &handle, &offset );
+    if( satisfied )
+    {
+        CUmemGenericAllocationHandle handle;
+        size_t                       offset;
+        tilePool->getHandle( tileLocator, &handle, &offset );
 
-    m_texture->fillTile( deviceIndex, stream, mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.memoryType,
-                         sizeof( TileBuffer ), handle, offset );
+        m_texture->fillTile( deviceIndex, stream, mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.memoryType,
+                             sizeof( TileBuffer ), handle, offset );
 
-    const unsigned int lruVal = 0;
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, tileLocator.getData() );
+        const unsigned int lruVal = 0;
+        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, tileLocator.getData() );
+    }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
 }
@@ -129,7 +133,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
 
     // Allocate a transfer buffer.
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getImageSource()->getFillType(), mipTailSize, stream );
+        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), mipTailSize, stream );
     if( transferBuffer.size == 0 )
     {
         tilePool->freeBlock( tileBlock );
@@ -137,9 +141,10 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
     }
 
     // Read the mip tail into the transfer buffer.
+    bool satisfied;
     try
     {
-        m_texture->readMipTail( transferBuffer.buffer, mipTailSize, stream );
+        satisfied = m_texture->readMipTail( transferBuffer.buffer, mipTailSize, stream );
     }
     catch( const std::exception& e )
     {
@@ -148,16 +153,23 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
         throw Exception( ss.str().c_str() );
     }
 
-    CUmemGenericAllocationHandle handle;
-    size_t                       offset;
-    tilePool->getHandle( tileBlock, &handle, &offset );
+    if( satisfied )
+    {
+        CUmemGenericAllocationHandle handle;
+        size_t                       offset;
+        tilePool->getHandle( tileBlock, &handle, &offset );
 
-    // Copy data from the transfer buffer to the sparse texture on the device
-    m_texture->fillMipTail( deviceIndex, stream, transferBuffer.buffer, transferBuffer.memoryType, mipTailSize, handle, offset );
+        // Copy data from the transfer buffer to the sparse texture on the device
+        m_texture->fillMipTail( deviceIndex, stream, transferBuffer.buffer, transferBuffer.memoryType, mipTailSize, handle, offset );
 
-    // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
-    unsigned int lruVal = 0;
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, tileBlock.getData() );
+        // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
+        unsigned int lruVal = 0;
+        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, tileBlock.getData() );
+    }
+    else
+    {
+        tilePool->freeBlock( tileBlock );
+    }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
 }

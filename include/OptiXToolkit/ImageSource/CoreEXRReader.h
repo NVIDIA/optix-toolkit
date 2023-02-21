@@ -37,7 +37,7 @@
 #include <vector>
 
 // OpenEXRCore forward declaration.
-typedef struct _priv_exr_context_t* exr_context_t;    
+using exr_context_t = struct _priv_exr_context_t*;
 
 namespace imageSource {
 
@@ -66,24 +66,25 @@ class CoreEXRReader : public MipTailImageSource
     const TextureInfo& getInfo() const override { return m_info; }
 
     /// Return the mode in which the image fills part of itself
-    virtual CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
+    CUmemorytype getFillType() const override { return CU_MEMORYTYPE_HOST; }
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    void readTile( char*        dest,
+    bool readTile( char*        dest,
                    unsigned int mipLevel,
                    unsigned int tileX,
                    unsigned int tileY,
                    unsigned int tileWidth,
                    unsigned int tileHeight,
-                   CUstream     stream = 0 ) override;
+                   CUstream     stream ) override;
 
     /// Read the specified mipLevel. Throws an exception on error.
-    void readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream = 0 ) override;
+    bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight,
+                       CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as an array of floats. Returns true on success.
-    virtual bool readBaseColor( float4& dest ) override;
+    bool readBaseColor( float4& dest ) override;
 
     /// Get tile width (used only for testing).
     unsigned int getTileWidth() const { return m_tileWidth; }
@@ -92,10 +93,10 @@ class CoreEXRReader : public MipTailImageSource
     unsigned int getTileHeight() const { return m_tileHeight; }
 
     /// Returns the number of tiles that have been read.
-    unsigned long long getNumTilesRead() const override { return m_numTilesRead; };
+    unsigned long long getNumTilesRead() const override { return m_numTilesRead; }
 
     /// Returns the number of bytes that have been read.
-    unsigned long long getNumBytesRead() const override { return m_numBytesRead; };
+    unsigned long long getNumBytesRead() const override { return m_numBytesRead; }
 
     /// Returns the time in seconds spent reading image tiles.
     double getTotalReadTime() const override { return m_totalReadTime; }
@@ -115,10 +116,10 @@ class CoreEXRReader : public MipTailImageSource
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;
 
-    int m_tileWidths[20]   = { 0 };
-    int m_tileHeights[20]  = { 0 };
-    int m_levelWidths[20]  = { 0 };
-    int m_levelHeights[20] = { 0 };
+    int m_tileWidths[20]{};
+    int m_tileHeights[20]{};
+    int m_levelWidths[20]{};
+    int m_levelHeights[20]{};
 
     unsigned int m_pixelType;
     unsigned int m_roundMode;

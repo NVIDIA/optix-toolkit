@@ -34,6 +34,8 @@
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/ImageSource/EXRReader.h>
 
+#include <cuda_runtime.h>
+
 #include <gtest/gtest.h>
 
 #include <thread>
@@ -43,6 +45,7 @@ using namespace imageSource;
 
 class TestTraceFile : public testing::Test
 {
+    void SetUp() { cudaFree( nullptr ); }
 };
 
 TEST_F( TestTraceFile, TestWriteAndRead )

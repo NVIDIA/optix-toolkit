@@ -28,6 +28,8 @@
 
 #include "Util/Exception.h"
 
+#include <TextureFootprintPTX.h>
+
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
@@ -43,12 +45,9 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <cstring>
 #include <fstream>
 #include <mutex>
 #include <ostream>
-
-extern "C" char TestTextureFootprint_ptx[];  // generated via CMake by embed_ptx.
 
 template <typename T>
 struct SbtRecord
@@ -364,8 +363,8 @@ class TextureFootprintFixture
                 pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
                 pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, TestTextureFootprint_ptx,
-                                                       ::strlen( TestTextureFootprint_ptx ), log, &sizeof_log, &module ) );
+                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, TestTextureFootprint_ptx_text(),
+                                                       TestTextureFootprint_ptx_size, log, &sizeof_log, &module ) );
             }
 
             //

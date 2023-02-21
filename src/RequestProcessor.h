@@ -28,51 +28,19 @@
 
 #pragma once
 
-#include "RequestQueue.h"
-#include "Util/TraceFile.h"
+#include <OptiXToolkit/DemandLoading/Ticket.h>
 
 #include <cuda.h>
 
-#include <thread>
-#include <vector>
-
 namespace demandLoading {
-
-class PageTableManager;
-class TraceFileWriter;
 
 class RequestProcessor
 {
   public:
-    /// Construct request processor, which uses the given PageTableManager to
-    /// find the RequestHandler associated with a range of pages.
-    RequestProcessor( PageTableManager* pageTableManager, unsigned int maxRequestQueueSize )
-        : m_pageTableManager( pageTableManager )
-        , m_requests( maxRequestQueueSize )
-    {
-    }
-
-    /// Start processing requests using the specified number of threads.  If the number of specified
-    /// threads is zero, std::thread::hardware_concurrency is used.
-    void start( unsigned int maxThreads );
-
-    /// Stop processing requests, terminating threads.
-    void stop();
+    virtual ~RequestProcessor() = default;
 
     /// Add a batch of page requests from the specified device to the request queue.
-    void addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket );
-
-    /// Set the trace file for recording page requests.
-    void setTraceFile( TraceFileWriter* traceFile) { m_traceFile = traceFile; }
-
-  private:
-    PageTableManager*        m_pageTableManager;
-    RequestQueue             m_requests;
-    std::vector<std::thread> m_threads;
-    TraceFileWriter*         m_traceFile = nullptr;
-
-    // Per-thread worker function.
-    void worker();
+    virtual void addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) = 0;
 };
 
 }  // namespace demandLoading

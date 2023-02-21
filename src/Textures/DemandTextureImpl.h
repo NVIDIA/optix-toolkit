@@ -42,6 +42,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <vector>
 
 namespace imageSource {
@@ -51,6 +52,7 @@ class ImageSource;
 namespace demandLoading {
 
 class DemandLoaderImpl;
+class Statistics;
 class TilePool;
 
 /// Demand-loaded textures are created by the DemandLoader.
@@ -71,6 +73,22 @@ class DemandTextureImpl : public DemandTexture
 
     /// Default destructor.
     ~DemandTextureImpl() override = default;
+
+    /// DemandTextureImpl cannot be copied because the PageTableManager holds a pointer to the
+    /// RequestHandler it provides.
+    DemandTextureImpl( const DemandTextureImpl& ) = delete;
+
+    /// Not assignable.
+    DemandTextureImpl& operator=( const DemandTextureImpl& ) = delete;
+
+    /// A degenerate texture is handled by a base color.
+    bool isDegenerate() const { return m_info.width <= 1 && m_info.height <= 1; }
+
+    /// Read the base color of the associated image.
+    bool readBaseColor( float4& baseColor ) const { return m_image->readBaseColor( baseColor ); }
+
+    /// Get the memory fill type for this texture.
+    CUmemorytype getFillType() const { return m_image->getFillType(); }
 
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
@@ -116,12 +134,13 @@ class DemandTextureImpl : public DemandTexture
     /// Get the request handler for this texture.
     TextureRequestHandler* getRequestHandler() { return m_requestHandler.get(); }
 
-    /// Get the ImageSource (for gathering statistics).
-    imageSource::ImageSource* getImageSource() const { return m_image.get(); }
+    /// Accumulate statistics for this texture, if the associated ImageSource is not in the set.
+    void accumulateStatistics( Statistics& stats, std::set<imageSource::ImageSource*>& images );
 
     /// Read the specified tile into the given buffer.
     /// Throws an exception on error.
-    void readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer, size_t tileBufferSize, CUstream stream ) const;
+    bool readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer,
+                   size_t tileBufferSize, CUstream stream ) const;
 
     /// Fill the device tile backing storage for a texture tile and with the given data.
     void fillTile( unsigned int                 deviceIndex,
@@ -140,15 +159,15 @@ class DemandTextureImpl : public DemandTexture
 
     /// Read the entire non-mipmapped texture into the buffer.
     /// Throws an exception on error.
-    void readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const;
+    bool readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const;
 
     /// Read all the levels in the mip tail into the given buffer.
     /// Throws an exception on error.
-    void readMipTail( char* buffer, size_t bufferSize, CUstream stream ) const;
+    bool readMipTail( char* buffer, size_t bufferSize, CUstream stream ) const;
 
     /// Read all the levels from startLevel into the given buffer.
     /// Throws an exception on error.
-    void readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const;
+    bool readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const;
 
     /// Fill the device backing storage for the mip tail with the given data.
     void fillMipTail( unsigned int                 deviceIndex,
@@ -165,24 +184,14 @@ class DemandTextureImpl : public DemandTexture
     /// Create and fill the dense texture on the given device
     void fillDenseTexture( unsigned int deviceIndex, CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned );
 
-    /// DemandTextureImpl cannot be copied because the PageTableManager holds a pointer to the
-    /// RequestHandler it provides.
-    DemandTextureImpl( const DemandTextureImpl& ) = delete;
-
-    /// Not assignable.
-    DemandTextureImpl& operator=( const DemandTextureImpl& ) = delete;
+    /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
+    void open();
 
     /// Set this texture as an entry point to a udim texture array
     void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture );
     
     /// Return the size of the mip tail if the texture is initialized.
     size_t getMipTailSize(); 
-
-    /// Get the vector of sparse textures 
-    const std::vector<SparseTexture>& getSparseTextures() { return m_sparseTextures; }
-
-    /// Get the vector of dense textures 
-    const std::vector<DenseTexture>& getDenseTextures() { return m_denseTextures; }
 
   private:
     // A mutex guards against concurrent initialization, which can arise when the sampler
@@ -201,8 +210,11 @@ class DemandTextureImpl : public DemandTexture
     // The DemandLoader provides access to the PageTableManager, etc.
     DemandLoaderImpl* const m_loader;
 
-    // The image is lazily opened.  Invariant after init().
-    bool m_isInitialized = false;
+    // The image is lazily opened.  Invariant after open().
+    bool m_isOpen{};
+
+    // The texture is lazily initialized.  Invariant after init().
+    bool m_isInitialized{};
 
     // Image info, including dimensions and format.  Invariant after init(), and not valid before then.
     imageSource::TextureInfo m_info{};

@@ -52,14 +52,17 @@ const unsigned long long TEX_MEM_PER_DEVICE = 1u << 30; // 1 GB
 class TestDemandTexture : public testing::Test
 {
   public:
+    void SetUp()
+    {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cuInit( 0 ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+    }
+
     void initTexture( unsigned int width, unsigned int height, bool useMipMaps = true, bool tiledImage = true )
     {
         m_width = width;
         m_height = height;
-
-        // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
 
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,
         // and it's provides a PageTableManager that's needed by initSampler().
@@ -69,6 +72,7 @@ class TestDemandTexture : public testing::Test
 
         // Use the first capable device.
         m_deviceIndex = m_loader->getDevices().at(0);
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         // Create TextureDescriptor.
         m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
@@ -83,6 +87,7 @@ class TestDemandTexture : public testing::Test
 
         // Construct and initialize DemandTexture
         m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_numDevices, m_desc, image, m_loader.get() ) );
+        m_texture->open();
         m_texture->init( m_deviceIndex );
     }
 
@@ -121,7 +126,7 @@ TEST_F( TestDemandTexture, TestFillTile )
         // Read tile.
         unsigned int tileX = tileCoords[i].x;
         unsigned int tileY = tileCoords[i].y;
-        m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} );
+        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} ) );
 
         // Fill tile.
         TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );
@@ -374,7 +379,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
         // Read tile.
         unsigned int tileX = tileCoords[i].x;
         unsigned int tileY = tileCoords[i].y;
-        m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} );
+        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} ) );
 
         // Fill tile.
         TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );

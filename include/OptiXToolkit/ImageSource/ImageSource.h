@@ -70,7 +70,8 @@ class ImageSource
     /// dest must be large enough to hold the tile.  Pixels outside
     /// the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    virtual void readTile( char*        dest,
+    /// Returns true if the request was satisfied and data was copied into dest.
+    virtual bool readTile( char*        dest,
                            unsigned int mipLevel,
                            unsigned int tileX,
                            unsigned int tileY,
@@ -79,22 +80,20 @@ class ImageSource
                            CUstream     stream ) = 0;
 
     /// Read the specified mipLevel. Throws an exception on error.
-    virtual void readMipLevel( char*        dest,
-                               unsigned int mipLevel,
-                               unsigned int expectedWidth,
-                               unsigned int expectedHeight,
-                               CUstream     stream ) = 0;
+    /// Returns true if the request was satisfied and data was copied into dest.
+    virtual bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) = 0;
 
     /// Read the mip tail into the given buffer, starting with the specified level.  An array
     /// containing the expected dimensions of all the miplevels is provided (starting from miplevel
     /// zero), along with the pixel size.
     /// Throws an exception on error.
-    virtual void readMipTail( char*        dest,
+    /// Returns true if the request was satisfied and data was copied into dest.
+    virtual bool readMipTail( char* dest,
                               unsigned int mipTailFirstLevel,
                               unsigned int numMipLevels,
                               const uint2* mipLevelDims,
-                              unsigned int pixelSizeInBytes, 
-                              CUstream     stream ) = 0;
+                              unsigned int pixelSizeInBytes,
+                              CUstream stream ) = 0;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     virtual bool readBaseColor( float4& dest ) = 0; 
@@ -115,14 +114,14 @@ class ImageSource
 class MipTailImageSource : public ImageSource
 {
   public:
-    virtual ~MipTailImageSource() = default;
+    ~MipTailImageSource() override = default;
 
-    void readMipTail( char*        dest,
+    bool readMipTail( char* dest,
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
                       unsigned int pixelSizeInBytes,
-                      CUstream     stream ) override;
+                      CUstream stream ) override;
 };
 
 /// @private

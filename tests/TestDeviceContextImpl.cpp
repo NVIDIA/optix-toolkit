@@ -47,6 +47,8 @@ class TestDeviceContextImpl : public testing::Test
         m_options.maxEvictablePages = 17;
         m_options.useLruTable       = true;
     }
+
+    void SetUp() { cudaFree( nullptr ); }
 };
 
 TEST_F( TestDeviceContextImpl, TestConstructor )

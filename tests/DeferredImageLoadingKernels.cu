@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,46 +26,31 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Memory/DeviceContextPool.h"
+#include "DeferredImageLoadingKernels.h"
 
-#include <gtest/gtest.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
 
-using namespace demandLoading;
+#include <optix.h>
 
-class TestDeviceContextPool : public testing::Test
+#include <vector_types.h>
+
+extern "C" __constant__ Params params;
+
+extern "C" __global__ void __raygen__sampleTexture()
 {
-  public:
-    const unsigned int m_deviceIndex = 0;
-    Options            m_options{};
-
-    TestDeviceContextPool()
+    const uint3 launchIndex = optixGetLaunchIndex();
+    if( launchIndex.x >= params.m_width || launchIndex.y >= params.m_height )
     {
-        m_options.numPages          = 1025;
-        m_options.maxRequestedPages = 65;
-        m_options.maxFilledPages    = 63;
-        m_options.maxStalePages     = 33;
-        m_options.maxEvictablePages = 31;
-        m_options.maxEvictablePages = 17;
-        m_options.useLruTable       = true;
-        m_options.maxActiveStreams  = 2;
+        printf("launchIndex %u,%u %ux%u\n", launchIndex.x, launchIndex.y, params.m_width, params.m_height );
+        return;
     }
 
-    void SetUp() { cudaFree( nullptr ); }
-};
+    const float s = launchIndex.x / (float)params.m_width;
+    const float t = launchIndex.y / (float)params.m_height;
 
-TEST_F( TestDeviceContextPool, Test )
-{
-    DeviceContextPool pool( m_deviceIndex, m_options );
+    bool         isResident = false;
+    const float4 pixel      = demandLoading::tex2DLod<float4>( params.m_context, params.m_textureId, s, t, 0.0f, &isResident );
 
-    DeviceContext* c1 = pool.allocate();
-    DeviceContext* c2 = pool.allocate();
-    EXPECT_NE( c1, c2 );
-
-    pool.free( c1 );
-    DeviceContext* c1a = pool.allocate();
-    EXPECT_EQ( c1, c1a );
-
-    pool.free( c2 );
-    DeviceContext* c2a = pool.allocate();
-    EXPECT_EQ( c2, c2a );
+    const RayGenData* rayGenData = reinterpret_cast<RayGenData*>( optixGetSbtDataPointer() );
+    params.m_output[launchIndex.y * params.m_width + launchIndex.x] = isResident ? pixel : rayGenData->m_nonResidentColor;
 }

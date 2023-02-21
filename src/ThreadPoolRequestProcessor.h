@@ -28,51 +28,52 @@
 
 #pragma once
 
-#include "Memory/DeviceContextPool.h"
-#include "Memory/SamplerPool.h"
-#include "Memory/TilePool.h"
-
 #include <OptiXToolkit/DemandLoading/Options.h>
-#include <OptiXToolkit/DemandLoading/Statistics.h>
+
+#include "RequestProcessor.h"
+#include "RequestQueue.h"
+#include "Util/TraceFile.h"
+
+#include <cuda.h>
+
+#include <memory>
+#include <thread>
+#include <vector>
 
 namespace demandLoading {
 
-class DemandLoaderImpl;
+class PageTableManager;
+class TraceFileWriter;
 
-class DeviceMemoryManager
+class ThreadPoolRequestProcessor : public RequestProcessor
 {
   public:
-    DeviceMemoryManager( unsigned int deviceIndex, const Options& options )
-        : m_deviceIndex( deviceIndex )
-        , m_deviceContextPool( m_deviceIndex, options )
-        , m_samplerPool( m_deviceIndex )
-        , m_tilePool( m_deviceIndex, options.maxTexMemPerDevice )
-    {
-    }
+    /// Construct request processor, which uses the given PageTableManager to
+    /// find the RequestHandler associated with a range of pages.
+    ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options );
+    ~ThreadPoolRequestProcessor() override = default;
 
-    /// Get the DeviceContextPool for this device.
-    DeviceContextPool* getDeviceContextPool() { return &m_deviceContextPool; }
+    /// Start processing requests using the specified number of threads.  Options supplies
+    /// the number of specified threads (if zero, std::thread::hardware_concurrency is used),
+    /// the trace file and the size of the request queue.
+    void start( unsigned int maxThreads );
 
-    /// Get the SamplerPool for this device.
-    SamplerPool* getSamplerPool() { return &m_samplerPool; }
+    /// Stop processing requests, terminating threads.
+    void stop();
 
-    /// Get the TilePool for this device.
-    TilePool* getTilePool() { return &m_tilePool; }
-    
-    /// Returns the amount of device memory allocated.
-    size_t getTotalDeviceMemory() const
-    {
-        return m_deviceContextPool.getTotalDeviceMemory() + m_samplerPool.getTotalDeviceMemory() + m_tilePool.getTotalDeviceMemory();
-    }
+    /// Add a batch of page requests from the specified device to the request queue.
+    void addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) override;
 
-    void accumulateStatistics( DeviceStatistics& stats ) { stats.memoryUsed += getTotalDeviceMemory(); }
+    void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
 
-  private:
-    unsigned int      m_deviceIndex;
-    DemandLoaderImpl* m_loader;
-    DeviceContextPool m_deviceContextPool;
-    SamplerPool       m_samplerPool;
-    TilePool          m_tilePool;
+private:
+    std::shared_ptr<PageTableManager> m_pageTableManager;
+    std::unique_ptr<RequestQueue>     m_requests;
+    std::vector<std::thread>          m_threads;
+    std::unique_ptr<TraceFileWriter>  m_traceFile{};
+
+    // Per-thread worker function.
+    void worker();
 };
 
 }  // namespace demandLoading

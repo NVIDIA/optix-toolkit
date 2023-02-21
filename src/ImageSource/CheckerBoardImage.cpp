@@ -84,7 +84,7 @@ inline bool CheckerBoardImage::isOddChecker( float x, float y, unsigned int squa
     return ( ( cx + cy ) & 1 ) != 0;
 }
 
-void CheckerBoardImage::readTile( char*        dest,
+bool CheckerBoardImage::readTile( char*        dest,
                                   unsigned int mipLevel,
                                   unsigned int tileX,
                                   unsigned int tileY,
@@ -116,9 +116,11 @@ void CheckerBoardImage::readTile( char*        dest,
             row[destX] = odd ? black : color;
         }
     }
+
+    return true;
 }
 
-void CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
+bool CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
 {
     DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -139,6 +141,8 @@ void CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigne
             row[x]    = odd ? black : color;
         }
     }
+
+    return true;
 }
 
 }  // namespace imageSource

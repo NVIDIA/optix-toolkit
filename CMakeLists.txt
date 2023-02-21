@@ -38,6 +38,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchOpenEXR)
+include(CTest)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
@@ -49,13 +50,15 @@ endif()
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX REQUIRED)
+find_package(OptiX 7.6.0 EXACT REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 add_library( DemandLoading
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
+  src/DemandPageLoaderImpl.cpp
+  src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
   src/Memory/Allocators.h
@@ -84,7 +87,6 @@ add_library( DemandLoading
   src/PagingSystemKernels.h
   src/RequestContext.h
   src/RequestHandler.h
-  src/RequestProcessor.cpp
   src/RequestProcessor.h
   src/RequestQueue.cpp
   src/RequestQueue.h
@@ -102,6 +104,8 @@ add_library( DemandLoading
   src/Textures/SparseTexture.h
   src/Textures/TextureRequestHandler.cpp
   src/Textures/TextureRequestHandler.h
+  src/ThreadPoolRequestProcessor.cpp
+  src/ThreadPoolRequestProcessor.h
   src/Ticket.cpp
   src/TicketImpl.h
   src/Util/CudaCallback.h
@@ -127,6 +131,7 @@ target_sources(DemandLoading
   BASE_DIRS include
   FILES
   include/OptiXToolkit/DemandLoading/DemandLoader.h
+  include/OptiXToolkit/DemandLoading/DemandPageLoader.h
   include/OptiXToolkit/DemandLoading/DemandTexture.h
   include/OptiXToolkit/DemandLoading/DeviceContext.h
   include/OptiXToolkit/DemandLoading/Options.h
@@ -144,6 +149,7 @@ target_sources(DemandLoading
 
 source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
+  src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.h
   src/Memory/Allocators.h
   src/Memory/AsyncItemPool.h
@@ -176,6 +182,7 @@ source_group( "Header Files\\Implementation" FILES
   src/Textures/SamplerRequestHandler.h
   src/Textures/SparseTexture.h
   src/Textures/TextureRequestHandler.h
+  src/ThreadPoolRequestProcessor.h
   src/TicketImpl.h
   src/Util/CudaCallback.h
   src/Util/DeviceSet.h
@@ -315,8 +322,7 @@ install(EXPORT ImageSourceTargets
   NAMESPACE OptiXToolkit::
   )
 
-set( OTK_BUILD_TESTS ON CACHE BOOL "Enable build of OptiXToolkit tests" )
-if( OTK_BUILD_TESTS )
+if( BUILD_TESTING )
   add_subdirectory( tests )
 endif()
 

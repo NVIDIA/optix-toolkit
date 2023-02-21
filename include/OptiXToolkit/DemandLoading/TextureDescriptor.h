@@ -38,7 +38,7 @@ namespace demandLoading {
 struct TextureDescriptor
 {
     /// Address mode (e.g. wrap)
-    CUaddress_mode addressMode[2] = {CU_TR_ADDRESS_MODE_WRAP, CU_TR_ADDRESS_MODE_WRAP};
+    CUaddress_mode addressMode[2]{CU_TR_ADDRESS_MODE_WRAP, CU_TR_ADDRESS_MODE_WRAP};
 
     /// Filter mode (e.g. linear vs. point)
     CUfilter_mode filterMode = CU_TR_FILTER_MODE_LINEAR;

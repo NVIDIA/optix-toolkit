@@ -32,12 +32,12 @@
 
 namespace imageSource {
 
-void MipTailImageSource::readMipTail( char*        dest,
+bool MipTailImageSource::readMipTail( char* dest,
                                       unsigned int mipTailFirstLevel,
                                       unsigned int numMipLevels,
                                       const uint2* mipLevelDims,
                                       unsigned int pixelSizeInBytes,
-                                      CUstream     stream )
+                                      CUstream stream )
 {
     size_t offset = 0;
     for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
@@ -48,6 +48,8 @@ void MipTailImageSource::readMipTail( char*        dest,
         // Increment offset.
         offset += levelDims.x * levelDims.y * pixelSizeInBytes;
     }
+
+    return true;
 }
 
 }  // namespace imageSource

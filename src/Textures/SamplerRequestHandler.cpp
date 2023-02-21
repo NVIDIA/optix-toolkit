@@ -60,11 +60,8 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     DemandTextureImpl* texture   = m_loader->getTexture( samplerId );
 
     // A 1x1 or null texture is indicated in the page table as a null value.
-    imageSource::TextureInfo texInfo = {0};
-    if( texture )
-        texture->getImageSource()->open( &texInfo );
-
-    if( texInfo.width <= 1 && texInfo.height <= 1 )
+    texture->open();
+    if( texture->isDegenerate() )
     {
         m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, 0ULL );
         return;
@@ -84,8 +81,12 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     }
 
     // For a dense texture, the whole thing has to be loaded, so load it now
-    if ( texture->useSparseTexture() == false )
-        fillDenseTexture( deviceIndex, stream, pageId );
+    if ( !texture->useSparseTexture() )
+    {
+        // If the dense texture data was deferred, then defer allocating the sampler.
+        if( !fillDenseTexture( deviceIndex, stream, pageId ) )
+            return;
+    }
 
     // Allocate sampler buffer in pinned memory.
     PinnedItemPool<TextureSampler>* pinnedSamplerPool = m_loader->getPinnedMemoryManager()->getPinnedSamplerPool();
@@ -112,7 +113,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
 }
 
-void SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -123,7 +124,7 @@ void SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
     // The buffer needs to be a little larger than the texture size for some reason to prevent a crash
     size_t transferBufferSize = getTextureSizeInBytes( info ) * 4 / 3;
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, texture->getImageSource()->getFillType(), transferBufferSize, stream );
+        m_loader->allocateTransferBuffer( deviceIndex, texture->getFillType(), transferBufferSize, stream );
 
     // Make a backup buffer on the host if the transfer buffer was unsuccessful
     size_t hostBufferSize = ( transferBuffer.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
@@ -135,13 +136,15 @@ void SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
     DEMAND_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense textures." );
 
     // Read the texture data into the buffer
-    if( info.numMipLevels == 1 && ( info.width > 1 || info.height > 1 ) )
-        texture->readNonMipMappedData( dataPtr, bufferSize, stream );
-    else 
-        texture->readMipLevels( dataPtr, bufferSize, 0, stream );
+    bool satisfied;
+    if( info.numMipLevels == 1 && !texture->isDegenerate() )
+        satisfied = texture->readNonMipMappedData( dataPtr, bufferSize, stream );
+    else
+        satisfied = texture->readMipLevels( dataPtr, bufferSize, 0, stream );
 
     // Copy texture data from the buffer to the texture array on the device
-    texture->fillDenseTexture( deviceIndex, stream, dataPtr, info.width, info.height, transferBuffer.size > 0 );
+    if( satisfied )
+        texture->fillDenseTexture( deviceIndex, stream, dataPtr, info.width, info.height, transferBuffer.size > 0 );
     if( transferBuffer.size > 0 )
     {
         m_loader->freeTransferBuffer( transferBuffer, stream );
@@ -152,6 +155,8 @@ void SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
     }
+
+    return satisfied;
 }
 
 }  // namespace demandLoading

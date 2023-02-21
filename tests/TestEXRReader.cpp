@@ -182,7 +182,7 @@ void runReadFineTileFloat()
 
     ASSERT_TRUE( floatInfo.format == CU_AD_FORMAT_FLOAT && floatInfo.numChannels == 4 );
     std::vector<float4> texels( width * height );
-    ASSERT_NO_THROW( floatReader.readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 1, 1, width, height ) );
+    ASSERT_NO_THROW( floatReader.readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 1, 1, width, height, nullptr ) );
 
     // Pattern is red/white checkboard with 16x16 squares
     EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( 0, 0, texels, width ) );
@@ -208,7 +208,7 @@ void runReadFineScanlineFloat()
 
     ASSERT_TRUE( floatInfo.format == CU_AD_FORMAT_FLOAT && floatInfo.numChannels == 4 );
     std::vector<float4> texels( width * height );
-    ASSERT_NO_THROW( floatReader.readMipLevel( reinterpret_cast<char*>( texels.data() ), mipLevel, width, height ) );
+    ASSERT_NO_THROW( floatReader.readMipLevel( reinterpret_cast<char*>( texels.data() ), mipLevel, width, height, nullptr ) );
 
     // Pattern is red/white checkboard with 16x16 squares
     EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( 0, 0, texels, width ) );
@@ -258,7 +258,7 @@ void runReadCoarseScanlineFloat()
 
     ASSERT_TRUE( floatInfo.format == CU_AD_FORMAT_FLOAT && floatInfo.numChannels == 4 );
     std::vector<float4> texels( width * height );
-    ASSERT_NO_THROW( floatReader.readMipLevel( reinterpret_cast<char*>( texels.data() ), mipLevel, width, height ) );
+    ASSERT_NO_THROW( floatReader.readMipLevel( reinterpret_cast<char*>( texels.data() ), mipLevel, width, height, nullptr ) );
 
     // Pattern is blue/white checkerboard with 16x16 squares.
     EXPECT_EQ( make_float3( 0, 0, 1 ), getTexel( 0, 0, texels, width ) );
@@ -285,7 +285,7 @@ void runReadLargeTile()
 
     ASSERT_TRUE( floatInfo.format == CU_AD_FORMAT_FLOAT && floatInfo.numChannels == 4 );
     std::vector<float4> texels( width * height );
-    ASSERT_NO_THROW( floatReader.readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 0, 0, width, height ) );
+    ASSERT_NO_THROW( floatReader.readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 0, 0, width, height, nullptr ) );
 
     // For now we print the texels for visual validation.
     for( unsigned int j = 0; j < height; ++j )
@@ -317,7 +317,7 @@ void runReadCoarseTileHalf()
 
     ASSERT_TRUE( halfInfo.format == CU_AD_FORMAT_HALF && halfInfo.numChannels == 4 );
     std::vector<char> buff( width * height * sizeof( half4 ) );
-    ASSERT_NO_THROW( halfReader.readTile( buff.data(), mipLevel, 0, 0, width, height ) );
+    ASSERT_NO_THROW( halfReader.readTile( buff.data(), mipLevel, 0, 0, width, height, nullptr ) );
     const half4* texels = reinterpret_cast<const half4*>( buff.data() );
 
     // Pattern is blue/white checkerboard with 16x16 squares.
@@ -346,7 +346,7 @@ void runReadCoarseScanlineHalf()
 
     ASSERT_TRUE( halfInfo.format == CU_AD_FORMAT_HALF && halfInfo.numChannels == 4 );
     std::vector<char> buff( width * height * sizeof(half4) );
-    ASSERT_NO_THROW( halfReader.readMipLevel( buff.data(), mipLevel, width, height ) );
+    ASSERT_NO_THROW( halfReader.readMipLevel( buff.data(), mipLevel, width, height, nullptr ) );
     const half4* texels = reinterpret_cast<const half4*>( buff.data() );
 
     // Pattern is blue/white checkerboard with 16x16 squares.
@@ -385,7 +385,7 @@ void runReadPartialTileNonSquare()
 
     ASSERT_TRUE( halfInfo.format == CU_AD_FORMAT_HALF && halfInfo.numChannels == 4 );
     std::vector<char> buff( tileWidth * tileHeight * sizeof( half4 ) );
-    ASSERT_NO_THROW( nonSquareReader.readTile( buff.data(), mipLevel, numTilesX - 1, numTilesY - 1, tileWidth, tileHeight ) );
+    ASSERT_NO_THROW( nonSquareReader.readTile( buff.data(), mipLevel, numTilesX - 1, numTilesY - 1, tileWidth, tileHeight, nullptr ) );
     const half4* texels = reinterpret_cast<const half4*>( buff.data() );
 
     // Pattern is blue/white checkerboard with 16x16 squares.

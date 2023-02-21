@@ -37,7 +37,7 @@ class DeviceSet
 {
   public:
     /// A single device
-    typedef int position;
+    using position = int;
 
     /// Simple iteration over set bits.
     struct const_iterator

@@ -53,13 +53,13 @@ void DeviceConstantImage::open( TextureInfo* info )
         *info = m_info;
 }
 
-void DeviceConstantImage::readTile( char*        dest,
-                                      unsigned int mipLevel,
-                                      unsigned int tileX,
-                                      unsigned int tileY,
-                                      unsigned int tileWidth,
-                                      unsigned int tileHeight,
-                                      CUstream     stream )
+bool DeviceConstantImage::readTile( char*        dest,
+                                    unsigned int mipLevel,
+                                    unsigned int tileX,
+                                    unsigned int tileY,
+                                    unsigned int tileWidth,
+                                    unsigned int tileHeight,
+                                    CUstream     stream )
 {
     DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -69,9 +69,11 @@ void DeviceConstantImage::readTile( char*        dest,
     params.output_buffer = reinterpret_cast<float4*>( dest );
 
     launchReadConstantImage( params, stream );
+
+    return true;
 }
 
-void DeviceConstantImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
+bool DeviceConstantImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
 {
     DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -87,14 +89,16 @@ void DeviceConstantImage::readMipLevel( char* dest, unsigned int mipLevel, unsig
     params.output_buffer = reinterpret_cast<float4*>( dest );
 
     launchReadConstantImage( params, stream );
+
+    return true;
 }
 
-void DeviceConstantImage::readMipTail( char*        dest,
+bool DeviceConstantImage::readMipTail( char* dest,
                                        unsigned int mipTailFirstLevel,
                                        unsigned int numMipLevels,
                                        const uint2* mipLevelDims,
                                        unsigned int pixelSizeInBytes,
-                                       CUstream     stream )
+                                       CUstream stream )
 {
     DEMAND_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -107,6 +111,8 @@ void DeviceConstantImage::readMipTail( char*        dest,
     params.output_buffer = reinterpret_cast<float4*>( dest );
 
     launchReadConstantImage( params, stream );
+
+    return true;
 }
 
 bool DeviceConstantImage::readBaseColor( float4& dest )

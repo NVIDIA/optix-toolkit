@@ -44,7 +44,7 @@ class CudaCallback
     virtual void callback() = 0;
 
     /// The destructor is virtual to ensure that members of the derived class are properly destroyed.
-    virtual ~CudaCallback() { }
+    virtual ~CudaCallback() = default;
 
     /// Enqueue a callback on the given stream.  The CudaCallback object will be destroyed after its
     /// callback() method is invoked.
@@ -59,7 +59,7 @@ class CudaCallback
     // Given a type-erased CudaCallback object, invoke the virtual callback method and then destroy it.
     static void staticCallback( void* arg )
     {
-        CudaCallback* callback = reinterpret_cast<CudaCallback*>( arg );
+        CudaCallback* callback = static_cast<CudaCallback*>( arg );
         callback->callback();
         delete callback;
     }

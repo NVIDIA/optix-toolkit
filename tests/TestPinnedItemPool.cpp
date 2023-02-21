@@ -41,11 +41,11 @@ class TestPinnedItemPool : public testing::Test
   public:
     void SetUp() override
     {
-        m_pool.reset( new PinnedItemPool<int>( m_maxItems ) );
-
         // Initialize CUDA.
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
+        m_pool.reset( new PinnedItemPool<int>( m_maxItems ) );
 
         // Create streams.
         DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );

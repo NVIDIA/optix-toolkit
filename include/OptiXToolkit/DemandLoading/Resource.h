@@ -30,6 +30,8 @@
 /// \file Resource.h
 /// Definitions for demand-loaded resources.
 
+#include <cuda.h>
+
 #include <functional>
 
 namespace demandLoading {
@@ -38,6 +40,6 @@ namespace demandLoading {
 /// demand-loaded buffers.  It takes three arguments: an integer device index, a stream, and an
 /// integer page index.  It returns the new page table entry for the requested page, which is
 /// typically a device pointer (but it can be an arbitrary 64-bit value).
-using ResourceCallback = std::function<void*( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex )>;
+using ResourceCallback = std::function<bool( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void *context, void** pageTableEntry )>;
 
 }  // namespace demandLoading

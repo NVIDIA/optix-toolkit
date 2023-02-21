@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -35,7 +35,6 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/Resource.h>
-#include <OptiXToolkit/DemandLoading/Statistics.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/DemandLoading/Ticket.h>
 
@@ -50,32 +49,18 @@ class ImageSource;
 
 namespace demandLoading {
 
-/// DemandLoader loads sparse textures on demand.
-class DemandLoader
+class RequestProcessor;
+
+/// DemandPageLoader loads pages on demand.
+class DemandPageLoader
 {
   public:
     /// Base class destructor.
-    virtual ~DemandLoader() = default;
-
-    /// Create a demand-loaded texture for the given image.  The texture initially has no backing
-    /// storage.  The readTile() method is invoked on the image to fill each required tile.  The
-    /// ImageSource pointer is retained for the lifetime of the DemandLoader.
-    virtual const DemandTexture& createTexture( std::shared_ptr<imageSource::ImageSource> image,
-                                                const TextureDescriptor&                  textureDesc ) = 0;
-
-    /// Create a demand-loaded UDIM texture for a given set of images.  If a baseTexture is used,
-    /// it should be created first by calling createTexture.  The id of the returned texture should be used
-    /// when calling tex2DGradUdim.  All of the image readers are retained for the lifetime of the DemandLoader.
-    virtual const DemandTexture& createUdimTexture( std::vector<std::shared_ptr<imageSource::ImageSource>>& imageSources,
-                                                    std::vector<TextureDescriptor>&                         textureDescs,
-                                                    unsigned int                                            udim,
-                                                    unsigned int                                            vdim,
-                                                    int baseTextureId ) = 0;
+    virtual ~DemandPageLoader() = default;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    /// Returns the starting index of the resource in the page table.  The user-supplied callbackContext
-    /// value is forwarded to the callback during request processing.
-    virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) = 0;
+    /// Returns the starting index of the resource in the page table.
+    virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) = 0;
 
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to
@@ -89,9 +74,6 @@ class DemandLoader
     /// have been filled on the host side.
     virtual Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) = 0;
 
-    /// Get current statistics.
-    virtual Statistics getStatistics() const = 0;
-
     /// Get indices of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
     virtual std::vector<unsigned int> getDevices() const = 0;
 
@@ -100,9 +82,9 @@ class DemandLoader
 };
 
 /// Create a DemandLoader with the given options.  
-DemandLoader* createDemandLoader( const Options& options );
+DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options );
 
 /// Function to destroy a DemandLoader.
-void destroyDemandLoader( DemandLoader* manager );
+void destroyDemandPageLoader( DemandPageLoader* manager );
 
 }  // namespace demandLoading
