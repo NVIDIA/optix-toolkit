@@ -26,8 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "TextureVariantViewer.h"
-
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
 

@@ -47,7 +47,6 @@ embed_ptx(
 
 add_executable( textureVariantViewer
   TextureVariantViewer.cpp
-  TextureVariantViewer.h
   )
 
 target_link_libraries( textureVariantViewer

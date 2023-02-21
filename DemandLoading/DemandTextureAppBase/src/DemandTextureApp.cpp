@@ -512,22 +512,22 @@ unsigned int DemandTextureApp::performLaunches( )
    
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        // launchPrepare synchronizes new texture samplers and texture info to device memory,
-        // and allocates device memory for the demand texture context.
+        // Wait on the ticket from the previous launch
         CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        state.ticket.wait();
+        numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
+
+        // Call launchPrepare to synchronize new texture samplers and texture info to device memory,
+        // and allocate device memory for the demand texture context.
         m_demandLoader->launchPrepare( state.device_idx, state.stream, state.params.demand_texture_context );
 
-        // Map the output buffer to get a valid device pointer for the launch output.
+        // Finish initialization of the launch params.
         state.params.result_buffer = m_outputBuffer->map();
-
-        // Finish initialization of the launch params and copy them to the device.
         initLaunchParams( state, numDevices );
-        CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( state.d_params ), &state.params, sizeof( Params ), cudaMemcpyHostToDevice ) );
 
-        // Note: The synchronous copy was measured as much faster than the asynchronous copy in
-        // interactive mode, and slightly faster in final frame mode.
-        //CUDA_CHECK( cudaMemcpyAsync( reinterpret_cast<void*>( state.d_params ), &state.params, sizeof( Params ),
-        //                             cudaMemcpyHostToDevice, state.stream ) );
+        // Copy launch params to device.  Note: cudaMemcpy measured faster than cudaMemcpyAsync 
+        // for this application, so we use it here.  Other applications may differ.
+        CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( state.d_params ), &state.params, sizeof( Params ), cudaMemcpyHostToDevice ) );
 
         // Peform the OptiX launch, with each device doing a part of the work
         unsigned int launchHeight = ( state.params.image_height + numDevices - 1 ) / numDevices;
@@ -541,36 +541,13 @@ unsigned int DemandTextureApp::performLaunches( )
                                   1                                                 // launch depth
                                   ) );
 
-        // If interactive, wait on the ticket from the previous launch just before the next launch.
-        // This gives requests as long as possible to complete before waiting on them.
-        if( isInteractive() )
-        {
-            state.ticket.wait();
-            numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
-        }
-
-        // Begin to process demand load requests. This pulls a batch of requests from the device and
-        // places them in a queue for asynchronous processing.  The progress of the batch
+        // Begin to process demand load requests. This asynchronously pulls a batch of requests 
+        // from the device and places them in a queue for processing.  The progress of the batch
         // can be polled using the returned ticket.
         state.ticket = m_demandLoader->processRequests( state.device_idx, state.stream, state.params.demand_texture_context );
         
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();
-    }
-
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
-    {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-
-        // If not interactive (final frame render), wait on the ticket after the current launch
-        // so that all requests are filled before the next launch, and the application
-        // can use numProcessRequests to decide whether to launch again.
-        if( !isInteractive() )
-        {
-            state.ticket.wait();
-            numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
-        }
-        CUDA_SYNC_CHECK();
     }
 
     return numRequestsProcessed;
@@ -600,7 +577,7 @@ void DemandTextureApp::startLaunchLoop()
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-        } while( numFilled > 0 );
+        } while( numFilled > 0 || m_launchCycles <= 1 );
 
         saveImage();
     }
