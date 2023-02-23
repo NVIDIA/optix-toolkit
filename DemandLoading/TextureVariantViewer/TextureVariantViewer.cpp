@@ -32,6 +32,8 @@
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
+
+using namespace demandLoading;
 using namespace demandTextureApp;
 
 extern "C" char TextureVariantViewer_ptx[];  // generated via CMake by embed_ptx.
