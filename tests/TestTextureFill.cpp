@@ -320,7 +320,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 #if OTK_USE_CUDA_MEMORY_POOLS
                 CHK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( tempTileBuffs ), streams[streamId] ) );
 #else
-                CHK( cuMemFree( tempTileBuffs ) );
+                CHK( cuMemFree( reinterpret_cast<CUdeviceptr>( tempTileBuffs ) ) );
 #endif
             }
 
@@ -367,7 +367,7 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 #if OTK_USE_CUDA_MEMORY_POOLS
                     CHK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( tempTileBuff ), streams[streamId] ) );
 #else
-                    CHK( cuMemFree( tempTileBuff ) );
+                    CHK( cuMemFree( reinterpret_cast<CUdeviceptr>( tempTileBuff ) ) );
 #endif
                 else 
                     ringBufferPos = ( ringBufferPos + tileWidth * tileHeight * pixelSize ) % ringBufferSize;

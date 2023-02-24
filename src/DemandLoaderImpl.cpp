@@ -53,7 +53,8 @@ void initCuda()
     DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
     for( int i = 0; i < numDevices; ++i )
     {
-        DEMAND_CUDA_CHECK( cudaInitDevice( i, 0, 0 ) );
+        DEMAND_CUDA_CHECK( cudaSetDevice( i ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
     }
 }
 

@@ -118,14 +118,22 @@ class DeviceAsyncAllocator
             return nullptr;  // cuMemAlloc does not handle this.
         void* result;
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+#if OTK_USE_CUDA_MEMORY_POOLS
         DEMAND_CUDA_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+#else
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+#endif
         return result;
     }
 
     void free( void* ptr, CUstream stream = 0 )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+#if OTK_USE_CUDA_MEMORY_POOLS
         DEMAND_CUDA_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( ptr ), stream ) );
+#else
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
+#endif
     }
 
     void set( void* ptr, int val, size_t numBytes, CUstream stream = 0 )
