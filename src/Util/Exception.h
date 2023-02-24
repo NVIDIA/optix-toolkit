@@ -89,8 +89,8 @@ inline void checkCudaError( cudaError_t error, const char* expr, const char* fil
     if( error != cudaSuccess )
     {
         std::stringstream ss;
-        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" __FILE__ << ":"
-           << __LINE__ << ")\n";
+        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file << ":"
+           << line << ")\n";
         throw Exception( ss.str().c_str() );
     }
 }
