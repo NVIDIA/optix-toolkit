@@ -30,6 +30,17 @@ include( FetchGtest )
 include( GoogleTest )
 include( embed_ptx )
 
+add_executable( testImageSource
+  TestCheckerBoardImage.cpp
+  TestEXRReader.cpp
+)
+target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
+target_link_libraries( testImageSource PUBLIC
+    DemandLoading
+    OpenEXR::OpenEXR # for half
+    gmock_main )
+set_property( TARGET testImageSource PROPERTY FOLDER DemandLoading/tests )
+
 embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
     OUTPUT_TARGET testDemandLoadingKernels
     PTX_LINK_LIBRARIES
@@ -49,7 +60,6 @@ add_executable( testDemandLoading
   PagingSystemTestKernels.h
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
-  TestCheckerBoardImage.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
@@ -57,7 +67,6 @@ add_executable( testDemandLoading
   TestDeviceMemoryPools.cpp
   TestDeviceMemoryPools.cu
   TestDeviceMemoryPools.h
-  TestEXRReader.cpp
   TestFixedSuballocator.cpp
   TestHeapSuballocator.cpp
   TestMemoryPool.cpp
