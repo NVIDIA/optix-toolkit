@@ -92,10 +92,11 @@ class DemandTextureApp
     
     // OptiX launches
     void initView();
-    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices );
+    virtual void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices );
     unsigned int performLaunches();
 
     // Displaying and saving images
+    virtual void drawGui();
     void displayFrame();
     void saveImage();
     bool isInteractive() const { return m_outputFileName.empty(); }

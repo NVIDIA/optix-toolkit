@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,68 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#pragma once
 
-#include <cuda_runtime.h>
-#include <optix.h>
-#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+const int BUTTON_SIZE    = 12;
+const int BUTTON_SPACING = 5;
 
-namespace demandTextureApp
-{
-
-const unsigned int EXTRA_DATA_SIZE = 8;
-
-enum RayType
-{
-    RAY_TYPE_RADIANCE = 0,
-    RAY_TYPE_COUNT
-};
-
-// OptiX launch params
-struct Params
-{
-    // Device-related data for multi-gpu rendering
-    unsigned int device_idx;
-    unsigned int num_devices;
-
-    // Render buffer
-    uchar4*      result_buffer;
-    unsigned int image_width;
-    unsigned int image_height;
-
-    // Orthographic view 
-    float3 eye;
-    float2 view_dims;
-
-    // Handle to scene bvh for ray traversal
-    OptixTraversableHandle traversable_handle;
-
-    // Demand texture context
-    demandLoading::DeviceContext demand_texture_context;
-
-    int  display_texture_id;  // which texture to show resident tiles
-    bool interactive_mode;    // whether the application is running in interactive mode
-
-    // Extra params that can be used by the application
-    float4 c[EXTRA_DATA_SIZE];
-    float  f[EXTRA_DATA_SIZE];
-    int    i[EXTRA_DATA_SIZE];
-};
-
-
-struct RayGenData
-{
-    // Handled by params
-};
-
-struct MissData
-{
-    float4 background_color;
-};
-
-struct HitGroupData
-{
-    unsigned int texture_id;
-};
-
-} // namespace demandTextureApp
+const int NUM_CANVASES_ID  = 0;
+const int ACTIVE_CANVAS_ID = 1;
+const int BRUSH_WIDTH_ID   = 2;
+const int BRUSH_HEIGHT_ID  = 3;
+const int BRUSH_COLOR_ID   = 0;
