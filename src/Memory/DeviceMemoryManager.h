@@ -63,7 +63,12 @@ class DeviceMemoryManager
     TileBlockHandle allocateTileBlock( size_t numBytes ) { return m_tilePool.allocTextureTiles( numBytes ); }
     /// Free a TileBlock for this device.
     void freeTileBlock( const TileBlockDesc& blockDesc ) { m_tilePool.freeTextureTiles( blockDesc ); }
-    
+    /// Get the memory handle associated with the tileBlock.
+    CUmemGenericAllocationHandle getTileBlockHandle( const TileBlockDesc& bh )
+    {
+        return m_tilePool.getAllocationHandle( bh.arenaId );
+    }
+
     /// Returns true if TileBlocks need to be freed.
     bool needTileBlocksFreed() const { return m_tilePool.allocatableSpace() < m_tilePool.allocationGranularity(); };
     /// Returns the arena size for m_tilePool.

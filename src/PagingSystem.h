@@ -86,7 +86,7 @@ class PagingSystem
     void addMapping( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
 
     /// Check whether the specified page is resident (thread safe).
-    bool isResident( unsigned int pageId );
+    bool isResident( unsigned int pageId, unsigned long long* entry = nullptr );
 
     /// Push tile mappings to the device.  Returns the total number of new mappings.
     unsigned int pushMappings( const DeviceContext& context, CUstream stream );

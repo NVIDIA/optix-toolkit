@@ -93,6 +93,7 @@ class PageTableManager
         return firstPage;
     }
 
+    /// Reserve unbacked pages (pages with no backing storage on the device).
     unsigned int reserveUnbackedPages( unsigned int numPages, RequestHandler* handler )
     {
         std::unique_lock<std::mutex> lock( m_mutex );

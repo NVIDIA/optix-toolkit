@@ -85,6 +85,21 @@ class DemandLoader
                                  std::shared_ptr<imageSource::ImageSource> image,
                                  const TextureDescriptor&                  textureDesc ) = 0;
 
+    /// Pre-initialize the texture on the given device.
+    virtual void initTexture( unsigned int deviceIndex, CUstream stream, unsigned int textureId ) = 0;
+
+    /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
+    virtual unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
+
+    /// Get the starting mip level of the mip tail
+    virtual unsigned int getMipTailFirstLevel( unsigned int textureId ) = 0;
+
+    /// Load or reload a texture tile
+    virtual void loadTextureTile( unsigned int deviceIndex, CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
+
+    /// Return true if the requested page is resident
+    virtual bool pageResident( unsigned int deviceIndex, unsigned int pageId ) = 0;
+
     /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
     /// If successful, returns a DeviceContext via result parameter, which should be copied to
     /// device memory (typically along with OptiX kernel launch parameters), so that it can be

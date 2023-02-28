@@ -283,14 +283,40 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
     m_requestProcessor.recordTexture( image, textureDesc );
 }
 
-// Returns false if the device doesn't support sparse textures.
+void DemandLoaderImpl::initTexture( unsigned int deviceIndex, CUstream stream, unsigned int textureId )
+{
+    m_samplerRequestHandler.fillRequest( deviceIndex, stream, textureId );
+    m_samplerRequestHandler.fillRequest( deviceIndex, stream, textureId + BASE_COLOR_OFFSET );
+}
+
+unsigned int DemandLoaderImpl::getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
+{
+    return m_textures[textureId]->getRequestHandler()->getTextureTilePageId( mipLevel, tileX, tileY );
+}
+
+unsigned int DemandLoaderImpl::getMipTailFirstLevel( unsigned int textureId )
+{
+    return m_textures[textureId]->getMipTailFirstLevel();
+}
+
+void DemandLoaderImpl::loadTextureTile( unsigned int deviceIndex, CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
+{
+    unsigned int pageId = m_textures[textureId]->getRequestHandler()->getTextureTilePageId( mipLevel, tileX, tileY );
+    m_textures[textureId]->getRequestHandler()->loadPage( deviceIndex, stream, pageId, true );
+}
+
+bool DemandLoaderImpl::pageResident( unsigned int deviceIndex, unsigned int pageId )
+{
+    PagingSystem* pagingSystem = m_pageLoader->getPagingSystem( deviceIndex );
+    return pagingSystem->isResident( pageId );
+}
+
 bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
 {
     ContextSaver contextSaver;
     return m_pageLoader->pushMappings( deviceIndex, stream, context );
 }
 
-// Process page requests.
 Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
@@ -321,7 +347,6 @@ Ticket DemandLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stre
 
     return ticket;
 }
-
 
 void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
 {
@@ -380,7 +405,6 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
         memoryBlock = m_deviceTransferPools[deviceIndex].alloc( size, alignment );
 
-    DEMAND_ASSERT_MSG( memoryBlock.isGood(), "Transfer buffer allocation failed." );
     return TransferBufferDesc{ deviceIndex, memoryType, memoryBlock };
 }
 

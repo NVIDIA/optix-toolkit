@@ -223,11 +223,15 @@ void PagingSystem::addMapping( unsigned int pageId, unsigned int lruVal, unsigne
     addMappingBody( pageId, lruVal, entry );
 }
 
-bool PagingSystem::isResident( unsigned int pageId )
+bool PagingSystem::isResident( unsigned int pageId, unsigned long long* entry )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     const auto&                  p = m_pageTable.find( pageId );
-    return ( p != m_pageTable.end() ) ? p->second.resident : false;
+
+    bool resident = ( p != m_pageTable.end() ) ? p->second.resident : false;
+    if( resident && entry )
+        *entry = p->second.entry;
+    return resident;
 }
 
 unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream stream )
@@ -324,12 +328,7 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
 void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
 {
     // Mutex acquired in caller
-
-    DEMAND_ASSERT_MSG( m_pageMappingsContext->numFilledPages <= m_pageMappingsContext->maxFilledPages,
-                       "Maximum number of filled pages exceeded (Options::maxFilledPages)" );
-    const auto& p = m_pageTable.find( pageId );
-    DEMAND_ASSERT( p == m_pageTable.end() || p->second.resident == false );
-    DEMAND_ASSERT( pageId < m_options.numPages );
+    DEMAND_ASSERT_MSG( pageId < m_options.numPages, "pageId outside of page table range." );
 
     m_pageMappingsContext->filledPages[m_pageMappingsContext->numFilledPages++] = PageMapping{pageId, lruVal, entry};
     m_pageTable[pageId] = HostPageTableEntry{entry, true, false, false};

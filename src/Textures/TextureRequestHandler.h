@@ -29,6 +29,7 @@
 #pragma once
 
 #include "RequestHandler.h"
+#include "Memory/MemoryBlockDesc.h"
 
 #include <atomic>
 
@@ -53,18 +54,24 @@ class TextureRequestHandler : public RequestHandler
     /// Fill a request for the specified page on the specified device using the given stream.  
     void fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId ) override;
 
+    // Load or reload a page
+    void loadPage( unsigned int deviceIndex, CUstream stream, unsigned int pageId, bool reloadIfResident );
+
     /// Get the associated texture.
     DemandTextureImpl* getTexture() const { return m_texture; }
 
     /// Unmap the backing storage associated with a texture tile or mip tail
     void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
 
+    /// Get the pageId for a tile
+    unsigned int getTextureTilePageId( unsigned int mipLevel, unsigned int tileX, unsigned int tileY );
+
   private:
     DemandTextureImpl* m_texture = nullptr;
     DemandLoaderImpl*  m_loader = nullptr;
 
-    void fillTileRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
-    void fillMipTailRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    void fillTileRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId, TileBlockHandle bh );
+    void fillMipTailRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId, TileBlockHandle bh );
 };
 
 }  // namespace demandLoading
