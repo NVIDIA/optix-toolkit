@@ -478,26 +478,38 @@ void DemandTextureApp::printDemandLoadingStats()
 
 void DemandTextureApp::initView()
 {
-    float aspectRatio = static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight );
-    m_eye             = INITIAL_LOOK_FROM;
-    m_viewDims        = float2{INITIAL_VIEW_DIM * aspectRatio, INITIAL_VIEW_DIM};
+    setView( float3{0.5f, 0.5f, 1.0f}, float3{0.5f, 0.5f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, 90.0f );
 }
 
+void DemandTextureApp::setView( float3 eye, float3 lookAt, float3 up, float fovY )
+{
+    float aspectRatio = static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight );
+    m_camera = otk::Camera( eye, lookAt, up, fovY, aspectRatio );
+}
+
+void DemandTextureApp::panCamera( float3 pan )
+{
+    m_camera.setEye( m_camera.eye() + pan );
+    m_camera.setLookat( m_camera.lookat() + pan );
+}
+
+void DemandTextureApp::zoomCamera( float zoom )
+{
+    float tanVal = zoom * tanf( m_camera.fovY() * (M_PI / 360.0f) );
+    m_camera.setFovY( atanf( tanVal ) * 360.0f / M_PI );
+}
 
 void DemandTextureApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
 {
-    // Account for the aspect ratio of the view.
-    m_viewDims.x = m_viewDims.y * m_outputBuffer->width() / m_outputBuffer->height();
-
     state.params.image_width        = m_outputBuffer->width();
     state.params.image_height       = m_outputBuffer->height();
     state.params.traversable_handle = state.gas_handle;
     state.params.device_idx         = state.device_idx;
     state.params.num_devices        = numDevices;
-    state.params.eye                = m_eye;
-    state.params.view_dims          = m_viewDims;
     state.params.display_texture_id = m_textureIds[0];
     state.params.interactive_mode   = isInteractive();
+    state.params.eye                = m_camera.eye();
+    m_camera.UVWFrame( state.params.U, state.params.V, state.params.W );
 
     // Make sure a device-side copy of the params has been allocated
     if( state.d_params == nullptr )
@@ -628,18 +640,17 @@ void DemandTextureApp::mouseButtonCallback( GLFWwindow* window, int button, int 
 
 void DemandTextureApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
 {
-    double dx = xpos - m_mousePrevX;
-    double dy = ypos - m_mousePrevY;
+    float dx = static_cast<float>( xpos - m_mousePrevX );
+    float dy = static_cast<float>( ypos - m_mousePrevY );
 
     if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )  // pan camera
     {
-        m_eye.x -= static_cast<float>( dx * m_viewDims.x / m_windowWidth );
-        m_eye.y += static_cast<float>( dy * m_viewDims.y / m_windowHeight );
+        float moveScale = tanf( m_camera.fovY() * M_PIf / 360.0f ) / m_windowHeight;
+        panCamera( float3{ -dx * moveScale, dy * moveScale, 0.0f } );
     }
     else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )  // zoom camera
     {
-        float zoom = powf( 1.003f, static_cast<float>( dy - dx ) );
-        m_viewDims.y *= zoom;  // x is reset based on y later
+        zoomCamera( powf( 1.003f, ( dy - dx ) ) );
     }
 
     m_mousePrevX = xpos;
@@ -650,25 +661,26 @@ void DemandTextureApp::windowSizeCallback( GLFWwindow* window, int32_t width, in
 {
     m_windowWidth  = width;
     m_windowHeight = height;
+    m_camera.setAspectRatio( static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight ) );
 }
 
 void DemandTextureApp::pollKeys()
 {
-    const float pan  = 0.003f * m_viewDims.y;
+    const float pan  = 0.003f * ( m_camera.fovY() * M_PIf / 360.0f );
     const float zoom = 1.003f;
 
     if( glfwGetKey( getWindow(), GLFW_KEY_A ) )
-        m_eye.x -= pan;
+        panCamera( float3{-pan, 0.0f, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_D ) )
-        m_eye.x += pan;
+        panCamera( float3{pan, 0.0f, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_S ) )
-        m_eye.y -= pan;
+        panCamera( float3{0.0f, -pan, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_W ) )
-        m_eye.y += pan;
+        panCamera( float3{0.0f, pan, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_Q ) )
-        m_viewDims.y *= zoom;  // x is reset based on y later
+        zoomCamera( zoom );
     if( glfwGetKey( getWindow(), GLFW_KEY_E ) )
-        m_viewDims.y /= zoom;  // x is reset based on y later
+        zoomCamera( 1.0f / zoom );
 }
 
 void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )

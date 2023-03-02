@@ -63,15 +63,15 @@ extern "C" __global__ void __raygen__rg()
 
     // Ray for an orthographic view facing in the -z direction
     float3 origin;
-    origin.x = params.eye.x + params.view_dims.x * (0.5f + px.x - 0.5f * params.image_width) / params.image_width;
-    origin.y = params.eye.y + params.view_dims.y * (0.5f + px.y - 0.5f * params.image_height) / params.image_height;
+    origin.x = params.eye.x + params.U.x * (0.5f + px.x - 0.5f * params.image_width) / params.image_width;
+    origin.y = params.eye.y + params.V.y * (0.5f + px.y - 0.5f * params.image_height) / params.image_height;
     origin.z = params.eye.z;
     float3 direction = make_float3( 0.0f, 0.0f, -1.0f );
 
-    // Ray payload with ray cone
+    // Ray payload with ray cone for orthographic view
     RayPayload payload;
     payload.color = make_float4( 0.0f );
-    payload.cone_width = minf( params.view_dims.x / params.image_width, params.view_dims.y / params.image_height );
+    payload.cone_width = minf( params.U.x / params.image_width, params.V.y / params.image_height );
     payload.cone_angle = 0.0f;
     
     // Trace the ray

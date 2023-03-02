@@ -54,9 +54,11 @@ struct Params
     unsigned int image_width;
     unsigned int image_height;
 
-    // Orthographic view 
+    // Camera params
     float3 eye;
-    float2 view_dims;
+    float3 U;
+    float3 V;
+    float3 W;
 
     // Handle to scene bvh for ray traversal
     OptixTraversableHandle traversable_handle;

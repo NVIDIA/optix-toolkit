@@ -30,6 +30,7 @@
 #include <cuda_runtime.h>
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
+#include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -92,6 +93,7 @@ class DemandTextureApp
     
     // OptiX launches
     void initView();
+    void setView( float3 eye, float3 lookAt, float3 up, float fovY );
     virtual void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices );
     unsigned int performLaunches();
 
@@ -119,12 +121,8 @@ class DemandTextureApp
     int                                          m_launchCycles = 0;
     int                                          m_numFilledRequests = 0;
 
-    // Viewpoint description
-    const float3 INITIAL_LOOK_FROM{0.5f, 0.5f, 1.0f};
-    const float INITIAL_VIEW_DIM = 1.0f;
-
-    float3 m_eye             = INITIAL_LOOK_FROM; 
-    float2 m_viewDims        = float2{INITIAL_VIEW_DIM, INITIAL_VIEW_DIM};
+    // Camera and view
+    otk::Camera m_camera;
     float4 m_backgroundColor = float4{0.1f, 0.1f, 0.5f, 0.0f};
 
     // Mouse state
@@ -133,6 +131,9 @@ class DemandTextureApp
     double m_mousePrevX  = 0;
     double m_mousePrevY  = 0;
     int    m_mouseButton = NO_BUTTON;
+
+    void panCamera( float3 pan );
+    void zoomCamera( float zoom );
 };
 
 void setGLFWCallbacks( DemandTextureApp* app );
