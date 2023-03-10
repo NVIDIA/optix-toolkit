@@ -519,7 +519,7 @@ unsigned int DemandTextureApp::performLaunches( )
 
         // Call launchPrepare to synchronize new texture samplers and texture info to device memory,
         // and allocate device memory for the demand texture context.
-        m_demandLoader->launchPrepare( state.device_idx, state.stream, state.params.demand_texture_context );
+        m_demandLoader->launchPrepare( state.stream, state.params.demand_texture_context );
 
         // Finish initialization of the launch params.
         state.params.result_buffer = m_outputBuffer->map();
@@ -544,7 +544,7 @@ unsigned int DemandTextureApp::performLaunches( )
         // Begin to process demand load requests. This asynchronously pulls a batch of requests 
         // from the device and places them in a queue for processing.  The progress of the batch
         // can be polled using the returned ticket.
-        state.ticket = m_demandLoader->processRequests( state.device_idx, state.stream, state.params.demand_texture_context );
+        state.ticket = m_demandLoader->processRequests( state.stream, state.params.demand_texture_context );
         
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();
