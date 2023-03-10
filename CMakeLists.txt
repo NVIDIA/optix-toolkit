@@ -97,8 +97,6 @@ add_library( DemandLoading
   src/Ticket.cpp
   src/TicketImpl.h
   src/Util/CudaCallback.h
-  src/Util/DeviceSet.cpp
-  src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
