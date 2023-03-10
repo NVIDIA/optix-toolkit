@@ -118,11 +118,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
 
-    /// Check whether the specified device is active.
-    bool isActiveDevice( unsigned int deviceIndex ) const;
-
     /// Get the DeviceMemoryManager for the specified device.
-    DeviceMemoryManager* getDeviceMemoryManager( unsigned int deviceIndex ) const;
+    DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
     PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
@@ -130,8 +127,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Get the specified texture.
     DemandTextureImpl* getTexture( unsigned int textureId ) { return m_textures.at( textureId ).get(); }
 
-    /// Get the PagingSystem for the specified device.
-    PagingSystem* getPagingSystem( unsigned int deviceIndex ) const;
+    /// Get the PagingSystem for the current CUDA context.
+    PagingSystem* getPagingSystem() const;
 
     /// Get the PageTableManager.
     PageTableManager* getPageTableManager();

@@ -62,8 +62,8 @@ DemandTextureImpl::DemandTextureImpl( unsigned int                              
     m_denseTextures.reserve( maxNumDevices );
     for( unsigned int i = 0; i < maxNumDevices; ++i )
     {
-        m_sparseTextures.emplace_back( i );
-        m_denseTextures.emplace_back( i );
+        m_sparseTextures.emplace_back();
+        m_denseTextures.emplace_back();
     }
 
     m_sampler = {0};

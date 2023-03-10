@@ -37,6 +37,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <deque>
+#include <map>
 #include <mutex>
 
 namespace demandLoading {

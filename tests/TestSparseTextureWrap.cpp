@@ -120,17 +120,25 @@ bool savePPM( const char* filename, size_t width, size_t height, const float4* b
 
 class TestSparseTextureWrap : public testing::Test
 {
+    void SetUp()
+    {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
+        // Construct stream.
+        DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0 ) );
+    }
+
+    void TearDown() { DEMAND_CUDA_CHECK( cuStreamDestroy( m_stream ) ); }
+
   protected:
-    CUstream     m_stream{};
+    const unsigned int m_deviceIndex = 0;
+    CUstream           m_stream{};
 };
 
 TEST_F( TestSparseTextureWrap, Test )
 {
-    // Initialize CUDA.
-    const unsigned int deviceIndex = 0;
-    DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-    DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
     // Create sparse texture.
     TextureDescriptor desc;
     desc.addressMode[0]   = CU_TR_ADDRESS_MODE_WRAP;
@@ -143,7 +151,7 @@ TEST_F( TestSparseTextureWrap, Test )
         1024, 1024, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, 11 /*numMipLevels*/
     };
 
-    SparseTexture texture( deviceIndex );
+    SparseTexture texture;
     texture.init( desc, info );
 
     // Allocate tile buffer.
@@ -223,7 +231,7 @@ void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mip
 
     TextureInfo info{res, res, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, numMipLevels};
 
-    SparseTexture texture( deviceIndex );
+    SparseTexture texture;
     texture.init( desc, info );
 
     // Allocate tile buffer.

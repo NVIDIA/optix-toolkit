@@ -66,14 +66,14 @@ void ThreadPoolRequestProcessor::stop()
     }
 }
 
-void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
+void ThreadPoolRequestProcessor::addRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket )
 {
     m_requests->push( pageIds, numPageIds, ticket);
 
     // If recording is enabled, write the requests to the trace file.
     if( m_traceFile && numPageIds > 0 )
     {
-        m_traceFile->recordRequests( deviceIndex, stream, pageIds, numPageIds );
+        m_traceFile->recordRequests( stream, pageIds, numPageIds );
     }
 }
 

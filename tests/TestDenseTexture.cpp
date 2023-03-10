@@ -67,7 +67,7 @@ class TestDenseTexture : public testing::Test
 
 TEST_F( TestDenseTexture, TestInit )
 {
-    DenseTexture texture( m_deviceIndex );
+    DenseTexture texture;
     EXPECT_FALSE( texture.isInitialized() );
 
     texture.init( m_desc, m_info );

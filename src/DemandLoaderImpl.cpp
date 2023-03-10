@@ -170,9 +170,9 @@ void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream str
     handler->unmapTileResource( deviceIndex, stream, pageId );
 }
 
-PagingSystem* DemandLoaderImpl::getPagingSystem( unsigned int deviceIndex ) const
+PagingSystem* DemandLoaderImpl::getPagingSystem() const
 {
-    return m_pageLoader->getPagingSystem( deviceIndex );
+    return m_pageLoader->getPagingSystem();
 }
 
 PageTableManager* DemandLoaderImpl::getPageTableManager()
@@ -184,8 +184,8 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    PagingSystem* pagingSystem = getPagingSystem( deviceIndex );
-    TilePool*     tilePool     = getDeviceMemoryManager( deviceIndex )->getTilePool();
+    PagingSystem* pagingSystem = getPagingSystem();
+    TilePool*     tilePool     = getDeviceMemoryManager()->getTilePool();
     PageMapping   mapping;
 
     while( tilePool->getTotalFreeTiles() < tilePool->getDesiredFreeTiles() )
@@ -290,11 +290,7 @@ Statistics DemandLoaderImpl::getStatistics() const
         tex->accumulateStatistics( stats, images );
     }
 
-    for( unsigned int i = 0; i < m_pageLoader->getNumDevices() && i < Statistics::NUM_DEVICES; ++i )
-    {
-        if( DeviceMemoryManager* manager = getDeviceMemoryManager( i ) )
-            manager->accumulateStatistics( stats.perDevice[i] );
-    }
+    m_pageLoader->accumulateStatistics( stats );
 
     return stats;
 }
@@ -314,14 +310,9 @@ void DemandLoaderImpl::enableEviction( bool evictionActive )
     m_pageLoader->enableEviction( evictionActive );
 }
 
-bool DemandLoaderImpl::isActiveDevice( unsigned int deviceIndex ) const
+DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager() const
 {
-    return m_pageLoader->isActiveDevice( deviceIndex );
-}
-
-DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int deviceIndex ) const
-{
-    return m_pageLoader->getDeviceMemoryManager( deviceIndex );
+    return m_pageLoader->getDeviceMemoryManager();
 }
 
 DemandLoader* createDemandLoader( const Options& options )

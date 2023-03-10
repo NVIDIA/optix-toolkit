@@ -103,36 +103,33 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override { m_options.evictionActive = evictionActive; }
 
-    /// Check whether the specified device is active.
-    bool isActiveDevice( unsigned int deviceIndex ) const
-    {
-        return static_cast<bool>( m_pagingSystems.at( deviceIndex ) );
-    }
-
-    /// Get the DeviceMemoryManager for the specified device.
-    DeviceMemoryManager* getDeviceMemoryManager( unsigned int deviceIndex ) const
-    {
-        return m_deviceMemoryManagers[deviceIndex].get();
-    }
+    /// Get the DeviceMemoryManager for the current CUDA context.
+    DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
     PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
 
-    /// Get the PagingSystem for the specified device.
-    PagingSystem* getPagingSystem( unsigned int deviceIndex ) const { return m_pagingSystems[deviceIndex].get(); }
+    /// Get the PagingSystem for the current CUDA context.
+    PagingSystem* getPagingSystem() const;
 
-private:
+    /// Accumulate statistics into the given struct.
+    void accumulateStatistics( Statistics& stats ) const;
+
+  private:
     mutable std::mutex        m_mutex;
     Options                   m_options;
     unsigned int              m_numDevices;
     std::vector<unsigned int> m_devices;  // Indices of supported devices.
 
-    std::vector<std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per device)
-    std::vector<std::unique_ptr<PagingSystem>>        m_pagingSystems;  // Manages device interaction (one per device)
+    mutable std::map<CUcontext, std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
+    mutable std::map<CUcontext, std::unique_ptr<PagingSystem>> m_pagingSystems;  // Manages device interaction (one per CUDA context)
+
+    mutable std::mutex m_deviceMemoryManagersMutex;
+    mutable std::mutex m_pagingSystemsMutex;
 
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
-    PinnedMemoryManager m_pinnedMemoryManager;
+    mutable PinnedMemoryManager m_pinnedMemoryManager;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 

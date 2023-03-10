@@ -56,7 +56,7 @@ class DevicePaging
         : m_deviceIndex( deviceIndex )
         , m_deviceMemoryManager( options )
         , m_pinnedMemoryManager( options )
-        , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryManager, requestProcessor )
+        , m_paging( options, &m_deviceMemoryManager, &m_pinnedMemoryManager, requestProcessor )
         , m_contextPool( options )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );

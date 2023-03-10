@@ -38,6 +38,9 @@ class TestTileArena : public testing::Test
   public:
     void SetUp() override
     {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
         size_t arenaSize = TileArena::getRecommendedSize();
         m_arena          = TileArena::create( arenaSize );
     }
@@ -45,7 +48,6 @@ class TestTileArena : public testing::Test
     void TearDown() override { m_arena.destroy(); }
 
   protected:
-    unsigned int m_deviceIndex = 0;
     TileArena    m_arena;
 };
 

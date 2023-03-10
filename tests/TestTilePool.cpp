@@ -67,9 +67,8 @@ struct TileRequest
 class TileFiller
 {
   public:
-    TileFiller( const Options& options, unsigned int deviceIndex )
-        : m_deviceIndex( 0 )
-        , m_pool( options.maxTexMemPerDevice )
+    TileFiller( const Options& options )
+        : m_pool( options.maxTexMemPerDevice )
         , m_pinnedTiles( options.maxPinnedMemory / sizeof( TileBuffer ) )
     {
     }
@@ -113,7 +112,6 @@ class TileFiller
     int getNumErrors() const { return m_numErrors; }
 
   private:
-    unsigned int               m_deviceIndex;
     TilePool                   m_pool;
     PinnedItemPool<TileBuffer> m_pinnedTiles;
     std::atomic<int>           m_numErrors{0};
@@ -148,7 +146,7 @@ class TestTilePool : public testing::Test
         m_textures.reserve( 4 );
         for( size_t i = 0; i < 4; ++i )
         {
-            m_textures.push_back( SparseTexture( m_deviceIndex ) );
+            m_textures.push_back( SparseTexture() );
             m_textures.back().init( desc, info );
         }
 
@@ -202,7 +200,6 @@ class TestTilePool : public testing::Test
     }
 
 
-    unsigned int               m_deviceIndex = 0;
     std::vector<CUstream>      m_streams;
     std::vector<SparseTexture> m_textures;
 };
@@ -212,7 +209,7 @@ TEST_F( TestTilePool, TestSequentialFill )
     // Initialize TileFiller.
     Options options;
     options.maxTexMemPerDevice = 1024 * 1024 * 1024;
-    TileFiller filler( options, m_deviceIndex );
+    TileFiller filler( options );
 
     // Generate and fill requests.
     std::vector<TileRequest> requests( createRequests() );
@@ -351,7 +348,7 @@ TEST_F( TestTilePool, TestParallelFill )
     // Initialize tile filler.
     Options options;
     options.maxTexMemPerDevice = 1024 * 1024 * 1024;
-    TileFiller filler( options, m_deviceIndex );
+    TileFiller filler( options );
 
     // Initialize multi-threaded request processor.
     RequestProcessor processor( &filler );
