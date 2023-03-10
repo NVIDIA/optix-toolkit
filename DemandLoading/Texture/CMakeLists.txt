@@ -31,6 +31,8 @@ include(BuildConfig)
 include(FetchGlad)
 include(embed_ptx)
 
+find_package( CUDAToolkit 11.1 REQUIRED )
+
 embed_ptx(
   CONST HEADER TextureKernelPTX.h
   OUTPUT_TARGET
@@ -54,6 +56,7 @@ target_link_libraries( demandLoadTexture
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
   OptiXToolkit::Util
+  CUDA::cudart
   )
 
 target_include_directories( demandLoadTexture PUBLIC

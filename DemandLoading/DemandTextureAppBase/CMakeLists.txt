@@ -31,6 +31,8 @@ include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
 
+find_package( CUDAToolkit 11.1 REQUIRED )
+
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 add_library(DemandTextureAppBase
@@ -61,6 +63,7 @@ target_link_libraries(DemandTextureAppBase
   OptiXToolkit::Gui
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
+  CUDA::cudart
   )
 
 set_target_properties(DemandTextureAppBase PROPERTIES

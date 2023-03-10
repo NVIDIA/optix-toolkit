@@ -29,6 +29,8 @@
 include(GNUInstallDirs)
 include(BuildConfig)
 
+find_package( CUDAToolkit 11.1 REQUIRED )
+
 add_executable( demandLoadSimple
   simple.cpp
   PageRequester.cu
@@ -37,6 +39,7 @@ add_executable( demandLoadSimple
 target_link_libraries( demandLoadSimple
   OptiXToolkit::DemandLoading
   OptiXToolkit::Util
+  CUDA::cudart
   )
 
 set_target_properties( demandLoadSimple PROPERTIES

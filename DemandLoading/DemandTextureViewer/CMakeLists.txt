@@ -32,6 +32,8 @@ include(FetchGlfw)
 include(FetchGlad)
 include(embed_ptx)
 
+find_package( CUDAToolkit 11.1 REQUIRED )
+
 embed_ptx(
   CONST HEADER DemandTextureViewerKernelPTX.h
   OUTPUT_TARGET
@@ -56,6 +58,7 @@ target_link_libraries( demandTextureViewer
   OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui
   OptiXToolkit::Util
+  CUDA::cudart
   )
 
 set_target_properties( demandTextureViewer PROPERTIES
