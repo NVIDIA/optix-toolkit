@@ -107,6 +107,7 @@ target_link_libraries( testDemandLoading
   testDemandLoadingKernels
   OptiX::OptiX
   DemandLoading
+  CUDA::cudart
   OpenEXR::OpenEXR # for half
   gmock_main
   )
@@ -152,6 +153,7 @@ target_include_directories( testTextureFootprint PUBLIC
 target_link_libraries( testTextureFootprint
   testTextureFootprintKernel
   DemandLoading
+  CUDA::cudart
   gtest_main
   )
 
