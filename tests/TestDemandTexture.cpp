@@ -129,7 +129,7 @@ TEST_F( TestDemandTexture, TestFillTile )
         EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data(), TILE_SIZE_IN_BYTES, CUstream{} ) );
 
         // Fill tile.
-        TileBlockHandle bh = m_loader->getDeviceMemoryManager( m_deviceIndex )->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
         m_texture->fillTile( m_deviceIndex, m_stream,                 // device and stream
                              mipLevel, tileX, tileY,                  // tile to fill
                              tileBuffer.data(),                       // host ptr
@@ -217,7 +217,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
     EXPECT_NO_THROW( m_texture->readMipTail( buffer.data(), mipTailSize, CUstream{} ) );
 
     // Map the backing storage and fill it.
-    TileBlockHandle bh = m_loader->getDeviceMemoryManager( m_deviceIndex )->allocateTileBlock( mipTailSize );
+    TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( mipTailSize );
     m_texture->fillMipTail( m_deviceIndex, m_stream,                         // device, stream
                             buffer.data(), CU_MEMORYTYPE_HOST, mipTailSize,  // host buffer and size
                             bh.handle, bh.block.offset()                     // device buffer
@@ -383,7 +383,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
         EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data(), TILE_SIZE_IN_BYTES, CUstream{} ) );
 
         // Fill tile.
-        TileBlockHandle bh = m_loader->getDeviceMemoryManager( m_deviceIndex )->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
         m_texture->fillTile( m_deviceIndex, m_stream,                 // device and stream
                              mipLevel, tileX, tileY,                  // tile coordinates
                              tileBuffer.data(),                       // source data

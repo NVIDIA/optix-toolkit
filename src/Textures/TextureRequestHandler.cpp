@@ -56,7 +56,7 @@ void TextureRequestHandler::loadPage( unsigned int deviceIndex, CUstream stream,
 
     // Do nothing if the page is resident and the flag says not to reload it.
     unsigned long long pageEntry;
-    bool resident =  m_loader->getPagingSystem( deviceIndex )->isResident( pageId, &pageEntry );
+    bool resident =  m_loader->getPagingSystem()->isResident( pageId, &pageEntry );
     if( resident && !reloadIfResident )
         return;
 
@@ -94,7 +94,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
     bool useNewBlock = bh.block.isBad();
     if( useNewBlock )
     {
-        bh = m_loader->getDeviceMemoryManager( deviceIndex )->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
         if( bh.block.isBad() )
             return;
     }
@@ -104,7 +104,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
         m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), TILE_SIZE_IN_BYTES, stream );
     if( transferBuffer.memoryBlock.size == 0 )
     {
-        m_loader->getDeviceMemoryManager( deviceIndex )->freeTileBlock( bh.block );
+        m_loader->getDeviceMemoryManager()->freeTileBlock( bh.block );
         return;
     }
 
@@ -135,7 +135,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
         // Add a mapping for the tile, which will be sent to the device in pushMappings().
         if( useNewBlock )
         {
-            m_loader->setPageTableEntry( deviceIndex, pageId, true, reinterpret_cast<void*>( bh.block.data ) );
+            m_loader->setPageTableEntry( pageId, true, reinterpret_cast<void*>( bh.block.data ) );
         }
     }
 
@@ -192,9 +192,10 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
                                 );
 
         // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
+
         if( useNewBlock )
         {
-            m_loader->setPageTableEntry( deviceIndex, pageId, true, reinterpret_cast<void*>( bh.block.data ) );
+            m_loader->setPageTableEntry( pageId, true, reinterpret_cast<void*>( bh.block.data ) );
         }
     }
 
@@ -209,7 +210,7 @@ void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstrea
     MutexArrayLock lock( m_mutex.get(), tileIndex);
 
     // If the page has already been remapped, don't unmap it
-    PagingSystem* pagingSystem = m_loader->getPagingSystem( deviceIndex );
+    PagingSystem* pagingSystem = m_loader->getPagingSystem();
     if( pagingSystem->isResident( pageId ) )
         return;
 

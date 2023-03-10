@@ -63,7 +63,7 @@ class TraceFileWriter
     void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& desc );
 
     /// Record a batch of page requests.
-    void recordRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds );
+    void recordRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds );
 
   private:
     mutable std::mutex m_mutex;

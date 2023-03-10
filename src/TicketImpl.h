@@ -100,7 +100,6 @@ class TicketImpl
         m_isDone.wait( lock, [this] { return m_numTasksRemaining == 0; } );
         if( event )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
             DEMAND_CUDA_CHECK( cuEventRecord( *event, m_stream ) );
         }
     }

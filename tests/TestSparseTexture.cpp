@@ -67,7 +67,7 @@ class TestSparseTexture : public testing::Test
 
 TEST_F( TestSparseTexture, TestInit )
 {
-    SparseTexture texture( m_deviceIndex );
+    SparseTexture texture;
     EXPECT_FALSE( texture.isInitialized() );
 
     texture.init( m_desc, m_info, nullptr );

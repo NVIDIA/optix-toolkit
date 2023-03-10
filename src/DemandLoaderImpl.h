@@ -147,11 +147,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
     void setMaxTextureMemory( size_t maxMem ) override;
 
-    /// Check whether the specified device is active.
-    bool isActiveDevice( unsigned int deviceIndex ) const;
-
     /// Get the DeviceMemoryManager for the specified device.
-    DeviceMemoryManager* getDeviceMemoryManager( unsigned int deviceIndex ) const;
+    DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
     MemoryPool<PinnedAllocator, RingSuballocator>* getPinnedMemoryPool();
@@ -159,8 +156,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Get the specified texture.
     DemandTextureImpl* getTexture( unsigned int textureId ) { return m_textures.at( textureId ).get(); }
 
-    /// Get the PagingSystem for the specified device.
-    PagingSystem* getPagingSystem( unsigned int deviceIndex ) const;
+    /// Get the PagingSystem for the current CUDA context.
+    PagingSystem* getPagingSystem() const;
 
     /// Get the PageTableManager.
     PageTableManager* getPageTableManager();
@@ -174,7 +171,7 @@ class DemandLoaderImpl : public DemandLoader
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
 
-    void setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry);
+    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry );
 
   private:
     mutable std::mutex        m_mutex;

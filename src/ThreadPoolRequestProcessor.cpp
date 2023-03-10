@@ -67,7 +67,7 @@ void ThreadPoolRequestProcessor::stop()
     }
 }
 
-void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
+void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
     auto it = m_tickets.find( id );
     DEMAND_ASSERT( it != m_tickets.end() );
@@ -79,7 +79,7 @@ void ThreadPoolRequestProcessor::addRequests( unsigned int deviceIndex, CUstream
     // If recording is enabled, write the requests to the trace file.
     if( m_traceFile && numPageIds > 0 )
     {
-        m_traceFile->recordRequests( deviceIndex, stream, pageIds, numPageIds );
+        m_traceFile->recordRequests( stream, pageIds, numPageIds );
     }
 }
 

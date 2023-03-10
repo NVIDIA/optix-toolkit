@@ -109,8 +109,6 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
                                             const Options&                    options )
     : m_options( configure( options ) )
     , m_numDevices( getCudaDeviceCount() )
-    , m_deviceMemoryManagers( m_numDevices )
-    , m_pagingSystems(m_numDevices)
     , m_pagesToInvalidate( m_numDevices )
     , m_pageTableManager( std::move( pageTableManager ) )
     , m_requestProcessor( requestProcessor )
@@ -132,15 +130,47 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
         for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
             m_devices.push_back( deviceIndex );
     }
+}
 
-    // Create deviceMemoryManagers and pagingSystems for the devices
-    for( unsigned int deviceIndex : m_devices )
-    {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-        m_deviceMemoryManagers[deviceIndex].reset( new DeviceMemoryManager( m_options ) );
-        m_pagingSystems[deviceIndex].reset( new PagingSystem(
-            deviceIndex, m_options, m_deviceMemoryManagers[deviceIndex].get(), &m_pinnedMemoryPool, m_requestProcessor ) );
-    }
+DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
+{
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
+
+    // Get current CUDA context.
+    CUcontext context;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+
+    // Return existing device memory manager for the current CUDA context, if any.
+    auto it = m_deviceMemoryManagers.find( context );
+    if( it != m_deviceMemoryManagers.end() )
+        return it->second.get();
+
+    // Construct new device memory manager for this context.
+    DeviceMemoryManager* manager = new DeviceMemoryManager( m_options );
+    m_deviceMemoryManagers[context].reset( manager );
+    return manager;
+}
+
+PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
+{
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
+
+    // Get current CUDA context.
+    CUcontext context;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+
+    // Return existing paging system for the current CUDA context, if any.
+    auto it = m_pagingSystems.find( context );
+    if( it != m_pagingSystems.end() )
+        return it->second.get();
+
+    // Construct new paging system for this context.
+    PagingSystem* pagingSystem = new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor );
+
+    m_pagingSystems[context].reset( pagingSystem );
+    return pagingSystem;
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
@@ -152,10 +182,10 @@ unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool ba
                     m_pageTableManager->reserveUnbackedPages( numPages, nullptr );
 }
 
-void DemandPageLoaderImpl::setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry )
+void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry )
 {
-    return m_pagingSystems[deviceIndex]->addMapping( pageId, evictable ? 0U : NON_EVICTABLE_LRU_VAL,
-                                                     reinterpret_cast<unsigned long long>( pageTableEntry ) );
+    return getPagingSystem()->addMapping( pageId, evictable ? 0U : NON_EVICTABLE_LRU_VAL,
+                                          reinterpret_cast<unsigned long long>( pageTableEntry ) );
 }
 
 namespace { // anonymous
@@ -186,7 +216,7 @@ bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context
 
     unsigned int deviceIndex = getDeviceIndex( stream );
 
-    PagingSystem* pagingSystem = m_pagingSystems.at( deviceIndex ).get();
+    PagingSystem* pagingSystem = getPagingSystem();
     if( pagingSystem == nullptr )
         return false;
 
@@ -194,7 +224,7 @@ bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context
     {
         // allocate() is not thread safe
         std::unique_lock<std::mutex> lock( m_mutex );
-        context = *m_deviceMemoryManagers[deviceIndex]->allocateDeviceContext();
+        context = *getDeviceMemoryManager()->allocateDeviceContext();
         invalidatePages( deviceIndex, stream, context );
     }
     context.requestIfResident = m_options.evictionActive;
@@ -209,7 +239,7 @@ void DemandPageLoaderImpl::invalidatePages( unsigned int deviceIndex, CUstream s
 
     for( InvalidationRange& ir : m_pagesToInvalidate[deviceIndex] )
     {
-        m_pagingSystems[deviceIndex]->invalidatePages( ir.startPage, ir.endPage, ir.predicate, context, stream );
+        getPagingSystem()->invalidatePages( ir.startPage, ir.endPage, ir.predicate, context, stream );
         delete ir.predicate;
     }
     m_pagesToInvalidate[deviceIndex].clear();
@@ -226,7 +256,7 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
 
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
     // request bits copies the requested page ids to host memory (asynchronously).
-    PagingSystem* pagingSystem = m_pagingSystems[deviceIndex].get();
+    PagingSystem* pagingSystem = getPagingSystem();
     unsigned int  startPage    = 0;
     unsigned int  endPage      = m_pageTableManager->getHighestUsedPage();
     pagingSystem->pullRequests( context, stream, id, startPage, endPage);
@@ -244,9 +274,9 @@ void DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int id, con
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Flush any page mappings that have accumulated for the specified device.
-    m_pagingSystems.at( deviceIndex )->flushMappings();
+    getPagingSystem()->flushMappings();
 
-    m_requestProcessor->addRequests( deviceIndex, stream, id, pageIds, numPageIds);
+    m_requestProcessor->addRequests( stream, id, pageIds, numPageIds);
 }
 
 // Predicate that returns pages to a tile pool if the arenaId is high enough
@@ -273,6 +303,7 @@ void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
+#if 0 // XXX awaiting PerContextData::for_each
     for( unsigned int deviceIndex = 0; deviceIndex < m_deviceMemoryManagers.size(); ++deviceIndex )
     {
         unsigned int tilesStartPage = m_options.numPageTableEntries;
@@ -280,13 +311,13 @@ void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
         size_t maxArenas            = maxMem / m_deviceMemoryManagers[0]->getTilePoolArenaSize();
 
         // Resize, deleting tile arenas as needed
-        m_deviceMemoryManagers[deviceIndex]->setMaxTextureTileMemory( maxMem );
+        getDeviceMemoryManager()->setMaxTextureTileMemory( maxMem );
 
         // Schedule tiles from deleted arenas to be discarded
         ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
         m_pagesToInvalidate[deviceIndex].push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
     }
-
+#endif
     m_options.maxTexMemPerDevice = maxMem;
 }
 
@@ -294,6 +325,26 @@ void DemandPageLoaderImpl::invalidatePageRange( unsigned int deviceIndex, unsign
 {
     m_pagesToInvalidate[deviceIndex].push_back( InvalidationRange{startPage, endPage, predicate} );
 }
+
+void DemandPageLoaderImpl::accumulateStatistics( Statistics& stats ) const
+{
+    // Save current CUDA context.
+    CUcontext context;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+
+    for( auto& it : m_deviceMemoryManagers )
+    {
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( it.first ) );
+        CUdevice device;
+        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+        unsigned int deviceIndex = static_cast<unsigned int>( device );
+        it.second->accumulateStatistics( stats.perDevice[deviceIndex] );
+    }
+
+    // Restore CUDA context.
+    DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+}
+
 
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )
 {

@@ -52,7 +52,8 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     MutexArrayLock lock( m_mutex.get(), pageId - m_startPage );
 
     // Do nothing if the request has already been filled.
-    if( m_loader->getPagingSystem( deviceIndex )->isResident( pageId ) )
+    PagingSystem* pagingSystem = m_loader->getPagingSystem();
+    if( pagingSystem->isResident( pageId ) )
         return;
 
     // Get the texture and make sure it is open.
@@ -71,7 +72,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // If the texture is 1x1 or null, don't create a sampler.
     if( texture->isDegenerate() && !texture->isUdimEntryPoint() )
     {
-        m_loader->setPageTableEntry( deviceIndex, pageId, false, nullptr );
+        m_loader->setPageTableEntry( pageId, false, nullptr );
         return;
     }
 
@@ -104,7 +105,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     pinnedSampler->texture = texture->getTextureObject( deviceIndex );
 
     // Allocate device memory for device-side sampler.
-    TextureSampler* devSampler = m_loader->getDeviceMemoryManager( deviceIndex )->allocateSampler();
+    TextureSampler* devSampler = m_loader->getDeviceMemoryManager()->allocateSampler();
 
     // Copy sampler to device memory.
     DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
@@ -116,7 +117,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     m_loader->getPinnedMemoryPool()->freeAsync( pinnedBlock, stream );
 
     // Push mapping for sampler to update page table.
-    m_loader->setPageTableEntry( deviceIndex, pageId, false, devSampler );
+    m_loader->setPageTableEntry( pageId, false, devSampler );
 }
 
 bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
@@ -158,7 +159,6 @@ bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
     else 
     {
         // fillDenseTexture uses an async copy, so synchronize the stream when using the backup pageable buffer.
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
     }
 
@@ -183,7 +183,7 @@ void SamplerRequestHandler::fillBaseColorRequest( unsigned int deviceIndex, CUst
     unsigned long long  noColor   = 0xFFFFFFFFFFFFFFFFull; // four half NaNs, to indicate when no baseColor exists
     half4               baseColor = half4{fBaseColor.x, fBaseColor.y, fBaseColor.z, fBaseColor.w};
     unsigned long long* baseVal   = ( hasBaseColor ) ? reinterpret_cast<unsigned long long*>( &baseColor ) : &noColor;
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, *baseVal );
+    m_loader->getPagingSystem()->addMapping( pageId, NON_EVICTABLE_LRU_VAL, *baseVal );
 }
 
 }  // namespace demandLoading

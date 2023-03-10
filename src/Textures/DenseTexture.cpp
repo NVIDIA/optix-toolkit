@@ -43,7 +43,9 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     if( m_isInitialized )
         return;
 
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+    // Record the current CUDA context.
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+
     m_info = info;
 
     // Create CUDA array, or use masterArray if one was provided
@@ -58,13 +60,14 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     {
         CUmipmappedArray* array = new CUmipmappedArray();
         DEMAND_CUDA_CHECK( cuMipmappedArrayCreate( array, &ad, m_info.numMipLevels ) );
-        unsigned int deviceIndex = m_deviceIndex;
 
         // Reset m_array with a deleter for the mipmapped array
-        m_array.reset( array, [deviceIndex]( CUmipmappedArray* array ) {
-            DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( deviceIndex ) );
+        m_array.reset( array, [this]( CUmipmappedArray* array ) {
+            DEMAND_CUDA_CHECK_NOTHROW( cuCtxPushCurrent( m_context ) );
             DEMAND_CUDA_CHECK_NOTHROW( cuMipmappedArrayDestroy( *array ) );
             delete array;
+            CUcontext ignored;
+            DEMAND_CUDA_CHECK_NOTHROW( cuCtxPopCurrent( &ignored ) );
         } );
     }
 
@@ -90,8 +93,6 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
 
 uint2 DenseTexture::getMipLevelDims( unsigned int mipLevel ) const
 {
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-
     // Get CUDA array for the specified level from the mipmapped array.
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
     CUarray mipLevelArray; 
@@ -109,7 +110,6 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
     DEMAND_ASSERT( m_isInitialized );
     DEMAND_ASSERT( width == m_info.width );
     DEMAND_ASSERT( height == m_info.height );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     // Fill each level.
     size_t             offset    = 0;
@@ -147,8 +147,9 @@ DenseTexture::~DenseTexture()
 {
     if( m_isInitialized )
     {
-        DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
         // m_array destroyed by shared_ptr deleter
+        m_array.reset();
         DEMAND_CUDA_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
     }
 }

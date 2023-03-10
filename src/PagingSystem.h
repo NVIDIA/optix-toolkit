@@ -67,8 +67,7 @@ class PagingSystem
 {
   public:
     /// Create paging system, allocating device memory based on the given options.
-    PagingSystem( unsigned int         deviceIndex,
-                  const Options&       options,
+    PagingSystem( const Options&       options,
                   DeviceMemoryManager* deviceMemoryManager,
                   MemoryPool<PinnedAllocator, RingSuballocator>* pinnedMemoryPool,
                   RequestProcessor* requestProcessor );
@@ -77,9 +76,6 @@ class PagingSystem
     
     /// Pull requests from device to system memory.
     void pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage );
-
-    /// Get the device index for this paging system.
-    unsigned int getDeviceIndex() const { return m_deviceIndex; }
 
     // Add a page mapping (thread safe).  The device-side page table (etc.) is not updated until
     /// pushMappings is called.
@@ -117,7 +113,6 @@ class PagingSystem
     };
 
     Options              m_options{};
-    unsigned int         m_deviceIndex = 0;
     DeviceMemoryManager* m_deviceMemoryManager{};
     PinnedMemoryManager* m_pinnedMemoryManager{};
     RequestProcessor*    m_requestProcessor{};

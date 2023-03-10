@@ -41,22 +41,25 @@ SparseArray::~SparseArray()
     if( m_initialized )
     {
         // It's not necessary to unmap the tiles / mip tail when destroying the array.
-        DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuMipmappedArrayDestroy( m_array ) );
 
         m_initialized = false;
     }
 }
 
-void SparseArray::init( unsigned int deviceIndex, const imageSource::TextureInfo& info )
+void SparseArray::init( const imageSource::TextureInfo& info )
 {
     if( m_initialized )
         return;
 
-    m_deviceIndex = deviceIndex;
-    m_info = info;
+    // Record device index and current CUDA context.
+    CUdevice device;
+    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    m_deviceIndex = static_cast<unsigned int>( device );
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
 
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+    m_info = info;
 
     // Work around an invalid read (reported by valgrind) in cuMipmappedArrayCreate when the number
     // of miplevels is less than the start of the mip tail.  See bug 3139148.
@@ -88,8 +91,6 @@ void SparseArray::init( unsigned int deviceIndex, const imageSource::TextureInfo
 
 uint2 SparseArray::queryMipLevelDims( unsigned int mipLevel ) const
 {
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-
     // Get CUDA array for the specified level from the mipmapped array.
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
     CUarray mipLevelArray = getLevel( mipLevel );
@@ -104,7 +105,6 @@ uint2 SparseArray::queryMipLevelDims( unsigned int mipLevel ) const
 void SparseArray::mapTileAsync( CUstream stream, unsigned int mipLevel, uint2 levelOffset, uint2 levelExtent, CUmemGenericAllocationHandle memHandle, size_t offset ) const
 {
     DEMAND_ASSERT( m_initialized );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     // Map tile backing storage into array
     CUarrayMapInfo mapInfo{}; 
@@ -133,7 +133,6 @@ void SparseArray::mapTileAsync( CUstream stream, unsigned int mipLevel, uint2 le
 void SparseArray::unmapTileAsync( CUstream stream, unsigned int mipLevel, uint2 levelOffset, uint2 levelExtent ) const
 {
     DEMAND_ASSERT( m_initialized );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     CUarrayMapInfo mapInfo{};
     mapInfo.resourceType    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
@@ -161,7 +160,6 @@ void SparseArray::unmapTileAsync( CUstream stream, unsigned int mipLevel, uint2 
 void SparseArray::mapMipTailAsync( CUstream stream, size_t mipTailSize, CUmemGenericAllocationHandle memHandle, size_t offset ) const
 {
     DEMAND_ASSERT( m_initialized );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     CUarrayMapInfo mapInfo{};
     mapInfo.resourceType    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
@@ -183,7 +181,6 @@ void SparseArray::mapMipTailAsync( CUstream stream, size_t mipTailSize, CUmemGen
 void SparseArray::unmapMipTailAsync( CUstream stream, size_t mipTailSize ) const
 {
     DEMAND_ASSERT( m_initialized );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     CUarrayMapInfo mapInfo{};
     mapInfo.resourceType    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
@@ -209,6 +206,9 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     if( m_isInitialized )
         return;
 
+    // Record current CUDA context.
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+
     m_info = info;
 
     // Set the array to a new array, or the master array if one was passed in
@@ -216,10 +216,8 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     if( m_array.get() == nullptr )
     {
         m_array.reset( new SparseArray() );
-        m_array->init( m_deviceIndex, m_info );
+        m_array->init( m_info );
     }
-
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     // Create CUDA texture descriptor
     CUDA_TEXTURE_DESC td{};
@@ -365,7 +363,7 @@ SparseTexture::~SparseTexture()
 {
     if( m_isInitialized )
     {
-        DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
     }
 }

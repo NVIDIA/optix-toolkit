@@ -48,7 +48,7 @@ namespace {
 class MockRequestProcessor : public demandLoading::RequestProcessor
 {
 public:
-    MOCK_METHOD( void, addRequests, ( unsigned int deviceIndex, CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds ) );
+  MOCK_METHOD( void, addRequests, ( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds ) );
 };
 
 class DemandPageLoaderTest : public Test
@@ -109,7 +109,7 @@ TEST_F( DemandPageLoaderTest, create_destroy )
 TEST_F( DemandPageLoaderTest, request_non_resident_page )
 {
     unsigned int actualRequestedPage{};
-    EXPECT_CALL( m_processor, addRequests( m_deviceIndex, m_stream, _, NotNull(), 1 ) ).WillOnce( SaveArgPointee<3>( &actualRequestedPage ) );
+    EXPECT_CALL( m_processor, addRequests( m_stream, _, NotNull(), 1 ) ).WillOnce( SaveArgPointee<2>( &actualRequestedPage ) );
     const unsigned int NUM_PAGES     = 10;
     const unsigned int startPage     = m_loader->allocatePages( NUM_PAGES, true );
     const unsigned int requestedPage = startPage + NUM_PAGES / 2;
@@ -125,15 +125,15 @@ TEST_F( DemandPageLoaderTest, request_non_resident_page )
 TEST_F( DemandPageLoaderTest, request_resident_page )
 {
     unsigned int actualRequestedPage{};
-    EXPECT_CALL( m_processor, addRequests( m_deviceIndex, m_stream, 0, NotNull(), 1 ) ).WillOnce( SaveArgPointee<3>( &actualRequestedPage ) );
-    EXPECT_CALL( m_processor, addRequests( m_deviceIndex, m_stream, 1, NotNull(), 0 ) );
+    EXPECT_CALL( m_processor, addRequests( m_stream, 0, NotNull(), 1 ) ).WillOnce( SaveArgPointee<2>( &actualRequestedPage ) );
+    EXPECT_CALL( m_processor, addRequests( m_stream, 1, NotNull(), 0 ) );
     const unsigned int NUM_PAGES     = 10;
     const unsigned int startPage     = m_loader->allocatePages( NUM_PAGES, true );
     const unsigned int requestedPage = startPage + NUM_PAGES / 2;
 
     const bool supported = launchAndRequestPage( requestedPage );
     setIsResident( false );
-    m_loader->setPageTableEntry( m_deviceIndex, requestedPage, true, nullptr );
+    m_loader->setPageTableEntry( requestedPage, true, nullptr );
     launchAndRequestPage( requestedPage );
 
     EXPECT_TRUE( supported );

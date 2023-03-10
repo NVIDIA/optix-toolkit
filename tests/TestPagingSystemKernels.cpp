@@ -40,8 +40,6 @@ using namespace demandLoading;
 class TestPagingSystemKernels : public testing::Test
 {
   public:
-    TestPagingSystemKernels() {}
-
     void SetUp() override
     {
         // Initialize CUDA.

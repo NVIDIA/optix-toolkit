@@ -58,7 +58,7 @@ class DevicePaging
         : m_deviceIndex( deviceIndex )
         , m_deviceMemoryManager( options )
         , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC ), PINNED_ALLOC, MAX_PINNED_MEM )
-        , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryPool, requestProcessor )
+        , m_paging( options, &m_deviceMemoryManager, &m_pinnedMemoryPool, requestProcessor )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );

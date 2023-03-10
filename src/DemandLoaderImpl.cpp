@@ -226,7 +226,7 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
         for( unsigned int deviceIndex : m_pageLoader->getDevices() )
         {
             // Unload texture tiles
-            TilePoolReturnPredicate* predicate = new TilePoolReturnPredicate( getDeviceMemoryManager( deviceIndex ) );
+            TilePoolReturnPredicate* predicate = new TilePoolReturnPredicate( getDeviceMemoryManager() );
             m_pageLoader->invalidatePageRange( deviceIndex, startPage, endPage, predicate );
 
             // Unload base color
@@ -247,8 +247,7 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
     {
         for( unsigned int deviceIndex : m_pageLoader->getDevices() )
         {
-            TextureSamplerReturnPredicate* predicate =
-                new TextureSamplerReturnPredicate( getDeviceMemoryManager( deviceIndex ) );
+            TextureSamplerReturnPredicate* predicate = new TextureSamplerReturnPredicate( getDeviceMemoryManager() );
             m_pageLoader->invalidatePageRange( deviceIndex, textureId, textureId + 1, predicate );
         } 
     }
@@ -358,14 +357,14 @@ void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream str
     handler->unmapTileResource( deviceIndex, stream, pageId );
 }
 
-void DemandLoaderImpl::setPageTableEntry( unsigned deviceIndex, unsigned pageId, bool evictable, void* pageTableEntry )
+void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, void* pageTableEntry )
 {
-    m_pageLoader->setPageTableEntry( deviceIndex, pageId, evictable, pageTableEntry);
+    m_pageLoader->setPageTableEntry( pageId, evictable, pageTableEntry);
 }
 
-PagingSystem* DemandLoaderImpl::getPagingSystem( unsigned int deviceIndex ) const
+PagingSystem* DemandLoaderImpl::getPagingSystem() const
 {
-    return m_pageLoader->getPagingSystem( deviceIndex );
+    return m_pageLoader->getPagingSystem();
 }
 
 PageTableManager* DemandLoaderImpl::getPageTableManager()
@@ -377,16 +376,16 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    PagingSystem* pagingSystem = getPagingSystem( deviceIndex );
+    PagingSystem* pagingSystem = getPagingSystem();
     PageMapping   mapping;
 
-    while( getDeviceMemoryManager( deviceIndex )->needTileBlocksFreed()  )
+    while( getDeviceMemoryManager()->needTileBlocksFreed() )
     {
         pagingSystem->activateEviction( true );
         if( pagingSystem->freeStagedPage( &mapping ) )
         {
             unmapTileResource( deviceIndex, stream, mapping.id );
-            getDeviceMemoryManager( deviceIndex )->freeTileBlock( mapping.page );
+            getDeviceMemoryManager()->freeTileBlock( mapping.page );
         }
         else 
         {
@@ -444,11 +443,7 @@ Statistics DemandLoaderImpl::getStatistics() const
         tex->accumulateStatistics( stats, images );
     }
 
-    for( unsigned int i = 0; i < m_pageLoader->getNumDevices() && i < Statistics::NUM_DEVICES; ++i )
-    {
-        if( DeviceMemoryManager* manager = getDeviceMemoryManager( i ) )
-            manager->accumulateStatistics( stats.perDevice[i] );
-    }
+    m_pageLoader->accumulateStatistics( stats );
 
     return stats;
 }
@@ -468,14 +463,9 @@ void DemandLoaderImpl::enableEviction( bool evictionActive )
     m_pageLoader->enableEviction( evictionActive );
 }
 
-bool DemandLoaderImpl::isActiveDevice( unsigned int deviceIndex ) const
+DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager() const
 {
-    return m_pageLoader->isActiveDevice( deviceIndex );
-}
-
-DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int deviceIndex ) const
-{
-    return m_pageLoader->getDeviceMemoryManager( deviceIndex );
+    return m_pageLoader->getDeviceMemoryManager();
 }
 
 MemoryPool<PinnedAllocator, RingSuballocator>* DemandLoaderImpl::getPinnedMemoryPool()

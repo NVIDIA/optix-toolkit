@@ -62,7 +62,7 @@ class DemandPageLoader
     virtual unsigned int allocatePages( unsigned int numPages, bool backed ) = 0;
 
     /// Set the page table entry for the given page.  Sets the associated page as resident.
-    virtual void setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry ) = 0;
+    virtual void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) = 0;
 
     /// Prepare for launch by pushing mapped pages to the device.  The caller must ensure that the
     /// current CUDA context matches the given stream.  Returns false if the specified device does

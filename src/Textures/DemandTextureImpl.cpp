@@ -78,8 +78,8 @@ void DemandTextureImpl::initPerDeviceTextures( unsigned int maxNumDevices )
     m_denseTextures.reserve( maxNumDevices );
     for( unsigned int i = 0; i < maxNumDevices; ++i )
     {
-        m_sparseTextures.emplace_back( i );
-        m_denseTextures.emplace_back( i );
+        m_sparseTextures.emplace_back();
+        m_denseTextures.emplace_back();
     }
 
     m_sampler = {0};
@@ -122,8 +122,8 @@ bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
 
     for( unsigned int i = 0; i < maxNumDevices; ++i )
     {
-        m_sparseTextures.emplace_back( i );
-        m_denseTextures.emplace_back( i );
+        m_sparseTextures.emplace_back();
+        m_denseTextures.emplace_back();
     }
     m_sampler       = {0};
     m_isInitialized = false;

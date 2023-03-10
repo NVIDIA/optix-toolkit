@@ -63,7 +63,7 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     void stop();
 
     /// Add a batch of page requests from the specified device to the request queue.
-    void addRequests( unsigned int deviceIndex, CUstream stream, unsigned id, const unsigned int* pageIds, unsigned int numPageIds ) override;
+    void addRequests( CUstream stream, unsigned id, const unsigned int* pageIds, unsigned int numPageIds ) override;
 
     void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
 

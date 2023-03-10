@@ -43,12 +43,6 @@ namespace demandLoading {
 class DenseTexture
 {
   public:
-    /// Construct DenseTexture for the specified device.
-    explicit DenseTexture( unsigned int deviceIndex )
-        : m_deviceIndex( deviceIndex )
-    {
-    }
-
     /// Destroy the dense texture, reclaiming its resources.
     ~DenseTexture();
 
@@ -76,7 +70,7 @@ class DenseTexture
 
   private:
     bool                              m_isInitialized = false;
-    unsigned int                      m_deviceIndex;
+    CUcontext                         m_context;
     imageSource::TextureInfo          m_info;
     std::shared_ptr<CUmipmappedArray> m_array;
     CUtexObject                       m_texture{};

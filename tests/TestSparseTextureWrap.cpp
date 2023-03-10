@@ -167,7 +167,7 @@ TEST_F( TestSparseTextureWrap, Test )
         1024, 1024, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, 11 /*numMipLevels*/
     };
 
-    SparseTexture texture( m_deviceIndex );
+    SparseTexture texture;
     texture.init( desc, info, nullptr );
 
     // Allocate tile buffer.
@@ -242,7 +242,7 @@ void TestSparseTextureWrap::testLargeSparseTexture( CUstream stream, unsigned in
 
     TextureInfo info{res, res, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, numMipLevels};
 
-    SparseTexture texture( m_deviceIndex );
+    SparseTexture texture;
     texture.init( desc, info, nullptr );
 
     // Allocate tile buffer.

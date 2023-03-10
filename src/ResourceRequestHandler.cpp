@@ -41,7 +41,8 @@ void ResourceRequestHandler::fillRequest( unsigned int deviceIndex, CUstream str
     MutexArrayLock lock( m_mutex.get(), index);
 
     // Do nothing if the request has already been filled.
-    if( m_loader->getPagingSystem( deviceIndex )->isResident( pageIndex ) )
+    PagingSystem* pagingSystem = m_loader->getPagingSystem();
+    if( pagingSystem->isResident( pageIndex ) )
         return;
 
     // Invoke the callback that was provided when the resource was created, which returns a new page table entry.
@@ -51,7 +52,7 @@ void ResourceRequestHandler::fillRequest( unsigned int deviceIndex, CUstream str
         // Add a page table mapping from the requested page index to the new page table entry.
         // Page table updates are accumulated in the PagingSystem until launchPrepare is called, which
         // sends them to the device (via PagingSystem::pushMappings).
-        m_loader->setPageTableEntry( deviceIndex, pageIndex, false, pageTableEntry );
+        m_loader->setPageTableEntry( pageIndex, false, pageTableEntry );
     }
 }
 
