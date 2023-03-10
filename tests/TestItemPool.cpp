@@ -31,6 +31,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cuda_runtime.h>
+
 #include <vector>
 
 using namespace demandLoading;

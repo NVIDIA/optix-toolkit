@@ -31,8 +31,6 @@
 #include "Exception.h"
 #include "Stopwatch.h"
 
-#include <cuda_runtime.h>
-
 #include <half.h>
 #include <openexr.h>
 

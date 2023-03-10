@@ -31,7 +31,7 @@
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
-#include <cuda_runtime.h>
+#include <vector_functions.h> // from CUDA toolkit
 
 #include <algorithm>
 #include <cmath>
