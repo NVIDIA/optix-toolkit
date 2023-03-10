@@ -30,6 +30,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cuda_runtime.h>
+
 using namespace demandLoading;
 
 class TestDeviceContextPool : public testing::Test

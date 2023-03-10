@@ -36,6 +36,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cuda_runtime.h>
+
 using namespace demandLoading;
 
 class TestDeviceContextImpl : public testing::Test
