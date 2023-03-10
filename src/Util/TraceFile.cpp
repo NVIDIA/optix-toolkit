@@ -272,7 +272,7 @@ class TraceFileReader
             throw Exception( "Required device is not present for request trace playback." );
 
         CUstream stream = getStream( deviceIndex, streamId );
-        Ticket ticket = loaderImpl->replayRequests( deviceIndex, stream, pageIds.data(), numPageIds );
+        Ticket ticket = loaderImpl->replayRequests( stream, pageIds.data(), numPageIds );
         ticket.wait();
     }
 };

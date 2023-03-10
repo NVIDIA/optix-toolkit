@@ -87,21 +87,24 @@ class DemandLoaderImpl : public DemandLoader
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
 
-    /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
-    /// If successful, returns a DeviceContext via result parameter, which should be copied to
-    /// device memory (typically along with OptiX kernel launch parameters), so that it can be
-    /// passed to Tex2D().
-    bool launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& demandTextureContext ) override;
+    /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
+    /// stream.  Returns false if the corresponding device does not support sparse textures.  If
+    /// successful, returns a DeviceContext via result parameter, which should be copied to device
+    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
+    /// Tex2D().
+    bool launchPrepare( CUstream stream, DeviceContext& demandTextureContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background
-    /// processing.  The given stream is used when copying tile data to the device.  Returns a
-    /// ticket that is notified when the requests have been filled.
-    Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) override;
+    /// processing.  The caller must ensure that the current CUDA context matches the given stream.
+    /// The given DeviceContext must reside in host memory.  The given stream is used when copying
+    /// tile data to the device.  Returns a ticket that is notified when the requests have been
+    /// filled on the host side.
+    Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) override;
 
     /// Replay the given page requests (from a trace file), adding them to the page requeuest queue
-    /// for asynchronous processing.  Returns a ticket that is notified when the requests have been
-    /// filled.
-    Ticket replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
+    /// for asynchronous processing.  The caller must ensure that the current CUDA context matches
+    /// the given stream.  Returns a ticket that is notified when the requests have been filled.
+    Ticket replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
 
     /// Get current statistics.
     Statistics getStatistics() const override;

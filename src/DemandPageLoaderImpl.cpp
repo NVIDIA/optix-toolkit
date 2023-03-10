@@ -147,10 +147,34 @@ unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, Resour
     return m_resourceRequestHandlers.back()->getStartPage();
 }
 
+namespace { // anonymous
+
+// Check that the current CUDA context matches the one associated with the given stream
+// and return the associated device index.
+unsigned int getDeviceIndex( CUstream stream )
+{
+    // Get the current CUDA context.
+    CUcontext cudaContext, streamContext;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
+    DEMAND_ASSERT_MSG( cudaContext == streamContext,
+                       "The current CUDA context must match the one associated with the given stream" );
+
+    // Get the device index from the CUDA context.
+    CUdevice device;
+    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    return static_cast<unsigned int>( device );
+}
+
+} // anonymous namespace
+
 // Returns false if the device doesn't support sparse textures.
-bool DemandPageLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+bool DemandPageLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
+
     std::unique_lock<std::mutex> lock( m_mutex );
 
     PagingSystem* pagingSystem = m_pagingSystems.at( deviceIndex ).get();
@@ -166,10 +190,13 @@ bool DemandPageLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream str
 }
 
 // Process page requests.
-Ticket DemandPageLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
+Ticket DemandPageLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
 {
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
+
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Create a Ticket that the caller can use to track request processing.
@@ -186,9 +213,12 @@ Ticket DemandPageLoaderImpl::processRequests( unsigned int deviceIndex, CUstream
     return ticket;
 }
 
-Ticket DemandPageLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
+Ticket DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
+
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Flush any page mappings that have accumulated for the specified device.

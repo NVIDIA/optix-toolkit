@@ -46,17 +46,6 @@
 
 namespace { // anonymous
 
-void initCuda()
-{
-    DEMAND_CUDA_CHECK( cuInit( 0 ) );
-    int numDevices;
-    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    for( int i = 0; i < numDevices; ++i )
-    {
-        DEMAND_CUDA_CHECK( cudaInitDevice( i, 0, 0 ) );
-    }
-}
-
 // Save and restore CUDA context.
 class ContextSaver
 {
@@ -171,22 +160,20 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 }
 
 // Returns false if the device doesn't support sparse textures.
-bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
-    ContextSaver contextSaver;
-    return m_pageLoader->launchPrepare( deviceIndex, stream, context );
+    return m_pageLoader->launchPrepare( stream, context );
 }
 
 // Process page requests.
-Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
+Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
 {
-    ContextSaver contextSaver;
-    return m_pageLoader->processRequests( deviceIndex, stream, context );
+    return m_pageLoader->processRequests( stream, context );
 }
 
-Ticket DemandLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
+Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
-    return m_pageLoader->replayRequests( deviceIndex, stream, requestedPages, numRequestedPages );
+    return m_pageLoader->replayRequests( stream, requestedPages, numRequestedPages );
 }
 
 
@@ -355,7 +342,10 @@ DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int devi
 DemandLoader* createDemandLoader( const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    initCuda();
+
+    // Initialize CUDA if necessary
+    DEMAND_CUDA_CHECK( cuInit( 0 ) );
+
     ContextSaver contextSaver;
     return new DemandLoaderImpl( options );
 }

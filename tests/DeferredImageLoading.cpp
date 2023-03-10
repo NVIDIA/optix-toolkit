@@ -361,11 +361,11 @@ void DeferredImageLoadingTest::freeDemandLoading()
 
 void DeferredImageLoadingTest::launchAndWaitForRequests()
 {
-    m_loader->launchPrepare( m_deviceIndex, m_stream, m_params.m_context );
+    m_loader->launchPrepare( m_stream, m_params.m_context );
     ERROR_CHECK( cudaMemcpy( m_devParams, &m_params, sizeof( m_params ), cudaMemcpyHostToDevice ) );
     ERROR_CHECK( optixLaunch( m_pipeline, m_stream, reinterpret_cast<CUdeviceptr>( m_devParams ), sizeof( Params ), &m_sbt,
                               OUTPUT_WIDTH, OUTPUT_HEIGHT, /*depth=*/1 ) );
-    m_loader->processRequests( m_deviceIndex, m_stream, m_params.m_context ).wait();
+    m_loader->processRequests( m_stream, m_params.m_context ).wait();
 }
 
 }  // namespace

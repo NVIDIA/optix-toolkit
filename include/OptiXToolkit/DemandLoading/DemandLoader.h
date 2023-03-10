@@ -77,17 +77,19 @@ class DemandLoader
     /// value is forwarded to the callback during request processing.
     virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) = 0;
 
-    /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
-    /// If successful, returns a DeviceContext via result parameter, which should be copied to
-    /// device memory (typically along with OptiX kernel launch parameters), so that it can be
-    /// passed to Tex2D().
-    virtual bool launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context ) = 0;
+    /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
+    /// stream.  Returns false if the corresponding device does not support sparse textures.  If
+    /// successful, returns a DeviceContext via result parameter, which should be copied to device
+    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
+    /// Tex2D().
+    virtual bool launchPrepare( CUstream stream, DeviceContext& context ) = 0;
 
     /// Fetch page requests from the given device context and enqueue them for background
-    /// processing.  The given DeviceContext must reside in host memory.  The given stream is used
-    /// when copying tile data to the device.  Returns a ticket that is notified when the requests
-    /// have been filled on the host side.
-    virtual Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) = 0;
+    /// processing.  The caller must ensure that the current CUDA context matches the given stream.
+    /// The given DeviceContext must reside in host memory.  The given stream is used when copying
+    /// tile data to the device.  Returns a ticket that is notified when the requests have been
+    /// filled on the host side.
+    virtual Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) = 0;
 
     /// Get current statistics.
     virtual Statistics getStatistics() const = 0;
