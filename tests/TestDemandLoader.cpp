@@ -89,11 +89,11 @@ class TestDemandLoader : public testing::Test
     }
 
 
-    int launchKernel( unsigned int deviceIndex, CUstream stream, const std::function<void( const DeviceContext& )>& launchFunction )
+    int launchKernel( CUstream stream, const std::function<void( const DeviceContext& )>& launchFunction )
     {
         // Prepare for launch, obtaining host-side DeviceContext.
         DeviceContext context;
-        bool          ok = m_loader->launchPrepare( deviceIndex, stream, context );
+        bool          ok = m_loader->launchPrepare( stream, context );
         EXPECT_TRUE( ok );
 
         // Copy DeviceContext to device.
@@ -105,7 +105,7 @@ class TestDemandLoader : public testing::Test
         launchFunction( context );
 
         // Process requests.
-        Ticket ticket = m_loader->processRequests( deviceIndex, stream, context );
+        Ticket ticket = m_loader->processRequests( stream, context );
         ticket.wait();
 
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devContext ) ) );
@@ -148,11 +148,10 @@ class TestDemandLoaderResident : public TestDemandLoader
     }
 
 protected:
-    int launchKernelAndSynchronize( unsigned int deviceIndex, unsigned int pageId, bool* isResident )
+    int launchKernelAndSynchronize( CUstream stream, unsigned int pageId, bool* isResident )
     {
         bool*    devIsResident = m_devIsResident;
-        CUstream stream        = m_streams[deviceIndex];
-        const int numFilled = launchKernel( deviceIndex, stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
+        const int numFilled = launchKernel( stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
             launchPageRequester( stream, context, pageId, devIsResident );
         } );
         // Copy isResident result to host.
@@ -179,9 +178,9 @@ TEST_F( TestDemandLoaderResident, TestSamplerRequest )
 
         // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
         // The helper function processes any requests.
-        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
+        const int numFilled1 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident1 );
         // Launch the kernel again.  The sampler should now be resident.
-        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
+        const int numFilled2 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident2 );
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );
@@ -226,9 +225,9 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
         unsigned int pageId = startPage + deviceIndex;
-        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
+        const int numFilled1 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident1 );
         // Launch the kernel again.  The page should now be resident.
-        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
+        const int numFilled2 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident2 );
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );
@@ -262,9 +261,9 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
         bool isResident3{};
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
-        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 ); // request deferred
-        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 ); // request fulfilled
-        const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident3 ); // resource already loaded
+        const int numFilled1 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident1 ); // request deferred
+        const int numFilled2 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident2 ); // request fulfilled
+        const int numFilled3 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident3 ); // resource already loaded
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );

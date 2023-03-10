@@ -85,8 +85,9 @@ class DemandLoader
                                  std::shared_ptr<imageSource::ImageSource> image,
                                  const TextureDescriptor&                  textureDesc ) = 0;
 
-    /// Pre-initialize the texture on the given device.
-    virtual void initTexture( unsigned int deviceIndex, CUstream stream, unsigned int textureId ) = 0;
+    /// Pre-initialize the texture on the device corresponding to the given stream.  The caller must
+    /// ensure that the current CUDA context matches the given stream.
+    virtual void initTexture( CUstream stream, unsigned int textureId ) = 0;
 
     /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
     virtual unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
@@ -94,23 +95,27 @@ class DemandLoader
     /// Get the starting mip level of the mip tail
     virtual unsigned int getMipTailFirstLevel( unsigned int textureId ) = 0;
 
-    /// Load or reload a texture tile
-    virtual void loadTextureTile( unsigned int deviceIndex, CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
+    /// Load or reload a texture tile.  The caller must ensure that the current CUDA context matches
+    /// the given stream.
+    virtual void loadTextureTile( CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
 
-    /// Return true if the requested page is resident
-    virtual bool pageResident( unsigned int deviceIndex, unsigned int pageId ) = 0;
+    /// Return true if the requested page is resident on the device corresponding to the current
+    /// CUDA context.
+    virtual bool pageResident( unsigned int pageId ) = 0;
 
-    /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
-    /// If successful, returns a DeviceContext via result parameter, which should be copied to
-    /// device memory (typically along with OptiX kernel launch parameters), so that it can be
-    /// passed to Tex2D().
-    virtual bool launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context ) = 0;
+    /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
+    /// stream.  Returns false if the corresponding device does not support sparse textures.  If
+    /// successful, returns a DeviceContext via result parameter, which should be copied to device
+    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
+    /// Tex2D().
+    virtual bool launchPrepare( CUstream stream, DeviceContext& context ) = 0;
 
     /// Fetch page requests from the given device context and enqueue them for background
-    /// processing.  The given DeviceContext must reside in host memory.  The given stream is used
-    /// when copying tile data to the device.  Returns a ticket that is notified when the requests
-    /// have been filled on the host side.
-    virtual Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) = 0;
+    /// processing.  The caller must ensure that the current CUDA context matches the given stream.
+    /// The given DeviceContext must reside in host memory.  The given stream is used when copying
+    /// tile data to the device.  Returns a ticket that is notified when the requests have been
+    /// filled on the host side.
+    virtual Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) = 0;
 
     /// Get current statistics.
     virtual Statistics getStatistics() const = 0;

@@ -77,20 +77,23 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     void setPageTableEntry( unsigned int deviceIndex, unsigned int pageId, bool evictable, void* pageTableEntry ) override;
 
-    /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
-    /// If successful, returns a DeviceContext via result parameter, which should be copied to
-    /// device memory (typically along with OptiX kernel launch parameters), so that it can be
-    /// passed to Tex2D().
-    bool pushMappings( unsigned int deviceIndex, CUstream stream, DeviceContext& demandTextureContext ) override;
+    /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
+    /// stream.  Returns false if the specified device does not support sparse textures.  If
+    /// successful, returns a DeviceContext via result parameter, which should be copied to device
+    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
+    /// Tex2D().
+    bool pushMappings( CUstream stream, DeviceContext& demandTextureContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background
-    /// processing.  The given stream is used when copying tile data to the device.  Returns a
-    /// ticket that is notified when the requests have been filled.
-    void pullRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext, unsigned int id ) override;
+    /// processing.  The caller must ensure that the current CUDA context matches the given stream.
+    /// The given stream is used when copying tile data to the device.  Returns a ticket that is
+    /// notified when the requests have been filled.
+    void pullRequests( CUstream stream, const DeviceContext& deviceContext, unsigned int id ) override;
 
     /// Replay the given page requests (from a trace file), adding them to the page request queue
-    /// for asynchronous processing.
-    void replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
+    /// for asynchronous processing.  The caller must ensure that the current CUDA context matches
+    /// the given stream.
+    void replayRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
 
     /// Get the demand loading configuration options.
     const Options& getOptions() const { return m_options; }

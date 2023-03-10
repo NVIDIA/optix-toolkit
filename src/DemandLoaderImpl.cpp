@@ -29,6 +29,7 @@
 #include "DemandLoaderImpl.h"
 
 #include "DemandPageLoaderImpl.h"
+#include "Util/CudaContext.h"
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
@@ -45,18 +46,6 @@
 #include <set>
 
 namespace { // anonymous
-
-void initCuda()
-{
-    DEMAND_CUDA_CHECK( cuInit( 0 ) );
-    int numDevices;
-    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    for( int i = 0; i < numDevices; ++i )
-    {
-        DEMAND_CUDA_CHECK( cudaSetDevice( i ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-    }
-}
 
 // Save and restore CUDA context.
 class ContextSaver
@@ -283,10 +272,11 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
     m_requestProcessor.recordTexture( image, textureDesc );
 }
 
-void DemandLoaderImpl::initTexture( unsigned int deviceIndex, CUstream stream, unsigned int textureId )
+void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
 {
-    m_samplerRequestHandler.fillRequest( deviceIndex, stream, textureId );
-    m_samplerRequestHandler.fillRequest( deviceIndex, stream, textureId + BASE_COLOR_OFFSET );
+    checkCudaContext( stream );
+    m_samplerRequestHandler.fillRequest( stream, textureId );
+    m_samplerRequestHandler.fillRequest( stream, textureId + BASE_COLOR_OFFSET );
 }
 
 unsigned int DemandLoaderImpl::getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
@@ -299,8 +289,9 @@ unsigned int DemandLoaderImpl::getMipTailFirstLevel( unsigned int textureId )
     return m_textures[textureId]->getMipTailFirstLevel();
 }
 
-void DemandLoaderImpl::loadTextureTile( unsigned int deviceIndex, CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
+void DemandLoaderImpl::loadTextureTile( CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
 {
+    checkCudaContext( stream );
     unsigned int pageId = m_textures[textureId]->getRequestHandler()->getTextureTilePageId( mipLevel, tileX, tileY );
     m_textures[textureId]->getRequestHandler()->loadPage( deviceIndex, stream, pageId, true );
 }
@@ -311,39 +302,65 @@ bool DemandLoaderImpl::pageResident( unsigned int deviceIndex, unsigned int page
     return pagingSystem->isResident( pageId );
 }
 
-bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+// Returns false if the device doesn't support sparse textures.
+bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
-    ContextSaver contextSaver;
-    return m_pageLoader->pushMappings( deviceIndex, stream, context );
+    return m_pageLoader->pushMappings( stream, context );
 }
 
-Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
+namespace { // anonymous
+
+// Check that the current CUDA context matches the one associated with the given stream
+// and return the associated device index.
+unsigned int getDeviceIndex( CUstream stream )
+{
+    // Get the current CUDA context.
+    CUcontext cudaContext, streamContext;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
+    DEMAND_ASSERT_MSG( cudaContext == streamContext,
+                       "The current CUDA context must match the one associated with the given stream" );
+
+    // Get the device index from the CUDA context.
+    CUdevice device;
+    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    return static_cast<unsigned int>( device );
+}
+
+} // anonymous namespace
+
+// Process page requests.
+Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
+
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
 
     // Create a Ticket that the caller can use to track request processing.
     Ticket ticket = TicketImpl::create( deviceIndex, stream );
     const unsigned int id = m_ticketId++;
     m_requestProcessor.setTicket( id, ticket);
 
-    ContextSaver contextSaver;
-    m_pageLoader->pullRequests( deviceIndex, stream, context, id );
+    m_pageLoader->pullRequests( stream, context, id );
 
     return ticket;
 }
 
-Ticket DemandLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
+Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
 
     // Create a Ticket that the caller can use to track request processing.
     Ticket ticket = TicketImpl::create( deviceIndex, stream );
     const unsigned int id = m_ticketId++;
     m_requestProcessor.setTicket( id, ticket );
 
-    m_pageLoader->replayRequests( deviceIndex, stream, id, requestedPages, numRequestedPages );
+    m_pageLoader->replayRequests( stream, id, requestedPages, numRequestedPages );
 
     return ticket;
 }
@@ -502,7 +519,10 @@ unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
 DemandLoader* createDemandLoader( const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    initCuda();
+
+    // Initialize CUDA if necessary
+    DEMAND_CUDA_CHECK( cuInit( 0 ) );
+
     ContextSaver contextSaver;
     return new DemandLoaderImpl( options );
 }
