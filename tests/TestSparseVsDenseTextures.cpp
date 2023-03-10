@@ -1,5 +1,6 @@
 
 #include "TestSparseVsDenseTextures.h"
+#include "CudaCheck.h"
 
 #include "Util/Exception.h"
 

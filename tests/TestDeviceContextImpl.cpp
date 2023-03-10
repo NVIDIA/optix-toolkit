@@ -26,12 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
+#include "DeviceContextImpl.h"
 #include "Memory/Allocators.h"
 #include "Memory/FixedSuballocator.h"
 #include "Memory/HeapSuballocator.h"
 #include "Memory/MemoryPool.h"
-
-#include "DeviceContextImpl.h"
 
 #include <gtest/gtest.h>
 

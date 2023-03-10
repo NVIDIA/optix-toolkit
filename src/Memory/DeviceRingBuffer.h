@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "Util/Exception.h"
+
 // DeviceRingBuffer implements a device-side ring buffer.  Allocations
 // do not need to be freed, but buffer overflow can be detected by calling
 // free after each allocation is done.
@@ -36,8 +38,6 @@ const unsigned long long BAD_ALLOC = 0xFFFFFFFFFFFFFFFFULL;
 const unsigned int WARP_SIZE = 32;
 
 #include <cuda.h>
-
-#include "Util/Exception.h"
 
 #ifdef __CUDACC__
 __forceinline__ __device__
@@ -58,7 +58,7 @@ struct DeviceRingBuffer
 
 #ifndef __CUDACC__
     /// Initialize the ring buffer
-    __host__ void init( unsigned long long _buffSize, bool _allocByWarp )
+    void init( unsigned long long _buffSize, bool _allocByWarp )
     {
         allocByWarp = _allocByWarp;
         buffSize = _buffSize;
@@ -68,14 +68,14 @@ struct DeviceRingBuffer
     }
 
     /// Tear down, freeing all the memory
-    __host__ void tearDown()
+    void tearDown()
     {
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextStart ) ) );
     }
 
     /// Clear the allocator
-    __host__ void clear( CUstream stream = 0 )
+    void clear( CUstream stream = 0 )
     {
         DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextStart ), 0, sizeof( unsigned long long ), stream ) );
     }

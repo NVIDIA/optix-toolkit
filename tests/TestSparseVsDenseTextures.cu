@@ -50,5 +50,4 @@ __host__ void launchSparseVsDenseTextureKernel( CUtexObject texture )
     dim3 dimBlock( 1 );
     dim3 dimGrid( 1 );
     sparseVsDenseTextureKernel<<<dimGrid, dimBlock>>>( texture );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
 }

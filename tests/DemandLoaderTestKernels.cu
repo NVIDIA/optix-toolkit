@@ -28,7 +28,7 @@
 
 #include "DemandLoaderTestKernels.h"
 
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
 

@@ -27,7 +27,7 @@
 //
 
 #include "Textures/DenseTexture.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <gtest/gtest.h>
 

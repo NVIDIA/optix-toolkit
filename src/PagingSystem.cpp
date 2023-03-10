@@ -68,7 +68,7 @@ PagingSystem::PagingSystem( const Options&       options,
 PagingSystem::~PagingSystem()
 {
     for( RequestContext* requestContext : m_pinnedRequestContextPool )
-        DEMAND_CUDA_CHECK( cudaFreeHost( requestContext ) );
+        DEMAND_CUDA_CHECK( cuMemFreeHost( requestContext ) );
     m_pinnedRequestContextPool.clear();
 }
 
@@ -134,8 +134,9 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     }
     else 
     {
-       DEMAND_CUDA_CHECK( cudaMallocHost(&pinnedRequestContext, RequestContext::getAllocationSize( m_options ) ) );
-       pinnedRequestContext->init( m_options );
+        DEMAND_CUDA_CHECK( cuMemAllocHost( reinterpret_cast<void**>( &pinnedRequestContext ),
+                                           RequestContext::getAllocationSize( m_options ) ) );
+        pinnedRequestContext->init( m_options );
     }
 
     // Copy the requested page list from this device.  The actual length is unknown, so we copy the entire capacity

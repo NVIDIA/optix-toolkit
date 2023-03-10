@@ -28,7 +28,10 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
+#include "Memory/DeviceFixedPool.h"
+#include "Memory/DeviceRingBuffer.h"
 
-__host__ void launchDeviceRingBufferTest( const DeviceRingBuffer& ringBuffer, char** output, int width );
-__host__ void launchDeviceFixedPoolTest( const DeviceFixedPool& fixedPool, char** output, int width );
+#include <cuda.h>
+
+void launchDeviceRingBufferTest( const DeviceRingBuffer& ringBuffer, char** output, int width );
+void launchDeviceFixedPoolTest( const DeviceFixedPool& fixedPool, char** output, int width );

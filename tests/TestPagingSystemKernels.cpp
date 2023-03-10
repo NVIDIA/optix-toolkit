@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PagingSystemKernels.h"
 

@@ -26,9 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
 #include "Memory/PinnedItemPool.h"
 
 #include <gtest/gtest.h>
+
+#include <cuda_runtime.h>
 
 #include <atomic>
 #include <chrono>

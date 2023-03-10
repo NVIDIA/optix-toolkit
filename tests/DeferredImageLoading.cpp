@@ -28,10 +28,9 @@
 
 #include <TestDemandLoadingKernelsPTX.h>
 
+#include "CudaCheck.h"
 #include "DeferredImageLoadingKernels.h"
 #include "ErrorCheck.h"
-
-#include <Util/Exception.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>

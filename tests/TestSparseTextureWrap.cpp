@@ -37,7 +37,7 @@
 #include "Memory/MemoryPool.h"
 
 #include "Textures/SparseTexture.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <gtest/gtest.h>
 

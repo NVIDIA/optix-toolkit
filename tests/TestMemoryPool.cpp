@@ -26,9 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <algorithm>
-#include <map>
-#include <vector>
+#include "CudaCheck.h"
 
 #include "Memory/Allocators.h"
 #include "Memory/BinnedSuballocator.h"
@@ -39,6 +37,10 @@
 #include "Memory/RingSuballocator.h"
 
 #include <gtest/gtest.h>
+
+#include <algorithm>
+#include <map>
+#include <vector>
 
 using namespace demandLoading;
 

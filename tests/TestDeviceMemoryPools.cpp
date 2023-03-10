@@ -26,17 +26,20 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <fstream>
-
-#include <gtest/gtest.h>
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "TestDeviceMemoryPools.h" 
+#include "CudaCheck.h"
 
 #include "Memory/DeviceRingBuffer.h"
 #include "Memory/DeviceFixedPool.h"
 #include "Util/Exception.h"
 
-#include "TestDeviceMemoryPools.h" 
+#include <gtest/gtest.h>
+
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#include <fstream>
+
 
 using namespace demandLoading;
 

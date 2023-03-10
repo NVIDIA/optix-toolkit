@@ -26,13 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
-#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
-
-#include <Util/Exception.h>
-
+#include "CudaCheck.h"
 #include "DemandLoaderTestKernels.h"
 #include "ErrorCheck.h"
+
+#include "Util/Exception.h"
+
+#include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
+#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

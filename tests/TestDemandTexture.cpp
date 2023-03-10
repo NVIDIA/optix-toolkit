@@ -33,7 +33,7 @@
 #include "Memory/MemoryBlockDesc.h"
 #include "PageTableManager.h"
 #include "Textures/DemandTextureImpl.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>

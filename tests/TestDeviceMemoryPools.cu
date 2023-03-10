@@ -26,13 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cuda.h>
+#include "CudaCheck.h"
 
-#include "Memory/DeviceRingBuffer.h"
 #include "Memory/DeviceFixedPool.h"
+#include "Memory/DeviceRingBuffer.h"
 #include "TestDeviceMemoryPools.h"
 
-#include "Util/Exception.h"
+#include <cuda.h>
 
 __global__ static void deviceRingBufferTestKernel( DeviceRingBuffer ringBuffer, char** output, int width )
 {

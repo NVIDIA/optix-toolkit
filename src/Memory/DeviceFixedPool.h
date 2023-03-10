@@ -48,7 +48,7 @@ struct DeviceFixedPool
 // Host functions
 #ifndef __CUDACC__
     /// Allocate buffers and initialize the pool
-    __host__ void init(unsigned int _itemSize, unsigned int numItems, bool _allocByWarp )
+    void init(unsigned int _itemSize, unsigned int numItems, bool _allocByWarp )
     {
         itemSize = _itemSize;
         allocByWarp = _allocByWarp;
@@ -66,12 +66,13 @@ struct DeviceFixedPool
         for( unsigned int itemGroupId = 0; itemGroupId < numItemGroups; ++itemGroupId )
             hostItemGroups[itemGroupId] = buffer + ( itemSize * ws * itemGroupId );
 
-        DEMAND_CUDA_CHECK( cudaMemcpy( itemGroupsCopy, hostItemGroups.data(), itemGroupsBuffSize, cudaMemcpyHostToDevice ) );
+        DEMAND_CUDA_CHECK( cuMemcpy( reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
+                                     reinterpret_cast<CUdeviceptr>( hostItemGroups.data() ), itemGroupsBuffSize ) );
         clear( 0 );
     }
 
     /// Free all of the buffers allocated for the pool
-    __host__ void tearDown()
+    void tearDown()
     {
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroups ) ) );
@@ -80,7 +81,7 @@ struct DeviceFixedPool
     }
 
     /// Clear the allocator
-    __host__ void clear( CUstream stream )
+    void clear( CUstream stream )
     {
         DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextItemGroupId ), 0, 2 * sizeof( unsigned int ), stream ) );
         DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( itemGroups ), reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),

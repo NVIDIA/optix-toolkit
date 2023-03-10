@@ -27,7 +27,7 @@
 //
 
 #include "PagingSystemTestKernels.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <OptiXToolkit/DemandLoading/Paging.h>
 
