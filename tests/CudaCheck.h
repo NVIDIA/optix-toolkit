@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,61 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+#pragma once
 
-#include "SourceDir.h"  // generated from SourceDir.h.in
-#include "CudaCheck.h"
-#include "Util/TraceFile.h"
-
-#include <OptiXToolkit/DemandLoading/DemandLoader.h>
-#include <OptiXToolkit/DemandLoading/Options.h>
-#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
-#include <OptiXToolkit/ImageSource/EXRReader.h>
-
+#include "Util/Exception.h"
 #include <cuda_runtime.h>
 
-#include <gtest/gtest.h>
+namespace demandLoading {
 
-#include <thread>
-
-using namespace demandLoading;
-using namespace imageSource;
-
-class TestTraceFile : public testing::Test
+inline void checkCudaError( cudaError_t error, const char* expr, const char* file, unsigned int line )
 {
-  public:
-    void SetUp()
+    if( error != cudaSuccess )
     {
-        // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
-        // Create stream.
-        CUstream stream;
-        DEMAND_CUDA_CHECK( cuStreamCreate( &stream, 0 ) );
+        std::stringstream ss;
+        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" __FILE__ << ":"
+           << __LINE__ << ")\n";
+        throw Exception( ss.str().c_str() );
     }
-
-    unsigned int m_deviceIndex = 0;
-    CUstream m_stream;
-};
-
-TEST_F( TestTraceFile, TestWriteAndRead )
-{
-    std::string textureFilename( getSourceDir() + "/Textures/TiledMipMapped.exr" );
-    const char* traceFilename = "DemandLoadingTrace.dat";
-    {
-        TraceFileWriter writer( traceFilename );
-
-        Options options;
-        writer.recordOptions( options );
-
-        std::shared_ptr<EXRReader> reader( new EXRReader( textureFilename.c_str() ) );
-        TextureDescriptor          desc{};
-        writer.recordTexture( reader, desc );
-
-        // The first page represents the sampler for the first texture.
-        unsigned int pageIds[1] = {0};
-        writer.recordRequests( m_stream, pageIds, 1 );
-    }
-
-    replayTraceFile( traceFilename );
 }
+
+// A non-throwing variant for use in destructors.
+inline void checkCudaErrorNoThrow( cudaError_t error, const char* expr, const char* file, unsigned int line ) noexcept
+{
+    if( error != cudaSuccess )
+    {
+        std::cerr << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
+                  << ":" << line << ")\n";
+        std::terminate();
+    }
+}
+
+} // namespace demandLoading

@@ -26,8 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
 #include "Memory/Buffers.h"
 #include "Memory/TileArena.h"
+
+#include <cuda_runtime.h>
 
 #include <gtest/gtest.h>
 

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
 
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
@@ -38,6 +39,8 @@
 #include "Textures/SparseTexture.h"
 
 #include <gtest/gtest.h>
+
+#include <cuda_runtime.h>
 
 #include <algorithm>
 #include <atomic>

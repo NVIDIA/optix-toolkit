@@ -40,6 +40,7 @@ embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
 )
 
 add_executable( testDemandLoading
+  CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu

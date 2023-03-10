@@ -34,7 +34,7 @@
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <gtest/gtest.h>
 

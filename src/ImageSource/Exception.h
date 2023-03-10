@@ -84,28 +84,6 @@ class Exception : public std::runtime_error
 //
 //------------------------------------------------------------------------------
 
-inline void checkCudaError( cudaError_t error, const char* expr, const char* file, unsigned int line )
-{
-    if( error != cudaSuccess )
-    {
-        std::stringstream ss;
-        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" __FILE__ << ":"
-           << __LINE__ << ")\n";
-        throw Exception( ss.str().c_str() );
-    }
-}
-
-// A non-throwing variant for use in destructors.
-inline void checkCudaErrorNoThrow( cudaError_t error, const char* expr, const char* file, unsigned int line )
-{
-    if( error != cudaSuccess )
-    {
-        std::cerr << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
-                  << ":" << line << ")\n";
-        std::terminate();
-    }
-}
-
 inline void checkCudaError( CUresult result, const char* expr, const char* file, unsigned int line )
 {
     if( result != CUDA_SUCCESS )

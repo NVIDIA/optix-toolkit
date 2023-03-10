@@ -245,7 +245,6 @@ __host__ void launchPullRequests( CUstream             stream,
 
     // The context is passed by value, which copies it to device memory.
     devicePullRequests<<<numBlocks, numThreadsPerBlock, 0U, stream>>>( context, launchNum, lruThreshold, startPage, endPage );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
 }
 
 __global__ void devicePushMappings( unsigned long long* pageTable,
@@ -287,7 +286,6 @@ __host__ void launchPushMappings( CUstream stream, const DeviceContext& context,
                                                                                  context.pageTable.capacity,
                                                                                  context.residenceBits, context.lruTable,
                                                                                  context.filledPages.data, filledPageCount );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
 }
 
 __global__ void deviceInvalidatePages( unsigned int* residenceBits, unsigned int* devInvalidatedPages, int invalidatedPageCount )
@@ -309,7 +307,6 @@ __host__ void launchInvalidatePages( CUstream stream, const DeviceContext& conte
     const int numInvalidatedPageBlocks = ( invalidatedPageCount + numPagesPerBlock - 1 ) / numPagesPerBlock;
     deviceInvalidatePages<<<numInvalidatedPageBlocks, numThreadsPerBlock, 0U, stream>>>(
         context.residenceBits, context.invalidatedPages.data, invalidatedPageCount );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
 }
 
 }  // namespace demandLoading

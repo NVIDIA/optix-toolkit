@@ -28,7 +28,7 @@
 
 #include "DemandLoaderImpl.h"
 #include "DemandLoaderTestKernels.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 

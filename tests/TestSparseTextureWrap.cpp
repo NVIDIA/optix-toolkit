@@ -31,7 +31,7 @@
 #include "Memory/Buffers.h"
 #include "Memory/TilePool.h"
 #include "Textures/SparseTexture.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
