@@ -108,11 +108,13 @@ add_library( DemandLoading
   src/ThreadPoolRequestProcessor.h
   src/Ticket.cpp
   src/TicketImpl.h
+  src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
+  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.cpp
   src/Util/TraceFile.h
@@ -182,12 +184,14 @@ source_group( "Header Files\\Implementation" FILES
   src/Textures/TextureRequestHandler.h
   src/ThreadPoolRequestProcessor.h
   src/TicketImpl.h
+  src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
+  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.h
   )

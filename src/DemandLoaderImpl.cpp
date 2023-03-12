@@ -30,6 +30,7 @@
 
 #include "DemandPageLoaderImpl.h"
 #include "RequestProcessor.h"
+#include "Util/ContextSaver.h"
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
@@ -43,22 +44,6 @@
 
 #include <algorithm>
 #include <set>
-
-namespace { // anonymous
-
-// Save and restore CUDA context.
-class ContextSaver
-{
-  public:
-    ContextSaver() { DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) ); }
-
-    ~ContextSaver() { DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) ); }
-
-  private:
-    CUcontext m_context;
-};
-
-} // anonymous namespace
 
 namespace demandLoading {
 

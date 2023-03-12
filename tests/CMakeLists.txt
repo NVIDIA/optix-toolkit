@@ -50,6 +50,7 @@ add_executable( testDemandLoading
   TestBulkMemory.cpp
   TestBulkPinnedItemPool.cpp
   TestCheckerBoardImage.cpp
+  TestContextSaver.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
@@ -63,6 +64,7 @@ add_executable( testDemandLoading
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
+  TestPerContextData.cpp
   TestPinnedItemPool.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
