@@ -63,7 +63,7 @@ TEST_F( TestAllocators, PinnedAllocator )
 
 TEST_F( TestAllocators, DeviceAllocator )
 {
-    DeviceAllocator allocator( 0 );
+    DeviceAllocator allocator;
     void* ptr = allocator.allocate( 1024 );
     EXPECT_TRUE( ptr != nullptr );
     allocator.free( ptr );
@@ -71,7 +71,7 @@ TEST_F( TestAllocators, DeviceAllocator )
 
 TEST_F( TestAllocators, DeviceAsyncAllocator )
 {
-    DeviceAsyncAllocator allocator( 0 );
+    DeviceAsyncAllocator allocator;
 
     CUstream stream;
     cuStreamCreate( &stream, 0U );
@@ -85,12 +85,11 @@ TEST_F( TestAllocators, DeviceAsyncAllocator )
 
 TEST_F( TestAllocators, TextureTileAllocator )
 {
-    TextureTileAllocator allocator( 0 );
-    size_t allocSize = TextureTileAllocator::getRecommendedAllocationSize( 0 );
+    TextureTileAllocator allocator;
+    size_t               allocSize = TextureTileAllocator::getRecommendedAllocationSize();
     EXPECT_TRUE( allocSize > 0 );
     void* ptr = allocator.allocate( allocSize );
     EXPECT_TRUE( ptr != 0ull );
-    EXPECT_TRUE( allocator.getDeviceIndex() == 0 );
     allocator.free( ptr );
 }
 
@@ -102,7 +101,7 @@ TEST_F( TestAllocators, DeviceAllocatorSpeed )
     unsigned int       numAllocations = 10000;
     std::vector<void*> allocations( numAllocations, nullptr );
 
-    DeviceAllocator allocator( 0 );
+    DeviceAllocator allocator;
 
     for( unsigned int i = 0; i < numAllocations; ++i )
     {
@@ -125,7 +124,7 @@ TEST_F( TestAllocators, DeviceAsyncAllocatorSpeed )
     unsigned int       numAllocations = 10000;
     std::vector<void*> allocations( numAllocations, nullptr );
 
-    DeviceAsyncAllocator allocator( 0 );
+    DeviceAsyncAllocator allocator;
 
     for( unsigned int i = 0; i < numAllocations; ++i )
     {

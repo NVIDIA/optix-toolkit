@@ -28,6 +28,14 @@
 
 #pragma once
 
+#include "Memory/Allocators.h"
+#include "Memory/MemoryBlockDesc.h"
+#include "Util/CudaContext.h"
+#include "Util/Exception.h"
+#include "Util/PerContextData.h"
+
+#include <cuda.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
@@ -37,10 +45,6 @@
 #include <mutex>
 #include <vector>
 
-#include <Memory/Allocators.h>
-#include <Memory/MemoryBlockDesc.h>
-#include <Util/Exception.h>
-
 #define NullAllocator HostAllocator
 #define NullSuballocator HeapSuballocator
 
@@ -48,7 +52,7 @@ namespace demandLoading {
 
 // MemoryPool is a thread-safe memory pool class that allocates and tracks memory using an allocator and suballocator.
 // Memory blocks can be freed either immediately or in stream order.  This class can be used to manage general device memory,
-// device memory allocated with cudaMallocAsync/cudaFreeAsync, texture tiles, pinned host memory, and standard host memory.
+// device memory allocated with cuMallocAsync/cuFreeAsync, texture tiles, pinned host memory, and standard host memory.
 //
 template <class Allocator, class SubAllocator>
 class MemoryPool
@@ -62,38 +66,43 @@ class MemoryPool
         , m_allocationGranularity( allocationGranularity )
         , m_maxSize( maxSize ? maxSize : std::numeric_limits<uint64_t>::max() )
     {
-        const unsigned int MAX_DEVICES = 32;
-        m_eventPool.resize( MAX_DEVICES );
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     /// Constructor for when the suballocator has a default constructor
     MemoryPool( Allocator* allocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
         : MemoryPool( allocator, new SubAllocator(), allocationGranularity, maxSize )
     {
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     /// Constructor for when the allocator has a default constructor
     MemoryPool( SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
         : MemoryPool( new Allocator(), suballocator, allocationGranularity, maxSize )
     {
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     /// Constructor for when both the allocator and suballocator have default constructors
     MemoryPool( uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
         : MemoryPool( new Allocator(), new SubAllocator(), allocationGranularity, maxSize )
     {
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     /// Move constructor
     MemoryPool( MemoryPool&& p ) : MemoryPool( p.m_allocator, p.m_suballocator, p.m_allocationGranularity, p.m_maxSize )
     {
-       p.m_allocator = nullptr;
-       p.m_suballocator = nullptr;
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        p.m_allocator    = nullptr;
+        p.m_suballocator = nullptr;
     }
-    
+
     /// Destructor
     ~MemoryPool()
     {
+        DEMAND_CUDA_CHECK( cuCtxPushCurrent( m_context ) );
+
         std::unique_lock<std::mutex> lock( m_mutex );
 
         for( void* ptr : m_allocations )
@@ -103,21 +112,21 @@ class MemoryPool
 
         // Put all the events back in the event pool
         for( StagedBlock stagedBlock : m_stagedBlocks )
-            m_eventPool[stagedBlock.deviceIndex].push_back( stagedBlock.event );
+            freeEvent(stagedBlock);
         m_stagedBlocks.clear();
 
+#if 0 // XXX awaiting PerContextData::for_each
         // Destroy all the events
-        for( unsigned int deviceIndex = 0; deviceIndex < m_eventPool.size(); ++deviceIndex )
-        {
-            if( !m_eventPool[deviceIndex].empty() )
+        m_eventPool.for_each( [const std::vector<CUevent> & events]() {
+            for( CUevent event : events )
             {
-                DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( deviceIndex ) );
-                for( CUevent event : m_eventPool[deviceIndex] )
-                {
-                    DEMAND_CUDA_CHECK_NOTHROW( cudaEventDestroy( event ) );
-                }
+                DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) );
             }
-        }
+        } );
+#endif
+
+        CUcontext ignored;
+        DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
     }
 
     /// Tell the memory pool to track an address range, bypassing the allocator, which may be null
@@ -126,6 +135,8 @@ class MemoryPool
     /// Allocate a memory block with (at least) the given size and alignment. Returns BAD_ADDR on failure.
     MemoryBlockDesc alloc( uint64_t size = 0, uint64_t alignment = 1, CUstream stream = 0 )
     {
+        checkCudaContext( stream );
+
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( false );
         size = ( size ) ? size : m_allocationGranularity;
@@ -206,6 +217,8 @@ class MemoryPool
     /// Free block immediately on the specified stream.
     void free( const MemoryBlockDesc& block, CUstream stream = 0 )
     {
+        checkCudaContext( stream );
+
         std::unique_lock<std::mutex> lock( m_mutex );
         if( m_suballocator )
             m_suballocator->free( block );
@@ -239,41 +252,46 @@ class MemoryPool
     }
 
     /// Free block asynchronously, after operations currently in the stream have finished
-    void freeAsync( const MemoryBlockDesc& block, unsigned int deviceIndex, CUstream stream )
+    void freeAsync( const MemoryBlockDesc& block, CUstream stream )
     {
+        checkCudaContext( stream );
+
+        CUcontext context;
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( false );
-        m_stagedBlocks.push_back( StagedBlock{block, getEvent( deviceIndex ), deviceIndex} );
-        DEMAND_CUDA_CHECK( cudaEventRecord( m_stagedBlocks.back().event, stream ) );
+        m_stagedBlocks.push_back( StagedBlock{context, block, getEvent()} );
+        DEMAND_CUDA_CHECK( cuEventRecord( m_stagedBlocks.back().event, stream ) );
     }
 
     /// Async free of a single address slot (not compatible with RingSuballocator)
-    void freeItemAsync( uint64_t ptr, unsigned int deviceIndex, CUstream stream = 0 )
+    void freeItemAsync( uint64_t ptr, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{ptr,  m_suballocator->itemSize()}, deviceIndex, stream );
+        freeAsync( MemoryBlockDesc{ptr,  m_suballocator->itemSize()}, stream );
     }
 
     /// Async free an object (not compatible with RingSuballocator)
     template <typename TYPE>
-    void freeObjectAsync( TYPE* ptr, unsigned int deviceIndex, CUstream stream = 0 )
+    void freeObjectAsync( TYPE* ptr, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE )}, deviceIndex, stream );
+        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE )}, stream );
     }
 
     /// Free an array of objects (not compatible with RingSuballocator)
     template <typename TYPE>
-    void freeObjectsAsync( TYPE* ptr, uint64_t numObjects, unsigned int deviceIndex, CUstream stream = 0 )
+    void freeObjectsAsync( TYPE* ptr, uint64_t numObjects, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE )}, deviceIndex, stream );
+        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE )}, stream );
     }
 
 
     /// Async free of texture tiles
-    void freeTextureTilesAsync( const TileBlockDesc& tileBlock, unsigned int deviceIndex, CUstream stream = 0 )
+    void freeTextureTilesAsync( const TileBlockDesc& tileBlock, CUstream stream = 0 )
     {
         uint64_t ptr  = tileBlock.arenaId * getArenaSpacing() + tileBlock.tileId * TILE_SIZE_IN_BYTES;
         uint64_t size = tileBlock.numTiles * TILE_SIZE_IN_BYTES;
-        freeAsync( MemoryBlockDesc{ptr, size}, deviceIndex, stream );
+        freeAsync( MemoryBlockDesc{ptr, size}, stream );
     }
 
     /// Return the free space currently tracked in the pool
@@ -301,11 +319,12 @@ class MemoryPool
     // on a stream on any device before they are freed.
     struct StagedBlock
     {
+        CUcontext       context;
         MemoryBlockDesc block;
         CUevent         event;
-        unsigned int    deviceIndex;
     };
 
+    CUcontext          m_context;
     Allocator*         m_allocator;
     SubAllocator*      m_suballocator;
     std::vector<void*> m_allocations;
@@ -313,23 +332,39 @@ class MemoryPool
     uint64_t           m_maxSize;
     mutable std::mutex m_mutex;
 
-    std::deque<StagedBlock>           m_stagedBlocks;
-    std::vector<std::vector<CUevent>> m_eventPool;
+    std::deque<StagedBlock>              m_stagedBlocks;
+    PerContextData<std::vector<CUevent>> m_eventPool;
+
+    std::vector<CUevent>* getEventPool()
+    {
+        std::vector<CUevent>* events = m_eventPool.find();
+        if( events )
+            return events;
+#if 0  // XXX awaiting changes to PerContextData::insert
+        std::unique_ptr<std::vector<CUevent>> ptr( new std::vector<CUevent> );
+        return m_eventPool.insert( std::move( ptr ) );
+#else
+        m_eventPool.insert( std::vector<CUevent>() );
+        return m_eventPool.find();
+#endif
+    }
 
     // Get an event from the internal event pool
-    inline CUevent getEvent( unsigned int deviceIndex )
+    inline CUevent getEvent()
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-
-        if( m_eventPool[deviceIndex].empty() )
+        std::vector<CUevent>* events = getEventPool();
+        if( events->empty() )
         {
-            m_eventPool[deviceIndex].emplace_back();
-            DEMAND_CUDA_CHECK( cudaEventCreate( &m_eventPool[deviceIndex].back() ) );
+            CUevent event;
+            DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) );
+            return event;
         }
-        CUevent event = m_eventPool[deviceIndex].back();
-        m_eventPool[deviceIndex].pop_back();
-
-        return event;
+        else
+        {
+            CUevent event = events->back();
+            events->pop_back();
+            return event;
+        }
     }
 
     // Free blocks with events that have finished
@@ -337,10 +372,10 @@ class MemoryPool
     {
         while( !m_stagedBlocks.empty() )
         {
-            if( cudaEventQuery( m_stagedBlocks.front().event ) == cudaErrorNotReady )
+            if( cuEventQuery( m_stagedBlocks.front().event ) == CUDA_ERROR_NOT_READY )
             {
                 if( waitOnEvents )
-                    cudaEventSynchronize(  m_stagedBlocks.front().event );
+                    cuEventSynchronize(  m_stagedBlocks.front().event );
                 else 
                     break;
             }
@@ -350,9 +385,17 @@ class MemoryPool
             else
                 m_allocator->free( reinterpret_cast<void*>( m_stagedBlocks.front().block.ptr ) );
 
-            m_eventPool[m_stagedBlocks.front().deviceIndex].push_back( m_stagedBlocks.front().event );
+            freeEvent(m_stagedBlocks.front());
             m_stagedBlocks.pop_front();
         }
+    }
+
+    void freeEvent( const StagedBlock& stagedBlock )
+    {
+        DEMAND_CUDA_CHECK( cuCtxPushCurrent( stagedBlock.context ) );
+        getEventPool()->push_back( stagedBlock.event );
+        CUcontext ignored;
+        DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
     }
 
     // Get the spacing between arenas for handle-based allocations

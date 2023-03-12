@@ -253,7 +253,7 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
 
     // Free the current PageMappingsContext when the preceding operations on the stream are done.
-    m_pinnedMemoryPool->freeAsync( m_pageMappingsContextBlock, m_deviceIndex, stream);
+    m_pinnedMemoryPool->freeAsync( m_pageMappingsContextBlock, stream);
 
     // Allocate a new PageMappingsContext for the next pushMappings cycle.
     m_pageMappingsContextBlock =

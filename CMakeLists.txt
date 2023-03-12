@@ -98,6 +98,7 @@ add_library( DemandLoading
   src/TicketImpl.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
+  src/Util/CudaContext.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
@@ -175,6 +176,7 @@ source_group( "Header Files\\Implementation" FILES
   src/TicketImpl.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
+  src/Util/CudaContext.h
   src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h

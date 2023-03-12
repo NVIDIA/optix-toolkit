@@ -56,7 +56,7 @@ class DevicePaging
 
     DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
-        , m_deviceMemoryManager( m_deviceIndex, options )
+        , m_deviceMemoryManager( options )
         , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC ), PINNED_ALLOC, MAX_PINNED_MEM )
         , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryPool, requestProcessor )
     {
@@ -160,6 +160,7 @@ TEST_F( TestPagingSystem, TestNonResidentPage )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
         // Request a page that is not resident.
         std::vector<unsigned int>       pageIds{0};
         std::vector<unsigned long long> pages = device->requestPages( pageIds );
@@ -173,6 +174,8 @@ TEST_F( TestPagingSystem, TestResidentPage )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Map page 0 to an arbitrary value.
         device->m_paging.addMapping( 0, 0, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
@@ -190,6 +193,8 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Page table entries are allocated only for texture samplers, not tiles,
         // so page ids >= Options::numPageTableEntries are mapped to zero.
         const unsigned int pageId = m_options.numPageTableEntries + 1;

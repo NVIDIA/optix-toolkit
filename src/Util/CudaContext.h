@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,43 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+#pragma once
 
-#include "Memory/Allocators.h"
-#include "Memory/FixedSuballocator.h"
-#include "Memory/HeapSuballocator.h"
-#include "Memory/MemoryPool.h"
+#include "Util/Exception.h"
 
-#include "DeviceContextImpl.h"
+#include <cuda.h>
 
-#include <gtest/gtest.h>
+namespace demandLoading {
 
-using namespace demandLoading;
-
-class TestDeviceContextImpl : public testing::Test
+/// Verify that the current CUDA context matches the given context.
+inline void checkCudaContext( CUcontext expected )
 {
-  public:
-    const unsigned int m_deviceIndex = 0;
-    Options            m_options{};
-    TestDeviceContextImpl()
-    {
-        m_options.numPages          = 1025;
-        m_options.maxRequestedPages = 65;
-        m_options.maxFilledPages    = 63;
-        m_options.maxStalePages     = 33;
-        m_options.maxEvictablePages = 31;
-        m_options.maxEvictablePages = 17;
-        m_options.useLruTable       = true;
-    }
-
-    void SetUp() { cudaFree( nullptr ); }
-};
-
-TEST_F( TestDeviceContextImpl, TestConstructor )
-{
-    // Alignment is checked by assertions in the constructor.
-    MemoryPool<DeviceAllocator, HeapSuballocator> memPool( new DeviceAllocator(), nullptr );
-    DeviceContextImpl context{};
-
-    context.allocatePerDeviceData( &memPool, m_options );
-    context.allocatePerStreamData( &memPool, m_options );
+    CUcontext current;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &current ) );
+    DEMAND_ASSERT( current == expected );
 }
+
+/// Verify that the current CUDA context matches the context associated with the given stream.
+inline void checkCudaContext( CUstream stream )
+{
+    if( stream )
+    {
+        CUcontext context;
+        DEMAND_CUDA_CHECK( cuStreamGetCtx( stream, &context ) );
+        checkCudaContext( context );
+    }
+}
+
+} // namespace demandLoading

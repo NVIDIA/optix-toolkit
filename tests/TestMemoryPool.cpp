@@ -188,7 +188,7 @@ TEST_F( TestMemoryPool, RingSuballocatorFreeAsync )
     MemoryPool<HostAllocator, RingSuballocator> pool( allocator, suballocator, allocSize, maxSize );
     MemoryBlockDesc m = pool.alloc( 1024, 1 );
 
-    pool.freeAsync( m, deviceIndex, stream );
+    pool.freeAsync( m, stream );
 }
 
 TEST_F( TestMemoryPool, AllocFreeAsync )
@@ -215,7 +215,7 @@ TEST_F( TestMemoryPool, AllocFreeAsync )
         blocks.push_back( block );
         if( blocks.size() > 30 )
         {
-            pool.freeAsync( blocks.front(), deviceIndex, stream );
+            pool.freeAsync( blocks.front(), stream );
             blocks.pop_front();
         }
     }
@@ -225,10 +225,10 @@ TEST_F( TestMemoryPool, TextureTile )
 {
     const unsigned int deviceIndex = 0;
     DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-    TextureTileAllocator* allocator    = new TextureTileAllocator( deviceIndex );
-    HeapSuballocator*     suballocator = new HeapSuballocator();
+    TextureTileAllocator* allocator    = new TextureTileAllocator;
+    HeapSuballocator*     suballocator = new HeapSuballocator;
 
-    uint64_t allocationSize = TextureTileAllocator::getRecommendedAllocationSize( deviceIndex );
+    uint64_t allocationSize = TextureTileAllocator::getRecommendedAllocationSize();
     uint64_t maxSize        = 1 << 25;
 
     MemoryPool<TextureTileAllocator, HeapSuballocator> pool( allocator, suballocator, allocationSize, maxSize );

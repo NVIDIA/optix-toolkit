@@ -33,16 +33,13 @@ namespace demandLoading {
 
 static const unsigned int SAMPLER_POOL_ALLOC_SIZE = 65536;
 
-DeviceMemoryManager::DeviceMemoryManager( unsigned int deviceIndex, const Options& options )
-    : m_deviceIndex( deviceIndex )
-    , m_options( options )
-    , m_samplerPool( new DeviceAllocator( m_deviceIndex ),
-                     new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ),
-                     SAMPLER_POOL_ALLOC_SIZE )
-    , m_deviceContextMemory( new DeviceAllocator( m_deviceIndex ), nullptr )
-    , m_tilePool( new TextureTileAllocator( m_deviceIndex ),
+DeviceMemoryManager::DeviceMemoryManager( const Options& options )
+    : m_options( options )
+    , m_samplerPool( new DeviceAllocator(), new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ), SAMPLER_POOL_ALLOC_SIZE )
+    , m_deviceContextMemory( new DeviceAllocator(), nullptr )
+    , m_tilePool( new TextureTileAllocator(),
                   new HeapSuballocator(),
-                  TextureTileAllocator::getRecommendedAllocationSize( m_deviceIndex ),
+                  TextureTileAllocator::getRecommendedAllocationSize(),
                   m_options.maxTexMemPerDevice )
 {
 }

@@ -94,7 +94,7 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     for( unsigned int deviceIndex : m_pageLoader->getDevices() )
     {
 #if CUDA_VERSION >= 11020
-        DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator( deviceIndex );
+        DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator();
         m_deviceTransferPools.emplace_back( allocator, nullptr, 8 * (1<<20), 64 * (1<<20) );
 #else
         DeviceAllocator* allocator = new DeviceAllocator( deviceIndex );
@@ -416,9 +416,9 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
     // Free the transfer buffer after the stream clears
 
     if( transferBuffer.memoryType == CU_MEMORYTYPE_HOST )
-        m_pageLoader->getPinnedMemoryPool()->freeAsync( transferBuffer.memoryBlock, transferBuffer.deviceIndex, stream );
+        m_pageLoader->getPinnedMemoryPool()->freeAsync( transferBuffer.memoryBlock, stream );
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
-        m_deviceTransferPools[ transferBuffer.deviceIndex ].freeAsync( transferBuffer.memoryBlock, transferBuffer.deviceIndex, stream );
+        m_deviceTransferPools[ transferBuffer.deviceIndex ].freeAsync( transferBuffer.memoryBlock, stream );
     else 
         DEMAND_ASSERT_MSG( false, "Unknown memory type." );
 }

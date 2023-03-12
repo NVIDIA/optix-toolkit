@@ -41,7 +41,7 @@ class TestPagingSystemKernels : public testing::Test
 {
   public:
     TestPagingSystemKernels() {}
-    
+
     void SetUp() override
     {
         // Initialize CUDA.
@@ -58,7 +58,7 @@ class TestPagingSystemKernels : public testing::Test
         m_options.useLruTable       = true;
 
         // Allocate and initialize device context.
-        m_deviceMemoryManager = new DeviceMemoryManager( m_deviceIndex, m_options );
+        m_deviceMemoryManager = new DeviceMemoryManager( m_options );
         m_context = m_deviceMemoryManager->allocateDeviceContext();
     }
 

@@ -46,7 +46,7 @@ namespace demandLoading {
 class DeviceMemoryManager
 {
   public:
-    DeviceMemoryManager( unsigned int deviceIndex, const Options& options );
+    DeviceMemoryManager( const Options& options );
     ~DeviceMemoryManager();
 
     /// Allocate a DeviceContext for this device.
@@ -85,7 +85,6 @@ class DeviceMemoryManager
     void accumulateStatistics( DeviceStatistics& stats ) { stats.memoryUsed += getTotalDeviceMemory(); }
 
   private:
-    unsigned int m_deviceIndex;
     Options      m_options;
 
     MemoryPool<DeviceAllocator, FixedSuballocator>     m_samplerPool;

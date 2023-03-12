@@ -131,12 +131,12 @@ class TestSparseTextureWrap : public testing::Test
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
 
-        m_tilePool.reset(                                                             //
-            new MemoryPool<TextureTileAllocator, HeapSuballocator>(                   //
-                new TextureTileAllocator( m_deviceIndex ),                            // allocator
-                new HeapSuballocator(),                                               // suballocator
-                TextureTileAllocator::getRecommendedAllocationSize( m_deviceIndex ),  // allocation granularity
-                m_options.maxTexMemPerDevice                                          // max size
+        m_tilePool.reset(                                              //
+            new MemoryPool<TextureTileAllocator, HeapSuballocator>(    //
+                new TextureTileAllocator(),                            // allocator
+                new HeapSuballocator(),                                // suballocator
+                TextureTileAllocator::getRecommendedAllocationSize(),  // allocation granularity
+                m_options.maxTexMemPerDevice                           // max size
                 ) );
     }
 
