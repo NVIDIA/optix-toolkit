@@ -40,6 +40,7 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
+#include "Util/PerContextData.h"
 #include "Util/TraceFile.h"
 
 #include <cuda.h>
@@ -116,7 +117,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     void setMaxTextureMemory( size_t maxMem );
 
-    void invalidatePageRange( unsigned int deviceIndex, unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate );
+    void invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate );
 
     double getTotalProcessingTime() const { return m_totalProcessingTime; }
 
@@ -129,8 +130,8 @@ class DemandPageLoaderImpl : public DemandPageLoader
     unsigned int              m_numDevices;
     std::vector<unsigned int> m_devices;  // Indices of supported devices.
 
-    mutable std::map<CUcontext, std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
-    mutable std::map<CUcontext, std::unique_ptr<PagingSystem>> m_pagingSystems;  // Manages device interaction (one per CUDA context)
+    mutable PerContextData<DeviceMemoryManager> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
+    mutable PerContextData<PagingSystem>        m_pagingSystems;  // Manages device interaction (one per CUDA context)
 
     mutable std::mutex m_deviceMemoryManagersMutex;
     mutable std::mutex m_pagingSystemsMutex;
@@ -141,7 +142,8 @@ class DemandPageLoaderImpl : public DemandPageLoader
         unsigned int endPage;
         PageInvalidatorPredicate* predicate;
     };
-    std::vector<std::vector<InvalidationRange>> m_pagesToInvalidate;
+    PerContextData<std::vector<InvalidationRange>> m_pagesToInvalidate;
+    std::mutex m_pagesToInvalidateMutex;
 
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
@@ -152,8 +154,10 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     std::vector<std::unique_ptr<RequestHandler>> m_requestHandlers;
 
-    // Invalidate the pages for this device in m_pagesToInvalidate
-    void invalidatePages( unsigned int deviceIndex, CUstream stream, DeviceContext& context );
+    // Invalidate the pages for current device in m_pagesToInvalidate
+    void invalidatePages( CUstream stream, DeviceContext& context );
+
+    std::vector<InvalidationRange>* getPagesToInvalidate();
 };
 
 }  // namespace demandLoading

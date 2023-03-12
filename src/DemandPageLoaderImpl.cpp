@@ -109,7 +109,6 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
                                             const Options&                    options )
     : m_options( configure( options ) )
     , m_numDevices( getCudaDeviceCount() )
-    , m_pagesToInvalidate( m_numDevices )
     , m_pageTableManager( std::move( pageTableManager ) )
     , m_requestProcessor( requestProcessor )
     , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC_SIZE ), PINNED_ALLOC_SIZE, options.maxPinnedMemory )
@@ -137,19 +136,11 @@ DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
 
-    // Get current CUDA context.
-    CUcontext context;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-
-    // Return existing device memory manager for the current CUDA context, if any.
-    auto it = m_deviceMemoryManagers.find( context );
-    if( it != m_deviceMemoryManagers.end() )
-        return it->second.get();
-
-    // Construct new device memory manager for this context.
-    DeviceMemoryManager* manager = new DeviceMemoryManager( m_options );
-    m_deviceMemoryManagers[context].reset( manager );
-    return manager;
+    DeviceMemoryManager* manager = m_deviceMemoryManagers.find();
+    if( manager )
+        return manager;
+    std::unique_ptr<DeviceMemoryManager> ptr(new DeviceMemoryManager( m_options ) );
+    return m_deviceMemoryManagers.insert( std::move( ptr ) );
 }
 
 PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
@@ -157,20 +148,23 @@ PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
 
-    // Get current CUDA context.
-    CUcontext context;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+    PagingSystem* pagingSystem = m_pagingSystems.find();
+    if (pagingSystem)
+        return pagingSystem;
+    std::unique_ptr<PagingSystem> ptr( new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor ) );
+    return m_pagingSystems.insert( std::move( ptr ) );
+}
 
-    // Return existing paging system for the current CUDA context, if any.
-    auto it = m_pagingSystems.find( context );
-    if( it != m_pagingSystems.end() )
-        return it->second.get();
+std::vector<DemandPageLoaderImpl::InvalidationRange>* DemandPageLoaderImpl::getPagesToInvalidate()
+{
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_pagesToInvalidateMutex );
 
-    // Construct new paging system for this context.
-    PagingSystem* pagingSystem = new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor );
-
-    m_pagingSystems[context].reset( pagingSystem );
-    return pagingSystem;
+    std::vector<InvalidationRange>* pagesToInvalidate = m_pagesToInvalidate.find();
+    if (pagesToInvalidate)
+        return pagesToInvalidate;
+    std::unique_ptr<std::vector<InvalidationRange>> ptr( new std::vector<InvalidationRange>);
+    return m_pagesToInvalidate.insert( std::move( ptr ) );
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
@@ -225,7 +219,7 @@ bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context
         // allocate() is not thread safe
         std::unique_lock<std::mutex> lock( m_mutex );
         context = *getDeviceMemoryManager()->allocateDeviceContext();
-        invalidatePages( deviceIndex, stream, context );
+        invalidatePages( stream, context );
     }
     context.requestIfResident = m_options.evictionActive;
 
@@ -233,16 +227,18 @@ bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context
     return true;
 }
 
-void DemandPageLoaderImpl::invalidatePages( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+void DemandPageLoaderImpl::invalidatePages( CUstream stream, DeviceContext& context )
 {
-    // Mutex acquired in caller
+    checkCudaContext( stream );
 
-    for( InvalidationRange& ir : m_pagesToInvalidate[deviceIndex] )
+    // Mutex acquired in caller
+    std::vector<InvalidationRange>* pagesToInvalidate = getPagesToInvalidate();
+    for( InvalidationRange& ir : *pagesToInvalidate )
     {
         getPagingSystem()->invalidatePages( ir.startPage, ir.endPage, ir.predicate, context, stream );
         delete ir.predicate;
     }
-    m_pagesToInvalidate[deviceIndex].clear();
+    pagesToInvalidate->clear();
 }
 
 
@@ -302,46 +298,35 @@ class ResizeTilePoolPredicate : public PageInvalidatorPredicate
 void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    for( unsigned int deviceIndex = 0; deviceIndex < m_deviceMemoryManagers.size(); ++deviceIndex )
-    {
+    m_deviceMemoryManagers.for_each( [this, maxMem]( DeviceMemoryManager& manager ) {
         unsigned int tilesStartPage = m_options.numPageTableEntries;
         unsigned int tilesEndPage   = m_options.numPages;
-        size_t maxArenas            = maxMem / m_deviceMemoryManagers[0]->getTilePoolArenaSize();
+        size_t       maxArenas      = maxMem / manager.getTilePoolArenaSize();
 
         // Resize, deleting tile arenas as needed
-        getDeviceMemoryManager()->setMaxTextureTileMemory( maxMem );
+        manager.setMaxTextureTileMemory( maxMem );
 
         // Schedule tiles from deleted arenas to be discarded
         ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
-        m_pagesToInvalidate[deviceIndex].push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
-    }
+        getPagesToInvalidate()->push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
+    } );
     m_options.maxTexMemPerDevice = maxMem;
 }
 
-void DemandPageLoaderImpl::invalidatePageRange( unsigned int deviceIndex, unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate )
+void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate )
 {
-    m_pagesToInvalidate[deviceIndex].push_back( InvalidationRange{startPage, endPage, predicate} );
+    getPagesToInvalidate()->push_back( InvalidationRange{startPage, endPage, predicate} );
 }
 
 void DemandPageLoaderImpl::accumulateStatistics( Statistics& stats ) const
 {
-    // Save current CUDA context.
-    CUcontext context;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-
-    for( auto& it : m_deviceMemoryManagers )
-    {
-        DEMAND_CUDA_CHECK( cuCtxSetCurrent( it.first ) );
+    m_deviceMemoryManagers.for_each( [&stats]( const DeviceMemoryManager& manager ) {
         CUdevice device;
         DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
         unsigned int deviceIndex = static_cast<unsigned int>( device );
-        it.second->accumulateStatistics( stats.perDevice[deviceIndex] );
-    }
-
-    // Restore CUDA context.
-    DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+        manager.accumulateStatistics( stats.perDevice[deviceIndex] );
+    } );
 }
-
 
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )
 {

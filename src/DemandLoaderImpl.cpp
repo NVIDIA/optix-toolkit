@@ -227,11 +227,11 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
         {
             // Unload texture tiles
             TilePoolReturnPredicate* predicate = new TilePoolReturnPredicate( getDeviceMemoryManager() );
-            m_pageLoader->invalidatePageRange( deviceIndex, startPage, endPage, predicate );
+            m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
 
             // Unload base color
             unsigned int baseColorId = textureId + BASE_COLOR_OFFSET;
-            m_pageLoader->invalidatePageRange( deviceIndex, baseColorId, baseColorId + 1, nullptr );
+            m_pageLoader->invalidatePageRange( baseColorId, baseColorId + 1, nullptr );
         }
     }
 }
@@ -248,7 +248,7 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
         for( unsigned int deviceIndex : m_pageLoader->getDevices() )
         {
             TextureSamplerReturnPredicate* predicate = new TextureSamplerReturnPredicate( getDeviceMemoryManager() );
-            m_pageLoader->invalidatePageRange( deviceIndex, textureId, textureId + 1, predicate );
+            m_pageLoader->invalidatePageRange( textureId, textureId + 1, predicate );
         } 
     }
 
