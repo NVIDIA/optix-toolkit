@@ -241,7 +241,7 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
 
     // Free the current PageMappingsContext (it's not reused until the preceding operations on the stream are done)
     // and allocate another one.  Note that we're careful to reserve two contexts per stream in the PinnedMemoryManager.
-    m_pinnedMemoryManager->getPageMappingsContextPool()->free( m_pageMappingsContext, m_deviceIndex, stream );
+    m_pinnedMemoryManager->getPageMappingsContextPool()->free( m_pageMappingsContext, stream );
     m_pageMappingsContext = m_pinnedMemoryManager->getPageMappingsContextPool()->allocate();
     m_pageMappingsContext->clear();
 

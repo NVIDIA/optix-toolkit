@@ -153,7 +153,7 @@ TEST_F( TestSparseTextureWrap, Test )
     ASSERT_TRUE( tileBuffer.size() <= sizeof(TileBuffer) );
 
     const unsigned int  mipLevel = 0;
-    TilePool            tilePool( deviceIndex, TEX_MEM_PER_DEVICE );
+    TilePool            tilePool( TEX_MEM_PER_DEVICE );
     std::vector<float4> colors( getColors() );
 
     // Fill all the tiles on the finest miplevel.
@@ -232,7 +232,7 @@ void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mip
     std::vector<float4> tileBuffer( tileWidth * tileHeight );
     ASSERT_TRUE( tileBuffer.size() <= sizeof( TileBuffer ) );
 
-    TilePool            tilePool( deviceIndex, TEX_MEM_PER_DEVICE );
+    TilePool            tilePool( TEX_MEM_PER_DEVICE );
     std::vector<float4> colors( getColors() );
 
     // Fill all the tiles on the specified miplevel.

@@ -54,10 +54,10 @@ class DevicePaging
 
     DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
-        , m_deviceMemoryManager( m_deviceIndex, options )
+        , m_deviceMemoryManager( options )
         , m_pinnedMemoryManager( options )
         , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryManager, requestProcessor )
-        , m_contextPool( deviceIndex, options )
+        , m_contextPool( options )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );

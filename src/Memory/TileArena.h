@@ -38,22 +38,20 @@ class TileArena
 {
   public:
     /// Get the arena size recommended by CUDA.  Typically this gives 32 tiles per arena.
-    static size_t getRecommendedSize( unsigned int deviceIndex )
+    static size_t getRecommendedSize()
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
         size_t              size;
-        CUmemAllocationProp prop( makeAllocationProp( deviceIndex ) );
+        CUmemAllocationProp prop( makeAllocationProp() );
         DEMAND_CUDA_CHECK( cuMemGetAllocationGranularity( &size, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED ) );
         return size;
     }
 
-    /// Create tile arena of the specified size for the specified device.
-    static TileArena create( unsigned int deviceIndex, size_t capacity ) { return TileArena().init( deviceIndex, capacity ); }
+    /// Create tile arena of the specified size.
+    static TileArena create( size_t capacity ) { return TileArena().init( capacity ); }
 
     /// Destroy the arena, reclaiming its memory.
     void destroy()
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cuMemRelease( m_handle ) );
     }
 
@@ -78,28 +76,29 @@ class TileArena
     size_t capacity() const { return m_capacity; }
 
   private:
-    unsigned int                 m_deviceIndex = 0;
     CUmemGenericAllocationHandle m_handle{};
     size_t                       m_size     = 0;
     size_t                       m_capacity = 0;
 
     // Construct allocation properties.
-    static CUmemAllocationProp makeAllocationProp( unsigned int deviceIndex )
+    static CUmemAllocationProp makeAllocationProp()
     {
+        // Get the current device index.
+        CUdevice device;
+        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+
         CUmemAllocationProp prop{};
         prop.type             = CU_MEM_ALLOCATION_TYPE_PINNED;
-        prop.location         = {CU_MEM_LOCATION_TYPE_DEVICE, static_cast<int>( deviceIndex )};
+        prop.location         = {CU_MEM_LOCATION_TYPE_DEVICE, static_cast<int>( device )};
         prop.allocFlags.usage = CU_MEM_CREATE_USAGE_TILE_POOL;
         return prop;
     }
 
-    TileArena& init( unsigned int deviceIndex, size_t capacity )
+    TileArena& init( size_t capacity )
     {
-        m_deviceIndex = deviceIndex;
         m_capacity = capacity;
 
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        CUmemAllocationProp prop( makeAllocationProp( m_deviceIndex ) );
+        CUmemAllocationProp prop( makeAllocationProp() );
 
         DEMAND_CUDA_CHECK( cuMemCreate( &m_handle, m_capacity, &prop, 0 ) );
         return *this;

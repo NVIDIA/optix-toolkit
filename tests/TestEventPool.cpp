@@ -54,14 +54,14 @@ TEST_F( TestEventPool, TestEmpty )
 
 TEST_F( TestEventPool, TestUnusedCapacity )
 {
-    EventPool pool( m_deviceIndex, 1 );
+    EventPool pool( 1 );
     EXPECT_EQ( 0U, pool.size() );
     EXPECT_EQ( 1U, pool.capacity() );
 }
 
 TEST_F( TestEventPool, TestWithinCapacity )
 {
-    EventPool pool( m_deviceIndex, 1 );
+    EventPool pool( 1 );
     CUevent   event = pool.allocate();
     EXPECT_EQ( 1U, pool.size() );
     EXPECT_EQ( 1U, pool.capacity() );

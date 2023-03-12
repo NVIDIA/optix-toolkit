@@ -40,11 +40,10 @@ class SamplerPool : public ItemPool<TextureSampler, DeviceAllocator>
 {
   public:
     /// Construct sampler pool for the specified device.
-    explicit SamplerPool( unsigned int deviceIndex )
-        : ItemPool<TextureSampler, DeviceAllocator>( DeviceAllocator( deviceIndex ) )
+    SamplerPool()
+        : ItemPool<TextureSampler, DeviceAllocator>( DeviceAllocator() )
     {
     }
-
 
     /// Returns the amount of device memory allocated.
     size_t getTotalDeviceMemory() const { return capacity() * sizeof( TextureSampler ); }

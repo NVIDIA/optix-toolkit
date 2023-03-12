@@ -42,11 +42,10 @@ class DemandLoaderImpl;
 class DeviceMemoryManager
 {
   public:
-    DeviceMemoryManager( unsigned int deviceIndex, const Options& options )
-        : m_deviceIndex( deviceIndex )
-        , m_deviceContextPool( m_deviceIndex, options )
-        , m_samplerPool( m_deviceIndex )
-        , m_tilePool( m_deviceIndex, options.maxTexMemPerDevice )
+    DeviceMemoryManager( const Options& options )
+        : m_deviceContextPool( options )
+        , m_samplerPool()
+        , m_tilePool( options.maxTexMemPerDevice )
     {
     }
 
@@ -68,7 +67,6 @@ class DeviceMemoryManager
     void accumulateStatistics( DeviceStatistics& stats ) { stats.memoryUsed += getTotalDeviceMemory(); }
 
   private:
-    unsigned int      m_deviceIndex;
     DemandLoaderImpl* m_loader;
     DeviceContextPool m_deviceContextPool;
     SamplerPool       m_samplerPool;

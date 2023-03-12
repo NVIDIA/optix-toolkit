@@ -248,12 +248,12 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
         if( transferBuffer.size <= sizeof(TileBuffer) )
         {
             PinnedItemPool<TileBuffer>* pinnedTilePool = m_pinnedMemoryManager.getPinnedTilePool();
-            pinnedTilePool->free( reinterpret_cast<TileBuffer*>( transferBuffer.buffer ), transferBuffer.deviceIndex, stream );
+            pinnedTilePool->free( reinterpret_cast<TileBuffer*>( transferBuffer.buffer ), stream );
         }
         else if( transferBuffer.size <= sizeof( MipTailBuffer ) )
         {
             PinnedItemPool<MipTailBuffer>* pinnedMipTailPool = m_pinnedMemoryManager.getPinnedMipTailPool();
-            pinnedMipTailPool->free( reinterpret_cast<MipTailBuffer*>( transferBuffer.buffer ), transferBuffer.deviceIndex, stream );
+            pinnedMipTailPool->free( reinterpret_cast<MipTailBuffer*>( transferBuffer.buffer ), stream );
         }
     }
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )

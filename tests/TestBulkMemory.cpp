@@ -45,7 +45,7 @@ class TestBulkMemory : public testing::Test
 TEST_F( TestBulkMemory, TestAlignment )
 {
     const unsigned int deviceIndex = 0;
-    BulkDeviceMemory   memory( deviceIndex );
+    BulkDeviceMemory   memory;
     memory.reserveBytes( 1, 1 );
     memory.reserveBytes( 2, 2 );
     memory.reserveBytes( 4, 4 );

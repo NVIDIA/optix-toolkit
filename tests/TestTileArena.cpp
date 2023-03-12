@@ -38,8 +38,8 @@ class TestTileArena : public testing::Test
   public:
     void SetUp() override
     {
-        size_t arenaSize = TileArena::getRecommendedSize( m_deviceIndex );
-        m_arena          = TileArena::create( m_deviceIndex, arenaSize );
+        size_t arenaSize = TileArena::getRecommendedSize();
+        m_arena          = TileArena::create( arenaSize );
     }
 
     void TearDown() override { m_arena.destroy(); }

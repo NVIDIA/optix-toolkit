@@ -95,7 +95,7 @@ TEST_F( TestBulkPinnedItemPool, TestAllocateAndFree )
     Item*    item = pool.allocate();
     EXPECT_EQ( 1U, pool.size() );
 
-    pool.free( item, m_deviceIndex, m_stream );
+    pool.free( item, m_stream );
     EXPECT_EQ( 0U, pool.size() );
 
     pool.shutDown();
@@ -107,7 +107,7 @@ TEST_F( TestBulkPinnedItemPool, TestWaitSingleThreaded )
     Item*    item = pool.allocate();
     EXPECT_EQ( 1U, pool.size() );
 
-    pool.free( item, m_deviceIndex, m_stream );
+    pool.free( item, m_stream );
     EXPECT_EQ( 0U, pool.size() );
 
     // There are no opertions on the stream, so allocation should not block.
@@ -126,8 +126,12 @@ TEST_F( TestBulkPinnedItemPool, TestWaitMultiThreaded )
     // Subsequent allocation in a separate thread will block until the item is freed.
     std::atomic<bool> finished( false );
     std::thread       waiter( [this, &pool, &finished] {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
         Item* item = pool.allocate();
-        pool.free( item, m_deviceIndex, m_stream2 );
+        pool.free( item, m_stream2 );
         finished = true;
     } );
 
@@ -136,7 +140,7 @@ TEST_F( TestBulkPinnedItemPool, TestWaitMultiThreaded )
     std::this_thread::sleep_for( msec( 100 ) );
 
     // Free the item and busy-wait until the waiter is finished.
-    pool.free( item, m_deviceIndex, m_stream );
+    pool.free( item, m_stream );
     while( !finished.load() )
     {
         std::this_thread::sleep_for( msec( 10 ) );

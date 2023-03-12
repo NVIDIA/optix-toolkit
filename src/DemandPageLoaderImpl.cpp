@@ -124,7 +124,7 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
     for( unsigned int deviceIndex : m_devices )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-        m_deviceMemoryManagers[deviceIndex].reset( new DeviceMemoryManager( deviceIndex, m_options ) );
+        m_deviceMemoryManagers[deviceIndex].reset( new DeviceMemoryManager( m_options ) );
         m_pagingSystems[deviceIndex].reset( new PagingSystem(
             deviceIndex, m_options, m_deviceMemoryManagers[deviceIndex].get(), &m_pinnedMemoryManager, m_requestProcessor ) );
     }

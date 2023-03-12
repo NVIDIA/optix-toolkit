@@ -41,7 +41,7 @@ class TestPagingSystemKernels : public testing::Test
 {
   public:
     TestPagingSystemKernels()
-        : m_contextMemory( m_deviceIndex )
+        : m_contextMemory()
     {
     }
 
@@ -61,7 +61,7 @@ class TestPagingSystemKernels : public testing::Test
         m_options.useLruTable       = true;
 
         // Allocate and initialize device context.
-        m_contextPool.reset( new DeviceContextPool( m_deviceIndex, m_options ) );
+        m_contextPool.reset( new DeviceContextPool( m_options ) );
         m_context = m_contextPool->allocate();
     }
 

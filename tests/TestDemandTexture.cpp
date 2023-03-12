@@ -117,7 +117,7 @@ TEST_F( TestDemandTexture, TestFillTile )
     initTexture(256, 256);
 
     // Read and fill the corner tiles, leaving the others non-resident.
-    TilePool tilePool( m_deviceIndex, TEX_MEM_PER_DEVICE );
+    TilePool tilePool( TEX_MEM_PER_DEVICE );
     unsigned int      mipLevel      = 0;
     uint2             tileCoords[4] = {{0, 0}, {0, 3}, {3, 0}, {3, 3}};
     TileBuffer        tileBuffer;
@@ -215,7 +215,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
     EXPECT_NO_THROW( m_texture->readMipTail( buffer->data, sizeof( MipTailBuffer ), CUstream{} ) );
 
     // Map the backing storage and fill it.
-    TilePool tilePool( m_deviceIndex, TEX_MEM_PER_DEVICE );
+    TilePool tilePool( TEX_MEM_PER_DEVICE );
     TileBlockDesc                tileBlock = tilePool.allocate( sizeof( MipTailBuffer ) );
     CUmemGenericAllocationHandle handle;
     size_t                       offset;
@@ -370,7 +370,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
     initTexture(256, 256, false, true);
 
     // Read and fill the corner tiles, leaving the others non-resident.
-    TilePool tilePool( m_deviceIndex, TEX_MEM_PER_DEVICE );
+    TilePool tilePool( TEX_MEM_PER_DEVICE );
     unsigned int      mipLevel      = 0;
     uint2             tileCoords[4] = {{0, 0}, {0, 3}, {3, 0}, {3, 3}};
     TileBuffer        tileBuffer;

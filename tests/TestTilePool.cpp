@@ -69,13 +69,18 @@ class TileFiller
   public:
     TileFiller( const Options& options, unsigned int deviceIndex )
         : m_deviceIndex( 0 )
-        , m_pool( m_deviceIndex, options.maxTexMemPerDevice )
+        , m_pool( options.maxTexMemPerDevice )
         , m_pinnedTiles( options.maxPinnedMemory / sizeof( TileBuffer ) )
     {
     }
 
     void fillTile( const TileRequest& request )
     {
+        // Use the CUDA context associated with the stream in the request.
+        CUcontext context;
+        DEMAND_CUDA_CHECK( cuStreamGetCtx( request.stream, &context ) );
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+
         // Allocate device memory from the TilePool.
         TileBlockDesc tileLocator = m_pool.allocate( sizeof( TileBuffer ) );
         ASSERT_TRUE( tileLocator.isValid() );
@@ -102,7 +107,7 @@ class TileFiller
         }
 
         // Free the pinned memory.
-        m_pinnedTiles.free( pinnedTile, m_deviceIndex, request.stream );
+        m_pinnedTiles.free( pinnedTile, request.stream );
     }
 
     int getNumErrors() const { return m_numErrors; }
@@ -326,6 +331,9 @@ class RequestProcessor
 
     void worker()
     {
+        // Initialize CUDA for this thread.
+        cudaFree( nullptr );
+
         TileRequest request;
         while( true )
         {

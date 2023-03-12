@@ -41,16 +41,18 @@ class EventPool
 {
   public:
     /// Construct an event pool, reserving storage for the specified number of events.
-    EventPool( unsigned int deviceIndex, size_t count = 0 )
-        : m_deviceIndex( deviceIndex )
+    EventPool( size_t count = 0 )
     {
         m_events.reserve( count );
+
+        // Record the current CUDA context.
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     /// Destroy the event pool.
     ~EventPool()
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
         for( CUevent event : m_events )
         {
             DEMAND_CUDA_CHECK( cuEventDestroy( event ) );
@@ -60,6 +62,11 @@ class EventPool
     /// Allocate an event.  Not thread safe.
     CUevent allocate()
     {
+        // The current CUDA context must match the context that was current when creating the event pool.
+        CUcontext context;
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+        DEMAND_ASSERT( context == m_context );
+
         // Return an event from the free list if possible.
         if( !m_freeList.empty() )
         {
@@ -69,7 +76,6 @@ class EventPool
         }
 
         // Allocate a new event.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         CUevent event;
         DEMAND_CUDA_CHECK( cuEventCreate( &event, 0U ) );
         m_events.push_back( event );
@@ -86,7 +92,7 @@ class EventPool
     size_t capacity() const { return m_events.capacity(); }
 
   private:
-    unsigned int         m_deviceIndex;
+    CUcontext            m_context;
     std::vector<CUevent> m_events;
     std::vector<CUevent> m_freeList;
 };

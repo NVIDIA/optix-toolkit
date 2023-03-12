@@ -30,8 +30,6 @@
 
 #include "Util/Exception.h"
 
-#include <cuda_runtime.h>
-
 #include <cstring>
 
 namespace demandLoading {
@@ -40,15 +38,15 @@ namespace demandLoading {
 class DeviceAllocator
 {
   public:
-    DeviceAllocator( unsigned int deviceIndex )
-        : m_deviceIndex( deviceIndex )
+    DeviceAllocator()
     {
+        // Record current CUDA context.
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     void* allocate( size_t numBytes )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-
+        checkContext();
         void* result;
         DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
         return result;
@@ -56,18 +54,27 @@ class DeviceAllocator
 
     void free( void* data )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        checkContext();
         DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( data ) ) );
     }
 
     void setToZero( void* data, size_t numBytes )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        checkContext();
         DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( data ), 0, numBytes ) );
     }
 
   private:
-    unsigned int m_deviceIndex;
+    CUcontext m_context;
+
+    void checkContext()
+    {
+        // The current CUDA context must match the one that was current when
+        // the allocator was constructed.
+        CUcontext context;
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+        DEMAND_ASSERT( context == m_context );
+    }
 };
 
 

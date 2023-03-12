@@ -54,7 +54,7 @@ class TestDeviceContextImpl : public testing::Test
 TEST_F( TestDeviceContextImpl, TestConstructor )
 {
     // Alignment is checked by assertions in the constructor.
-    BulkDeviceMemory  memory( m_deviceIndex );
+    BulkDeviceMemory  memory;
     DeviceContextImpl context{};
 
     context.reservePerDeviceData( &memory, m_options );

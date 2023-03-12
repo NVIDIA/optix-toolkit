@@ -134,8 +134,8 @@ class BulkMemory
 class BulkDeviceMemory : public BulkMemory<DeviceAllocator>
 {
   public:
-    BulkDeviceMemory( unsigned int deviceIndex )
-        : BulkMemory<DeviceAllocator>( DeviceAllocator( deviceIndex ) )
+    BulkDeviceMemory()
+        : BulkMemory<DeviceAllocator>( DeviceAllocator() )
     {
     }
 };

@@ -107,7 +107,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
     // the stream, and the buffer isn't reused until all preceding operations are complete,
     // including the asynchronous memcpy issued by fillTile().
-    pinnedSamplerPool->free( pinnedSampler, deviceIndex, stream );
+    pinnedSamplerPool->free( pinnedSampler, stream );
 
     // Push mapping for sampler to update page table.
     m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
