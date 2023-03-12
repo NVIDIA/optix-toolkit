@@ -39,6 +39,7 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
+#include "Util/PerContextData.h"
 
 #include <cuda.h>
 
@@ -121,8 +122,8 @@ class DemandPageLoaderImpl : public DemandPageLoader
     unsigned int              m_numDevices;
     std::vector<unsigned int> m_devices;  // Indices of supported devices.
 
-    mutable std::map<CUcontext, std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
-    mutable std::map<CUcontext, std::unique_ptr<PagingSystem>> m_pagingSystems;  // Manages device interaction (one per CUDA context)
+    mutable PerContextData<DeviceMemoryManager> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
+    mutable PerContextData<PagingSystem>        m_pagingSystems;  // Manages device interaction (one per CUDA context)
 
     mutable std::mutex m_deviceMemoryManagersMutex;
     mutable std::mutex m_pagingSystemsMutex;

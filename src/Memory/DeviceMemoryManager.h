@@ -64,7 +64,7 @@ class DeviceMemoryManager
         return m_deviceContextPool.getTotalDeviceMemory() + m_samplerPool.getTotalDeviceMemory() + m_tilePool.getTotalDeviceMemory();
     }
 
-    void accumulateStatistics( DeviceStatistics& stats ) { stats.memoryUsed += getTotalDeviceMemory(); }
+    void accumulateStatistics( DeviceStatistics& stats ) const { stats.memoryUsed += getTotalDeviceMemory(); }
 
   private:
     DemandLoaderImpl* m_loader;

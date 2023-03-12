@@ -124,19 +124,11 @@ DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
 
-    // Get current CUDA context.
-    CUcontext context;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-
-    // Return existing device memory manager for the current CUDA context, if any.
-    auto it = m_deviceMemoryManagers.find( context );
-    if( it != m_deviceMemoryManagers.end() )
-        return it->second.get();
-
-    // Construct new device memory manager for this context.
-    DeviceMemoryManager* manager = new DeviceMemoryManager( m_options );
-    m_deviceMemoryManagers[context].reset( manager );
-    return manager;
+    DeviceMemoryManager* manager = m_deviceMemoryManagers.find();
+    if( manager )
+        return manager;
+    std::unique_ptr<DeviceMemoryManager> ptr(new DeviceMemoryManager( m_options ) );
+    return m_deviceMemoryManagers.insert( std::move( ptr ) );
 }
 
 PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
@@ -144,22 +136,13 @@ PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
 
-    // Get current CUDA context.
-    CUcontext context;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-
-    // Return existing paging system for the current CUDA context, if any.
-    auto it = m_pagingSystems.find( context );
-    if( it != m_pagingSystems.end() )
-        return it->second.get();
-
-    // Construct new paging system for this context.
-    PagingSystem* pagingSystem =
-        new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryManager, m_requestProcessor );
-    m_pagingSystems[context].reset( pagingSystem );
-    return pagingSystem;
+    PagingSystem* pagingSystem = m_pagingSystems.find();
+    if (pagingSystem)
+        return pagingSystem;
+    std::unique_ptr<PagingSystem> ptr(
+        new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryManager, m_requestProcessor ) );
+    return m_pagingSystems.insert( std::move( ptr ) );
 }
-
 
 unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* context )
 {
@@ -264,23 +247,13 @@ Ticket DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int* requ
 
 void DemandPageLoaderImpl::accumulateStatistics( Statistics& stats ) const
 {
-    // Save current CUDA context.
-    CUcontext context;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-
-    for( auto& it : m_deviceMemoryManagers )
-    {
-        DEMAND_CUDA_CHECK( cuCtxSetCurrent( it.first ) );
+    m_deviceMemoryManagers.for_each( [&stats]( const DeviceMemoryManager& manager ) {
         CUdevice device;
         DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
         unsigned int deviceIndex = static_cast<unsigned int>( device );
-        it.second->accumulateStatistics( stats.perDevice[deviceIndex] );
-    }
-
-    // Restore CUDA context.
-    DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+        manager.accumulateStatistics( stats.perDevice[deviceIndex] );
+    } );
 }
-
 
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )
 {

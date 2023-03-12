@@ -71,7 +71,7 @@ class PerContextData
     void for_each( Functor functor ) const
     {
         ContextSaver contextSaver;
-        for( typename MapType::const_iterator it : m_map )
+        for( auto& it : m_map )
         {
             DEMAND_CUDA_CHECK( cuCtxSetCurrent( it.first ) );
             functor( *it.second );
