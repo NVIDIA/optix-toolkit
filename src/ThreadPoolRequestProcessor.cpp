@@ -112,8 +112,13 @@ void ThreadPoolRequestProcessor::worker()
             RequestHandler* handler = m_pageTableManager->getRequestHandler( request.pageId );
             DEMAND_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
 
-            // Process the request.  Page table updates are accumulated in the PagingSystem.
+            // Use the CUDA context associated with the stream in the ticket.
             std::shared_ptr<TicketImpl>& ticket = TicketImpl::getImpl( request.ticket );
+            CUcontext                    context;
+            DEMAND_CUDA_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
+            DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+
+            // Process the request.  Page table updates are accumulated in the PagingSystem.
             handler->fillRequest( ticket->getDeviceIndex(), ticket->getStream(), request.pageId );
 
             // Notify the associated Ticket that the request has been filled.
