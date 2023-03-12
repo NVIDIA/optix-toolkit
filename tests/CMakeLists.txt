@@ -60,6 +60,7 @@ add_executable( testDemandLoading
   PagingSystemTestKernels.h
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
+  TestContextSaver.cpp
   TestDemandLoader.cpp
   TestDemandPageLoader.cpp
   TestDemandTexture.cpp
@@ -75,6 +76,7 @@ add_executable( testDemandLoading
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
+  TestPerContextData.cpp
   TestRingSuballocator.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
