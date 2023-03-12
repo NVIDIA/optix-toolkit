@@ -37,7 +37,6 @@
 #include <condition_variable>
 #include <cstddef>
 #include <deque>
-#include <map>
 #include <mutex>
 
 namespace demandLoading {
@@ -187,12 +186,7 @@ class AsyncItemPool
     EventPool* getEventPool()
     {
         EventPool* eventPool = m_eventPools.find();
-        if (!eventPool)
-        {
-            m_eventPools.insert(EventPool(m_capacity));
-            eventPool = m_eventPools.find();
-        }
-        return eventPool;
+        return eventPool ? eventPool : m_eventPools.insert( std::unique_ptr<EventPool>( new EventPool( m_capacity ) ) );
     }
 
     bool oldestFreedItemAvailable() 
