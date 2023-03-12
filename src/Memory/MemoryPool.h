@@ -115,15 +115,13 @@ class MemoryPool
             freeEvent(stagedBlock);
         m_stagedBlocks.clear();
 
-#if 0 // XXX awaiting PerContextData::for_each
         // Destroy all the events
-        m_eventPool.for_each( [const std::vector<CUevent> & events]() {
+        m_eventPool.for_each( []( const std::vector<CUevent>& events ) {
             for( CUevent event : events )
             {
                 DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) );
             }
         } );
-#endif
 
         CUcontext ignored;
         DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
@@ -340,13 +338,8 @@ class MemoryPool
         std::vector<CUevent>* events = m_eventPool.find();
         if( events )
             return events;
-#if 0  // XXX awaiting changes to PerContextData::insert
         std::unique_ptr<std::vector<CUevent>> ptr( new std::vector<CUevent> );
         return m_eventPool.insert( std::move( ptr ) );
-#else
-        m_eventPool.insert( std::vector<CUevent>() );
-        return m_eventPool.find();
-#endif
     }
 
     // Get an event from the internal event pool

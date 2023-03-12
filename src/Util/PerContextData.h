@@ -33,6 +33,7 @@
 #include <cuda.h>
 
 #include <map>
+#include <memory>
 
 namespace demandLoading {
 
@@ -48,20 +49,33 @@ class PerContextData
         CUcontext context;
         DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
         typename MapType::iterator it = m_map.find( context );
-        return it == m_map.end() ? nullptr : &it->second;
+        return it == m_map.end() ? nullptr : it->second.get();
     }
 
     /// Get const pointer to the data associated with the current CUDA context, if any.  Returns
     /// a null pointer if no associated data was found.
     const T* find() const { return const_cast<PerContextData*>( this )->find(); }
 
-    /// Store the given data (with move semantics), associating it with the current CUDA context.
-    /// Any previously associated data is destroyed.
-    void insert( T&& data )
+    /// Store the given data (taking ownership), associating it with the current CUDA context.
+    /// Any previously associated data is destroyed.  Returns pointer to the stored data.
+    T* insert( std::unique_ptr<T> data )
     {
         CUcontext context;
         DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-        m_map.insert( typename MapType::value_type( context, std::move( data ) ) );
+        std::pair<typename MapType::iterator, bool> pair = m_map.insert( typename MapType::value_type( context, std::move( data ) ) );
+        return pair.first->second.get();
+    }
+
+    /// Apply the given functor to each data item, setting the corresponding CUDA context beforehand.
+    template <typename Functor>
+    void for_each( Functor functor ) const
+    {
+        ContextSaver contextSaver;
+        for( auto& it : m_map )
+        {
+            DEMAND_CUDA_CHECK( cuCtxSetCurrent( it.first ) );
+            functor( *it.second );
+        }
     }
 
     /// Destroy all the per-context data.
@@ -69,13 +83,13 @@ class PerContextData
     {
         // Save/restore current CUDA context.
         ContextSaver contextSaver;
-        for( auto it : m_map )
+        for( auto& it : m_map )
         {
             // Set CUDA context.
             DEMAND_CUDA_CHECK( cuCtxSetCurrent( it.first ) );
 
             // Destroy per-context data.
-            it.second = T();
+            it.second.reset();
         }
     }
 
@@ -86,7 +100,7 @@ class PerContextData
     }
 
   private:
-    using MapType = std::map<CUcontext, T>;
+    using MapType = std::map<CUcontext, std::unique_ptr<T>>;
     MapType m_map;
 };
 

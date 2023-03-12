@@ -302,8 +302,6 @@ class ResizeTilePoolPredicate : public PageInvalidatorPredicate
 void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-
-#if 0 // XXX awaiting PerContextData::for_each
     for( unsigned int deviceIndex = 0; deviceIndex < m_deviceMemoryManagers.size(); ++deviceIndex )
     {
         unsigned int tilesStartPage = m_options.numPageTableEntries;
@@ -317,7 +315,6 @@ void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
         ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
         m_pagesToInvalidate[deviceIndex].push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
     }
-#endif
     m_options.maxTexMemPerDevice = maxMem;
 }
 

@@ -69,38 +69,10 @@ TEST_F( TestPerContextData, TestFindNone )
 TEST_F( TestPerContextData, TestFind )
 {
     PerContextData<int> map;
-    map.insert( 1 );
+    map.insert( std::unique_ptr<int>( new int( 1 ) ) );
     int* data = map.find();
     ASSERT_NE( nullptr, data );
     EXPECT_EQ( 1, *data );
-}
-
-TEST_F( TestPerContextData, TestDestroy )
-{
-    std::shared_ptr<int> data = std::make_shared<int>();
-    EXPECT_EQ( 1, data.use_count() );
-    {
-        std::shared_ptr<int>                 copy = data;
-        PerContextData<std::shared_ptr<int>> map;
-        map.insert( std::move( copy ) );
-        EXPECT_EQ( 2, data.use_count() );
-    }
-    EXPECT_EQ( 1, data.use_count() );
-}
-
-TEST_F( TestPerContextData, DISABLED_TestDestroyOnInsert )
-{
-    std::shared_ptr<int> data = std::make_shared<int>();
-    EXPECT_EQ( 1, data.use_count() );
-    {
-        std::shared_ptr<int>                 copy = data;
-        PerContextData<std::shared_ptr<int>> map;
-        map.insert( std::move( copy ) );
-        EXPECT_EQ( 2, data.use_count() );
-
-        map.insert( std::shared_ptr<int>() );
-        EXPECT_EQ( 1, data.use_count() );
-    }
 }
 
 TEST_F( TestPerContextData, TestMultipleContexts )
@@ -109,13 +81,13 @@ TEST_F( TestPerContextData, TestMultipleContexts )
     {
         // Associate a value with the current CUDA context.
         PerContextData<int> map;
-        map.insert( 1 );
+        map.insert( std::unique_ptr<int>( new int( 1 ) ) );
 
         // Create a new CUDA context.
         DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
 
         // Associate a value with the new context.
-        map.insert( 2 );
+        map.insert( std::unique_ptr<int>( new int( 2 ) ) );
         EXPECT_EQ( 2, *map.find() );
 
         // Restore previous CUDA context and check associated data.
