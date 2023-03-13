@@ -139,7 +139,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
     double m_totalProcessingTime = 0.0;
 
     /// Unmap the backing storage associated with a texture tile or mip tail
-    void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    void unmapTileResource( CUstream stream, unsigned int pageId );
 };
 
 }  // namespace demandLoading
