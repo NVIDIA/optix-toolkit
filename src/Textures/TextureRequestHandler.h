@@ -51,7 +51,7 @@ class TextureRequestHandler : public RequestHandler
     }
 
     /// Fill a request for the specified page on the specified device using the given stream.  
-    void fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId ) override;
+    void fillRequest( CUstream stream, unsigned int pageId ) override;
 
     /// Get the associated texture.
     DemandTextureImpl* getTexture() const { return m_texture; }
@@ -63,8 +63,8 @@ class TextureRequestHandler : public RequestHandler
     DemandTextureImpl* m_texture = nullptr;
     DemandLoaderImpl*  m_loader = nullptr;
 
-    void fillTileRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
-    void fillMipTailRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    void fillTileRequest( CUstream stream, unsigned int pageId );
+    void fillMipTailRequest( CUstream stream, unsigned int pageId );
 };
 
 }  // namespace demandLoading

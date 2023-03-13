@@ -53,7 +53,7 @@ inline unsigned long long toPageTableEntry( const float4& color )
     return result;
 }
 
-void BaseColorRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void BaseColorRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 

@@ -40,7 +40,7 @@
 
 namespace demandLoading {
 
-void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -85,7 +85,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     if ( !texture->useSparseTexture() )
     {
         // If the dense texture data was deferred, then defer allocating the sampler.
-        if( !fillDenseTexture( deviceIndex, stream, pageId ) )
+        if( !fillDenseTexture( stream, pageId ) )
             return;
     }
 
@@ -114,7 +114,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     pagingSystem->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
 }
 
-bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
