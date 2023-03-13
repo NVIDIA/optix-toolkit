@@ -109,7 +109,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
         size_t                       offset;
         tilePool->getHandle( tileLocator, &handle, &offset );
 
-        m_texture->fillTile( deviceIndex, stream, mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.memoryType,
+        m_texture->fillTile( stream, mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.memoryType,
                              sizeof( TileBuffer ), handle, offset );
 
         const unsigned int lruVal = 0;
@@ -160,7 +160,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
         tilePool->getHandle( tileBlock, &handle, &offset );
 
         // Copy data from the transfer buffer to the sparse texture on the device
-        m_texture->fillMipTail( deviceIndex, stream, transferBuffer.buffer, transferBuffer.memoryType, mipTailSize, handle, offset );
+        m_texture->fillMipTail( stream, transferBuffer.buffer, transferBuffer.memoryType, mipTailSize, handle, offset );
 
         // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
         unsigned int lruVal = 0;
@@ -191,7 +191,7 @@ void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstrea
     // Unmap the tile or mip tail
     if( tileIndex == 0 )
     {
-        texture->unmapMipTail( deviceIndex, stream );
+        texture->unmapMipTail( stream );
     }
     else
     {
@@ -199,7 +199,7 @@ void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstrea
         unsigned int tileX;
         unsigned int tileY;
         unpackTileIndex( texture->getSampler(), tileIndex, mipLevel, tileX, tileY );
-        texture->unmapTile( deviceIndex, stream, mipLevel, tileX, tileY );
+        texture->unmapTile( stream, mipLevel, tileX, tileY );
     }
 }
 
