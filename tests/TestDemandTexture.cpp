@@ -89,7 +89,7 @@ class TestDemandTexture : public testing::Test
         // Construct and initialize DemandTexture
         m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_desc, image, m_loader.get() ) );
         m_texture->open();
-        m_texture->init( m_deviceIndex );
+        m_texture->init();
     }
 
   protected:
@@ -130,7 +130,7 @@ TEST_F( TestDemandTexture, TestFillTile )
 
         // Fill tile.
         TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
-        m_texture->fillTile( m_deviceIndex, m_stream,                 // device and stream
+        m_texture->fillTile( m_stream,
                              mipLevel, tileX, tileY,                  // tile to fill
                              tileBuffer.data(),                       // host ptr
                              CU_MEMORYTYPE_HOST, TILE_SIZE_IN_BYTES,  // data type and size
@@ -148,7 +148,7 @@ TEST_F( TestDemandTexture, TestFillTile )
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
     float       lod           = static_cast<float>( mipLevel );
-    CUtexObject textureObject = m_texture->getTextureObject( m_deviceIndex );
+    CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
 
@@ -218,7 +218,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
 
     // Map the backing storage and fill it.
     TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( mipTailSize );
-    m_texture->fillMipTail( m_deviceIndex, m_stream,                         // device, stream
+    m_texture->fillMipTail( m_stream,
                             buffer.data(), CU_MEMORYTYPE_HOST, mipTailSize,  // host buffer and size
                             bh.handle, bh.block.offset()                     // device buffer
                             );
@@ -233,7 +233,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
     float       lod           = static_cast<float>( m_texture->getMipTailFirstLevel() );
-    CUtexObject textureObject = m_texture->getTextureObject( m_deviceIndex );
+    CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
 
@@ -271,7 +271,7 @@ TEST_F( TestDemandTexture, TestDenseTexture )
     size_t mipTailSize = TILE_SIZE_IN_BYTES;
     std::vector<char> buffer( mipTailSize );
     EXPECT_NO_THROW( m_texture->readMipTail( buffer.data(), mipTailSize, CUstream{} ) );
-    m_texture->fillDenseTexture( m_deviceIndex, m_stream, buffer.data(), info.width, info.height, true );
+    m_texture->fillDenseTexture( m_stream, buffer.data(), info.width, info.height, true );
 
     // Set up kernel output buffer.
     const int outWidth  = 4;
@@ -283,7 +283,7 @@ TEST_F( TestDemandTexture, TestDenseTexture )
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
     float       lod           = 0;
-    CUtexObject textureObject = m_texture->getTextureObject( m_deviceIndex );
+    CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
 
@@ -325,7 +325,7 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
     // Read the entire texture, and fill it.
     std::vector<char> buffer( 256 * 256 * imageSource::getBytesPerChannel( info.format ) * info.numChannels );
     EXPECT_NO_THROW( m_texture->readNonMipMappedData( buffer.data(), buffer.size(), CUstream{} ) );
-    m_texture->fillDenseTexture( m_deviceIndex, m_stream, buffer.data(), info.width, info.height, true );
+    m_texture->fillDenseTexture( m_stream, buffer.data(), info.width, info.height, true );
 
     // Set up kernel output buffer.
     const int outWidth  = 4;
@@ -337,7 +337,7 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
     float       lod           = 0;
-    CUtexObject textureObject = m_texture->getTextureObject( m_deviceIndex );
+    CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
 
@@ -384,7 +384,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
 
         // Fill tile.
         TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
-        m_texture->fillTile( m_deviceIndex, m_stream,                 // device and stream
+        m_texture->fillTile( m_stream,
                              mipLevel, tileX, tileY,                  // tile coordinates
                              tileBuffer.data(),                       // source data
                              CU_MEMORYTYPE_HOST, TILE_SIZE_IN_BYTES,  // src type and size
@@ -402,7 +402,7 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
     // Launch the worker.
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
     float       lod           = 1.0f; // Give a non-zero lod, and test if level 0 is still retrieved in tex2D
-    CUtexObject textureObject = m_texture->getTextureObject( m_deviceIndex );
+    CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
     DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
 

@@ -111,14 +111,14 @@ unsigned int DemandTextureImpl::getId() const
     return m_id;
 }
 
-void DemandTextureImpl::init( unsigned int deviceIndex )
+void DemandTextureImpl::init()
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
     if( m_masterTexture && !getSparseTexture().isInitialized() )
-        m_masterTexture->init( deviceIndex );
+        m_masterTexture->init();
 
-    // Initialize the sparse or dense texture for the specified device.
+    // Initialize the sparse or dense texture for the current CUDA context.
     if( useSparseTexture() )
     {
         // Per-device initialization.
@@ -316,7 +316,7 @@ unsigned int DemandTextureImpl::getMipTailFirstLevel() const
     return m_mipTailFirstLevel;
 }
 
-CUtexObject DemandTextureImpl::getTextureObject( unsigned int deviceIndex ) const
+CUtexObject DemandTextureImpl::getTextureObject() const
 {
     DEMAND_ASSERT( m_isInitialized );
     if( useSparseTexture() )
@@ -397,8 +397,7 @@ bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, uns
 }
 
 // Tiles can be filled concurrently.
-void DemandTextureImpl::fillTile( unsigned int                 deviceIndex,
-                                  CUstream                     stream,
+void DemandTextureImpl::fillTile( CUstream                     stream,
                                   unsigned int                 mipLevel,
                                   unsigned int                 tileX,
                                   unsigned int                 tileY,
@@ -415,7 +414,7 @@ void DemandTextureImpl::fillTile( unsigned int                 deviceIndex,
 }
 
 // Tiles can be unmapped concurrently.
-void DemandTextureImpl::unmapTile( unsigned int deviceIndex, CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const
+void DemandTextureImpl::unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const
 {
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
     getSparseTexture().unmapTile( stream, mipLevel, tileX, tileY );
@@ -449,10 +448,9 @@ bool DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned
     DEMAND_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
 
     return m_image->readMipTail( buffer, startLevel, getInfo().numMipLevels, m_mipLevelDims.data(), pixelSize, stream );
-} 
+}
 
-void DemandTextureImpl::fillMipTail( unsigned int                 deviceIndex,
-                                     CUstream                     stream,
+void DemandTextureImpl::fillMipTail( CUstream                     stream,
                                      const char*                  mipTailData,
                                      CUmemorytype                 mipTailDataType,
                                      size_t                       mipTailSize,
@@ -464,13 +462,13 @@ void DemandTextureImpl::fillMipTail( unsigned int                 deviceIndex,
     getSparseTexture().fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
 }
 
-void DemandTextureImpl::unmapMipTail( unsigned int deviceIndex, CUstream stream ) const
+void DemandTextureImpl::unmapMipTail( CUstream stream ) const
 {
     getSparseTexture().unmapMipTail( stream );
 }
 
 // Fill the dense texture on the given device.
-void DemandTextureImpl::fillDenseTexture( unsigned int deviceIndex, CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned )
+void DemandTextureImpl::fillDenseTexture( CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned )
 {
     getDenseTexture().fillTexture( stream, textureData, width, height, bufferPinned );
 }

@@ -125,7 +125,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
     if( satisfied )
     {
         // Copy data from transfer buffer to the sparse texture on the device
-        m_texture->fillTile( deviceIndex, stream,                                        // Device and stream
+        m_texture->fillTile( stream,
                              mipLevel, tileX, tileY,                                     // Tile to fill
                              reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
                              transferBuffer.memoryType, TILE_SIZE_IN_BYTES,              // Src type and size
@@ -185,7 +185,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
     if( satisfied )
     {
         // Copy data from the transfer buffer to the sparse texture on the device
-        m_texture->fillMipTail( deviceIndex, stream,                                        // Device and stream
+        m_texture->fillMipTail( stream,
                                 reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
                                 transferBuffer.memoryType, mipTailSize,                     // Src type and size
                                 bh.handle, bh.block.offset()                                // Dest
@@ -219,7 +219,7 @@ void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstrea
     // Unmap the tile or mip tail
     if( tileIndex == 0 )
     {
-        texture->unmapMipTail( deviceIndex, stream );
+        texture->unmapMipTail( stream );
     }
     else
     {
@@ -227,7 +227,7 @@ void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstrea
         unsigned int tileX;
         unsigned int tileY;
         unpackTileIndex( texture->getSampler(), tileIndex, mipLevel, tileX, tileY );
-        texture->unmapTile( deviceIndex, stream, mipLevel, tileX, tileY );
+        texture->unmapTile( stream, mipLevel, tileX, tileY );
     }
 }
 

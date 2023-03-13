@@ -103,7 +103,7 @@ class DemandTextureImpl : public DemandTexture
     /// Initialize the texture on the specified device.  When first called, this method opens the
     /// image reader that was provided to the constructor.
     /// Throws an exception on error.
-    void init( unsigned int deviceIndex );
+    void init();
 
     /// Get the image info.  Valid only after the image has been initialized (e.g. opened).
     const imageSource::TextureInfo& getInfo() const;
@@ -113,7 +113,7 @@ class DemandTextureImpl : public DemandTexture
     const TextureSampler& getSampler() const;
 
     /// Get the CUDA texture object for the specified device.
-    CUtexObject getTextureObject( unsigned int deviceIndex ) const;
+    CUtexObject getTextureObject() const;
 
     /// Get the texture descriptor
     const TextureDescriptor& getDescriptor() const;
@@ -150,8 +150,7 @@ class DemandTextureImpl : public DemandTexture
                    size_t tileBufferSize, CUstream stream ) const;
 
     /// Fill the device tile backing storage for a texture tile and with the given data.
-    void fillTile( unsigned int                 deviceIndex,
-                   CUstream                     stream,
+    void fillTile( CUstream                     stream,
                    unsigned int                 mipLevel,
                    unsigned int                 tileX,
                    unsigned int                 tileY,
@@ -162,7 +161,7 @@ class DemandTextureImpl : public DemandTexture
                    size_t                       offset ) const;
 
     /// Unmap backing storage for a tile
-    void unmapTile( unsigned int deviceIndex, CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
+    void unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
 
     /// Read the entire non-mipmapped texture into the buffer.
     /// Throws an exception on error.
@@ -177,8 +176,7 @@ class DemandTextureImpl : public DemandTexture
     bool readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const;
 
     /// Fill the device backing storage for the mip tail with the given data.
-    void fillMipTail( unsigned int                 deviceIndex,
-                      CUstream                     stream,
+    void fillMipTail( CUstream                     stream,
                       const char*                  mipTailData,
                       CUmemorytype                 mipTailDataType,
                       size_t                       mipTailSize,
@@ -186,10 +184,10 @@ class DemandTextureImpl : public DemandTexture
                       size_t                       offset ) const;
 
     /// Unmap backing storage for the mip tail
-    void unmapMipTail( unsigned int deviceIndex, CUstream stream ) const;
+    void unmapMipTail( CUstream stream ) const;
 
     /// Create and fill the dense texture on the given device
-    void fillDenseTexture( unsigned int deviceIndex, CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned );
+    void fillDenseTexture( CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned );
 
     /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
     void open();

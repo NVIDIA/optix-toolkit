@@ -79,7 +79,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // Initialize the texture, creating a per-device CUDA texture objects.
     try
     {
-        texture->init( deviceIndex );
+        texture->init();
     }
     catch( const std::exception& e )
     {
@@ -102,7 +102,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
 
     // Copy the canonical sampler from the DemandTexture and set its CUDA texture object, which differs per device.
     *pinnedSampler         = texture->getSampler();
-    pinnedSampler->texture = texture->getTextureObject( deviceIndex );
+    pinnedSampler->texture = texture->getTextureObject();
 
     // Allocate device memory for device-side sampler.
     TextureSampler* devSampler = m_loader->getDeviceMemoryManager()->allocateSampler();
@@ -151,7 +151,7 @@ bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
 
     // Copy texture data from the buffer to the texture array on the device
     if( satisfied )
-        texture->fillDenseTexture( deviceIndex, stream, dataPtr, info.width, info.height, transferBuffer.memoryBlock.size > 0 );
+        texture->fillDenseTexture( stream, dataPtr, info.width, info.height, transferBuffer.memoryBlock.size > 0 );
     if( transferBuffer.memoryBlock.size > 0 )
     {
         m_loader->freeTransferBuffer( transferBuffer, stream );

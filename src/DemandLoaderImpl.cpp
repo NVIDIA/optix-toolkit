@@ -218,7 +218,7 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
     DemandTextureImpl* texture = m_textures.at( textureId ).get();
     if( texture->isOpen() )
     {
-        texture->init( m_pageLoader->getDevices()[0] );
+        texture->init();
         TextureSampler sampler   = texture->getSampler();
         unsigned int   startPage = sampler.startPage;
         unsigned int   endPage   = sampler.startPage + sampler.numPages;

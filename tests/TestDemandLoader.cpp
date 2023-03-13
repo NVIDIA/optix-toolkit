@@ -276,13 +276,11 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
 
 TEST_F( TestDemandLoader, TestTextureVariants )
 {
-    unsigned int deviceIndex = 0;
-
     // Make first texture
     TextureDescriptor  texDesc1 = m_descriptor;
     DemandTextureImpl* texture1 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc1 ).getId() );
     texture1->open();
-    texture1->init( deviceIndex );
+    texture1->init();
 
     // Make second texture with different descriptor
     TextureDescriptor texDesc2  = m_descriptor;
@@ -292,7 +290,7 @@ TEST_F( TestDemandLoader, TestTextureVariants )
     texDesc2.mipmapFilterMode   = CU_TR_FILTER_MODE_POINT;
     DemandTextureImpl* texture2 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc2 ).getId() );
     texture2->open();
-    texture2->init( deviceIndex );
+    texture2->init();
 
     // The image sources should be the same, but the texture id's different
     EXPECT_EQ( texture1->getInfo(), texture2->getInfo() );
