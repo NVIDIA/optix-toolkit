@@ -45,18 +45,17 @@ class TicketImpl
 {
   public:
     /// Create a ticket.  Initially the number of tasks is unknown (represented by -1).
-    static Ticket create( unsigned int deviceIndex, CUstream stream )
+    static Ticket create( CUstream stream )
     {
-        return Ticket( std::make_shared<TicketImpl>( deviceIndex, stream ) );
+        return Ticket( std::make_shared<TicketImpl>( stream ) );
     }
 
     /// Get TicketImpl from Ticket, which is held as a shared pointer.
     static std::shared_ptr<TicketImpl>& getImpl( Ticket& ticket ) { return ticket.m_impl; }
 
-    /// Construct TicketImpl with the given device index and stream.
-    TicketImpl( unsigned deviceIndex, CUstream stream )
-        : m_deviceIndex( deviceIndex )
-        , m_stream( stream )
+    /// Construct TicketImpl with the given stream.
+    TicketImpl( CUstream stream )
+        : m_stream( stream )
     {
     }
 
@@ -72,9 +71,6 @@ class TicketImpl
         if( numTasks == 0 )
             m_isDone.notify_all();
     }
-
-    /// Get the device index associated with the ticket.
-    unsigned int getDeviceIndex() const { return m_deviceIndex; }
 
     /// Get the stream associated with the ticket.
     CUstream getStream() const { return m_stream; }
@@ -121,7 +117,6 @@ class TicketImpl
     }
 
   private:
-    const unsigned int      m_deviceIndex{};
     const CUstream          m_stream{};
     int                     m_numTasksTotal{-1};
     int                     m_numTasksRemaining{-1};

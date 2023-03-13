@@ -147,7 +147,7 @@ class DemandLoaderImpl : public DemandLoader
     /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
     void setMaxTextureMemory( size_t maxMem ) override;
 
-    /// Get the DeviceMemoryManager for the specified device.
+    /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.

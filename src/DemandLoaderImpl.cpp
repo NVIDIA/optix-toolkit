@@ -310,7 +310,7 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     unsigned int deviceIndex = getDeviceIndex( stream );
 
     // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket = TicketImpl::create( deviceIndex, stream );
+    Ticket ticket = TicketImpl::create( stream );
     const unsigned int id = m_ticketId++;
     m_requestProcessor.setTicket( id, ticket);
 
@@ -327,7 +327,7 @@ Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requeste
     unsigned int deviceIndex = getDeviceIndex( stream );
 
     // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket = TicketImpl::create( deviceIndex, stream );
+    Ticket ticket = TicketImpl::create( stream );
     const unsigned int id = m_ticketId++;
     m_requestProcessor.setTicket( id, ticket );
 

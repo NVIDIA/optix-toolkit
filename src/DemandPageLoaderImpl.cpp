@@ -182,34 +182,10 @@ void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictabl
                                           reinterpret_cast<unsigned long long>( pageTableEntry ) );
 }
 
-namespace { // anonymous
-
-// Check that the current CUDA context matches the one associated with the given stream
-// and return the associated device index.
-unsigned int getDeviceIndex( CUstream stream )
-{
-    // Get the current CUDA context.
-    CUcontext cudaContext, streamContext;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
-    DEMAND_ASSERT_MSG( cudaContext == streamContext,
-                       "The current CUDA context must match the one associated with the given stream" );
-
-    // Get the device index from the CUDA context.
-    CUdevice device;
-    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-    return static_cast<unsigned int>( device );
-}
-
-} // anonymous namespace
-
 // Returns false if the device doesn't support sparse textures.
 bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-
-    unsigned int deviceIndex = getDeviceIndex( stream );
-
     PagingSystem* pagingSystem = getPagingSystem();
     if( pagingSystem == nullptr )
         return false;
@@ -248,7 +224,8 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
-    unsigned int deviceIndex = getDeviceIndex( stream );
+    // Create a Ticket that the caller can use to track request processing.
+    Ticket ticket( TicketImpl::create( stream ) );
 
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
     // request bits copies the requested page ids to host memory (asynchronously).
@@ -265,11 +242,9 @@ void DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int id, con
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
-    unsigned int deviceIndex = getDeviceIndex( stream );
-
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    // Flush any page mappings that have accumulated for the specified device.
+    // Flush any page mappings that have accumulated for the current CUDA context.
     getPagingSystem()->flushMappings();
 
     m_requestProcessor->addRequests( stream, id, pageIds, numPageIds);

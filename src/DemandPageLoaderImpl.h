@@ -79,7 +79,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
     void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
-    /// stream.  Returns false if the specified device does not support sparse textures.  If
+    /// stream.  Returns false if the current device does not support sparse textures.  If
     /// successful, returns a DeviceContext via result parameter, which should be copied to device
     /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
     /// Tex2D().

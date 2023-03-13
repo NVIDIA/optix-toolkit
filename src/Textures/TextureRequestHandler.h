@@ -51,7 +51,7 @@ class TextureRequestHandler : public RequestHandler
     {
     }
 
-    /// Fill a request for the specified page on the specified device using the given stream.  
+    /// Fill a request for the specified page using the given stream.  
     void fillRequest( CUstream stream, unsigned int pageId ) override;
 
     // Load or reload a page

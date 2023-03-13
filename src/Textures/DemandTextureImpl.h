@@ -100,9 +100,8 @@ class DemandTextureImpl : public DemandTexture
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
 
-    /// Initialize the texture on the specified device.  When first called, this method opens the
-    /// image reader that was provided to the constructor.
-    /// Throws an exception on error.
+    /// Initialize the texture.  When first called, this method opens the image reader that was
+    /// provided to the constructor.  Throws an exception on error.
     void init();
 
     /// Get the image info.  Valid only after the image has been initialized (e.g. opened).
@@ -112,7 +111,7 @@ class DemandTextureImpl : public DemandTexture
     /// for each device (see getTextureObject).
     const TextureSampler& getSampler() const;
 
-    /// Get the CUDA texture object for the specified device.
+    /// Get the CUDA texture object for the current CUDA context.
     CUtexObject getTextureObject() const;
 
     /// Get the texture descriptor
