@@ -193,7 +193,7 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
     {
         // image was not found. Make a new texture.
         m_imageToTextureId[imageSource.get()] = textureId;
-        return new DemandTextureImpl( textureId, m_pageLoader->getNumDevices(), textureDesc, imageSource, this );
+        return new DemandTextureImpl( textureId, textureDesc, imageSource, this );
     }
     else
     {

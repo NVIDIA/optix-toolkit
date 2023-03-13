@@ -87,7 +87,7 @@ class TestDemandTexture : public testing::Test
             std::make_shared<CheckerBoardImage>( m_width, m_height, /*squaresPerSide*/ 4, useMipMaps, tiledImage );
 
         // Construct and initialize DemandTexture
-        m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_numDevices, m_desc, image, m_loader.get() ) );
+        m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_desc, image, m_loader.get() ) );
         m_texture->open();
         m_texture->init( m_deviceIndex );
     }

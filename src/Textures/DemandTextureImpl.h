@@ -31,6 +31,7 @@
 #include "Textures/SparseTexture.h"
 #include "Textures/TextureRequestHandler.h"
 #include "Util/Exception.h"
+#include "Util/PerContextData.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
@@ -66,7 +67,6 @@ class DemandTextureImpl : public DemandTexture
     /// device-side sampler array) the the given descriptor (which specifies the wrap mode, filter
     /// mode, etc.).  The given image reader is retained and used by subsequent readTile() calls.
     DemandTextureImpl( unsigned int                              id,
-                       unsigned int                              maxNumDevices,
                        const TextureDescriptor&                  descriptor,
                        std::shared_ptr<imageSource::ImageSource> image,
                        DemandLoaderImpl*                         loader );
@@ -240,10 +240,11 @@ class DemandTextureImpl : public DemandTexture
     size_t             m_mipTailSize       = 0;
     std::vector<uint2> m_mipLevelDims;
 
-    // Sparse and dense textures (one per device).  These vectors do not grow after construction, which is
-    // important for thread safety.
-    std::vector<SparseTexture> m_sparseTextures;
-    std::vector<DenseTexture> m_denseTextures;
+    // Sparse and dense textures (one per CUDA context).
+    PerContextData<SparseTexture> m_sparseTextures;
+    PerContextData<DenseTexture> m_denseTextures;
+    std::mutex m_sparseTexturesMutex;
+    std::mutex m_denseTexturesMutex;
 
     // Request handler.
     std::unique_ptr<TextureRequestHandler> m_requestHandler;
@@ -254,7 +255,17 @@ class DemandTextureImpl : public DemandTexture
     // Threshold number of pixels to switch between sparse and dense texture
     const unsigned int SPARSE_TEXTURE_THRESHOLD = 1024;
 
-    void initPerDeviceTextures( unsigned int maxNumDevices );
+    // Get the sparse texture for the current CUDA context, creating it if necessary.
+    SparseTexture& getSparseTexture();
+
+    // Get a const reference to the sparse texture for the current CUDA context, creating it if necessary.
+    const SparseTexture& getSparseTexture() const { return const_cast<DemandTextureImpl*>( this )->getSparseTexture(); }
+
+    // Get the dense texture for the current CUDA context, creating it if necessary.
+    DenseTexture& getDenseTexture();
+
+    // Get a const reference to the dense texture for the current CUDA context, creating it if necessary.
+    const DenseTexture& getDenseTexture() const { return const_cast<DemandTextureImpl*>( this )->getDenseTexture(); }
 };
 
 }  // namespace demandLoading
