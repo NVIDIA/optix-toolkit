@@ -192,11 +192,11 @@ TEST_F( TestDemandLoaderResident, TestSamplerRequest )
 class MockResourceLoader
 {
   public:
-    MOCK_METHOD( bool, loadResource, ( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void** pageTableEntry ) );
+    MOCK_METHOD( bool, loadResource, ( CUstream stream, unsigned int pageIndex, void** pageTableEntry ) );
 
-    static bool callback( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex, void* context, void** pageTableEntry )
+    static bool callback( CUstream stream, unsigned int pageIndex, void* context, void** pageTableEntry )
     {
-        return static_cast<MockResourceLoader*>( context )->loadResource( deviceIndex, stream, pageIndex, pageTableEntry );
+        return static_cast<MockResourceLoader*>( context )->loadResource( stream, pageIndex, pageTableEntry );
     }
 };
 
@@ -212,8 +212,8 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
-        EXPECT_CALL( resLoader, loadResource( deviceIndex, _, startPage, NotNull() ) )
-           .WillOnce( DoAll( SetArgPointee<3>( nullptr ), Return( true ) ) );
+        EXPECT_CALL( resLoader, loadResource( _, startPage, NotNull() ) )
+           .WillOnce( DoAll( SetArgPointee<2>( nullptr ), Return( true ) ) );
     }
 
     for( unsigned int deviceIndex : devices )
@@ -248,9 +248,9 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
-        EXPECT_CALL( resLoader, loadResource( deviceIndex, _, startPage, NotNull() ) )
+        EXPECT_CALL( resLoader, loadResource( _, startPage, NotNull() ) )
             .WillOnce( Return( false ) )
-            .WillOnce( DoAll( SetArgPointee<3>( nullptr ), Return( true ) ) );
+            .WillOnce( DoAll( SetArgPointee<2>( nullptr ), Return( true ) ) );
     }
 
     for( unsigned int deviceIndex : devices )
