@@ -56,16 +56,6 @@ DemandTextureImpl::DemandTextureImpl( unsigned int                              
     , m_image( image )
     , m_loader( loader )
 {
-    // Construct per-device sparse and dense textures.  These are just empty shells until they are initialized.  
-    // Note that the vectors do not grow after construction, which is important for thread safety.
-    m_sparseTextures.reserve( maxNumDevices );
-    m_denseTextures.reserve( maxNumDevices );
-    for( unsigned int i = 0; i < maxNumDevices; ++i )
-    {
-        m_sparseTextures.emplace_back();
-        m_denseTextures.emplace_back();
-    }
-
     m_sampler = {0};
 }
 
@@ -82,8 +72,7 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
     if( useSparseTexture() )
     {
         // Per-device initialization.
-        DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
-        SparseTexture& sparseTexture = m_sparseTextures[deviceIndex];
+        SparseTexture& sparseTexture = getSparseTexture();
         sparseTexture.init( m_descriptor, m_info );
 
         // Device-independent initialization.
@@ -114,8 +103,7 @@ void DemandTextureImpl::init( unsigned int deviceIndex )
     else // dense texture
     {
         // Per-device initialization.
-        DEMAND_ASSERT( deviceIndex < m_denseTextures.size() );
-        DenseTexture& denseTexture = m_denseTextures[deviceIndex];
+        DenseTexture& denseTexture = getDenseTexture();
         denseTexture.init( m_descriptor, m_info );
 
         // Device-independent initialization.
@@ -264,12 +252,10 @@ CUtexObject DemandTextureImpl::getTextureObject( unsigned int deviceIndex ) cons
     DEMAND_ASSERT( m_isInitialized );
     if( useSparseTexture() )
     {
-        DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
-        return m_sparseTextures[deviceIndex].getTextureObject();
+        return getSparseTexture().getTextureObject();
     }
 
-    DEMAND_ASSERT(deviceIndex < m_denseTextures.size());
-    return m_denseTextures[deviceIndex].getTextureObject();
+    return getDenseTexture().getTextureObject();
 }
 
 unsigned int DemandTextureImpl::getNumTilesInLevel( unsigned int mipLevel ) const
@@ -303,22 +289,26 @@ void DemandTextureImpl::accumulateStatistics( Statistics& stats, std::set<imageS
     }
 
     // Get the number of bytes filled (transferred) per device
-    for( unsigned int i = 0; i < m_sparseTextures.size(); ++i )
-    {
-        stats.perDevice[i].bytesTransferred += m_sparseTextures[i].getNumBytesFilled();
-        stats.perDevice[i].numEvictions += m_sparseTextures[i].getNumUnmappings();
-    }
+    m_sparseTextures.for_each( [&stats]( SparseTexture& texture ) {
+        CUdevice device;
+        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+        unsigned int deviceIndex = static_cast<unsigned int>( device );
+        stats.perDevice[deviceIndex].bytesTransferred += texture.getNumBytesFilled();
+        stats.perDevice[deviceIndex].numEvictions += texture.getNumUnmappings();
+    } );
 
-    for( unsigned int i = 0; i < m_denseTextures.size(); ++i )
-    {
-        stats.perDevice[i].bytesTransferred += m_denseTextures[i].getNumBytesFilled();
+    m_denseTextures.for_each( [&stats, this]( DenseTexture& texture ) {
+        CUdevice device;
+        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+        unsigned int deviceIndex = static_cast<unsigned int>( device );
+        stats.perDevice[deviceIndex].bytesTransferred += texture.getNumBytesFilled();
         // Count memory used per device for dense texture data
-        if( m_denseTextures[i].isInitialized() && m_denseTextures[i].getTextureObject() != 0 )
+        if( texture.isInitialized() && texture.getTextureObject() != 0 )
         {
             imageSource::TextureInfo info = m_image->getInfo();
-            stats.perDevice[i].memoryUsed += getTextureSizeInBytes( info );
+            stats.perDevice[deviceIndex].memoryUsed += getTextureSizeInBytes( info );
         }
-    }
+    } );
 }
 
 // Tiles can be read concurrently.  The EXRReader currently locks, however, because the OpenEXR 2.x
@@ -349,19 +339,17 @@ void DemandTextureImpl::fillTile( unsigned int                 deviceIndex,
                                   CUmemGenericAllocationHandle handle,
                                   size_t                       offset ) const
 {
-    DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
     DEMAND_ASSERT( tileSize <= sizeof( TileBuffer ) );
 
-    m_sparseTextures[deviceIndex].fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
+    getSparseTexture().fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
 }
 
 // Tiles can be unmapped concurrently.
 void DemandTextureImpl::unmapTile( unsigned int deviceIndex, CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const
 {
-    DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
-    m_sparseTextures[deviceIndex].unmapTile( stream, mipLevel, tileX, tileY );
+    getSparseTexture().unmapTile( stream, mipLevel, tileX, tileY );
 }
 
 bool DemandTextureImpl::readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const
@@ -402,23 +390,20 @@ void DemandTextureImpl::fillMipTail( unsigned int                 deviceIndex,
                                      CUmemGenericAllocationHandle handle,
                                      size_t                       offset ) const
 {
-    DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
     DEMAND_ASSERT( getMipTailFirstLevel() < m_info.numMipLevels );
 
-    m_sparseTextures[deviceIndex].fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
+    getSparseTexture().fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
 }
 
 void DemandTextureImpl::unmapMipTail( unsigned int deviceIndex, CUstream stream ) const
 {
-    DEMAND_ASSERT( deviceIndex < m_sparseTextures.size() );
-    m_sparseTextures[deviceIndex].unmapMipTail( stream );
+    getSparseTexture().unmapMipTail( stream );
 }
 
 // Fill the dense texture on the given device.
 void DemandTextureImpl::fillDenseTexture( unsigned int deviceIndex, CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned )
 {
-    DEMAND_ASSERT( deviceIndex < m_denseTextures.size() );
-    m_denseTextures[deviceIndex].fillTexture( stream, textureData, width, height, bufferPinned );
+    getDenseTexture().fillTexture( stream, textureData, width, height, bufferPinned );
 }
 
 // Lazily open the associated image source.
@@ -449,5 +434,30 @@ size_t DemandTextureImpl::getMipTailSize()
     DEMAND_ASSERT( m_isInitialized );
     return m_mipTailSize; 
 }
+
+// Get the sparse texture for the current CUDA context, creating it if necessary.
+SparseTexture& DemandTextureImpl::getSparseTexture()
+{
+    std::unique_lock<std::mutex> lock( m_sparseTexturesMutex );
+
+    SparseTexture* texture = m_sparseTextures.find();
+    if( texture )
+        return *texture;
+    std::unique_ptr<SparseTexture> ptr( new SparseTexture );
+    return *m_sparseTextures.insert( std::move( ptr ) );
+}
+
+// Get the dense texture for the current CUDA context, creating it if necessary.
+DenseTexture& DemandTextureImpl::getDenseTexture()
+{
+    std::unique_lock<std::mutex> lock( m_denseTexturesMutex );
+
+    DenseTexture* texture = m_denseTextures.find();
+    if( texture )
+        return *texture;
+    std::unique_ptr<DenseTexture> ptr( new DenseTexture );
+    return *m_denseTextures.insert( std::move( ptr ) );
+}
+
 
 }  // namespace demandLoading
