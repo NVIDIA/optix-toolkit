@@ -32,10 +32,9 @@ namespace demandLoading {
 
 struct TransferBufferDesc
 {
-    unsigned int deviceIndex;
     CUmemorytype memoryType;
-    char* buffer;
-    size_t size;
+    char*        buffer;
+    size_t       size;
 };
 
 } // namespace demandLoading

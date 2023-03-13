@@ -162,12 +162,12 @@ Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requeste
 }
 
 
-void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.
     TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager->getRequestHandler( pageId ) );
     DEMAND_ASSERT_MSG( handler != nullptr, "Page request does not correspond to a known resource" );
-    handler->unmapTileResource( deviceIndex, stream, pageId );
+    handler->unmapTileResource( stream, pageId );
 }
 
 PagingSystem* DemandLoaderImpl::getPagingSystem() const
@@ -180,7 +180,7 @@ PageTableManager* DemandLoaderImpl::getPageTableManager()
     return m_pageTableManager.get();
 }
 
-void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream stream )
+void DemandLoaderImpl::freeStagedTiles( CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -193,7 +193,7 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
         pagingSystem->activateEviction( true );
         if( pagingSystem->freeStagedPage( &mapping ) )
         {
-            unmapTileResource( deviceIndex, stream, mapping.id );
+            unmapTileResource( stream, mapping.id );
             tilePool->freeBlock( mapping.page );
         }
         else 
@@ -203,7 +203,7 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
     }
 }
 
-const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream )
+const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -214,13 +214,13 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
         {
             PinnedItemPool<TileBuffer>* pinnedTilePool = m_pinnedMemoryManager.getPinnedTilePool();
             char* buffer = reinterpret_cast<char*>( pinnedTilePool->allocate() );
-            return TransferBufferDesc{ deviceIndex, memoryType, buffer, sizeof(TileBuffer) };
+            return TransferBufferDesc{ memoryType, buffer, sizeof(TileBuffer) };
         }
         if( size < sizeof( MipTailBuffer ) )
         {
             PinnedItemPool<MipTailBuffer>* pinnedMipTailPool = m_pinnedMemoryManager.getPinnedMipTailPool();
             char* buffer = reinterpret_cast<char*>( pinnedMipTailPool->allocate() );
-            return TransferBufferDesc{ deviceIndex, memoryType, buffer, sizeof(MipTailBuffer) };
+            return TransferBufferDesc{ memoryType, buffer, sizeof(MipTailBuffer) };
         }
     }
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
@@ -231,7 +231,7 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
 #else
         DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &ptr ), size ) );
 #endif
-        return TransferBufferDesc{ deviceIndex, memoryType, ptr, size };
+        return TransferBufferDesc{ memoryType, ptr, size };
     }
     return TransferBufferDesc{};
 }

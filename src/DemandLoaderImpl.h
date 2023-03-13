@@ -118,7 +118,7 @@ class DemandLoaderImpl : public DemandLoader
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
 
-    /// Get the DeviceMemoryManager for the specified device.
+    /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
@@ -134,10 +134,10 @@ class DemandLoaderImpl : public DemandLoader
     PageTableManager* getPageTableManager();
 
     /// Free some staged tiles if there are some that are ready
-    void freeStagedTiles( unsigned int deviceIndex, CUstream stream );
+    void freeStagedTiles( CUstream stream );
 
     /// Allocate a temporary buffer of the given memory type
-    const TransferBufferDesc allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream );
+    const TransferBufferDesc allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream stream );
 
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
@@ -160,7 +160,7 @@ class DemandLoaderImpl : public DemandLoader
     double m_totalProcessingTime = 0.0;
 
     /// Unmap the backing storage associated with a texture tile or mip tail
-    void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    void unmapTileResource( CUstream stream, unsigned int pageId );
 };
 
 }  // namespace demandLoading

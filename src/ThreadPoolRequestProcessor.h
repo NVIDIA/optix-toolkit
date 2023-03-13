@@ -61,7 +61,7 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     /// Stop processing requests, terminating threads.
     void stop();
 
-    /// Add a batch of page requests from the specified device to the request queue.
+    /// Add a batch of page requests to the request queue.
     void addRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) override;
 
     void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );

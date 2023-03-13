@@ -43,11 +43,11 @@ class SamplerRequestHandler : public RequestHandler
     {
     }
 
-    /// Fill a request for the specified page on the specified device using the given stream.  
-    void fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId ) override;
+    /// Fill a request for the specified page using the given stream.  
+    void fillRequest( CUstream stream, unsigned int pageId ) override;
 
   private:
-    bool fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    bool fillDenseTexture( CUstream stream, unsigned int pageId );
 
     DemandLoaderImpl* m_loader;
 };
