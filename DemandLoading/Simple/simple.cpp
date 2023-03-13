@@ -83,14 +83,14 @@ int main()
     {
         // Prepare for launch, obtaining DeviceContext.
         DeviceContext      context;
-        loader->launchPrepare( deviceIndex, stream, context );
+        loader->launchPrepare( stream, context );
 
         // Launch the kernel.
         launchPageRequester( stream, context, currentPage, currentPage + batchSize );
         ++numLaunches;
 
         // Initiate request processing, which returns a Ticket.
-        Ticket ticket = loader->processRequests( deviceIndex, stream, context );
+        Ticket ticket = loader->processRequests( stream, context );
 
         // Wait for any page requests to be processed.
         ticket.wait();

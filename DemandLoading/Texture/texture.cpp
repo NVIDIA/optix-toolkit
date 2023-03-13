@@ -475,14 +475,13 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
             state.params.bucket_width  = g_bucketSize;
             state.params.bucket_height = g_bucketSize;
 
-            demandLoader.launchPrepare( state.device_idx,
-                                        state.stream,
+            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+            demandLoader.launchPrepare( state.stream,
                                         state.params.demandTextureContext );
 
             initLaunchParams( state, static_cast<unsigned int>( states.size() ) );
 
             // Perform the rendering launches
-            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
             CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( state.d_params ),
                                        reinterpret_cast<CUdeviceptr>( &state.params ), sizeof( Params ), state.stream ) );
             OPTIX_CHECK( optixLaunch( state.pipeline,
@@ -496,8 +495,7 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
                                       ) );
 
             // Initiate asynchronous request processing for the previous launch
-            state.ticket = demandLoader.processRequests(
-                state.device_idx, state.stream, state.params.demandTextureContext );
+            state.ticket = demandLoader.processRequests( state.stream, state.params.demandTextureContext );
         }
 
         // Wait for any outstanding requests
