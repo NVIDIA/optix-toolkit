@@ -52,7 +52,7 @@ class TextureRequestHandler : public RequestHandler
     }
 
     /// Fill a request for the specified page on the specified device using the given stream.  
-    void fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId ) override;
+    void fillRequest( CUstream stream, unsigned int pageId ) override;
 
     // Load or reload a page
     void loadPage( unsigned int deviceIndex, CUstream stream, unsigned int pageId, bool reloadIfResident );
@@ -70,8 +70,8 @@ class TextureRequestHandler : public RequestHandler
     DemandTextureImpl* m_texture = nullptr;
     DemandLoaderImpl*  m_loader = nullptr;
 
-    void fillTileRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId, TileBlockHandle bh );
-    void fillMipTailRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId, TileBlockHandle bh );
+    void fillTileRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh );
+    void fillMipTailRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh );
 };
 
 }  // namespace demandLoading

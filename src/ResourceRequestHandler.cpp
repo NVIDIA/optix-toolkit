@@ -33,7 +33,7 @@
 
 namespace demandLoading {
 
-void ResourceRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex ) 
+void ResourceRequestHandler::fillRequest( CUstream stream, unsigned int pageIndex ) 
 {
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to fill the same tile (or the mip tail).

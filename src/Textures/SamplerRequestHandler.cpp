@@ -43,7 +43,7 @@
 
 namespace demandLoading {
 
-void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -65,7 +65,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // Load base color if the page is for a base color
     if( isBaseColorId( pageId ) )
     {
-        fillBaseColorRequest( deviceIndex, stream, texture, pageId );
+        fillBaseColorRequest( stream, texture, pageId );
         return;
     }
 
@@ -92,7 +92,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     if ( !texture->useSparseTexture() )
     {
         // If the dense texture data was deferred, then defer allocating the sampler.
-        if( !fillDenseTexture( deviceIndex, stream, pageId ) )
+        if( !fillDenseTexture( stream, pageId ) )
             return;
     }
 
@@ -120,7 +120,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     m_loader->setPageTableEntry( pageId, false, devSampler );
 }
 
-bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -170,7 +170,7 @@ struct half4
     half x, y, z, w;
 };
 
-void SamplerRequestHandler::fillBaseColorRequest( unsigned int deviceIndex, CUstream stream, DemandTextureImpl* texture, unsigned int pageId )
+void SamplerRequestHandler::fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 

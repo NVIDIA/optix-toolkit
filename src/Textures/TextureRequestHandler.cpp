@@ -39,7 +39,7 @@
 
 namespace demandLoading {
 
-void TextureRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void TextureRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
    loadPage( deviceIndex, stream, pageId, false );
 }
@@ -70,12 +70,12 @@ void TextureRequestHandler::loadPage( unsigned int deviceIndex, CUstream stream,
 
     // Decide if we need to fill a mip tail or a tile
     if( pageId == m_startPage && m_texture->isMipmapped() )
-        fillMipTailRequest( deviceIndex, stream, pageId, bh );
+        fillMipTailRequest( stream, pageId, bh );
     else
-        fillTileRequest( deviceIndex, stream, pageId, bh );
+        fillTileRequest( stream, pageId, bh );
 }
 
-void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId, TileBlockHandle bh )
+void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -141,7 +141,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
     m_loader->freeTransferBuffer( transferBuffer, stream );
 }
 
-void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId, TileBlockHandle bh )
+void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 

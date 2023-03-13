@@ -66,8 +66,8 @@ class RequestHandler
         m_mutex.reset( new MutexArray( numPages ) );
     }
 
-    /// Fill a request for the specified page on the specified device using the given stream.
-    virtual void fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageId ) = 0;
+    /// Fill a request for the specified page using the given stream.
+    virtual void fillRequest( CUstream stream, unsigned int pageId ) = 0;
 
   protected:
     unsigned int                m_startPage = 0;

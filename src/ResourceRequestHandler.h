@@ -48,8 +48,8 @@ class ResourceRequestHandler : public RequestHandler
     {
     }
 
-    /// Fill a request for the specified page on the specified device using the given stream.
-    void fillRequest( unsigned int deviceIndex, CUstream stream, unsigned int pageIndex ) override;
+    /// Fill a request for the specified page using the given stream.
+    void fillRequest( CUstream stream, unsigned int pageIndex ) override;
 
     /// Get the index of the first page table entry allocated to this resource.
     unsigned int getStartPage() const { return m_startPage; }

@@ -119,7 +119,7 @@ void ThreadPoolRequestProcessor::worker()
             DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
 
             // Process the request.  Page table updates are accumulated in the PagingSystem.
-            handler->fillRequest( ticket->getDeviceIndex(), ticket->getStream(), request.pageId );
+            handler->fillRequest( ticket->getStream(), request.pageId );
 
             // Notify the associated Ticket that the request has been filled.
             ticket->notify();
