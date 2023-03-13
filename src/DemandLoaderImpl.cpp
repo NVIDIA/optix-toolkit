@@ -30,6 +30,7 @@
 
 #include "DemandPageLoaderImpl.h"
 #include "RequestProcessor.h"
+#include "Util/ContextSaver.h"
 #include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
@@ -144,20 +145,20 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 }
 
 // Returns false if the device doesn't support sparse textures.
-bool DemandLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
-    return m_pageLoader->launchPrepare( deviceIndex, stream, context );
+    return m_pageLoader->launchPrepare( stream, context );
 }
 
 // Process page requests.
-Ticket DemandLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
+Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
 {
-    return m_pageLoader->processRequests( deviceIndex, stream, context );
+    return m_pageLoader->processRequests( stream, context );
 }
 
-Ticket DemandLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
+Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
-    return m_pageLoader->replayRequests( deviceIndex, stream, requestedPages, numRequestedPages );
+    return m_pageLoader->replayRequests( stream, requestedPages, numRequestedPages );
 }
 
 
@@ -169,9 +170,9 @@ void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream str
     handler->unmapTileResource( deviceIndex, stream, pageId );
 }
 
-PagingSystem* DemandLoaderImpl::getPagingSystem( unsigned int deviceIndex ) const
+PagingSystem* DemandLoaderImpl::getPagingSystem() const
 {
-    return m_pageLoader->getPagingSystem( deviceIndex );
+    return m_pageLoader->getPagingSystem();
 }
 
 PageTableManager* DemandLoaderImpl::getPageTableManager()
@@ -183,8 +184,8 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    PagingSystem* pagingSystem = getPagingSystem( deviceIndex );
-    TilePool*     tilePool     = getDeviceMemoryManager( deviceIndex )->getTilePool();
+    PagingSystem* pagingSystem = getPagingSystem();
+    TilePool*     tilePool     = getDeviceMemoryManager()->getTilePool();
     PageMapping   mapping;
 
     while( tilePool->getTotalFreeTiles() < tilePool->getDesiredFreeTiles() )
@@ -247,12 +248,12 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
         if( transferBuffer.size <= sizeof(TileBuffer) )
         {
             PinnedItemPool<TileBuffer>* pinnedTilePool = m_pinnedMemoryManager.getPinnedTilePool();
-            pinnedTilePool->free( reinterpret_cast<TileBuffer*>( transferBuffer.buffer ), transferBuffer.deviceIndex, stream );
+            pinnedTilePool->free( reinterpret_cast<TileBuffer*>( transferBuffer.buffer ), stream );
         }
         else if( transferBuffer.size <= sizeof( MipTailBuffer ) )
         {
             PinnedItemPool<MipTailBuffer>* pinnedMipTailPool = m_pinnedMemoryManager.getPinnedMipTailPool();
-            pinnedMipTailPool->free( reinterpret_cast<MipTailBuffer*>( transferBuffer.buffer ), transferBuffer.deviceIndex, stream );
+            pinnedMipTailPool->free( reinterpret_cast<MipTailBuffer*>( transferBuffer.buffer ), stream );
         }
     }
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
@@ -289,11 +290,7 @@ Statistics DemandLoaderImpl::getStatistics() const
         tex->accumulateStatistics( stats, images );
     }
 
-    for( unsigned int i = 0; i < m_pageLoader->getNumDevices() && i < Statistics::NUM_DEVICES; ++i )
-    {
-        if( DeviceMemoryManager* manager = getDeviceMemoryManager( i ) )
-            manager->accumulateStatistics( stats.perDevice[i] );
-    }
+    m_pageLoader->accumulateStatistics( stats );
 
     return stats;
 }
@@ -313,25 +310,26 @@ void DemandLoaderImpl::enableEviction( bool evictionActive )
     m_pageLoader->enableEviction( evictionActive );
 }
 
-bool DemandLoaderImpl::isActiveDevice( unsigned int deviceIndex ) const
+DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager() const
 {
-    return m_pageLoader->isActiveDevice( deviceIndex );
-}
-
-DeviceMemoryManager* DemandLoaderImpl::getDeviceMemoryManager( unsigned int deviceIndex ) const
-{
-    return m_pageLoader->getDeviceMemoryManager( deviceIndex );
+    return m_pageLoader->getDeviceMemoryManager();
 }
 
 DemandLoader* createDemandLoader( const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    // Initialize CUDA if necessary
+    DEMAND_CUDA_CHECK( cuInit( 0 ) );
+
+    ContextSaver contextSaver;
     return new DemandLoaderImpl( options );
 }
 
 void destroyDemandLoader( DemandLoader* manager )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    ContextSaver contextSaver;
     delete manager;
 }
 

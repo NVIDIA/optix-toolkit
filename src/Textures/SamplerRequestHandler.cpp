@@ -50,7 +50,8 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     MutexArrayLock lock( m_mutex.get(), index);
 
     // Do nothing if the request has already been filled.
-    if( m_loader->getPagingSystem( deviceIndex )->isResident( pageId ) )
+    PagingSystem* pagingSystem = m_loader->getPagingSystem();
+    if( pagingSystem->isResident( pageId ) )
         return;
 
     // The samplers were the first resource that were assigned page table entries (via
@@ -63,7 +64,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     texture->open();
     if( texture->isDegenerate() )
     {
-        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, 0ULL );
+        pagingSystem->addMapping( pageId, NON_EVICTABLE_LRU_VAL, 0ULL );
         return;
     }
 
@@ -97,7 +98,7 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     pinnedSampler->texture = texture->getTextureObject( deviceIndex );
 
     // Allocate device memory for sampler.
-    SamplerPool*    samplerPool = m_loader->getDeviceMemoryManager( deviceIndex )->getSamplerPool();
+    SamplerPool*    samplerPool = m_loader->getDeviceMemoryManager()->getSamplerPool();
     TextureSampler* devSampler  = samplerPool->allocate();
 
     // Copy sampler to device memory.
@@ -107,10 +108,10 @@ void SamplerRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
     // the stream, and the buffer isn't reused until all preceding operations are complete,
     // including the asynchronous memcpy issued by fillTile().
-    pinnedSamplerPool->free( pinnedSampler, deviceIndex, stream );
+    pinnedSamplerPool->free( pinnedSampler, stream );
 
     // Push mapping for sampler to update page table.
-    m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
+    pagingSystem->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
 }
 
 bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
@@ -152,7 +153,6 @@ bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
     else 
     {
         // fillDenseTexture uses an async copy, so synchronize the stream when using the backup pageable buffer.
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
     }
 

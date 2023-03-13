@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,56 +25,33 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+#pragma once
 
-#include "Memory/Allocators.h"
-#include "Memory/ItemPool.h"
-
-#include <gtest/gtest.h>
-
+#include "Util/Exception.h"
 #include <cuda_runtime.h>
 
-#include <vector>
+namespace demandLoading {
 
-using namespace demandLoading;
-
-class IntPool : public ItemPool<int, PinnedAllocator>
+inline void checkCudaError( cudaError_t error, const char* expr, const char* file, unsigned int line )
 {
-  public:
-    IntPool()
-        : ItemPool<int, PinnedAllocator>( PinnedAllocator() )
+    if( error != cudaSuccess )
     {
+        std::stringstream ss;
+        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" __FILE__ << ":"
+           << __LINE__ << ")\n";
+        throw Exception( ss.str().c_str() );
     }
-};
-
-
-class TestItemPool : public testing::Test
-{
-    void SetUp() { cudaFree( nullptr ); }
-};
-
-TEST_F( TestItemPool, Unused )
-{
-    IntPool pool;
-    EXPECT_EQ( 0U, pool.size() );
 }
 
-TEST_F( TestItemPool, AllocateAndFree )
+// A non-throwing variant for use in destructors.
+inline void checkCudaErrorNoThrow( cudaError_t error, const char* expr, const char* file, unsigned int line ) noexcept
 {
-    IntPool pool;
-    int*    item = pool.allocate();
-    EXPECT_EQ( 1U, pool.size() );
-
-    pool.free( item );
-    EXPECT_EQ( 0U, pool.size() );
+    if( error != cudaSuccess )
+    {
+        std::cerr << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
+                  << ":" << line << ")\n";
+        std::terminate();
+    }
 }
 
-TEST_F( TestItemPool, ReuseFreedItem )
-{
-    // Verify that freed items are reused.  (This test is implementation specific.)
-    IntPool pool;
-    int*    item1 = pool.allocate();
-    pool.free( item1 );
-    int* item2 = pool.allocate();
-    EXPECT_EQ( item1, item2 );
-    pool.free( item2 );
-}
+} // namespace demandLoading

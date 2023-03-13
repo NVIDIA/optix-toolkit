@@ -36,17 +36,20 @@
 
 namespace demandLoading {
 
-TilePool::TilePool( unsigned int deviceIndex, size_t maxTexMem )
-    : m_deviceIndex( deviceIndex )
-    , m_arenaSize( TileArena::getRecommendedSize( m_deviceIndex ) )
+TilePool::TilePool( size_t maxTexMem )
+    : m_arenaSize( TileArena::getRecommendedSize() )
     , m_maxTexMem( maxTexMem )
 {
+    // Record the current CUDA context.
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+
     // Try to always keep at least one arena worth of tiles free.
     m_desiredFreeTiles = static_cast<unsigned int>( m_arenaSize / sizeof( TileBuffer ) );
 }
 
 TilePool::~TilePool()
 {
+    DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
     for( TileArena& arena : m_arenas )
     {
         arena.destroy();
@@ -56,6 +59,11 @@ TilePool::~TilePool()
 TileBlockDesc TilePool::allocate( size_t numBytes )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    // The current CUDA context must match the context that was current when the TilePool was constructed.
+    CUcontext context;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+    DEMAND_ASSERT( context == m_context );
 
     const unsigned int requestedTiles = static_cast<unsigned int>( ( numBytes + sizeof( TileBuffer ) - 1 ) / sizeof( TileBuffer ) );
     const unsigned int numFreeBlocks = static_cast<unsigned int>( m_freeTileBlocks.size() );
@@ -90,7 +98,7 @@ TileBlockDesc TilePool::allocate( size_t numBytes )
         if( ( texMemUsage > m_maxTexMem && requestedTiles == 1 ) || ( texMemUsage > m_maxTexMem * largeBlockThreshold ) )
             return TileBlockDesc{};  // empty block
 
-        m_arenas.push_back( TileArena::create( m_deviceIndex, m_arenaSize ) );
+        m_arenas.push_back( TileArena::create( m_arenaSize ) );
         const unsigned int   arenaId       = static_cast<unsigned int>( m_arenas.size() - 1 );
         const unsigned short tilesPerArena = static_cast<unsigned short>( m_arenaSize / sizeof( TileBuffer ) );
         m_freeTileBlocks.push_front( TileBlockDesc{arenaId, 0, tilesPerArena} );

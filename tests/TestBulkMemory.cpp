@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
 #include "Memory/BulkMemory.h"
 
 #include <gtest/gtest.h>
@@ -45,7 +47,7 @@ class TestBulkMemory : public testing::Test
 TEST_F( TestBulkMemory, TestAlignment )
 {
     const unsigned int deviceIndex = 0;
-    BulkDeviceMemory   memory( deviceIndex );
+    BulkDeviceMemory   memory;
     memory.reserveBytes( 1, 1 );
     memory.reserveBytes( 2, 2 );
     memory.reserveBytes( 4, 4 );

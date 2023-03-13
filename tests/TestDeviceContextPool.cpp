@@ -30,6 +30,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cuda_runtime.h>
+
 using namespace demandLoading;
 
 class TestDeviceContextPool : public testing::Test
@@ -55,7 +57,7 @@ class TestDeviceContextPool : public testing::Test
 
 TEST_F( TestDeviceContextPool, Test )
 {
-    DeviceContextPool pool( m_deviceIndex, m_options );
+    DeviceContextPool pool( m_options );
 
     DeviceContext* c1 = pool.allocate();
     DeviceContext* c2 = pool.allocate();

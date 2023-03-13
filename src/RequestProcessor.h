@@ -40,7 +40,7 @@ class RequestProcessor
     virtual ~RequestProcessor() = default;
 
     /// Add a batch of page requests from the specified device to the request queue.
-    virtual void addRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) = 0;
+    virtual void addRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) = 0;
 };
 
 }  // namespace demandLoading

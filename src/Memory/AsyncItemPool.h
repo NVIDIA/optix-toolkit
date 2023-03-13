@@ -31,6 +31,7 @@
 #include "Memory/EventPool.h"
 #include "Util/Exception.h"
 #include "Util/Math.h"
+#include "Util/PerContextData.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -93,7 +94,7 @@ class AsyncItemPool
         {
             FreedItem freedItem = m_freedItems.front();
             m_freedItems.pop_front();
-            getEventPool( freedItem.deviceIndex )->free( freedItem.event );
+            freeEvent( freedItem );
             return freedItem.item;
         }
 
@@ -105,19 +106,24 @@ class AsyncItemPool
         // Wait for the oldest freed item to be available.
         FreedItem freedItem = m_freedItems.front();
         m_freedItems.pop_front();
-        DEMAND_CUDA_CHECK( cudaSetDevice( freedItem.deviceIndex ) );
         DEMAND_CUDA_CHECK( cuEventSynchronize( freedItem.event ) );
 
         // Release the event and return the associated item.
-        getEventPool( freedItem.deviceIndex )->free( freedItem.event );
+        freeEvent( freedItem );
         return freedItem.item;
     }
 
     /// Return the given item to the pool.  An event is recorded on the given stream, and the freed
     /// item is not reused until all preceding operations on the stream have finished (e.g.  the
     /// pinned memory might be the source or target of an asynchronous copy).
-    void free( Item* item, unsigned int deviceIndex, CUstream stream )
+    void free( Item* item, CUstream stream )
     {
+        // The current CUDA context must match the context associated with the given stream.
+        CUcontext context, streamContext;
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+        DEMAND_CUDA_CHECK( cuStreamGetCtx( stream, &streamContext ) );
+        DEMAND_ASSERT( context == streamContext );
+
         {  // We acquire the mutex in a nested scope so it's released before we notify the condition variable.
             std::unique_lock<std::mutex> lock( m_mutex );
             DEMAND_ASSERT( m_items != nullptr );
@@ -126,13 +132,12 @@ class AsyncItemPool
                                "Invalid pointer in AsyncItemPool::free()" );
 
             // Take an event from the pool and record it on the given stream.
-            CUevent event = getEventPool( deviceIndex )->allocate();
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+            CUevent event = getEventPool()->allocate();
             DEMAND_CUDA_CHECK( cuEventRecord( event, stream ) );
 
             // Push the item and its associated event on the freed items queue and notify any threads
             // waiting in allocate().
-            m_freedItems.push_back( FreedItem{item, event, deviceIndex} );
+            m_freedItems.push_back( FreedItem{item, event, context} );
         }
         m_freedItemAvailable.notify_all();
     }
@@ -164,9 +169,9 @@ class AsyncItemPool
   private:
     struct FreedItem
     {
-        Item*        item;
-        CUevent      event;
-        unsigned int deviceIndex;
+        Item*     item;
+        CUevent   event;
+        CUcontext context;
     };
 
     mutable std::mutex m_mutex;
@@ -174,28 +179,28 @@ class AsyncItemPool
     size_t             m_capacity = 0;
     size_t             m_nextItem = 0;
 
-    std::vector<std::unique_ptr<EventPool>> m_eventPools;  // one per device
-    std::deque<FreedItem>                   m_freedItems;
-    std::condition_variable                 m_freedItemAvailable;
-    bool                                    m_isShutDown = false;
+    PerContextData<EventPool> m_eventPools;
+    std::deque<FreedItem>   m_freedItems;
+    std::condition_variable m_freedItemAvailable;
+    bool                    m_isShutDown = false;
 
-    EventPool* getEventPool( unsigned int deviceIndex )
+    EventPool* getEventPool()
     {
-        if( deviceIndex >= m_eventPools.size() )
-        {
-            m_eventPools.resize( deviceIndex + 1 );
-            m_eventPools[deviceIndex].reset( new EventPool( deviceIndex, m_capacity ) );
-        }
-        else if( !m_eventPools[deviceIndex] )
-        {
-            m_eventPools[deviceIndex].reset( new EventPool( deviceIndex, m_capacity ) );
-        }
-        return m_eventPools[deviceIndex].get();
+        EventPool* eventPool = m_eventPools.find();
+        return eventPool ? eventPool : m_eventPools.insert( std::unique_ptr<EventPool>( new EventPool( m_capacity ) ) );
     }
 
     bool oldestFreedItemAvailable() 
     {
         return !m_freedItems.empty() && ( cuEventQuery( m_freedItems.front().event ) == CUDA_SUCCESS );
+    }
+
+    void freeEvent( const FreedItem& freedItem )
+    {
+        DEMAND_CUDA_CHECK( cuCtxPushCurrent( freedItem.context ) );
+        getEventPool()->free( freedItem.event );
+        CUcontext ignored;
+        DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
     }
 };
 

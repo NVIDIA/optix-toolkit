@@ -27,6 +27,7 @@
 //
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
+#include "CudaCheck.h"
 #include "Util/TraceFile.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -45,7 +46,20 @@ using namespace imageSource;
 
 class TestTraceFile : public testing::Test
 {
-    void SetUp() { cudaFree( nullptr ); }
+  public:
+    void SetUp()
+    {
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
+        // Create stream.
+        CUstream stream;
+        DEMAND_CUDA_CHECK( cuStreamCreate( &stream, 0 ) );
+    }
+
+    unsigned int m_deviceIndex = 0;
+    CUstream m_stream;
 };
 
 TEST_F( TestTraceFile, TestWriteAndRead )
@@ -64,7 +78,7 @@ TEST_F( TestTraceFile, TestWriteAndRead )
 
         // The first page represents the sampler for the first texture.
         unsigned int pageIds[1] = {0};
-        writer.recordRequests( 0, CUstream{}, pageIds, 1 );
+        writer.recordRequests( m_stream, pageIds, 1 );
     }
 
     replayTraceFile( traceFilename );

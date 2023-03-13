@@ -34,7 +34,7 @@
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 #include <gtest/gtest.h>
 
@@ -54,10 +54,10 @@ class DevicePaging
 
     DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
-        , m_deviceMemoryManager( m_deviceIndex, options )
+        , m_deviceMemoryManager( options )
         , m_pinnedMemoryManager( options )
-        , m_paging( deviceIndex, options, &m_deviceMemoryManager, &m_pinnedMemoryManager, requestProcessor )
-        , m_contextPool( deviceIndex, options )
+        , m_paging( options, &m_deviceMemoryManager, &m_pinnedMemoryManager, requestProcessor )
+        , m_contextPool( options )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );
@@ -172,6 +172,8 @@ TEST_F( TestPagingSystem, TestResidentPage )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Map page 0 to an arbitrary value.
         device->m_paging.addMapping( 0, 0, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
@@ -189,6 +191,8 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Page table entries are allocated only for texture samplers, not tiles,
         // so page ids >= Options::numPageTableEntries are mapped to zero.
         const unsigned int pageId = m_options.numPageTableEntries + 1;

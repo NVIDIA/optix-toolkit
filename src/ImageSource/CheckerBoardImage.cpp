@@ -33,7 +33,7 @@
 #include <cmath>
 #include <cstring>
 
-#include <cuda_runtime.h>  // for make_float4
+#include <vector_functions.h> // from CUDA toolkit
 
 namespace imageSource {
 

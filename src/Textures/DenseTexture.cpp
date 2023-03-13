@@ -31,6 +31,8 @@
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
+#include <vector_functions.h> // from CUDA toolkit
+
 #include <algorithm>
 #include <cmath>
 
@@ -43,7 +45,9 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     if( m_isInitialized )
         return;
 
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+    // Record the current CUDA context.
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+
     m_info = info;
 
     // Create CUDA array
@@ -76,8 +80,6 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
 
 uint2 DenseTexture::getMipLevelDims( unsigned int mipLevel ) const
 {
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-
     // Get CUDA array for the specified level from the mipmapped array.
     DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
     CUarray mipLevelArray; 
@@ -95,7 +97,6 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
     DEMAND_ASSERT( m_isInitialized );
     DEMAND_ASSERT( width == m_info.width );
     DEMAND_ASSERT( height == m_info.height );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     // Fill each level.
     size_t             offset    = 0;
@@ -133,7 +134,7 @@ DenseTexture::~DenseTexture()
 {
     if( m_isInitialized )
     {
-        DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuMipmappedArrayDestroy( m_array ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
     }

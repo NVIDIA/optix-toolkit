@@ -25,56 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+#pragma once
 
-#include "Memory/Allocators.h"
-#include "Memory/ItemPool.h"
+#include "Util/Exception.h"
 
-#include <gtest/gtest.h>
+#include <cuda.h>
 
-#include <cuda_runtime.h>
+namespace demandLoading {
 
-#include <vector>
-
-using namespace demandLoading;
-
-class IntPool : public ItemPool<int, PinnedAllocator>
+/// Save and restore CUDA context.
+class ContextSaver
 {
   public:
-    IntPool()
-        : ItemPool<int, PinnedAllocator>( PinnedAllocator() )
-    {
-    }
+    ContextSaver() { DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) ); }
+
+    ~ContextSaver() { DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) ); }
+
+  private:
+    CUcontext m_context;
 };
 
+} // namespace demandLoading
 
-class TestItemPool : public testing::Test
-{
-    void SetUp() { cudaFree( nullptr ); }
-};
-
-TEST_F( TestItemPool, Unused )
-{
-    IntPool pool;
-    EXPECT_EQ( 0U, pool.size() );
-}
-
-TEST_F( TestItemPool, AllocateAndFree )
-{
-    IntPool pool;
-    int*    item = pool.allocate();
-    EXPECT_EQ( 1U, pool.size() );
-
-    pool.free( item );
-    EXPECT_EQ( 0U, pool.size() );
-}
-
-TEST_F( TestItemPool, ReuseFreedItem )
-{
-    // Verify that freed items are reused.  (This test is implementation specific.)
-    IntPool pool;
-    int*    item1 = pool.allocate();
-    pool.free( item1 );
-    int* item2 = pool.allocate();
-    EXPECT_EQ( item1, item2 );
-    pool.free( item2 );
-}

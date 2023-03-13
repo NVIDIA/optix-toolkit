@@ -39,6 +39,7 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
+#include "Util/PerContextData.h"
 
 #include <cuda.h>
 
@@ -74,21 +75,23 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
 
-    /// Prepare for launch.  Returns false if the specified device does not support sparse textures.
-    /// If successful, returns a DeviceContext via result parameter, which should be copied to
-    /// device memory (typically along with OptiX kernel launch parameters), so that it can be
-    /// passed to Tex2D().
-    bool launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& demandTextureContext ) override;
+    /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
+    /// stream.  Returns false if the specified device does not support sparse textures.  If
+    /// successful, returns a DeviceContext via result parameter, which should be copied to device
+    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
+    /// Tex2D().
+    bool launchPrepare( CUstream stream, DeviceContext& demandTextureContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background
-    /// processing.  The given stream is used when copying tile data to the device.  Returns a
-    /// ticket that is notified when the requests have been filled.
-    Ticket processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& deviceContext ) override;
+    /// processing. The caller must ensure that the current CUDA context matches the given stream.
+    /// The given stream is used when copying tile data to the device.  Returns a ticket that is
+    /// notified when the requests have been filled.
+    Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) override;
 
     /// Replay the given page requests (from a trace file), adding them to the page requeuest queue
-    /// for asynchronous processing.  Returns a ticket that is notified when the requests have been
-    /// filled.
-    Ticket replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
+    /// for asynchronous processing.  The caller must ensure that the current CUDA context matches
+    /// the given stream.  Returns a ticket that is notified when the requests have been filled.
+    Ticket replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
 
     /// Get the demand loading configuration options.
     const Options& getOptions() const { return m_options; }
@@ -101,36 +104,33 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override { m_options.evictionActive = evictionActive; }
 
-    /// Check whether the specified device is active.
-    bool isActiveDevice( unsigned int deviceIndex ) const
-    {
-        return static_cast<bool>( m_pagingSystems.at( deviceIndex ) );
-    }
-
-    /// Get the DeviceMemoryManager for the specified device.
-    DeviceMemoryManager* getDeviceMemoryManager( unsigned int deviceIndex ) const
-    {
-        return m_deviceMemoryManagers[deviceIndex].get();
-    }
+    /// Get the DeviceMemoryManager for the current CUDA context.
+    DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
     PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
 
-    /// Get the PagingSystem for the specified device.
-    PagingSystem* getPagingSystem( unsigned int deviceIndex ) const { return m_pagingSystems[deviceIndex].get(); }
+    /// Get the PagingSystem for the current CUDA context.
+    PagingSystem* getPagingSystem() const;
 
-private:
+    /// Accumulate statistics into the given struct.
+    void accumulateStatistics( Statistics& stats ) const;
+
+  private:
     mutable std::mutex        m_mutex;
     Options                   m_options;
     unsigned int              m_numDevices;
     std::vector<unsigned int> m_devices;  // Indices of supported devices.
 
-    std::vector<std::unique_ptr<DeviceMemoryManager>> m_deviceMemoryManagers;  // Manages device memory (one per device)
-    std::vector<std::unique_ptr<PagingSystem>>        m_pagingSystems;  // Manages device interaction (one per device)
+    mutable PerContextData<DeviceMemoryManager> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
+    mutable PerContextData<PagingSystem>        m_pagingSystems;  // Manages device interaction (one per CUDA context)
+
+    mutable std::mutex m_deviceMemoryManagersMutex;
+    mutable std::mutex m_pagingSystemsMutex;
 
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
-    PinnedMemoryManager m_pinnedMemoryManager;
+    mutable PinnedMemoryManager m_pinnedMemoryManager;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 

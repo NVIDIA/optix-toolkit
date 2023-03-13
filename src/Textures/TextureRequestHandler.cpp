@@ -49,7 +49,7 @@ void TextureRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
     MutexArrayLock lock( m_mutex.get(), index);
 
     // Do nothing if the request has already been filled.
-    if( m_loader->getPagingSystem( deviceIndex )->isResident( pageId ) )
+    if( m_loader->getPagingSystem()->isResident( pageId ) )
         return;
 
     // Decide if we need to fill a mip tail or a tile
@@ -75,7 +75,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
     unpackTileIndex( sampler, tileIndex, mipLevel, tileX, tileY );
 
     // Allocate a tile in device memory
-    TilePool*     tilePool    = m_loader->getDeviceMemoryManager( deviceIndex )->getTilePool();
+    TilePool*     tilePool    = m_loader->getDeviceMemoryManager()->getTilePool();
     TileBlockDesc tileLocator = tilePool->allocate( sizeof( TileBuffer ) );
     if( !tileLocator.isValid() )
         return;
@@ -113,7 +113,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
                              sizeof( TileBuffer ), handle, offset );
 
         const unsigned int lruVal = 0;
-        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, tileLocator.getData() );
+        m_loader->getPagingSystem()->addMapping( pageId, lruVal, tileLocator.getData() );
     }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
@@ -126,7 +126,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
     const size_t mipTailSize  = m_texture->getMipTailSize();
     
     // Allocate device memory for the mip tail from TilePool.
-    TilePool*     tilePool  = m_loader->getDeviceMemoryManager( deviceIndex )->getTilePool();
+    TilePool*     tilePool  = m_loader->getDeviceMemoryManager()->getTilePool();
     TileBlockDesc tileBlock = tilePool->allocate( mipTailSize );
     if( !tileBlock.isValid() )
         return;
@@ -164,7 +164,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
 
         // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
         unsigned int lruVal = 0;
-        m_loader->getPagingSystem( deviceIndex )->addMapping( pageId, lruVal, tileBlock.getData() );
+        m_loader->getPagingSystem()->addMapping( pageId, lruVal, tileBlock.getData() );
     }
     else
     {
@@ -182,7 +182,7 @@ void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstrea
     MutexArrayLock lock( m_mutex.get(), tileIndex);
 
     // If the page has already been remapped, don't unmap it
-    PagingSystem* pagingSystem = m_loader->getPagingSystem( deviceIndex );
+    PagingSystem* pagingSystem = m_loader->getPagingSystem();
     if( pagingSystem->isResident( pageId ) )
         return;
 

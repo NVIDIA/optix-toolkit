@@ -108,13 +108,13 @@ add_library( DemandLoading
   src/ThreadPoolRequestProcessor.h
   src/Ticket.cpp
   src/TicketImpl.h
+  src/Util/ContextSaver.h
   src/Util/CudaCallback.h
-  src/Util/DeviceSet.cpp
-  src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
+  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.cpp
   src/Util/TraceFile.h
@@ -184,12 +184,14 @@ source_group( "Header Files\\Implementation" FILES
   src/Textures/TextureRequestHandler.h
   src/ThreadPoolRequestProcessor.h
   src/TicketImpl.h
+  src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
+  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.h
   )
@@ -300,7 +302,6 @@ target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCor
 target_link_libraries( ImageSource
   PUBLIC
   CUDA::cuda_driver
-  CUDA::cudart
   ${CMAKE_DL_LIBS}  
   PRIVATE
   OpenEXR_OTK

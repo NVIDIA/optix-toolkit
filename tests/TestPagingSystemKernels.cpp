@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
 #include "Memory/DeviceContextPool.h"
 #include "PagingSystemKernels.h"
 
@@ -40,11 +42,6 @@ using namespace demandLoading;
 class TestPagingSystemKernels : public testing::Test
 {
   public:
-    TestPagingSystemKernels()
-        : m_contextMemory( m_deviceIndex )
-    {
-    }
-
     void SetUp() override
     {
         // Initialize CUDA.
@@ -61,7 +58,7 @@ class TestPagingSystemKernels : public testing::Test
         m_options.useLruTable       = true;
 
         // Allocate and initialize device context.
-        m_contextPool.reset( new DeviceContextPool( m_deviceIndex, m_options ) );
+        m_contextPool.reset( new DeviceContextPool( m_options ) );
         m_context = m_contextPool->allocate();
     }
 

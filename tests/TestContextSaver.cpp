@@ -26,62 +26,79 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Textures/SparseTexture.h"
-#include "CudaCheck.h"
+#include "Util/ContextSaver.h"
 
 #include <gtest/gtest.h>
 
 #include <cuda.h>
 
 using namespace demandLoading;
-using namespace imageSource;
 
-class TestSparseTexture : public testing::Test
+
+class TestContextSaver : public testing::Test
 {
-  protected:
-    unsigned int      m_deviceIndex = 0;
-    TextureDescriptor m_desc;
-    TextureInfo       m_info;
-
   public:
     void SetUp() override
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
-        m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
-        m_desc.addressMode[1]   = CU_TR_ADDRESS_MODE_CLAMP;
-        m_desc.filterMode       = CU_TR_FILTER_MODE_POINT;
-        m_desc.mipmapFilterMode = CU_TR_FILTER_MODE_POINT;
-        m_desc.maxAnisotropy    = 16;
-
-        m_info.width        = 256;
-        m_info.height       = 256;
-        m_info.format       = CU_AD_FORMAT_FLOAT;
-        m_info.numChannels  = 4;
-        m_info.numMipLevels = 9;
+        // Initialize CUDA and create context.
+        cuInit( 0 );
+        DEMAND_CUDA_CHECK( cuDeviceGet( &m_device, m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cuCtxCreate( &m_context, 0, m_device ) );
     }
 
-    void TearDown() override {}
+    void TearDown() override { DEMAND_CUDA_CHECK( cuCtxDestroy( m_context ) ); }
+
+    void expectCurrentContext( CUcontext expected )
+    {
+        CUcontext current;
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &current ) );
+        EXPECT_EQ( expected, current );
+    }
+
+  protected:
+    unsigned int m_deviceIndex = 0;
+    CUdevice     m_device;
+    CUcontext    m_context;
 };
 
-TEST_F( TestSparseTexture, TestInit )
+TEST_F( TestContextSaver, TestNop )
 {
-    SparseTexture texture;
-    EXPECT_FALSE( texture.isInitialized() );
-
-    texture.init( m_desc, m_info );
-
-    EXPECT_TRUE( texture.isInitialized() );
-    EXPECT_EQ( 64U, texture.getTileWidth() );
-    EXPECT_EQ( 64U, texture.getTileHeight() );
-    EXPECT_EQ( 3U, texture.getMipTailFirstLevel() );
-    EXPECT_LE( texture.getMipTailSize(), 65536U );
-
-    for( unsigned int mipLevel = 0; mipLevel < m_info.numMipLevels; ++mipLevel )
+    expectCurrentContext( m_context );
     {
-        EXPECT_EQ( m_info.width >> mipLevel, texture.getMipLevelDims( mipLevel ).x );
+        ContextSaver saver;
     }
+    expectCurrentContext( m_context );
 }
 
-// Note: the FillTile and FillMipTail methods are covered by TestDemandTexture.
+TEST_F( TestContextSaver, TestSave )
+{
+    expectCurrentContext( m_context );
+    {
+        ContextSaver saver;
+        CUcontext newContext;
+        DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+        expectCurrentContext( newContext );
+    }
+    expectCurrentContext( m_context );
+}
+
+
+TEST_F( TestContextSaver, TestNestedSave )
+{
+    expectCurrentContext( m_context );
+    {
+        ContextSaver saver;
+        CUcontext    newContext;
+        DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+
+        {
+            ContextSaver saver;
+            CUcontext    nestedContext;
+            DEMAND_CUDA_CHECK( cuCtxCreate( &nestedContext, 0, m_device ) );
+            expectCurrentContext( nestedContext );
+        }
+
+        expectCurrentContext( newContext );
+    }
+    expectCurrentContext( m_context );
+}

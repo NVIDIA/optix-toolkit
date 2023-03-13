@@ -37,19 +37,16 @@
 
 namespace demandLoading {
 
-PagingSystem::PagingSystem( unsigned int         deviceIndex,
-                            const Options&       options,
+PagingSystem::PagingSystem( const Options&       options,
                             DeviceMemoryManager* deviceMemoryManager,
                             PinnedMemoryManager* pinnedMemoryManager,
                             RequestProcessor*    requestProcessor )
     : m_options( options )
-    , m_deviceIndex( deviceIndex )
     , m_deviceMemoryManager( deviceMemoryManager )
     , m_pinnedMemoryManager( pinnedMemoryManager )
     , m_requestProcessor( requestProcessor )
 {
     DEMAND_ASSERT( m_options.maxFilledPages >= m_options.maxRequestedPages );
-    DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
@@ -103,7 +100,6 @@ class ProcessRequestsCallback : public CudaCallback
 void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, unsigned int startPage, unsigned int endPage, Ticket ticket )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     // The array lengths are accumulated across multiple device threads, so they must be initialized to zero.
     DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ), 0,
@@ -163,7 +159,7 @@ void PagingSystem::processRequests( const DeviceContext& context, RequestContext
     requestContext->arrayLengths[PAGE_REQUESTS_LENGTH] = numRequestedPages;
 
     // Enqueue the requests for asynchronous processing.
-    m_requestProcessor->addRequests( m_deviceIndex, stream, requestContext->requestedPages, numRequestedPages, ticket );
+    m_requestProcessor->addRequests( stream, requestContext->requestedPages, numRequestedPages, ticket );
 
     // Sort and stage stale pages, and update the LRU threshold
     unsigned int medianLruVal = 0;
@@ -208,7 +204,6 @@ bool PagingSystem::isResident( unsigned int pageId )
 unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
     const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
     if( numFilledPages > 0 )
@@ -241,7 +236,7 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
 
     // Free the current PageMappingsContext (it's not reused until the preceding operations on the stream are done)
     // and allocate another one.  Note that we're careful to reserve two contexts per stream in the PinnedMemoryManager.
-    m_pinnedMemoryManager->getPageMappingsContextPool()->free( m_pageMappingsContext, m_deviceIndex, stream );
+    m_pinnedMemoryManager->getPageMappingsContextPool()->free( m_pageMappingsContext, stream );
     m_pageMappingsContext = m_pinnedMemoryManager->getPageMappingsContextPool()->allocate();
     m_pageMappingsContext->clear();
 

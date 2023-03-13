@@ -44,14 +44,12 @@ public:
     SparseArray() = default;
     ~SparseArray();
 
-    void init( unsigned int deviceIndex, const imageSource::TextureInfo& info );
+    void init( const imageSource::TextureInfo& info );
 
     explicit operator CUmipmappedArray() const { return m_array; }
 
     CUarray getLevel( unsigned int mipLevel ) const
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-
         CUarray mipLevelArray{};
         DEMAND_CUDA_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, m_array, mipLevel ) );
         return mipLevelArray;
@@ -82,7 +80,8 @@ private:
     uint2 queryMipLevelDims( unsigned int mipLevel ) const;
 
     bool                         m_initialized{};
-    unsigned int                 m_deviceIndex{};
+    unsigned int                 m_deviceIndex;
+    CUcontext                    m_context;
     imageSource::TextureInfo     m_info{};
     CUmipmappedArray             m_array{};
     CUDA_ARRAY_SPARSE_PROPERTIES m_properties{};
@@ -93,12 +92,6 @@ private:
 class SparseTexture
 {
   public:
-    /// Construct SparseTexture for the specified device.
-    explicit SparseTexture( unsigned int deviceIndex )
-        : m_deviceIndex( deviceIndex )
-    {
-    }
-
     /// Destroy the sparse texture, reclaiming its resources.
     ~SparseTexture();
 
@@ -164,7 +157,7 @@ class SparseTexture
 
   private:
     bool                         m_isInitialized = false;
-    unsigned int                 m_deviceIndex;
+    CUcontext                    m_context;
     imageSource::TextureInfo     m_info{};
     SparseArray                  m_array;
     CUtexObject                  m_texture{};

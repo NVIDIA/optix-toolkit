@@ -113,12 +113,30 @@ unsigned int TraceFileWriter::getStreamId( CUstream stream )
     return streamId;
 }
 
-void TraceFileWriter::recordRequests( unsigned int deviceIndex, CUstream stream, const unsigned int* pageIds, unsigned int numPageIds )
+// Check that the current CUDA context matches the one associated with the given stream
+// and return the associated device index.
+static unsigned int getDeviceIndex( CUstream stream )
+{
+    // Get the current CUDA context.
+    CUcontext cudaContext, streamContext;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
+    DEMAND_ASSERT_MSG( cudaContext == streamContext,
+                       "The current CUDA context must match the one associated with the given stream" );
+
+    // Get the device index from the CUDA context.
+    CUdevice device;
+    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    return static_cast<unsigned int>( device );
+}
+
+void TraceFileWriter::recordRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds )
 {
     if( !m_file )
         return;
 
     std::unique_lock<std::mutex> lock( m_mutex );
+    unsigned int deviceIndex = getDeviceIndex( stream );
     unsigned int streamId = getStreamId( stream ) ;
 
     write( REQUESTS );
@@ -183,8 +201,9 @@ class TraceFileReader
     }
 
   private:
-    std::ifstream         m_file;
-    std::vector<CUstream> m_streams;
+    std::ifstream          m_file;
+    std::vector<CUcontext> m_contexts;
+    std::vector<CUstream>  m_streams;
 
     template <typename T>
     void read( T* dest )
@@ -235,15 +254,33 @@ class TraceFileReader
         loader->createTexture( imageSource, desc );
     }
 
+    CUcontext getContext( unsigned int deviceIndex )
+    {
+        if( deviceIndex >= m_contexts.size() )
+        {
+            m_contexts.resize( deviceIndex + 1 );
+        }
+        if( !m_contexts[deviceIndex] )
+        {
+            CUdevice device;
+            DEMAND_CUDA_CHECK( cuDeviceGet( &device, deviceIndex ) );
+            DEMAND_CUDA_CHECK( cuCtxCreate( &m_contexts[deviceIndex], 0, device ) );
+        }
+        return m_contexts[deviceIndex];
+    }
+
     CUstream getStream( unsigned int deviceIndex, unsigned int streamId )
     {
+
         if( streamId < m_streams.size() )
             return m_streams[streamId];
 
         if( streamId != m_streams.size() )
             throw Exception( "Unexpected stream id in page request trace file" );
 
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        CUcontext context = getContext( deviceIndex );
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+
         CUstream stream;
         DEMAND_CUDA_CHECK( cuStreamCreate( &stream, 0U ) );
         m_streams.push_back( stream );
@@ -268,11 +305,8 @@ class TraceFileReader
         DemandLoaderImpl* loaderImpl = dynamic_cast<DemandLoaderImpl*>( loader );
         assert( loaderImpl );
 
-        if( !loaderImpl->isActiveDevice( deviceIndex ) )
-            throw Exception( "Required device is not present for request trace playback." );
-
         CUstream stream = getStream( deviceIndex, streamId );
-        Ticket ticket = loaderImpl->replayRequests( deviceIndex, stream, pageIds.data(), numPageIds );
+        Ticket ticket = loaderImpl->replayRequests( stream, pageIds.data(), numPageIds );
         ticket.wait();
     }
 };

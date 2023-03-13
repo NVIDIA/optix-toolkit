@@ -28,7 +28,7 @@
 
 #include "TestSparseTexture.h"
 
-#include "Util/Exception.h"
+#include "CudaCheck.h"
 
 __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
 {

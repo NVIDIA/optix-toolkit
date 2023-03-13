@@ -32,8 +32,8 @@
 
 namespace demandLoading {
 
-DeviceContextPool::DeviceContextPool( unsigned int deviceIndex, const Options& options )
-    : m_memory( deviceIndex )
+DeviceContextPool::DeviceContextPool( const Options& options )
+    : m_memory()
     , m_contexts( options.maxActiveStreams )
 {
     // Reserve storage.  Per-device data is reserved for only one context.

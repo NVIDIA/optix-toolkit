@@ -76,8 +76,8 @@ class TileBlockDesc
 class TilePool
 {
   public:
-    /// Construct tile pool for the specified device.
-    explicit TilePool( unsigned int deviceIndex, size_t maxTileMemUsage );
+    /// Construct tile pool.
+    explicit TilePool( size_t maxTileMemUsage );
 
     /// Destroy the tile pool, reclaiming its resources.
     ~TilePool();
@@ -108,7 +108,7 @@ class TilePool
     size_t getDesiredFreeTiles() const { return m_desiredFreeTiles; }
 
   private:
-    unsigned int              m_deviceIndex{};
+    CUcontext                 m_context;
     std::vector<TileArena>    m_arenas;
     size_t                    m_arenaSize{};
     mutable std::mutex        m_mutex;

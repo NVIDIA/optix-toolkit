@@ -97,8 +97,6 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
                                             const Options&                    options )
     : m_options( configure( options ) )
     , m_numDevices( getCudaDeviceCount() )
-    , m_deviceMemoryManagers( m_numDevices )
-    , m_pagingSystems( m_numDevices )
     , m_pageTableManager( std::move( pageTableManager ) )
     , m_requestProcessor( requestProcessor )
     , m_pinnedMemoryManager( options )
@@ -119,19 +117,32 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
         for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
             m_devices.push_back( deviceIndex );
     }
-
-    // Create deviceMemoryManagers and pagingSystems for the devices
-    for( unsigned int deviceIndex : m_devices )
-    {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
-        m_deviceMemoryManagers[deviceIndex].reset( new DeviceMemoryManager( deviceIndex, m_options ) );
-        m_pagingSystems[deviceIndex].reset( new PagingSystem(
-            deviceIndex, m_options, m_deviceMemoryManagers[deviceIndex].get(), &m_pinnedMemoryManager, m_requestProcessor ) );
-    }
 }
 
+DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
+{
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
+
+    DeviceMemoryManager* manager = m_deviceMemoryManagers.find();
+    if( manager )
+        return manager;
+    std::unique_ptr<DeviceMemoryManager> ptr(new DeviceMemoryManager( m_options ) );
+    return m_deviceMemoryManagers.insert( std::move( ptr ) );
+}
+
+PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
+{
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
+
+    PagingSystem* pagingSystem = m_pagingSystems.find();
+    if (pagingSystem)
+        return pagingSystem;
+    std::unique_ptr<PagingSystem> ptr(
+        new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryManager, m_requestProcessor ) );
+    return m_pagingSystems.insert( std::move( ptr ) );
+}
 
 unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* context )
 {
@@ -149,18 +160,42 @@ unsigned int DemandPageLoaderImpl::createResource( unsigned int numPages, Resour
     return m_resourceRequestHandlers.back()->getStartPage();
 }
 
+namespace { // anonymous
+
+// Check that the current CUDA context matches the one associated with the given stream
+// and return the associated device index.
+unsigned int getDeviceIndex( CUstream stream )
+{
+    // Get the current CUDA context.
+    CUcontext cudaContext, streamContext;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
+    DEMAND_ASSERT_MSG( cudaContext == streamContext,
+                       "The current CUDA context must match the one associated with the given stream" );
+
+    // Get the device index from the CUDA context.
+    CUdevice device;
+    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    return static_cast<unsigned int>( device );
+}
+
+} // anonymous namespace
+
 // Returns false if the device doesn't support sparse textures.
-bool DemandPageLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream stream, DeviceContext& context )
+bool DemandPageLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
+
     std::unique_lock<std::mutex> lock( m_mutex );
 
-    PagingSystem* pagingSystem = m_pagingSystems.at( deviceIndex ).get();
+    PagingSystem* pagingSystem = getPagingSystem();
     if( pagingSystem == nullptr )
         return false;
 
     // Get DeviceContext from pool and copy it to output parameter.
-    context = *m_deviceMemoryManagers[deviceIndex]->getDeviceContextPool()->allocate();
+    context = *getDeviceMemoryManager()->getDeviceContextPool()->allocate();
     context.requestIfResident = m_options.evictionActive;
 
     pagingSystem->pushMappings( context, stream );
@@ -168,10 +203,13 @@ bool DemandPageLoaderImpl::launchPrepare( unsigned int deviceIndex, CUstream str
 }
 
 // Process page requests.
-Ticket DemandPageLoaderImpl::processRequests( unsigned int deviceIndex, CUstream stream, const DeviceContext& context )
+Ticket DemandPageLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
 {
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
+
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Create a Ticket that the caller can use to track request processing.
@@ -179,7 +217,7 @@ Ticket DemandPageLoaderImpl::processRequests( unsigned int deviceIndex, CUstream
 
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
     // request bits copies the requested page ids to host memory (asynchronously).
-    PagingSystem* pagingSystem = m_pagingSystems[deviceIndex].get();
+    PagingSystem* pagingSystem = getPagingSystem();
     unsigned int  startPage    = 0;
     unsigned int  endPage      = m_pageTableManager->getHighestUsedPage();
     pagingSystem->pullRequests( context, stream, startPage, endPage, ticket );
@@ -188,20 +226,33 @@ Ticket DemandPageLoaderImpl::processRequests( unsigned int deviceIndex, CUstream
     return ticket;
 }
 
-Ticket DemandPageLoaderImpl::replayRequests( unsigned int deviceIndex, CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
+Ticket DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    unsigned int deviceIndex = getDeviceIndex( stream );
+
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Flush any page mappings that have accumulated for the specified device.
-    m_pagingSystems.at( deviceIndex )->flushMappings();
+    getPagingSystem()->flushMappings();
 
     // Create a Ticket that the caller can use to track request processing.
     Ticket ticket( TicketImpl::create( deviceIndex, stream ) );
 
-    m_requestProcessor->addRequests( deviceIndex, stream, requestedPages, numRequestedPages, ticket );
+    m_requestProcessor->addRequests( stream, requestedPages, numRequestedPages, ticket );
 
     return ticket;
+}
+
+void DemandPageLoaderImpl::accumulateStatistics( Statistics& stats ) const
+{
+    m_deviceMemoryManagers.for_each( [&stats]( const DeviceMemoryManager& manager ) {
+        CUdevice device;
+        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+        unsigned int deviceIndex = static_cast<unsigned int>( device );
+        manager.accumulateStatistics( stats.perDevice[deviceIndex] );
+    } );
 }
 
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )

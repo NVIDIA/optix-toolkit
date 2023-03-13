@@ -26,8 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
 #include "Memory/Buffers.h"
 #include "Memory/TileArena.h"
+
+#include <cuda_runtime.h>
 
 #include <gtest/gtest.h>
 
@@ -38,14 +42,16 @@ class TestTileArena : public testing::Test
   public:
     void SetUp() override
     {
-        size_t arenaSize = TileArena::getRecommendedSize( m_deviceIndex );
-        m_arena          = TileArena::create( m_deviceIndex, arenaSize );
+        // Initialize CUDA.
+        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+
+        size_t arenaSize = TileArena::getRecommendedSize();
+        m_arena          = TileArena::create( arenaSize );
     }
 
     void TearDown() override { m_arena.destroy(); }
 
   protected:
-    unsigned int m_deviceIndex = 0;
     TileArena    m_arena;
 };
 

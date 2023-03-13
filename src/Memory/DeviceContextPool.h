@@ -43,7 +43,7 @@ class DeviceContextPool
     /// Create DeviceContextPool.  The pool size is determined by Options::maxActiveStreams,
     /// and the various members of DeviceContext are sized according to Options::numPages.
     /// \see DeviceContextImpl
-    DeviceContextPool( unsigned int deviceIndex, const Options& options );
+    DeviceContextPool( const Options& options );
 
     /// Allocate a DeviceContext from the pool
     DeviceContext* allocate();

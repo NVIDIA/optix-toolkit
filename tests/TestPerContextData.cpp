@@ -26,62 +26,75 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Textures/SparseTexture.h"
-#include "CudaCheck.h"
+#include "Util/PerContextData.h"
 
 #include <gtest/gtest.h>
 
 #include <cuda.h>
 
 using namespace demandLoading;
-using namespace imageSource;
 
-class TestSparseTexture : public testing::Test
+
+class TestPerContextData : public testing::Test
 {
-  protected:
-    unsigned int      m_deviceIndex = 0;
-    TextureDescriptor m_desc;
-    TextureInfo       m_info;
-
   public:
     void SetUp() override
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
-        m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
-        m_desc.addressMode[1]   = CU_TR_ADDRESS_MODE_CLAMP;
-        m_desc.filterMode       = CU_TR_FILTER_MODE_POINT;
-        m_desc.mipmapFilterMode = CU_TR_FILTER_MODE_POINT;
-        m_desc.maxAnisotropy    = 16;
-
-        m_info.width        = 256;
-        m_info.height       = 256;
-        m_info.format       = CU_AD_FORMAT_FLOAT;
-        m_info.numChannels  = 4;
-        m_info.numMipLevels = 9;
+        // Initialize CUDA and create context.
+        cuInit( 0 );
+        DEMAND_CUDA_CHECK( cuDeviceGet( &m_device, m_deviceIndex ) );
+        DEMAND_CUDA_CHECK( cuCtxCreate( &m_context, 0, m_device ) );
     }
 
-    void TearDown() override {}
+    void TearDown() override { DEMAND_CUDA_CHECK( cuCtxDestroy( m_context ) ); }
+
+  protected:
+    unsigned int m_deviceIndex = 0;
+    CUdevice     m_device;
+    CUcontext    m_context;
 };
 
-TEST_F( TestSparseTexture, TestInit )
+TEST_F( TestPerContextData, TestEmpty )
 {
-    SparseTexture texture;
-    EXPECT_FALSE( texture.isInitialized() );
-
-    texture.init( m_desc, m_info );
-
-    EXPECT_TRUE( texture.isInitialized() );
-    EXPECT_EQ( 64U, texture.getTileWidth() );
-    EXPECT_EQ( 64U, texture.getTileHeight() );
-    EXPECT_EQ( 3U, texture.getMipTailFirstLevel() );
-    EXPECT_LE( texture.getMipTailSize(), 65536U );
-
-    for( unsigned int mipLevel = 0; mipLevel < m_info.numMipLevels; ++mipLevel )
-    {
-        EXPECT_EQ( m_info.width >> mipLevel, texture.getMipLevelDims( mipLevel ).x );
-    }
+    PerContextData<int> map;
 }
 
-// Note: the FillTile and FillMipTail methods are covered by TestDemandTexture.
+TEST_F( TestPerContextData, TestFindNone )
+{
+    PerContextData<int> map;
+    int*                data = map.find();
+    EXPECT_EQ( nullptr, data );
+}
+
+TEST_F( TestPerContextData, TestFind )
+{
+    PerContextData<int> map;
+    map.insert( std::unique_ptr<int>( new int( 1 ) ) );
+    int* data = map.find();
+    ASSERT_NE( nullptr, data );
+    EXPECT_EQ( 1, *data );
+}
+
+TEST_F( TestPerContextData, TestMultipleContexts )
+{
+    CUcontext newContext;
+    {
+        // Associate a value with the current CUDA context.
+        PerContextData<int> map;
+        map.insert( std::unique_ptr<int>( new int( 1 ) ) );
+
+        // Create a new CUDA context.
+        DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+
+        // Associate a value with the new context.
+        map.insert( std::unique_ptr<int>( new int( 2 ) ) );
+        EXPECT_EQ( 2, *map.find() );
+
+        // Restore previous CUDA context and check associated data.
+        DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
+        EXPECT_EQ( 1, *map.find() );
+    }
+
+    // Cleanup
+    DEMAND_CUDA_CHECK( cuCtxDestroy( newContext ) );
+}

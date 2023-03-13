@@ -40,6 +40,7 @@ embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
 )
 
 add_executable( testDemandLoading
+  CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu
@@ -50,6 +51,7 @@ add_executable( testDemandLoading
   TestBulkMemory.cpp
   TestBulkPinnedItemPool.cpp
   TestCheckerBoardImage.cpp
+  TestContextSaver.cpp
   TestDemandLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
@@ -63,6 +65,7 @@ add_executable( testDemandLoading
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
+  TestPerContextData.cpp
   TestPinnedItemPool.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
@@ -91,6 +94,7 @@ target_link_libraries( testDemandLoading
   testDemandLoadingKernels
   OptiX::OptiX
   DemandLoading
+  CUDA::cudart
   OpenEXR::OpenEXR # for half
   gmock_main
   )
@@ -136,6 +140,7 @@ target_include_directories( testTextureFootprint PUBLIC
 target_link_libraries( testTextureFootprint
   testTextureFootprintKernel
   DemandLoading
+  CUDA::cudart
   gtest_main
   )
 
