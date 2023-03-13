@@ -90,19 +90,6 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
     , m_samplerRequestHandler( this )
 {
-    // Create transfer buffer pools
-    for( unsigned int deviceIndex : m_pageLoader->getDevices() )
-    {
-#if CUDA_VERSION >= 11020
-        DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator();
-        m_deviceTransferPools.emplace_back( allocator, nullptr, 8 * (1<<20), 64 * (1<<20) );
-#else
-        DeviceAllocator* allocator = new DeviceAllocator( deviceIndex );
-        RingSuballocator* suballocator = new RingSuballocator( 4 << 20 );
-        m_deviceTransferPools.emplace_back( allocator, suballocator, 8 * (1<<20), 64 * (1<<20) );
-#endif
-    }
-
     // Reserve bits in the sampler request handler for all possible textures.
     m_samplerRequestHandler.setPageRange( 0, options.numPageTableEntries );
 
@@ -349,12 +336,12 @@ Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requeste
     return ticket;
 }
 
-void DemandLoaderImpl::unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.
     TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager->getRequestHandler( pageId ) );
     DEMAND_ASSERT_MSG( handler != nullptr, "Page request does not correspond to a known resource" );
-    handler->unmapTileResource( deviceIndex, stream, pageId );
+    handler->unmapTileResource( stream, pageId );
 }
 
 void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, void* pageTableEntry )
@@ -367,12 +354,40 @@ PagingSystem* DemandLoaderImpl::getPagingSystem() const
     return m_pageLoader->getPagingSystem();
 }
 
+
+#if CUDA_VERSION >= 11020
+MemoryPool<DeviceAsyncAllocator, RingSuballocator>* DemandLoaderImpl::getDeviceTransferPool()
+{
+    std::unique_lock<std::mutex> lock( m_deviceTransferPoolsMutex );
+    MemoryPool<DeviceAsyncAllocator, RingSuballocator>* deviceTransferPool = m_deviceTransferPools.find();
+    if( deviceTransferPool )
+        return deviceTransferPool;
+    DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator();
+    std::unique_ptr<MemoryPool<DeviceAsyncAllocator, RingSuballocator>> ptr(
+        new MemoryPool<DeviceAsyncAllocator, RingSuballocator>( allocator, nullptr, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
+    return m_deviceTransferPools.insert( std::move( ptr ) );
+}
+#else
+MemoryPool<DeviceAllocator, RingSuballocator>* DemandLoaderImpl::getDeviceTransferPool()
+{
+    std::unique_lock<std::mutex> lock( m_deviceTransferPoolsMutex );
+    MemoryPool<DeviceAllocator, RingSuballocator>* deviceTransferPool = m_deviceTransferPools.find();
+    if( deviceTransferPool )
+        return deviceTransferPool;
+    DeviceAllocator*  allocator    = new DeviceAllocator();
+    RingSuballocator* suballocator = new RingSuballocator( 4 << 20 );
+    std::unique_ptr<MemoryPool<DeviceAllocator, RingSuballocator>> ptr(
+        new MemoryPool<DeviceAllocator, RingSuballocator>( allocator, suballocator, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
+    return m_deviceTransferPools.insert( std::move( ptr ) );
+}
+#endif
+
 PageTableManager* DemandLoaderImpl::getPageTableManager()
 {
     return m_pageTableManager.get();
 }
 
-void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream stream )
+void DemandLoaderImpl::freeStagedTiles( CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -384,7 +399,7 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
         pagingSystem->activateEviction( true );
         if( pagingSystem->freeStagedPage( &mapping ) )
         {
-            unmapTileResource( deviceIndex, stream, mapping.id );
+            unmapTileResource( stream, mapping.id );
             getDeviceMemoryManager()->freeTileBlock( mapping.page );
         }
         else 
@@ -394,8 +409,7 @@ void DemandLoaderImpl::freeStagedTiles( unsigned int deviceIndex, CUstream strea
     }
 }
 
-
-const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream )
+const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream stream )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     const unsigned int alignment = 4096;
@@ -404,9 +418,10 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( unsigned int 
     if( memoryType == CU_MEMORYTYPE_HOST )
         memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
-        memoryBlock = m_deviceTransferPools[deviceIndex].alloc( size, alignment );
+        memoryBlock = getDeviceTransferPool()->alloc( size, alignment );
 
-    return TransferBufferDesc{ deviceIndex, memoryType, memoryBlock };
+    DEMAND_ASSERT_MSG( memoryBlock.isGood(), "Transfer buffer allocation failed." );
+    return TransferBufferDesc{ memoryType, memoryBlock };
 }
 
  
@@ -417,7 +432,7 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
     if( transferBuffer.memoryType == CU_MEMORYTYPE_HOST )
         m_pageLoader->getPinnedMemoryPool()->freeAsync( transferBuffer.memoryBlock, stream );
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
-        m_deviceTransferPools[ transferBuffer.deviceIndex ].freeAsync( transferBuffer.memoryBlock, stream );
+        getDeviceTransferPool()->freeAsync( transferBuffer.memoryBlock, stream );
     else 
         DEMAND_ASSERT_MSG( false, "Unknown memory type." );
 }

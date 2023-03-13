@@ -34,7 +34,6 @@ namespace demandLoading {
 
 struct TransferBufferDesc
 {
-    unsigned int deviceIndex;
     CUmemorytype memoryType;
     MemoryBlockDesc memoryBlock;
 };

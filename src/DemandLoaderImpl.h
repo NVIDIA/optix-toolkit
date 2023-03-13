@@ -158,15 +158,15 @@ class DemandLoaderImpl : public DemandLoader
 
     /// Get the PagingSystem for the current CUDA context.
     PagingSystem* getPagingSystem() const;
-
+    
     /// Get the PageTableManager.
     PageTableManager* getPageTableManager();
 
     /// Free some staged tiles if there are some that are ready
-    void freeStagedTiles( unsigned int deviceIndex, CUstream stream );
+    void freeStagedTiles( CUstream stream );
 
     /// Allocate a temporary buffer of the given memory type, used as a staging point for an asset such as a texture tile.
-    const TransferBufferDesc allocateTransferBuffer( unsigned int deviceIndex, CUmemorytype memoryType, size_t size, CUstream stream );
+    const TransferBufferDesc allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream stream );
 
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
@@ -186,22 +186,29 @@ class DemandLoaderImpl : public DemandLoader
     SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
 
 #if CUDA_VERSION >= 11020
-    std::vector< MemoryPool<DeviceAsyncAllocator, RingSuballocator> > m_deviceTransferPools;
+    PerContextData<MemoryPool<DeviceAsyncAllocator, RingSuballocator>> m_deviceTransferPools;
 #else
-    std::vector< MemoryPool<DeviceAllocator, RingSuballocator> > m_deviceTransferPools;
+    PerContextData<MemoryPool<DeviceAllocator, RingSuballocator>> m_deviceTransferPools;
 #endif
+    std::mutex m_deviceTransferPoolsMutex;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
     unsigned int m_ticketId{};
 
     // Unmap the backing storage associated with a texture tile or mip tail
-    void unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId );
+    void unmapTileResource( CUstream stream, unsigned int pageId );
 
     // Create a normal or variant version of a demand texture, based on the imageSource 
     DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
 
     unsigned int allocateTexturePages( unsigned int numTextures );
+
+#if CUDA_VERSION >= 11020
+    MemoryPool<DeviceAsyncAllocator, RingSuballocator>* getDeviceTransferPool();
+#else
+    MemoryPool<DeviceAllocator, RingSuballocator>* getDeviceTransferPool();
+#endif
 };
 
 }  // namespace demandLoading

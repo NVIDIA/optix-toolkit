@@ -47,7 +47,7 @@ void TextureRequestHandler::fillRequest( unsigned int deviceIndex, CUstream stre
 void TextureRequestHandler::loadPage( unsigned int deviceIndex, CUstream stream, unsigned int pageId, bool reloadIfResident )
 {
     // Try to make sure there are free tiles to handle the request
-    m_loader->freeStagedTiles( deviceIndex, stream );
+    m_loader->freeStagedTiles( stream );
 
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to fill the same tile (or the mip tail).
@@ -100,8 +100,7 @@ void TextureRequestHandler::fillTileRequest( unsigned int deviceIndex, CUstream 
     }
 
     // Allocate a transfer buffer.
-    TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), TILE_SIZE_IN_BYTES, stream );
+    TransferBufferDesc transferBuffer = m_loader->allocateTransferBuffer( m_texture->getFillType(), TILE_SIZE_IN_BYTES, stream );
     if( transferBuffer.memoryBlock.size == 0 )
     {
         m_loader->getDeviceMemoryManager()->freeTileBlock( bh.block );
@@ -161,8 +160,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
     }
 
     // Allocate a transfer buffer.
-    TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, m_texture->getFillType(), mipTailSize, stream );
+    TransferBufferDesc transferBuffer = m_loader->allocateTransferBuffer( m_texture->getFillType(), mipTailSize, stream );
     if( transferBuffer.memoryBlock.size == 0 )
     {
         deviceMemoryManager->freeTileBlock( bh.block );
@@ -202,7 +200,7 @@ void TextureRequestHandler::fillMipTailRequest( unsigned int deviceIndex, CUstre
     m_loader->freeTransferBuffer( transferBuffer, stream );
 }
 
-void TextureRequestHandler::unmapTileResource( unsigned int deviceIndex, CUstream stream, unsigned int pageId )
+void TextureRequestHandler::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to fill the same tile (or the mip tail).

@@ -131,7 +131,7 @@ bool SamplerRequestHandler::fillDenseTexture( unsigned int deviceIndex, CUstream
     // The buffer needs to be a little larger than the texture size for some reason to prevent a crash
     size_t transferBufferSize = getTextureSizeInBytes( info ) * 4 / 3;
     TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( deviceIndex, texture->getFillType(), transferBufferSize, stream );
+        m_loader->allocateTransferBuffer( texture->getFillType(), transferBufferSize, stream );
 
     // Make a backup buffer on the host if the transfer buffer was unsuccessful
     size_t hostBufferSize = ( transferBuffer.memoryBlock.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
