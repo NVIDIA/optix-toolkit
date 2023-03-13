@@ -27,8 +27,8 @@
 //
 
 #include "Memory/TilePool.h"
-
 #include "Memory/Buffers.h"
+#include "Util/ContextSaver.h"
 #include "Util/Exception.h"
 #include "Util/Math.h"
 
@@ -49,7 +49,8 @@ TilePool::TilePool( size_t maxTexMem )
 
 TilePool::~TilePool()
 {
-    DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
+    ContextSaver contextSaver;
+    DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
     for( TileArena& arena : m_arenas )
     {
         arena.destroy();

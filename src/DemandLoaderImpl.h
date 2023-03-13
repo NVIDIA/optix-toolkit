@@ -67,7 +67,7 @@ class DemandLoaderImpl : public DemandLoader
     DemandLoaderImpl( const Options& options );
 
     /// Destroy demand loading system.
-    ~DemandLoaderImpl() override;;
+    ~DemandLoaderImpl() override;
 
     /// Create a demand-loaded texture for the given image.  The texture initially has no backing
     /// storage.  The readTile() method is invoked on the image to fill each required tile.  The

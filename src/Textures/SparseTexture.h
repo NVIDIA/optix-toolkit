@@ -46,7 +46,7 @@ public:
 
     void init( const imageSource::TextureInfo& info );
 
-    explicit operator CUmipmappedArray() const { return m_array; }
+    operator CUmipmappedArray() const { return m_array; }
 
     CUarray getLevel( unsigned int mipLevel ) const
     {
