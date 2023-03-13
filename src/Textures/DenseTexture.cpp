@@ -27,6 +27,7 @@
 //
 
 #include "Textures/DenseTexture.h"
+#include "Util/ContextSaver.h"
 #include "Util/Exception.h"
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
@@ -134,7 +135,8 @@ DenseTexture::~DenseTexture()
 {
     if( m_isInitialized )
     {
-        DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
+        ContextSaver contextSaver;
+        DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuMipmappedArrayDestroy( m_array ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
     }

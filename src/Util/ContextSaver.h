@@ -39,7 +39,7 @@ class ContextSaver
   public:
     ContextSaver() { DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) ); }
 
-    ~ContextSaver() { DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) ); }
+    ~ContextSaver() { DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) ); }
 
   private:
     CUcontext m_context;

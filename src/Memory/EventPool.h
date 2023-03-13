@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include "Util/ContextSaver.h"
 #include "Util/Exception.h"
 
 #include <cuda.h>
@@ -52,10 +53,11 @@ class EventPool
     /// Destroy the event pool.
     ~EventPool()
     {
-        DEMAND_CUDA_CHECK( cuCtxSetCurrent( m_context ) );
+        ContextSaver contextSaver;
+        DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         for( CUevent event : m_events )
         {
-            DEMAND_CUDA_CHECK( cuEventDestroy( event ) );
+            DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) );
         }
     }
 
