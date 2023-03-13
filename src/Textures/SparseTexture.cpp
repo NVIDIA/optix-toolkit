@@ -27,6 +27,7 @@
 //
 
 #include "Textures/SparseTexture.h"
+#include "Util/ContextSaver.h"
 #include "Util/Exception.h"
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
@@ -42,6 +43,8 @@ SparseArray::~SparseArray()
 {
     if( m_initialized )
     {
+        ContextSaver contextSaver;
+
         // It's not necessary to unmap the tiles / mip tail when destroying the array.
         DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuMipmappedArrayDestroy( m_array ) );
@@ -365,6 +368,7 @@ SparseTexture::~SparseTexture()
 {
     if( m_isInitialized )
     {
+        ContextSaver contextSaver;
         DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         DEMAND_CUDA_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
     }

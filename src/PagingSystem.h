@@ -137,7 +137,7 @@ class PagingSystem
     struct FutureEvent
     {
         FutureEvent() { DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) ); }
-        ~FutureEvent() { DEMAND_CUDA_CHECK( cuEventDestroy( event ) ); }
+        ~FutureEvent() { DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) ); }
         CUresult query() { return recorded ? cuEventQuery( event ) : CUDA_ERROR_NOT_READY; }
 
         CUevent event{};
