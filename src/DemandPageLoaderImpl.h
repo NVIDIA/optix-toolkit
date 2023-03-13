@@ -76,10 +76,10 @@ class DemandPageLoaderImpl : public DemandPageLoader
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
-    /// stream.  Returns false if the specified device does not support sparse textures.  If
-    /// successful, returns a DeviceContext via result parameter, which should be copied to device
-    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
-    /// Tex2D().
+    /// stream.  Returns false if device corresponding to the given stream does not support sparse
+    /// textures.  If successful, returns a DeviceContext via result parameter, which should be
+    /// copied to device memory (typically along with OptiX kernel launch parameters), so that it
+    /// can be passed to Tex2D().
     bool launchPrepare( CUstream stream, DeviceContext& demandTextureContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background

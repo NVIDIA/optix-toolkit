@@ -40,7 +40,7 @@ class TestTicket : public testing::Test
 
 TEST_F( TestTicket, TestNoTasks )
 {
-    TicketImpl ticket( 0, CUstream() );
+    TicketImpl ticket( CUstream{} );
     EXPECT_EQ( -1, ticket.numTasksTotal() );
     EXPECT_EQ( -1, ticket.numTasksRemaining() );
 
@@ -53,7 +53,7 @@ TEST_F( TestTicket, TestNoTasks )
 
 TEST_F( TestTicket, TestSingleThreaded )
 {
-    TicketImpl ticket( 0, CUstream() );
+    TicketImpl ticket( CUstream{} );
     ticket.update( 2 );
 
     EXPECT_EQ( 2, ticket.numTasksTotal() );
@@ -69,7 +69,7 @@ TEST_F( TestTicket, TestSingleThreaded )
 TEST_F( TestTicket, TestMultiThreaded )
 {
     const unsigned int numTasks = 32;
-    TicketImpl         ticket( 0, CUstream() );
+    TicketImpl         ticket( CUstream{} );
     ticket.update( numTasks );
     std::vector<std::thread> workers;
 

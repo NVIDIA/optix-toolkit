@@ -118,7 +118,7 @@ class DemandLoaderImpl : public DemandLoader
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
 
-    /// Get the DeviceMemoryManager for the specified device.
+    /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.

@@ -94,7 +94,7 @@ class DemandLoader
     /// Get current statistics.
     virtual Statistics getStatistics() const = 0;
 
-    /// Get indices of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
+    /// Get the ordinals of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
     virtual std::vector<unsigned int> getDevices() const = 0;
 
     /// Turn on or off eviction

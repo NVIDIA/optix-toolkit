@@ -40,9 +40,8 @@
 
 namespace demandLoading {
 
-/// A page request contains a page id, which is a index into the page table and the index of the
-/// requesting device.  It also holds a shared pointer to a Ticket, which must be notified when
-/// the request has been filled.
+/// A page request contains a page id, which is a index into the page table.  It also holds a shared
+/// pointer to a Ticket, which must be notified when the request has been filled.
 struct PageRequest
 {
     unsigned int pageId{};
@@ -72,9 +71,9 @@ class RequestQueue
     /// false if the queue was shut down.
     bool popOrWait( PageRequest* request );
 
-    /// Push a batch of page requests from the specified device.  Notifies any threads waiting in
-    /// popOrWait().  Updates the given Ticket with the number of requests, and retains it for
-    /// notifications as requests are filled.
+    /// Push a batch of page requests.  Notifies any threads waiting in popOrWait().  Updates the
+    /// given Ticket with the number of requests, and retains it for notifications as requests are
+    /// filled.
     void push( const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket );
 
     /// Shut down the queue, signalling any waiting threads to exit.  Clients must call shutDown()

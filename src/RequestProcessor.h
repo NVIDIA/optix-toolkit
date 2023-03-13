@@ -39,7 +39,7 @@ class RequestProcessor
   public:
     virtual ~RequestProcessor() = default;
 
-    /// Add a batch of page requests from the specified device to the request queue.
+    /// Add a batch of page requests to the request queue.
     virtual void addRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) = 0;
 };
 

@@ -39,7 +39,7 @@ namespace demandLoading {
 class SamplerPool : public ItemPool<TextureSampler, DeviceAllocator>
 {
   public:
-    /// Construct sampler pool for the specified device.
+    /// Construct sampler pool.
     SamplerPool()
         : ItemPool<TextureSampler, DeviceAllocator>( DeviceAllocator() )
     {
