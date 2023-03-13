@@ -94,7 +94,7 @@ class AsyncItemPool
         {
             FreedItem freedItem = m_freedItems.front();
             m_freedItems.pop_front();
-            getEventPool()->free( freedItem.event );
+            freeEvent( freedItem );
             return freedItem.item;
         }
 
@@ -109,7 +109,7 @@ class AsyncItemPool
         DEMAND_CUDA_CHECK( cuEventSynchronize( freedItem.event ) );
 
         // Release the event and return the associated item.
-        getEventPool()->free( freedItem.event );
+        freeEvent( freedItem );
         return freedItem.item;
     }
 
@@ -137,7 +137,7 @@ class AsyncItemPool
 
             // Push the item and its associated event on the freed items queue and notify any threads
             // waiting in allocate().
-            m_freedItems.push_back( FreedItem{item, event} );
+            m_freedItems.push_back( FreedItem{item, event, context} );
         }
         m_freedItemAvailable.notify_all();
     }
@@ -169,8 +169,9 @@ class AsyncItemPool
   private:
     struct FreedItem
     {
-        Item*        item;
-        CUevent      event;
+        Item*     item;
+        CUevent   event;
+        CUcontext context;
     };
 
     mutable std::mutex m_mutex;
@@ -192,6 +193,14 @@ class AsyncItemPool
     bool oldestFreedItemAvailable() 
     {
         return !m_freedItems.empty() && ( cuEventQuery( m_freedItems.front().event ) == CUDA_SUCCESS );
+    }
+
+    void freeEvent( const FreedItem& freedItem )
+    {
+        DEMAND_CUDA_CHECK( cuCtxPushCurrent( freedItem.context ) );
+        getEventPool()->free( freedItem.event );
+        CUcontext ignored;
+        DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
     }
 };
 

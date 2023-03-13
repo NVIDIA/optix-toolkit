@@ -172,6 +172,8 @@ TEST_F( TestPagingSystem, TestResidentPage )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Map page 0 to an arbitrary value.
         device->m_paging.addMapping( 0, 0, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
@@ -189,6 +191,8 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
 {
     for( auto& device : m_devices )
     {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Page table entries are allocated only for texture samplers, not tiles,
         // so page ids >= Options::numPageTableEntries are mapped to zero.
         const unsigned int pageId = m_options.numPageTableEntries + 1;
