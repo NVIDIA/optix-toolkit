@@ -49,22 +49,22 @@ class HostAllocator
     bool         allocationIsHandle() const { return false; }
 };
 
-/// Pinned host allocator using cudaMallocHost
+/// Pinned host allocator using cuMallocHost
 class PinnedAllocator
 {
   public:
     void* allocate( size_t numBytes, CUstream dummy = 0 )
     {
         void* result;
-        DEMAND_CUDA_CHECK( cudaMallocHost( &result, numBytes, 0U ) );
+        DEMAND_CUDA_CHECK( cuMemAllocHost( &result, numBytes ) );
         return result;
     }
-    void free( void* ptr, CUstream dummy = 0 ) { DEMAND_CUDA_CHECK( cudaFreeHost( ptr ) ); }
+    void free( void* ptr, CUstream dummy = 0 ) { DEMAND_CUDA_CHECK( cuMemFreeHost( ptr ) ); }
     void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 ) { memset( ptr, val, numBytes ); }
     bool         allocationIsHandle() const { return false; }
 };
 
-/// Device allocator using cudaMalloc
+/// Device allocator using cuMemAlloc
 class DeviceAllocator
 {
   public:
@@ -102,7 +102,7 @@ class DeviceAllocator
     CUcontext m_context;
 };
 
-/// Async device allocator using cudaMallocAsync
+/// Async device allocator using cuMemAllocAsync
 class DeviceAsyncAllocator
 {
   public:

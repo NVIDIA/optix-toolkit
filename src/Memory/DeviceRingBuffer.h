@@ -62,22 +62,22 @@ struct DeviceRingBuffer
     {
         allocByWarp = _allocByWarp;
         buffSize = _buffSize;
-        DEMAND_CUDA_CHECK( cudaMalloc( &buffer, buffSize ) );
-        DEMAND_CUDA_CHECK( cudaMalloc( &nextStart, sizeof(unsigned long long) ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), buffSize ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextStart ), sizeof( unsigned long long ) ) );
         clear( 0 );
     }
 
     /// Tear down, freeing all the memory
     __host__ void tearDown()
     {
-        DEMAND_CUDA_CHECK( cudaFree( buffer ) );
-        DEMAND_CUDA_CHECK( cudaFree( nextStart ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextStart ) ) );
     }
 
     /// Clear the allocator
     __host__ void clear( CUstream stream = 0 )
     {
-        DEMAND_CUDA_CHECK( cudaMemsetAsync( nextStart, 0, sizeof(unsigned long long), stream ) ) ;
+        DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextStart ), 0, sizeof( unsigned long long ), stream ) );
     }
 #endif
 

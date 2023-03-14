@@ -56,10 +56,10 @@ struct DeviceFixedPool
         numItemGroups = numItems / ws;
         size_t itemGroupsBuffSize = numItemGroups * sizeof(char*);
 
-        DEMAND_CUDA_CHECK( cudaMalloc( &buffer, static_cast<size_t>(itemSize) * numItems ) );
-        DEMAND_CUDA_CHECK( cudaMalloc( &itemGroups, itemGroupsBuffSize ) );
-        DEMAND_CUDA_CHECK( cudaMalloc( &itemGroupsCopy, itemGroupsBuffSize ) );
-        DEMAND_CUDA_CHECK( cudaMalloc( &nextItemGroupId, 2 * sizeof(unsigned int) ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), static_cast<size_t>( itemSize ) * numItems ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &itemGroups ), itemGroupsBuffSize ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &itemGroupsCopy ), itemGroupsBuffSize ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextItemGroupId ), 2 * sizeof( unsigned int ) ) );
         discardItemGroupId = &nextItemGroupId[1];
 
         std::vector<char*> hostItemGroups( numItemGroups, nullptr );
@@ -73,17 +73,18 @@ struct DeviceFixedPool
     /// Free all of the buffers allocated for the pool
     __host__ void tearDown()
     {
-        DEMAND_CUDA_CHECK( cudaFree( buffer ) );
-        DEMAND_CUDA_CHECK( cudaFree( itemGroups ) );
-        DEMAND_CUDA_CHECK( cudaFree( itemGroupsCopy ) );
-        DEMAND_CUDA_CHECK( cudaFree( nextItemGroupId ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroups ) ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroupsCopy ) ) );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextItemGroupId ) ) );
     }
 
     /// Clear the allocator
     __host__ void clear( CUstream stream )
     {
-        DEMAND_CUDA_CHECK( cudaMemsetAsync( nextItemGroupId, 0, 2 * sizeof(unsigned int), stream ) ) ;
-        DEMAND_CUDA_CHECK( cudaMemcpyAsync( itemGroups, itemGroupsCopy, numItemGroups * sizeof(char*), cudaMemcpyDeviceToDevice, stream ) );
+        DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextItemGroupId ), 0, 2 * sizeof( unsigned int ), stream ) );
+        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( itemGroups ), reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
+                                          numItemGroups * sizeof( char* ), stream ) );
     }
 #endif
 
