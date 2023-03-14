@@ -673,7 +673,7 @@ TEST_F( OmmBakingInputTest, MultiInput )
 TEST_F( OmmBakingInputTest, Subdivision )
 {
     TestOptions opt = {};
-    opt.options.maximumSizeInBytes = /*2 triangles*/2 * (/*large input*/4 + /*small input*/1) * ( 1 << ( 2 */*level*/5 - 2 ) ) + /*precision guard*/1;
+    opt.options.maximumSizeInBytes = /*2 triangles*/2 * (/*large input*/4 + /*small input*/1) * ( 1 << ( 2 * /*level*/5 - 2 ) ) + /*precision guard*/1;
     opt.textures[0].texture = getSourceDir() + "/Textures/DuckHole/DuckHole.png" ;
     opt.meshes.push_back( TestOptions::MeshOptions() );
     opt.meshes[0].meshResolution = { 1, 1 };

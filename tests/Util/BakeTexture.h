@@ -31,6 +31,8 @@
 #include <cuda.h>
 #include <optix.h>
 
+#include <cstdint>
+
 struct TextureToStateParams
 {
     cudaTextureObject_t tex;
