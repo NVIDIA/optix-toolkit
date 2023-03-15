@@ -264,12 +264,12 @@ void DemandLoaderImpl::loadTextureTile( CUstream stream, unsigned int textureId,
 {
     checkCudaContext( stream );
     unsigned int pageId = m_textures[textureId]->getRequestHandler()->getTextureTilePageId( mipLevel, tileX, tileY );
-    m_textures[textureId]->getRequestHandler()->loadPage( deviceIndex, stream, pageId, true );
+    m_textures[textureId]->getRequestHandler()->loadPage( stream, pageId, true );
 }
 
-bool DemandLoaderImpl::pageResident( unsigned int deviceIndex, unsigned int pageId )
+bool DemandLoaderImpl::pageResident( unsigned int pageId )
 {
-    PagingSystem* pagingSystem = m_pageLoader->getPagingSystem( deviceIndex );
+    PagingSystem* pagingSystem = m_pageLoader->getPagingSystem();
     return pagingSystem->isResident( pageId );
 }
 

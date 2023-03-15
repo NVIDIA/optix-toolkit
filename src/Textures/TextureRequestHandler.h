@@ -55,7 +55,7 @@ class TextureRequestHandler : public RequestHandler
     void fillRequest( CUstream stream, unsigned int pageId ) override;
 
     // Load or reload a page
-    void loadPage( unsigned int deviceIndex, CUstream stream, unsigned int pageId, bool reloadIfResident );
+    void loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident );
 
     /// Get the associated texture.
     DemandTextureImpl* getTexture() const { return m_texture; }

@@ -41,10 +41,10 @@ namespace demandLoading {
 
 void TextureRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
-   loadPage( deviceIndex, stream, pageId, false );
+   loadPage( stream, pageId, false );
 }
 
-void TextureRequestHandler::loadPage( unsigned int deviceIndex, CUstream stream, unsigned int pageId, bool reloadIfResident )
+void TextureRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident )
 {
     // Try to make sure there are free tiles to handle the request
     m_loader->freeStagedTiles( stream );
@@ -65,7 +65,7 @@ void TextureRequestHandler::loadPage( unsigned int deviceIndex, CUstream stream,
     if( resident )
     {
         bh.block = TileBlockDesc( pageEntry );
-        bh.handle = m_loader->getDeviceMemoryManager( deviceIndex )->getTileBlockHandle( bh.block );
+        bh.handle = m_loader->getDeviceMemoryManager()->getTileBlockHandle( bh.block );
     } 
 
     // Decide if we need to fill a mip tail or a tile
@@ -148,7 +148,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
     const size_t mipTailSize  = m_texture->getMipTailSize();
 
     // Allocate device texture memory for mip tail.
-    DeviceMemoryManager* deviceMemoryManager = m_loader->getDeviceMemoryManager( deviceIndex );
+    DeviceMemoryManager* deviceMemoryManager = m_loader->getDeviceMemoryManager();
 
     // Make sure to have device memory for the tile
     bool useNewBlock = bh.block.isBad();
