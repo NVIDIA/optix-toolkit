@@ -900,6 +900,8 @@ TEST_F( OmmBakingCudaTextureTest, OddSized )
     // compareImage();
 }
 
+#if CUDA_VERSION >= 11050
+
 TEST_F( OmmBakingCudaTextureTest, BC1 )
 {
     TestOptions opt = {};
@@ -925,6 +927,8 @@ TEST_F( OmmBakingCudaTextureTest, BC3 )
         return;
     // compareImage();
 }
+
+#endif // CUDA_VERSION 
 
 TEST_F( OmmBakingCudaTextureTest, ReadModeUChar4 )
 {

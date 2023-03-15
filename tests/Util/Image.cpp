@@ -232,6 +232,7 @@ cudaError_t CuTexture::createFromFile( const char* fname, int32_t force_componen
                 case DDSFile::DXGIFormat::A8_UNorm:
                     desc = cudaCreateChannelDesc<unsigned char>();
                     break;
+#if CUDA_VERSION >= 11050
                 case DDSFile::DXGIFormat::BC1_UNorm:
                     desc = cudaCreateChannelDesc<cudaChannelFormatKindUnsignedBlockCompressed1>();
                     blockWidth = 4;
@@ -257,6 +258,7 @@ cudaError_t CuTexture::createFromFile( const char* fname, int32_t force_componen
                     blockWidth = 4;
                     bytesPerBlock = 16;
                     break;
+#endif
                 default:
                     return cudaErrorNotSupported;
             };
