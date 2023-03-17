@@ -51,6 +51,7 @@ void Trackball::startTracking(int x, int y)
 {
     m_prevPosX = x;
     m_prevPosY = y;
+    reinitOrientationFromCamera();
     m_performTracking = true;
 }
 
