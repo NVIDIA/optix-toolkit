@@ -1,4 +1,5 @@
 #include "Image.h"
+#include <cuda.h>
 #include <cfloat>
 #include <climits>
 #include <fstream>
@@ -18,11 +19,11 @@
 #include <tinyddsloader/tinyddsloader.h>
 
 
-#define CUDA_CHECK( call )                                                                                                                                                                                                                                                             \
-    {                                                                                                                                                                                                                                                                                  \
-        cudaError_t error = call;                                                                                                                                                                                                                                                      \
-        if( error != cudaSuccess )                                                                                                                                                                                                                                                     \
-            return error;                                                                                                                                                                                                                                                              \
+#define CUDA_CHECK( call )                                                                                             \
+    {                                                                                                                  \
+        cudaError_t error = call;                                                                                      \
+        if( error != cudaSuccess )                                                                                     \
+            return error;                                                                                              \
     }
 
 static bool fileExists( const char* path )
