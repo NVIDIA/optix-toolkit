@@ -31,7 +31,8 @@ include( GoogleTest )
 
 add_executable( testUtil
   TestException.cpp
-  )  
+  )
+set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)
 
 target_link_libraries( testUtil
   Util
