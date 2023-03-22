@@ -155,6 +155,7 @@ OmmBakingApp::OmmBakingApp( const char* appName, unsigned int width, unsigned in
     : m_windowWidth( width )
     , m_windowHeight( height )
     , m_outputFileName( outFileName )
+    , m_glInterop( glInterop )
 {
     // Create display window for interactive mode
     if( isInteractive() )
@@ -166,11 +167,6 @@ OmmBakingApp::OmmBakingApp( const char* appName, unsigned int width, unsigned in
         m_glDisplay.reset( new otk::GLDisplay( otk::BufferImageFormat::UNSIGNED_BYTE4 ) );
         setGLFWCallbacks( this );
     }
-
-    glInterop = glInterop && isInteractive();
-    otk::CUDAOutputBufferType outputBufferType =
-        glInterop ? otk::CUDAOutputBufferType::GL_INTEROP : otk::CUDAOutputBufferType::ZERO_COPY;
-    m_outputBuffer.reset( new otk::CUDAOutputBuffer<uchar4>( outputBufferType, m_windowWidth, m_windowHeight ) );
 
     initView();
 }
@@ -319,6 +315,11 @@ void OmmBakingApp::cleanupState( PerDeviceOptixState& state )
 
 void OmmBakingApp::initOptixPipelines( const char* moduleCode, int numDevices )
 {
+    bool glInterop = m_glInterop && isInteractive() && ( m_perDeviceOptixStates.size() == 1 );
+    otk::CUDAOutputBufferType outputBufferType =
+        glInterop ? otk::CUDAOutputBufferType::GL_INTEROP : otk::CUDAOutputBufferType::ZERO_COPY;
+    m_outputBuffer.reset( new otk::CUDAOutputBuffer<uchar4>( outputBufferType, m_windowWidth, m_windowHeight ) );
+
     m_perDeviceOptixStates.resize( numDevices );
     size_t codeSize = ::strlen( moduleCode );
 
