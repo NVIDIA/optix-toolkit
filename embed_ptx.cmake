@@ -15,6 +15,7 @@ set(EMBED_PTX_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
 #
 # Keyword arguments:
 # CONST             Pass --const to bin2c to generate constant data arrays.
+# RELOCATABLE       Pass -rdc=true to nvcc to generate relocatable PTX.
 #
 # Single value arguments:
 # OUTPUT_TARGET     Name of the target that contains the generated C file.
@@ -32,7 +33,7 @@ set(EMBED_PTX_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
 # EMBEDDED_SYMBOL_NAMES     List of names for embedded data arrays, one per source file.
 #
 function(embed_ptx)
-  set(noArgs CONST)
+  set(noArgs CONST RELOCATABLE)
   set(oneArgs OUTPUT_TARGET PTX_TARGET FOLDER HEADER)
   set(multiArgs PTX_INCLUDE_DIRECTORIES PTX_LINK_LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
   cmake_parse_arguments(EMBED_PTX "${noArgs}" "${oneArgs}" "${multiArgs}" ${ARGN})
@@ -93,6 +94,9 @@ function(embed_ptx)
   target_link_libraries(${PTX_TARGET} PRIVATE ${EMBED_PTX_PTX_LINK_LIBRARIES})
   set_property(TARGET ${PTX_TARGET} PROPERTY CUDA_PTX_COMPILATION ON)
   target_compile_options(${PTX_TARGET} PRIVATE "-lineinfo")
+  if(EMBED_PTX_RELOCATABLE)
+    target_compile_options(${PTX_TARGET} PRIVATE "-rdc=true")
+  endif()
   if(EMBED_PTX_FOLDER)
     set_property(TARGET ${PTX_TARGET} PROPERTY FOLDER ${EMBED_PTX_FOLDER})
   endif()
