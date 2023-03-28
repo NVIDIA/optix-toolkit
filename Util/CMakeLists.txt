@@ -46,6 +46,8 @@ target_sources(Util
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
+  include/OptiXToolkit/Util/Builders.h
+  include/OptiXToolkit/Util/DeviceBuffer.h
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/Record.h
 )

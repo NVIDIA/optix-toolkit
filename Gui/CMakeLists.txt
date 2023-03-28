@@ -48,6 +48,7 @@ target_sources(Gui
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
+  include/OptiXToolkit/Gui/BufferMapper.h
   include/OptiXToolkit/Gui/CUDAOutputBuffer.h
   include/OptiXToolkit/Gui/Camera.h
   include/OptiXToolkit/Gui/GLCheck.h
