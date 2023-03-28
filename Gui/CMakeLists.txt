@@ -26,28 +26,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
 
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-add_library(Gui
+add_library(Gui STATIC
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp
   src/Trackball.cpp
   src/Window.cpp
-  )
-
-add_library(OptiXToolkit::Gui ALIAS Gui)
-
-target_sources(Gui 
-  PUBLIC 
-  FILE_SET HEADERS 
-  BASE_DIRS include
-  FILES
   include/OptiXToolkit/Gui/BufferMapper.h
   include/OptiXToolkit/Gui/CUDAOutputBuffer.h
   include/OptiXToolkit/Gui/Camera.h
@@ -55,12 +43,11 @@ target_sources(Gui
   include/OptiXToolkit/Gui/GLDisplay.h
   include/OptiXToolkit/Gui/Trackball.h
   include/OptiXToolkit/Gui/Window.h
-)
-
-target_include_directories(Gui PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
+
+add_library(OptiXToolkit::Gui ALIAS Gui)
+
+target_include_directories(Gui PUBLIC include)
 
 target_link_libraries(Gui
   PUBLIC
@@ -70,6 +57,4 @@ target_link_libraries(Gui
     glad::glad
 )
 
-set_target_properties(Gui PROPERTIES
-  FOLDER Examples
-  WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(Gui PROPERTIES FOLDER Examples)

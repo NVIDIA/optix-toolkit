@@ -31,6 +31,7 @@
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
+
 using namespace demandTextureApp;
 
 //------------------------------------------------------------------------------

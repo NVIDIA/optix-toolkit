@@ -35,27 +35,17 @@ find_package( CUDAToolkit 11.1 REQUIRED )
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
-add_library(DemandTextureAppBase
+add_library(DemandTextureAppBase STATIC
   src/DemandTextureApp.cpp
-  )
-
-add_library(OptiXToolkit::DemandTextureAppBase ALIAS DemandTextureAppBase)
-
-target_sources(DemandTextureAppBase 
-  PUBLIC 
-  FILE_SET HEADERS 
-  BASE_DIRS include
-  FILES
   include/OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h
   include/OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h
   include/OptiXToolkit/DemandTextureAppBase/LaunchParams.h
   include/OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h
-)
-
-target_include_directories(DemandTextureAppBase PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
+
+add_library(OptiXToolkit::DemandTextureAppBase ALIAS DemandTextureAppBase)
+
+target_include_directories(DemandTextureAppBase PUBLIC include)
 
 target_link_libraries(DemandTextureAppBase
   PUBLIC
@@ -66,6 +56,4 @@ target_link_libraries(DemandTextureAppBase
   CUDA::cudart
   )
 
-set_target_properties(DemandTextureAppBase PROPERTIES
-    FOLDER Examples/DemandLoading
-    WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(DemandTextureAppBase PROPERTIES FOLDER Examples/DemandLoading)

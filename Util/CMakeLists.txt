@@ -35,22 +35,18 @@ include(CTest)
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
 find_package(OptiX 7.6.0 EXACT REQUIRED)
 
-add_library(Util
+add_library(Util STATIC
+  include/OptiXToolkit/Util/Builders.h
+  include/OptiXToolkit/Util/DeviceBuffer.h
+  include/OptiXToolkit/Util/Exception.h
+  include/OptiXToolkit/Util/Fill.h
+  include/OptiXToolkit/Util/Record.h
+  include/OptiXToolkit/Util/SyncRecord.h
+  include/OptiXToolkit/Util/SyncVector.h
   src/Exception.cpp
   )
 
 add_library(OptiXToolkit::Util ALIAS Util)
-
-target_sources(Util 
-  PUBLIC 
-  FILE_SET HEADERS 
-  BASE_DIRS include
-  FILES
-  include/OptiXToolkit/Util/Builders.h
-  include/OptiXToolkit/Util/DeviceBuffer.h
-  include/OptiXToolkit/Util/Exception.h
-  include/OptiXToolkit/Util/Record.h
-)
 
 target_include_directories(Util PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -64,9 +60,7 @@ target_link_libraries(Util PRIVATE
   CUDA::cudart
   )
 
-set_target_properties(Util PROPERTIES
-  FOLDER Examples
-  WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(Util PROPERTIES FOLDER Examples)
 
 if( BUILD_TESTING )
   add_subdirectory( tests )

@@ -30,8 +30,11 @@ include( FetchGtest )
 include( GoogleTest )
 
 add_executable( testUtil
-  TestBuilders.cpp
-  TestException.cpp
+    TestBuilders.cpp
+    TestException.cpp
+    TestSyncRecordHeader.cpp
+    TestSyncVectorHeader.cpp
+    FunctionTable.cpp
   )
 set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)
 
