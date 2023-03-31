@@ -68,6 +68,8 @@ class SyncVector
     }
     ~SyncVector<T>() { CUDA_CHECK_NOTHROW( cudaFree( m_device ) ); }
 
+    /// Return whether or not the container is empty.
+    bool empty() const { return m_host.empty(); }
     /// Return the number of elements in the vector.
     size_t size() const { return m_host.size(); }
     /// Return the capacity of the vector in elements.
