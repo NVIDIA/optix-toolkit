@@ -45,18 +45,18 @@ namespace otk {
 class DeviceBuffer
 {
   public:
-    // DeviceBuffers are default constructable.
+    /// DeviceBuffers are default constructable.
     DeviceBuffer() = default;
-    // DeviceBuffers are constructable from a given size.
+    /// DeviceBuffers are constructable from a given size.
     explicit DeviceBuffer( size_t size ) { allocate( size ); }
 
     ~DeviceBuffer() noexcept { CUDA_CHECK_NOTHROW( cudaFree( m_devStorage ) ); }
 
-    // DeviceBuffers are not copyable.
+    /// DeviceBuffers are not copyable.
     DeviceBuffer( const DeviceBuffer& rhs )            = delete;
     DeviceBuffer& operator=( const DeviceBuffer& rhs ) = delete;
 
-    // DeviceBuffers are move constructable.
+    /// DeviceBuffers are move constructable.
     DeviceBuffer( DeviceBuffer&& rhs ) noexcept
         : m_devStorage( rhs.m_devStorage )
         , m_capacity( rhs.m_capacity )
@@ -67,8 +67,13 @@ class DeviceBuffer
         rhs.m_size       = 0;
     }
 
-    // DeviceBuffers are not move assignable (this would potentially leak memory).
+    /// DeviceBuffers are not move assignable (this would potentially leak memory).
     DeviceBuffer operator=( DeviceBuffer&& rhs ) = delete;
+
+    /// Query the size of the allocated memory that is in-use.
+    size_t size() const { return m_size; }
+    /// Query the capacity of the allocated memory.  May be larger than the size.
+    size_t capacity() const { return m_capacity; }
 
     /// Allocate a chunk of CUDA device memory.
     /// @param size The amount of memory to allocate
@@ -81,7 +86,7 @@ class DeviceBuffer
         CUDA_CHECK( cudaMalloc( &m_devStorage, m_capacity ) );
     }
 
-    //. Free the associated CUDA device memory.
+    ///. Free the associated CUDA device memory.
     void free()
     {
         CUDA_CHECK( cudaFree( m_devStorage ) );
@@ -104,8 +109,11 @@ class DeviceBuffer
         allocate( size );
     }
 
-    /// Return the associated CUdeviceptr with the allocated CUDA memory.
+    /// Return the associated CUdeviceptr with the allocated device memory.
     operator CUdeviceptr() { return reinterpret_cast<CUdeviceptr>( m_devStorage ); }
+
+    /// Return the raw device pointer of the allocated device memory.
+    void *devicePtr() const { return m_devStorage; }
 
   private:
     void*  m_devStorage{};

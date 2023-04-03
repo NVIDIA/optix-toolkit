@@ -28,15 +28,21 @@
 
 #pragma once
 
+#include <OptiXToolkit/Util/DeviceBuffer.h>
 #include <OptiXToolkit/Util/Exception.h>
 
 #include <cuda_runtime.h>
 
+#include <utility>
 #include <vector>
 
 namespace otk {
 
 /// A vector of elements of type T that can be synchronized to a CUDA device.
+///
+/// It is the responsibility of the owner of the SyncVector to copy host
+/// data to the device after modification.  No attempt is made to track
+/// data modifications on the host and automatically copy to the device.
 ///
 /// The lifetime of the device memory matches the lifetime of this class.
 /// Device memory is allocated on the first request to copy host memory to
@@ -52,10 +58,7 @@ class SyncVector
     using iterator = typename std::vector<T>::iterator;
 
     /// Default Constructor
-    SyncVector<T>()
-        : m_device( nullptr )
-    {
-    }
+    SyncVector<T>() = default;
 
     /// Constructor
     ///
@@ -63,10 +66,9 @@ class SyncVector
     ///
     SyncVector<T>( size_t size )
         : m_host( size )
-        , m_device( nullptr )
     {
     }
-    ~SyncVector<T>() { CUDA_CHECK_NOTHROW( cudaFree( m_device ) ); }
+    ~SyncVector<T>() = default;
 
     /// Return whether or not the container is empty.
     bool empty() const { return m_host.empty(); }
@@ -103,7 +105,7 @@ class SyncVector
     void copyToDevice()
     {
         ensureDeviceMemory();
-        CUDA_CHECK( cudaMemcpy( m_device, m_host.data(), m_host.size() * sizeof( T ), cudaMemcpyHostToDevice ) );
+        CUDA_CHECK( cudaMemcpy( m_device.devicePtr(), m_host.data(), m_host.size() * sizeof( T ), cudaMemcpyHostToDevice ) );
     }
     /// Asynchronously copy host data to the device.
     ///
@@ -114,19 +116,19 @@ class SyncVector
     void copyToDeviceAsync( CUstream stream )
     {
         ensureDeviceMemory();
-        CUDA_CHECK( cudaMemcpyAsync( m_device, m_host.data(), m_host.size() * sizeof( T ), cudaMemcpyHostToDevice, stream ) );
+        CUDA_CHECK( cudaMemcpyAsync( m_device.devicePtr(), m_host.data(), m_host.size() * sizeof( T ), cudaMemcpyHostToDevice, stream ) );
     }
-
-    /// Typed pointer to the device memory.
-    ///
-    /// This method returns nullptr if the data has not been copied to the device.
-    T*       typedDevicePtr() { return static_cast<T*>( m_device ); }
-    const T* typedDevicePtr() const { return static_cast<const T*>( m_device ); }
 
     /// Untyped pointer to the device memory.
     ///
     /// This method returns nullptr if the data has not been copied to the device.
-    void* devicePtr() { return m_device; }
+    void* devicePtr() const { return m_device.devicePtr(); }
+
+    /// Typed pointer to the device memory.
+    ///
+    /// This method returns nullptr if the data has not been copied to the device.
+    T*       typedDevicePtr() { return static_cast<T*>( devicePtr() ); }
+    const T* typedDevicePtr() const { return static_cast<const T*>( devicePtr() ); }
 
     /// Conversion operator to CUdeviceptr
     ///
@@ -134,18 +136,10 @@ class SyncVector
     /// as a CUdeviceptr.  cudaMalloc types the memory as a void*, so
     /// this conversion operator eases some of the syntactic noise when
     /// filling out OptiX data structures.
-    operator CUdeviceptr() { return reinterpret_cast<CUdeviceptr>( m_device ); }
+    operator CUdeviceptr() { return m_device; }
 
     void resize( size_t size )
     {
-        if( size > m_host.capacity() )
-        {
-            if( m_device )
-            {
-                CUDA_CHECK( cudaFree( m_device ) );
-                m_device = nullptr;
-            }
-        }
         m_host.resize( size );
     }
 
@@ -155,15 +149,15 @@ class SyncVector
   private:
     void ensureDeviceMemory()
     {
-        if( m_device == nullptr )
+        const size_t hostBytes = m_host.size() * sizeof( T );
+        if( m_device.size() < hostBytes )
         {
-            const size_t numBytes = m_host.capacity() * sizeof( T );
-            CUDA_CHECK( cudaMalloc( &m_device, numBytes ) );
+            m_device.resize( hostBytes );
         }
     }
 
     std::vector<T> m_host;
-    void*          m_device;
+    DeviceBuffer   m_device; // A block of untyped bytes on the device.
 };
 
 }  // namespace otk
