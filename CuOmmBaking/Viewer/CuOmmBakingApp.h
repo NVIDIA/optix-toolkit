@@ -178,6 +178,8 @@ class OmmBakingApp
     double m_mousePrevX  = 0;
     double m_mousePrevY  = 0;
     int    m_mouseButton = NO_BUTTON;
+
+    bool m_glInterop = false;
 };
 
 void setGLFWCallbacks( OmmBakingApp* app );

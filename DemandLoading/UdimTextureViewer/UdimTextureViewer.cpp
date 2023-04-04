@@ -34,6 +34,7 @@
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+
 using namespace demandTextureApp;
 
 //------------------------------------------------------------------------------

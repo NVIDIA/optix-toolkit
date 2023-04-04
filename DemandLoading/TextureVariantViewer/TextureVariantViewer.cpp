@@ -1,6 +1,6 @@
 
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,48 +27,63 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandTextureViewerKernelPTX.h>
+#include <assert.h>
 
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 
+using namespace demandLoading;
 using namespace demandTextureApp;
 
+extern "C" char TextureVariantViewer_ptx[];  // generated via CMake by embed_ptx.
+
 //------------------------------------------------------------------------------
-// DemandTextureViewer
-// Shows basic use of OptiX demand textures.
+// TextureVariantApp
+// Shows the use of texture variants (multiple textures with the same backing store).
 //------------------------------------------------------------------------------
 
-class DemandTextureViewer : public DemandTextureApp
+class TextureVariantApp : public DemandTextureApp
 {
   public:
-    DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
+    TextureVariantApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
         : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
     {
     }
-    void setTextureName( const char* textureName ) { m_textureName = textureName; }
+    void setTextureName( const char* textureName ) { m_textureName = textureName; };
     void createTexture() override;
 
   private:
     std::string m_textureName;
 };
 
-void DemandTextureViewer::createTexture()
+void TextureVariantApp::createTexture()
 {
-    imageSource::ImageSource* img = createExrImage( m_textureName.c_str() );
-    if( !img && !m_textureName.empty() )
+    imageSource::ImageSource* img =  createExrImage( m_textureName.c_str() );
+    if( !img && ( !m_textureName.empty() ) )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !img )
         img = new imageSource::MultiCheckerImage<float4>( 8192, 8192, 16, true );
-    std::unique_ptr<imageSource::ImageSource> imageSource( img );
+    
+    std::shared_ptr<imageSource::ImageSource> imageSource( img );
 
-    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-    const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( std::move( imageSource ), texDesc );
-    m_textureIds.push_back( texture.getId() );
+    // Make first texture with trilinear filtering.
+    demandLoading::TextureDescriptor    texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+    const demandLoading::DemandTexture& texture1 = m_demandLoader->createTexture( imageSource, texDesc1 );
+    m_textureIds.push_back( texture1.getId() );
+
+    // Make second texture with point filtering.
+    // The demand loader will share the backing store for textures created with the same imageSource pointer.
+    demandLoading::TextureDescriptor    texDesc2 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_POINT );
+    const demandLoading::DemandTexture& texture2 = m_demandLoader->createTexture( imageSource, texDesc2 );
+    m_textureIds.push_back( texture2.getId() );
+
+    // The OptiX closest hit program assumes the textures are consecutive.
+    assert( texture2.getId() == texture1.getId() + PAGES_PER_TEXTURE ); 
 }
 
 //------------------------------------------------------------------------------
-// Main function
+// Main
 //------------------------------------------------------------------------------
 
 void printUsage( const char* argv0 )
@@ -105,11 +120,12 @@ int main( int argc, char* argv[] )
             printUsage( argv[0] );
     }
 
-    DemandTextureViewer app( "Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
+    TextureVariantApp app( "Texture Variants. Trilinear (left) and point filtering (right).", 
+                           windowWidth, windowHeight, outFileName, glInterop );
     app.initDemandLoading();
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( DemandTextureViewer_ptx_text() );
+    app.initOptixPipelines( TextureVariantViewer_ptx );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

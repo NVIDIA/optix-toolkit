@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -41,24 +41,24 @@ __constant__ Params params;
 }
 
 //------------------------------------------------------------------------------
-// Ray Payload - per ray data for OptiX programs
+// Ray Payload - per ray data for closest hit program
 //------------------------------------------------------------------------------
 
 struct RayPayload
 {
-    float4 color; // return color
+    float4 color; 
     float  cone_width; 
     float  cone_angle;
 };
 
 //------------------------------------------------------------------------------
-// OptiX programs
+// Optix programs
 //------------------------------------------------------------------------------
  
 extern "C" __global__ void __raygen__rg()
 {
     uint2 px = getPixelIndex( params.num_devices, params.device_idx );
-    if( !pixelInBounds( px, params.image_width, params.image_height ) )
+    if( !pixelInBounds( px,  params.image_width, params.image_height ) )
         return;
 
     // Ray for an orthographic view facing in the -z direction
@@ -80,8 +80,12 @@ extern "C" __global__ void __raygen__rg()
     float time = 0.0f;
     traceRay( params.traversable_handle, RAY_TYPE_RADIANCE, origin, direction, tmin, tmax, time, &payload );
 
+    // Blend result of ray trace with tile display color
+    float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
+    float4 color  = ( 1.0f - tcolor.w ) * payload.color + tcolor.w * tcolor;
+
     // Put the final color in the result buffer
-    params.result_buffer[px.y * params.image_width + px.x] = make_color( payload.color );
+    params.result_buffer[px.y * params.image_width + px.x] = make_color( color );
 }
 
 extern "C" __global__ void __miss__ms()
@@ -114,7 +118,8 @@ extern "C" __global__ void __closesthit__ch()
     // The hit object is a unit square, so the texture coord is the same as the hit point.
     float2 uv = make_float2( __uint_as_float( optixGetAttribute_0() ), __uint_as_float( optixGetAttribute_1() ) );
     
-    // The world space texture derivatives for a unit square are just dPds=(1,0,0) and dPdt=(0,1,0). 
+    // The world space texture derivatives for a unit square that spans (0,0) to (1,1) are
+    // in texture space are just dPds=(1,0,0) and dPdt=(0,1,0). 
     float dPds_len = 1.0f;
     float dPdt_len = 1.0f;
 
@@ -128,10 +133,12 @@ extern "C" __global__ void __closesthit__ch()
     float2 ddx = make_float2( footprintWidth, 0.0f );
     float2 ddy = make_float2( 0.0f, footprintWidth );
 
-    // Sample the texture, and put the value in the ray payload.
+    // Use the variant texture on the right half of the image
+    uint2 px = getPixelIndex( params.num_devices, params.device_idx );
+    if( px.x * 2 > params.image_width )
+        textureId += PAGES_PER_TEXTURE; 
+
+    // Sample the texture or variant, and return this value in the ray payload
     bool resident  = false;
-    if( params.interactive_mode )
-        payload->color = tex2DGradWalkup<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
-    else 
-        payload->color = tex2DGradUdimBlend<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
+    payload->color = tex2DGrad<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
 }

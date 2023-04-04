@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,4 +30,5 @@ add_subdirectory(DemandTextureAppBase)
 add_subdirectory(DemandTextureViewer)
 add_subdirectory(Simple)
 add_subdirectory(Texture)
+add_subdirectory(TextureVariantViewer)
 add_subdirectory(UdimTextureViewer)

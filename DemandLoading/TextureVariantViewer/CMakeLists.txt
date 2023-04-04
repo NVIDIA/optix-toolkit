@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,30 +30,42 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
+include(embed_ptx)
 
-find_package( CUDAToolkit 11.1 REQUIRED )
+embed_ptx(
+  OUTPUT_TARGET
+    TextureVariantViewerKernel
+  FOLDER
+    Examples/DemandLoading
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    TextureVariantViewer.cu
+)
 
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-add_library(DemandTextureAppBase STATIC
-  src/DemandTextureApp.cpp
-  include/OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h
-  include/OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h
-  include/OptiXToolkit/DemandTextureAppBase/LaunchParams.h
-  include/OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h
+add_executable( textureVariantViewer
+  TextureVariantViewer.cpp
   )
 
-add_library(OptiXToolkit::DemandTextureAppBase ALIAS DemandTextureAppBase)
-
-target_include_directories(DemandTextureAppBase PUBLIC include)
-
-target_link_libraries(DemandTextureAppBase
-  PUBLIC
+target_link_libraries( textureVariantViewer
+  TextureVariantViewerKernel
   OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui
-  OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
-  CUDA::cudart
+  glad::glad
+  glfw
   )
 
-set_target_properties(DemandTextureAppBase PROPERTIES FOLDER Examples/DemandLoading)
+set_target_properties( textureVariantViewer PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+
+# Copy shared libraries that the built executable depends on.
+if( $<TARGET_RUNTIME_DLLS:textureVariantViewer> )
+  add_custom_command( TARGET textureVariantViewer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:textureVariantViewer> $<TARGET_FILE_DIR:textureVariantViewer>
+    COMMAND_EXPAND_LISTS )
+endif()
