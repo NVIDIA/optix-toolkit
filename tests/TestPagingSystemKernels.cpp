@@ -49,6 +49,7 @@ class TestPagingSystemKernels : public testing::Test
 
         // Initialize paging system options.
         m_options.numPages          = 1025;
+        m_options.numPageTableEntries = 1025;
         m_options.maxRequestedPages = 65;
         m_options.maxFilledPages    = 63;
         m_options.maxStalePages     = 33;

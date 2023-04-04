@@ -176,7 +176,7 @@ __global__ void devicePullRequests( DeviceContext context, unsigned int launchNu
     const unsigned int randMultipler = 179;
     const unsigned int randomOffset  = ( launchNum * randMultipler ) % ( endIndex - startIndex );
 
-    while( globalIndex <= endIndex )
+    while( globalIndex < endIndex )
     {
         // Compute rotated reference/residence index
         unsigned int referenceWordIndex = globalIndex + randomOffset;
