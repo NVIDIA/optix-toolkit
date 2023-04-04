@@ -30,13 +30,14 @@
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 
-#include "Memory/DeviceMemoryManager.h"
-#include "Memory/PinnedMemoryManager.h"
+#include "DemandPageLoaderImpl.h"
+#include "Memory/Allocators.h"
+#include "Memory/MemoryPool.h"
+#include "Memory/RingSuballocator.h"
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
 #include "ResourceRequestHandler.h"
-#include "Textures/BaseColorRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
@@ -55,6 +56,7 @@ class ImageSource;
 namespace demandLoading {
 
 struct DeviceContext;
+class DeviceMemoryManager;
 class DemandTexture;
 class RequestProcessor;
 struct TextureDescriptor;
@@ -85,7 +87,31 @@ class DemandLoaderImpl : public DemandLoader
                                             int baseTextureId ) override;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
+    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
+
+    /// Schedule a list of textures to be unloaded when launchPrepare is called next.
+    void unloadTextureTiles( unsigned int textureId ) override;
+
+    /// Replace the indicated texture, clearing out the old texture as needed
+    void replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
+
+    /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches
+    /// the given stream.
+    void initTexture( CUstream stream, unsigned int textureId ) override;
+
+    /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
+    unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) override;
+
+    /// Get the starting mip level of the mip tail
+    unsigned int getMipTailFirstLevel( unsigned int textureId ) override;
+
+    /// Load or reload a texture tile.  The caller must ensure that the current CUDA context matches
+    /// the given stream.
+    void loadTextureTile( CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) override;
+
+    /// Return true if the requested page is resident on the device corresponding to the current
+    /// CUDA context.
+    bool pageResident( unsigned int pageId ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
     /// stream.  Returns false if the corresponding device does not support sparse textures.  If
@@ -110,7 +136,7 @@ class DemandLoaderImpl : public DemandLoader
     Statistics getStatistics() const override;
 
     /// Get the demand loading configuration options.
-    const Options& getOptions() const;
+    const Options& getOptions() const override;
 
     /// Get indices of the devices that can be employed by the DemandLoader.
     std::vector<unsigned int> getDevices() const override;
@@ -118,49 +144,71 @@ class DemandLoaderImpl : public DemandLoader
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
 
+    /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
+    void setMaxTextureMemory( size_t maxMem ) override;
+
     /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
-    PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
-
+    MemoryPool<PinnedAllocator, RingSuballocator>* getPinnedMemoryPool();
+    
     /// Get the specified texture.
     DemandTextureImpl* getTexture( unsigned int textureId ) { return m_textures.at( textureId ).get(); }
 
     /// Get the PagingSystem for the current CUDA context.
     PagingSystem* getPagingSystem() const;
-
+    
     /// Get the PageTableManager.
     PageTableManager* getPageTableManager();
 
     /// Free some staged tiles if there are some that are ready
     void freeStagedTiles( CUstream stream );
 
-    /// Allocate a temporary buffer of the given memory type
+    /// Allocate a temporary buffer of the given memory type, used as a staging point for an asset such as a texture tile.
     const TransferBufferDesc allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream stream );
 
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
 
+    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry );
+
   private:
     mutable std::mutex        m_mutex;
 
-    std::shared_ptr<PageTableManager>     m_pageTableManager;
+    std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.
     std::unique_ptr<DemandPageLoaderImpl> m_pageLoader;
 
-    std::vector<std::unique_ptr<DemandTextureImpl>>   m_textures;  // demand-loaded textures, indexed by texture id.
+    std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures;     // demand-loaded textures, indexed by textureId
+    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // lookup from image* to textureId
 
-    BaseColorRequestHandler    m_baseColorRequestHandler;  // Handles base colors for textures.
     SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
-    PinnedMemoryManager        m_pinnedMemoryManager;
+
+#if CUDA_VERSION >= 11020
+    PerContextData<MemoryPool<DeviceAsyncAllocator, RingSuballocator>> m_deviceTransferPools;
+#else
+    PerContextData<MemoryPool<DeviceAllocator, RingSuballocator>> m_deviceTransferPools;
+#endif
+    std::mutex m_deviceTransferPoolsMutex;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
-    double m_totalProcessingTime = 0.0;
+    unsigned int m_ticketId{};
 
-    /// Unmap the backing storage associated with a texture tile or mip tail
+    // Unmap the backing storage associated with a texture tile or mip tail
     void unmapTileResource( CUstream stream, unsigned int pageId );
+
+    // Create a normal or variant version of a demand texture, based on the imageSource 
+    DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
+
+    unsigned int allocateTexturePages( unsigned int numTextures );
+
+#if CUDA_VERSION >= 11020
+    MemoryPool<DeviceAsyncAllocator, RingSuballocator>* getDeviceTransferPool();
+#else
+    MemoryPool<DeviceAllocator, RingSuballocator>* getDeviceTransferPool();
+#endif
 };
 
 }  // namespace demandLoading

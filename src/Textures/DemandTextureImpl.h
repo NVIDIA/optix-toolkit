@@ -67,10 +67,13 @@ class DemandTextureImpl : public DemandTexture
     /// device-side sampler array) the the given descriptor (which specifies the wrap mode, filter
     /// mode, etc.).  The given image reader is retained and used by subsequent readTile() calls.
     DemandTextureImpl( unsigned int                              id,
-                       unsigned int                              maxNumDevices,
                        const TextureDescriptor&                  descriptor,
                        std::shared_ptr<imageSource::ImageSource> image,
                        DemandLoaderImpl*                         loader );
+
+    /// Construct a variant demand loaded texture based on mainTexture.  The variant will use the same
+    /// sparse texture backing store as mainTexture, so texture tiles can be shared between the textures.
+    DemandTextureImpl( unsigned int id, DemandTextureImpl* masterTexture, const TextureDescriptor& descriptor, DemandLoaderImpl* loader );
 
     /// Default destructor.
     ~DemandTextureImpl() override = default;
@@ -90,6 +93,9 @@ class DemandTextureImpl : public DemandTexture
 
     /// Get the memory fill type for this texture.
     CUmemorytype getFillType() const { return m_image->getFillType(); }
+
+    /// Replace the current texture image. Return true if the sampler for the texture needs to be updated.
+    bool setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage );
 
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
@@ -185,8 +191,13 @@ class DemandTextureImpl : public DemandTexture
     /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
     void open();
 
+    bool isOpen() const { return m_isOpen; }
+
     /// Set this texture as an entry point to a udim texture array
     void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture );
+
+    /// Return true if the texture is an entry point for a udim texture
+    bool isUdimEntryPoint() { return ( m_sampler.udim > 0 ); }
     
     /// Return the size of the mip tail if the texture is initialized.
     size_t getMipTailSize(); 
@@ -203,7 +214,10 @@ class DemandTextureImpl : public DemandTexture
     TextureDescriptor m_descriptor{};
 
     // The image provides a read() method that fills requested miplevels.
-    const std::shared_ptr<imageSource::ImageSource> m_image;
+    std::shared_ptr<imageSource::ImageSource> m_image;
+
+    // Master texture, if this is a texture variant (shares image backing store with master texture). 
+    DemandTextureImpl* m_masterTexture;
 
     // The DemandLoader provides access to the PageTableManager, etc.
     DemandLoaderImpl* const m_loader;

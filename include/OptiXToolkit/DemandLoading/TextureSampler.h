@@ -87,4 +87,11 @@ struct TextureSampler
     unsigned short vdim;
 };
 
+// Indexing related to base colors
+const unsigned int PAGES_PER_TEXTURE = 2;
+const unsigned int BASE_COLOR_OFFSET = 1;
+
+inline unsigned int pageIdToSamplerId(unsigned int pageId) { return pageId - (pageId % PAGES_PER_TEXTURE); }
+inline bool isBaseColorId(unsigned int pageId) { return pageId - pageIdToSamplerId(pageId) == BASE_COLOR_OFFSET; }
+
 }  // namespace demandLoading

@@ -29,13 +29,14 @@
 #pragma once
 
 #include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 
-#include "RequestProcessor.h"
 #include "RequestQueue.h"
 #include "Util/TraceFile.h"
 
 #include <cuda.h>
 
+#include <map>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -62,15 +63,18 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     void stop();
 
     /// Add a batch of page requests to the request queue.
-    void addRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket ) override;
+    void addRequests( CUstream stream, unsigned id, const unsigned int* pageIds, unsigned int numPageIds ) override;
 
     void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
+
+    void setTicket( unsigned int id, Ticket ticket );
 
 private:
     std::shared_ptr<PageTableManager> m_pageTableManager;
     std::unique_ptr<RequestQueue>     m_requests;
     std::vector<std::thread>          m_threads;
     std::unique_ptr<TraceFileWriter>  m_traceFile{};
+    std::map<unsigned int, Ticket>    m_tickets;
 
     // Per-thread worker function.
     void worker();

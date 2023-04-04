@@ -28,17 +28,23 @@
 
 #include "Textures/TextureRequestHandler.h"
 #include "DemandLoaderImpl.h"
+#include "Memory/MemoryBlockDesc.h"
 #include "PagingSystem.h"
 #include "Textures/DemandTextureImpl.h"
+#include "TransferBufferDesc.h"
 #include "Util/NVTXProfiling.h"
 
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
-#include "TransferBufferDesc.h"
 
 namespace demandLoading {
 
 void TextureRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
+{
+   loadPage( stream, pageId, false );
+}
+
+void TextureRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident )
 {
     // Try to make sure there are free tiles to handle the request
     m_loader->freeStagedTiles( stream );
@@ -48,18 +54,28 @@ void TextureRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
     unsigned int index = pageId - m_startPage;
     MutexArrayLock lock( m_mutex.get(), index);
 
-    // Do nothing if the request has already been filled.
-    if( m_loader->getPagingSystem()->isResident( pageId ) )
+    // Do nothing if the page is resident and the flag says not to reload it.
+    unsigned long long pageEntry;
+    bool resident =  m_loader->getPagingSystem()->isResident( pageId, &pageEntry );
+    if( resident && !reloadIfResident )
         return;
+
+    // Get the TileBlockHandle from the page table if the page is resident
+    TileBlockHandle bh{ 0, 0 };
+    if( resident )
+    {
+        bh.block = TileBlockDesc( pageEntry );
+        bh.handle = m_loader->getDeviceMemoryManager()->getTileBlockHandle( bh.block );
+    } 
 
     // Decide if we need to fill a mip tail or a tile
     if( pageId == m_startPage && m_texture->isMipmapped() )
-        fillMipTailRequest( stream, pageId );
+        fillMipTailRequest( stream, pageId, bh );
     else
-        fillTileRequest( stream, pageId );
+        fillTileRequest( stream, pageId, bh );
 }
 
-void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageId )
+void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
@@ -74,26 +90,29 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     unsigned int       tileY;
     unpackTileIndex( sampler, tileIndex, mipLevel, tileX, tileY );
 
-    // Allocate a tile in device memory
-    TilePool*     tilePool    = m_loader->getDeviceMemoryManager()->getTilePool();
-    TileBlockDesc tileLocator = tilePool->allocate( sizeof( TileBuffer ) );
-    if( !tileLocator.isValid() )
-        return;
+    // Make sure to have device memory for the tile
+    bool useNewBlock = bh.block.isBad();
+    if( useNewBlock )
+    {
+        bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        if( bh.block.isBad() )
+            return;
+    }
 
     // Allocate a transfer buffer.
-    TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( m_texture->getFillType(), sizeof( TileBuffer ), stream );
-    if( transferBuffer.size == 0 )
+    TransferBufferDesc transferBuffer = m_loader->allocateTransferBuffer( m_texture->getFillType(), TILE_SIZE_IN_BYTES, stream );
+    if( transferBuffer.memoryBlock.size == 0 )
     {
-        tilePool->freeBlock( tileLocator );
+        m_loader->getDeviceMemoryManager()->freeTileBlock( bh.block );
         return;
     }
 
     // Read the tile (possibly from disk) into the transfer buffer.
-    bool satisfied{};
+    bool satisfied;
     try
     {
-        satisfied = m_texture->readTile( mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.size, stream );
+        satisfied = m_texture->readTile( mipLevel, tileX, tileY, reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),
+                                         transferBuffer.memoryBlock.size, stream );
     }
     catch( const std::exception& e )
     {
@@ -102,41 +121,49 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
         throw Exception( ss.str().c_str() );
     }
 
-    // Copy data from transfer buffer to the sparse texture on the device
     if( satisfied )
     {
-        CUmemGenericAllocationHandle handle;
-        size_t                       offset;
-        tilePool->getHandle( tileLocator, &handle, &offset );
+        // Copy data from transfer buffer to the sparse texture on the device
+        m_texture->fillTile( stream,
+                             mipLevel, tileX, tileY,                                     // Tile to fill
+                             reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
+                             transferBuffer.memoryType, TILE_SIZE_IN_BYTES,              // Src type and size
+                             bh.handle, bh.block.offset()                                // Dest
+                             );
 
-        m_texture->fillTile( stream, mipLevel, tileX, tileY, transferBuffer.buffer, transferBuffer.memoryType,
-                             sizeof( TileBuffer ), handle, offset );
-
-        const unsigned int lruVal = 0;
-        m_loader->getPagingSystem()->addMapping( pageId, lruVal, tileLocator.getData() );
+        // Add a mapping for the tile, which will be sent to the device in pushMappings().
+        if( useNewBlock )
+        {
+            m_loader->setPageTableEntry( pageId, true, reinterpret_cast<void*>( bh.block.data ) );
+        }
     }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
 }
 
-void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pageId )
+void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
     const size_t mipTailSize  = m_texture->getMipTailSize();
-    
-    // Allocate device memory for the mip tail from TilePool.
-    TilePool*     tilePool  = m_loader->getDeviceMemoryManager()->getTilePool();
-    TileBlockDesc tileBlock = tilePool->allocate( mipTailSize );
-    if( !tileBlock.isValid() )
-        return;
+
+    // Allocate device texture memory for mip tail.
+    DeviceMemoryManager* deviceMemoryManager = m_loader->getDeviceMemoryManager();
+
+    // Make sure to have device memory for the tile
+    bool useNewBlock = bh.block.isBad();
+    if( useNewBlock )
+    {
+        bh = deviceMemoryManager->allocateTileBlock( mipTailSize );
+        if( bh.block.isBad() )
+            return;
+    }
 
     // Allocate a transfer buffer.
-    TransferBufferDesc transferBuffer =
-        m_loader->allocateTransferBuffer( m_texture->getFillType(), mipTailSize, stream );
-    if( transferBuffer.size == 0 )
+    TransferBufferDesc transferBuffer = m_loader->allocateTransferBuffer( m_texture->getFillType(), mipTailSize, stream );
+    if( transferBuffer.memoryBlock.size == 0 )
     {
-        tilePool->freeBlock( tileBlock );
+        deviceMemoryManager->freeTileBlock( bh.block );
         return;
     }
 
@@ -144,7 +171,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
     bool satisfied;
     try
     {
-        satisfied = m_texture->readMipTail( transferBuffer.buffer, mipTailSize, stream );
+        satisfied = m_texture->readMipTail( reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ), mipTailSize, stream );
     }
     catch( const std::exception& e )
     {
@@ -155,20 +182,19 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
 
     if( satisfied )
     {
-        CUmemGenericAllocationHandle handle;
-        size_t                       offset;
-        tilePool->getHandle( tileBlock, &handle, &offset );
-
         // Copy data from the transfer buffer to the sparse texture on the device
-        m_texture->fillMipTail( stream, transferBuffer.buffer, transferBuffer.memoryType, mipTailSize, handle, offset );
+        m_texture->fillMipTail( stream,
+                                reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
+                                transferBuffer.memoryType, mipTailSize,                     // Src type and size
+                                bh.handle, bh.block.offset()                                // Dest
+                                );
 
         // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
-        unsigned int lruVal = 0;
-        m_loader->getPagingSystem()->addMapping( pageId, lruVal, tileBlock.getData() );
-    }
-    else
-    {
-        tilePool->freeBlock( tileBlock );
+
+        if( useNewBlock )
+        {
+            m_loader->setPageTableEntry( pageId, true, reinterpret_cast<void*>( bh.block.data ) );
+        }
     }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
@@ -203,5 +229,12 @@ void TextureRequestHandler::unmapTileResource( CUstream stream, unsigned int pag
     }
 }
 
+unsigned int TextureRequestHandler::getTextureTilePageId( unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
+{
+    const demandLoading::TextureSampler& sampler = getTexture()->getSampler();
+    unsigned int pageId = sampler.startPage + sampler.mipLevelSizes[mipLevel].mipLevelStart;
+    pageId += getPageOffsetFromTileCoords( tileX, tileY, sampler.mipLevelSizes[mipLevel].levelWidthInTiles );
+    return pageId;
+}
 
 }  // namespace demandLoading

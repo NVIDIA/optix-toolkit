@@ -62,23 +62,14 @@ add_library( DemandLoading
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
   src/Memory/Allocators.h
-  src/Memory/AsyncItemPool.h
-  src/Memory/Buffers.h
-  src/Memory/BulkMemory.h
-  src/Memory/BulkPinnedItemPool.h
-  src/Memory/DeviceContextPool.cpp
-  src/Memory/DeviceContextPool.h
+  src/Memory/BinnedSuballocator.h
+  src/Memory/DeviceMemoryManager.cpp
   src/Memory/DeviceMemoryManager.h
-  src/Memory/EventPool.h
-  src/Memory/FixedPool.h
-  src/Memory/ItemPool.h
-  src/Memory/PinnedItemPool.h
-  src/Memory/PinnedMemoryManager.h
-  src/Memory/PinnedRequestContextPool.h
-  src/Memory/SamplerPool.h
-  src/Memory/TileArena.h
-  src/Memory/TilePool.cpp
-  src/Memory/TilePool.h
+  src/Memory/FixedSuballocator.h
+  src/Memory/HeapSuballocator.h
+  src/Memory/MemoryBlockDesc.h
+  src/Memory/MemoryPool.h
+  src/Memory/RingSuballocator.h
   src/PageMappingsContext.h
   src/PageTableManager.h
   src/PagingSystem.cpp
@@ -87,13 +78,10 @@ add_library( DemandLoading
   src/PagingSystemKernels.h
   src/RequestContext.h
   src/RequestHandler.h
-  src/RequestProcessor.h
   src/RequestQueue.cpp
   src/RequestQueue.h
   src/ResourceRequestHandler.cpp
   src/ResourceRequestHandler.h
-  src/Textures/BaseColorRequestHandler.cpp
-  src/Textures/BaseColorRequestHandler.h
   src/Textures/DemandTextureImpl.cpp
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.cpp
@@ -110,6 +98,7 @@ add_library( DemandLoading
   src/TicketImpl.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
+  src/Util/CudaContext.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
@@ -136,6 +125,7 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/DeviceContext.h
   include/OptiXToolkit/DemandLoading/Options.h
   include/OptiXToolkit/DemandLoading/Paging.h
+  include/OptiXToolkit/DemandLoading/RequestProcessor.h
   include/OptiXToolkit/DemandLoading/Resource.h
   include/OptiXToolkit/DemandLoading/Statistics.h
   include/OptiXToolkit/DemandLoading/Texture2DExtended.h
@@ -186,6 +176,7 @@ source_group( "Header Files\\Implementation" FILES
   src/TicketImpl.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
+  src/Util/CudaContext.h
   src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h

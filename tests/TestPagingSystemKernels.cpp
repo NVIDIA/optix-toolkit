@@ -27,8 +27,7 @@
 //
 
 #include "CudaCheck.h"
-
-#include "Memory/DeviceContextPool.h"
+#include "Memory/DeviceMemoryManager.h"
 #include "PagingSystemKernels.h"
 
 #include <gtest/gtest.h>
@@ -58,17 +57,18 @@ class TestPagingSystemKernels : public testing::Test
         m_options.useLruTable       = true;
 
         // Allocate and initialize device context.
-        m_contextPool.reset( new DeviceContextPool( m_options ) );
-        m_context = m_contextPool->allocate();
+        m_deviceMemoryManager = new DeviceMemoryManager( m_options );
+        m_context = m_deviceMemoryManager->allocateDeviceContext();
     }
+
+    void TearDown() override { delete m_deviceMemoryManager; }
 
     const DeviceContext& getContext() const { return *m_context; }
 
   private:
     const unsigned int                 m_deviceIndex = 0;
     Options                            m_options{};
-    BulkDeviceMemory                   m_contextMemory;
-    std::unique_ptr<DeviceContextPool> m_contextPool;
+    DeviceMemoryManager*               m_deviceMemoryManager;
     DeviceContext*                     m_context;
 };
 

@@ -28,16 +28,19 @@
 
 #pragma once
 
+#include <OptiXToolkit/DemandLoading/Ticket.h>
+
+#include <cuda.h>
+
 namespace demandLoading {
 
-struct TileBuffer
+class RequestProcessor
 {
-    char data[64 * 1024];
-};
+  public:
+    virtual ~RequestProcessor() = default;
 
-struct MipTailBuffer 
-{
-    char data[16 * 64 * 1024];
+    /// Add a batch of page requests from the specified device to the request queue.
+    virtual void addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds ) = 0;
 };
 
 }  // namespace demandLoading

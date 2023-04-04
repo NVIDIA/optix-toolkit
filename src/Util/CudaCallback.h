@@ -28,6 +28,10 @@
 
 #pragma once
 
+#include "Exception.h"
+
+#include <cuda.h>
+
 namespace demandLoading {
 
 /// Adapter for cuLaunchHostFunc, which enqueues a host function call on a CUDA stream.  A derived
@@ -40,11 +44,11 @@ namespace demandLoading {
 class CudaCallback
 {
   public:
-    /// The callback method should be implemented by the derived class.
-    virtual void callback() = 0;
-
     /// The destructor is virtual to ensure that members of the derived class are properly destroyed.
     virtual ~CudaCallback() = default;
+
+    /// The callback method should be implemented by the derived class.
+    virtual void callback() = 0;
 
     /// Enqueue a callback on the given stream.  The CudaCallback object will be destroyed after its
     /// callback() method is invoked.

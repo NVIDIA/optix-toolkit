@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,25 +28,10 @@
 
 #pragma once
 
-#include "Memory/Allocators.h"
-#include "Memory/ItemPool.h"
+#include "Memory/DeviceFixedPool.h"
+#include "Memory/DeviceRingBuffer.h"
 
-#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <cuda.h>
 
-namespace demandLoading {
-
-// Device memory for texture samplers.
-class SamplerPool : public ItemPool<TextureSampler, DeviceAllocator>
-{
-  public:
-    /// Construct sampler pool.
-    SamplerPool()
-        : ItemPool<TextureSampler, DeviceAllocator>( DeviceAllocator() )
-    {
-    }
-
-    /// Returns the amount of device memory allocated.
-    size_t getTotalDeviceMemory() const { return capacity() * sizeof( TextureSampler ); }
-};
-
-}  // namespace demandLoading
+void launchDeviceRingBufferTest( const DeviceRingBuffer& ringBuffer, char** output, int width );
+void launchDeviceFixedPoolTest( const DeviceFixedPool& fixedPool, char** output, int width );

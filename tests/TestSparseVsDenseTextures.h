@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,35 +28,7 @@
 
 #pragma once
 
-#include "Memory/BulkMemory.h"
-#include "Memory/FixedPool.h"
-#include "RequestContext.h"
+#include <cuda_runtime.h>
+#include <cuda.h>
 
-namespace demandLoading {
-
-class PinnedRequestContextPool : public FixedPool<RequestContext>
-{
-  public:
-    PinnedRequestContextPool( size_t capacity, const Options& options )
-        : m_contexts( capacity )
-    {
-        for( size_t i = 0; i < m_contexts.size(); ++i )
-        {
-            RequestContext::reserve( &m_memory, options );
-        }
-        for( RequestContext& context : m_contexts )
-        {
-            context.allocate( &m_memory, options );
-        }
-        FixedPool<RequestContext>::init( m_contexts.data(), m_contexts.size() );
-    }
-
-    /// Get the total amount of pinned memory allocated.
-    size_t getTotalPinnedMemory() const { return m_memory.capacity(); }
-
-  private:
-    std::vector<RequestContext> m_contexts;
-    BulkPinnedMemory            m_memory;
-};
-
-}  // namespace demandLoading
+__host__ void launchSparseVsDenseTextureKernel( CUtexObject texture );

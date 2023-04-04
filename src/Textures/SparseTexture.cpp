@@ -204,7 +204,7 @@ void SparseArray::unmapMipTailAsync( CUstream stream, size_t mipTailSize ) const
     DEMAND_CUDA_CHECK( cuMemMapArrayAsync( &mapInfo, 1, stream ) );
 }
 
-void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info )
+void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<SparseArray> masterArray )
 {
     // Redundant initialization can occur because requests from multiple streams are not yet
     // deduplicated.
@@ -215,7 +215,14 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
 
     m_info = info;
-    m_array.init( m_info );
+
+    // Set the array to a new array, or the master array if one was passed in
+    m_array = masterArray;
+    if( m_array.get() == nullptr )
+    {
+        m_array.reset( new SparseArray() );
+        m_array->init( m_info );
+    }
 
     // Create CUDA texture descriptor
     CUDA_TEXTURE_DESC td{};
@@ -231,7 +238,7 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     // Create texture object.
     CUDA_RESOURCE_DESC rd{};
     rd.resType                    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
-    rd.res.mipmap.hMipmappedArray = static_cast<CUmipmappedArray>( m_array );
+    rd.res.mipmap.hMipmappedArray = static_cast<CUmipmappedArray>( *m_array );
     DEMAND_CUDA_CHECK( cuTexObjectCreate( &m_texture, &rd, &td, nullptr ) );
 
     m_isInitialized = true;
@@ -269,10 +276,10 @@ void SparseTexture::fillTile( CUstream                     stream,
 
     const uint2 tileDims{getTileDimensions( mipLevel, tileX, tileY )};
     const uint2 levelOffset{make_uint2( tileX * getTileWidth(), tileY * getTileHeight() )};
-    m_array.mapTileAsync(stream, mipLevel, levelOffset, tileDims, tileHandle, tileOffset);
+    m_array->mapTileAsync(stream, mipLevel, levelOffset, tileDims, tileHandle, tileOffset);
 
     // Get CUDA array for the specified miplevel.
-    CUarray mipLevelArray = m_array.getLevel( mipLevel );
+    CUarray mipLevelArray = m_array->getLevel( mipLevel );
 
     // Copy tile data into CUDA array
     const unsigned int pixelSize = m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
@@ -303,7 +310,7 @@ void SparseTexture::unmapTile( CUstream stream, unsigned int mipLevel, unsigned 
 
     const uint2 levelExtent{getTileDimensions( mipLevel, tileX, tileY )};
     const uint2 levelOffset{make_uint2( tileX * getTileWidth(), tileY * getTileHeight() )};
-    m_array.unmapTileAsync( stream, mipLevel, levelOffset, levelExtent );
+    m_array->unmapTileAsync( stream, mipLevel, levelOffset, levelExtent );
     m_numUnmappings++;
 }
 
@@ -318,14 +325,14 @@ void SparseTexture::fillMipTail( CUstream                     stream,
     DEMAND_ASSERT( m_isInitialized );
     DEMAND_ASSERT( mipTailSize >= getMipTailSize() );
 
-    m_array.mapMipTailAsync(stream, getMipTailSize(), tileHandle, tileOffset);
+    m_array->mapMipTailAsync(stream, getMipTailSize(), tileHandle, tileOffset);
 
     // Fill each level in the mip tail.
     size_t             offset    = 0;
     const unsigned int pixelSize = m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
     for( unsigned int mipLevel = getMipTailFirstLevel(); mipLevel < m_info.numMipLevels; ++mipLevel )
     {
-        CUarray mipLevelArray = m_array.getLevel( mipLevel );
+        CUarray mipLevelArray = m_array->getLevel( mipLevel );
         uint2 levelDims = getMipLevelDims( mipLevel );
 
         CUDA_MEMCPY2D copyArgs{};
@@ -352,7 +359,7 @@ void SparseTexture::unmapMipTail( CUstream stream ) const
 {
     DEMAND_ASSERT( m_isInitialized );
 
-    m_array.unmapMipTailAsync(stream, getMipTailSize());
+    m_array->unmapMipTailAsync(stream, getMipTailSize());
     m_numUnmappings++;
 }
 

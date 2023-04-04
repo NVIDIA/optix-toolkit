@@ -343,8 +343,7 @@ template <class TYPE>
 __device__ static __forceinline__ bool
 getBaseColor( const DeviceContext& context, unsigned int textureId, TYPE& rval, bool* baseColorResident )
 {
-    const unsigned int maxTextures = context.pageTable.capacity >> 1;
-    const unsigned long long baseVal = pagingMapOrRequest( context, textureId + maxTextures, baseColorResident );
+    const unsigned long long baseVal = pagingMapOrRequest( context, textureId + BASE_COLOR_OFFSET, baseColorResident );
     const half4* baseColor = reinterpret_cast<const half4*>( &baseVal );
     if( *baseColorResident && !__hisnan( baseColor->x ) ) // NaN indicates nonexistent base color
     {

@@ -26,39 +26,28 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include "TestSparseVsDenseTextures.h"
 
-#include "Memory/BulkMemory.h"
+#include "Util/Exception.h"
 
-#include <gtest/gtest.h>
-
-using namespace demandLoading;
-
-static bool isAligned( void* ptr, size_t alignment )
+__global__ static void sparseVsDenseTextureKernel( CUtexObject texture )
 {
-    return reinterpret_cast<uintptr_t>( ptr ) % alignment == 0;
+    bool   isResident = false;
+    float  x          = 0.5f;
+    float  y          = 0.5f;
+//    float2 ddx        = make_float2(0.1f, 0.0f);
+//    float2 ddy        = make_float2(0.0f, 0.1f);
+    float2 ddx        = make_float2(0.0f, 0.0f);
+    float2 ddy        = make_float2(0.0f, 0.0f);
+    
+    // This should print 0 (0 0 0) since no tiles were loaded, but prints 1 (0 0 0)
+    float4 val = tex2DGrad<float4>( texture, x, y, ddx, ddy, &isResident );
+    printf("%d (%1.1f %1.1f %1.1f)\n", isResident, val.x, val.y, val.z);
 }
 
-class TestBulkMemory : public testing::Test
+__host__ void launchSparseVsDenseTextureKernel( CUtexObject texture )
 {
-    void SetUp() { DEMAND_CUDA_CHECK( cudaFree( nullptr ) ); }
-};
-
-TEST_F( TestBulkMemory, TestAlignment )
-{
-    const unsigned int deviceIndex = 0;
-    BulkDeviceMemory   memory;
-    memory.reserveBytes( 1, 1 );
-    memory.reserveBytes( 2, 2 );
-    memory.reserveBytes( 4, 4 );
-    memory.reserveBytes( 1, 1 );
-    memory.reserveBytes( 8, 8 );
-    memory.reserveBytes( 16, 16 );
-
-    EXPECT_TRUE( isAligned( memory.allocateBytes<void*>( 1, 1 ), 1 ) );
-    EXPECT_TRUE( isAligned( memory.allocateBytes<void*>( 2, 2 ), 2 ) );
-    EXPECT_TRUE( isAligned( memory.allocateBytes<void*>( 4, 4 ), 4 ) );
-    EXPECT_TRUE( isAligned( memory.allocateBytes<void*>( 1, 1 ), 1 ) );
-    EXPECT_TRUE( isAligned( memory.allocateBytes<void*>( 8, 8 ), 8 ) );
-    EXPECT_TRUE( isAligned( memory.allocateBytes<void*>( 16, 16 ), 16 ) );
+    dim3 dimBlock( 1 );
+    dim3 dimGrid( 1 );
+    sparseVsDenseTextureKernel<<<dimGrid, dimBlock>>>( texture );
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,39 +26,57 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include "CudaCheck.h"
 
-#include "DeviceContextImpl.h"
-#include "Memory/BulkMemory.h"
+#include "Memory/DeviceFixedPool.h"
+#include "Memory/DeviceRingBuffer.h"
+#include "TestDeviceMemoryPools.h"
 
-#include <vector>
+#include <cuda.h>
 
-namespace demandLoading {
-
-struct Options;
-
-class DeviceContextPool
+__global__ static void deviceRingBufferTestKernel( DeviceRingBuffer ringBuffer, char** output, int width )
 {
-  public:
-    /// Create DeviceContextPool.  The pool size is determined by Options::maxActiveStreams,
-    /// and the various members of DeviceContext are sized according to Options::numPages.
-    /// \see DeviceContextImpl
-    DeviceContextPool( const Options& options );
+    unsigned long long handle;
+    char* p = ringBuffer.alloc(32, &handle);
 
-    /// Allocate a DeviceContext from the pool
-    DeviceContext* allocate();
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    if( x < width )
+    {
+        output[x] = p;
+    }
 
-    /// Release a DeviceContext back to the pool
-    void free( DeviceContext* context );
+    ringBuffer.free(handle);
+}
 
-    /// Get the total device memory used by the pool.
-    size_t getTotalDeviceMemory() const { return m_memory.capacity(); }
+__host__ void launchDeviceRingBufferTest( const DeviceRingBuffer& ringBuffer, char** output, int width )
+{
+    dim3 dimBlock( 512 );
+    dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x );
+    deviceRingBufferTestKernel<<<dimGrid, dimBlock>>>( ringBuffer, output, width );
+    DEMAND_CUDA_CHECK( cudaGetLastError() );
+}
 
-  private:
-    BulkDeviceMemory               m_memory;
-    std::vector<DeviceContextImpl> m_contexts;
-    size_t                         m_nextAvailable = 0;
-    std::vector<DeviceContext*>    m_freeList;
-};
+__global__ static void deviceFixedPoolTestKernel( DeviceFixedPool fixedPool, char** output, int width )
+{
+    char* p = fixedPool.alloc();
 
-}  // namespace demandLoading
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    if( x < width )
+    {
+        output[x] = p;
+    }
+
+    fixedPool.free(p);
+}
+
+__host__ void launchDeviceFixedPoolTest( const DeviceFixedPool& fixedPool, char** output, int width )
+{
+    dim3 dimBlock( 512 );
+    dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x );
+    deviceFixedPoolTestKernel<<<dimGrid, dimBlock>>>( fixedPool, output, width );
+    DEMAND_CUDA_CHECK( cudaGetLastError() );
+}
+
+
+
+

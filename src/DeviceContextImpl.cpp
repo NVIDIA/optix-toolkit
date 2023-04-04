@@ -30,29 +30,31 @@
 
 namespace demandLoading {
 
-void DeviceContextImpl::reservePerDeviceData( BulkDeviceMemory* memory, const Options& options )
+template <typename Type>
+inline Type* allocItems( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, size_t numItems, size_t alignment = 0 )
 {
-    // We allocate only enough room in the page table for the texture samplers.  The rest of the
-    // page table is unused, because we don't currently need to know the mappings for individual
-    // sparse texture tiles (that's handled by the virtual memory system).
-    memory->reserve<unsigned long long>( options.numPageTableEntries );
-
-    memory->reserveBytes( sizeofResidenceBits( options ), BIT_VECTOR_ALIGNMENT );
-
-    unsigned int lruTableSize = options.useLruTable ? ( options.numPages + 1 ) / 2 : 0;  // half byte per page
-    memory->reserveBytes( lruTableSize, alignof( unsigned int ) );
+    alignment             = alignment ? alignment : alignof( Type );
+    MemoryBlockDesc block = memPool->alloc( numItems * sizeof( Type ), alignment );
+    DEMAND_CUDA_CHECK( cuMemsetD8( static_cast<CUdeviceptr>( block.ptr ), 0, numItems * sizeof( Type ) ) );
+    return reinterpret_cast<Type*>( block.ptr );
 }
 
-void DeviceContextImpl::allocatePerDeviceData( BulkDeviceMemory* memory, const Options& options )
+void DeviceContextImpl::allocatePerDeviceData( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, const Options& options )
 {
-    pageTable.data     = memory->allocate<unsigned long long>( options.numPageTableEntries );
+    // Note: We allocate only enough room in the device-side page table for the texture samplers
+    // and texture base colors.  Mappings for individual sparse texture tiles are stored on the
+    // host to allow eviction, but are not currently needed on the device.
+
+    pageTable.data     = allocItems<unsigned long long>( memPool, options.numPageTableEntries );
     pageTable.capacity = options.numPageTableEntries;
     maxNumPages        = options.numPages;
 
-    residenceBits = memory->allocateBytes<unsigned int>( sizeofResidenceBits( options ), BIT_VECTOR_ALIGNMENT );
+    const unsigned int sizeofResidenceBitsInInts = ( options.numPages + 31 ) / 32;
+    residenceBits = allocItems<unsigned int>( memPool, sizeofResidenceBitsInInts, BIT_VECTOR_ALIGNMENT );
 
-    unsigned int lruTableSize = options.useLruTable ? ( options.numPages + 1 ) / 2 : 0;  // half byte per page
-    lruTable                  = memory->allocateBytes<unsigned int>( lruTableSize, alignof( unsigned int ) );
+    // Allocate half byte per page (8 pages per int32)
+    const unsigned int sizeofLruTableInInts = options.useLruTable ? ( options.numPages + 7 ) / 8 : 0; 
+    lruTable = allocItems<unsigned int>( memPool, sizeofLruTableInInts );
 
     DEMAND_ASSERT( isAligned( pageTable.data, alignof( unsigned long long ) ) );
     DEMAND_ASSERT( isAligned( residenceBits, BIT_VECTOR_ALIGNMENT ) );
@@ -67,37 +69,27 @@ void DeviceContextImpl::setPerDeviceData( const DeviceContext& other )
     lruTable      = other.lruTable;
 }
 
-void DeviceContextImpl::reservePerStreamData( BulkDeviceMemory* memory, const Options& options )
+void DeviceContextImpl::allocatePerStreamData( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, const Options& options )
 {
-    memory->reserveBytes( sizeofReferenceBits( options ), BIT_VECTOR_ALIGNMENT );
-    memory->reserve<unsigned int>( options.maxRequestedPages );
-    memory->reserve<StalePage>( options.maxStalePages );
-    memory->reserve<unsigned int>( options.maxEvictablePages );
-    memory->reserve<unsigned int>( NUM_ARRAYS );
-    memory->reserve<PageMapping>( options.maxFilledPages );
-    memory->reserve<unsigned int>( options.maxInvalidatedPages );
-}
+    const unsigned int sizeofReferenceBitsInInts = ( options.numPages + 31 ) / 32;
+    referenceBits = allocItems<unsigned int>( memPool, sizeofReferenceBitsInInts, BIT_VECTOR_ALIGNMENT );
 
-void DeviceContextImpl::allocatePerStreamData( BulkDeviceMemory* memory, const Options& options )
-{
-    referenceBits = memory->allocateBytes<unsigned int>( sizeofReferenceBits( options ), BIT_VECTOR_ALIGNMENT );
-
-    requestedPages.data     = memory->allocate<unsigned int>( options.maxRequestedPages );
+    requestedPages.data     = allocItems<unsigned int>( memPool, options.maxRequestedPages );
     requestedPages.capacity = options.maxRequestedPages;
 
-    stalePages.data     = memory->allocate<StalePage>( options.maxStalePages );
+    stalePages.data     = allocItems<StalePage>( memPool, options.maxStalePages );
     stalePages.capacity = options.maxStalePages;
 
-    evictablePages.data     = memory->allocate<unsigned int>( options.maxEvictablePages );
+    evictablePages.data     = allocItems<unsigned int>( memPool, options.maxEvictablePages );
     evictablePages.capacity = options.maxEvictablePages;
 
-    arrayLengths.data     = memory->allocate<unsigned int>( NUM_ARRAYS );
-    arrayLengths.capacity = NUM_ARRAYS;
+    arrayLengths.data     = allocItems<unsigned int>( memPool, ArrayLengthsIndex::NUM_ARRAY_LENGTHS );
+    arrayLengths.capacity = ArrayLengthsIndex::NUM_ARRAY_LENGTHS;
 
-    filledPages.data     = memory->allocate<PageMapping>( options.maxFilledPages );
+    filledPages.data     = allocItems<PageMapping>( memPool, options.maxFilledPages );
     filledPages.capacity = options.maxFilledPages;
 
-    invalidatedPages.data     = memory->allocate<unsigned int>( options.maxInvalidatedPages );
+    invalidatedPages.data     = allocItems<unsigned int>( memPool, options.maxInvalidatedPages );
     invalidatedPages.capacity = options.maxInvalidatedPages;
 
     DEMAND_ASSERT( isAligned( referenceBits, BIT_VECTOR_ALIGNMENT ) );

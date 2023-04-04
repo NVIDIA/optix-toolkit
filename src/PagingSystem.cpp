@@ -27,35 +27,49 @@
 //
 
 #include "PagingSystem.h"
+
 #include "DemandLoaderImpl.h"
-#include "Memory/PinnedMemoryManager.h"
+#include "Memory/DeviceMemoryManager.h"
+#include "PageMappingsContext.h"
 #include "PagingSystemKernels.h"
-#include "RequestProcessor.h"
+#include "RequestContext.h"
 #include "Util/CudaCallback.h"
+#include "Util/Math.h"
+
+#include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 
 #include <algorithm>
+#include <set>
 
 namespace demandLoading {
 
 PagingSystem::PagingSystem( const Options&       options,
                             DeviceMemoryManager* deviceMemoryManager,
-                            PinnedMemoryManager* pinnedMemoryManager,
+                            MemoryPool<PinnedAllocator, RingSuballocator>* pinnedMemoryPool,
                             RequestProcessor*    requestProcessor )
     : m_options( options )
     , m_deviceMemoryManager( deviceMemoryManager )
-    , m_pinnedMemoryManager( pinnedMemoryManager )
     , m_requestProcessor( requestProcessor )
+    , m_pinnedMemoryPool( pinnedMemoryPool )
 {
     DEMAND_ASSERT( m_options.maxFilledPages >= m_options.maxRequestedPages );
 
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
 
-    // Allocate pinned memory for page mappings and invalidated pages (see pushMappings).  Note that
-    // it's not necessary to free m_pageMappingsContext in the destructor, since it's pool
-    // allocated.  (Nor is it possible, because doing so requires a stream.)
-    m_pageMappingsContext = m_pinnedMemoryManager->getPageMappingsContextPool()->allocate();
-    m_pageMappingsContext->clear();
+    // Allocate a pageMappingsContext in pinned memory (see pushMappings). It's not necessary
+    // to free it in the destructor, since it's pool allocated.
+    m_pageMappingsContextBlock =
+        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( m_options ), alignof( PageMappingsContext ) );
+    m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
+    m_pageMappingsContext->init( m_options );
+}
+
+PagingSystem::~PagingSystem()
+{
+    for( RequestContext* requestContext : m_pinnedRequestContextPool )
+        DEMAND_CUDA_CHECK( cuMemFreeHost( requestContext ) );
+    m_pinnedRequestContextPool.clear();
 }
 
 void PagingSystem::updateLruThreshold( unsigned int returnedStalePages, unsigned int requestedStalePages, unsigned int medianLruVal )
@@ -78,26 +92,26 @@ void PagingSystem::updateLruThreshold( unsigned int returnedStalePages, unsigned
 class ProcessRequestsCallback : public CudaCallback
 {
   public:
-    ProcessRequestsCallback( PagingSystem* pagingSystem, DeviceContext context, RequestContext* pinnedContext, CUstream stream, Ticket ticket )
+    ProcessRequestsCallback( PagingSystem* pagingSystem, DeviceContext context, RequestContext* pinnedRequestContext, CUstream stream, unsigned int id )
         : m_pagingSystem( pagingSystem )
         , m_context( context )
-        , m_pinnedContext( pinnedContext )
+        , m_pinnedRequestContext( pinnedRequestContext )
         , m_stream( stream )
-        , m_ticket( ticket )
+        , m_id( id )
     {
     }
 
-    void callback() override { m_pagingSystem->processRequests( m_context, m_pinnedContext, m_stream, m_ticket ); }
+    void callback() override { m_pagingSystem->processRequests( m_context, m_pinnedRequestContext, m_stream, m_id ); }
 
   private:
     PagingSystem*   m_pagingSystem;
     DeviceContext   m_context;
-    RequestContext* m_pinnedContext;
+    RequestContext* m_pinnedRequestContext;
     CUstream        m_stream;
-    Ticket          m_ticket;
+    unsigned int    m_id;
 };
 
-void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, unsigned int startPage, unsigned int endPage, Ticket ticket )
+void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -111,55 +125,66 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
 
     launchPullRequests( stream, context, m_launchNum, m_lruThreshold, startPage, endPage );
 
-    // Get a RequestContext from the pinned memory manager, which will serve as the destination for
-    // asynchronous copies of the requested pages, etc.
-    RequestContext* pinnedContext = m_pinnedMemoryManager->getRequestContextPool()->allocate();
+    // Get a RequestContext from the pinned memory pool, which will serve as the destination for async copies.
+    RequestContext* pinnedRequestContext = nullptr;
+    if( !m_pinnedRequestContextPool.empty() )
+    {
+        pinnedRequestContext = m_pinnedRequestContextPool.back();
+        m_pinnedRequestContextPool.pop_back();
+    }
+    else 
+    {
+        DEMAND_CUDA_CHECK( cuMemAllocHost( reinterpret_cast<void**>( &pinnedRequestContext ),
+                                           RequestContext::getAllocationSize( m_options ) ) );
+        pinnedRequestContext->init( m_options );
+    }
 
     // Copy the requested page list from this device.  The actual length is unknown, so we copy the entire capacity
     // and update the length below.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedContext->requestedPages ),
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->requestedPages ),
                                       reinterpret_cast<CUdeviceptr>( context.requestedPages.data ),
-                                      pinnedContext->maxRequestedPages * sizeof( unsigned int ), stream ) );
+                                      pinnedRequestContext->maxRequestedPages * sizeof( unsigned int ), stream ) );
 
     // Get the stale pages from the device. This may be a subset of the actual stale pages.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedContext->stalePages ),
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->stalePages ),
                                       reinterpret_cast<CUdeviceptr>( context.stalePages.data ),
-                                      pinnedContext->maxStalePages * sizeof( StalePage ), stream ) );
+                                      pinnedRequestContext->maxStalePages * sizeof( StalePage ), stream ) );
 
     // Get the sizes of the requested/stale page lists.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedContext->arrayLengths ),
+    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->arrayLengths ),
                                       reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ),
-                                      pinnedContext->numArrayLengths * sizeof( unsigned int ), stream ) );
+                                      pinnedRequestContext->numArrayLengths * sizeof( unsigned int ), stream ) );
 
     // Enqueue host function call to process the page requests once the kernel launch and copies have completed.
-    CudaCallback::enqueue( stream, new ProcessRequestsCallback( this, context, pinnedContext, stream, ticket ) );
+    CudaCallback::enqueue( stream, new ProcessRequestsCallback( this, context, pinnedRequestContext, stream, id ) );
 }
 
 // Note: this method must not make any CUDA API calls, because it's invoked via cuLaunchHostFunc.
-void PagingSystem::processRequests( const DeviceContext& context, RequestContext* requestContext, CUstream stream, Ticket ticket )
+void PagingSystem::processRequests( const DeviceContext& context, RequestContext* pinnedRequestContext, CUstream stream, unsigned int id )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Return device context to pool.  The DeviceContext has been copied, but DeviceContextPool is designed to permit that.
-    m_deviceMemoryManager->getDeviceContextPool()->free( const_cast<DeviceContext*>( &context ) );
+    m_deviceMemoryManager->freeDeviceContext( const_cast<DeviceContext*>( &context ) );
 
     // Restore staged requests, and remove them from the request list (second chance algorithm)
-    unsigned int numRequestedPages = requestContext->arrayLengths[PAGE_REQUESTS_LENGTH];
-    unsigned int numStalePages     = requestContext->arrayLengths[STALE_PAGES_LENGTH];
+    unsigned int numRequestedPages = pinnedRequestContext->arrayLengths[PAGE_REQUESTS_LENGTH];
+    unsigned int numStalePages     = pinnedRequestContext->arrayLengths[STALE_PAGES_LENGTH];
 
     for( unsigned int i = 0; i < numRequestedPages; ++i )
     {
-        if( restoreMapping( requestContext->requestedPages[i] ) )
+        if( restoreMapping( pinnedRequestContext->requestedPages[i] ) )
         {
-            requestContext->requestedPages[i] = requestContext->requestedPages[numRequestedPages - 1];
+            pinnedRequestContext->requestedPages[i] = pinnedRequestContext->requestedPages[numRequestedPages - 1];
             --numRequestedPages;
             --i;
         }
     }
-    requestContext->arrayLengths[PAGE_REQUESTS_LENGTH] = numRequestedPages;
+    pinnedRequestContext->arrayLengths[PAGE_REQUESTS_LENGTH] = numRequestedPages;
 
-    // Enqueue the requests for asynchronous processing.
-    m_requestProcessor->addRequests( stream, requestContext->requestedPages, numRequestedPages, ticket );
+    // Enqueue the requests for processing.
+    // Must do this even when zero pages are requested to get proper end-to-end asynchronous communication via the Ticket mechanism.
+    m_requestProcessor->addRequests( stream, id, pinnedRequestContext->requestedPages, numRequestedPages );
 
     // Sort and stage stale pages, and update the LRU threshold
     unsigned int medianLruVal = 0;
@@ -167,25 +192,25 @@ void PagingSystem::processRequests( const DeviceContext& context, RequestContext
     {
         if( context.lruTable != nullptr )
         {
-            std::sort( requestContext->stalePages, requestContext->stalePages + numStalePages,
+            std::sort( pinnedRequestContext->stalePages, pinnedRequestContext->stalePages + numStalePages,
                        []( StalePage a, StalePage b ) { return a.lruVal < b.lruVal; } );
-            medianLruVal = requestContext->stalePages[numStalePages / 2].lruVal;
+            medianLruVal = pinnedRequestContext->stalePages[numStalePages / 2].lruVal;
         }
         else
         {
-            std::shuffle(requestContext->stalePages, requestContext->stalePages + numStalePages, m_rng);
+            std::shuffle(pinnedRequestContext->stalePages, pinnedRequestContext->stalePages + numStalePages, m_rng);
         }
 
         if( m_evictionActive && getNumStagedPages() < m_options.maxStagedPages )
         {
             m_stagedPages.emplace_back( StagedPageList{m_pushMappingsEvent, std::deque<PageMapping>()} );
-            stageStalePages( requestContext, m_stagedPages.back().mappings );
+            stageStalePages( pinnedRequestContext, m_stagedPages.back().mappings );
         }
     }
-    updateLruThreshold( numStalePages, requestContext->maxStalePages, medianLruVal );
+    updateLruThreshold( numStalePages, pinnedRequestContext->maxStalePages, medianLruVal );
 
     // Return the RequestContext to its pool.
-    m_pinnedMemoryManager->getRequestContextPool()->free( requestContext );
+    m_pinnedRequestContextPool.push_back(pinnedRequestContext);
 }
 
 void PagingSystem::addMapping( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
@@ -194,11 +219,15 @@ void PagingSystem::addMapping( unsigned int pageId, unsigned int lruVal, unsigne
     addMappingBody( pageId, lruVal, entry );
 }
 
-bool PagingSystem::isResident( unsigned int pageId )
+bool PagingSystem::isResident( unsigned int pageId, unsigned long long* entry )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     const auto&                  p = m_pageTable.find( pageId );
-    return ( p != m_pageTable.end() ) ? p->second.resident : false;
+
+    bool resident = ( p != m_pageTable.end() ) ? p->second.resident : false;
+    if( resident && entry )
+        *entry = p->second.entry;
+    return resident;
 }
 
 unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream stream )
@@ -206,22 +235,7 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
     std::unique_lock<std::mutex> lock( m_mutex );
 
     const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
-    if( numFilledPages > 0 )
-    {
-        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
-                                          reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
-                                          numFilledPages * sizeof( PageMapping ), stream ) );
-        launchPushMappings( stream, context, numFilledPages );
-    }
-
-    const unsigned int numInvalidatedPages = m_pageMappingsContext->numInvalidatedPages;
-    if( numInvalidatedPages > 0 )
-    {
-        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
-                                          reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),
-                                          numInvalidatedPages * sizeof( unsigned int ), stream ) );
-        launchInvalidatePages( stream, context, numInvalidatedPages );
-    }
+    pushMappingsAndInvalidations( context, stream );
 
     // Zero out the reference bits
     unsigned int referenceBitsSizeInBytes = idivCeil( context.maxNumPages, 8 );
@@ -234,11 +248,14 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
     // Make a new event for the next time pushMappings is called
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
 
-    // Free the current PageMappingsContext (it's not reused until the preceding operations on the stream are done)
-    // and allocate another one.  Note that we're careful to reserve two contexts per stream in the PinnedMemoryManager.
-    m_pinnedMemoryManager->getPageMappingsContextPool()->free( m_pageMappingsContext, stream );
-    m_pageMappingsContext = m_pinnedMemoryManager->getPageMappingsContextPool()->allocate();
-    m_pageMappingsContext->clear();
+    // Free the current PageMappingsContext when the preceding operations on the stream are done.
+    m_pinnedMemoryPool->freeAsync( m_pageMappingsContextBlock, stream);
+
+    // Allocate a new PageMappingsContext for the next pushMappings cycle.
+    m_pageMappingsContextBlock =
+        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( m_options ), alignof( PageMappingsContext ) );
+    m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
+    m_pageMappingsContext->init( m_options );
 
     return numFilledPages;
 }
@@ -307,12 +324,7 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
 void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
 {
     // Mutex acquired in caller
-
-    DEMAND_ASSERT_MSG( m_pageMappingsContext->numFilledPages <= m_pageMappingsContext->maxFilledPages,
-                       "Maximum number of filled pages exceeded (Options::maxFilledPages)" );
-    const auto& p = m_pageTable.find( pageId );
-    DEMAND_ASSERT( p == m_pageTable.end() || p->second.resident == false );
-    DEMAND_ASSERT( pageId < m_options.numPages );
+    DEMAND_ASSERT_MSG( pageId < m_options.numPages, "pageId outside of page table range." );
 
     m_pageMappingsContext->filledPages[m_pageMappingsContext->numFilledPages++] = PageMapping{pageId, lruVal, entry};
     m_pageTable[pageId] = HostPageTableEntry{entry, true, false, false};
@@ -346,6 +358,96 @@ void PagingSystem::flushMappings()
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     m_pageMappingsContext->numFilledPages = 0;
+}
+
+void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, CUstream stream )
+{
+    // Mutex acquired in caller 
+
+    // First push any new mappings
+    const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
+    if( numFilledPages > 0 )
+    {
+        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
+                                          reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
+                                          numFilledPages * sizeof( PageMapping ), stream ) );
+        launchPushMappings( stream, context, numFilledPages );
+    }
+    
+    // Next, push the invalidated pages
+    const unsigned int numInvalidatedPages = m_pageMappingsContext->numInvalidatedPages;
+    if( numInvalidatedPages > 0 )
+    {
+        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
+                                          reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),
+                                          numInvalidatedPages * sizeof( unsigned int ), stream ) );
+        launchInvalidatePages( stream, context, numInvalidatedPages );
+    }
+    
+    m_pageMappingsContext->clear();
+}
+
+void PagingSystem::invalidatePages( unsigned int              startId,
+                                    unsigned int              endId,
+                                    PageInvalidatorPredicate* predicate,
+                                    const DeviceContext&      context,
+                                    CUstream                  stream )
+{
+    std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Remove specified page entries from the page table.
+    std::set<unsigned int> stagedInvalidatedPages;
+    auto p = m_pageTable.lower_bound( startId );
+    while( p != m_pageTable.end() && p->first < endId )
+    {
+        const unsigned int pageId = p->first;
+        const unsigned long long pageVal = p->second.entry;
+
+        if( !predicate || (*predicate)( pageId, pageVal ) )
+        {
+            m_pageMappingsContext->invalidatedPages[m_pageMappingsContext->numInvalidatedPages++] = pageId;
+            if( p->second.inStagedList )
+            {
+                stagedInvalidatedPages.insert( pageId );
+            }
+            p = m_pageTable.erase(p);
+
+            // If the buffer for invalidations is about to overflow, push the invalidated pages to clear it. 
+            // This should not happen very often.  Usually, the mappings will be pushed from pushMappings.
+            if( m_pageMappingsContext->numInvalidatedPages >= m_pageMappingsContext->maxInvalidatedPages )
+            {
+                pushMappingsAndInvalidations( context, stream );
+                cuStreamSynchronize( stream ); // wait for the stream because we will reuse the context
+            }
+        }
+        else 
+        {
+            ++p;
+        }
+    }
+    
+    if( stagedInvalidatedPages.empty() )
+    {
+        return;
+    }
+
+    // Remove invalidated page entries from staged pages list 
+    for( StagedPageList& spl : m_stagedPages )
+    {
+        for( int i=0; i < static_cast<int>( spl.mappings.size() ); ++i )
+        {
+            const unsigned int pageId = spl.mappings[i].id;
+            if( pageId >= startId && pageId < endId )
+            {
+                if( stagedInvalidatedPages.find(pageId) != stagedInvalidatedPages.end() )
+                {
+                    spl.mappings[i] = spl.mappings.back();
+                    spl.mappings.pop_back();
+                    --i;
+                }
+            }
+        }
+    }
 }
 
 }  // namespace demandLoading

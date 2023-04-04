@@ -29,7 +29,8 @@
 #include "TestSparseTexture.h"
 
 #include "DemandLoaderImpl.h"
-#include "Memory/TilePool.h"
+#include "Memory/DeviceMemoryManager.h"
+#include "Memory/MemoryBlockDesc.h"
 #include "PageTableManager.h"
 #include "Textures/DemandTextureImpl.h"
 #include "CudaCheck.h"
@@ -86,7 +87,7 @@ class TestDemandTexture : public testing::Test
             std::make_shared<CheckerBoardImage>( m_width, m_height, /*squaresPerSide*/ 4, useMipMaps, tiledImage );
 
         // Construct and initialize DemandTexture
-        m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_numDevices, m_desc, image, m_loader.get() ) );
+        m_texture.reset( new DemandTextureImpl( /*id*/ 0, m_desc, image, m_loader.get() ) );
         m_texture->open();
         m_texture->init();
     }
@@ -98,6 +99,7 @@ class TestDemandTexture : public testing::Test
     unsigned int                       m_width      = 256;
     unsigned int                       m_height     = 256;
     TextureDescriptor                  m_desc{};
+    Options                            m_options{};
     std::unique_ptr<DemandTextureImpl> m_texture;
     std::unique_ptr<DemandLoaderImpl>  m_loader;
 };
@@ -116,26 +118,24 @@ TEST_F( TestDemandTexture, TestFillTile )
 {
     initTexture(256, 256);
 
-    // Read and fill the corner tiles, leaving the others non-resident.
-    TilePool tilePool( TEX_MEM_PER_DEVICE );
     unsigned int      mipLevel      = 0;
     uint2             tileCoords[4] = {{0, 0}, {0, 3}, {3, 0}, {3, 3}};
-    TileBuffer        tileBuffer;
+    std::vector<char> tileBuffer( TILE_SIZE_IN_BYTES );
     for( unsigned int i = 0; i < 4; ++i )
     {
         // Read tile.
         unsigned int tileX = tileCoords[i].x;
         unsigned int tileY = tileCoords[i].y;
-        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} ) );
+        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data(), TILE_SIZE_IN_BYTES, CUstream{} ) );
 
         // Fill tile.
-        TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );
-        CUmemGenericAllocationHandle handle;
-        size_t                       offset;
-        tilePool.getHandle( tileBlock, &handle, &offset );
-
-        m_texture->fillTile( m_stream, mipLevel, tileX, tileY, reinterpret_cast<char*>( tileBuffer.data ),
-                             CU_MEMORYTYPE_HOST, sizeof( TileBuffer ), handle, offset );
+        TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        m_texture->fillTile( m_stream,
+                             mipLevel, tileX, tileY,                  // tile to fill
+                             tileBuffer.data(),                       // host ptr
+                             CU_MEMORYTYPE_HOST, TILE_SIZE_IN_BYTES,  // data type and size
+                             bh.handle, bh.block.offset()             // device data
+                             );
     }
 
     // Set up kernel output buffer.
@@ -176,8 +176,9 @@ TEST_F( TestDemandTexture, TestReadMipTail )
     initTexture(256, 256); 
 
     // Read the entire mip tail.
-    std::unique_ptr<MipTailBuffer> buffer( new MipTailBuffer );
-    EXPECT_NO_THROW( m_texture->readMipTail( buffer->data, sizeof( MipTailBuffer ), CUstream{} ) );
+    size_t mipTailSize = m_texture->getMipTailSize();
+    std::vector<char> buffer( mipTailSize );
+    EXPECT_NO_THROW( m_texture->readMipTail( buffer.data(), mipTailSize, CUstream{} ) );
 
     // For now we print the levels in the mip tail for visual validation.
     const TextureInfo& info      = m_texture->getInfo();
@@ -186,7 +187,7 @@ TEST_F( TestDemandTexture, TestReadMipTail )
     size_t             offset    = 0;
     for( unsigned int mipLevel = m_texture->getMipTailFirstLevel(); mipLevel < info.numMipLevels; ++mipLevel )
     {
-        const float4* texels = reinterpret_cast<const float4*>( buffer->data + offset );
+        const float4* texels = reinterpret_cast<const float4*>( &buffer[offset] );
 
         uint2 levelDims = m_texture->getMipLevelDims( mipLevel );
         for( unsigned int y = 0; y < levelDims.y; ++y )
@@ -211,16 +212,16 @@ TEST_F( TestDemandTexture, TestFillMipTail )
     initTexture(256, 256);
 
     // Read the entire mip tail.
-    std::unique_ptr<MipTailBuffer> buffer( new MipTailBuffer );
-    EXPECT_NO_THROW( m_texture->readMipTail( buffer->data, sizeof( MipTailBuffer ), CUstream{} ) );
+    size_t mipTailSize = m_texture->getMipTailSize();
+    std::vector<char> buffer( mipTailSize );
+    EXPECT_NO_THROW( m_texture->readMipTail( buffer.data(), mipTailSize, CUstream{} ) );
 
     // Map the backing storage and fill it.
-    TilePool tilePool( TEX_MEM_PER_DEVICE );
-    TileBlockDesc                tileBlock = tilePool.allocate( sizeof( MipTailBuffer ) );
-    CUmemGenericAllocationHandle handle;
-    size_t                       offset;
-    tilePool.getHandle( tileBlock, &handle, &offset );
-    m_texture->fillMipTail( m_stream, buffer->data, CU_MEMORYTYPE_HOST, sizeof( MipTailBuffer ), handle, offset );
+    TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( mipTailSize );
+    m_texture->fillMipTail( m_stream,
+                            buffer.data(), CU_MEMORYTYPE_HOST, mipTailSize,  // host buffer and size
+                            bh.handle, bh.block.offset()                     // device buffer
+                            );
 
     // Set up kernel output buffer.
     const int outWidth  = 4;
@@ -267,9 +268,10 @@ TEST_F( TestDemandTexture, TestDenseTexture )
     EXPECT_FALSE( m_texture->useSparseTexture() );
 
     // Read the entire texture (as a mip tail), and fill it.
-    std::unique_ptr<MipTailBuffer> buffer( new MipTailBuffer );
-    EXPECT_NO_THROW( m_texture->readMipTail( buffer->data, sizeof( MipTailBuffer ), CUstream{} ) );
-    m_texture->fillDenseTexture( m_stream, buffer->data, info.width, info.height, true );
+    size_t mipTailSize = TILE_SIZE_IN_BYTES;
+    std::vector<char> buffer( mipTailSize );
+    EXPECT_NO_THROW( m_texture->readMipTail( buffer.data(), mipTailSize, CUstream{} ) );
+    m_texture->fillDenseTexture( m_stream, buffer.data(), info.width, info.height, true );
 
     // Set up kernel output buffer.
     const int outWidth  = 4;
@@ -370,25 +372,24 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
     initTexture(256, 256, false, true);
 
     // Read and fill the corner tiles, leaving the others non-resident.
-    TilePool tilePool( TEX_MEM_PER_DEVICE );
     unsigned int      mipLevel      = 0;
     uint2             tileCoords[4] = {{0, 0}, {0, 3}, {3, 0}, {3, 3}};
-    TileBuffer        tileBuffer;
+    std::vector<char> tileBuffer( TILE_SIZE_IN_BYTES );
     for( unsigned int i = 0; i < 4; ++i )
     {
         // Read tile.
         unsigned int tileX = tileCoords[i].x;
         unsigned int tileY = tileCoords[i].y;
-        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data, sizeof( TileBuffer ), CUstream{} ) );
+        EXPECT_EQ( true, m_texture->readTile( mipLevel, tileX, tileY, tileBuffer.data(), TILE_SIZE_IN_BYTES, CUstream{} ) );
 
         // Fill tile.
-        TileBlockDesc                tileBlock = tilePool.allocate( sizeof( TileBuffer ) );
-        CUmemGenericAllocationHandle handle;
-        size_t                       offset;
-        tilePool.getHandle( tileBlock, &handle, &offset );
-
-        m_texture->fillTile( m_stream, mipLevel, tileX, tileY, reinterpret_cast<char*>( tileBuffer.data ),
-                             CU_MEMORYTYPE_HOST, sizeof( TileBuffer ), handle, offset );
+        TileBlockHandle bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        m_texture->fillTile( m_stream,
+                             mipLevel, tileX, tileY,                  // tile coordinates
+                             tileBuffer.data(),                       // source data
+                             CU_MEMORYTYPE_HOST, TILE_SIZE_IN_BYTES,  // src type and size
+                             bh.handle, bh.block.offset()             // dest
+                             );
     }
 
     // Set up kernel output buffer.

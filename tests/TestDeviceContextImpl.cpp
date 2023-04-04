@@ -26,7 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
+
 #include "DeviceContextImpl.h"
+#include "Memory/Allocators.h"
+#include "Memory/FixedSuballocator.h"
+#include "Memory/HeapSuballocator.h"
+#include "Memory/MemoryPool.h"
 
 #include <gtest/gtest.h>
 
@@ -56,11 +62,9 @@ class TestDeviceContextImpl : public testing::Test
 TEST_F( TestDeviceContextImpl, TestConstructor )
 {
     // Alignment is checked by assertions in the constructor.
-    BulkDeviceMemory  memory;
+    MemoryPool<DeviceAllocator, HeapSuballocator> memPool( new DeviceAllocator(), nullptr );
     DeviceContextImpl context{};
 
-    context.reservePerDeviceData( &memory, m_options );
-    context.reservePerStreamData( &memory, m_options );
-    context.allocatePerDeviceData( &memory, m_options );
-    context.allocatePerStreamData( &memory, m_options );
+    context.allocatePerDeviceData( &memPool, m_options );
+    context.allocatePerStreamData( &memPool, m_options );
 }

@@ -30,11 +30,22 @@ include( FetchGtest )
 include( GoogleTest )
 include( embed_ptx )
 
+add_executable( testImageSource
+  TestCheckerBoardImage.cpp
+  TestEXRReader.cpp
+)
+target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
+target_link_libraries( testImageSource PUBLIC
+    DemandLoading
+    OpenEXR::OpenEXR # for half
+    gmock_main )
+set_property( TARGET testImageSource PROPERTY FOLDER DemandLoading/tests )
+
 embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
     OUTPUT_TARGET testDemandLoadingKernels
     PTX_LINK_LIBRARIES
-        OptiXToolkit::DemandLoading
-        OptiXToolkit::ShaderUtil
+        DemandLoading
+        ShaderUtil
     SOURCES DeferredImageLoadingKernels.cu
     FOLDER DemandLoading/tests
 )
@@ -48,35 +59,37 @@ add_executable( testDemandLoading
   ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
-  TestBulkMemory.cpp
-  TestBulkPinnedItemPool.cpp
-  TestCheckerBoardImage.cpp
+  TestAllocators.cpp
+  TestBinnedSuballocator.cpp
   TestContextSaver.cpp
   TestDemandLoader.cpp
+  TestDemandPageLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
-  TestDeviceContextPool.cpp
-  TestEXRReader.cpp
-  TestEventPool.cpp
-  TestFixedPool.cpp
-  TestItemPool.cpp
+  TestDeviceMemoryPools.cpp
+  TestDeviceMemoryPools.cu
+  TestDeviceMemoryPools.h
+  TestFixedSuballocator.cpp
+  TestHeapSuballocator.cpp
+  TestMemoryPool.cpp
   TestMutexArray.cpp
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
   TestPerContextData.cpp
-  TestPinnedItemPool.cpp
+  TestRingSuballocator.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
   TestSparseTexture.h
   TestSparseTextureWrap.cpp
+  TestSparseVsDenseTextures.cpp
+  TestSparseVsDenseTextures.cu
+  TestSparseVsDenseTextures.h
   TestTextureFill.cpp
   TestTextureInstantiation.cpp
   TestTicket.cpp
-  TestTileArena.cpp
   TestTileIndexing.cpp
-  TestTilePool.cpp
   TestTraceFile.cpp
   )
 

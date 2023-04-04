@@ -27,7 +27,7 @@
 //
 
 #include "ResourceRequestHandler.h"
-#include "DemandPageLoaderImpl.h"
+#include "DemandLoaderImpl.h"
 
 #include <OptiXToolkit/DemandLoading/Paging.h> // for NON_EVICTABLE_LRU_VAL
 
@@ -52,7 +52,7 @@ void ResourceRequestHandler::fillRequest( CUstream stream, unsigned int pageInde
         // Add a page table mapping from the requested page index to the new page table entry.
         // Page table updates are accumulated in the PagingSystem until launchPrepare is called, which
         // sends them to the device (via PagingSystem::pushMappings).
-        pagingSystem->addMapping( pageIndex, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( pageTableEntry ) );
+        m_loader->setPageTableEntry( pageIndex, false, pageTableEntry );
     }
 }
 

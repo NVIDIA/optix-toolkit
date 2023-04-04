@@ -28,13 +28,43 @@
 
 #pragma once
 
+#include "Util/CudaContext.h"
 #include "Util/Exception.h"
+
+#include <cuda.h>
 
 #include <cstring>
 
 namespace demandLoading {
 
-/// Device memory allocator.
+const unsigned int HOST_DEVICE = 0xFFFFFFFF;
+
+/// Host allocator using malloc
+class HostAllocator
+{
+  public:
+    void* allocate( size_t numBytes, CUstream dummy = 0 ) { return malloc( numBytes ); }
+    void free( void* ptr, CUstream dummy = 0 ) { ::free( ptr ); }
+    void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 ) { memset( ptr, val, numBytes ); }
+    bool         allocationIsHandle() const { return false; }
+};
+
+/// Pinned host allocator using cuMallocHost
+class PinnedAllocator
+{
+  public:
+    void* allocate( size_t numBytes, CUstream dummy = 0 )
+    {
+        void* result;
+        DEMAND_CUDA_CHECK( cuMemAllocHost( &result, numBytes ) );
+        return result;
+    }
+    void free( void* ptr, CUstream dummy = 0 ) { DEMAND_CUDA_CHECK( cuMemFreeHost( ptr ) ); }
+    void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 ) { memset( ptr, val, numBytes ); }
+    bool         allocationIsHandle() const { return false; }
+};
+
+/// Device allocator using cuMemAlloc
 class DeviceAllocator
 {
   public:
@@ -44,54 +74,130 @@ class DeviceAllocator
         DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
-    void* allocate( size_t numBytes )
+    void* allocate( size_t numBytes, CUstream dummy = 0 )
     {
-        checkContext();
+        checkCudaContext( m_context );
+        if( numBytes == 0 )
+            return nullptr;  // cuMemAlloc does not handle this.
         void* result;
         DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
         return result;
     }
 
-    void free( void* data )
+    void free( void* ptr, CUstream dummy = 0 )
     {
-        checkContext();
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( data ) ) );
+        checkCudaContext( m_context );
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
     }
 
-    void setToZero( void* data, size_t numBytes )
+    void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 )
     {
-        checkContext();
-        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( data ), 0, numBytes ) );
+        checkCudaContext( m_context );
+        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), val, numBytes ) );
     }
+
+    bool         allocationIsHandle() const { return false; }
 
   private:
     CUcontext m_context;
-
-    void checkContext()
-    {
-        // The current CUDA context must match the one that was current when
-        // the allocator was constructed.
-        CUcontext context;
-        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
-        DEMAND_ASSERT( context == m_context );
-    }
 };
 
-
-/// Pinned host memory allocator.
-class PinnedAllocator
+/// Async device allocator using cuMemAllocAsync
+class DeviceAsyncAllocator
 {
   public:
-    static void* allocate( size_t numBytes )
+    DeviceAsyncAllocator()
     {
+        // Record current CUDA context.
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+    }
+
+    void* allocate( size_t numBytes, CUstream stream = 0 )
+    {
+        checkCudaContext( m_context );
+        if( numBytes == 0 )
+            return nullptr;  // cuMemAlloc does not handle this.
         void* result;
-        DEMAND_CUDA_CHECK( cuMemAllocHost( &result, numBytes ) );
+#if OTK_USE_CUDA_MEMORY_POOLS
+        DEMAND_CUDA_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+#else
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+#endif
         return result;
     }
 
-    static void free( void* data ) { DEMAND_CUDA_CHECK( cuMemFreeHost( data ) ); }
+    void free( void* ptr, CUstream stream = 0 )
+    {
+        checkCudaContext( m_context );
+#if OTK_USE_CUDA_MEMORY_POOLS
+        DEMAND_CUDA_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( ptr ), stream ) );
+#else
+        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
+#endif
+    }
 
-    static void setToZero( void* data, size_t numBytes ) { memset( data, 0, numBytes ); }
+    void set( void* ptr, int val, size_t numBytes, CUstream stream = 0 )
+    {
+        checkCudaContext( m_context );
+        DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), val, numBytes, stream ) );
+    }
+
+    bool         allocationIsHandle() const { return false; }
+
+  private:
+    CUcontext m_context;
+};
+
+/// Texture tile allocator using cuMemCreate
+class TextureTileAllocator
+{
+  public:
+    TextureTileAllocator()
+        : m_allocationProp( makeAllocationProp() )
+    {
+        // Record current CUDA context.
+        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+    }
+
+    void* allocate( size_t numBytes, CUstream dummy = 0 )
+    {
+        checkCudaContext( m_context );
+        CUmemGenericAllocationHandle handle;
+        DEMAND_CUDA_CHECK( cuMemCreate( &handle, numBytes, &m_allocationProp, 0U ) );
+        return reinterpret_cast<void*>( handle );
+    }
+
+    void free( void* handle, CUstream dummy = 0 )
+    {
+        checkCudaContext( m_context );
+        DEMAND_CUDA_CHECK( cuMemRelease( reinterpret_cast<CUmemGenericAllocationHandle>( handle ) ) );
+    }
+
+    bool         allocationIsHandle() const { return true; }  // The allocation is not a pointer that can be incremented
+
+    static CUmemAllocationProp makeAllocationProp()
+    {
+        CUdevice device;
+        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+
+        CUmemAllocationProp prop{};
+        prop.type             = CU_MEM_ALLOCATION_TYPE_PINNED;
+        prop.location         = {CU_MEM_LOCATION_TYPE_DEVICE, static_cast<int>( device )};
+        prop.allocFlags.usage = CU_MEM_CREATE_USAGE_TILE_POOL;
+        return prop;
+    }
+
+    static size_t getRecommendedAllocationSize()
+    {
+        size_t              size;
+        CUmemAllocationProp prop( makeAllocationProp() );
+        DEMAND_CUDA_CHECK( cuMemGetAllocationGranularity( &size, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED ) );
+        return size ? size : 8 << 20;  // get the recommended size, or 8MB if it returns 0
+    }
+
+  private:
+    CUcontext           m_context;
+    CUmemAllocationProp m_allocationProp{};
 };
 
 }  // namespace demandLoading

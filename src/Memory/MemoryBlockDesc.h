@@ -26,55 +26,71 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Memory/Allocators.h"
-#include "Memory/ItemPool.h"
+#pragma once
 
-#include <gtest/gtest.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include <cuda_runtime.h>
+#include <cuda.h>
 
-#include <vector>
+namespace demandLoading {
 
-using namespace demandLoading;
+const uint64_t DEFAULT_ALLOC_SIZE = 2 * 1024 * 1024;
+const uint64_t BAD_ADDR = ~0ull;
 
-class IntPool : public ItemPool<int, PinnedAllocator>
+/// Allocation description, returned by a suballocator or memory pool
+struct MemoryBlockDesc
 {
-  public:
-    IntPool()
-        : ItemPool<int, PinnedAllocator>( PinnedAllocator() )
+    uint64_t ptr;
+    uint64_t size : 48;
+    uint64_t description : 16;
+
+    bool isGood() { return ptr != BAD_ADDR; }
+    bool isBad() { return ptr == BAD_ADDR; }
+};
+
+/// Align a value
+inline uint64_t alignVal( uint64_t p, uint64_t alignment )
+{
+    uint64_t misalignment = p % alignment;
+    if( misalignment != 0 )
+        p += alignment - misalignment;
+    return p;
+}
+
+const uint32_t TILE_SIZE_IN_BYTES = 64 * 1024;
+
+/// Describe a block of texture tiles
+union TileBlockDesc
+{
+    struct
+    {
+        uint32_t arenaId;
+        uint16_t tileId;
+        uint16_t numTiles;
+    };
+    uint64_t data = 0;
+
+    TileBlockDesc( uint64_t data_ )
+        : data{data_}
     {
     }
+    TileBlockDesc( uint32_t arenaId_, uint16_t tileId_, uint16_t numTiles_ )
+        : arenaId{arenaId_}
+        , tileId{tileId_}
+        , numTiles{numTiles_}
+    {
+    }
+    bool isGood() { return numTiles != 0; }
+    bool isBad() { return numTiles == 0; }
+    unsigned int offset() { return tileId * TILE_SIZE_IN_BYTES; }
 };
 
-
-class TestItemPool : public testing::Test
+/// Bundle a TileBlockDesc with its handle
+struct TileBlockHandle
 {
-    void SetUp() { cudaFree( nullptr ); }
+    CUmemGenericAllocationHandle handle;
+    TileBlockDesc                block;
 };
 
-TEST_F( TestItemPool, Unused )
-{
-    IntPool pool;
-    EXPECT_EQ( 0U, pool.size() );
-}
-
-TEST_F( TestItemPool, AllocateAndFree )
-{
-    IntPool pool;
-    int*    item = pool.allocate();
-    EXPECT_EQ( 1U, pool.size() );
-
-    pool.free( item );
-    EXPECT_EQ( 0U, pool.size() );
-}
-
-TEST_F( TestItemPool, ReuseFreedItem )
-{
-    // Verify that freed items are reused.  (This test is implementation specific.)
-    IntPool pool;
-    int*    item1 = pool.allocate();
-    pool.free( item1 );
-    int* item2 = pool.allocate();
-    EXPECT_EQ( item1, item2 );
-    pool.free( item2 );
-}
+}  // namespace demandLoading

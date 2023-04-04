@@ -45,16 +45,23 @@ class TestPageTableManager : public testing::Test
     DummyRequestHandler handler;
 
     TestPageTableManager()
-        : mgr( 1024u * 1024u )
+        : mgr( 1024u * 1024u, 1024u )
     {
     }
 };
 
-TEST_F( TestPageTableManager, TestGetAvailablePages )
+TEST_F( TestPageTableManager, TestGetAvailableBackedPages )
 {
-    unsigned int beginAvailablePages = mgr.getAvailablePages();
-    mgr.reserve( 1000u, &handler );
-    EXPECT_EQ( 1000u, beginAvailablePages - mgr.getAvailablePages() );
+    unsigned int beginAvailablePages = mgr.getAvailableBackedPages();
+    mgr.reserveBackedPages( 1000u, &handler );
+    EXPECT_EQ( 1000u, beginAvailablePages - mgr.getAvailableBackedPages() );
+}
+
+TEST_F( TestPageTableManager, TestGetAvailableUnbackedPages )
+{
+    unsigned int beginAvailablePages = mgr.getAvailableUnbackedPages();
+    mgr.reserveUnbackedPages( 1000u, &handler );
+    EXPECT_EQ( 1000u, beginAvailablePages - mgr.getAvailableUnbackedPages() );
 }
 
 TEST_F( TestPageTableManager, TestEmptyNotFound )
@@ -64,28 +71,28 @@ TEST_F( TestPageTableManager, TestEmptyNotFound )
 
 TEST_F( TestPageTableManager, TestNotFound )
 {
-    unsigned int firstPage = mgr.reserve( 1, &handler );
+    unsigned int firstPage = mgr.reserveBackedPages( 1, &handler );
 
     EXPECT_EQ( nullptr, mgr.getRequestHandler( firstPage + 1 ) );
 }
 
 TEST_F( TestPageTableManager, TestFindFirstPage )
 {
-    unsigned int firstPage = mgr.reserve( 3, &handler );
+    unsigned int firstPage = mgr.reserveUnbackedPages( 3, &handler );
 
     EXPECT_EQ( &handler, mgr.getRequestHandler( firstPage ) );
 }
 
 TEST_F( TestPageTableManager, TestFindMiddlePage )
 {
-    unsigned int firstPage = mgr.reserve( 3, &handler );
+    unsigned int firstPage = mgr.reserveUnbackedPages( 3, &handler );
 
     EXPECT_EQ( &handler, mgr.getRequestHandler( firstPage + 1 ) );
 }
 
 TEST_F( TestPageTableManager, TestFindLastPage )
 {
-    unsigned int firstPage = mgr.reserve( 3, &handler );
+    unsigned int firstPage = mgr.reserveBackedPages( 3, &handler );
 
     EXPECT_EQ( &handler, mgr.getRequestHandler( firstPage + 2 ) );
 }
@@ -98,7 +105,10 @@ TEST_F( TestPageTableManager, TestFindExhaustive )
     std::vector<DummyRequestHandler> handlers( count );
     for( unsigned int i = 0; i < count; ++i )
     {
-        firstPages[i] = mgr.reserve( i+1, &handlers[i] );
+        if( i < 10 )
+            firstPages[i] = mgr.reserveBackedPages( i+1, &handlers[i] );
+        else 
+            firstPages[i] = mgr.reserveUnbackedPages( i+1, &handlers[i] );
     }
 
     for( unsigned int i = 0; i < count; ++i )

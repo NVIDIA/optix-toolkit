@@ -33,6 +33,7 @@
 namespace demandLoading {
 
 class DemandLoaderImpl;
+class DemandTextureImpl;
 
 class SamplerRequestHandler : public RequestHandler
 {
@@ -48,6 +49,7 @@ class SamplerRequestHandler : public RequestHandler
 
   private:
     bool fillDenseTexture( CUstream stream, unsigned int pageId );
+    void fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId );
 
     DemandLoaderImpl* m_loader;
 };

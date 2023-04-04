@@ -29,6 +29,10 @@
 
 #include "Util/Exception.h"
 
+#include "Memory/Allocators.h"
+#include "Memory/RingSuballocator.h"
+#include "Memory/MemoryPool.h"
+
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/Ticket.h>
@@ -52,24 +56,33 @@ struct RequestContext;
 class RequestProcessor;
 class TicketImpl;
 
+class PageInvalidatorPredicate
+{
+  public:
+    virtual bool operator() (unsigned int pageId, unsigned long long pageVal ) = 0;
+    virtual ~PageInvalidatorPredicate() {};
+};
+
 class PagingSystem
 {
   public:
     /// Create paging system, allocating device memory based on the given options.
     PagingSystem( const Options&       options,
                   DeviceMemoryManager* deviceMemoryManager,
-                  PinnedMemoryManager* pinnedMemoryManager,
-                  RequestProcessor*    requestProcessor );
+                  MemoryPool<PinnedAllocator, RingSuballocator>* pinnedMemoryPool,
+                  RequestProcessor* requestProcessor );
 
+    virtual ~PagingSystem();
+    
     /// Pull requests from device to system memory.
-    void pullRequests( const DeviceContext& context, CUstream stream, unsigned int startPage, unsigned int endPage, Ticket ticket );
+    void pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage );
 
     // Add a page mapping (thread safe).  The device-side page table (etc.) is not updated until
     /// pushMappings is called.
     void addMapping( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
 
     /// Check whether the specified page is resident (thread safe).
-    bool isResident( unsigned int pageId );
+    bool isResident( unsigned int pageId, unsigned long long* entry = nullptr );
 
     /// Push tile mappings to the device.  Returns the total number of new mappings.
     unsigned int pushMappings( const DeviceContext& context, CUstream stream );
@@ -87,6 +100,9 @@ class PagingSystem
     /// Flush accumulated page mappings.  Used during trace file playback.
     void flushMappings();
 
+    /// Invalidate some pages based on a predicate
+    void invalidatePages( unsigned int startId, unsigned int endId, PageInvalidatorPredicate* predicate, const DeviceContext& context, CUstream stream );
+
   private:
     struct HostPageTableEntry
     {
@@ -101,7 +117,9 @@ class PagingSystem
     PinnedMemoryManager* m_pinnedMemoryManager{};
     RequestProcessor*    m_requestProcessor{};
 
-    PageMappingsContext* m_pageMappingsContext;  // owned by PinnedMemoryManager::m_pageMappingsContextPool
+    MemoryBlockDesc m_pageMappingsContextBlock;
+    PageMappingsContext* m_pageMappingsContext; 
+    MemoryPool<PinnedAllocator, RingSuballocator>* m_pinnedMemoryPool;
 
     std::map<unsigned int, HostPageTableEntry> m_pageTable;  // Host-side. Not copied to/from device. Used for eviction.
     std::mutex m_mutex;  // Guards m_pageTable and filledPages list (see addMapping).
@@ -136,11 +154,14 @@ class PagingSystem
     };
     std::deque<StagedPageList> m_stagedPages;
 
+    // Pool of pinned RequestContext for processRequests function
+    std::vector<RequestContext*> m_pinnedRequestContextPool;
+
     // A host function callback is used to invoke processRequests().
     friend class ProcessRequestsCallback;
 
     // Process requests, inserting them in the global request queue.
-    void processRequests( const DeviceContext& context, RequestContext* requestContext, CUstream stream, Ticket ticket );
+    void processRequests( const DeviceContext& context, RequestContext* pinnedRequestContext, CUstream stream, unsigned int id );
 
     // Update the lru threshold value
     void updateLruThreshold( unsigned int returnedStalePages, unsigned int requestedStalePages, unsigned int medianLruVal );
@@ -157,6 +178,9 @@ class PagingSystem
 
     // Restore the mapping for a staged page if possible
     bool restoreMapping( unsigned int pageId );
+
+    // Push invalidated pages to device
+    void pushMappingsAndInvalidations( const DeviceContext& context, CUstream stream );
 };
 
 }  // namespace demandLoading

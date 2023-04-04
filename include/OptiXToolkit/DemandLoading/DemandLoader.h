@@ -77,6 +77,32 @@ class DemandLoader
     /// value is forwarded to the callback during request processing.
     virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) = 0;
 
+    /// Schedule a list of textures to be unloaded when launchPrepare is called next.
+    virtual void unloadTextureTiles( unsigned int textureId ) = 0;
+
+    /// Replace the indicated texture, clearing out the old texture as needed
+    virtual void replaceTexture( unsigned int                              textureId,
+                                 std::shared_ptr<imageSource::ImageSource> image,
+                                 const TextureDescriptor&                  textureDesc ) = 0;
+
+    /// Pre-initialize the texture on the device corresponding to the given stream.  The caller must
+    /// ensure that the current CUDA context matches the given stream.
+    virtual void initTexture( CUstream stream, unsigned int textureId ) = 0;
+
+    /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
+    virtual unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
+
+    /// Get the starting mip level of the mip tail
+    virtual unsigned int getMipTailFirstLevel( unsigned int textureId ) = 0;
+
+    /// Load or reload a texture tile.  The caller must ensure that the current CUDA context matches
+    /// the given stream.
+    virtual void loadTextureTile( CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
+
+    /// Return true if the requested page is resident on the device corresponding to the current
+    /// CUDA context.
+    virtual bool pageResident( unsigned int pageId ) = 0;
+
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
     /// stream.  Returns false if the corresponding device does not support sparse textures.  If
     /// successful, returns a DeviceContext via result parameter, which should be copied to device
@@ -97,8 +123,14 @@ class DemandLoader
     /// Get the ordinals of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
     virtual std::vector<unsigned int> getDevices() const = 0;
 
+    /// Get the current options
+    virtual const Options& getOptions() const = 0;
+
     /// Turn on or off eviction
     virtual void enableEviction( bool evictionActive ) = 0;
+
+    /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
+    virtual void setMaxTextureMemory( size_t maxMem ) = 0;
 };
 
 /// Create a DemandLoader with the given options.  

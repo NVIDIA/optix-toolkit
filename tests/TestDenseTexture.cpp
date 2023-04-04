@@ -70,7 +70,7 @@ TEST_F( TestDenseTexture, TestInit )
     DenseTexture texture;
     EXPECT_FALSE( texture.isInitialized() );
 
-    texture.init( m_desc, m_info );
+    texture.init( m_desc, m_info, nullptr );
 
     EXPECT_TRUE( texture.isInitialized() );
 

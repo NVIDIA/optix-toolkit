@@ -31,6 +31,8 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for StalePage
 #include <OptiXToolkit/DemandLoading/Options.h>
 
+#include "Memory/MemoryBlockDesc.h"
+
 namespace demandLoading {
 
 struct RequestContext
@@ -44,20 +46,30 @@ struct RequestContext
     unsigned int*             arrayLengths;
     static const unsigned int numArrayLengths = 2;
 
-    static void reserve( BulkPinnedMemory* memory, const Options& options )
+    // Get the size required for the RequestContext struct + requestedPages + stalePages + arrayLengths.
+    static uint64_t getAllocationSize( const Options& options )
     {
-        memory->reserve<unsigned int>( options.maxRequestedPages );
-        memory->reserve<StalePage>( options.maxStalePages );
-        memory->reserve<unsigned int>( numArrayLengths );
+        uint64_t allocSize = alignVal( sizeof( RequestContext ), alignof( RequestContext ) );
+        allocSize += options.maxRequestedPages * sizeof( unsigned int );
+        allocSize += options.maxStalePages * sizeof( StalePage );
+        allocSize += numArrayLengths * sizeof( unsigned int );
+        return allocSize;
     }
 
-    void allocate( BulkPinnedMemory* memory, const Options& options )
+    // Initialize the struct and array pointers, assuming that the this pointer points to a free
+    // memory block of sufficient size, as calculated in getAllocationSize.
+    void init( const Options& options )
     {
-        requestedPages    = memory->allocate<unsigned int>( options.maxRequestedPages );
+        char* start               = reinterpret_cast<char*>( this );
+        char* requestedPagesStart = start + alignVal( sizeof( RequestContext ), sizeof( RequestContext ) );
+        char* stalePagesStart     = requestedPagesStart + options.maxRequestedPages * sizeof( unsigned int );
+        char* arrayLengthsStart   = stalePagesStart + options.maxStalePages * sizeof( StalePage );
+
         maxRequestedPages = options.maxRequestedPages;
-        stalePages        = memory->allocate<StalePage>( options.maxStalePages );
+        requestedPages    = reinterpret_cast<unsigned int*>( requestedPagesStart );
         maxStalePages     = options.maxStalePages;
-        arrayLengths      = memory->allocate<unsigned int>( numArrayLengths );
+        stalePages        = reinterpret_cast<StalePage*>( stalePagesStart );
+        arrayLengths      = reinterpret_cast<unsigned int*>( arrayLengthsStart );
     }
 };
 

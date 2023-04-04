@@ -28,7 +28,9 @@
 
 #pragma once
 
-#include "Memory/BulkMemory.h"
+#include "Memory/Allocators.h"
+#include "Memory/HeapSuballocator.h"
+#include "Memory/MemoryPool.h"
 #include "Util/Exception.h"
 #include "Util/Math.h"
 
@@ -55,31 +57,20 @@ class DeviceContextImpl : public DeviceContext
     /// Not assignable
     DeviceContextImpl& operator=( const DeviceContextImpl& other ) = delete;
 
-    /// The destructor does nothing because the data is owned by the BulkDeviceMemory.
+    /// The destructor does nothing because the data is owned by the the MemoryPool.
     ~DeviceContextImpl() {}
 
-    /// Reserve memory for per-device data in the given BulkDeviceMemory.
-    void reservePerDeviceData( BulkDeviceMemory* memory, const Options& options );
-
     /// Allocate memory for per-device data in the given BulkDeviceMemory.
-    void allocatePerDeviceData( BulkDeviceMemory* memory, const Options& options );
+    void allocatePerDeviceData( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, const Options& options );
 
     /// Set per-device data pointers to those of the given context.
     void setPerDeviceData( const DeviceContext& other );
 
-    /// Reserve memory for per-stream data in the given BulkDeviceMemory.
-    static void reservePerStreamData( BulkDeviceMemory* memory, const Options& options );
-
     /// Allocate memory for this context in the given BulkDeviceMemory.  Must be preceded by a matching call to reserve().
-    void allocatePerStreamData( BulkDeviceMemory* memory, const Options& options );
+    void allocatePerStreamData( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, const Options& options );
 
   private:
-    static const unsigned int NUM_ARRAYS           = 3;
     static const unsigned int BIT_VECTOR_ALIGNMENT = 128;
-
-    static unsigned int sizeofReferenceBits( const Options& options ) { return idivCeil( options.numPages, 8 ); }
-
-    static size_t sizeofResidenceBits( const Options& options ) { return idivCeil( options.numPages, 8 ); }
 
     static bool isAligned( void* ptr, size_t alignment ) { return reinterpret_cast<uintptr_t>( ptr ) % alignment == 0; }
 };

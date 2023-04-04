@@ -30,16 +30,18 @@
 
 #include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
 
+#include "Memory/Allocators.h"
 #include "Memory/DeviceMemoryManager.h"
-#include "Memory/PinnedMemoryManager.h"
+#include "Memory/MemoryPool.h"
+#include "Memory/RingSuballocator.h"
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ResourceRequestHandler.h"
-#include "Textures/BaseColorRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
 #include "Util/PerContextData.h"
+#include "Util/TraceFile.h"
 
 #include <cuda.h>
 
@@ -72,26 +74,27 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Destroy demand loading system.
     ~DemandPageLoaderImpl() override = default;
 
-    /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
-    unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* context ) override;
+    unsigned int allocatePages( unsigned int numPages, bool backed ) override;
+
+    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
-    /// stream.  Returns false if device corresponding to the given stream does not support sparse
-    /// textures.  If successful, returns a DeviceContext via result parameter, which should be
-    /// copied to device memory (typically along with OptiX kernel launch parameters), so that it
-    /// can be passed to Tex2D().
-    bool launchPrepare( CUstream stream, DeviceContext& demandTextureContext ) override;
+    /// stream.  Returns false if the current device does not support sparse textures.  If
+    /// successful, returns a DeviceContext via result parameter, which should be copied to device
+    /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
+    /// Tex2D().
+    bool pushMappings( CUstream stream, DeviceContext& demandTextureContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background
-    /// processing. The caller must ensure that the current CUDA context matches the given stream.
+    /// processing.  The caller must ensure that the current CUDA context matches the given stream.
     /// The given stream is used when copying tile data to the device.  Returns a ticket that is
     /// notified when the requests have been filled.
-    Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) override;
+    void pullRequests( CUstream stream, const DeviceContext& deviceContext, unsigned int id ) override;
 
-    /// Replay the given page requests (from a trace file), adding them to the page requeuest queue
+    /// Replay the given page requests (from a trace file), adding them to the page request queue
     /// for asynchronous processing.  The caller must ensure that the current CUDA context matches
-    /// the given stream.  Returns a ticket that is notified when the requests have been filled.
-    Ticket replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
+    /// the given stream.
+    void replayRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
 
     /// Get the demand loading configuration options.
     const Options& getOptions() const { return m_options; }
@@ -107,11 +110,16 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
-    /// Get the pinned memory manager.
-    PinnedMemoryManager* getPinnedMemoryManager() { return &m_pinnedMemoryManager; }
+    MemoryPool<PinnedAllocator, RingSuballocator> *getPinnedMemoryPool() { return &m_pinnedMemoryPool; }
 
     /// Get the PagingSystem for the current CUDA context.
     PagingSystem* getPagingSystem() const;
+
+    void setMaxTextureMemory( size_t maxMem );
+
+    void invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate );
+
+    double getTotalProcessingTime() const { return m_totalProcessingTime; }
 
     /// Accumulate statistics into the given struct.
     void accumulateStatistics( Statistics& stats ) const;
@@ -128,18 +136,28 @@ class DemandPageLoaderImpl : public DemandPageLoader
     mutable std::mutex m_deviceMemoryManagersMutex;
     mutable std::mutex m_pagingSystemsMutex;
 
+    struct InvalidationRange
+    {
+        unsigned int startPage;
+        unsigned int endPage;
+        PageInvalidatorPredicate* predicate;
+    };
+    PerContextData<std::vector<InvalidationRange>> m_pagesToInvalidate;
+    std::mutex m_pagesToInvalidateMutex;
+
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
-    mutable PinnedMemoryManager m_pinnedMemoryManager;
 
-    std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
+    mutable MemoryPool<PinnedAllocator, RingSuballocator> m_pinnedMemoryPool;
 
-    std::unique_ptr<TraceFileWriter> m_traceFile{};  // Empty if tracing is disabled.
+    double m_totalProcessingTime{};
 
-    double m_totalProcessingTime = 0.0;
+    std::vector<std::unique_ptr<RequestHandler>> m_requestHandlers;
 
-    /// Unmap the backing storage associated with a texture tile or mip tail
-    void unmapTileResource( CUstream stream, unsigned int pageId );
+    // Invalidate the pages for current device in m_pagesToInvalidate
+    void invalidatePages( CUstream stream, DeviceContext& context );
+
+    std::vector<InvalidationRange>* getPagesToInvalidate();
 };
 
 }  // namespace demandLoading

@@ -34,6 +34,7 @@
 
 #include <vector_types.h>
 
+#include <memory>
 #include <vector>
 
 namespace demandLoading {
@@ -97,7 +98,7 @@ class SparseTexture
 
     /// Initialize sparse texture from the given descriptor (which specifies clamping/wrapping and
     /// filtering) and the given texture info (which describes the dimensions, format, etc.)
-    void init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info );
+    void init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<SparseArray> masterArray );
 
     /// Check whether the texture has been initialized.
     bool isInitialized() const { return m_isInitialized; }
@@ -105,21 +106,21 @@ class SparseTexture
     /// Get the dimensions of the specified miplevel.
     uint2 getMipLevelDims( unsigned int mipLevel ) const
     {
-        return m_array.getMipLevelDims( mipLevel );
+        return m_array->getMipLevelDims( mipLevel );
     }
 
     /// Get the tile width, which depends on the format and number of channels.
-    unsigned int getTileWidth() const { return m_array.getTileWidth(); }
+    unsigned int getTileWidth() const { return m_array->getTileWidth(); }
 
     /// Get the tile height, which depends on the format and number of channels.
-    unsigned int getTileHeight() const { return m_array.getTileHeight(); } 
+    unsigned int getTileHeight() const { return m_array->getTileHeight(); } 
 
     /// Get the miplevel at the start of the "mip tail".  The mip tail consists of the coarsest
     /// miplevels that fit into a single memory page.
-    unsigned int getMipTailFirstLevel() const { return m_array.getMipTailFirstLevel(); }
+    unsigned int getMipTailFirstLevel() const { return m_array->getMipTailFirstLevel(); }
 
     /// Get the size of the mip tail in bytes.
-    size_t getMipTailSize() const { return m_array.getMipTailSize(); } 
+    size_t getMipTailSize() const { return m_array->getMipTailSize(); } 
 
     /// Get the CUDA texture object.
     CUtexObject getTextureObject() const { return m_texture; }
@@ -155,11 +156,14 @@ class SparseTexture
     /// Get total number of bytes filled
     size_t getNumBytesFilled() const { return m_numBytesFilled; }
 
+    /// Get the SparseArray backing store for the texture
+    std::shared_ptr<SparseArray> getSparseArray() { return m_array; }
+
   private:
     bool                         m_isInitialized = false;
     CUcontext                    m_context;
     imageSource::TextureInfo     m_info{};
-    SparseArray                  m_array;
+    std::shared_ptr<SparseArray> m_array;
     CUtexObject                  m_texture{};
 
     // Get the dimensions of the specified tile, which might be a partial tile.

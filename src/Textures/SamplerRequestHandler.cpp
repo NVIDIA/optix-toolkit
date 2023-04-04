@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -27,16 +27,19 @@
 //
 
 #include "Textures/SamplerRequestHandler.h"
+
 #include "DemandLoaderImpl.h"
+#include "Memory/DeviceMemoryManager.h"
 #include "PagingSystem.h"
 #include "Textures/DemandTextureImpl.h"
+#include "TransferBufferDesc.h"
 #include "Util/NVTXProfiling.h"
 
-#include "TransferBufferDesc.h"
+#include <OptiXToolkit/DemandLoading/Paging.h>  // for NON_EVICTABLE_LRU_VAL
+
+#include <cuda_fp16.h>
 
 #include <algorithm>
-
-#include <OptiXToolkit/DemandLoading/Paging.h>  // for NON_EVICTABLE_LRU_VAL
 
 namespace demandLoading {
 
@@ -46,30 +49,34 @@ void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to create the same sampler.
-    unsigned int index = pageId - m_startPage;
-    MutexArrayLock lock( m_mutex.get(), index);
+    MutexArrayLock lock( m_mutex.get(), pageId - m_startPage );
 
     // Do nothing if the request has already been filled.
     PagingSystem* pagingSystem = m_loader->getPagingSystem();
     if( pagingSystem->isResident( pageId ) )
         return;
 
-    // The samplers were the first resource that were assigned page table entries (via
-    // PageTableManager), so the samplers occupy the first N page table entries.  The device code in
-    // Texture2D.h relies on this invariant, but this code does not.
-    unsigned int       samplerId = pageId - m_startPage;
-    DemandTextureImpl* texture   = m_loader->getTexture( samplerId );
+    // Get the texture and make sure it is open.
+    unsigned int samplerId = pageIdToSamplerId( pageId );
+    DemandTextureImpl* texture = m_loader->getTexture( samplerId );
 
-    // A 1x1 or null texture is indicated in the page table as a null value.
     texture->open();
-    if( texture->isDegenerate() )
+
+    // Load base color if the page is for a base color
+    if( isBaseColorId( pageId ) )
     {
-        pagingSystem->addMapping( pageId, NON_EVICTABLE_LRU_VAL, 0ULL );
+        fillBaseColorRequest( stream, texture, pageId );
         return;
     }
 
-    // Initialize the texture, reading image info from file header on the first call and
-    // creating a per-device CUDA texture object.
+    // If the texture is 1x1 or null, don't create a sampler.
+    if( texture->isDegenerate() && !texture->isUdimEntryPoint() )
+    {
+        m_loader->setPageTableEntry( pageId, false, nullptr );
+        return;
+    }
+
+    // Initialize the texture, creating a per-device CUDA texture objects.
     try
     {
         texture->init();
@@ -90,16 +97,15 @@ void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
     }
 
     // Allocate sampler buffer in pinned memory.
-    PinnedItemPool<TextureSampler>* pinnedSamplerPool = m_loader->getPinnedMemoryManager()->getPinnedSamplerPool();
-    TextureSampler*                 pinnedSampler     = pinnedSamplerPool->allocate();
+    MemoryBlockDesc pinnedBlock = m_loader->getPinnedMemoryPool()->alloc( sizeof( TextureSampler ), alignof( TextureSampler ) );
+    TextureSampler* pinnedSampler = reinterpret_cast<TextureSampler*>( pinnedBlock.ptr );
 
     // Copy the canonical sampler from the DemandTexture and set its CUDA texture object, which differs per device.
     *pinnedSampler         = texture->getSampler();
     pinnedSampler->texture = texture->getTextureObject();
 
-    // Allocate device memory for sampler.
-    SamplerPool*    samplerPool = m_loader->getDeviceMemoryManager()->getSamplerPool();
-    TextureSampler* devSampler  = samplerPool->allocate();
+    // Allocate device memory for device-side sampler.
+    TextureSampler* devSampler = m_loader->getDeviceMemoryManager()->allocateSampler();
 
     // Copy sampler to device memory.
     DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
@@ -108,10 +114,10 @@ void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
     // the stream, and the buffer isn't reused until all preceding operations are complete,
     // including the asynchronous memcpy issued by fillTile().
-    pinnedSamplerPool->free( pinnedSampler, stream );
+    m_loader->getPinnedMemoryPool()->freeAsync( pinnedBlock, stream );
 
     // Push mapping for sampler to update page table.
-    pagingSystem->addMapping( pageId, NON_EVICTABLE_LRU_VAL, reinterpret_cast<unsigned long long>( devSampler ) );
+    m_loader->setPageTableEntry( pageId, false, devSampler );
 }
 
 bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int pageId )
@@ -128,12 +134,12 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
         m_loader->allocateTransferBuffer( texture->getFillType(), transferBufferSize, stream );
 
     // Make a backup buffer on the host if the transfer buffer was unsuccessful
-    size_t hostBufferSize = ( transferBuffer.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
+    size_t hostBufferSize = ( transferBuffer.memoryBlock.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
     std::vector<char> hostBuffer( hostBufferSize );
 
     // Get the final data pointer
-    char* dataPtr = ( transferBuffer.size > 0 ) ? transferBuffer.buffer : hostBuffer.data();
-    size_t bufferSize = std::max( hostBuffer.size(), transferBuffer.size );
+    char* dataPtr = ( transferBuffer.memoryBlock.size > 0 ) ? reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ) : hostBuffer.data();
+    size_t bufferSize = std::max( hostBuffer.size(), transferBuffer.memoryBlock.size );
     DEMAND_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense textures." );
 
     // Read the texture data into the buffer
@@ -145,8 +151,8 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
 
     // Copy texture data from the buffer to the texture array on the device
     if( satisfied )
-        texture->fillDenseTexture( stream, dataPtr, info.width, info.height, transferBuffer.size > 0 );
-    if( transferBuffer.size > 0 )
+        texture->fillDenseTexture( stream, dataPtr, info.width, info.height, transferBuffer.memoryBlock.size > 0 );
+    if( transferBuffer.memoryBlock.size > 0 )
     {
         m_loader->freeTransferBuffer( transferBuffer, stream );
     }
@@ -157,6 +163,27 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     }
 
     return satisfied;
+}
+
+struct half4
+{
+    half x, y, z, w;
+};
+
+void SamplerRequestHandler::fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId )
+{
+    SCOPED_NVTX_RANGE_FUNCTION_NAME();
+
+    // Read the base color
+    float4 fBaseColor = float4{1.0f, 0.0f, 1.0f, 0.0f};
+    bool hasBaseColor = false;
+    hasBaseColor = texture->readBaseColor( fBaseColor );
+
+    // Store the base color as a half4 in the page table
+    unsigned long long  noColor   = 0xFFFFFFFFFFFFFFFFull; // four half NaNs, to indicate when no baseColor exists
+    half4               baseColor = half4{fBaseColor.x, fBaseColor.y, fBaseColor.z, fBaseColor.w};
+    unsigned long long* baseVal   = ( hasBaseColor ) ? reinterpret_cast<unsigned long long*>( &baseColor ) : &noColor;
+    m_loader->getPagingSystem()->addMapping( pageId, NON_EVICTABLE_LRU_VAL, *baseVal );
 }
 
 }  // namespace demandLoading

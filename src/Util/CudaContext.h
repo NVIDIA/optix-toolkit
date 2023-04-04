@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,65 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+#pragma once
 
-#include "Memory/FixedPool.h"
+#include "Util/Exception.h"
 
-#include <gtest/gtest.h>
+#include <cuda.h>
 
-#include <vector>
+namespace demandLoading {
 
-using namespace demandLoading;
-
-class FixedIntPool : public FixedPool<int>
+/// Verify that the current CUDA context matches the given context.
+inline void checkCudaContext( CUcontext expected )
 {
-  public:
-    FixedIntPool( size_t capacity )
-        : m_items( capacity )
+    CUcontext current;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &current ) );
+    DEMAND_ASSERT( current == expected );
+}
+
+/// Verify that the current CUDA context matches the context associated with the given stream.
+inline void checkCudaContext( CUstream stream )
+{
+    if( stream )
     {
-        FixedPool<int>::init( m_items.data(), m_items.size() );
+        CUcontext context;
+        DEMAND_CUDA_CHECK( cuStreamGetCtx( stream, &context ) );
+        checkCudaContext( context );
     }
-
-  private:
-    std::vector<int> m_items;
-};
-
-
-class TestFixedPool : public testing::Test
-{
-  public:
-    void SetUp() override { m_pool.reset( new FixedIntPool( m_maxItems ) ); }
-
-    void TearDown() override { m_pool.reset( nullptr ); }
-
-  protected:
-    const size_t m_maxItems = 1;
-
-    std::unique_ptr<FixedPool<int>> m_pool;
-};
-
-TEST_F( TestFixedPool, Unused )
-{
-    EXPECT_EQ( 0U, m_pool->size() );
-    EXPECT_EQ( m_maxItems, m_pool->capacity() );
 }
 
-TEST_F( TestFixedPool, AllocateAndFree )
-{
-    int* item = m_pool->allocate();
-    EXPECT_NE( nullptr, item );
-    EXPECT_EQ( 1U, m_pool->size() );
-
-    m_pool->free( item );
-    EXPECT_EQ( 0U, m_pool->size() );
-}
-
-TEST_F( TestFixedPool, CapacityExceeded )
-{
-    int* item = m_pool->allocate();
-    EXPECT_NE( nullptr, item );
-    EXPECT_EQ( 1U, m_pool->size() );
-    EXPECT_EQ( 1U, m_pool->capacity() );
-
-    int* item2 = m_pool->allocate();
-    EXPECT_EQ( nullptr, item2 );
-}
+} // namespace demandLoading

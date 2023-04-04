@@ -99,7 +99,7 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
         wrapAndSeparateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, udim, sx, xidx );
         wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, vdim, sy, yidx );
 
-        unsigned int subTexId = baseSampler->udimStartPage + yidx * udim + xidx;
+        unsigned int subTexId = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx * udim + xidx );
         const float2 ddx_dim = make_float2( ddx.x * udim, ddx.y * vdim );
         const float2 ddy_dim = make_float2( ddy.x * udim, ddy.y * vdim );
         rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx_dim, ddy_dim, isResident );
@@ -226,7 +226,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
     bool         oneSampler     = true;
     bool         subTexResident = true;
-    unsigned int subTexId       = baseSampler->udimStartPage + yidx * udim + xidx;
+    unsigned int subTexId       = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx * udim + xidx );
 
     // Check for base color
     if( minGradSquared >= 1.0f )
@@ -276,26 +276,26 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
             wrapAndSeparateUdimCoord( y + dy, wrapMode1, vdim, sy1, yidx1 );
 
             // Try to load each of the samplers
-            subTexId    = baseSampler->udimStartPage + yidx0 * udim + xidx0;
+            subTexId    = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx0 * udim + xidx0 );
             samplers[0] = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, subTexId, &subTexResident ) );
             *isResident = static_cast<bool>( samplers[0] );
             if( xidx1 != xidx0 )
             {
-                subTexId = baseSampler->udimStartPage + yidx0 * udim + xidx1;
+                subTexId = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx0 * udim + xidx1 );
                 samplers[1] = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, subTexId, &subTexResident ) );
                 *isResident = *isResident && static_cast<bool>( samplers[1] );
                 oneSampler = false;
             }
             if( yidx1 != yidx0 )
             {
-                subTexId = baseSampler->udimStartPage + yidx1 * udim + xidx0;
+                subTexId = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx1 * udim + xidx0 );
                 samplers[2] = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, subTexId, &subTexResident ) );
                 *isResident = *isResident && static_cast<bool>( samplers[2] );
                 oneSampler = false;
             }
             if( xidx1 != xidx0 && yidx1 != yidx0 )
             {
-                subTexId = baseSampler->udimStartPage + yidx1 * udim + xidx1;
+                subTexId = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx1 * udim + xidx1 );
                 samplers[3] = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, subTexId, &subTexResident ) );
                 *isResident = *isResident && static_cast<bool>( samplers[3] );
             }
