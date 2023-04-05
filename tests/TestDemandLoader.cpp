@@ -96,19 +96,13 @@ class TestDemandLoader : public testing::Test
         bool          ok = m_loader->launchPrepare( stream, context );
         EXPECT_TRUE( ok );
 
-        // Copy DeviceContext to device.
-        DeviceContext* devContext;
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devContext ), sizeof( DeviceContext ) ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( devContext, &context, sizeof( DeviceContext ), cudaMemcpyHostToDevice ) );
-
-        // Call the given function to launch the kernel.
+        // Call the given function to launch the kernel.  The device context will be copied to
+        // device memory by the callee (i.e. by passing it by value in a triple-chevron launch).
         launchFunction( context );
 
         // Process requests.
         Ticket ticket = m_loader->processRequests( stream, context );
         ticket.wait();
-
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devContext ) ) );
 
         return ticket.numTasksTotal();
     }
@@ -137,30 +131,43 @@ class TestDemandLoaderResident : public TestDemandLoader
     void SetUp() override
     {
         TestDemandLoader::SetUp();
-        // Allocate device memory for kernel output.
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident ), sizeof( bool ) ) );
+
+        // Allocate per-device memory for kernel output.
+        size_t numDevices = m_streams.size();
+        m_devIsResident.resize( numDevices );
+        for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+        {
+            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident[deviceIndex] ), sizeof( bool ) ) );
+        }
     }
 
     void TearDown() override
     {
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident ) ) );
+        size_t numDevices = m_devIsResident.size();
+        for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+        {
+            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+            DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident[deviceIndex] ) ) );
+        }
         TestDemandLoader::TearDown();
     }
 
-protected:
-    int launchKernelAndSynchronize( CUstream stream, unsigned int pageId, bool* isResident )
+  protected:
+    int launchKernelAndSynchronize( unsigned int deviceIndex, unsigned int pageId, bool* isResident )
     {
-        bool*    devIsResident = m_devIsResident;
+        CUstream  stream        = m_streams[deviceIndex];
+        bool*     devIsResident = m_devIsResident[deviceIndex];
         const int numFilled = launchKernel( stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
             launchPageRequester( stream, context, pageId, devIsResident );
         } );
         // Copy isResident result to host.
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( isResident, m_devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
+        DEMAND_CUDA_CHECK( cudaMemcpy( isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
         return numFilled;
     }
 
-    bool* m_devIsResident{};
+    std::vector<bool*> m_devIsResident;
 };
 
 TEST_F( TestDemandLoaderResident, TestSamplerRequest )
@@ -178,9 +185,9 @@ TEST_F( TestDemandLoaderResident, TestSamplerRequest )
 
         // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
         // The helper function processes any requests.
-        const int numFilled1 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident1 );
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
         // Launch the kernel again.  The sampler should now be resident.
-        const int numFilled2 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident2 );
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );
@@ -225,9 +232,9 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
         unsigned int pageId = startPage + deviceIndex;
-        const int numFilled1 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident1 );
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
         // Launch the kernel again.  The page should now be resident.
-        const int numFilled2 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident2 );
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );
@@ -261,9 +268,9 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
         bool isResident3{};
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
-        const int numFilled1 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident1 ); // request deferred
-        const int numFilled2 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident2 ); // request fulfilled
-        const int numFilled3 = launchKernelAndSynchronize( m_streams[deviceIndex], pageId, &isResident3 ); // resource already loaded
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 ); // request deferred
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 ); // request fulfilled
+        const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident3 ); // resource already loaded
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );

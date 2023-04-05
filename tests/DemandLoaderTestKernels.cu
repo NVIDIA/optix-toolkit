@@ -42,5 +42,6 @@ __global__ static void pageRequester( DeviceContext context, unsigned int pageId
 __host__ void launchPageRequester( CUstream stream, const DeviceContext& context, unsigned int pageId, bool* devIsResident )
 {
     pageRequester<<<1, 1, 0U, stream>>>( context, pageId, devIsResident );
+    DEMAND_CUDA_CHECK( cudaStreamSynchronize( stream ) );
     DEMAND_CUDA_CHECK( cudaGetLastError() );
 }

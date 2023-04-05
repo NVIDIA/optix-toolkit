@@ -52,5 +52,6 @@ __host__ void launchPageRequester( CUstream             stream,
     unsigned int threadsPerBlock = 32;
     unsigned int numBlocks       = ( numPages + threadsPerBlock - 1 ) / threadsPerBlock;
     pageRequester<<<numBlocks, threadsPerBlock, 0U, stream>>>( context, numPages, pageIds, outputPages );
+    DEMAND_CUDA_CHECK( cudaStreamSynchronize( stream ) );
     DEMAND_CUDA_CHECK( cudaGetLastError() );
 }
