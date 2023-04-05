@@ -210,16 +210,13 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
         unsigned int   startPage = sampler.startPage;
         unsigned int   endPage   = sampler.startPage + sampler.numPages;
 
-        for( unsigned int deviceIndex : m_pageLoader->getDevices() )
-        {
-            // Unload texture tiles
-            TilePoolReturnPredicate* predicate = new TilePoolReturnPredicate( getDeviceMemoryManager() );
-            m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
+        // Unload texture tiles
+        TilePoolReturnPredicate* predicate = new TilePoolReturnPredicate( getDeviceMemoryManager() );
+        m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
 
-            // Unload base color
-            unsigned int baseColorId = textureId + BASE_COLOR_OFFSET;
-            m_pageLoader->invalidatePageRange( baseColorId, baseColorId + 1, nullptr );
-        }
+        // Unload base color
+        unsigned int baseColorId = textureId + BASE_COLOR_OFFSET;
+        m_pageLoader->invalidatePageRange( baseColorId, baseColorId + 1, nullptr );
     }
 }
 
@@ -232,11 +229,8 @@ void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<i
     // Invalidate the texture sampler 
     if( samplerNeedsReset )
     {
-        for( unsigned int deviceIndex : m_pageLoader->getDevices() )
-        {
-            TextureSamplerReturnPredicate* predicate = new TextureSamplerReturnPredicate( getDeviceMemoryManager() );
-            m_pageLoader->invalidatePageRange( textureId, textureId + 1, predicate );
-        } 
+        TextureSamplerReturnPredicate* predicate = new TextureSamplerReturnPredicate( getDeviceMemoryManager() );
+        m_pageLoader->invalidatePageRange( textureId, textureId + 1, predicate );
     }
 
     // Record the image reader and texture descriptor.
@@ -279,35 +273,12 @@ bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
     return m_pageLoader->pushMappings( stream, context );
 }
 
-namespace { // anonymous
-
-// Check that the current CUDA context matches the one associated with the given stream
-// and return the associated device index.
-unsigned int getDeviceIndex( CUstream stream )
-{
-    // Get the current CUDA context.
-    CUcontext cudaContext, streamContext;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
-    DEMAND_ASSERT_MSG( cudaContext == streamContext,
-                       "The current CUDA context must match the one associated with the given stream" );
-
-    // Get the device index from the CUDA context.
-    CUdevice device;
-    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-    return static_cast<unsigned int>( device );
-}
-
-} // anonymous namespace
-
 // Process page requests.
 Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
 
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
-
-    unsigned int deviceIndex = getDeviceIndex( stream );
 
     // Create a Ticket that the caller can use to track request processing.
     Ticket ticket = TicketImpl::create( stream );
@@ -323,8 +294,6 @@ Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requeste
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_mutex );
-
-    unsigned int deviceIndex = getDeviceIndex( stream );
 
     // Create a Ticket that the caller can use to track request processing.
     Ticket ticket = TicketImpl::create( stream );
