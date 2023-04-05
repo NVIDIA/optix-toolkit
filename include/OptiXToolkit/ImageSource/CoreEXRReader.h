@@ -111,7 +111,8 @@ class CoreEXRReader : public MipTailImageSource
     float4             m_baseColor{};
     bool               m_readBaseColor    = false;
     bool               m_baseColorWasRead = false;
-    std::mutex         m_mutex;
+    std::mutex         m_initMutex;
+    std::mutex         m_statsMutex;
     unsigned long long m_numTilesRead  = 0;
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;

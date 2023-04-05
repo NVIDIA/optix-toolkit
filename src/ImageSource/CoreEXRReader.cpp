@@ -69,105 +69,105 @@ CUarray_format pixelTypeToArrayFormat( exr_pixel_type_t type )
 // Open the image and read header info, including dimensions and format.  Throws an exception on error.
 void CoreEXRReader::open( TextureInfo* info )
 {
+    std::unique_lock<std::mutex> lock(m_initMutex);
     if( !m_exrCtx )
     {
+        m_info.isValid = false;
+
+        exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+        cinit.error_handler_fn          = nullptr;
+
+        DEMAND_ASSERT( exr_start_read( &m_exrCtx, m_filename.c_str(), &cinit ) == EXR_ERR_SUCCESS );
+
+        // Get the width and height from the data window of the finest mipLevel.
+        exr_attr_box2i_t dw;
+        exr_get_data_window( m_exrCtx, m_partIndex, &dw );
+        m_info.width  = dw.max.x - dw.min.x + 1;
+        m_info.height = dw.max.y - dw.min.y + 1;
+
+        exr_storage_t storageType;
+        DEMAND_ASSERT( exr_get_storage( m_exrCtx, m_partIndex, &storageType ) == EXR_ERR_SUCCESS );
+        DEMAND_ASSERT_MSG( storageType == EXR_STORAGE_SCANLINE || storageType == EXR_STORAGE_TILED,
+                           "CoreEXR Reader doesn't support deep files." );
+        m_isScanline = storageType == EXR_STORAGE_SCANLINE;
+
+        // Note that non-power-of-two EXR files often have one fewer miplevel than one would expect
+        // (they don't round up from 1+log2(max(width/height))).
+        int numMipLevelsX = 1, numMipLevelsY = 1;
+        if( !m_isScanline )
+            DEMAND_ASSERT( exr_get_tile_levels( m_exrCtx, m_partIndex, &numMipLevelsX, &numMipLevelsY ) == EXR_ERR_SUCCESS );
+
+        DEMAND_ASSERT_MSG( numMipLevelsX == numMipLevelsY, "Number of mip levels must match for X and Y" );
+        m_info.numMipLevels = static_cast<unsigned int>( numMipLevelsX );
+
+        if( !m_isScanline )
         {
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_info.isValid = false;
+            // Get the tile specifications.
+            DEMAND_ASSERT( exr_get_tile_descriptor( m_exrCtx, m_partIndex, &m_tileWidth, &m_tileHeight,
+                                                    reinterpret_cast<exr_tile_level_mode_t*>( &m_levelMode ),
+                                                    reinterpret_cast<exr_tile_round_mode_t*>( &m_roundMode ) )
+                           == EXR_ERR_SUCCESS );
 
-            exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
-            cinit.error_handler_fn          = nullptr;
-
-            DEMAND_ASSERT( exr_start_read( &m_exrCtx, m_filename.c_str(), &cinit ) == EXR_ERR_SUCCESS );
-
-            // Get the width and height from the data window of the finest mipLevel.
-            exr_attr_box2i_t dw;
-            exr_get_data_window( m_exrCtx, m_partIndex, &dw );
-            m_info.width  = dw.max.x - dw.min.x + 1;
-            m_info.height = dw.max.y - dw.min.y + 1;
-
-            exr_storage_t storageType;
-            DEMAND_ASSERT( exr_get_storage( m_exrCtx, m_partIndex, &storageType ) == EXR_ERR_SUCCESS );
-            DEMAND_ASSERT_MSG( storageType == EXR_STORAGE_SCANLINE || storageType == EXR_STORAGE_TILED, "CoreEXR Reader doesn't support deep files." );
-            m_isScanline = storageType == EXR_STORAGE_SCANLINE;
-
-            // Note that non-power-of-two EXR files often have one fewer miplevel than one would expect
-            // (they don't round up from 1+log2(max(width/height))).
-            int numMipLevelsX = 1, numMipLevelsY = 1;
-            if( !m_isScanline )
-                DEMAND_ASSERT( exr_get_tile_levels( m_exrCtx, m_partIndex, &numMipLevelsX, &numMipLevelsY ) == EXR_ERR_SUCCESS );
-
-            DEMAND_ASSERT_MSG( numMipLevelsX == numMipLevelsY, "Number of mip levels must match for X and Y" );
-            m_info.numMipLevels = static_cast<unsigned int>( numMipLevelsX );
-
-            if( !m_isScanline )
+            // Cache the level dimensions and tile tile dimensions for each mip level
+            for( int mipLevel = 0; mipLevel < numMipLevelsX; ++mipLevel )
             {
-                // Get the tile specifications.
-                DEMAND_ASSERT( exr_get_tile_descriptor( m_exrCtx, m_partIndex, &m_tileWidth, &m_tileHeight,
-                                                        reinterpret_cast<exr_tile_level_mode_t*>( &m_levelMode ),
-                                                        reinterpret_cast<exr_tile_round_mode_t*>( &m_roundMode ) )
+                int tileWidth, tileHeight, levelSizeX, levelSizeY;
+                DEMAND_ASSERT( exr_get_tile_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &tileWidth, &tileHeight ) == EXR_ERR_SUCCESS );
+                DEMAND_ASSERT( exr_get_level_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &levelSizeX, &levelSizeY )
                                == EXR_ERR_SUCCESS );
 
-                // Cache the level dimensions and tile tile dimensions for each mip level
-                for( int mipLevel = 0; mipLevel < numMipLevelsX; ++mipLevel )
-                {
-                    int tileWidth, tileHeight, levelSizeX, levelSizeY;
-                    DEMAND_ASSERT( exr_get_tile_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &tileWidth, &tileHeight ) == EXR_ERR_SUCCESS );
-                    DEMAND_ASSERT( exr_get_level_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &levelSizeX, &levelSizeY ) == EXR_ERR_SUCCESS );
-
-                    m_tileWidths[mipLevel]   = tileWidth;
-                    m_tileHeights[mipLevel]  = tileHeight;
-                    m_levelWidths[mipLevel]  = levelSizeX;
-                    m_levelHeights[mipLevel] = levelSizeY;
-                }
+                m_tileWidths[mipLevel]   = tileWidth;
+                m_tileHeights[mipLevel]  = tileHeight;
+                m_levelWidths[mipLevel]  = levelSizeX;
+                m_levelHeights[mipLevel] = levelSizeY;
             }
-
-            // Get channel list.
-            const exr_attr_chlist_t* chlist = nullptr;
-            DEMAND_ASSERT( exr_get_channels( m_exrCtx, m_partIndex, &chlist ) == EXR_ERR_SUCCESS );
-            DEMAND_ASSERT_MSG( chlist->num_channels > 0, "No channels found in EXR file" );
-            DEMAND_ASSERT_MSG( chlist->num_channels <= 4, "More than four channels found in EXR file" );
-
-            // CUDA textures don't support float3, so we round up to four channels.
-            m_info.numChannels = ( chlist->num_channels == 3 ) ? 4 : chlist->num_channels;
-            m_pixelType        = static_cast<exr_pixel_type_t>( chlist->entries[0].pixel_type );
-            m_info.format      = pixelTypeToArrayFormat( static_cast<exr_pixel_type_t>( m_pixelType ) );
-
-            m_info.isTiled = !m_isScanline;
-            m_info.isValid = true;
         }
 
-        // Read the base color from the file
-        // FIXME: There should be an option to have this available in the metadata, so
-        // we don't have to read the level.
-        if( m_readBaseColor && ( m_info.numMipLevels > 1 || ( m_info.width == 1 && m_info.height == 1 ) ) )
+        // Get channel list.
+        const exr_attr_chlist_t* chlist = nullptr;
+        DEMAND_ASSERT( exr_get_channels( m_exrCtx, m_partIndex, &chlist ) == EXR_ERR_SUCCESS );
+        DEMAND_ASSERT_MSG( chlist->num_channels > 0, "No channels found in EXR file" );
+        DEMAND_ASSERT_MSG( chlist->num_channels <= 4, "More than four channels found in EXR file" );
+
+        // CUDA textures don't support float3, so we round up to four channels.
+        m_info.numChannels = ( chlist->num_channels == 3 ) ? 4 : chlist->num_channels;
+        m_pixelType        = static_cast<exr_pixel_type_t>( chlist->entries[0].pixel_type );
+        m_info.format      = pixelTypeToArrayFormat( static_cast<exr_pixel_type_t>( m_pixelType ) );
+
+        m_info.isTiled = !m_isScanline;
+        m_info.isValid = true;
+    }
+
+    // Read the base color from the file
+    // FIXME: There should be an option to have this available in the metadata, so
+    // we don't have to read the level.
+    if( m_readBaseColor && ( m_info.numMipLevels > 1 || ( m_info.width == 1 && m_info.height == 1 ) ) )
+    {
+        char buff[16] = {0};
+
+        // Need to use internal read methods here, because we are already holding a lock on the mutex.
+        if( m_isScanline )
+            readScanlineData( buff );
+        else
+            readActualTile( buff, getBytesPerChannel( m_info.format ) * m_info.numChannels, m_info.numMipLevels - 1, 0, 0 );
+
+        if( m_info.format == CU_AD_FORMAT_HALF )
         {
-            char buff[16] = { 0 };
-
-            // Need to use internal read methods here, because we are already holding a lock on the mutex.
-            if( m_isScanline )
-                readScanlineData( buff );
-            else
-                readActualTile( buff, getBytesPerChannel( m_info.format ) * m_info.numChannels, m_info.numMipLevels - 1, 0, 0 );
-
-            if( m_info.format == CU_AD_FORMAT_HALF )
-            {
-                Imath::half* h     = reinterpret_cast<Imath::half*>( buff );
-                m_baseColor        = float4{ float( h[0] ), float( h[1] ), float( h[2] ), float( h[3] ) };
-                m_baseColorWasRead = true;
-            }
-            else if( m_info.format == CU_AD_FORMAT_FLOAT )
-            {
-                float* f           = reinterpret_cast<float*>( buff );
-                m_baseColor        = float4{ f[0], f[1], f[2], f[3] };
-                m_baseColorWasRead = true;
-            }
-            else if( m_info.format == CU_AD_FORMAT_UNSIGNED_INT32 )
-            {
-                unsigned int* f    = reinterpret_cast<unsigned int*>( buff );
-                m_baseColor        = float4{ float( f[0] ), float( f[1] ), float( f[2] ), float( f[3] ) };
-                m_baseColorWasRead = true;
-            }
+            Imath::half* h     = reinterpret_cast<Imath::half*>( buff );
+            m_baseColor        = float4{float( h[0] ), float( h[1] ), float( h[2] ), float( h[3] )};
+            m_baseColorWasRead = true;
+        }
+        else if( m_info.format == CU_AD_FORMAT_FLOAT )
+        {
+            float* f           = reinterpret_cast<float*>( buff );
+            m_baseColor        = float4{f[0], f[1], f[2], f[3]};
+            m_baseColorWasRead = true;
+        }
+        else if( m_info.format == CU_AD_FORMAT_UNSIGNED_INT32 )
+        {
+            unsigned int* f    = reinterpret_cast<unsigned int*>( buff );
+            m_baseColor        = float4{float( f[0] ), float( f[1] ), float( f[2] ), float( f[3] )};
+            m_baseColorWasRead = true;
         }
     }
 
@@ -245,7 +245,7 @@ void CoreEXRReader::readActualTile( char* dest, int rowPitch, int mipLevel, int 
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
         m_numTilesRead += 1;
         m_numBytesRead += actualTileWidth * actualTileHeight * bytesPerChannel * m_info.numChannels;
     }
@@ -302,7 +302,7 @@ void CoreEXRReader::readScanlineData( char* dest )
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_statsMutex);
         m_numTilesRead += 1;
         m_numBytesRead += m_info.height * m_info.width * m_info.numChannels * getBytesPerChannel( m_info.format );
     }
@@ -354,7 +354,7 @@ bool CoreEXRReader::readTile( char*        dest,
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
         m_totalReadTime += stopwatch.elapsed();
     }
 
@@ -394,7 +394,7 @@ bool CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned in
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
         m_totalReadTime += stopwatch.elapsed();
     }
 
