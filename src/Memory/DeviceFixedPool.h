@@ -30,6 +30,8 @@
 #include "DeviceRingBuffer.h"
 #include <vector>
 
+namespace demandLoading {
+
 // DeviceFixedPool implements a pool of fixed-size items as a circular queue.
 // Items must be freed to be reused.
 
@@ -175,3 +177,5 @@ struct DeviceFixedPool
     }
 #endif
 };
+
+} // namespace demandLoading

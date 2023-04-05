@@ -30,6 +30,8 @@
 
 #include "Util/Exception.h"
 
+namespace demandLoading {
+
 // DeviceRingBuffer implements a device-side ring buffer.  Allocations
 // do not need to be freed, but buffer overflow can be detected by calling
 // free after each allocation is done.
@@ -158,3 +160,5 @@ struct DeviceRingBuffer
     }
 #endif
 };
+
+} // namespace demandLoading

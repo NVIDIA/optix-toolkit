@@ -34,6 +34,8 @@
 
 #include <cuda.h>
 
+using namespace demandLoading;
+
 __global__ static void deviceRingBufferTestKernel( DeviceRingBuffer ringBuffer, char** output, int width )
 {
     unsigned long long handle;

@@ -33,5 +33,5 @@
 
 #include <cuda.h>
 
-void launchDeviceRingBufferTest( const DeviceRingBuffer& ringBuffer, char** output, int width );
-void launchDeviceFixedPoolTest( const DeviceFixedPool& fixedPool, char** output, int width );
+void launchDeviceRingBufferTest( const demandLoading::DeviceRingBuffer& ringBuffer, char** output, int width );
+void launchDeviceFixedPoolTest( const demandLoading::DeviceFixedPool& fixedPool, char** output, int width );
