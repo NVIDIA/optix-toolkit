@@ -89,10 +89,13 @@ class DeviceBuffer
     ///. Free the associated CUDA device memory.
     void free()
     {
-        CUDA_CHECK( cudaFree( m_devStorage ) );
-        m_devStorage = nullptr;
-        m_size       = 0;
-        m_capacity   = 0;
+        if( m_devStorage != nullptr)
+        {
+            CUDA_CHECK( cudaFree( m_devStorage ) );
+            m_devStorage = nullptr;
+            m_size       = 0;
+            m_capacity   = 0;
+        }
     }
 
     /// Resize the associated CUDA device memory, possibly performing a free and allocate.
