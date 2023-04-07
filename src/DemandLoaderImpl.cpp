@@ -328,26 +328,22 @@ PagingSystem* DemandLoaderImpl::getPagingSystem() const
 MemoryPool<DeviceAsyncAllocator, RingSuballocator>* DemandLoaderImpl::getDeviceTransferPool()
 {
     std::unique_lock<std::mutex> lock( m_deviceTransferPoolsMutex );
-    MemoryPool<DeviceAsyncAllocator, RingSuballocator>* deviceTransferPool = m_deviceTransferPools.find();
-    if( deviceTransferPool )
-        return deviceTransferPool;
-    DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator();
-    std::unique_ptr<MemoryPool<DeviceAsyncAllocator, RingSuballocator>> ptr(
-        new MemoryPool<DeviceAsyncAllocator, RingSuballocator>( allocator, nullptr, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
-    return m_deviceTransferPools.insert( std::move( ptr ) );
+    return m_deviceTransferPools.findOrCreate( []() {
+        DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator();
+        return std::unique_ptr<MemoryPool<DeviceAsyncAllocator, RingSuballocator>>(
+            new MemoryPool<DeviceAsyncAllocator, RingSuballocator>( allocator, nullptr, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
+    } );
 }
 #else
 MemoryPool<DeviceAllocator, RingSuballocator>* DemandLoaderImpl::getDeviceTransferPool()
 {
     std::unique_lock<std::mutex> lock( m_deviceTransferPoolsMutex );
-    MemoryPool<DeviceAllocator, RingSuballocator>* deviceTransferPool = m_deviceTransferPools.find();
-    if( deviceTransferPool )
-        return deviceTransferPool;
-    DeviceAllocator*  allocator    = new DeviceAllocator();
-    RingSuballocator* suballocator = new RingSuballocator( 4 << 20 );
-    std::unique_ptr<MemoryPool<DeviceAllocator, RingSuballocator>> ptr(
-        new MemoryPool<DeviceAllocator, RingSuballocator>( allocator, suballocator, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
-    return m_deviceTransferPools.insert( std::move( ptr ) );
+    return m_deviceTransferPools.findOrCreate( []() {
+        DeviceAllocator*  allocator    = new DeviceAllocator();
+        RingSuballocator* suballocator = new RingSuballocator( 4 << 20 );
+        return std::unique_ptr<MemoryPool<DeviceAllocator, RingSuballocator>>(
+            new MemoryPool<DeviceAllocator, RingSuballocator>( allocator, suballocator, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
+    } );
 }
 #endif
 

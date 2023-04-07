@@ -75,6 +75,18 @@ TEST_F( TestPerContextData, TestFind )
     EXPECT_EQ( 1, *data );
 }
 
+TEST_F( TestPerContextData, TestFindOrCreate )
+{
+    PerContextData<int> map;
+
+    int* data = map.findOrCreate( []() { return std::unique_ptr<int>( new int( 1 ) ); } );
+    ASSERT_NE( nullptr, data );
+    EXPECT_EQ( 1, *data );
+    data = map.findOrCreate( []() { return std::unique_ptr<int>( new int( 2 ) ); } );
+    ASSERT_NE( nullptr, data );
+    EXPECT_EQ( 1, *data );
+}
+
 TEST_F( TestPerContextData, TestMultipleContexts )
 {
     CUcontext newContext;

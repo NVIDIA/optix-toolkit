@@ -335,11 +335,7 @@ class MemoryPool
 
     std::vector<CUevent>* getEventPool()
     {
-        std::vector<CUevent>* events = m_eventPool.find();
-        if( events )
-            return events;
-        std::unique_ptr<std::vector<CUevent>> ptr( new std::vector<CUevent> );
-        return m_eventPool.insert( std::move( ptr ) );
+        return m_eventPool.findOrCreate( []() { return std::unique_ptr<std::vector<CUevent>>( new std::vector<CUevent> ); } );
     }
 
     // Get an event from the internal event pool

@@ -32,6 +32,7 @@
 
 #include <cuda.h>
 
+#include <functional>
 #include <map>
 #include <memory>
 
@@ -55,6 +56,13 @@ class PerContextData
     /// Get const pointer to the data associated with the current CUDA context, if any.  Returns
     /// a null pointer if no associated data was found.
     const T* find() const { return const_cast<PerContextData*>( this )->find(); }
+
+    /// Get the data associated with the current CUDA context, creating it if necessary.
+    T* findOrCreate( std::function<std::unique_ptr<T>()> createFunc )
+    {
+        T* result = find();
+        return result ? result : insert( createFunc() );
+    }
 
     /// Store the given data (taking ownership), associating it with the current CUDA context.
     /// Any previously associated data is destroyed.  Returns pointer to the stored data.

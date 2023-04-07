@@ -135,36 +135,26 @@ DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
-
-    DeviceMemoryManager* manager = m_deviceMemoryManagers.find();
-    if( manager )
-        return manager;
-    std::unique_ptr<DeviceMemoryManager> ptr(new DeviceMemoryManager( m_options ) );
-    return m_deviceMemoryManagers.insert( std::move( ptr ) );
+    return m_deviceMemoryManagers.findOrCreate(
+        [this]() { return std::unique_ptr<DeviceMemoryManager>( new DeviceMemoryManager( m_options ) ); } );
 }
 
 PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
-
-    PagingSystem* pagingSystem = m_pagingSystems.find();
-    if (pagingSystem)
-        return pagingSystem;
-    std::unique_ptr<PagingSystem> ptr( new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor ) );
-    return m_pagingSystems.insert( std::move( ptr ) );
+    return m_pagingSystems.findOrCreate( [this]() {
+        return std::unique_ptr<PagingSystem>(
+            new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor ) );
+    } );
 }
 
 std::vector<DemandPageLoaderImpl::InvalidationRange>* DemandPageLoaderImpl::getPagesToInvalidate()
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_pagesToInvalidateMutex );
-
-    std::vector<InvalidationRange>* pagesToInvalidate = m_pagesToInvalidate.find();
-    if (pagesToInvalidate)
-        return pagesToInvalidate;
-    std::unique_ptr<std::vector<InvalidationRange>> ptr( new std::vector<InvalidationRange>);
-    return m_pagesToInvalidate.insert( std::move( ptr ) );
+    return m_pagesToInvalidate.findOrCreate(
+        []() { return std::unique_ptr<std::vector<InvalidationRange>>( new std::vector<InvalidationRange> ); } );
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
