@@ -216,9 +216,6 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket( TicketImpl::create( stream ) );
-
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
     // request bits copies the requested page ids to host memory (asynchronously).
     PagingSystem* pagingSystem = getPagingSystem();
