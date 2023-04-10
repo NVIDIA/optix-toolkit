@@ -186,6 +186,7 @@ void DeferredImageLoadingTest::initDemandLoading()
     }
     m_deviceIndex = devices[0];
     ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+    ERROR_CHECK( cudaFree( nullptr ) );
     ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
 }
 
