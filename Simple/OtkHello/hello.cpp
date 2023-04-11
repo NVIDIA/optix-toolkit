@@ -45,6 +45,10 @@
 #include <iostream>
 #include <string>
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 template <typename T>
 struct SbtRecord
 {
@@ -143,8 +147,8 @@ int main( int argc, char* argv[] )
             pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
             pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-            OPTIX_CHECK_LOG2( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, draw_solid_color_ptx_text(),
-                                                        draw_solid_color_ptx_size, LOG, &LOG_SIZE, &module ) );
+            OPTIX_CHECK_LOG2( optixModuleCreate( context, &module_compile_options, &pipeline_compile_options,
+                                                 draw_solid_color_ptx_text(), draw_solid_color_ptx_size, LOG, &LOG_SIZE, &module ) );
         }
 
         //
@@ -188,7 +192,11 @@ int main( int argc, char* argv[] )
             OptixStackSizes stack_sizes = {};
             for( auto& prog_group : program_groups )
             {
+#if OPTIX_VERSION < 70700
                 OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
+#else
+                OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, pipeline ) );
+#endif
             }
 
             uint32_t direct_callable_stack_size_from_traversal;

@@ -61,6 +61,10 @@
 #include <memory>
 #include <string>
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 using namespace demandLoading;
 using namespace imageSource;
 
@@ -282,8 +286,8 @@ void createModule( PerDeviceSampleState& state )
     char   log[2048];
     size_t sizeof_log = sizeof( log );
 
-    OPTIX_CHECK_LOG( optixModuleCreateFromPTX( state.context, &module_compile_options, &state.pipeline_compile_options, textureKernel_ptx_text(),
-                                               textureKernel_ptx_size, log, &sizeof_log, &state.ptx_module ) );
+    OPTIX_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
+                                        textureKernel_ptx_text(), textureKernel_ptx_size, log, &sizeof_log, &state.ptx_module ) );
 }
 
 
@@ -332,7 +336,6 @@ void createPipeline( PerDeviceSampleState& state )
 
     OptixPipelineLinkOptions pipeline_link_options = {};
     pipeline_link_options.maxTraceDepth            = max_trace_depth;
-    pipeline_link_options.debugLevel               = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
     char   log[2048];
     size_t sizeof_log = sizeof( log );
     OPTIX_CHECK_LOG( optixPipelineCreate( state.context, &state.pipeline_compile_options, &pipeline_link_options,
@@ -342,7 +345,11 @@ void createPipeline( PerDeviceSampleState& state )
     OptixStackSizes stack_sizes = {};
     for( auto& prog_group : program_groups )
     {
+#if OPTIX_VERSION < 70700
         OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
+#else
+        OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, state.pipeline ) );
+#endif
     }
 
     uint32_t direct_callable_stack_size_from_traversal;
