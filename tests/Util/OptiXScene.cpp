@@ -15,6 +15,10 @@
 
 #include "OptiXScene.h"
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 #ifndef NDEBUG
 
 #define CUDA_CHECK( call )                                                                                                                                                                                                                                                             \
@@ -453,10 +457,10 @@ OptixResult OptixOmmScene::buildPipeline( const char* ptxInput, const size_t ptx
 
     if( ptxInput )
     {
-        OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, ptxInput, ptxInputSize, 0, 0, &m_moduleDC ) );
+        OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, ptxInput, ptxInputSize, 0, 0, &m_moduleDC ) );
     }
 
-    OPTIX_CHECK( optixModuleCreateFromPTX( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_ptx_text(), OptiXKernels_ptx_size, 0, 0, &m_module));
+    OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_ptx_text(), OptiXKernels_ptx_size, 0, 0, &m_module));
 
     // Set up program groups
 
