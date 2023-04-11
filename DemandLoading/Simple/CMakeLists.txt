@@ -35,6 +35,7 @@ endif()
 
 add_executable( demandLoadSimple
   simple.cpp
+  Simple.h
   PageRequester.cu
   )
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,32 +26,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/DemandLoading/Paging.h>
+#ifndef SIMPLE_H
+#define SIMPLE_H
 
-#include "Simple.h"
+#include <cuda.h>
 
-using namespace demandLoading;
+using PageTableEntry = unsigned long long;
 
-__global__ static void pageRequester( DeviceContext context, unsigned int pageBegin, unsigned int pageEnd, PageTableEntry* pageTableEntries )
-{
-    unsigned int numPages = pageEnd - pageBegin;
-    unsigned int index    = blockIdx.x * blockDim.x + threadIdx.x;
-    if( index >= numPages )
-        return;
-    unsigned int pageId = pageBegin + index;
+void launchPageRequester( cudaStream_t                        stream,
+                          const demandLoading::DeviceContext& context,
+                          unsigned int                        pageBegin,
+                          unsigned int                        pageEnd,
+                          PageTableEntry*                     pageTableEntries );
 
-    bool               isResident;
-    unsigned long long entry = pagingMapOrRequest( context, pageId, &isResident );
-    if( isResident )
-        pageTableEntries[index] = entry;
-}
-
-__host__ void launchPageRequester( cudaStream_t stream, const DeviceContext& context, unsigned int pageBegin, unsigned int pageEnd, PageTableEntry* pageTableEntries )
-{
-    unsigned int threadsPerBlock = 32;
-    unsigned int numPages        = pageEnd - pageBegin;
-    unsigned int numBlocks       = ( numPages + threadsPerBlock - 1 ) / threadsPerBlock;
-
-    // The DeviceContext is passed by value to the kernel, so it is copied to device memory when the kernel is launched.
-    pageRequester<<<numBlocks, threadsPerBlock, 0U, stream>>>( context, pageBegin, pageEnd, pageTableEntries );
-}
+#endif
