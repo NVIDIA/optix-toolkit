@@ -221,7 +221,7 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
     // request bits copies the requested page ids to host memory (asynchronously).
     PagingSystem* pagingSystem = getPagingSystem();
     unsigned int  startPage    = 0;
-    unsigned int  endPage      = m_pageTableManager->getHighestUsedPage();
+    unsigned int  endPage      = m_pageTableManager->getEndPage();
     pagingSystem->pullRequests( context, stream, id, startPage, endPage);
 
     std::unique_lock<std::mutex> lock( m_mutex );

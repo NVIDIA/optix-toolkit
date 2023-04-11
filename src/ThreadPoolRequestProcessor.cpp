@@ -93,6 +93,7 @@ void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::Ima
 
 void ThreadPoolRequestProcessor::setTicket( unsigned int id, Ticket ticket )
 {
+    DEMAND_ASSERT( m_tickets.find( id ) == m_tickets.end() );
     m_tickets[id] = ticket;
 }
 
