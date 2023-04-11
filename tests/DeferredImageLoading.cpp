@@ -48,6 +48,10 @@
 #include <sstream>
 #include <vector>
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 template <typename T>
 struct SbtRecord
 {
@@ -213,7 +217,7 @@ void DeferredImageLoadingTest::initPipelineOpts()
     m_pipelineOpts.numPayloadValues       = NUM_PAYLOAD_VALUES;
     m_pipelineOpts.numAttributeValues     = NUM_ATTRIBUTE_VALUES;
     m_pipelineOpts.exceptionFlags         = OPTIX_EXCEPTION_FLAG_NONE;
-    m_pipelineOpts.usesPrimitiveTypeFlags = OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM | OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
+    m_pipelineOpts.usesPrimitiveTypeFlags = OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
     m_pipelineOpts.pipelineLaunchParamsVariableName = "params";
 }
 
@@ -228,12 +232,15 @@ void DeferredImageLoadingTest::createModules()
 #endif
     compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 :
                                             OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
+#if OPTIX_VERSION >= 70400
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
                                             OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
-
-    OPTIX_CHECK_LOG2( optixModuleCreateFromPTX(
-        m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernels_ptx_text(),
-        DeferredImageLoadingKernels_ptx_size, LOG, &LOG_SIZE, &m_module ) );
+#else
+    compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
+                                            OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
+#endif
+    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernels_ptx_text(),
+                                         DeferredImageLoadingKernels_ptx_size, LOG, &LOG_SIZE, &m_module ) );
 }
 
 void DeferredImageLoadingTest::createProgramGroups()
@@ -255,18 +262,17 @@ void DeferredImageLoadingTest::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options;
     options.maxTraceDepth = maxTraceDepth;
-#ifdef NDEBUG
-    bool debugInfo{ false };
-#else
-    bool debugInfo{ true };
-#endif
-    options.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
     OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
     for( OptixProgramGroup group : m_groups )
+    {
+#if OPTIX_VERSION < 70700
         ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
-
+#else
+        ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, m_pipeline ) );
+#endif
+    }
     uint_t directCallableTraversalStackSize{};
     uint_t directCallableStateStackSize{};
     uint_t continuationStackSize{};

@@ -49,6 +49,10 @@
 #include <mutex>
 #include <ostream>
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 template <typename T>
 struct SbtRecord
 {
@@ -363,8 +367,9 @@ class TextureFootprintFixture
                 pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
                 pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-                OPTIX_CHECK( optixModuleCreateFromPTX( context, &module_compile_options, &pipeline_compile_options, TestTextureFootprint_ptx_text(),
-                                                       TestTextureFootprint_ptx_size, log, &sizeof_log, &module ) );
+                OPTIX_CHECK( optixModuleCreate( context, &module_compile_options, &pipeline_compile_options,
+                                                TestTextureFootprint_ptx_text(), TestTextureFootprint_ptx_size, log,
+                                                &sizeof_log, &module ) );
             }
 
             //
@@ -409,7 +414,6 @@ class TextureFootprintFixture
 
                 OptixPipelineLinkOptions pipeline_link_options = {};
                 pipeline_link_options.maxTraceDepth            = max_trace_depth;
-                pipeline_link_options.debugLevel               = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
                 OPTIX_CHECK( optixPipelineCreate( context, &pipeline_compile_options, &pipeline_link_options,
                                                   program_groups, sizeof( program_groups ) / sizeof( program_groups[0] ),
                                                   log, &sizeof_log, &pipeline ) );
@@ -417,7 +421,11 @@ class TextureFootprintFixture
                 OptixStackSizes stack_sizes = {};
                 for( auto& prog_group : program_groups )
                 {
+#if OPTIX_VERSION < 70700
                     OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
+#else
+                    OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, pipeline ) );
+#endif
                 }
 
                 uint32_t direct_callable_stack_size_from_traversal;
