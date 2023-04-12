@@ -65,75 +65,33 @@ CudaTexture::CudaTexture( std::string textureName )
     if( textureName.empty() && textureName[0] == '\0' )
         throw std::runtime_error( "Invalid texture name" );
 
-    std::string textureFilename( getSourceDir() + "/../Textures/" + textureName );
-    imageSource::ImageSource* img = new imageSource::EXRREADER( textureFilename.c_str(), true );
-    std::unique_ptr<imageSource::ImageSource> imageSource( img );
-    create( img );
+    std::string  textureFilename( getSourceDir() + "/../Textures/" + textureName );
+    otk::EXRInputFile imageFile;
+    imageFile.open( textureFilename );
+    create( &imageFile );
 }
 
-void CudaTexture::create( imageSource::ImageSource* imageSource )
+void CudaTexture::create( otk::EXRInputFile* imageFile )
 {
     destroy();
 
-    imageSource::TextureInfo info;
-    imageSource->open( &info );
-
-    cudaChannelFormatDesc desc = {};
-    switch( info.format )
-    {
-    case CU_AD_FORMAT_UNSIGNED_INT8:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<unsigned char>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<uchar4>();
-        break;
-    case CU_AD_FORMAT_UNSIGNED_INT16:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<unsigned short>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<ushort4>();
-        break;
-    case CU_AD_FORMAT_UNSIGNED_INT32:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<unsigned int>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<uint4>();
-        break;
-    case CU_AD_FORMAT_SIGNED_INT8:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<char>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<char4>();
-        break;
-    case CU_AD_FORMAT_SIGNED_INT16:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<short>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<short4>();
-        break;
-    case CU_AD_FORMAT_SIGNED_INT32:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<int>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<int4>();
-        break;
-    case CU_AD_FORMAT_FLOAT:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<float>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<float4>();
-        break;
-    case CU_AD_FORMAT_HALF:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<__half>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDescHalf4();
-        break;
-    };
-
-    if( desc.x + desc.y + desc.z + desc.w == 0 )
-        throw std::runtime_error( "Unsupported texture format" );
-
+    cudaChannelFormatDesc desc = cudaCreateChannelDescHalf4();
     size_t bytesPerPixel = ( desc.x + desc.y + desc.z + desc.w ) / 8;
-    std::vector<char> data( bytesPerPixel * info.width * info.height );
-    imageSource->readMipLevel( data.data(), 0, info.width, info.height, 0 );
+    std::vector<char> data( bytesPerPixel * imageFile->getWidth() * imageFile->getHeight() );
+    imageFile->read( data.data(), data.size() );
 
-    size_t bytesPerRow = info.width * bytesPerPixel;
+    size_t bytesPerRow = imageFile->getWidth() * bytesPerPixel;
 
     CuPitchedBuffer<char> d_data;
-    CUDA_CHECK( d_data.allocAndUpload( bytesPerPixel * info.width, info.height, data.data() ) );
+    CUDA_CHECK( d_data.allocAndUpload( bytesPerPixel * imageFile->getWidth(), imageFile->getHeight(), data.data() ) );
 
     struct cudaResourceDesc resDesc;
     memset( &resDesc, 0, sizeof( resDesc ) );
     resDesc.resType = cudaResourceTypePitch2D;
     resDesc.res.pitch2D.desc = desc;
     resDesc.res.pitch2D.devPtr = ( void* )d_data.get();
-    resDesc.res.pitch2D.width = info.width;
-    resDesc.res.pitch2D.height = info.height;
+    resDesc.res.pitch2D.width = imageFile->getWidth();
+    resDesc.res.pitch2D.height = imageFile->getHeight();
     resDesc.res.pitch2D.pitchInBytes = d_data.pitch();
 
     struct cudaTextureDesc texDesc;
@@ -343,25 +301,6 @@ void OmmBakingApp::initOptixPipelines( const char* moduleCode, int numDevices )
     }
 }
 
-
-//------------------------------------------------------------------------------
-// Texture Loading
-//------------------------------------------------------------------------------
-
-imageSource::ImageSource* OmmBakingApp::createExrImage( const char* fileName )
-{
-    try
-    {
-        if( fileName == nullptr || fileName[0] == '\0' )
-            return nullptr;
-        std::string textureFilename( getSourceDir() + "/../Textures/" + fileName );
-        return new imageSource::EXRREADER( textureFilename.c_str(), true );
-    }
-    catch( ... )
-    {
-    }
-    return nullptr;
-}
 
 //------------------------------------------------------------------------------
 // OptiX launches

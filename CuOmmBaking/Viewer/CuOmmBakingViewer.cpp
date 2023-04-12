@@ -39,6 +39,8 @@ using namespace ommBakingApp;
 
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 
+#include <sstream>
+
 __host__ void launchEvaluateOmmOpacity(
     uint32_t width,
     uint32_t height,

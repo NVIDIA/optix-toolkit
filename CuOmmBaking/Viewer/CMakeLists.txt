@@ -71,7 +71,6 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 target_link_libraries( ommBakingViewer
   PUBLIC  
   OptiXToolkit::CuOmmBaking
-  OptiXToolkit::ImageSource
   OptiXToolkit::Gui
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util

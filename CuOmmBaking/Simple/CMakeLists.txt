@@ -36,7 +36,6 @@ add_executable( ommBakingSimple
 
 target_link_libraries( ommBakingSimple
   OptiXToolkit::CuOmmBaking
-  OptiXToolkit::ImageSource
   OptiXToolkit::Util
   OptiX::OptiX
   )
