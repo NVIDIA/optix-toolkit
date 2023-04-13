@@ -49,11 +49,12 @@ using namespace otk;
 class DevicePaging
 {
   public:
-    const unsigned int  m_deviceIndex;
-    DeviceMemoryManager m_deviceMemoryManager;
+    const unsigned int                            m_deviceIndex;
+    DeviceMemoryManager                           m_deviceMemoryManager;
     MemoryPool<PinnedAllocator, RingSuballocator> m_pinnedMemoryPool;
-    PagingSystem      m_paging;
-    CUstream          m_stream{};
+    PagingSystem                                  m_paging;
+    CUstream                                      m_stream{};
+    std::unique_ptr<bool[]>                       m_pagesResident;
 
     DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
@@ -81,19 +82,25 @@ class DevicePaging
         DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPageIds ), numPages * sizeof( unsigned int ) ) );
         DEMAND_CUDA_CHECK( cudaMemcpy( devPageIds, pageIds.data(), numPages * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
 
-        // Allocate buffer of output pages.
+        // Allocate buffer of output page table entries and resident flags.
         unsigned long long* devPages;
-        size_t              sizeofPages = numPages * sizeof( unsigned long long );
+        const size_t        sizeofPages = numPages * sizeof( unsigned long long );
+        bool*               devPagesResident;
+        const size_t        sizeofPagesResident = numPages * sizeof( bool );
         DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPages ), sizeofPages ) );
         DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPages ), 0xFF, sizeofPages ) );
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPagesResident ), sizeofPagesResident ) );
+        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPagesResident ), 0xFF, sizeofPagesResident ) );
 
         // Launch kernel
         DeviceContext* context = m_deviceMemoryManager.allocateDeviceContext();
-        launchPageRequester( m_stream, *context, static_cast<unsigned int>( numPages ), devPageIds, devPages );
+        launchPageRequester( m_stream, *context, static_cast<unsigned int>( numPages ), devPageIds, devPages, devPagesResident );
 
-        // Copy output pages to host.
+        // Copy output values to host.
         std::vector<unsigned long long> pages( numPages );
         DEMAND_CUDA_CHECK( cudaMemcpy( pages.data(), devPages, sizeofPages, cudaMemcpyDeviceToHost ) );
+        m_pagesResident.reset( new bool[numPages] );
+        DEMAND_CUDA_CHECK( cudaMemcpy( m_pagesResident.get(), devPagesResident, sizeofPagesResident, cudaMemcpyDeviceToHost ) );
 
         // Clean up.
         m_deviceMemoryManager.freeDeviceContext( context );
@@ -147,14 +154,12 @@ class TestPagingSystem : public testing::Test
         m_firstDevice = m_devices.at( 0 ).get();
     }
 
-    void TearDown() override { m_devices.clear(); }
-
   protected:
     Options                                    m_options;
     std::shared_ptr<PageTableManager>          m_pageTableManager;
     std::unique_ptr<RequestProcessor>          m_requestProcessor;
     std::vector<std::unique_ptr<DevicePaging>> m_devices;
-    DevicePaging*                              m_firstDevice;
+    DevicePaging*                              m_firstDevice{};
 };
 
 TEST_F( TestPagingSystem, TestNonResidentPage )
@@ -162,12 +167,15 @@ TEST_F( TestPagingSystem, TestNonResidentPage )
     for( auto& device : m_devices )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
         // Request a page that is not resident.
-        std::vector<unsigned int>       pageIds{0};
+        const unsigned int pageId = 0;
+        std::vector<unsigned int>       pageIds{pageId};
         std::vector<unsigned long long> pages = device->requestPages( pageIds );
 
         // Non-resident pages should map to zero.
-        EXPECT_EQ( 0ULL, pages[0] );
+        EXPECT_EQ( 0ULL, pages[0] ) << "page " << pageId;
+        EXPECT_FALSE( device->m_pagesResident[0] ) << "page " << pageId << " was resident.";
     }
 }
 
@@ -178,15 +186,17 @@ TEST_F( TestPagingSystem, TestResidentPage )
         DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
 
         // Map page 0 to an arbitrary value.
-        device->m_paging.addMapping( 0, 0, 42ULL );
+        const unsigned int pageId = 0;
+        device->m_paging.addMapping( pageId, 0, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
 
         // Fetch the page table entry from a kernel.
-        std::vector<unsigned int>       pageIds{0};
+        std::vector<unsigned int>       pageIds{pageId};
         std::vector<unsigned long long> pages = device->requestPages( pageIds );
 
         // Check the page table entry that the kernel observed.
-        EXPECT_EQ( 42ULL, pages[0] );
+        EXPECT_EQ( 42ULL, pages[0] ) << "page " << pageId;
+        EXPECT_TRUE( device->m_pagesResident[0] ) << "page " << pageId << " was not resident.";
     }
 }
 
@@ -199,16 +209,16 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
         // Page table entries are allocated only for texture samplers, not tiles,
         // so page ids >= Options::numPageTableEntries are mapped to zero.
         const unsigned int pageId = m_options.numPageTableEntries + 1;
-
         // Map a page id that has no corresponding page table entry.
         device->m_paging.addMapping( pageId, 0 /*lruValue*/, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
 
         // Look up the mapping from a kernel.
-        std::vector<unsigned int>       pageIds{0};
+        std::vector<unsigned int>       pageIds{pageId};
         std::vector<unsigned long long> pages = device->requestPages( pageIds );
 
         // The mapping should be zero for page ids without corresponding page table entries.
-        EXPECT_EQ( 0ULL, pages[0] );
+        EXPECT_EQ( 0ULL, pages[0] ) << "page " << pageId;
+        EXPECT_TRUE( device->m_pagesResident[0] ) << "page " << pageId << " was not resident.";
     }
 }

@@ -38,4 +38,5 @@ void launchPageRequester( CUstream                            stream,
                           const demandLoading::DeviceContext& context,
                           unsigned int                        numPages,
                           const unsigned int*                 pageIds,
-                          unsigned long long*                 outputPages );
+                          unsigned long long*                 outputPages,
+                          bool*                               pagesResident );

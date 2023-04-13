@@ -33,25 +33,29 @@
 
 using namespace demandLoading;
 
-__global__ static void pageRequester( DeviceContext context, unsigned int numPages, const unsigned int* pageIds, unsigned long long* outputPages )
+__global__ static void pageRequester( DeviceContext       context,
+                                      unsigned int        numPages,
+                                      const unsigned int* pageIds,
+                                      unsigned long long* outputPages,
+                                      bool*               pagesResident )
 {
     unsigned int index = blockIdx.x + threadIdx.x;
     if( index >= numPages )
         return;
 
-    bool isResident;
-    outputPages[index] = pagingMapOrRequest( context, pageIds[index], &isResident );
+    outputPages[index] = pagingMapOrRequest( context, pageIds[index], &pagesResident[index] );
 }
 
 __host__ void launchPageRequester( CUstream             stream,
                                    const DeviceContext& context,
                                    unsigned int         numPages,
                                    const unsigned int*  pageIds,
-                                   unsigned long long*  outputPages )
+                                   unsigned long long*  outputPages,
+                                   bool*                pagesResident )
 {
     unsigned int threadsPerBlock = 32;
     unsigned int numBlocks       = ( numPages + threadsPerBlock - 1 ) / threadsPerBlock;
-    pageRequester<<<numBlocks, threadsPerBlock, 0U, stream>>>( context, numPages, pageIds, outputPages );
+    pageRequester<<<numBlocks, threadsPerBlock, 0U, stream>>>( context, numPages, pageIds, outputPages, pagesResident );
     DEMAND_CUDA_CHECK( cudaStreamSynchronize( stream ) );
     DEMAND_CUDA_CHECK( cudaGetLastError() );
 }
