@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "CudaCheck.h"
 #include "DemandLoaderImpl.h"
 #include "DemandLoaderTestKernels.h"
-#include "CudaCheck.h"
 
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
@@ -139,6 +139,8 @@ class TestDemandLoaderResident : public TestDemandLoader
         {
             DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
             DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident[deviceIndex] ), sizeof( bool ) ) );
+            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devPageTableEntry[deviceIndex] ),
+                                           sizeof( unsigned long long ) ) );
         }
     }
 
@@ -149,6 +151,7 @@ class TestDemandLoaderResident : public TestDemandLoader
         {
             DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
             DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident[deviceIndex] ) ) );
+            DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devPageTableEntry[deviceIndex] ) ) );
         }
         TestDemandLoader::TearDown();
     }
@@ -156,18 +159,21 @@ class TestDemandLoaderResident : public TestDemandLoader
   protected:
     int launchKernelAndSynchronize( unsigned int deviceIndex, unsigned int pageId, bool* isResident )
     {
-        CUstream  stream        = m_streams[deviceIndex];
-        bool*     devIsResident = m_devIsResident[deviceIndex];
-        const int numFilled = launchKernel( stream, [stream, pageId, devIsResident]( const DeviceContext& context ) {
-            launchPageRequester( stream, context, pageId, devIsResident );
-        } );
+        CUstream            stream            = m_streams[deviceIndex];
+        bool*               devIsResident     = m_devIsResident[deviceIndex];
+        unsigned long long* devPageTableEntry = m_devPageTableEntry[deviceIndex];
+        const int           numFilled =
+            launchKernel( stream, [stream, pageId, devIsResident, devPageTableEntry]( const DeviceContext& context ) {
+                launchPageRequester( stream, context, pageId, devIsResident, devPageTableEntry );
+            } );
         // Copy isResident result to host.
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
         DEMAND_CUDA_CHECK( cudaMemcpy( isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
         return numFilled;
     }
 
-    std::vector<bool*> m_devIsResident;
+    std::vector<bool*>               m_devIsResident;
+    std::vector<unsigned long long*> m_devPageTableEntry;
 };
 
 TEST_F( TestDemandLoaderResident, TestSamplerRequest )
@@ -179,7 +185,7 @@ TEST_F( TestDemandLoaderResident, TestSamplerRequest )
     // for( unsigned int deviceIndex : m_loader->getDevices() )
     for( unsigned int deviceIndex = 0; deviceIndex < 1; ++deviceIndex )
     {
-        bool isResident1{true};
+        bool isResident1{ true };
         bool isResident2{};
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
@@ -213,26 +219,25 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     //const std::vector<unsigned int> devices = m_loader->getDevices();
     const unsigned int devices[] = { 0 };
     using namespace testing;
-    const unsigned int numPages  = 256;
+    const unsigned int             numPages = 256;
     StrictMock<MockResourceLoader> resLoader;
     const unsigned int startPage = m_loader->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
-        EXPECT_CALL( resLoader, loadResource( _, startPage, NotNull() ) )
-           .WillOnce( DoAll( SetArgPointee<2>( nullptr ), Return( true ) ) );
+        EXPECT_CALL( resLoader, loadResource( _, startPage, NotNull() ) ).WillOnce( DoAll( SetArgPointee<2>( nullptr ), Return( true ) ) );
     }
 
     for( unsigned int deviceIndex : devices )
     {
-        bool isResident1{true};
+        bool isResident1{ true };
         bool isResident2{};
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
-        unsigned int pageId = startPage + deviceIndex;
-        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
+        unsigned int pageId     = startPage + deviceIndex;
+        const int    numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
         // Launch the kernel again.  The page should now be resident.
         const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
 
@@ -263,14 +268,14 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
     for( unsigned int deviceIndex : devices )
     {
         const unsigned int pageId = startPage + deviceIndex;
-        bool isResident1{true};
-        bool isResident2{true};
-        bool isResident3{};
+        bool               isResident1{ true };
+        bool               isResident2{ true };
+        bool               isResident3{};
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
-        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 ); // request deferred
-        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 ); // request fulfilled
-        const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident3 ); // resource already loaded
+        const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );  // request deferred
+        const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );  // request fulfilled
+        const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident3 );  // resource already loaded
 
         EXPECT_EQ( 1, numFilled1 );
         EXPECT_FALSE( isResident1 );
@@ -313,5 +318,114 @@ TEST_F( TestDemandLoader, TestTextureVariants )
 
     // The textures should use the same demand load pages
     EXPECT_EQ( texture1->getSampler().startPage, texture2->getSampler().startPage );
-    EXPECT_EQ( texture1->getSampler().numPages, texture2->getSampler().numPages ); 
+    EXPECT_EQ( texture1->getSampler().numPages, texture2->getSampler().numPages );
+}
+
+class TestDemandLoaderBatches : public TestDemandLoader
+{
+  protected:
+    using PageTableEntry = unsigned long long;
+    using PageTable      = std::vector<PageTableEntry>;
+
+    void        validatePageTableEntries( const PageTable& pageTableEntries,
+                                          unsigned int     currentPage,
+                                          unsigned int     endPage,
+                                          unsigned int     batchSize,
+                                          unsigned int     numLaunches );
+    static bool loadResourceCallback( CUstream stream, unsigned int pageId, void* context, void** pageTableEntry )
+    {
+        return static_cast<TestDemandLoaderBatches*>( context )->loadResource( stream, pageId, pageTableEntry );
+    }
+    bool loadResource( CUstream stream, unsigned int pageId, void** pageTableEntry );
+    void testBatch( CUstream stream );
+
+    std::atomic<int> m_numRequestsProcessed{ 0 };
+};
+
+void TestDemandLoaderBatches::validatePageTableEntries( const PageTable& pageTableEntries,
+                                                        unsigned int     currentPage,
+                                                        unsigned int     endPage,
+                                                        unsigned int     batchSize,
+                                                        unsigned int     numLaunches )
+{
+    for( unsigned int i = 0; i < batchSize; ++i )
+    {
+        if( i >= endPage )
+            break;
+        ASSERT_EQ( pageTableEntries[i], currentPage ) << "Launch " << numLaunches << " Mismatch pageTable[" << i << "]";
+        ++currentPage;
+    }
+}
+
+static void* toPageEntry( unsigned int value )
+{
+    void*         result{};
+    std::intptr_t source = value;
+    std::memcpy( &result, &source, sizeof( result ) );
+    return result;
+}
+
+bool TestDemandLoaderBatches::loadResource( CUstream stream, unsigned int pageId, void** pageTableEntry )
+{
+    ++m_numRequestsProcessed;
+    *pageTableEntry = toPageEntry( pageId );
+    return true;
+}
+
+void TestDemandLoaderBatches::testBatch( CUstream stream )
+{
+    // Create a resource, using the given callback to handle page requests.
+    const unsigned int numPages  = 128;
+    unsigned int       startPage = m_loader->createResource( numPages, loadResourceCallback, this );
+
+    // Process all the pages of the resource in batches.
+    const unsigned int batchSize   = 32;
+    unsigned int       numLaunches = 0;
+
+    void* devPageTableEntries{};
+    cudaMalloc( &devPageTableEntries, sizeof( PageTableEntry ) * numPages );
+
+    std::vector<PageTableEntry> pageTableEntries;
+
+    for( unsigned int currentPage = startPage; currentPage < startPage + numPages; )
+    {
+        // Prepare for launch, obtaining DeviceContext.
+        DeviceContext context;
+        m_loader->launchPrepare( stream, context );
+
+        // Launch the kernel.
+        launchPageBatchRequester( stream, context, currentPage, currentPage + batchSize,
+                                  static_cast<PageTableEntry*>( devPageTableEntries ) );
+        ++numLaunches;
+
+        // Initiate request processing, which returns a Ticket.
+        Ticket ticket = m_loader->processRequests( stream, context );
+
+        cudaDeviceSynchronize();
+
+        // Wait for any page requests to be processed.
+        ticket.wait();
+
+        // Advance the loop counter only when there were no page requests.
+        if( ticket.numTasksTotal() == 0 )
+        {
+            pageTableEntries.resize( batchSize );
+            cudaMemcpy( pageTableEntries.data(), devPageTableEntries, batchSize * sizeof( PageTableEntry ), cudaMemcpyDeviceToHost );
+            validatePageTableEntries( pageTableEntries, currentPage, startPage + numPages, batchSize, numLaunches );
+            currentPage += batchSize;
+        }
+    }
+
+    // Clean up
+    cudaFree( devPageTableEntries );
+}
+
+TEST_F( TestDemandLoaderBatches, LoopTest )
+{
+    for( unsigned int device : m_loader->getDevices() )
+    {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device ) );
+        for( int i = 0; i < 4; ++i )
+            testBatch( m_streams[device] );
+    }
 }

@@ -34,5 +34,16 @@ namespace demandLoading {
 struct DeviceContext;
 }
 
-void launchPageRequester( CUstream stream, const demandLoading::DeviceContext& context, unsigned int pageId, bool* devIsResident );
+using PageTableEntry = unsigned long long;
 
+void launchPageRequester( CUstream                            stream,
+                          const demandLoading::DeviceContext& context,
+                          unsigned int                        pageId,
+                          bool*                               devIsResident,
+                          PageTableEntry*                     pageTableEntry );
+
+void launchPageBatchRequester( CUstream                            stream,
+                               const demandLoading::DeviceContext& context,
+                               unsigned int                        pageBegin,
+                               unsigned int                        pageEnd,
+                               PageTableEntry*                     pageTableEntries );

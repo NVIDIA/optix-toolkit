@@ -60,6 +60,7 @@ class DemandPageLoaderTest : public Test
         ERROR_CHECK( cudaFree( nullptr ) );
         ERROR_CHECK( cuStreamCreate( &m_stream, 0 ) );
         ERROR_CHECK( cudaMalloc( &m_devIsResident, sizeof( bool ) ) );
+        ERROR_CHECK( cudaMalloc( &m_devPageTableEntry, sizeof( unsigned long long ) ) );
         m_loader      = createDemandPageLoader( &m_processor, demandLoading::Options{} );
         m_deviceIndex = m_loader->getDevices()[0];
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
@@ -68,6 +69,7 @@ class DemandPageLoaderTest : public Test
     void TearDown() override
     {
         destroyDemandPageLoader( m_loader );
+        ERROR_CHECK( cudaFree( m_devPageTableEntry ) );
         ERROR_CHECK( cudaFree( m_devIsResident ) );
         ERROR_CHECK( cuStreamDestroy( m_stream ) );
     }
@@ -86,7 +88,8 @@ class DemandPageLoaderTest : public Test
     bool launchAndRequestPage( unsigned int pageId )
     {
         const bool supported = m_loader->pushMappings( m_stream, m_context );
-        launchPageRequester( m_stream, m_context, pageId, static_cast<bool*>( m_devIsResident ) );
+        launchPageRequester( m_stream, m_context, pageId, static_cast<bool*>( m_devIsResident ),
+                             static_cast<unsigned long long*>( m_devPageTableEntry ) );
         m_loader->pullRequests( m_stream, m_context, m_pullId++ );
         return supported;
     }
@@ -96,6 +99,7 @@ class DemandPageLoaderTest : public Test
     demandLoading::DemandPageLoader* m_loader{};
     unsigned int                     m_deviceIndex{};
     void*                            m_devIsResident{};
+    void*                            m_devPageTableEntry{};
     demandLoading::DeviceContext     m_context{};
     unsigned int                     m_pullId{};
 };
