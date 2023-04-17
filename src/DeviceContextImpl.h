@@ -28,9 +28,9 @@
 
 #pragma once
 
-#include "Memory/Allocators.h"
-#include "Memory/HeapSuballocator.h"
-#include "Memory/MemoryPool.h"
+#include <OptiXToolkit/Memory/Allocators.h>
+#include <OptiXToolkit/Memory/HeapSuballocator.h>
+#include <OptiXToolkit/Memory/MemoryPool.h>
 #include "Util/Exception.h"
 #include "Util/Math.h"
 
@@ -61,13 +61,13 @@ class DeviceContextImpl : public DeviceContext
     ~DeviceContextImpl() {}
 
     /// Allocate memory for per-device data in the given BulkDeviceMemory.
-    void allocatePerDeviceData( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, const Options& options );
+    void allocatePerDeviceData( otk::MemoryPool<otk::DeviceAllocator, otk::HeapSuballocator>* memPool, const Options& options );
 
     /// Set per-device data pointers to those of the given context.
     void setPerDeviceData( const DeviceContext& other );
 
     /// Allocate memory for this context in the given BulkDeviceMemory.  Must be preceded by a matching call to reserve().
-    void allocatePerStreamData( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool, const Options& options );
+    void allocatePerStreamData( otk::MemoryPool<otk::DeviceAllocator, otk::HeapSuballocator>* memPool, const Options& options );
 
   private:
     static const unsigned int BIT_VECTOR_ALIGNMENT = 128;

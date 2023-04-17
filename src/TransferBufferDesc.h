@@ -28,14 +28,14 @@
 
 #pragma once
 
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 namespace demandLoading {
 
 struct TransferBufferDesc
 {
     CUmemorytype memoryType;
-    MemoryBlockDesc memoryBlock;
+    otk::MemoryBlockDesc memoryBlock;
 };
 
 } // namespace demandLoading

@@ -59,26 +59,17 @@ add_executable( testDemandLoading
   ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
-  TestAllocators.cpp
-  TestBinnedSuballocator.cpp
   TestContextSaver.cpp
   TestDemandLoader.cpp
   TestDemandPageLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
-  TestDeviceMemoryPools.cpp
-  TestDeviceMemoryPools.cu
-  TestDeviceMemoryPools.h
-  TestFixedSuballocator.cpp
-  TestHeapSuballocator.cpp
-  TestMemoryPool.cpp
   TestMutexArray.cpp
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
   TestPerContextData.cpp
-  TestRingSuballocator.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
   TestSparseTexture.h

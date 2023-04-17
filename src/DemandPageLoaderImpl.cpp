@@ -46,6 +46,8 @@
 #include <set>
 #include <utility>
 
+using namespace otk;
+
 namespace {
 
 unsigned int getCudaDeviceCount()

@@ -44,6 +44,7 @@ const unsigned long long PINNED_ALLOC = 2u << 20;
 const unsigned long long MAX_PINNED_MEM = 32u << 20;
 
 using namespace demandLoading;
+using namespace otk;
 
 class DevicePaging
 {

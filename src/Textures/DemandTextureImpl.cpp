@@ -28,7 +28,7 @@
 
 #include "Textures/DemandTextureImpl.h"
 #include "DemandLoaderImpl.h"
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 #include "PageTableManager.h"
 #include "Textures/TextureRequestHandler.h"
 #include "Util/Math.h"
@@ -42,6 +42,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+
+using namespace otk;
 
 namespace demandLoading {
 

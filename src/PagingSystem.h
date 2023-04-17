@@ -29,9 +29,9 @@
 
 #include "Util/Exception.h"
 
-#include "Memory/Allocators.h"
-#include "Memory/RingSuballocator.h"
-#include "Memory/MemoryPool.h"
+#include <OptiXToolkit/Memory/Allocators.h>
+#include <OptiXToolkit/Memory/RingSuballocator.h>
+#include <OptiXToolkit/Memory/MemoryPool.h>
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
@@ -69,7 +69,7 @@ class PagingSystem
     /// Create paging system, allocating device memory based on the given options.
     PagingSystem( const Options&       options,
                   DeviceMemoryManager* deviceMemoryManager,
-                  MemoryPool<PinnedAllocator, RingSuballocator>* pinnedMemoryPool,
+                  otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator>* pinnedMemoryPool,
                   RequestProcessor* requestProcessor );
 
     virtual ~PagingSystem();
@@ -117,9 +117,9 @@ class PagingSystem
     PinnedMemoryManager* m_pinnedMemoryManager{};
     RequestProcessor*    m_requestProcessor{};
 
-    MemoryBlockDesc m_pageMappingsContextBlock;
+    otk::MemoryBlockDesc m_pageMappingsContextBlock;
     PageMappingsContext* m_pageMappingsContext; 
-    MemoryPool<PinnedAllocator, RingSuballocator>* m_pinnedMemoryPool;
+    otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator>* m_pinnedMemoryPool;
 
     std::map<unsigned int, HostPageTableEntry> m_pageTable;  // Host-side. Not copied to/from device. Used for eviction.
     std::mutex m_mutex;  // Guards m_pageTable and filledPages list (see addMapping).

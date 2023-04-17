@@ -41,6 +41,8 @@
 #include <algorithm>
 #include <set>
 
+using namespace otk;
+
 namespace demandLoading {
 
 PagingSystem::PagingSystem( const Options&       options,

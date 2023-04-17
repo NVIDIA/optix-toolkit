@@ -28,7 +28,7 @@
 
 #include "CudaCheck.h"
 
-#include "Memory/PinnedItemPool.h"
+#include <OptiXToolkit/Memory/PinnedItemPool.h>
 
 #include <gtest/gtest.h>
 

@@ -46,6 +46,8 @@
 #include <memory>
 #include <set>
 
+using namespace otk;
+
 namespace demandLoading {
 
 // Predicate that returns pages (assumed to represent texture tiles) to a tile pool

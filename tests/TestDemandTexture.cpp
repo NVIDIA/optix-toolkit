@@ -28,16 +28,16 @@
 
 #include "TestSparseTexture.h"
 
+#include "CudaCheck.h"
 #include "DemandLoaderImpl.h"
 #include "Memory/DeviceMemoryManager.h"
-#include "Memory/MemoryBlockDesc.h"
 #include "PageTableManager.h"
 #include "Textures/DemandTextureImpl.h"
-#include "CudaCheck.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 #include <gtest/gtest.h>
 
@@ -47,6 +47,7 @@
 
 using namespace demandLoading;
 using namespace imageSource;
+using namespace otk;
 
 const unsigned long long TEX_MEM_PER_DEVICE = 1u << 30; // 1 GB
 

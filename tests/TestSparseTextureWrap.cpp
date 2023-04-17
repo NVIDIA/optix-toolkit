@@ -31,10 +31,10 @@
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
-#include "Memory/Allocators.h"
-#include "Memory/FixedSuballocator.h"
-#include "Memory/HeapSuballocator.h"
-#include "Memory/MemoryPool.h"
+#include <OptiXToolkit/Memory/Allocators.h>
+#include <OptiXToolkit/Memory/FixedSuballocator.h>
+#include <OptiXToolkit/Memory/HeapSuballocator.h>
+#include <OptiXToolkit/Memory/MemoryPool.h>
 
 #include "Textures/SparseTexture.h"
 #include "CudaCheck.h"
@@ -49,6 +49,7 @@
 
 using namespace demandLoading;
 using namespace imageSource;
+using namespace otk;
 
 namespace {  // anonymous
 

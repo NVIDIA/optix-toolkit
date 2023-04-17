@@ -29,6 +29,8 @@
 #include "DeviceMemoryManager.h"
 #include "DeviceContextImpl.h"
 
+using namespace otk;
+
 namespace demandLoading {
 
 static const unsigned int SAMPLER_POOL_ALLOC_SIZE = 65536;
