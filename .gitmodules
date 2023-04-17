@@ -16,3 +16,6 @@
 [submodule "CMake"]
 	path = CMake
 	url = ../otk-cmake.git 
+[submodule "Memory"]
+	path = Memory
+	url = ../otk-memory.git
