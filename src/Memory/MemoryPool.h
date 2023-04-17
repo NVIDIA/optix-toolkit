@@ -32,7 +32,6 @@
 #include "Memory/MemoryBlockDesc.h"
 #include "Util/CudaContext.h"
 #include "Util/Exception.h"
-#include "Util/PerContextData.h"
 
 #include <cuda.h>
 
@@ -110,18 +109,10 @@ class MemoryPool
         delete m_suballocator;
         delete m_allocator;
 
-        // Put all the events back in the event pool
+        // Destroy events in staged blocks.
         for( StagedBlock stagedBlock : m_stagedBlocks )
             freeEvent(stagedBlock);
         m_stagedBlocks.clear();
-
-        // Destroy all the events
-        m_eventPool.for_each( []( const std::vector<CUevent>& events ) {
-            for( CUevent event : events )
-            {
-                DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) );
-            }
-        } );
 
         CUcontext ignored;
         DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
@@ -257,9 +248,15 @@ class MemoryPool
         CUcontext context;
         DEMAND_CUDA_CHECK( cuCtxGetCurrent( &context ) );
 
+        // Create event.
+        CUevent event;
+        DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) );
+
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( false );
-        m_stagedBlocks.push_back( StagedBlock{context, block, getEvent()} );
+        m_stagedBlocks.push_back( StagedBlock{context, block, event} );
+
+        // Record event.
         DEMAND_CUDA_CHECK( cuEventRecord( m_stagedBlocks.back().event, stream ) );
     }
 
@@ -331,30 +328,6 @@ class MemoryPool
     mutable std::mutex m_mutex;
 
     std::deque<StagedBlock>              m_stagedBlocks;
-    PerContextData<std::vector<CUevent>> m_eventPool;
-
-    std::vector<CUevent>* getEventPool()
-    {
-        return m_eventPool.findOrCreate( []() { return std::unique_ptr<std::vector<CUevent>>( new std::vector<CUevent> ); } );
-    }
-
-    // Get an event from the internal event pool
-    inline CUevent getEvent()
-    {
-        std::vector<CUevent>* events = getEventPool();
-        if( events->empty() )
-        {
-            CUevent event;
-            DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) );
-            return event;
-        }
-        else
-        {
-            CUevent event = events->back();
-            events->pop_back();
-            return event;
-        }
-    }
 
     // Free blocks with events that have finished
     inline void freeStagedBlocks( bool waitOnEvents )
@@ -382,7 +355,7 @@ class MemoryPool
     void freeEvent( const StagedBlock& stagedBlock )
     {
         DEMAND_CUDA_CHECK( cuCtxPushCurrent( stagedBlock.context ) );
-        getEventPool()->push_back( stagedBlock.event );
+        DEMAND_CUDA_CHECK( cuEventDestroy( stagedBlock.event ) );
         CUcontext ignored;
         DEMAND_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
     }
