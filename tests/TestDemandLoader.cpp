@@ -135,6 +135,7 @@ class TestDemandLoaderResident : public TestDemandLoader
         // Allocate per-device memory for kernel output.
         size_t numDevices = m_streams.size();
         m_devIsResident.resize( numDevices );
+        m_devPageTableEntry.resize( numDevices );
         for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
             DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
