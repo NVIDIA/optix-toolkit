@@ -22,3 +22,7 @@
 	path = CMake
 	url = https://github.com/NVIDIA/otk-cmake.git 
 	branch = master
+[submodule "Memory"]
+	path = Memory
+	url = https://github.com/NVIDIA/otk-memory.git 
+	branch = master

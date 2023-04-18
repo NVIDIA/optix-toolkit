@@ -85,6 +85,7 @@ function(addOptionalSubdirectory dir)
 endfunction()
 
 addOptionalSubdirectory(OmmBaking)
+addOptionalSubdirectory(Memory)
 addOptionalSubdirectory(DemandLoading)
 addOptionalSubdirectory(ShaderUtil)
 
