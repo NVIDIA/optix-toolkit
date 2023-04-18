@@ -29,12 +29,7 @@
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-
-#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
-#include <OptiXToolkit/ImageSource/EXRReader.h>
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR
-#include <OptiXToolkit/ImageSource/CoreEXRReader.h>
-#endif
+#include <OptiXToolkit/Util/EXRInputFile.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>
@@ -62,12 +57,8 @@ cudaError_t launchBakeLuminanceOpacity(
     cudaTextureObject_t texture,
     uint64_t* output );
 
-using namespace imageSource;
-
 int g_textureWidth = 2048;
 int g_textureHeight = 2048;
-
-bool g_useCoreExr = false;
 
 const std::vector<uint3> g_indices = {
     {0,1,2},
@@ -119,9 +110,6 @@ void printUsageAndExit( const char* argv0 )
         << "Options: --help | -h                         Print this usage message\n"
         << "         --texture | -t <filename>           Texture to render (path relative to data folder). Use checkerboard for procedural texture.\n"
         << "         --luminance | -l                    Opacity is based on texture luminance.\n"
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR        
-        << "         --useCoreEXR <true|false>           Use the CoreEXR reader (default false).\n"
-#endif
         << "\n";
     // clang-format on
     exit( 1 );
@@ -153,12 +141,6 @@ int main( int argc, char* argv[] )
         {
             textureFile = argv[++i];
         }
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR
-        else if( arg == "--useCoreEXR" && !lastArg )
-        {
-            g_useCoreExr = std::string( argv[++i] ) != "false";
-        }
-#endif
         else
         {
             std::cerr << "Unknown option '" << arg << "'\n";
@@ -180,80 +162,20 @@ int main( int argc, char* argv[] )
     auto contextDestroyer = [&]( struct OptixDeviceContext_t* context ) { try { check( optixDeviceContextDestroy( context ) ); } catch( ... ) {} };
     std::unique_ptr<struct OptixDeviceContext_t, decltype( contextDestroyer )> contextObject( context, contextDestroyer );
 
-    std::unique_ptr<ImageSource> imageSource;
-
-    // Make an exr reader or a procedural texture reader based on the textureFile name
-    if( !textureFile.empty() && textureFile != "checkerboard" )
-    {
-        std::string textureFilename( getSourceDir() + "/../Textures/" + textureFile );
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR
-        imageSource = g_useCoreExr
-            ? std::unique_ptr<ImageSource>( new CoreEXRReader( textureFilename.c_str() ) )
-            : std::unique_ptr<ImageSource>( new EXRReader( textureFilename.c_str() ) );
-#else
-        imageSource = std::unique_ptr<ImageSource>( new EXRReader( textureFilename.c_str() ) );
-#endif
-    }
-    if( imageSource == nullptr )
-    {
-        const int  squaresPerSide = 32;
-        const bool useMipmaps = true;
-        imageSource = std::unique_ptr<ImageSource>(
-            new CheckerBoardImage( g_textureWidth, g_textureHeight, squaresPerSide, useMipmaps ) );
-    }
+    std::string textureFilename( getSourceDir() + "/../Textures/" + textureFile );
+    otk::EXRInputFile exrFile;
+    exrFile.open( textureFilename );
 
     // Build a cuda texture.
-    TextureInfo info;
-    imageSource->open( &info );
+    cudaChannelFormatDesc desc          = cudaCreateChannelDescHalf4();
+    size_t                bytesPerPixel = ( desc.x + desc.y + desc.z + desc.w ) / 8;
+    std::vector<char>     data( bytesPerPixel * exrFile.getWidth() * exrFile.getHeight() );
+    exrFile.read( data.data(), data.size() );
 
-    cudaChannelFormatDesc desc = {};
-    switch( info.format )
-    {
-    case CU_AD_FORMAT_UNSIGNED_INT8:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<unsigned char>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<uchar4>();
-        break;
-    case CU_AD_FORMAT_UNSIGNED_INT16:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<unsigned short>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<ushort4>();
-        break;
-    case CU_AD_FORMAT_UNSIGNED_INT32:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<unsigned int>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<uint4>();
-        break;
-    case CU_AD_FORMAT_SIGNED_INT8:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<char>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<char4>();
-        break;
-    case CU_AD_FORMAT_SIGNED_INT16:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<short>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<short4>();
-        break;
-    case CU_AD_FORMAT_SIGNED_INT32:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<int>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<int4>();
-        break;
-    case CU_AD_FORMAT_FLOAT:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<float>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDesc<float4>();
-        break;
-    case CU_AD_FORMAT_HALF:
-        if( info.numChannels == 1 ) desc = cudaCreateChannelDesc<__half>();
-        else if( info.numChannels == 4 ) desc = cudaCreateChannelDescHalf4();
-        break;
-    };
-
-    if( desc.x + desc.y + desc.z + desc.w == 0 )
-        throw std::runtime_error( "Unsupported texture format" );
-
-    size_t bytesPerPixel = ( desc.x + desc.y + desc.z + desc.w ) / 8;
-    std::vector<char> data( bytesPerPixel * info.width * info.height );
-    imageSource->readMipLevel( data.data(), 0, info.width, info.height, 0 );
-
-    size_t bytesPerRow = info.width * bytesPerPixel;
+    size_t bytesPerRow = exrFile.getWidth() * bytesPerPixel;
 
     CuPitchedBuffer<char> devTexture;
-    devTexture.allocAndUpload( bytesPerRow, info.height, data.data() );
+    devTexture.allocAndUpload( bytesPerRow, exrFile.getHeight(), data.data() );
 
     struct cudaResourceDesc resDesc;
     memset( &resDesc, 0, sizeof( resDesc ) );
@@ -261,8 +183,8 @@ int main( int argc, char* argv[] )
     resDesc.res.pitch2D.desc = desc;
     resDesc.res.pitch2D.devPtr = ( void* )devTexture.get();
 
-    resDesc.res.pitch2D.width = info.width;
-    resDesc.res.pitch2D.height = info.height;
+    resDesc.res.pitch2D.width = exrFile.getWidth();
+    resDesc.res.pitch2D.height = exrFile.getHeight();
     resDesc.res.pitch2D.pitchInBytes = devTexture.pitch();
 
     struct cudaTextureDesc texDesc;
@@ -279,8 +201,6 @@ int main( int argc, char* argv[] )
     // Scoped Cuda Texture.
     auto textureDestroyer = [&]( void* tex ) { try { check( cudaDestroyTextureObject( ( cudaTextureObject_t )tex ) ); } catch( ... ) {} };
     std::unique_ptr<void, decltype( textureDestroyer )> textureObject( ( void* )tex, textureDestroyer );
-
-    imageSource = {};
 
     // Upload geometry data.
 
@@ -305,20 +225,20 @@ int main( int argc, char* argv[] )
         // Bake the cuda texture to a luminance based opacity state texture.
 
         // 2 bits per texel, with a pitch aligned to 64 bits.
-        uint32_t pitchInDWords = ( info.width * 2 + sizeof( uint64_t ) * 8 - 1 ) / ( sizeof( uint64_t ) * 8 );
+        uint32_t pitchInDWords = ( exrFile.getWidth() * 2 + sizeof( uint64_t ) * 8 - 1 ) / ( sizeof( uint64_t ) * 8 );
         uint32_t pitchInBytes = pitchInDWords * sizeof( uint64_t );
 
         check( d_stateBuffer.alloc( pitchInDWords ) );
 
         check( launchBakeLuminanceOpacity(
-            info.width, info.height, pitchInBytes,
+            exrFile.getWidth(), exrFile.getHeight(), pitchInBytes,
             transparencyCutoff, opacityCutoff,
             ( cudaTextureObject_t )textureObject.get(),
             ( uint64_t* )d_stateBuffer.get() ) );
 
         texture.type = cuOmmBaking::TextureType::STATE;
-        texture.state.width = info.width;
-        texture.state.height = info.height;
+        texture.state.width = exrFile.getWidth();
+        texture.state.height = exrFile.getHeight();
         texture.state.stateBuffer = d_stateBuffer.get();
         // The luminance was point sampled (not pre-filtered). Use a bilinear filter kernel width.
         texture.state.filterKernelWidthInTexels = 1.f;

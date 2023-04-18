@@ -30,19 +30,18 @@ find_package( CUDAToolkit 10.0 REQUIRED )
 
 include(BuildConfig)
 include(CTest)
-
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.6.0 EXACT REQUIRED)
+include(FetchOpenEXR)
 
 add_library(Util STATIC
   include/OptiXToolkit/Util/Builders.h
   include/OptiXToolkit/Util/DeviceBuffer.h
   include/OptiXToolkit/Util/Exception.h
+  include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
   include/OptiXToolkit/Util/Record.h
   include/OptiXToolkit/Util/SyncRecord.h
   include/OptiXToolkit/Util/SyncVector.h
+  src/EXRInputFile.cpp
   src/Exception.cpp
   )
 
@@ -58,6 +57,7 @@ target_link_libraries(Util PRIVATE
   OptiX::OptiX
   CUDA::cuda_driver
   CUDA::cudart
+  OpenEXR::OpenEXR
   )
 
 set_target_properties(Util PROPERTIES FOLDER Examples)

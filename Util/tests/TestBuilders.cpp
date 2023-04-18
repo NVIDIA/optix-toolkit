@@ -49,6 +49,7 @@ TEST_F( TestBuildInputBuilder, ZeroInstancesSetsInstanceArrayToZero )
     EXPECT_EQ( 0U, buildInputs[0].instanceArray.instances );
 }
 
+#if OPTIX_VERSION >= 70500
 TEST_F( TestBuildInputBuilder, ZeroSpheresSetsNullBufferPointers )
 {
     const unsigned int                           NUM_MOTION_STEPS{ 1 };
@@ -90,3 +91,4 @@ TEST_F( TestBuildInputBuilder, ZeroSpheresWithSbtIndicesSetsNullBufferPointers )
     EXPECT_EQ( nullptr, buildInputs[0].sphereArray.vertexBuffers );
     EXPECT_EQ( nullptr, buildInputs[0].sphereArray.radiusBuffers );
 }
+#endif // OPTIX_VERSION >= 70500

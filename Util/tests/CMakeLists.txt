@@ -28,19 +28,33 @@
 
 include( FetchGtest )
 include( GoogleTest )
+include( FetchStbImage )
 
 add_executable( testUtil
     TestBuilders.cpp
     TestException.cpp
+    TestEXRInputFile.cpp
     TestSyncRecordHeader.cpp
     TestSyncVectorHeader.cpp
     FunctionTable.cpp
   )
 set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)
 
+
+target_include_directories( testUtil PUBLIC
+  ../src
+  ${stb_image_SOURCE_DIR}
+  ${stb_image_write_SOURCE_DIR}
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
+  )
+
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
+
 target_link_libraries( testUtil
   Util
   gtest_main
+  Imath::Imath
   )
 
 # Register test cases with CTest.

@@ -31,17 +31,7 @@
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
-
-#include <OptiXToolkit/ImageSource/ImageSource.h>
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
-
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR
-#include <OptiXToolkit/ImageSource/CoreEXRReader.h>
-#define EXRREADER CoreEXRReader
-#else 
-#include <OptiXToolkit/ImageSource/EXRReader.h>
-#define EXRREADER EXRReader
-#endif
+#include <OptiXToolkit/Util/EXRInputFile.h>
 
 #include "PerDeviceOptixState.h"
 
@@ -61,8 +51,8 @@ public:
 
     CudaTexture( std::string textureName );
 
-    CudaTexture( imageSource::ImageSource* imageSource )
-    { create( imageSource ); }
+    CudaTexture( otk::EXRInputFile* imageFile )
+    { create( imageFile ); }
 
     void destroy()
     {
@@ -74,7 +64,7 @@ public:
         m_data.free();
     }
 
-    void create( imageSource::ImageSource* imageSource );
+    void create( otk::EXRInputFile* imageFile );
 
     CudaTexture& operator=( const CudaTexture& source ) = delete;
 
@@ -133,9 +123,6 @@ class OmmBakingApp
     virtual void createSBT( const PerDeviceOptixState& state ) = 0;
     virtual void performLaunch( const PerDeviceOptixState& state, uchar4* result_buffer ) = 0;
 
-    // Texture loading
-    static imageSource::ImageSource* createExrImage( const char* fileName );
-    
     // OptiX launches
     void initView();
     void performLaunches();

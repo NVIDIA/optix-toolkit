@@ -256,6 +256,7 @@ class BuildInputBuilder
         return next();
     }
 
+#if OPTIX_VERSION >= 70500
     BuildInputBuilder& spheres( const CUdeviceptr* vertices, unsigned int numSpheres, const CUdeviceptr* radii, const uint32_t* flags, unsigned int numSbtRecords )
     {
         checkOverflow();
@@ -304,6 +305,7 @@ class BuildInputBuilder
         spheres.primitiveIndexOffset        = 0;
         return next();
     }
+#endif // OPTIX_VERSION >= 70500
 
   private:
     OptixBuildInput& current() { return m_buildInputs[m_current]; }

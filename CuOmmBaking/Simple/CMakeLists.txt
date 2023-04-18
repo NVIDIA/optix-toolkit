@@ -26,10 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.6.0 EXACT REQUIRED)
-
 include(GNUInstallDirs)
 include(BuildConfig)
 
@@ -40,7 +36,6 @@ add_executable( ommBakingSimple
 
 target_link_libraries( ommBakingSimple
   OptiXToolkit::CuOmmBaking
-  OptiXToolkit::ImageSource
   OptiXToolkit::Util
   OptiX::OptiX
   )
