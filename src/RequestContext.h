@@ -31,7 +31,7 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for StalePage
 #include <OptiXToolkit/DemandLoading/Options.h>
 
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 namespace demandLoading {
 
@@ -49,7 +49,7 @@ struct RequestContext
     // Get the size required for the RequestContext struct + requestedPages + stalePages + arrayLengths.
     static uint64_t getAllocationSize( const Options& options )
     {
-        uint64_t allocSize = alignVal( sizeof( RequestContext ), alignof( RequestContext ) );
+        uint64_t allocSize = otk::alignVal( sizeof( RequestContext ), alignof( RequestContext ) );
         allocSize += options.maxRequestedPages * sizeof( unsigned int );
         allocSize += options.maxStalePages * sizeof( StalePage );
         allocSize += numArrayLengths * sizeof( unsigned int );
@@ -61,7 +61,7 @@ struct RequestContext
     void init( const Options& options )
     {
         char* start               = reinterpret_cast<char*>( this );
-        char* requestedPagesStart = start + alignVal( sizeof( RequestContext ), sizeof( RequestContext ) );
+        char* requestedPagesStart = start + otk::alignVal( sizeof( RequestContext ), sizeof( RequestContext ) );
         char* stalePagesStart     = requestedPagesStart + options.maxRequestedPages * sizeof( unsigned int );
         char* arrayLengthsStart   = stalePagesStart + options.maxStalePages * sizeof( StalePage );
 

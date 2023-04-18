@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
@@ -54,7 +54,7 @@ struct PageMappingsContext
     // Return the size required for the struct + filledPages + invalidatedPages
     static uint64_t getAllocationSize( const Options& options )
     {
-        uint64_t allocSize = alignVal( sizeof( PageMappingsContext ), alignof( PageMapping ) );
+        uint64_t allocSize = otk::alignVal( sizeof( PageMappingsContext ), alignof( PageMapping ) );
         allocSize += options.maxFilledPages * sizeof( PageMapping );
         allocSize += options.maxInvalidatedPages * sizeof( unsigned int );
         return allocSize;
@@ -65,7 +65,7 @@ struct PageMappingsContext
     void init( const Options& options )
     {
         char* start = reinterpret_cast<char*>( this );
-        char* filledPagesStart = start + alignVal( sizeof( PageMappingsContext ), sizeof( PageMapping ) );
+        char* filledPagesStart = start + otk::alignVal( sizeof( PageMappingsContext ), sizeof( PageMapping ) );
         char* invalidatedPagesStart = filledPagesStart + options.maxFilledPages * sizeof(PageMapping);
 
         filledPages    = reinterpret_cast<PageMapping*>( filledPagesStart );

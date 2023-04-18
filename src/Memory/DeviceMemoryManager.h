@@ -31,10 +31,10 @@
 #include <cstddef>
 #include <vector>
 
-#include "Memory/Allocators.h"
-#include "Memory/FixedSuballocator.h"
-#include "Memory/HeapSuballocator.h"
-#include "Memory/MemoryPool.h"
+#include <OptiXToolkit/Memory/Allocators.h>
+#include <OptiXToolkit/Memory/FixedSuballocator.h>
+#include <OptiXToolkit/Memory/HeapSuballocator.h>
+#include <OptiXToolkit/Memory/MemoryPool.h>
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
@@ -60,11 +60,11 @@ class DeviceMemoryManager
     void freeSampler( TextureSampler* sampler ) { m_samplerPool.freeItem( reinterpret_cast<uint64_t>( sampler ) ); }
 
     /// Allocate a TileBlock for this device.
-    TileBlockHandle allocateTileBlock( size_t numBytes ) { return m_tilePool.allocTextureTiles( numBytes ); }
+    otk::TileBlockHandle allocateTileBlock( size_t numBytes ) { return m_tilePool.allocTextureTiles( numBytes ); }
     /// Free a TileBlock for this device.
-    void freeTileBlock( const TileBlockDesc& blockDesc ) { m_tilePool.freeTextureTiles( blockDesc ); }
+    void freeTileBlock( const otk::TileBlockDesc& blockDesc ) { m_tilePool.freeTextureTiles( blockDesc ); }
     /// Get the memory handle associated with the tileBlock.
-    CUmemGenericAllocationHandle getTileBlockHandle( const TileBlockDesc& bh )
+    CUmemGenericAllocationHandle getTileBlockHandle( const otk::TileBlockDesc& bh )
     {
         return m_tilePool.getAllocationHandle( bh.arenaId );
     }
@@ -87,9 +87,9 @@ class DeviceMemoryManager
   private:
     Options      m_options;
 
-    MemoryPool<DeviceAllocator, FixedSuballocator>     m_samplerPool;
-    MemoryPool<DeviceAllocator, HeapSuballocator>      m_deviceContextMemory;
-    MemoryPool<TextureTileAllocator, HeapSuballocator> m_tilePool;
+    otk::MemoryPool<otk::DeviceAllocator, otk::FixedSuballocator>     m_samplerPool;
+    otk::MemoryPool<otk::DeviceAllocator, otk::HeapSuballocator>      m_deviceContextMemory;
+    otk::MemoryPool<otk::TextureTileAllocator, otk::HeapSuballocator> m_tilePool;
 
     std::vector<DeviceContext*> m_deviceContextPool;
     std::vector<DeviceContext*> m_deviceContextFreeList;

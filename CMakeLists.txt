@@ -50,7 +50,7 @@ endif()
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.6.0 EXACT REQUIRED)
+find_package(OptiX 7.3 REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
@@ -61,15 +61,8 @@ add_library( DemandLoading
   src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
-  src/Memory/Allocators.h
-  src/Memory/BinnedSuballocator.h
   src/Memory/DeviceMemoryManager.cpp
   src/Memory/DeviceMemoryManager.h
-  src/Memory/FixedSuballocator.h
-  src/Memory/HeapSuballocator.h
-  src/Memory/MemoryBlockDesc.h
-  src/Memory/MemoryPool.h
-  src/Memory/RingSuballocator.h
   src/PageMappingsContext.h
   src/PageTableManager.h
   src/PagingSystem.cpp
@@ -141,7 +134,6 @@ source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.h
-  src/Memory/Allocators.h
   src/Memory/AsyncItemPool.h
   src/Memory/Buffers.h
   src/Memory/BulkMemory.h
@@ -200,6 +192,7 @@ target_include_directories( DemandLoading
 target_link_libraries( DemandLoading
   PUBLIC
   ImageSource
+  OptiXToolkit::Memory
   OptiX::OptiX
   CUDA::cuda_driver
   ${CMAKE_DL_LIBS}  
@@ -218,20 +211,6 @@ option( DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )
 if( DEMAND_LOADING_USE_NVTX )
   target_compile_definitions( DemandLoading PUBLIC ENABLE_NVTX_PROFILING )
 endif()
-
-install(TARGETS DemandLoading
-  EXPORT DemandLoadingTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
-
-install(EXPORT DemandLoadingTargets
-  FILE DemandLoadingTargets.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
-  NAMESPACE OptiXToolkit::
-  )
 
 add_library( ImageSource
   src/ImageSource/CheckerBoardImage.cpp
@@ -299,20 +278,6 @@ target_link_libraries( ImageSource
   )
 
 set_target_properties(ImageSource PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
-install(TARGETS ImageSource
-  EXPORT ImageSourceTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
-
-install(EXPORT ImageSourceTargets
-  FILE ImageSourceTargets.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
-  NAMESPACE OptiXToolkit::
-  )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )

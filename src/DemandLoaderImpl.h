@@ -31,9 +31,9 @@
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 
 #include "DemandPageLoaderImpl.h"
-#include "Memory/Allocators.h"
-#include "Memory/MemoryPool.h"
-#include "Memory/RingSuballocator.h"
+#include <OptiXToolkit/Memory/Allocators.h>
+#include <OptiXToolkit/Memory/MemoryPool.h>
+#include <OptiXToolkit/Memory/RingSuballocator.h>
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
@@ -151,7 +151,7 @@ class DemandLoaderImpl : public DemandLoader
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
     /// Get the pinned memory manager.
-    MemoryPool<PinnedAllocator, RingSuballocator>* getPinnedMemoryPool();
+    otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator>* getPinnedMemoryPool();
     
     /// Get the specified texture.
     DemandTextureImpl* getTexture( unsigned int textureId ) { return m_textures.at( textureId ).get(); }
@@ -186,9 +186,9 @@ class DemandLoaderImpl : public DemandLoader
     SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
 
 #if CUDA_VERSION >= 11020
-    PerContextData<MemoryPool<DeviceAsyncAllocator, RingSuballocator>> m_deviceTransferPools;
+    PerContextData<otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>> m_deviceTransferPools;
 #else
-    PerContextData<MemoryPool<DeviceAllocator, RingSuballocator>> m_deviceTransferPools;
+    PerContextData<otk::MemoryPool<otk::DeviceAllocator, otk::RingSuballocator>> m_deviceTransferPools;
 #endif
     std::mutex m_deviceTransferPoolsMutex;
 
@@ -205,9 +205,9 @@ class DemandLoaderImpl : public DemandLoader
     unsigned int allocateTexturePages( unsigned int numTextures );
 
 #if CUDA_VERSION >= 11020
-    MemoryPool<DeviceAsyncAllocator, RingSuballocator>* getDeviceTransferPool();
+    otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>* getDeviceTransferPool();
 #else
-    MemoryPool<DeviceAllocator, RingSuballocator>* getDeviceTransferPool();
+    otk::MemoryPool<otk::DeviceAllocator, otk::RingSuballocator>* getDeviceTransferPool();
 #endif
 };
 

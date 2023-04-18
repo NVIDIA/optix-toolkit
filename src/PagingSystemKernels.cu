@@ -173,13 +173,10 @@ __global__ void devicePullRequests( DeviceContext context, unsigned int launchNu
     unsigned int       globalIndex = threadIdx.x + blockIdx.x * blockDim.x + startIndex;
     const unsigned int laneId      = globalIndex % 32;
 
-    const unsigned int randMultipler = 179;
-    const unsigned int randomOffset  = ( launchNum * randMultipler ) % ( endIndex - startIndex );
-
-    while( globalIndex <= endIndex )
+    while( globalIndex < endIndex )
     {
         // Compute rotated reference/residence index
-        unsigned int referenceWordIndex = globalIndex + randomOffset;
+        unsigned int referenceWordIndex = globalIndex;
         if( referenceWordIndex > endIndex )
             referenceWordIndex -= ( 1 + endIndex - startIndex );
         const unsigned int pageBitOffset = referenceWordIndex * 32;

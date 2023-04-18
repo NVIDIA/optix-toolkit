@@ -34,13 +34,41 @@
 
 using namespace demandLoading;
 
-__global__ static void pageRequester( DeviceContext context, unsigned int pageId, bool* isResident )
+__global__ static void pageRequester( DeviceContext context, unsigned int pageId, bool* isResident, unsigned long long* pageTableEntry )
 {
-    pagingMapOrRequest( context, pageId, isResident );
+    *pageTableEntry = pagingMapOrRequest( context, pageId, isResident );
 }
 
-__host__ void launchPageRequester( CUstream stream, const DeviceContext& context, unsigned int pageId, bool* devIsResident )
+__host__ void launchPageRequester( CUstream stream, const DeviceContext& context, unsigned int pageId, bool* devIsResident, unsigned long long* pageTableEntry )
 {
-    pageRequester<<<1, 1, 0U, stream>>>( context, pageId, devIsResident );
+    pageRequester<<<1, 1, 0U, stream>>>( context, pageId, devIsResident, pageTableEntry );
+    DEMAND_CUDA_CHECK( cudaStreamSynchronize( stream ) );
     DEMAND_CUDA_CHECK( cudaGetLastError() );
+}
+
+
+__global__ static void pageBatchRequester( DeviceContext context, unsigned int pageBegin, unsigned int pageEnd, PageTableEntry* pageTableEntries )
+{
+    unsigned int numPages = pageEnd - pageBegin;
+    unsigned int index    = blockIdx.x * blockDim.x + threadIdx.x;
+    if( index >= numPages )
+        return;
+    unsigned int pageId = pageBegin + index;
+
+    bool           isResident;
+    PageTableEntry entry = pagingMapOrRequest( context, pageId, &isResident );
+    if( isResident )
+    {
+        pageTableEntries[index] = entry;
+    }
+}
+
+__host__ void launchPageBatchRequester( CUstream stream, const DeviceContext& context, unsigned int pageBegin, unsigned int pageEnd, PageTableEntry* pageTableEntries )
+{
+    unsigned int threadsPerBlock = 32;
+    unsigned int numPages        = pageEnd - pageBegin;
+    unsigned int numBlocks       = ( numPages + threadsPerBlock - 1 ) / threadsPerBlock;
+
+    // The DeviceContext is passed by value to the kernel, so it is copied to device memory when the kernel is launched.
+    pageBatchRequester<<<numBlocks, threadsPerBlock, 0U, stream>>>( context, pageBegin, pageEnd, pageTableEntries );
 }

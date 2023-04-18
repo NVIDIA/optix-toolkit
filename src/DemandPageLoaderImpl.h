@@ -30,10 +30,10 @@
 
 #include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
 
-#include "Memory/Allocators.h"
+#include <OptiXToolkit/Memory/Allocators.h>
 #include "Memory/DeviceMemoryManager.h"
-#include "Memory/MemoryPool.h"
-#include "Memory/RingSuballocator.h"
+#include <OptiXToolkit/Memory/MemoryPool.h>
+#include <OptiXToolkit/Memory/RingSuballocator.h>
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ResourceRequestHandler.h"
@@ -110,7 +110,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() const;
 
-    MemoryPool<PinnedAllocator, RingSuballocator> *getPinnedMemoryPool() { return &m_pinnedMemoryPool; }
+    otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator> *getPinnedMemoryPool() { return &m_pinnedMemoryPool; }
 
     /// Get the PagingSystem for the current CUDA context.
     PagingSystem* getPagingSystem() const;
@@ -148,7 +148,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
 
-    mutable MemoryPool<PinnedAllocator, RingSuballocator> m_pinnedMemoryPool;
+    mutable otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator> m_pinnedMemoryPool;
 
     double m_totalProcessingTime{};
 

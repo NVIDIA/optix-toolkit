@@ -28,7 +28,7 @@
 
 #include "Textures/TextureRequestHandler.h"
 #include "DemandLoaderImpl.h"
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 #include "PagingSystem.h"
 #include "Textures/DemandTextureImpl.h"
 #include "TransferBufferDesc.h"
@@ -36,6 +36,7 @@
 
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
+using namespace otk;
 
 namespace demandLoading {
 

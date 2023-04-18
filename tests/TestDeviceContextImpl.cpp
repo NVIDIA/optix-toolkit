@@ -29,16 +29,17 @@
 #include "CudaCheck.h"
 
 #include "DeviceContextImpl.h"
-#include "Memory/Allocators.h"
-#include "Memory/FixedSuballocator.h"
-#include "Memory/HeapSuballocator.h"
-#include "Memory/MemoryPool.h"
+#include <OptiXToolkit/Memory/Allocators.h>
+#include <OptiXToolkit/Memory/FixedSuballocator.h>
+#include <OptiXToolkit/Memory/HeapSuballocator.h>
+#include <OptiXToolkit/Memory/MemoryPool.h>
 
 #include <gtest/gtest.h>
 
 #include <cuda_runtime.h>
 
 using namespace demandLoading;
+using namespace otk;
 
 class TestDeviceContextImpl : public testing::Test
 {

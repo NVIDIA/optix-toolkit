@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Memory/DeviceContextPool.h"
+#include <OptiXToolkit/Memory/DeviceContextPool.h>
 
 #include <gtest/gtest.h>
 

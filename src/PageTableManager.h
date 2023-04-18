@@ -65,13 +65,14 @@ class PageTableManager
         return m_totalPages - m_nextUnbackedPage;
     }
 
-    unsigned int getHighestUsedPage() const
+    /// Return the end page (one past the last used page).
+    unsigned int getEndPage() const
     {
         std::unique_lock<std::mutex> lock( m_mutex );
         if(m_nextUnbackedPage > m_backedPages)  
-            return m_nextUnbackedPage - 1; 
+            return m_nextUnbackedPage; 
         else 
-            return m_nextBackedPage - 1;
+            return m_nextBackedPage;
     }
 
     /// Reserve the specified number of contiguous page table entries, associating them with the

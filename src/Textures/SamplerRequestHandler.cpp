@@ -41,6 +41,8 @@
 
 #include <algorithm>
 
+using namespace otk;
+
 namespace demandLoading {
 
 void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )

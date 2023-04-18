@@ -41,6 +41,8 @@
 #include <algorithm>
 #include <set>
 
+using namespace otk;
+
 namespace demandLoading {
 
 PagingSystem::PagingSystem( const Options&       options,
@@ -119,8 +121,8 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ), 0,
                                         context.arrayLengths.capacity * sizeof( unsigned int ), stream ) );
 
-    DEMAND_ASSERT( startPage <= endPage );
-    DEMAND_ASSERT( endPage < m_options.numPages );
+    DEMAND_ASSERT( startPage < endPage );
+    DEMAND_ASSERT( endPage <= m_options.numPages );
     m_launchNum++;
 
     launchPullRequests( stream, context, m_launchNum, m_lruThreshold, startPage, endPage );

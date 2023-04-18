@@ -46,6 +46,8 @@
 #include <set>
 #include <utility>
 
+using namespace otk;
+
 namespace {
 
 unsigned int getCudaDeviceCount()
@@ -135,36 +137,26 @@ DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
-
-    DeviceMemoryManager* manager = m_deviceMemoryManagers.find();
-    if( manager )
-        return manager;
-    std::unique_ptr<DeviceMemoryManager> ptr(new DeviceMemoryManager( m_options ) );
-    return m_deviceMemoryManagers.insert( std::move( ptr ) );
+    return m_deviceMemoryManagers.findOrCreate(
+        [this]() { return std::unique_ptr<DeviceMemoryManager>( new DeviceMemoryManager( m_options ) ); } );
 }
 
 PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
-
-    PagingSystem* pagingSystem = m_pagingSystems.find();
-    if (pagingSystem)
-        return pagingSystem;
-    std::unique_ptr<PagingSystem> ptr( new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor ) );
-    return m_pagingSystems.insert( std::move( ptr ) );
+    return m_pagingSystems.findOrCreate( [this]() {
+        return std::unique_ptr<PagingSystem>(
+            new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor ) );
+    } );
 }
 
 std::vector<DemandPageLoaderImpl::InvalidationRange>* DemandPageLoaderImpl::getPagesToInvalidate()
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     std::unique_lock<std::mutex> lock( m_pagesToInvalidateMutex );
-
-    std::vector<InvalidationRange>* pagesToInvalidate = m_pagesToInvalidate.find();
-    if (pagesToInvalidate)
-        return pagesToInvalidate;
-    std::unique_ptr<std::vector<InvalidationRange>> ptr( new std::vector<InvalidationRange>);
-    return m_pagesToInvalidate.insert( std::move( ptr ) );
+    return m_pagesToInvalidate.findOrCreate(
+        []() { return std::unique_ptr<std::vector<InvalidationRange>>( new std::vector<InvalidationRange> ); } );
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
@@ -224,14 +216,11 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket( TicketImpl::create( stream ) );
-
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
     // request bits copies the requested page ids to host memory (asynchronously).
     PagingSystem* pagingSystem = getPagingSystem();
     unsigned int  startPage    = 0;
-    unsigned int  endPage      = m_pageTableManager->getHighestUsedPage();
+    unsigned int  endPage      = m_pageTableManager->getEndPage();
     pagingSystem->pullRequests( context, stream, id, startPage, endPage);
 
     std::unique_lock<std::mutex> lock( m_mutex );

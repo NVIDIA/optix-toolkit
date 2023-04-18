@@ -29,7 +29,7 @@
 #pragma once
 
 #include "RequestHandler.h"
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 #include <atomic>
 
@@ -70,8 +70,8 @@ class TextureRequestHandler : public RequestHandler
     DemandTextureImpl* m_texture = nullptr;
     DemandLoaderImpl*  m_loader = nullptr;
 
-    void fillTileRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh );
-    void fillMipTailRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh );
+    void fillTileRequest( CUstream stream, unsigned int pageId, otk::TileBlockHandle bh );
+    void fillMipTailRequest( CUstream stream, unsigned int pageId, otk::TileBlockHandle bh );
 };
 
 }  // namespace demandLoading

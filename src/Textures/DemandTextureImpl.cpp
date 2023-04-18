@@ -28,7 +28,7 @@
 
 #include "Textures/DemandTextureImpl.h"
 #include "DemandLoaderImpl.h"
-#include "Memory/MemoryBlockDesc.h"
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 #include "PageTableManager.h"
 #include "Textures/TextureRequestHandler.h"
 #include "Util/Math.h"
@@ -42,6 +42,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+
+using namespace otk;
 
 namespace demandLoading {
 
@@ -506,24 +508,14 @@ size_t DemandTextureImpl::getMipTailSize()
 SparseTexture& DemandTextureImpl::getSparseTexture()
 {
     std::unique_lock<std::mutex> lock( m_sparseTexturesMutex );
-
-    SparseTexture* texture = m_sparseTextures.find();
-    if( texture )
-        return *texture;
-    std::unique_ptr<SparseTexture> ptr( new SparseTexture );
-    return *m_sparseTextures.insert( std::move( ptr ) );
+    return *m_sparseTextures.findOrCreate( []() { return std::unique_ptr<SparseTexture>( new SparseTexture ); } );
 }
 
 // Get the dense texture for the current CUDA context, creating it if necessary.
 DenseTexture& DemandTextureImpl::getDenseTexture()
 {
     std::unique_lock<std::mutex> lock( m_denseTexturesMutex );
-
-    DenseTexture* texture = m_denseTextures.find();
-    if( texture )
-        return *texture;
-    std::unique_ptr<DenseTexture> ptr( new DenseTexture );
-    return *m_denseTextures.insert( std::move( ptr ) );
+    return *m_denseTextures.findOrCreate( []() { return std::unique_ptr<DenseTexture>( new DenseTexture ); } );
 }
 
 

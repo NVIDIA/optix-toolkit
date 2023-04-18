@@ -28,6 +28,8 @@
 
 #include "DeviceContextImpl.h"
 
+using namespace otk;
+
 namespace demandLoading {
 
 template <typename Type>
