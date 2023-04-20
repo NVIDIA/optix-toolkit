@@ -35,14 +35,27 @@ FetchContent_Declare(imgui
 )
 FetchContent_MakeAvailable(imgui)
 
-file(GLOB imgui_sources ${imgui_SOURCE_DIR}/*.cpp)
-file(GLOB imgui_headers ${imgui_SOURCE_DIR}/*.h)
-
-add_library(imgui ${imgui_sources})
-target_sources(imgui
-  PUBLIC 
-  FILE_SET HEADERS 
-  BASE_DIRS include ${imgui_SOURCE_DIR}
-  FILES
-  ${imgui_headers}
+add_library( imgui STATIC
+    ${imgui_SOURCE_DIR}/imconfig.h
+    ${imgui_SOURCE_DIR}/imgui.h
+    ${imgui_SOURCE_DIR}/imgui_internal.h
+    ${imgui_SOURCE_DIR}/imstb_rectpack.h
+    ${imgui_SOURCE_DIR}/imstb_textedit.h
+    ${imgui_SOURCE_DIR}/imstb_truetype.h
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
 )
+
+target_include_directories( imgui
+  INTERFACE ${imgui_SOURCE_DIR}/..
+  PRIVATE ${imgui_SOURCE_DIR} )
+target_compile_definitions( imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD )
+target_link_libraries( imgui PUBLIC glfw glad ${OPENGL_gl_LIBRARY})
+set_target_properties( imgui PROPERTIES FOLDER ThirdParty )
