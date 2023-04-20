@@ -35,6 +35,7 @@ add_library(Gui STATIC
   src/GLCheck.cpp
   src/GLDisplay.cpp
   src/Trackball.cpp
+  src/TrackballCamera.cpp
   src/Window.cpp
   include/OptiXToolkit/Gui/BufferMapper.h
   include/OptiXToolkit/Gui/CUDAOutputBuffer.h
@@ -42,6 +43,7 @@ add_library(Gui STATIC
   include/OptiXToolkit/Gui/GLCheck.h
   include/OptiXToolkit/Gui/GLDisplay.h
   include/OptiXToolkit/Gui/Trackball.h
+  include/OptiXToolkit/Gui/TrackballCamera.h
   include/OptiXToolkit/Gui/Window.h
   )
 
