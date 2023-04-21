@@ -173,7 +173,6 @@ void main()
 GLDisplay::GLDisplay( BufferImageFormat image_format )
     : m_image_format( image_format )
 {
-    GLuint m_vertex_array;
     GL_CHECK( glGenVertexArrays(1, &m_vertex_array ) );
     GL_CHECK( glBindVertexArray( m_vertex_array ) );
 
@@ -210,14 +209,15 @@ GLDisplay::GLDisplay( BufferImageFormat image_format )
     GL_CHECK_ERRORS();
 }
 
+GLDisplay::~GLDisplay()
+{
+    glDeleteBuffers( 1, &m_quad_vertex_buffer);
+    glDeleteTextures( 1, &m_render_tex );
+    glDeleteVertexArrays( 1, &m_vertex_array );
+}
 
-void GLDisplay::display(
-        const int32_t  screen_res_x,
-        const int32_t  screen_res_y,
-        const int32_t  framebuf_res_x,
-        const int32_t  framebuf_res_y,
-        const uint32_t pbo
-        ) const
+
+void GLDisplay::display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_res_x, GLint framebuf_res_y, GLuint pbo ) const
 {
     GL_CHECK( glBindFramebuffer( GL_FRAMEBUFFER, 0 ) );
     GL_CHECK( glViewport( 0, 0, framebuf_res_x, framebuf_res_y ) );
@@ -241,16 +241,16 @@ void GLDisplay::display(
 
     bool convertToSrgb = true;
 
-    if( m_image_format == BufferImageFormat::UNSIGNED_BYTE4 )
+    if( m_image_format == UNSIGNED_BYTE4 )
     {
         // input is assumed to be in srgb since it is only 1 byte per channel in size
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8,   screen_res_x, screen_res_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr );
         convertToSrgb = false;
     }
-    else if( m_image_format == BufferImageFormat::FLOAT3 )
+    else if( m_image_format == FLOAT3 )
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB32F,  screen_res_x, screen_res_y, 0, GL_RGB,  GL_FLOAT,         nullptr );
 
-    else if( m_image_format == BufferImageFormat::FLOAT4 )
+    else if( m_image_format == FLOAT4 )
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA32F, screen_res_x, screen_res_y, 0, GL_RGBA, GL_FLOAT,         nullptr );
 
     else
@@ -268,7 +268,7 @@ void GLDisplay::display(
             GL_FLOAT,           // type
             GL_FALSE,           // normalized?
             0,                  // stride
-            (void*)0            // array buffer offset
+            nullptr             // array buffer offset
             )
         );
 

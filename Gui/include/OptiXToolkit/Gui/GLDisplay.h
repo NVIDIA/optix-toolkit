@@ -26,11 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-
-
 #pragma once
 
+#ifndef __gl_h_
 #include <glad/glad.h>
+#endif
 
 #include <cstdint>
 #include <string>
@@ -43,19 +43,16 @@ class GLDisplay
 {
 public:
     GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
+    ~GLDisplay();
 
-    void display(
-            const int32_t  screen_res_x,
-            const int32_t  screen_res_y,
-            const int32_t  framebuf_res_x,
-            const int32_t  framebuf_res_y,
-            const uint32_t pbo) const;
+    void display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_res_x, GLint framebuf_res_y, GLuint pbo ) const;
 
 private:
     GLuint   m_render_tex = 0u;
     GLuint   m_program = 0u;
     GLint    m_render_tex_uniform_loc = -1;
     GLuint   m_quad_vertex_buffer = 0;
+    GLuint   m_vertex_array{};
 
     otk::BufferImageFormat m_image_format;
 
