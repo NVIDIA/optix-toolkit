@@ -39,6 +39,7 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/Gui.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
@@ -68,7 +69,7 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     // Create display window for interactive mode
     if( isInteractive() )
     {
-        m_window = otk::initGLFW( appName, width, height );
+        m_window = otk::initUI( appName, width, height );
         otk::initGL();
         m_glDisplay.reset( new otk::GLDisplay( otk::BufferImageFormat::UNSIGNED_BYTE4 ) );
         setGLFWCallbacks( this );
@@ -90,6 +91,7 @@ DemandTextureApp::~DemandTextureApp()
 {
     for( PerDeviceOptixState state : m_perDeviceOptixStates )
         cleanupState( state );
+    otk::cleanupUI( m_window );
 }
 
 
@@ -572,6 +574,10 @@ void DemandTextureApp::startLaunchLoop()
             m_numFilledRequests += performLaunches();
             ++m_launchCycles;
             displayFrame();
+
+            otk::beginFrameImGui();
+            otk::displayFPS( m_launchCycles );
+            otk::endFrameImGui();
             glfwSwapBuffers( getWindow() );
         }
     }

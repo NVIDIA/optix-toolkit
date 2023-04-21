@@ -30,6 +30,7 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
+include(FetchImgui)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
@@ -53,6 +54,7 @@ target_link_libraries(DemandTextureAppBase
   OptiXToolkit::Gui
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
+  imgui
   CUDA::cudart
   )
 

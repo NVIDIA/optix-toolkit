@@ -29,11 +29,13 @@
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
+include(FetchImgui)
 
 add_library(Gui STATIC
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp
+  src/Gui.cpp
   src/Trackball.cpp
   src/TrackballCamera.cpp
   src/Window.cpp
@@ -42,6 +44,7 @@ add_library(Gui STATIC
   include/OptiXToolkit/Gui/Camera.h
   include/OptiXToolkit/Gui/GLCheck.h
   include/OptiXToolkit/Gui/GLDisplay.h
+  include/OptiXToolkit/Gui/Gui.h  
   include/OptiXToolkit/Gui/Trackball.h
   include/OptiXToolkit/Gui/TrackballCamera.h
   include/OptiXToolkit/Gui/Window.h
@@ -55,6 +58,7 @@ target_link_libraries(Gui
   PUBLIC
     OptiXToolkit::ShaderUtil
     OptiXToolkit::Util
+    imgui
     glfw
     glad::glad
 )
