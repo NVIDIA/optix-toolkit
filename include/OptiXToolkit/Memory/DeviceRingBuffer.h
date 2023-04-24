@@ -30,6 +30,8 @@
 
 #include <OptiXToolkit/Memory/CudaCheck.h>
 
+#include <cuda.h>
+
 namespace otk {
 
 // DeviceRingBuffer implements a device-side ring buffer.  Allocations
@@ -38,8 +40,6 @@ namespace otk {
 
 const unsigned long long BAD_ALLOC = 0xFFFFFFFFFFFFFFFFULL;
 const unsigned int       WARP_SIZE = 32;
-
-#include <cuda.h>
 
 #ifdef __CUDACC__
 __forceinline__ __device__ unsigned int getLaneId()
