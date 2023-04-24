@@ -10,8 +10,10 @@ are repeated until no tiles are missing, typically using adaptive sampling to av
 work. Although it is currently focused on texturing, much of the library is generic and can be
 adapted to load arbitrary data on demand, such as per-vertex data like colors or normals.
 
-A quick start guide is provided below.  For additional information, please the [user guide in the docs subdirectory](docs/README.md).
-API documentation for the Demand Loading library can be generated via `make docs` after configuring CMake.
+A quick start guide is provided below.  For additional information, please the
+[user guide in the docs subdirectory](https://github.com/NVIDIA/otk-demand-loading/docs/README.md).
+API documentation for the Demand Loading library can be generated via `make docs` after configuring
+CMake.
 
 The Demand Loading library is a submodule of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
 For more information on prerequisites and build procedures, please see the 
