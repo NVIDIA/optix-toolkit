@@ -3,7 +3,7 @@
 
 A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
-See the [CHANGELOG](CHANGELOG.md) for recent changes.
+See the [CHANGELOG](https://github.com/NVIDIA/optix-toolkit/CHANGELOG.md) for recent changes.
 
 ## Current Utilities
 - **[PyOptiX](https://github.com/NVIDIA/otk-pyoptix)** - Complete Python bindings for the OptiX host API.
