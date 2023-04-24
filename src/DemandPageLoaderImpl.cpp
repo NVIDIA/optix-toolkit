@@ -35,7 +35,7 @@
 #include "TicketImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
-#include <OptiXToolkit/DemandLoading/Paging.h>
+#include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 

@@ -35,7 +35,7 @@
 #include "TransferBufferDesc.h"
 #include "Util/NVTXProfiling.h"
 
-#include <OptiXToolkit/DemandLoading/Paging.h>  // for NON_EVICTABLE_LRU_VAL
+#include <OptiXToolkit/DemandLoading/LRU.h>
 
 #include <cuda_fp16.h>
 

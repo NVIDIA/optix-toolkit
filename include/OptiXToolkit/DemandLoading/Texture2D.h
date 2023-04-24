@@ -56,8 +56,6 @@ struct half4
 
 namespace demandLoading {
 
-#if defined( __CUDACC__ ) || defined( OPTIX_PAGING_BIT_OPS )
-
 #ifndef DOXYGEN_SKIP
 
 // clang-format off
@@ -488,7 +486,5 @@ tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, b
     return tex2DLod<TYPE>( context, textureId, x, y, 0.0f, isResident );
 }
 
-
-#endif
 
 }  // namespace demandLoading

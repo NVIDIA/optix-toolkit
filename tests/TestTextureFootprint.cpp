@@ -30,7 +30,7 @@
 
 #include <TextureFootprintPTX.h>
 
-#include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/Texture2DFootprint.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 

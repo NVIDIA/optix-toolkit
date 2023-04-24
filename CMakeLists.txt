@@ -116,6 +116,7 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/DemandPageLoader.h
   include/OptiXToolkit/DemandLoading/DemandTexture.h
   include/OptiXToolkit/DemandLoading/DeviceContext.h
+  include/OptiXToolkit/DemandLoading/LRU.h
   include/OptiXToolkit/DemandLoading/Options.h
   include/OptiXToolkit/DemandLoading/Paging.h
   include/OptiXToolkit/DemandLoading/RequestProcessor.h

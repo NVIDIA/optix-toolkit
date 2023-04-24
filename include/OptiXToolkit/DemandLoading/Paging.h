@@ -29,15 +29,11 @@
 #pragma once
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/LRU.h>
 
 namespace demandLoading {
 
 #ifndef DOXYGEN_SKIP
-
-const unsigned int MAX_LRU_VAL           = 14u;
-const unsigned int NON_EVICTABLE_LRU_VAL = 15u;
-
-#if defined( __CUDACC__ )
 
 __device__ __forceinline__ unsigned char lruInc( unsigned int count, unsigned int launchNum )
 {
@@ -124,7 +120,6 @@ __device__ inline void pagingRequestWord( unsigned int* wordPtr, unsigned int wo
         atomicOr( wordPtr, word );
 }
 
-#endif  // __CUDACC__
 #endif  // ndef DOXYGEN_SKIP
 
 }  // namespace demandLoading
