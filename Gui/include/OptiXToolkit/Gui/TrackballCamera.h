@@ -47,6 +47,23 @@ class TrackballCamera
 
     TrackballCamera();
 
+    bool handleCameraUpdate();
+    bool handleResize();
+
+    const float3& getCameraEye() const { return m_camera.eye(); }
+    void          setCameraEye( const float3& val ) { m_camera.setEye( val ); }
+    const float3& getCameraLookAt() const { return m_camera.lookat(); }
+    void          setCameraLookAt( const float3& val ) { m_camera.setLookat( val ); }
+    const float3& getCameraUp() const { return m_camera.up(); }
+    void          setCameraUp( const float3& val ) { m_camera.setUp( val ); }
+    float         getCameraFovY() const { return m_camera.fovY(); }
+    void          setCameraFovY( float val ) { m_camera.setFovY( val ); }
+    float         getCameraAspectRatio() const { return m_camera.aspectRatio(); }
+    void          setCameraAspectRatio( float val ) { m_camera.setAspectRatio( val ); }
+    void          cameraUVWFrame( float3& u, float3& v, float3& w ) const { m_camera.UVWFrame( u, v, w ); }
+    int           getWidth() const { return m_width; }
+    int           getHeight() const { return m_height; }
+
     /// Associate this trackball camera with a window.
     /// @param window The window to track.
     void trackWindow( GLFWwindow* window );
@@ -56,13 +73,12 @@ class TrackballCamera
         m_keyContext = context;
     }
 
-    bool handleCameraUpdate();
-    bool handleResize();
-
-    const float3& getCameraEye() const { return m_camera.eye(); }
-    void          cameraUVWFrame( float3& u, float3& v, float3& w ) const { m_camera.UVWFrame( u, v, w ); }
-    int           getWidth() const { return m_width; }
-    int           getHeight() const { return m_height; }
+    void associateWindow( GLFWwindow* window );
+    void mouseButton( GLFWwindow* window, int button, int action, int mods );
+    void cursorPos( GLFWwindow* window, double xPos, double yPos );
+    void windowSize( GLFWwindow* window, int32_t xRes, int32_t yRes );
+    void scroll( GLFWwindow*, double xScroll, double yScroll );
+    void key( GLFWwindow* window, int32_t key, int32_t scanCode, int32_t action, int32_t mods );
 
   private:
     enum
@@ -97,12 +113,6 @@ class TrackballCamera
 
     void initTrackball();
     void initCamera();
-
-    void mouseButton( GLFWwindow* window, int button, int action, int );
-    void cursorPos( GLFWwindow* window, double xPos, double yPos );
-    void windowSize( GLFWwindow* window, int32_t xRes, int32_t yRes );
-    void scroll( GLFWwindow*, double, double yScroll );
-    void key( GLFWwindow* window, int32_t key, int32_t, int32_t action, int32_t );
 
     GLFWwindow* m_window{};
     int         m_width{};

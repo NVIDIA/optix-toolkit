@@ -68,11 +68,16 @@ void TrackballCamera::initTrackball()
     m_trackball.setGimbalLock( true );
 }
 
-void TrackballCamera::trackWindow( GLFWwindow* window )
+void TrackballCamera::associateWindow( GLFWwindow* window )
 {
     m_window = window;
     glfwGetWindowSize( window, &m_width, &m_height );
     glfwSetWindowAspectRatio( window, m_width, m_height );
+}
+
+void TrackballCamera::trackWindow( GLFWwindow* window )
+{
+    associateWindow( window );
     glfwSetWindowUserPointer( window, this );
     glfwSetMouseButtonCallback( window, mouseButtonCallback );
     glfwSetCursorPosCallback( window, cursorPosCallback );
