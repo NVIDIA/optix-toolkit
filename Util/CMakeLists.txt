@@ -33,6 +33,7 @@ include(CTest)
 include(FetchOpenEXR)
 
 add_library(Util STATIC
+  include/OptiXToolkit/Util/BitCast.h
   include/OptiXToolkit/Util/Builders.h
   include/OptiXToolkit/Util/DeviceBuffer.h
   include/OptiXToolkit/Util/Exception.h

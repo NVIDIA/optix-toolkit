@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <OptiXToolkit/Util/BitCast.h>
 #include <OptiXToolkit/Util/Exception.h>
 
 #include <cuda.h>
@@ -113,7 +114,7 @@ class DeviceBuffer
     }
 
     /// Return the associated CUdeviceptr with the allocated device memory.
-    operator CUdeviceptr() { return reinterpret_cast<CUdeviceptr>( m_devStorage ); }
+    operator CUdeviceptr() { return bit_cast<CUdeviceptr>( m_devStorage ); }
 
     /// Return the raw device pointer of the allocated device memory.
     void *devicePtr() const { return m_devStorage; }
