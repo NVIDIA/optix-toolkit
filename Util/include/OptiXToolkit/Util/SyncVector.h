@@ -55,7 +55,8 @@ template <typename T>
 class SyncVector
 {
   public:
-    using iterator = typename std::vector<T>::iterator;
+    using const_iterator = typename std::vector<T>::const_iterator;
+    using iterator       = typename std::vector<T>::iterator;
 
     /// Default Constructor
     SyncVector<T>() = default;
@@ -88,8 +89,10 @@ class SyncVector
     const T& back() const { return m_host.back(); }
 
     /// Iterators for the host elements.
-    iterator begin() { return m_host.begin(); }
-    iterator end() { return m_host.end(); }
+    iterator       begin() { return m_host.begin(); }
+    iterator       end() { return m_host.end(); }
+    const_iterator cbegin() const { return m_host.cbegin(); }
+    const_iterator cend() const { return m_host.cend(); }
 
     /// Append to the end.
     void push_back( const T& value ) { m_host.push_back( value ); }
