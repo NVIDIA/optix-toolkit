@@ -74,6 +74,14 @@ namespace py = pybind11;
 #    define IF_OPTIX74( code ) 
 #endif
 
+#if OPTIX_VERSION >= 70700
+#    define IF_OPTIX77( code ) code
+#else
+#    define IF_OPTIX77( code ) 
+#endif
+
+
+
 
 
 namespace pyoptix
@@ -585,9 +593,9 @@ struct PipelineCompileOptions
     OptixPipelineCompileOptions options{};
 };
 
-
 struct PipelineLinkOptions
 {
+#if OPTIX_VERSION < 70700
     PipelineLinkOptions(
         unsigned int maxTraceDepth,
         OptixCompileDebugLevel debugLevel
@@ -596,10 +604,16 @@ struct PipelineLinkOptions
         options.maxTraceDepth = maxTraceDepth;
         options.debugLevel    = debugLevel;
     }
-
+#else
+    PipelineLinkOptions(
+        unsigned int maxTraceDepth
+        )
+    {
+        options.maxTraceDepth = maxTraceDepth;
+    }
+#endif
     OptixPipelineLinkOptions options{};
 };
-
 
 struct ShaderBindingTable
 {
@@ -1336,7 +1350,11 @@ void pipelineSetStackSize(
     );
 }
 
+#if OPTIX_VERSION < 70700
 py::tuple moduleCreateFromPTX(
+#else
+py::tuple moduleCreate(
+#endif
        const pyoptix::DeviceContext&          context,
              pyoptix::ModuleCompileOptions&   moduleCompileOptions,
              pyoptix::PipelineCompileOptions& pipelineCompileOptions,
@@ -1352,7 +1370,11 @@ py::tuple moduleCreateFromPTX(
 
     pyoptix::Module module;
     PYOPTIX_CHECK_LOG(
+#if OPTIX_VERSION < 70700
         optixModuleCreateFromPTX(
+#else
+        optixModuleCreate(
+#endif
             context.deviceContext,
             &moduleCompileOptions.options,
             &pipelineCompileOptions.options,
@@ -1403,9 +1425,9 @@ pyoptix::Module builtinISModuleGet(
 }
 #endif // OPTIX_VERSION >= 70100
 
-
 pyoptix::StackSizes programGroupGetStackSize(
        pyoptix::ProgramGroup programGroup
+       IF_OPTIX77( COMMA pyoptix::Pipeline pipeline )
     )
 {
     pyoptix::StackSizes sizes;
@@ -1413,6 +1435,7 @@ pyoptix::StackSizes programGroupGetStackSize(
         optixProgramGroupGetStackSize(
             programGroup.programGroup,
             &sizes.ss
+            IF_OPTIX77( COMMA pipeline.pipeline )
         )
     );
     return sizes;
@@ -2095,10 +2118,14 @@ namespace util
 void accumulateStackSizes(
         pyoptix::ProgramGroup programGroup,
         pyoptix::StackSizes&  stackSizes
+        IF_OPTIX77( COMMA pyoptix::Pipeline pipeline )
         )
 {
     PYOPTIX_CHECK(
-        optixUtilAccumulateStackSizes( programGroup.programGroup, &stackSizes.ss )
+        optixUtilAccumulateStackSizes( programGroup.programGroup, 
+                                       &stackSizes.ss
+                                       IF_OPTIX77( COMMA pipeline.pipeline )
+          )
     );
 }
 
@@ -2206,6 +2233,7 @@ py::tuple computeStackSizesSimplePathTracer(
         py::list                     programGroupCH1,
         pyoptix::ProgramGroup        programGroupMS2,
         py::list                     programGroupCH2 
+        IF_OPTIX77( COMMA pyoptix::Pipeline pipeline )
         )
 {
     unsigned int directCallableStackSizeFromTraversal;
@@ -2233,6 +2261,7 @@ py::tuple computeStackSizesSimplePathTracer(
             &directCallableStackSizeFromTraversal,
             &directCallableStackSizeFromState,
             &continuationStackSize
+            IF_OPTIX77( COMMA pipeline.pipeline )
             )
         );
 
@@ -2386,7 +2415,11 @@ PYBIND11_MODULE( optix, m )
 #if OPTIX_VERSION >= 70200
         .value( "ERROR_VALIDATION_FAILURE", OPTIX_ERROR_VALIDATION_FAILURE )
 #endif
+#if OPTIX_VERSION >= 70700
+        .value( "ERROR_INVALID_INPUT", OPTIX_ERROR_INVALID_INPUT )
+#else
         .value( "ERROR_INVALID_PTX", OPTIX_ERROR_INVALID_PTX )
+#endif
         .value( "ERROR_INVALID_LAUNCH_PARAMETER", OPTIX_ERROR_INVALID_LAUNCH_PARAMETER )
         .value( "ERROR_INVALID_PAYLOAD_ACCESS", OPTIX_ERROR_INVALID_PAYLOAD_ACCESS )
         .value( "ERROR_INVALID_ATTRIBUTE_ACCESS", OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS )
@@ -2715,7 +2748,11 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         .def( "getCacheLocation", &pyoptix::deviceContextGetCacheLocation )
         .def( "getCacheDatabaseSizes", &pyoptix::deviceContextGetCacheDatabaseSizes )
         .def( "pipelineCreate", &pyoptix::pipelineCreate )
+#if OPTIX_VERSION < 70700
         .def( "moduleCreateFromPTX", &pyoptix::moduleCreateFromPTX )
+#else
+        .def( "moduleCreate", &pyoptix::moduleCreate )
+#endif
         IF_OPTIX71(
         .def( "builtinISModuleGet", &pyoptix::builtinISModuleGet )
         )
@@ -3904,7 +3941,7 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         )
 #endif
         ;
-
+#if OPTIX_VERSION < 70700
     py::class_<pyoptix::PipelineLinkOptions>(m, "PipelineLinkOptions")
         .def(
             py::init<
@@ -3930,6 +3967,22 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
             { self.options.debugLevel = val; }
             )
         ;
+#else 
+    py::class_<pyoptix::PipelineLinkOptions>(m, "PipelineLinkOptions")
+        .def(
+            py::init<
+                uint32_t
+                >(),
+            py::arg( "maxTraceDepth" ) = 0u
+            )
+        .def_property( "maxTraceDepth",
+            [](const pyoptix::PipelineLinkOptions& self)
+            { return self.options.maxTraceDepth; },
+            [](pyoptix::PipelineLinkOptions& self, uint32_t val)
+            { self.options.maxTraceDepth = val; }
+            )
+        ;
+#endif
 
     py::class_<pyoptix::ShaderBindingTable>(m, "ShaderBindingTable")
         .def(
