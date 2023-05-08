@@ -1665,6 +1665,7 @@ OptixTraversableHandle accelBuild(
     return output_handle;
 }
 
+#if OPTIX_VERSION < 70600
 OptixAccelRelocationInfo accelGetRelocationInfo(
        pyoptix::DeviceContext context,
        OptixTraversableHandle handle
@@ -1723,6 +1724,66 @@ OptixTraversableHandle accelRelocate(
     );
     return targetHandle;
 }
+#else
+OptixRelocationInfo accelGetRelocationInfo(
+       pyoptix::DeviceContext context,
+       OptixTraversableHandle handle
+    )
+{
+    OptixRelocationInfo info;
+    PYOPTIX_CHECK(
+        optixAccelGetRelocationInfo(
+            context.deviceContext,
+            handle,
+            &info
+        )
+    );
+
+    return info;
+}
+
+py::bool_ accelCheckRelocationCompatibility(
+       pyoptix::DeviceContext context,
+       const OptixRelocationInfo* info
+    )
+{
+    int compatible;
+    PYOPTIX_CHECK(
+        optixCheckRelocationCompatibility(
+            context.deviceContext,
+            info,
+            &compatible
+        )
+    );
+    return py::bool_( compatible );
+}
+
+OptixTraversableHandle accelRelocate(
+       pyoptix::DeviceContext     context,
+       uintptr_t                  stream,
+       const OptixRelocationInfo* info,
+       const OptixRelocateInput*  relocateInputs,
+       size_t                     numRelocateInputs,
+       CUdeviceptr                targetAccel,
+       size_t                     targetAccelSizeInBytes
+    )
+{
+    OptixTraversableHandle targetHandle;
+    PYOPTIX_CHECK(
+        optixAccelRelocate(
+            context.deviceContext,
+            reinterpret_cast<CUstream>( stream ),
+            info,
+            relocateInputs,
+            numRelocateInputs,
+            targetAccel,
+            targetAccelSizeInBytes,
+            &targetHandle
+        )
+    );
+    return targetHandle;
+}
+#endif
 
 OptixTraversableHandle accelCompact(
        pyoptix::DeviceContext  context,
@@ -2336,7 +2397,11 @@ PYBIND11_MODULE( optix, m )
         .value( "ERROR_INTERNAL_COMPILER_ERROR", OPTIX_ERROR_INTERNAL_COMPILER_ERROR )
         .value( "ERROR_DENOISER_MODEL_NOT_SET", OPTIX_ERROR_DENOISER_MODEL_NOT_SET )
         .value( "ERROR_DENOISER_NOT_INITIALIZED", OPTIX_ERROR_DENOISER_NOT_INITIALIZED )
+#if OPTIX_VERSION >= 70600
+        .value( "ERROR_NOT_COMPATIBLE", OPTIX_ERROR_NOT_COMPATIBLE )
+#else
         .value( "ERROR_ACCEL_NOT_COMPATIBLE", OPTIX_ERROR_ACCEL_NOT_COMPATIBLE )
+#endif
         .value( "ERROR_NOT_SUPPORTED", OPTIX_ERROR_NOT_SUPPORTED )
         .value( "ERROR_UNSUPPORTED_ABI_VERSION", OPTIX_ERROR_UNSUPPORTED_ABI_VERSION )
         .value( "ERROR_FUNCTION_TABLE_SIZE_MISMATCH", OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH )
@@ -3278,10 +3343,17 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
             )
         ;
 
+#if OPTIX_VERSION < 70600
     py::class_<OptixAccelRelocationInfo>(m, "AccelRelocationInfo")
         .def( py::init([]() { return std::unique_ptr<OptixAccelRelocationInfo>(new OptixAccelRelocationInfo{} ); } ) )
         // NB: info field is internal only so not making accessible
         ;
+#else
+    py::class_<OptixRelocationInfo>(m, "RelocationInfo")
+        .def( py::init([]() { return std::unique_ptr<OptixRelocationInfo>(new OptixRelocationInfo{} ); } ) )
+        // NB: info field is internal only so not making accessible
+        ;
+#endif
 
     py::class_<pyoptix::StaticTransform>(m, "StaticTransform")
         .def( 

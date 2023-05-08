@@ -3,4 +3,3 @@ numpy
 Pillow
 pynvrtc
 pytest
-OpenEXR
