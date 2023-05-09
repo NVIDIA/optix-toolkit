@@ -1528,18 +1528,11 @@ py::tuple programGroupCreate(
         )
     );
 
-    if( program_groups.size() > 1 )
-    {
-        py::list pygroups;
-        for( auto& group : program_groups )
-            pygroups.append( pyoptix::ProgramGroup{ group } );
+    py::list pygroups;
+    for( auto& group : program_groups )
+        pygroups.append( pyoptix::ProgramGroup{ group } );
 
-        return py::make_tuple( pygroups, py::str(log_buf) );
-    }
-    else
-    {
-        return py::make_tuple( pyoptix::ProgramGroup{ program_groups.front()}, py::str(log_buf) );
-    }
+    return py::make_tuple( pygroups, py::str(log_buf) );
 }
 
 void programGroupDestroy(

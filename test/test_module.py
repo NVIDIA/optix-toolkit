@@ -123,11 +123,18 @@ class TestModule:
         ctx = optix.deviceContextCreate(0, optix.DeviceContextOptions())
         module_opts   = optix.ModuleCompileOptions()
         pipeline_opts = optix.PipelineCompileOptions()
-        mod, log = ctx.moduleCreateFromPTX(
-            module_opts,
-            pipeline_opts,
-            sample_ptx.hello_ptx,
-            )
+        if tutil.optix_version_gte( (7,6) ):
+            mod, log = ctx.moduleCreate(
+                module_opts,
+                pipeline_opts,
+                sample_ptx.hello_ptx,
+                )
+        else:
+            mod, log = ctx.moduleCreate(
+                module_opts,
+                pipeline_opts,
+                sample_ptx.hello_ptx,
+                )
         assert type(mod) is optix.Module
         assert type(log) is str
 
@@ -135,51 +142,67 @@ class TestModule:
         ctx.destroy()
             
 
-if tutil.optix_version_gte( (7,4) ): 
-    def test_payload_semantics_use( self ):
-        ctx = optix.deviceContextCreate(0, optix.DeviceContextOptions())
-        module_opts   = optix.ModuleCompileOptions()
-        pipeline_opts = optix.PipelineCompileOptions()
+    if tutil.optix_version_gte( (7,4) ): 
+        def test_payload_semantics_use( self ):
+            ctx = optix.deviceContextCreate(0, optix.DeviceContextOptions())
+            module_opts   = optix.ModuleCompileOptions()
+            pipeline_opts = optix.PipelineCompileOptions()
+            pipeline_opts.numPayloadValues = 3
 
-        payload_sem = ( 
-            optix.PAYLOAD_SEMANTICS_TRACE_CALLER_READ_WRITE | 
-            optix.PAYLOAD_SEMANTICS_CH_READ_WRITE | 
-            optix.PAYLOAD_SEMANTICS_MS_READ_WRITE | 
-            optix.PAYLOAD_SEMANTICS_AH_READ_WRITE | 
-            optix.PAYLOAD_SEMANTICS_IS_READ_WRITE
+            payload_sem = ( 
+                optix.PAYLOAD_SEMANTICS_TRACE_CALLER_READ_WRITE | 
+                optix.PAYLOAD_SEMANTICS_CH_READ_WRITE | 
+                optix.PAYLOAD_SEMANTICS_MS_READ_WRITE | 
+                optix.PAYLOAD_SEMANTICS_AH_READ_WRITE | 
+                optix.PAYLOAD_SEMANTICS_IS_READ_WRITE
+                )
+            
+            payload_type = optix.PayloadType( [ payload_sem, payload_sem, payload_sem ] )
+            module_opts.payloadTypes = [ payload_type ]
+            if tutil.optix_version_gte( (7,6 ) ):
+                mod, log = ctx.moduleCreate(
+                    module_opts,
+                    pipeline_opts,
+                    sample_ptx.triangle_ptx,
+                    )
+            else:
+                mod, log = ctx.moduleCreateFromPTX(
+                    module_opts,
+                    pipeline_opts,
+                    sample_ptx.hello_ptx,
+                    )
+            mod.destroy()
+            ctx.destroy()
+
+
+        def test_bound_values_use( self ):
+            ctx = optix.deviceContextCreate(0, optix.DeviceContextOptions())
+            module_opts   = optix.ModuleCompileOptions()
+            pipeline_opts = optix.PipelineCompileOptions()
+
+            bound_value = array.array( 'f', [0.1, 0.2, 0.3] )
+            bound_value_entry = optix.ModuleCompileBoundValueEntry(
+                pipelineParamOffsetInBytes = 4,
+                boundValue  = bound_value,
+                annotation  = "my_bound_value"
             )
-        
-        payload_type = optix.PayloadType( [ payload_sem, payload_sem, payload_sem ] )
-        module_opts.payloadTypes = [ payload_type ]
-        mod, log = ctx.moduleCreateFromPTX(
-            module_opts,
-            pipeline_opts,
-            sample_ptx.triangle_ptx,
-            )
-        mod.destroy()
-        ctx.destroy()
+            module_opts.boundValues = [ bound_value_entry ]
+            
+            if tutil.optix_version_gte( (7,6) ):
+                mod, log = ctx.moduleCreate(
+                    module_opts,
+                    pipeline_opts,
+                    sample_ptx.hello_ptx,
+                    )
+            else:
+                mod, log = ctx.moduleCreateFromPTX(
+                    module_opts,
+                    pipeline_opts,
+                    sample_ptx.hello_ptx,
+                    )
 
-
-    def test_bound_values_use( self ):
-        ctx = optix.deviceContextCreate(0, optix.DeviceContextOptions())
-        module_opts   = optix.ModuleCompileOptions()
-        pipeline_opts = optix.PipelineCompileOptions()
-
-        bound_value = array.array( 'f', [0.1, 0.2, 0.3] )
-        bound_value_entry = optix.ModuleCompileBoundValueEntry(
-            pipelineParamOffsetInBytes = 4,
-            boundValue  = bound_value,
-            annotation  = "my_bound_value"
-        )
-        module_opts.boundValues = [ bound_value_entry ]
-
-        mod, log = ctx.moduleCreateFromPTX(
-            module_opts,
-            pipeline_opts,
-            sample_ptx.hello_ptx,
-            )
-        mod.destroy()
-        ctx.destroy()
+            mod.destroy()
+            ctx.destroy()
 
 
     if tutil.optix_version_gte( (7,1) ): 
