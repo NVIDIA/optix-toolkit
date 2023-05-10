@@ -56,6 +56,7 @@ target_sources(ShaderUtil
 target_include_directories(ShaderUtil INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
 install(TARGETS ShaderUtil
@@ -68,3 +69,7 @@ install(EXPORT ShaderUtilTargets
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )
+
+if( BUILD_TESTING )
+  add_subdirectory( tests )
+endif()
