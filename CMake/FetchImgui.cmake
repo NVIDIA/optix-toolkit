@@ -60,5 +60,5 @@ add_library( imgui STATIC
 target_include_directories( imgui PUBLIC ${imgui_SOURCE_DIR} )
 target_include_directories( imgui INTERFACE ${imgui_SOURCE_DIR}/backends )
 target_compile_definitions( imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD )
-target_link_libraries( imgui PUBLIC glfw glad ${OPENGL_gl_LIBRARY})
+target_link_libraries( imgui PUBLIC glfw glad ${OPENGL_gl_LIBRARY} ${CMAKE_DL_LIBS})
 set_target_properties( imgui PROPERTIES FOLDER ThirdParty )
