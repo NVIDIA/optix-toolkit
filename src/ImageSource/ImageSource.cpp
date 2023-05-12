@@ -27,17 +27,22 @@
 //
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/ImageSource/CoreEXRReader.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+
+#include "Exception.h"
 
 #include <cstddef>  // for size_t
 
 namespace imageSource {
 
-bool MipTailImageSource::readMipTail( char* dest,
-                                      unsigned int mipTailFirstLevel,
-                                      unsigned int numMipLevels,
-                                      const uint2* mipLevelDims,
-                                      unsigned int pixelSizeInBytes,
-                                      CUstream stream )
+bool ImageSourceBase::readMipTail( char*        dest,
+                                   unsigned int mipTailFirstLevel,
+                                   unsigned int numMipLevels,
+                                   const uint2* mipLevelDims,
+                                   unsigned int pixelSizeInBytes,
+                                   CUstream     stream )
 {
     size_t offset = 0;
     for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
@@ -51,5 +56,41 @@ bool MipTailImageSource::readMipTail( char* dest,
 
     return true;
 }
+
+std::shared_ptr<ImageSource> createImageSource( const std::string& filename, const std::string& directory )
+{
+    // Special cases
+    if( filename == "checkerboard" )
+    {
+        return std::shared_ptr<ImageSource>( new CheckerBoardImage( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true ) );
+    }
+    else if( filename == "mandelbrot" )
+    {
+        std::vector<float4> colors = {{1.0f, 1.0f, 1.0f, 0.0f},
+                                      {0.0f, 0.0f, 1.0f, 0.0f},
+                                      {0.0f, 0.5f, 0.0f, 0.0f},
+                                      {1.0f, 0.0f, .0f, 0.0f},
+                                      {1.0f, 1.0f, 0.0f, 0.0f}};
+        return std::shared_ptr<ImageSource>( new DeviceMandelbrotImage( 2048, 2048, /*xmin=*/-2.0, /*ymin=*/-2.0,
+                                                                        /*xmax=*/2.0, /*ymax=*/2.0,
+                                                                        /*iterations=*/512, colors ) );
+    }
+
+    // Construct ImageSource based on filename extension.
+    size_t      dot       = filename.find_last_of( "." );
+    std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
+    std::string path = directory + '/' + filename;
+
+    if( extension == ".exr" )
+    {
+        return std::shared_ptr<ImageSource>( new CoreEXRReader( path ) );
+    }
+    else
+    {
+        std::string msg= "Image file not supported: ";
+        throw Exception( ( msg + filename ).c_str() );
+    }
+}
+
 
 }  // namespace imageSource

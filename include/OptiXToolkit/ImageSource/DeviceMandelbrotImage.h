@@ -40,7 +40,7 @@
 namespace imageSource {
 
 /// This image makes a basic mandelbrot set using a CUDA kernel on the GPU
-class DeviceMandelbrotImage : public MipTailImageSource
+class DeviceMandelbrotImage : public ImageSourceBase
 {
   public:
     /// Create a test image with the specified dimensions.

@@ -32,9 +32,11 @@
 /// Interface for a mipmapped image.
 
 #include <cuda.h>
+#include <vector_types.h>
 
 #include <cmath>
-#include <vector_types.h>
+#include <memory>
+#include <string>
 
 namespace imageSource {
 
@@ -99,22 +101,22 @@ class ImageSource
     virtual bool readBaseColor( float4& dest ) = 0; 
 
     /// Returns the number of tiles that have been read.
-    virtual unsigned long long getNumTilesRead() const { return 0u; }
+    virtual unsigned long long getNumTilesRead() const = 0;
 
     /// Returns the number of bytes that have been read.  This number may be zero if the reader does
     /// not load tiles from disk, e.g. for procedural textures.
-    virtual unsigned long long getNumBytesRead() const { return 0u; }
+    virtual unsigned long long getNumBytesRead() const = 0;
 
     /// Returns the time in seconds spent reading image data (tiles or mip levels).  This number may
     /// be zero if the reader does not load tiles from disk, e.g. for procedural textures.
-    virtual double getTotalReadTime() const { return 0.0; }
+    virtual double getTotalReadTime() const = 0;
 };
 
-/// Abstract base class for ImageSources that use a common implementation of readMipTail.
-class MipTailImageSource : public ImageSource
+/// Base class for ImageSource with default implementation of readMipTail, etc.
+class ImageSourceBase : public ImageSource
 {
   public:
-    ~MipTailImageSource() override = default;
+    ~ImageSourceBase() override = default;
 
     bool readMipTail( char* dest,
                       unsigned int mipTailFirstLevel,
@@ -122,6 +124,12 @@ class MipTailImageSource : public ImageSource
                       const uint2* mipLevelDims,
                       unsigned int pixelSizeInBytes,
                       CUstream stream ) override;
+
+    unsigned long long getNumTilesRead() const override { return 0u; }
+
+    unsigned long long getNumBytesRead() const override { return 0u; }
+
+    double getTotalReadTime() const override { return 0.0; }
 };
 
 /// @private
@@ -130,5 +138,7 @@ inline unsigned int calculateNumMipLevels( unsigned int width, unsigned int heig
     unsigned int dim = ( width > height ) ? width : height;
     return 1 + static_cast<unsigned int>( std::log2f( static_cast<float>( dim ) ) );
 }
+
+std::shared_ptr<ImageSource> createImageSource( const std::string& filename, const std::string& directory = "" );
 
 }  // namespace imageSource

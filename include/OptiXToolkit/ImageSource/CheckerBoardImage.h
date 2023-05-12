@@ -38,7 +38,7 @@ namespace imageSource {
 
 /// If OpenEXR is not available, this test image is used.  It generates a
 /// procedural pattern, rather than loading image data from disk.
-class CheckerBoardImage : public MipTailImageSource
+class CheckerBoardImage : public ImageSourceBase
 {
   public:
     /// Create a test image with the specified dimensions.

@@ -51,7 +51,7 @@ namespace OTK_IMF_NAMESPACE
 namespace imageSource {
 
 /// OpenEXR image reader.
-class EXRReader : public MipTailImageSource
+class EXRReader : public ImageSourceBase
 {
   public:
     /// The constructor copies the given filename.  The file is not opened until open() is called.

@@ -93,7 +93,7 @@ inline void convertType( float4 a, half& b ) { b = half((a.x + a.y + a.z) / 3.0f
 
 /// This image generates a procedural pattern in many different formats.
 template <class TYPE>
-class MultiCheckerImage : public MipTailImageSource
+class MultiCheckerImage : public ImageSourceBase
 {
   public:
     /// Create a test image with the specified dimensions.

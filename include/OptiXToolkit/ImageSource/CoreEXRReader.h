@@ -42,7 +42,7 @@ using exr_context_t = struct _priv_exr_context_t*;
 namespace imageSource {
 
 /// OpenEXR Core image reader.
-class CoreEXRReader : public MipTailImageSource
+class CoreEXRReader : public ImageSourceBase
 {
   public:
     /// The constructor copies the given filename.  The file is not opened until open() is called.

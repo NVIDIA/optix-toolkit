@@ -40,7 +40,7 @@
 namespace imageSource {
 
 /// This image makes a solid color per mip level on the GPU
-class DeviceConstantImage : public MipTailImageSource
+class DeviceConstantImage : public ImageSourceBase
 {
   public:
     /// Create a test image with the specified dimensions.
