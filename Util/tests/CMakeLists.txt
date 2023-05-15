@@ -31,11 +31,8 @@ include( GoogleTest )
 include( FetchStbImage )
 
 add_executable( testUtil
-    TestBuilders.cpp
     TestException.cpp
     TestEXRInputFile.cpp
-    TestSyncRecordHeader.cpp
-    TestSyncVectorHeader.cpp
     FunctionTable.cpp
   )
 set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)

@@ -33,13 +33,9 @@ include(CTest)
 include(FetchOpenEXR)
 
 add_library(Util STATIC
-  include/OptiXToolkit/Util/Builders.h
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
-  include/OptiXToolkit/Util/Record.h
-  include/OptiXToolkit/Util/SyncRecord.h
-  include/OptiXToolkit/Util/SyncVector.h
   src/EXRInputFile.cpp
   src/Exception.cpp
   )

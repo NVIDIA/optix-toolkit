@@ -28,8 +28,6 @@
 
 #pragma once
 
-#include "SyncVector.h"
-
 #include <algorithm>
 #include <vector>
 
@@ -40,13 +38,6 @@ template <typename T, size_t N, typename U>
 void fill( T ( &ary )[N], U value )
 {
     std::fill( std::begin( ary ), std::end( ary ), static_cast<T>( value ) );
-}
-
-/// Fill a SyncVector<T> with a value of type U that can be converted to T.
-template <typename T, typename U>
-void fill( SyncVector<T>& vec, U value )
-{
-    std::fill( std::begin( vec ), std::end( vec ), static_cast<T>( value ) );
 }
 
 /// Fill a std::vector<T> with a value of type U that can be converted to T.
