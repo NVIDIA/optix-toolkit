@@ -382,8 +382,10 @@ protected:
                     OptixBuildInput optixBuildInput = {};
                     optixBuildInput.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
                     optixBuildInput.instanceArray.instances = d_instances.get();
-                    optixBuildInput.instanceArray.instanceStride = 0;
                     optixBuildInput.instanceArray.numInstances = 1;
+#if OPTIX_VERSION >= 70600
+                    optixBuildInput.instanceArray.instanceStride = 0;
+#endif                    
 
                     OptixAccelBufferSizes iasBufferSizes;
                     OPTIX_THROW( optixAccelComputeMemoryUsage( optixContext, &accelOptions, &optixBuildInput, 1, &iasBufferSizes ) );
