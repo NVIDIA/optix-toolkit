@@ -52,11 +52,12 @@ set( GLFW_INSTALL OFF CACHE BOOL "Generate GLFW installation target")
 
 include(FetchContent)
 FetchContent_Declare(
-    glfw
+    glfw3
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG 3.3.7
     GIT_SHALLOW TRUE
+    FIND_PACKAGE_ARGS
     )
-FetchContent_MakeAvailable(glfw)
+FetchContent_MakeAvailable(glfw3)
 
 glfw_folders()

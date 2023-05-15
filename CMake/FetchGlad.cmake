@@ -54,6 +54,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/Dav1dde/glad
   GIT_TAG v0.1.36
   GIT_SHALLOW TRUE
+  FIND_PACKAGE_ARGS
 )
 FetchContent_GetProperties(glad)
 if(NOT glad_POPULATED)

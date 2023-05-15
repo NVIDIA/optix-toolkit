@@ -48,9 +48,14 @@ target_include_directories( testUtil PUBLIC
 # Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
+set_target_properties(testUtil PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER examples/Util/tests 
+)
+
 target_link_libraries( testUtil
   Util
-  gtest_main
+  GTest::gtest_main
   Imath::Imath
   )
 
