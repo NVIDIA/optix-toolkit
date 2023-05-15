@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <OptiXToolkit/Util/DeviceBuffer.h>
+#include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/Util/Exception.h>
 
 #include <cuda_runtime.h>

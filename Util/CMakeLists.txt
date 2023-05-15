@@ -33,9 +33,7 @@ include(CTest)
 include(FetchOpenEXR)
 
 add_library(Util STATIC
-  include/OptiXToolkit/Util/BitCast.h
   include/OptiXToolkit/Util/Builders.h
-  include/OptiXToolkit/Util/DeviceBuffer.h
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
@@ -60,6 +58,7 @@ target_link_libraries(Util PRIVATE
   CUDA::cudart
   OpenEXR::OpenEXR
   )
+target_link_libraries(Util PUBLIC OptiXToolkit::Memory)
 
 set_target_properties(Util PROPERTIES FOLDER Examples)
 
