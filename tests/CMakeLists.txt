@@ -44,12 +44,17 @@ add_executable( testMemory
 target_link_libraries( testMemory
   Memory
   CUDA::cudart
-  gtest_main
+  GTest::gtest_main
   )
 if( OTK_USE_CUDA_MEMORY_POOLS )
   target_compile_definitions( testMemory PRIVATE OTK_USE_CUDA_MEMORY_POOLS )
 endif()
-set_property(TARGET testMemory PROPERTY FOLDER Memory/tests)
+
+set_target_properties( testMemory PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER Memory/tests
+)
+
 # Register test cases with CTest.
 gtest_discover_tests(testMemory)
 
