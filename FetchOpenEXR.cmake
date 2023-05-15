@@ -37,6 +37,7 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
     GIT_TAG v3.1.7
     GIT_SHALLOW TRUE
+    FIND_PACKAGE_ARGS 
   )
   FetchContent_MakeAvailable(Imath)
 
@@ -59,6 +60,7 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
     GIT_TAG v3.1.7
     GIT_SHALLOW TRUE
+    FIND_PACKAGE_ARGS 
   )
   FetchContent_MakeAvailable(OpenEXR)
 endif()

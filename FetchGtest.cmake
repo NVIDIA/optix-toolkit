@@ -27,8 +27,11 @@
 #
 
 function(gtest_folders)
-  foreach(_target gtest gtest_main gmock gmock_main)
-    set_property(TARGET ${_target} PROPERTY FOLDER ThirdParty/gtest)
+  foreach(_target GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
+    get_target_property(_alias ${_target} ALIASED_TARGET)
+    if(_alias)
+      set_property(TARGET ${_alias} PROPERTY FOLDER ThirdParty/gtest)
+    endif()
   endforeach()
 endfunction()
 
@@ -48,6 +51,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_TAG release-1.11.0
   GIT_SHALLOW TRUE
+  FIND_PACKAGE_ARGS NAMES GTest
 )
 FetchContent_MakeAvailable(googletest)
 
@@ -56,5 +60,11 @@ gtest_folders()
 # Without this interface definition, clients of gmock will get this link error:
 #   unresolved external symbol "class testing::internal::Mutex testing::internal::g_gmock_mutex"
 #   unresolved external symbol "class testing::internal::ThreadLocal<class testing::Sequence *> testing::internal::g_gmock_implicit_sequence"
-target_compile_definitions( gmock INTERFACE GTEST_LINKED_AS_SHARED_LIBRARY )
-target_compile_definitions( gmock_main INTERFACE GTEST_LINKED_AS_SHARED_LIBRARY )
+get_target_property(_gmock_alias GTest::gmock ALIASED_TARGET)
+get_target_property(_gmock_main_alias GTest::gmock_main ALIASED_TARGET)
+if(_gmock_alias)
+  target_compile_definitions( ${_gmock_alias} INTERFACE GTEST_LINKED_AS_SHARED_LIBRARY )
+endif()
+if(_gmock_main_alias)
+  target_compile_definitions( ${_gmock_main_alias} INTERFACE GTEST_LINKED_AS_SHARED_LIBRARY )
+endif()
