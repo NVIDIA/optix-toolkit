@@ -39,19 +39,29 @@ add_executable( testMemory
   TestHeapSuballocator.cpp
   TestMemoryPool.cpp
   TestRingSuballocator.cpp
+  TestSyncVectorHeader.cpp
   )
-
 target_link_libraries( testMemory
   Memory
   CUDA::cudart
   gtest_main
   )
-
 if( OTK_USE_CUDA_MEMORY_POOLS )
   target_compile_definitions( testMemory PRIVATE OTK_USE_CUDA_MEMORY_POOLS )
 endif()
-
 set_property(TARGET testMemory PROPERTY FOLDER Memory/tests)
-
 # Register test cases with CTest.
 gtest_discover_tests(testMemory)
+
+add_executable(testOptiXMemory
+  TestBuilders.cpp
+  TestSyncRecordHeader.cpp
+)
+target_link_libraries(testOptiXMemory
+  OptiXMemory
+  Error
+  CUDA::cudart
+  gtest_main
+)
+set_property(TARGET testOptiXMemory PROPERTY FOLDER Memory/tests)
+gtest_discover_tests(testOptiXMemory)

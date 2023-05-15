@@ -39,20 +39,47 @@ include(BuildConfig)
 include(CTest)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
+find_package( OptiX REQUIRED )
 
-if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
+if( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
   option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
 else()
   option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" OFF )
 endif()
 
-add_library(Memory INTERFACE)
-set_property(TARGET Memory PROPERTY FOLDER Memory)
-
+# The Error library provides uniform error messaging and exception support
+# across the CUDA driver API, the CUDA runtime API and the OptiX API.
+#
+# Including the appropriate API error check header presumes you already have
+# a dependency on the relevant API library and therefore we don't add one here.
+# If you include the API error checking header and haven't added such a dependency
+# yourself you are likely to get a compilation error about not finding includes
+# or a link error about not finding dependent symbols.
+#
+# The ErrorCheck.h header is standalone and depends only on the C++ standard
+# library.  You can plug your own error result types into this mechanism by
+# specializing a couple template functions.  See ErrorCheck.h for details
+# and the provided API headers for examples.
+#
+add_library(Error INTERFACE)
+target_sources(Error
+  PUBLIC
+  FILE_SET HEADERS
+  BASE_DIRS include
+  FILES
+  include/OptiXToolkit/Error/cuErrorCheck.h
+  include/OptiXToolkit/Error/cudaErrorCheck.h
+  include/OptiXToolkit/Error/ErrorCheck.h
+  include/OptiXToolkit/Error/optixErrorCheck.h
+)
+set_property(TARGET Error PROPERTY FOLDER Memory)
 if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::Memory ALIAS Memory)
+  add_library(OptiXToolkit::Error ALIAS Error)
 endif()
 
+# Basic memory allocators and operations.
+add_library(Memory INTERFACE)
+set_property(TARGET Memory PROPERTY FOLDER Memory)
 target_sources(Memory
   PUBLIC 
   FILE_SET HEADERS 
@@ -71,18 +98,43 @@ target_sources(Memory
   include/OptiXToolkit/Memory/MemoryBlockDesc.h
   include/OptiXToolkit/Memory/MemoryPool.h
   include/OptiXToolkit/Memory/RingSuballocator.h
+  include/OptiXToolkit/Memory/SyncVector.h
 )
-
 target_include_directories( Memory INTERFACE
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
-
 target_link_libraries( Memory INTERFACE
+  Error
   CUDA::cuda_driver
   )
-
 if( OTK_USE_CUDA_MEMORY_POOLS )
   target_compile_options( Memory INTERFACE "-DOTK_USE_CUDA_MEMORY_POOLS" )
+endif()
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::Memory ALIAS Memory)
+endif()
+
+# OptiX related memory operations.
+add_library(OptiXMemory INTERFACE)
+target_sources(OptiXMemory
+  PUBLIC
+  FILE_SET HEADERS
+  BASE_DIRS include
+  FILES
+  include/OptiXToolkit/OptiXMemory/Builders.h
+  include/OptiXToolkit/OptiXMemory/Record.h
+  include/OptiXToolkit/OptiXMemory/SyncRecord.h
+)
+target_include_directories(OptiXMemory INTERFACE
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  )
+target_link_libraries(OptiXMemory INTERFACE
+  OptiX::OptiX
+  Memory
+  CUDA::cuda_driver
+  )
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::OptiXMemory ALIAS OptiXMemory)
 endif()
 
 if( BUILD_TESTING )
