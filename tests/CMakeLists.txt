@@ -55,7 +55,10 @@ add_executable( testSelfIntersectionAvoidance
   testSiaCuda.cu
   )
 
-set_target_properties(testSelfIntersectionAvoidance PROPERTIES FOLDER ShaderUtil/tests )
+set_target_properties(testSelfIntersectionAvoidance PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER ShaderUtil/tests 
+)
 
 target_include_directories( testSelfIntersectionAvoidance PUBLIC
   ../support
@@ -72,7 +75,7 @@ target_include_directories( testSIAKernels_ptx PUBLIC
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testSelfIntersectionAvoidance
-  gtest_main
+  GTest::gtest_main
   testSIAKernels
   OptiXToolkit::ShaderUtil
   OptiX::OptiX
