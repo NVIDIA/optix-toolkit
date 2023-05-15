@@ -67,7 +67,10 @@ add_executable( testCuOmmBaking
   Util/OptiXScene.h  
   )  
 
-set_target_properties(testCuOmmBaking PROPERTIES FOLDER CmOmmBaking/tests )
+set_target_properties(testCuOmmBaking PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER CmOmmBaking/tests 
+  )
 
 target_include_directories( testCuOmmBaking PUBLIC
   ../support
@@ -79,7 +82,7 @@ target_include_directories( testCuOmmBaking PUBLIC
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testCuOmmBaking
-  gtest_main
+  GTest::gtest_main
   testCuOmmBakingKernels
   CuOmmBaking
   OptiX::OptiX
