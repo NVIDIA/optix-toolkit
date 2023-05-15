@@ -61,7 +61,9 @@ target_sources(Memory
   include/OptiXToolkit/Memory/Allocators.h
   include/OptiXToolkit/Memory/Assert.h
   include/OptiXToolkit/Memory/BinnedSuballocator.h
+  include/OptiXToolkit/Memory/BitCast.h
   include/OptiXToolkit/Memory/CudaCheck.h
+  include/OptiXToolkit/Memory/DeviceBuffer.h
   include/OptiXToolkit/Memory/DeviceFixedPool.h
   include/OptiXToolkit/Memory/DeviceRingBuffer.h
   include/OptiXToolkit/Memory/FixedSuballocator.h
