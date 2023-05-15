@@ -42,6 +42,9 @@ add_executable( TestDemandGeometry
 )
 target_include_directories( TestDemandGeometry PRIVATE ../include )
 target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry gmock_main )
-set_property( TARGET TestDemandGeometry PROPERTY FOLDER DemandLoading/Tests )
+set_target_properties(TestDemandGeometry PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER DemandGeometry/tests
+  )
 
 gtest_discover_tests(TestDemandGeometry)

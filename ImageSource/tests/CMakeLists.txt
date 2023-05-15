@@ -41,7 +41,10 @@ target_link_libraries( testImageSource PUBLIC
     DemandLoading
     OpenEXR::OpenEXR # for half
     gmock_main )
-set_property( TARGET testImageSource PROPERTY FOLDER DemandLoading/tests )
+set_target_properties( testImageSource PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER ImageSource/tests
+)
 
 # Register test cases with CTest.
 gtest_discover_tests(testImageSource)

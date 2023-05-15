@@ -89,7 +89,7 @@ target_link_libraries( testDemandLoading
   DemandLoading
   CUDA::cudart
   OpenEXR::OpenEXR # for half
-  gmock_main
+  GTest::gmock_main
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
@@ -103,7 +103,11 @@ if( $<TARGET_RUNTIME_DLLS:testDemandLoading> )
     COMMAND_EXPAND_LISTS )
 endif()
 
-set_property(TARGET testDemandLoading PROPERTY FOLDER DemandLoading/tests)
+set_target_properties( testDemandLoading 
+  PROPERTIES CXX_STANDARD 14 # Required by latest gtest
+  FOLDER DemandLoading/tests
+)
+
 
 # Register test cases with CTest.
 gtest_discover_tests(testDemandLoading)
@@ -134,7 +138,7 @@ target_link_libraries( testTextureFootprint
   testTextureFootprintKernel
   DemandLoading
   CUDA::cudart
-  gtest_main
+  GTest::gtest_main
   )
 
 # Copy shared libraries that the built executable depends on.
@@ -144,7 +148,10 @@ if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
     COMMAND_EXPAND_LISTS )
 endif()
 
-set_property(TARGET testTextureFootprint PROPERTY FOLDER DemandLoading/tests)
+set_target_properties( testDemandLoading PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER DemandLoading/tests
+)
 
 # Register test cases with CTest.
 gtest_discover_tests(testTextureFootprint)
