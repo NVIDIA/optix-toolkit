@@ -26,34 +26,22 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
-
-project(DemandLoading LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-include(GNUInstallDirs)
-include(BuildConfig)
-include(FetchOpenEXR)
 include(CTest)
+include(GoogleTest)
 
-find_package( CUDAToolkit 11.1 REQUIRED )
+source_group( "CUDA Files" REGULAR_EXPRESSION ".+\\.cu$" )
 
-if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
-else()
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" OFF )
-endif()
+add_executable( TestDemandGeometry
+  LaunchIntersectAabb.h
+  LaunchIntersectAabb.cu
+  MockDemandLoader.h
+  MockOptix.h
+  MockOptix.cpp
+  test_intersectAabb.cpp
+  test_proxyInstances.cpp
+)
+target_include_directories( TestDemandGeometry PRIVATE ../include )
+target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry gmock_main )
+set_property( TARGET TestDemandGeometry PROPERTY FOLDER DemandLoading/Tests )
 
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.3 REQUIRED)
-
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-add_subdirectory(DemandGeometry)
-add_subdirectory(DemandLoading)
-add_subdirectory(ImageSource)
+gtest_discover_tests(TestDemandGeometry)

@@ -18,7 +18,7 @@
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
 # PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
 # CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\
 # PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
 # PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -26,34 +26,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
-
-project(DemandLoading LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-include(GNUInstallDirs)
 include(BuildConfig)
-include(FetchOpenEXR)
-include(CTest)
 
-find_package( CUDAToolkit 11.1 REQUIRED )
+add_library( DemandGeometry STATIC
+    include/OptiXToolkit/DemandGeometry/DemandGeometry.h
+    include/OptiXToolkit/DemandGeometry/intersectAabb.h
+    include/OptiXToolkit/DemandGeometry/ProxyInstances.h
+    include/OptiXToolkit/DemandGeometry/ProxyInstancesImpl.h
+    src/ProxyInstances.cpp
+)
+target_include_directories( DemandGeometry PUBLIC include )
+target_link_libraries( DemandGeometry PUBLIC DemandLoading OptiXToolkit::Error CUDA::cuda_driver )
+set_target_properties( DemandGeometry PROPERTIES FOLDER DemandLoading )
 
-if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
-else()
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" OFF )
+if(NOT PROJECT_IS_TOP_LEVEL)
+  add_library(OptiXToolkit::DemandGeometry ALIAS DemandGeometry)
 endif()
 
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.3 REQUIRED)
-
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-add_subdirectory(DemandGeometry)
-add_subdirectory(DemandLoading)
-add_subdirectory(ImageSource)
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
