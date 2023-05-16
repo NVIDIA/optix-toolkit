@@ -66,7 +66,7 @@ target_link_libraries(testOptiXMemory
   OptiXMemory
   Error
   CUDA::cudart
-  gtest_main
+  GTest::gtest_main
 )
 set_property(TARGET testOptiXMemory PROPERTY FOLDER Memory/tests)
 gtest_discover_tests(testOptiXMemory)
