@@ -26,6 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+if(TARGET GTest::GTest)
+  return()
+endif()
+
 function(gtest_folders)
   foreach(_target GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
     get_target_property(_alias ${_target} ALIASED_TARGET)

@@ -26,6 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+if(TARGET OpenEXR::OpenEXR)
+  return()
+endif()
+
 option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
 if( NOT OTK_FETCH_CONTENT )
   find_package( OpenEXR 3.1 REQUIRED )
