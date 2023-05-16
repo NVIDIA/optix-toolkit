@@ -27,6 +27,7 @@
 #
 
 include(CTest)
+include(FetchGtest)
 include(GoogleTest)
 
 source_group( "CUDA Files" REGULAR_EXPRESSION ".+\\.cu$" )
@@ -41,7 +42,7 @@ add_executable( TestDemandGeometry
   test_proxyInstances.cpp
 )
 target_include_directories( TestDemandGeometry PRIVATE ../include )
-target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry gmock_main )
+target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
 set_target_properties(TestDemandGeometry PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
   FOLDER DemandGeometry/tests

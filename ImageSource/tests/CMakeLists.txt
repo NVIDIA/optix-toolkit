@@ -40,7 +40,7 @@ target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/i
 target_link_libraries( testImageSource PUBLIC
     DemandLoading
     OpenEXR::OpenEXR # for half
-    gmock_main )
+    GTest::gmock_main )
 set_target_properties( testImageSource PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
   FOLDER ImageSource/tests
