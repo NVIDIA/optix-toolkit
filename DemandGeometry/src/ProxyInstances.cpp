@@ -28,7 +28,7 @@
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 
-#include <OptixToolkit/Error/optixErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 
