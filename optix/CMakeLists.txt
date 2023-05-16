@@ -28,8 +28,12 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
-find_package( OptiX REQUIRED     )
-find_package( CUDAToolkit 10.0 REQUIRED )
+if(NOT TARGET OptiX::OptiX)
+  find_package( OptiX REQUIRED )
+endif()
+if(NOT TARGET CUDA::cuda_driver)
+  find_package( CUDAToolkit 10.0 REQUIRED )
+endif()
 
 configure_file("${CMAKE_SOURCE_DIR}/path_util.py.in" "${CMAKE_SOURCE_DIR}/../examples/path_util.py")
 
