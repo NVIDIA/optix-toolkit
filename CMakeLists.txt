@@ -38,7 +38,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 include(BuildConfig)
 
-find_package( CUDAToolkit 10.0 REQUIRED )
+if(NOT TARGET CUDA::cuda_driver)
+  find_package( CUDAToolkit 10.0 REQUIRED )
+endif()
 
 add_library(ShaderUtil INTERFACE)
 add_library(OptiXToolkit::ShaderUtil ALIAS ShaderUtil)

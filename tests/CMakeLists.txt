@@ -29,9 +29,11 @@
 include(FetchGtest)
 include(GoogleTest)
 
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.3 REQUIRED)
+if(NOT TARGET OptiX::OptiX)
+  # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
+  set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+  find_package(OptiX 7.3 REQUIRED)
+endif()
 
 # The SIA test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include(embed_ptx)
