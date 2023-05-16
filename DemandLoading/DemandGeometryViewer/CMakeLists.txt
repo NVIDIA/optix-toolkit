@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,10 +26,46 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_subdirectory(DemandGeometryViewer)
-add_subdirectory(DemandTextureAppBase)
-add_subdirectory(DemandTextureViewer)
-add_subdirectory(Simple)
-add_subdirectory(Texture)
-add_subdirectory(TextureVariantViewer)
-add_subdirectory(UdimTextureViewer)
+include(BuildConfig)
+include(embed_ptx)
+
+find_package(OptiX 7.5)
+if(NOT OptiX_FOUND)
+  message(WARNING "Cannot build DemandGeometryViewer: it requires OptiX 7.5 or later")
+  return()
+endif()
+
+find_package( CUDAToolkit 11.1 REQUIRED )
+
+embed_ptx(
+    CONST HEADER DemandGeometryViewerKernelPTX.h
+    OUTPUT_TARGET DemandGeometryViewerKernel
+    PTX_INCLUDE_DIRECTORIES include
+    PTX_LINK_LIBRARIES
+        OptiXToolkit::DemandGeometry
+        OptiXToolkit::DemandLoading
+        OptiXToolkit::ShaderUtil
+    SOURCES
+        DemandGeometryViewer.cu
+    FOLDER Examples/DemandLoading
+)
+
+add_executable( DemandGeometryViewer
+    DemandGeometryViewer.h
+    DemandGeometryViewer.cpp
+    SphereInstances.h
+    SphereInstances.cpp
+)
+target_link_libraries( DemandGeometryViewer PUBLIC
+    DemandGeometryViewerKernel
+    DemandGeometry
+    ShaderUtil
+    Gui
+    Util
+    OptiXToolkit::Error
+    CUDA::cudart
+)
+set_target_properties(DemandGeometryViewer PROPERTIES FOLDER Examples/DemandLoading)
+if(WIN32)
+    target_compile_definitions(DemandGeometryViewer PRIVATE NOMINMAX)
+endif()
