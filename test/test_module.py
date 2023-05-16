@@ -123,14 +123,14 @@ class TestModule:
         ctx = optix.deviceContextCreate(0, optix.DeviceContextOptions())
         module_opts   = optix.ModuleCompileOptions()
         pipeline_opts = optix.PipelineCompileOptions()
-        if tutil.optix_version_gte( (7,6) ):
+        if tutil.optix_version_gte( (7,7) ):
             mod, log = ctx.moduleCreate(
                 module_opts,
                 pipeline_opts,
                 sample_ptx.hello_ptx,
                 )
         else:
-            mod, log = ctx.moduleCreate(
+            mod, log = ctx.moduleCreateFromPTX(
                 module_opts,
                 pipeline_opts,
                 sample_ptx.hello_ptx,
@@ -159,7 +159,7 @@ class TestModule:
             
             payload_type = optix.PayloadType( [ payload_sem, payload_sem, payload_sem ] )
             module_opts.payloadTypes = [ payload_type ]
-            if tutil.optix_version_gte( (7,6 ) ):
+            if tutil.optix_version_gte( (7,7 ) ):
                 mod, log = ctx.moduleCreate(
                     module_opts,
                     pipeline_opts,
@@ -169,7 +169,7 @@ class TestModule:
                 mod, log = ctx.moduleCreateFromPTX(
                     module_opts,
                     pipeline_opts,
-                    sample_ptx.hello_ptx,
+                    sample_ptx.triangle_ptx,
                     )
             mod.destroy()
             ctx.destroy()
@@ -188,7 +188,7 @@ class TestModule:
             )
             module_opts.boundValues = [ bound_value_entry ]
             
-            if tutil.optix_version_gte( (7,6) ):
+            if tutil.optix_version_gte( (7,7) ):
                 mod, log = ctx.moduleCreate(
                     module_opts,
                     pipeline_opts,

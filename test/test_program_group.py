@@ -23,7 +23,7 @@ if tutil.optix_version_gte( (7,4) ):
 class TestProgramGroupBase:
     def setup_method(self):
         self.ctx = ox.deviceContextCreate(0, ox.DeviceContextOptions())
-        if tutil.optix_version_gte( (7,6) ):
+        if tutil.optix_version_gte( (7,7) ):
             self.mod, log = self.ctx.moduleCreate(ox.ModuleCompileOptions(),
                                                          ox.PipelineCompileOptions(),
                                                          sample_ptx.hello_ptx)

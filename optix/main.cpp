@@ -1683,11 +1683,18 @@ OptixTraversableHandle accelBuild(
 
 #if OPTIX_VERSION < 70600
 OptixAccelRelocationInfo accelGetRelocationInfo(
+#else 
+OptixRelocationInfo accelGetRelocationInfo(
+#endif
        pyoptix::DeviceContext context,
        OptixTraversableHandle handle
     )
 {
+#if OPTIX_VERSION < 70600
     OptixAccelRelocationInfo info;
+#else
+    OptixRelocationInfo info;
+#endif
     PYOPTIX_CHECK(
         optixAccelGetRelocationInfo(
             context.deviceContext,
@@ -1700,13 +1707,21 @@ OptixAccelRelocationInfo accelGetRelocationInfo(
 }
 
 py::bool_ accelCheckRelocationCompatibility(
-       pyoptix::DeviceContext context,
-       const OptixAccelRelocationInfo* info
+        pyoptix::DeviceContext context,
+#if OPTIX_VERSION < 70600
+        const OptixAccelRelocationInfo* info
+#else
+        const OptixRelocationInfo* info
+#endif
     )
 {
     int compatible;
     PYOPTIX_CHECK(
+#if OPTIX_VERSION < 70600 
         optixAccelCheckRelocationCompatibility(
+#else
+        optixCheckRelocationCompatibility(
+#endif
             context.deviceContext,
             info,
             &compatible
@@ -1716,13 +1731,23 @@ py::bool_ accelCheckRelocationCompatibility(
 }
 
 OptixTraversableHandle accelRelocate(
-       pyoptix::DeviceContext          context,
-       uintptr_t           stream,
-       const OptixAccelRelocationInfo* info,
-       CUdeviceptr                     instanceTraversableHandles,
-       size_t                          numInstanceTraversableHandles,
-       CUdeviceptr                     targetAccel,
-       size_t                          targetAccelSizeInBytes
+#if OPTIX_VERSION < 70600
+        pyoptix::DeviceContext          context,
+        uintptr_t                       stream,
+        const OptixAccelRelocationInfo* info,
+        CUdeviceptr                     instanceTraversableHandles,
+        size_t                          numInstanceTraversableHandles,
+        CUdeviceptr                     targetAccel,
+        size_t                          targetAccelSizeInBytes
+#else
+        pyoptix::DeviceContext     context,
+        uintptr_t                  stream,
+        const OptixRelocationInfo* info,
+        const OptixRelocateInput*  relocateInputs,
+        size_t                     numRelocateInputs,
+        CUdeviceptr                targetAccel,
+        size_t                     targetAccelSizeInBytes
+#endif
     )
 {
     OptixTraversableHandle targetHandle;
@@ -1731,75 +1756,22 @@ OptixTraversableHandle accelRelocate(
             context.deviceContext,
             reinterpret_cast<CUstream>( stream ),
             info,
+#if OPTIX_VERSION < 70600
             instanceTraversableHandles,
             numInstanceTraversableHandles,
             targetAccel,
             targetAccelSizeInBytes,
-            &targetHandle
-        )
-    );
-    return targetHandle;
-}
 #else
-OptixRelocationInfo accelGetRelocationInfo(
-       pyoptix::DeviceContext context,
-       OptixTraversableHandle handle
-    )
-{
-    OptixRelocationInfo info;
-    PYOPTIX_CHECK(
-        optixAccelGetRelocationInfo(
-            context.deviceContext,
-            handle,
-            &info
-        )
-    );
-
-    return info;
-}
-
-py::bool_ accelCheckRelocationCompatibility(
-       pyoptix::DeviceContext context,
-       const OptixRelocationInfo* info
-    )
-{
-    int compatible;
-    PYOPTIX_CHECK(
-        optixCheckRelocationCompatibility(
-            context.deviceContext,
-            info,
-            &compatible
-        )
-    );
-    return py::bool_( compatible );
-}
-
-OptixTraversableHandle accelRelocate(
-       pyoptix::DeviceContext     context,
-       uintptr_t                  stream,
-       const OptixRelocationInfo* info,
-       const OptixRelocateInput*  relocateInputs,
-       size_t                     numRelocateInputs,
-       CUdeviceptr                targetAccel,
-       size_t                     targetAccelSizeInBytes
-    )
-{
-    OptixTraversableHandle targetHandle;
-    PYOPTIX_CHECK(
-        optixAccelRelocate(
-            context.deviceContext,
-            reinterpret_cast<CUstream>( stream ),
-            info,
             relocateInputs,
             numRelocateInputs,
             targetAccel,
             targetAccelSizeInBytes,
+#endif
             &targetHandle
         )
     );
     return targetHandle;
 }
-#endif
 
 OptixTraversableHandle accelCompact(
        pyoptix::DeviceContext  context,
