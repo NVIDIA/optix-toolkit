@@ -123,6 +123,9 @@ described above.
 Problem: CMake Error: include could not find requested file: Policies
 Solution: Git submodules must be initialized, e.g. `git submodule update --init --recursive`
 
+Problem: add_library cannot create ALIAS target "OpenEXR::Config" because another target with the same name already exists.
+Solution: Install OpenEXR 3.1 or later or set `OpenEXR_DIR` to such an installation.
+
 Problem: CMake configuration error: "could not find git for clone of glad-populate" <br>
 Solution: [git is required](https://git-scm.com/download) in order to download third party libraries (e.g. glad)
 
