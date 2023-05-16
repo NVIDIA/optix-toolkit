@@ -39,7 +39,9 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(CTest)
 
-find_package( CUDAToolkit 11.1 REQUIRED )
+if(NOT TARGET CUDA::cuda_driver)
+  find_package( CUDAToolkit 11.1 REQUIRED )
+endif()
 
 # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
 set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
