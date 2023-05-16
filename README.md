@@ -65,7 +65,7 @@ Alternatively, `vcpkg` is a convenient way to provide the third-party libraries 
 - Install vcpkg as describe here:  https://github.com/microsoft/vcpkg
 - Install the packages that OTK requires as follows:
 ```
-vcpkg install openexr glfw3 glad
+vcpkg install imath openexr glfw3 glad
 ```
 - Create toolchain file:
 ```
