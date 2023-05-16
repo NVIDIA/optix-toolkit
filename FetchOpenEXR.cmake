@@ -37,7 +37,7 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
     GIT_TAG v3.1.7
     GIT_SHALLOW TRUE
-    FIND_PACKAGE_ARGS 
+    FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(Imath)
 
@@ -60,7 +60,7 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
     GIT_TAG v3.1.7
     GIT_SHALLOW TRUE
-    FIND_PACKAGE_ARGS 
+    FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(OpenEXR)
 endif()
@@ -68,27 +68,29 @@ endif()
 # Multiple OpenEXR targets have a compile option (/EHsc) that confuses nvcc.
 # We replace it with $<$<COMPILE_LANGUAGE:CXX>:/EHsc>.
 foreach(_package OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
-  get_target_property(_dependencies ${_package} INTERFACE_LINK_LIBRARIES)
-  foreach(_lib ${_package} ${_dependencies})
-    if(TARGET ${_lib})
-      get_target_property(_alias ${_lib} ALIASED_TARGET)
-      if(NOT _alias)
-        set(_alias ${_lib})
-      endif()
-      get_target_property(_options ${_alias} INTERFACE_COMPILE_OPTIONS)
-      if(_options)
-        set(cxx_flag "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>")
-        string(FIND "${_options}" "${cxx_flag}" has_cxx_flag)
-        if(${has_cxx_flag} EQUAL -1)
-          string(REPLACE "/EHsc" ${cxx_flag} _options "${_options}")
-          set_target_properties(${_alias} PROPERTIES INTERFACE_COMPILE_OPTIONS "${_options}")
+  if(TARGET ${_package})
+    get_target_property(_dependencies ${_package} INTERFACE_LINK_LIBRARIES)
+    foreach(_lib ${_package} ${_dependencies})
+      if(TARGET ${_lib})
+        get_target_property(_alias ${_lib} ALIASED_TARGET)
+        if(NOT _alias)
+          set(_alias ${_lib})
+        endif()
+        get_target_property(_options ${_alias} INTERFACE_COMPILE_OPTIONS)
+        if(_options)
+          set(cxx_flag "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>")
+          string(FIND "${_options}" "${cxx_flag}" has_cxx_flag)
+          if(${has_cxx_flag} EQUAL -1)
+            string(REPLACE "/EHsc" ${cxx_flag} _options "${_options}")
+            set_target_properties(${_alias} PROPERTIES INTERFACE_COMPILE_OPTIONS "${_options}")
+          endif()
+        endif()
+        if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+          target_compile_options(${_alias} INTERFACE "-Wno-deprecated-declarations")
         endif()
       endif()
-      if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(${_alias} INTERFACE "-Wno-deprecated-declarations")
-      endif()
-    endif()
-  endforeach()
+    endforeach()
+  endif()
 endforeach()
 
 foreach(_target OpenEXR OpenEXRCore OpenEXRUtil IlmThread Iex Imath)
