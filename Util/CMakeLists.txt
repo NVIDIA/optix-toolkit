@@ -26,7 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-find_package( CUDAToolkit 10.0 REQUIRED )
+if(NOT TARGET CUDA::cuda_driver)
+  find_package( CUDAToolkit 10.0 REQUIRED )
+endif()
 
 include(BuildConfig)
 include(CTest)
