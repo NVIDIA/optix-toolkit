@@ -36,7 +36,7 @@
 
 namespace demandGeometryViewer {
 
-__constant__ Params params;
+extern "C" __constant__ Params params;
 
 struct RadiancePRD
 {
