@@ -43,7 +43,7 @@ target_link_libraries( testImageSource PUBLIC
     GTest::gmock_main )
 set_target_properties( testImageSource PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER ImageSource/tests
+  FOLDER DemandLoading/tests
 )
 
 # Register test cases with CTest.

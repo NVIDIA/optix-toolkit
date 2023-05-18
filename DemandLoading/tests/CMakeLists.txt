@@ -140,6 +140,7 @@ target_link_libraries( testTextureFootprint
   CUDA::cudart
   GTest::gtest_main
   )
+set_target_properties( testTextureFootprint PROPERTIES FOLDER DemandLoading/tests )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
