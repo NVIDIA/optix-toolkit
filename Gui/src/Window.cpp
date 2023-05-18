@@ -173,26 +173,29 @@ void displayBufferWindow( const char* title, const ImageBuffer& buffer )
     // Initialize GL state
     //
     initGL();
-    GLDisplay display( buffer.pixel_format );
-
-    GLuint pbo = 0u;
-    GL_CHECK( glGenBuffers( 1, &pbo ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, pbo ) );
-    GL_CHECK( glBufferData( GL_ARRAY_BUFFER, pixelFormatSize( buffer.pixel_format ) * buffer.width * buffer.height,
-                            buffer.data, GL_STREAM_DRAW ) );
-    GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
-
-    //
-    // Display loop
-    //
-    int framebuf_res_x = 0, framebuf_res_y = 0;
-    do
+    // Scope GLDisplay to ensure owned gl resources are cleaned up before glfwTermninate.
     {
-        glfwWaitEvents();
-        glfwGetFramebufferSize( window, &framebuf_res_x, &framebuf_res_y );
-        display.display( buffer.width, buffer.height, framebuf_res_x, framebuf_res_y, pbo );
-        glfwSwapBuffers( window );
-    } while( !glfwWindowShouldClose( window ) );
+        GLDisplay display( buffer.pixel_format );
+
+        GLuint pbo = 0u;
+        GL_CHECK( glGenBuffers( 1, &pbo ) );
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, pbo ) );
+        GL_CHECK( glBufferData( GL_ARRAY_BUFFER, pixelFormatSize( buffer.pixel_format ) * buffer.width * buffer.height,
+                                buffer.data, GL_STREAM_DRAW ) );
+        GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+
+        //
+        // Display loop
+        //
+        int framebuf_res_x = 0, framebuf_res_y = 0;
+        do
+        {
+            glfwWaitEvents();
+            glfwGetFramebufferSize( window, &framebuf_res_x, &framebuf_res_y );
+            display.display( buffer.width, buffer.height, framebuf_res_x, framebuf_res_y, pbo );
+            glfwSwapBuffers( window );
+        } while( !glfwWindowShouldClose( window ) );
+    }
 
     glfwDestroyWindow( window );
     glfwTerminate();
