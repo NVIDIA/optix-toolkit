@@ -40,6 +40,7 @@
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
@@ -99,12 +100,6 @@ DemandTextureApp::~DemandTextureApp()
 // OptiX setup
 //------------------------------------------------------------------------------
 
-static void contextLogCallback( unsigned int level, const char* tag, const char* message, void* /*cbdata */ )
-{
-    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << "\n";
-}
-
-
 void DemandTextureApp::createContext( PerDeviceOptixState& state )
 {
     // Initialize CUDA on this device
@@ -113,8 +108,7 @@ void DemandTextureApp::createContext( PerDeviceOptixState& state )
 
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
-    options.logCallbackFunction       = &contextLogCallback;
-    options.logCallbackLevel          = 4;
+    otk::util::setLogger( options );
     OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &state.context ) );
 
     CUDA_CHECK( cudaStreamCreate( &state.stream ) );

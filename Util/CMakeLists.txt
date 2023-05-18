@@ -38,8 +38,10 @@ add_library(Util STATIC
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
+  include/OptiXToolkit/Util/Logger.h
   src/EXRInputFile.cpp
   src/Exception.cpp
+  src/Logger.cpp
   )
 
 add_library(OptiXToolkit::Util ALIAS Util)

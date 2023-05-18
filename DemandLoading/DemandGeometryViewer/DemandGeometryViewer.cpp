@@ -50,6 +50,7 @@
 #include <OptiXToolkit/OptiXMemory/Record.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
 #include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #include <GLFW/glfw3.h>
 
@@ -62,8 +63,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstring>
-#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -97,11 +96,6 @@ const uint_t PROXY_SBT_INDEX      = 0;
         "         --frames=<num>              Specify number of warmup frames before writing to file\n";
     // clang-format on
     exit( 1 );
-}
-
-void contextLog( uint_t level, const char* tag, const char* message, void* /*cbdata */ )
-{
-    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << '\n';
 }
 
 struct Options
@@ -168,17 +162,6 @@ Options parseArguments( int argc, char* argv[] )
 
     return options;
 }
-
-class CudaContextPushPop
-{
-  public:
-    CudaContextPushPop( CUcontext current ) { OTK_ERROR_CHECK( cuCtxPushCurrent( current ) ); }
-    ~CudaContextPushPop()
-    {
-        CUcontext ignored{};
-        cuCtxPopCurrent( &ignored );
-    }
-};
 
 struct SceneProxy
 {
@@ -351,8 +334,7 @@ void Application::createContext()
 
     OTK_ERROR_CHECK( optixInit() );
     OptixDeviceContextOptions options{};
-    options.logCallbackFunction = contextLog;
-    options.logCallbackLevel    = 4;
+    otk::util::setLogger( options );
 #ifndef NDEBUG
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
 #endif
