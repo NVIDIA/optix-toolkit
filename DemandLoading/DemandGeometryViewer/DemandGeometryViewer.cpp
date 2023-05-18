@@ -221,9 +221,6 @@ class Application
     void createGeometry( uint_t pageId );
     void updateSbt();
 
-    void increaseLevel();
-    void decreaseLevel();
-
     void runInteractive();
     void updateState( OutputBuffer& output );
     void handleCameraUpdate();
@@ -294,7 +291,6 @@ class Application
     GLFWwindow*          m_window{};
     otk::TrackballCamera m_trackballCamera;
 
-    uint_t                      m_level{};
     std::vector<SceneProxy>     m_sceneProxies;
     std::vector<ScenePrimitive> m_scenePrimitives;
 };
@@ -663,21 +659,6 @@ void Application::updateSbt()
     m_hitGroupRecords.copyToDeviceAsync( m_stream );
 }
 
-void Application::increaseLevel()
-{
-    m_level++;
-    std::cout << "Level " << m_level << '\n';
-}
-
-void Application::decreaseLevel()
-{
-    if( m_level > 0 )
-    {
-        m_level--;
-        std::cout << "Level " << m_level << '\n';
-    }
-}
-
 void Application::run()
 {
     if( m_options.outFile.empty() )
@@ -862,14 +843,6 @@ void Application::key( GLFWwindow* window, int32_t key, int32_t /*scanCode*/, in
     if( action == GLFW_PRESS )
         switch( key )
         {
-            case GLFW_KEY_UP:
-                increaseLevel();
-                break;
-
-            case GLFW_KEY_DOWN:
-                decreaseLevel();
-                break;
-
             case GLFW_KEY_Q:
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose( window, 1 );
