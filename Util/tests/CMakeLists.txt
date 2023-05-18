@@ -50,7 +50,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 set_target_properties(testUtil PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER examples/Util/tests 
+  FOLDER Examples/tests 
 )
 
 target_link_libraries( testUtil

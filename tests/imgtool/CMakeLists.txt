@@ -32,4 +32,4 @@ target_include_directories(imgtool PRIVATE
   ${stb_image_SOURCE_DIR}
   ${stb_image_write_SOURCE_DIR}
   )
-set_target_properties(imgtool PROPERTIES FOLDER Examples/Tests)
+set_target_properties(imgtool PROPERTIES FOLDER Examples/tests)
