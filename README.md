@@ -23,9 +23,9 @@ Instructions on incorporating the Demand Loading Library into your project are p
 
 ## Quick start
 
-See the [simple demand loading example](../examples/DemandLoading/Simple/simple.cpp)
-example, which demonstrates how to use the OptiX Demand Loading library.  The first step is to
-create a `DemandLoader` object, through which subsequent method calls are invoked:
+See the [simple demand loading example](../examples/DemandLoading/Simple/simple.cpp), which demonstrates 
+how to use the OptiX Demand Loading library.  The first step is to create a `DemandLoader` object,
+through which subsequent method calls are invoked:
 ```
 // Create DemandLoader
 DemandLoader* loader = createDemandLoader( Options() );

@@ -30,6 +30,7 @@
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/OIIOReader.h>
 
 #include "Exception.h"
 
@@ -87,8 +88,7 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     }
     else
     {
-        std::string msg= "Image file not supported: ";
-        throw Exception( ( msg + filename ).c_str() );
+        return std::shared_ptr<ImageSource>( new OIIOReader( path ) );
     }
 }
 

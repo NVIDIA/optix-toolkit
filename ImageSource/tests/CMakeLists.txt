@@ -34,8 +34,13 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 add_executable( testImageSource
   TestCheckerBoardImage.cpp
-  TestEXRReader.cpp
+  TestImageSource.cpp
 )
+
+if(OpenImageIO_FOUND)
+  target_compile_options(testImageSource PRIVATE "-DOTK_USE_OIIO")
+endif()
+
 target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
 target_link_libraries( testImageSource PUBLIC
     DemandLoading
