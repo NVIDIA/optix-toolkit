@@ -38,11 +38,6 @@ namespace demandGeometryViewer {
 
 extern "C" __constant__ Params params;
 
-struct RadiancePRD
-{
-    float3 result;
-};
-
 template <typename T>
 __forceinline__ __device__ T* getSbtData()
 {
@@ -70,10 +65,10 @@ extern "C" __global__ void __raygen__pinHoleCamera()
     const auto*  camera = getSbtData<CameraData>();
     const uint_t pixel  = params.width * idx.y + idx.x;
 
-    float2      d         = make_float2( idx.x, idx.y ) / make_float2( params.width, params.height ) * 2.f - 1.f;
-    float3      rayOrigin = camera->eye;
-    float3      rayDir    = normalize( d.x * camera->U + d.y * camera->V + camera->W );
-    RadiancePRD prd{};
+    float2 d         = make_float2( idx.x, idx.y ) / make_float2( params.width, params.height ) * 2.f - 1.f;
+    float3 rayOrigin = camera->eye;
+    float3 rayDir    = normalize( d.x * camera->U + d.y * camera->V + camera->W );
+    float3 result{};
 
     float         tMin         = 0.0f;
     float         tMax         = 1e16f;
@@ -83,9 +78,9 @@ extern "C" __global__ void __raygen__pinHoleCamera()
     uint_t        sbtStride    = RAYTYPE_COUNT;
     uint_t        missSbtIndex = RAYTYPE_RADIANCE;
     optixTrace( params.traversable, rayOrigin, rayDir, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
-                sbtOffset, sbtStride, missSbtIndex, float3Attr( prd.result ) );
+                sbtOffset, sbtStride, missSbtIndex, float3Attr( result ) );
 
-    params.image[pixel] = makeColor( prd.result );
+    params.image[pixel] = makeColor( result );
 }
 
 static __forceinline__ __device__ void setRayPayload( float3 p )
@@ -101,22 +96,6 @@ extern "C" __global__ void __miss__backgroundColor()
     setRayPayload( make_float3( data->background.x, data->background.y, data->background.z ) );
 }
 
-static __device__ __inline__ RadiancePRD getRadiancePRD()
-{
-    RadiancePRD prd;
-    prd.result.x = __uint_as_float( optixGetPayload_0() );
-    prd.result.y = __uint_as_float( optixGetPayload_1() );
-    prd.result.z = __uint_as_float( optixGetPayload_2() );
-    return prd;
-}
-
-static __device__ __inline__ void setRadiancePRD( const RadiancePRD& prd )
-{
-    optixSetPayload_0( __float_as_uint( prd.result.x ) );
-    optixSetPayload_1( __float_as_uint( prd.result.y ) );
-    optixSetPayload_2( __float_as_uint( prd.result.z ) );
-}
-
 static __device__ void phongShade( float3 const& p_Kd,
                                    float3 const& p_Ka,
                                    float3 const& p_Ks,
@@ -125,7 +104,6 @@ static __device__ void phongShade( float3 const& p_Kd,
                                    float3 const& p_normal )
 {
     const float3 rayDir = optixGetWorldRayDirection();
-    RadiancePRD  prd    = getRadiancePRD();
 
     // ambient contribution
     float3 result = p_Ka * params.ambientColor;
@@ -156,8 +134,7 @@ static __device__ void phongShade( float3 const& p_Kd,
     }
 
     // pass the color back
-    prd.result = result;
-    setRadiancePRD( prd );
+    setRayPayload( result );
 }
 
 extern "C" __global__ void __closesthit__sphere()
