@@ -59,6 +59,9 @@ are downloaded and built if necessary:
 - GLFW 3.3 or later
 - glad (any recent version)
 
+The DemandLoading library can optionally employ OpenImageIO (if installed) to read image files.
+However, OpenImageIO is not downloaded if missing.
+
 ### Using vcpkg
 
 Alternatively, `vcpkg` is a convenient way to provide the third-party libraries required by OTK:
