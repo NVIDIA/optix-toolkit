@@ -41,7 +41,6 @@ extern "C" __constant__ Params params;
 struct RadiancePRD
 {
     float3 result;
-    int    depth;
 };
 
 template <typename T>
@@ -75,7 +74,6 @@ extern "C" __global__ void __raygen__pinHoleCamera()
     float3      rayOrigin = camera->eye;
     float3      rayDir    = normalize( d.x * camera->U + d.y * camera->V + camera->W );
     RadiancePRD prd{};
-    prd.depth = 0;
 
     float         tMin         = 0.0f;
     float         tMax         = 1e16f;
@@ -85,7 +83,7 @@ extern "C" __global__ void __raygen__pinHoleCamera()
     uint_t        sbtStride    = RAYTYPE_COUNT;
     uint_t        missSbtIndex = RAYTYPE_RADIANCE;
     optixTrace( params.traversable, rayOrigin, rayDir, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
-                sbtOffset, sbtStride, missSbtIndex, float3Attr( prd.result ), attr( prd.depth ) );
+                sbtOffset, sbtStride, missSbtIndex, float3Attr( prd.result ) );
 
     params.image[pixel] = makeColor( prd.result );
 }
@@ -109,7 +107,6 @@ static __device__ __inline__ RadiancePRD getRadiancePRD()
     prd.result.x = __uint_as_float( optixGetPayload_0() );
     prd.result.y = __uint_as_float( optixGetPayload_1() );
     prd.result.z = __uint_as_float( optixGetPayload_2() );
-    prd.depth    = optixGetPayload_3();
     return prd;
 }
 
@@ -118,7 +115,6 @@ static __device__ __inline__ void setRadiancePRD( const RadiancePRD& prd )
     optixSetPayload_0( __float_as_uint( prd.result.x ) );
     optixSetPayload_1( __float_as_uint( prd.result.y ) );
     optixSetPayload_2( __float_as_uint( prd.result.z ) );
-    optixSetPayload_3( prd.depth );
 }
 
 static __device__ void phongShade( float3 const& p_Kd,
