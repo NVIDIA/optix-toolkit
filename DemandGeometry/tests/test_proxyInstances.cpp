@@ -269,7 +269,7 @@ TEST_F( TestProxyInstance, resourceCallbackSavesPageId )
     EXPECT_CALL( m_loader, createResource( _, _, _ ) )
         .WillOnce( DoAll( SaveArg<1>( &resourceCallback ), SaveArg<2>( &context ), Return( m_startPageId ) ) );
     m_instances.add( m_proxyBounds );
-    const std::vector<uint_t> beforePageIds = m_instances.requestedResources();
+    const std::vector<uint_t> beforePageIds = m_instances.requestedProxyIds();
 
     void*      result;
     const bool satisfied = resourceCallback( m_stream, m_startPageId, context, &result );
@@ -277,7 +277,7 @@ TEST_F( TestProxyInstance, resourceCallbackSavesPageId )
     EXPECT_TRUE( satisfied );
     EXPECT_TRUE( beforePageIds.empty() );
     EXPECT_EQ( nullptr, result );
-    const std::vector<uint_t> afterPageIds = m_instances.requestedResources();
+    const std::vector<uint_t> afterPageIds = m_instances.requestedProxyIds();
     EXPECT_FALSE( afterPageIds.empty() );
     EXPECT_NE( afterPageIds.end(), std::find( afterPageIds.begin(), afterPageIds.end(), m_startPageId ) );
 }
@@ -289,13 +289,13 @@ TEST_F( TestProxyInstance, resourceCallbackDeduplicatesPageId )
     EXPECT_CALL( m_loader, createResource( _, _, _ ) )
         .WillOnce( DoAll( SaveArg<1>( &resourceCallback ), SaveArg<2>( &context ), Return( m_startPageId ) ) );
     m_instances.add( m_proxyBounds );
-    const std::vector<uint_t> beforePageIds = m_instances.requestedResources();
+    const std::vector<uint_t> beforePageIds = m_instances.requestedProxyIds();
 
     void* pageTableEntry;
     (void)resourceCallback( m_stream, m_startPageId, context, &pageTableEntry );
     (void)resourceCallback( m_stream, m_startPageId, context, &pageTableEntry );
 
-    const std::vector<uint_t> afterPageIds = m_instances.requestedResources();
+    const std::vector<uint_t> afterPageIds = m_instances.requestedProxyIds();
     EXPECT_EQ( static_cast<size_t>( 1 ), afterPageIds.size() );
 }
 

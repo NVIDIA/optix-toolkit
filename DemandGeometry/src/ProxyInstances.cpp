@@ -62,7 +62,7 @@ ProxyInstances::ProxyInstances( demandLoading::DemandLoader* loader )
     m_primitiveBounds.push_back( primitiveBounds );
 }
 
-std::vector<uint_t> ProxyInstances::requestedResources() const
+std::vector<uint_t> ProxyInstances::requestedProxyIds() const
 {
     std::vector<uint_t> result;
     {

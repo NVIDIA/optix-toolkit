@@ -56,14 +56,6 @@ class ProxyInstances
   public:
     ProxyInstances( demandLoading::DemandLoader* loader );
 
-    std::vector<uint_t> requestedResources() const;
-
-    /// Set the shader binding table index to be used by the proxies.
-    ///
-    /// @param  index       The hit group index to use for the proxies.
-    ///
-    void setSbtIndex( uint_t index ) { m_sbtIndex = index; }
-
     /// Register a proxy for the given bounds.
     ///
     /// This method is multi-thread safe and can be called from inside the resource callback.
@@ -91,6 +83,19 @@ class ProxyInstances
     ///
     void copyToDeviceAsync( CUstream stream );
 
+    /// Returns the requested proxy ids.
+    ///
+    /// After DemandLoader::processRequests and Ticket::wait has been called, all
+    /// the requested proxy ids are known and can be returned by this method.
+    ///
+    std::vector<uint_t> requestedProxyIds() const;
+
+    /// Set the shader binding table index to be used by the proxy traversable.
+    ///
+    /// @param  index       The hit group index to use for the proxies.
+    ///
+    void setSbtIndex( uint_t index ) { m_sbtIndex = index; }
+
     /// Create the traversable for the proxies.
     ///
     /// @param  dc          The OptiX device context to use for the AS build.
@@ -100,16 +105,21 @@ class ProxyInstances
     ///
     OptixTraversableHandle createTraversable( OptixDeviceContext dc, CUstream stream );
 
-    /// Get the typed pointer to the proxy bounding box array on the device.
+    /// Get the proxy instance context for the device.
     ///
-    /// @returns    Device pointer to the proxy bounding boxes.
+    /// This is typically held as a member in your launch parameters and
+    /// made available via the implementation of ::demandGeometry::app::getContext.
     ///
-    const OptixAabb* getTypedProxyDataDevicePtr() const { return m_proxyData.typedDevicePtr(); }
+    /// @returns    Context structure.
+    ///
+    Context getContext() const { return { m_proxyData.typedDevicePtr() }; }
 
     /// Get the name of the closest hit program.
     const char* getCHFunctionName() const;
+
     /// Get the name of the intersection program.
     const char* getISFunctionName() const;
+
     /// Return the maximum number of attributes used by IS and CH programs.
     int getNumAttributes() const;
 
