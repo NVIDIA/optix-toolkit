@@ -1,6 +1,13 @@
 # OptiX Demand Loading Geometry Library
 
 The demand loading geometry library consists of a host API and a device API.
+A simple example is provided that demonstrates the use of the API.
+
+## Example
+
+The `DemandGeometryViewer` example provides a simple demonstration of
+demand loading geometry with a single proxy that is replaced with an instance of
+a sphere primitive.
 
 ## Host API
 
