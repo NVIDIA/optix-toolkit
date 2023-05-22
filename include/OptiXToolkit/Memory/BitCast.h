@@ -32,8 +32,11 @@
 
 namespace otk {
 
-// bit_cast -- Safely convert from one type to another
-// Like reinterpret_cast, but conforms to the requirements of the C++ standard.
+/// Safely convert from one type to another
+/// Like reinterpret_cast, but conforms to the requirements of the C++ standard.
+/// @tparam T       The destination type.
+/// @tparam U       The source type.  Deduced from the type of the argument.
+/// @param value    The value of type U to be converted to type T.
 template <typename T, typename U>
 T bit_cast( U value )
 {

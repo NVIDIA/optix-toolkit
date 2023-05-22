@@ -35,20 +35,24 @@
 namespace otk {
 namespace error {
 
-/// Specializations for CUDA runtime error codes
-
+/// Specializations for CUDA runtime error names.
 template <>
-inline std::string getErrorName( cudaError_t error )
+inline std::string getErrorName( cudaError_t value )
 {
-    return ::cudaGetErrorName( error );
+    return ::cudaGetErrorName( value );
 }
 
+/// Specializations for CUDA runtime error messages.
 template <>
-inline std::string getErrorMessage( cudaError_t error )
+inline std::string getErrorMessage( cudaError_t value )
 {
-    return ::cudaGetErrorString( error );
+    return ::cudaGetErrorString( value );
 }
 
+/// Synchronize with a CUDA device and then check for errors.
+///
+/// @param file     The source file that invoked this function.
+/// @param line     The source file line that invoked this function.
 inline void syncCheck( const char* file, unsigned int line )
 {
     cudaDeviceSynchronize();
@@ -59,6 +63,7 @@ inline void syncCheck( const char* file, unsigned int line )
 }  // namespace error
 }  // namespace otk
 
+/// Synchronize with a CUDA device and then check for errors at the current file and line location.
 #define OTK_CUDA_SYNC_CHECK() ::otk::error::syncCheck( __FILE__, __LINE__ )
 
 #endif

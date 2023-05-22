@@ -32,26 +32,26 @@
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
-/// Specializations for CUDA driver API error codes.
-
 namespace otk {
 namespace error {
 
+/// Specializations for CUDA driver API error names.
 template <>
-inline std::string getErrorName( CUresult error )
+inline std::string getErrorName( CUresult value )
 {
     const char* name{};
-    ::cuGetErrorName( error, &name );
+    ::cuGetErrorName( value, &name );
     if( name )
         return name;
     return {};
 }
 
+/// Specializations for CUDA driver API error messages.
 template <>
-inline std::string getErrorMessage( CUresult error )
+inline std::string getErrorMessage( CUresult value )
 {
     const char* message{};
-    ::cuGetErrorString( error, &message );
+    ::cuGetErrorString( value, &message );
     if( message )
         return message;
     return {};

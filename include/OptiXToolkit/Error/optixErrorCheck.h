@@ -35,18 +35,18 @@
 namespace otk {
 namespace error {
 
-// Specialization of OptiX error result codes.
-
+/// Specialization for OptiX error names.
 template <>
-inline std::string getErrorName( OptixResult error )
+inline std::string getErrorName( OptixResult value )
 {
-    return ::optixGetErrorName( error );
+    return ::optixGetErrorName( value );
 }
 
+/// Specialization for OptiX error messages.
 template <>
-inline std::string getErrorMessage( OptixResult error )
+inline std::string getErrorMessage( OptixResult value )
 {
-    return ::optixGetErrorString( error );
+    return ::optixGetErrorString( value );
 }
 
 }  // namespace error

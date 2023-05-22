@@ -114,7 +114,7 @@ class DeviceBuffer
     }
 
     /// Return the raw device pointer of the allocated device memory.
-    operator CUdeviceptr() { return m_devStorage; }
+    operator CUdeviceptr() const { return m_devStorage; }
 
     /// Return the associated void* with the allocated device memory.
     void* devicePtr() const { return bit_cast<void*>( m_devStorage ); }

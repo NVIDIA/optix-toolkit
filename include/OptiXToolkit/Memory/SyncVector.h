@@ -142,6 +142,7 @@ class SyncVector
     /// filling out OptiX data structures.
     operator CUdeviceptr() { return m_device; }
 
+    /// Resize the host memory to the given number of elements.
     void resize( size_t size )
     {
         m_host.resize( size );
