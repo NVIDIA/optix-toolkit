@@ -433,7 +433,7 @@ void Application::createPrimitives()
 {
     addProxy( 0, { 0.0f, 0.0f, 0.0f }, 1.0f );
     m_proxies->copyToDeviceAsync( m_stream );
-    m_params[0].demandGeomContext.proxies = m_proxies->getTypedProxyDataDevicePtr();
+    m_params[0].demandGeomContext = m_proxies->getContext();
 
     const float3        Ka       = { 0.0f, 0.0f, 0.0f };
     const float3        Kd       = { 0.5f * 1.0f, 0.5f * 0.9f, 0.5f * 0.7f };
@@ -773,7 +773,7 @@ void Application::updateScene()
     m_ticket.wait();
 
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
-    for( const uint_t pageId : m_proxies->requestedResources() )
+    for( const uint_t pageId : m_proxies->requestedProxyIds() )
     {
         createGeometry( pageId );
     }
