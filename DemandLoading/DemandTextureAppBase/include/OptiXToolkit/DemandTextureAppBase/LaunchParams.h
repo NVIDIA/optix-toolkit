@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -42,6 +42,22 @@ enum RayType
     RAY_TYPE_COUNT
 };
 
+enum Projection
+{
+    ORTHOGRAPHIC = 0,
+    PINHOLE,
+    THINLENS,
+    NUM_PROJECTIONS
+};
+
+struct CameraFrame
+{
+    float3 eye;
+    float3 U;
+    float3 V;
+    float3 W;
+};
+
 // OptiX launch params
 struct Params
 {
@@ -50,23 +66,23 @@ struct Params
     unsigned int num_devices;
 
     // Render buffer
-    uchar4*      result_buffer;
-    unsigned int image_width;
-    unsigned int image_height;
+    float4* accum_buffer;
+    uchar4* result_buffer;
+    uint2   image_dim;
 
     // Camera params
-    float3 eye;
-    float3 U;
-    float3 V;
-    float3 W;
+    CameraFrame camera;
+    float lens_width;
+    Projection projection;
 
     // Handle to scene bvh for ray traversal
     OptixTraversableHandle traversable_handle;
 
     // Demand texture context
     demandLoading::DeviceContext demand_texture_context;
-
     int  display_texture_id;  // which texture to show resident tiles
+
+    unsigned int render_mode; // how to render the scene
     bool interactive_mode;    // whether the application is running in interactive mode
 
     // Extra params that can be used by the application
@@ -89,6 +105,39 @@ struct MissData
 struct HitGroupData
 {
     unsigned int texture_id;
+};
+
+struct ColorTex
+{
+    float3 color;
+    int texid;
+};
+
+struct SurfaceTexture
+{
+    ColorTex diffuse;
+    ColorTex specular;
+    ColorTex transmission;
+    ColorTex emission;
+    float roughness;
+    float ior;
+};
+
+struct SurfaceGeometry
+{
+    float3 P, Ng;        // intersection point and geometric normal
+    float3 N, S, T;      // shading normal and basis
+    float2 uv, ddx, ddy; // texture coordinates and derivatives
+    float  curvature;    // Surface curvature
+    bool flipped;        // Whether the normal was flipped 
+};
+
+struct TriangleHitGroupData
+{
+    SurfaceTexture tex;
+    float4* vertices;
+    float3* normals;
+    float2* tex_coords;
 };
 
 } // namespace demandTextureApp

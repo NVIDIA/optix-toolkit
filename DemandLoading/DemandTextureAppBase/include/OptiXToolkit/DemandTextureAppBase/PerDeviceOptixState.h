@@ -37,12 +37,18 @@ struct PerDeviceOptixState
     OptixDeviceContext          context                  = 0;   // OptiX context for this device
     OptixTraversableHandle      gas_handle               = 0;   // Traversable handle for geometry acceleration structure (gas)
     CUdeviceptr                 d_gas_output_buffer      = 0;   // device side buffer for gas
+    CUdeviceptr                 d_vertices               = 0;   // vertices
+    float3*                     d_normals                = 0;   // normals
+    float2*                     d_tex_coords             = 0;   // texture coordinates
+    
     OptixModule                 ptx_module               = 0;   // OptiX module stores device code from a file
     OptixPipelineCompileOptions pipeline_compile_options = {};  // Determines how to compile a pipeline
     OptixPipeline               pipeline                 = 0;   // One or more modules linked together for device side programs of the app
+
     OptixProgramGroup           raygen_prog_group        = 0;   // OptiX raygen programs for the pipeline
     OptixProgramGroup           miss_prog_group          = 0;   // OptiX miss programs for the pipeline
     OptixProgramGroup           hitgroup_prog_group      = 0;   // OptiX hitgroup programs for the pipeline
+    
     OptixShaderBindingTable     sbt                      = {};  // Shader binding table
     Params                      params                   = {};  // Host-side copy of parameters for OptiX launch
     Params*                     d_params                 = nullptr;  // Device-side copy of params
@@ -58,8 +64,9 @@ struct SbtRecord
     T data;
 };
 
-typedef SbtRecord<RayGenData>   RayGenSbtRecord;
-typedef SbtRecord<MissData>     MissSbtRecord;
-typedef SbtRecord<HitGroupData> HitGroupSbtRecord;
+typedef SbtRecord<RayGenData>           RayGenSbtRecord;
+typedef SbtRecord<MissData>             MissSbtRecord;
+typedef SbtRecord<HitGroupData>         HitGroupSbtRecord;
+typedef SbtRecord<TriangleHitGroupData> TriangleHitGroupSbtRecord;
 
 } // namespace demandTextureApp

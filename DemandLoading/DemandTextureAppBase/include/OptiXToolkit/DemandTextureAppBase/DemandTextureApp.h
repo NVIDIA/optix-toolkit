@@ -63,11 +63,15 @@ class DemandTextureApp
     virtual ~DemandTextureApp();
 
     // Public functions to initialize the app and start rendering
+    void setNumLaunches( int numLaunches ) { m_minLaunches = numLaunches; }
+    void sceneIsTriangles( bool t ) { m_scene_is_triangles = t; }
     void initDemandLoading();
     virtual void createTexture() = 0;
     void initOptixPipelines( const char* moduleCode );
     void startLaunchLoop();
     void printDemandLoadingStats();
+    void resetAccumulator();
+    void setMipScale( float scale ) { m_mipScale = scale; }
 
     // GLFW callbacks
     virtual void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
@@ -80,19 +84,19 @@ class DemandTextureApp
   protected:
     // OptiX setup
     void createContext( PerDeviceOptixState& state );
-    void buildAccel( PerDeviceOptixState& state );
+    virtual void buildAccel( PerDeviceOptixState& state );
     void createModule( PerDeviceOptixState& state, const char* moduleCode, size_t codeSize );
     void createProgramGroups( PerDeviceOptixState& state );
     void createPipeline( PerDeviceOptixState& state );
-    void createSBT( PerDeviceOptixState& state );
-    void cleanupState( PerDeviceOptixState& state );
+    virtual void createSBT( PerDeviceOptixState& state );
+    virtual void cleanupState( PerDeviceOptixState& state );
 
     // Demand loading and texturing system
     demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, CUfilter_mode filterMode );
     imageSource::ImageSource* createExrImage( const char* filePath );
     
     // OptiX launches
-    void initView();
+    virtual void initView();
     void setView( float3 eye, float3 lookAt, float3 up, float fovY );
     virtual void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices );
     unsigned int performLaunches();
@@ -101,6 +105,7 @@ class DemandTextureApp
     virtual void drawGui();
     void displayFrame();
     void saveImage();
+
     bool isInteractive() const { return m_outputFileName.empty(); }
 
   protected:
@@ -111,19 +116,26 @@ class DemandTextureApp
     int                                            m_windowWidth;
     int                                            m_windowHeight;
     std::string                                    m_outputFileName = "";
+    unsigned int                                   m_render_mode = 0;
 
     // OptiX states for each device
     std::vector<PerDeviceOptixState> m_perDeviceOptixStates;
+    bool m_scene_is_triangles = false;
 
     // Demand loading and textures
     std::shared_ptr<demandLoading::DemandLoader> m_demandLoader;
     std::vector<unsigned int>                    m_textureIds;
     int                                          m_launchCycles = 0;
+    int                                          m_subframeId = 0;
     int                                          m_numFilledRequests = 0;
+    int                                          m_minLaunches = 2;
 
     // Camera and view
     otk::Camera m_camera;
+    Projection m_projection = ORTHOGRAPHIC;
+    float m_lens_width = 0.0f;
     float4 m_backgroundColor = float4{0.1f, 0.1f, 0.5f, 0.0f};
+    float m_mipScale = 1.0f;
 
     // Mouse state
     static const int NO_BUTTON = -1;
@@ -134,6 +146,7 @@ class DemandTextureApp
 
     void panCamera( float3 pan );
     void zoomCamera( float zoom );
+    void rotateCamera( float rot );
 };
 
 void setGLFWCallbacks( DemandTextureApp* app );
