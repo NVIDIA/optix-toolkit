@@ -14,4 +14,4 @@ A simple demand load geometry library was added.  Instead of loading geometry
 directly into the scene, the application adds proxies associated with a bounding
 box.  After launch, the demand geometry library reports back which proxies were
 intersected and the application can use this to load the corresponding geometry.
-See the [DemandGeometry ReadMe](DemandGeometry/ReadMe.md) for details on the API.
+See the [DemandGeometry README](DemandGeometry/README.md) for details on the API.
