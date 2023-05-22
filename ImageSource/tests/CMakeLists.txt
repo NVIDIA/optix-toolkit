@@ -37,10 +37,6 @@ add_executable( testImageSource
   TestImageSource.cpp
 )
 
-if(OpenImageIO_FOUND)
-  target_compile_options(testImageSource PRIVATE "-DOTK_USE_OIIO")
-endif()
-
 target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
 target_link_libraries( testImageSource PUBLIC
     DemandLoading

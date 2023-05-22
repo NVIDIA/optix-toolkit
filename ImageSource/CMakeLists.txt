@@ -91,7 +91,7 @@ target_link_libraries( ImageSource
   OpenEXR_OTK
   )
 
-find_package(OpenImageIO)
+find_package(OpenImageIO QUIET)
 if(OpenImageIO_FOUND)
   set(Boost_NO_WARN_NEW_VERSIONS ON)
   find_package(Boost COMPONENTS system filesystem REQUIRED)
@@ -108,6 +108,13 @@ if(OpenImageIO_FOUND)
 else()
   message(WARNING "OpenImageIO not found.  Skipping OIIOReader.")
 endif()
+
+# Define OTK_USE_OIIO in Config.h
+configure_file( src/Config.h.in include/Config.h @ONLY )
+
+target_include_directories(ImageSource PUBLIC  # public to facilitate unit testing.
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for Config.h
+  )
 
 set_target_properties(ImageSource PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 

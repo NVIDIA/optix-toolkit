@@ -26,12 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "Config.h"  // generated from Config.h.in
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
 #include "gtest/gtest.h"
 #include <OptiXToolkit/ImageSource/EXRReader.h>
 
-#ifdef OTK_USE_OIIO
+#if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
 
@@ -124,7 +125,7 @@ struct TestOIIOReader : public testing::Test
 };
 
 // Macro to instantiate the test cases for all Reader typs
-#ifdef OTK_USE_OIIO
+#if OTK_USE_OIIO
 #define INSTANTIATE_READER_TESTS( TEST_NAME )                                                                          \
     TEST_F( TestEXRReader, TEST_NAME ) { run##TEST_NAME<EXRReader>(); }                                                \
     TEST_F( TestCoreEXRReader, TEST_NAME ) { run##TEST_NAME<CoreEXRReader>(); }                                        \
@@ -405,7 +406,7 @@ void runReadPartialTileNonSquare()
     half4 blue{ 0, 0, 1, 0 };
     EXPECT_EQ( blue, texels[0 * tileWidth + 0] );
 
-#ifdef OTK_USE_OIIO    
+#if OTK_USE_OIIO    
     // Early exit for OIIOReader.
     if( std::is_same<ReaderType, OIIOReader>::value )
     {
@@ -419,7 +420,7 @@ void runReadPartialTileNonSquare()
 
 INSTANTIATE_READER_TESTS( ReadPartialTileNonSquare );
 
-#ifdef OTK_USE_OIIO
+#if OTK_USE_OIIO
 
 class TestOIIOReaderFileTypes : public testing::TestWithParam<std::string>
 {
