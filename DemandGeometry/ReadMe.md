@@ -12,7 +12,7 @@ class.
 The rendering process follows this sequence:
 1. The application calls `ProxyInstances::add` to add proxies to the scene.
 Proxies are specified by their associated axis-aligned bounding box (AABB).
-Each added proxy returns an id that is associated with the proxy.  Proxyies
+Each added proxy returns an id that is associated with the proxy.  Proxies
 can be removed from the scene by calling `ProxyInstances::remove` and supplying
 their associated id.
 2. Once the set of proxies has been updated for this launch,
