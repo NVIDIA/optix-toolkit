@@ -3,7 +3,7 @@
 
 A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
 
-See the [CHANGELOG](https://github.com/NVIDIA/optix-toolkit/CHANGELOG.md) for recent changes.
+See the [CHANGELOG](CHANGELOG.md) for recent changes.
 
 ## Current Utilities
 - **[DemandLoading](https://github.com/NVIDIA/otk-demand-loading)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
