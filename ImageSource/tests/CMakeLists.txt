@@ -26,38 +26,26 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
+include( FetchGtest )
+include( GoogleTest )
 
-project(DemandLoading LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
-include(GNUInstallDirs)
-include(BuildConfig)
-include(FetchOpenEXR)
-include(CTest)
+add_executable( testImageSource
+  TestCheckerBoardImage.cpp
+  TestImageSource.cpp
+)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
+target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
+target_link_libraries( testImageSource PUBLIC
+    DemandLoading
+    OpenEXR::OpenEXR # for half
+    GTest::gmock_main )
+set_target_properties( testImageSource PROPERTIES 
+  CXX_STANDARD 14  # Required by latest gtest
+  FOLDER DemandLoading/tests
+)
 
-if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
-else()
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" OFF )
-endif()
-
-if(NOT TARGET OptiX::OptiX)
-  # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-  set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-  find_package(OptiX 7.3 REQUIRED)
-endif()
-
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-add_subdirectory(DemandGeometry)
-add_subdirectory(DemandLoading)
-add_subdirectory(ImageSource)
+# Register test cases with CTest.
+gtest_discover_tests(testImageSource)
