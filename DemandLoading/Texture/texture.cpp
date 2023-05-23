@@ -36,9 +36,6 @@
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 
-#include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
-#include <OptiXToolkit/ImageSource/EXRReader.h>
-
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #endif
@@ -53,10 +50,9 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #include <cassert>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -140,12 +136,6 @@ void printUsageAndExit( const char* argv0 )
     exit( 1 );
 }
 
-static void context_log_cb( unsigned int level, const char* tag, const char* message, void* /*cbdata */ )
-{
-    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << "\n";
-}
-
-
 void initCameraState()
 {
     float3 camEye = {-6.0f, 0.0f, 0.0f};
@@ -172,8 +162,7 @@ void createContext( PerDeviceSampleState& state )
     OptixDeviceContext        context;
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
-    options.logCallbackFunction       = &context_log_cb;
-    options.logCallbackLevel          = 4;
+    otk::util::setLogger( options );
     OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
 
     state.context = context;
@@ -604,31 +593,12 @@ int main( int argc, char* argv[] )
         options.maxThreads = g_numThreads;  // maximum threads to use when processing page requests
         std::shared_ptr<DemandLoader> demandLoader( createDemandLoader( options ), destroyDemandLoader );
 
-        std::unique_ptr<ImageSource> imageSource;
-
-// Make an exr reader or a procedural texture reader based on the textureFile name
-        if( !textureFile.empty() && textureFile != "checkerboard" )
-        {
-            std::string textureFilename( getSourceDir() + "/Textures/" + textureFile );
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR
-            imageSource = g_useCoreExr
-                ? std::unique_ptr<ImageSource>( new CoreEXRReader( textureFilename.c_str() ) )
-                : std::unique_ptr<ImageSource>( new EXRReader( textureFilename.c_str() ) );
-#else
-            imageSource = std::unique_ptr<ImageSource>( new EXRReader( textureFilename.c_str() ) );
-#endif
-        }
-        if( imageSource == nullptr )
-        {
-            const int  squaresPerSide = 32;
-            const bool useMipmaps     = true;
-            imageSource = std::unique_ptr<ImageSource>(
-                new CheckerBoardImage( g_textureWidth, g_textureHeight, squaresPerSide, useMipmaps ) );
-        }
+        std::string                  directory( getSourceDir() + "/Textures/" );
+        std::shared_ptr<ImageSource> imageSource = createImageSource( textureFile, directory );
 
         // Create a demand-loaded texture
         TextureDescriptor    texDesc = makeTextureDescription();
-        const DemandTexture& texture = demandLoader->createTexture( std::move( imageSource ), texDesc );
+        const DemandTexture& texture = demandLoader->createTexture( imageSource, texDesc );
 
         // Set up OptiX per-device states
         for( PerDeviceSampleState& state : states )

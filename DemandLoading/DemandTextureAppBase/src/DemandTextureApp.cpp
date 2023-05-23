@@ -39,6 +39,8 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
@@ -68,7 +70,7 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     // Create display window for interactive mode
     if( isInteractive() )
     {
-        m_window = otk::initGLFW( appName, width, height );
+        m_window = otk::initUI( appName, width, height );
         otk::initGL();
         m_glDisplay.reset( new otk::GLDisplay( otk::BufferImageFormat::UNSIGNED_BYTE4 ) );
         setGLFWCallbacks( this );
@@ -90,18 +92,13 @@ DemandTextureApp::~DemandTextureApp()
 {
     for( PerDeviceOptixState state : m_perDeviceOptixStates )
         cleanupState( state );
+    otk::cleanupUI( m_window );
 }
 
 
 //------------------------------------------------------------------------------
 // OptiX setup
 //------------------------------------------------------------------------------
-
-static void contextLogCallback( unsigned int level, const char* tag, const char* message, void* /*cbdata */ )
-{
-    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << "\n";
-}
-
 
 void DemandTextureApp::createContext( PerDeviceOptixState& state )
 {
@@ -111,8 +108,7 @@ void DemandTextureApp::createContext( PerDeviceOptixState& state )
 
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
-    options.logCallbackFunction       = &contextLogCallback;
-    options.logCallbackLevel          = 4;
+    otk::util::setLogger( options );
     OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &state.context ) );
 
     CUDA_CHECK( cudaStreamCreate( &state.stream ) );
@@ -572,6 +568,10 @@ void DemandTextureApp::startLaunchLoop()
             m_numFilledRequests += performLaunches();
             ++m_launchCycles;
             displayFrame();
+
+            otk::beginFrameImGui();
+            otk::displayFPS( m_launchCycles );
+            otk::endFrameImGui();
             glfwSwapBuffers( getWindow() );
         }
     }

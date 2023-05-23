@@ -26,31 +26,39 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(GNUInstallDirs)
-include(BuildConfig)
-
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
+if(TARGET imgui)
+  return()
 endif()
 
-add_executable( demandLoadSimple
-  simple.cpp
-  PageRequester.cu
-  )
+include(FetchContent)
 
-target_link_libraries( demandLoadSimple
-  OptiXToolkit::DemandLoading
-  OptiXToolkit::Util
-  CUDA::cudart
-  )
+FetchContent_Declare(imgui
+  GIT_REPOSITORY https://github.com/ocornut/imgui.git
+  GIT_TAG v1.89.5
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui)
 
-set_target_properties( demandLoadSimple PROPERTIES
-  FOLDER Examples/DemandLoading
-  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+add_library( imgui STATIC
+    ${imgui_SOURCE_DIR}/imconfig.h
+    ${imgui_SOURCE_DIR}/imgui.h
+    ${imgui_SOURCE_DIR}/imgui_internal.h
+    ${imgui_SOURCE_DIR}/imstb_rectpack.h
+    ${imgui_SOURCE_DIR}/imstb_textedit.h
+    ${imgui_SOURCE_DIR}/imstb_truetype.h
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
+)
 
-# Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:demandLoadSimple> )
-  add_custom_command( TARGET demandLoadSimple POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
-    COMMAND_EXPAND_LISTS )
-endif()
+target_include_directories( imgui PUBLIC ${imgui_SOURCE_DIR} )
+target_include_directories( imgui INTERFACE ${imgui_SOURCE_DIR}/backends )
+target_compile_definitions( imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD )
+target_link_libraries( imgui PUBLIC glfw glad ${OPENGL_gl_LIBRARY} ${CMAKE_DL_LIBS})
+set_target_properties( imgui PROPERTIES FOLDER ThirdParty )

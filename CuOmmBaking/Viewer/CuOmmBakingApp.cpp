@@ -28,9 +28,6 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include <iostream>
-#include <iomanip>
-
 #include <cuda_runtime.h>
 
 #include <optix.h>
@@ -41,6 +38,7 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #include "PerDeviceOptixState.h"
 #include "CuOmmBakingApp.h"
@@ -145,12 +143,6 @@ OmmBakingApp::~OmmBakingApp()
 // OptiX setup
 //------------------------------------------------------------------------------
 
-static void contextLogCallback( unsigned int level, const char* tag, const char* message, void* /*cbdata */ )
-{
-    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << "\n";
-}
-
-
 void OmmBakingApp::createContext( PerDeviceOptixState& state )
 {
     // Initialize CUDA on this device
@@ -159,8 +151,7 @@ void OmmBakingApp::createContext( PerDeviceOptixState& state )
 
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
-    options.logCallbackFunction       = &contextLogCallback;
-    options.logCallbackLevel          = 4;
+    otk::util::setLogger( options );
     OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &state.context ) );
 
     CUDA_CHECK( cudaStreamCreate( &state.stream ) );

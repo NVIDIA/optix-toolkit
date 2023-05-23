@@ -26,25 +26,23 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#ifndef OTK_UTIL_LOGGER_H
+#define OTK_UTIL_LOGGER_H
 
-#include <algorithm>
-#include <vector>
+#include <optix.h>
 
 namespace otk {
+namespace util {
 
-/// Fill a fixed-length array of Ts with a value of type U that can be converted to T.
-template <typename T, size_t N, typename U>
-void fill( T ( &ary )[N], U value )
-{
-    std::fill( std::begin( ary ), std::end( ary ), static_cast<T>( value ) );
-}
+/// Sets the log callback to a simple logger that logs to cerr in a
+/// standard format used by the example programs.  The log level is
+/// set to 4.
+///
+/// @param options  The options structure on which the log callback and level will be set.
+///
+void setLogger( OptixDeviceContextOptions& options );
 
-/// Fill a std::vector<T> with a value of type U that can be converted to T.
-template <typename T, typename U>
-void fill( std::vector<T>& vec, U value )
-{
-    std::fill( std::begin( vec ), std::end( vec ), static_cast<T>( value ) );
-}
-
+}  // namespace util
 }  // namespace otk
+
+#endif

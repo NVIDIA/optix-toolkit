@@ -26,31 +26,46 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(GNUInstallDirs)
 include(BuildConfig)
+include(embed_ptx)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
+find_package(OptiX 7.5)
+if(NOT OptiX_FOUND)
+  message(WARNING "Cannot build DemandGeometryViewer: it requires OptiX 7.5 or later")
+  return()
 endif()
 
-add_executable( demandLoadSimple
-  simple.cpp
-  PageRequester.cu
-  )
+find_package( CUDAToolkit 11.1 REQUIRED )
 
-target_link_libraries( demandLoadSimple
-  OptiXToolkit::DemandLoading
-  OptiXToolkit::Util
-  CUDA::cudart
-  )
+embed_ptx(
+    CONST HEADER DemandGeometryViewerKernelPTX.h
+    OUTPUT_TARGET DemandGeometryViewerKernel
+    PTX_INCLUDE_DIRECTORIES include
+    PTX_LINK_LIBRARIES
+        OptiXToolkit::DemandGeometry
+        OptiXToolkit::DemandLoading
+        OptiXToolkit::ShaderUtil
+    SOURCES
+        DemandGeometryViewer.cu
+    FOLDER Examples/DemandLoading
+)
 
-set_target_properties( demandLoadSimple PROPERTIES
-  FOLDER Examples/DemandLoading
-  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
-
-# Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:demandLoadSimple> )
-  add_custom_command( TARGET demandLoadSimple POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
-    COMMAND_EXPAND_LISTS )
+add_executable( DemandGeometryViewer
+    DemandGeometryViewer.h
+    DemandGeometryViewer.cpp
+    SphereInstances.h
+    SphereInstances.cpp
+)
+target_link_libraries( DemandGeometryViewer PUBLIC
+    DemandGeometryViewerKernel
+    DemandGeometry
+    ShaderUtil
+    Gui
+    Util
+    OptiXToolkit::Error
+    CUDA::cudart
+)
+set_target_properties(DemandGeometryViewer PROPERTIES FOLDER Examples/DemandLoading)
+if(WIN32)
+    target_compile_definitions(DemandGeometryViewer PRIVATE NOMINMAX)
 endif()

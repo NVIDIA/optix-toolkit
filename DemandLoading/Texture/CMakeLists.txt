@@ -31,7 +31,9 @@ include(BuildConfig)
 include(FetchGlad)
 include(embed_ptx)
 
-find_package( CUDAToolkit 11.1 REQUIRED )
+if(NOT TARGET CUDA::cuda_driver)
+  find_package( CUDAToolkit 11.1 REQUIRED )
+endif()
 
 embed_ptx(
   CONST HEADER TextureKernelPTX.h

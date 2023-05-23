@@ -33,6 +33,7 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Window.h>
 #include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>
@@ -41,7 +42,6 @@
 
 #include <cuda_runtime.h>
 
-#include <iomanip>
 #include <iostream>
 #include <string>
 
@@ -69,11 +69,6 @@ void printUsageAndExit( const char* argv0 )
     exit( 1 );
 }
 
-
-static void context_log_cb( unsigned int level, const char* tag, const char* message, void* /*cbdata */ )
-{
-    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << "\n";
-}
 
 int main( int argc, char* argv[] )
 {
@@ -124,8 +119,7 @@ int main( int argc, char* argv[] )
             CUcontext cuCtx = 0;  // zero means take the current context
             OPTIX_CHECK( optixInit() );
             OptixDeviceContextOptions options = {};
-            options.logCallbackFunction       = &context_log_cb;
-            options.logCallbackLevel          = 4;
+            otk::util::setLogger(options);
             OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
         }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,26 +25,75 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-
 #pragma once
 
-#include <algorithm>
-#include <vector>
+#include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 
-namespace otk {
+#include <optix_types.h>
 
-/// Fill a fixed-length array of Ts with a value of type U that can be converted to T.
-template <typename T, size_t N, typename U>
-void fill( T ( &ary )[N], U value )
+#include <vector_types.h>
+
+namespace demandGeometryViewer {
+
+using uint_t = unsigned int;
+
+enum RayType
 {
-    std::fill( std::begin( ary ), std::end( ary ), static_cast<T>( value ) );
-}
+    RAYTYPE_RADIANCE = 0,
+    RAYTYPE_COUNT
+};
 
-/// Fill a std::vector<T> with a value of type U that can be converted to T.
-template <typename T, typename U>
-void fill( std::vector<T>& vec, U value )
+struct CameraData
 {
-    std::fill( std::begin( vec ), std::end( vec ), static_cast<T>( value ) );
-}
+    float3 eye;
+    float3 U;
+    float3 V;
+    float3 W;
+};
 
-}  // namespace otk
+struct MissData
+{
+    float3 background;
+};
+
+struct SphereData
+{
+    const uint_t* indices;
+};
+
+struct PhongMaterial
+{
+    float3 Ka;
+    float3 Kd;
+    float3 Ks;
+    float3 Kr;
+    float  phongExp;
+};
+
+struct HitGroupData
+{
+    SphereData    spheres;
+    PhongMaterial material;
+};
+
+struct BasicLight
+{
+    float3 pos;
+    float3 color;
+};
+
+struct Params
+{
+    uchar4*                      image;
+    uint_t                       width;
+    uint_t                       height;
+    BasicLight                   lights[3];
+    float3                       ambientColor;
+    PhongMaterial                proxyMaterial;
+    float                        sceneEpsilon;
+    OptixTraversableHandle       traversable;
+    demandLoading::DeviceContext demandContext;
+    demandGeometry::Context      demandGeomContext;
+};
+
+}  // namespace demandGeometryViewer

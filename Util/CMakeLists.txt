@@ -26,23 +26,22 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-find_package( CUDAToolkit 10.0 REQUIRED )
+if(NOT TARGET CUDA::cuda_driver)
+  find_package( CUDAToolkit 10.0 REQUIRED )
+endif()
 
 include(BuildConfig)
 include(CTest)
 include(FetchOpenEXR)
 
 add_library(Util STATIC
-  include/OptiXToolkit/Util/Builders.h
-  include/OptiXToolkit/Util/DeviceBuffer.h
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
-  include/OptiXToolkit/Util/Record.h
-  include/OptiXToolkit/Util/SyncRecord.h
-  include/OptiXToolkit/Util/SyncVector.h
+  include/OptiXToolkit/Util/Logger.h
   src/EXRInputFile.cpp
   src/Exception.cpp
+  src/Logger.cpp
   )
 
 add_library(OptiXToolkit::Util ALIAS Util)
@@ -59,6 +58,7 @@ target_link_libraries(Util PRIVATE
   CUDA::cudart
   OpenEXR::OpenEXR
   )
+target_link_libraries(Util PUBLIC OptiXToolkit::Memory)
 
 set_target_properties(Util PROPERTIES FOLDER Examples)
 

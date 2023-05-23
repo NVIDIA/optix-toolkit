@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,23 +28,38 @@
 
 #pragma once
 
-#include <algorithm>
-#include <vector>
+#include <OptiXToolkit/Memory/DeviceBuffer.h>
+#include <OptiXToolkit/Memory/SyncVector.h>
 
-namespace otk {
+#include <optix.h>
 
-/// Fill a fixed-length array of Ts with a value of type U that can be converted to T.
-template <typename T, size_t N, typename U>
-void fill( T ( &ary )[N], U value )
+#include <cuda.h>
+
+#include <cstdint>
+
+namespace demandGeometryViewer {
+
+using uint_t = unsigned int;
+
+class SphereInstances
 {
-    std::fill( std::begin( ary ), std::end( ary ), static_cast<T>( value ) );
-}
+  public:
+    void add( float3 center, float radius, int index );
+    void remove( int index );
+    void setSbtIndex( uint_t index ) { m_sbtIndex = index; }
 
-/// Fill a std::vector<T> with a value of type U that can be converted to T.
-template <typename T, typename U>
-void fill( std::vector<T>& vec, U value )
-{
-    std::fill( std::begin( vec ), std::end( vec ), static_cast<T>( value ) );
-}
+    OptixTraversableHandle createTraversable( OptixDeviceContext dc, CUstream stream );
 
-}  // namespace otk
+    const uint_t* getIndicesDevicePtr() const { return m_indices.typedDevicePtr(); }
+
+  private:
+    otk::SyncVector<uint_t>        m_indices;
+    otk::SyncVector<float3>        m_centers;
+    otk::SyncVector<float>         m_radii;
+    otk::SyncVector<std::uint32_t> m_sbtIndices;
+    otk::DeviceBuffer              m_devTempBufferGas;
+    otk::DeviceBuffer              m_devGeomAs;
+    uint_t                         m_sbtIndex{};
+};
+
+}  // namespace demandGeometryViewer

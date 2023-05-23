@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+add_subdirectory(DemandGeometryViewer)
 add_subdirectory(DemandTextureAppBase)
 add_subdirectory(DemandTextureViewer)
 add_subdirectory(Simple)

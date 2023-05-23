@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,23 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#pragma once
 
-#include <optix.h>
+#include <OptiXToolkit/Util/Logger.h>
 
+#include <cctype>
+#include <iomanip>
+#include <iostream>
+#include <string>
 
-namespace otk
+namespace otk {
+namespace util {
+
+using uint_t = unsigned int;
+
+static void contextLog( uint_t level, const char* tag, const char* text, void* /*cbdata */ )
 {
+    std::string message{ text };
+    while( !message.empty() && std::isspace( message.back() ) )
+        message.pop_back();
+    if( message.empty() )
+        return;
+    std::cerr << "[" << std::setw( 2 ) << level << "][" << std::setw( 12 ) << tag << "]: " << message << '\n';
+}
 
-template <typename T>
-struct Record
+void setLogger( OptixDeviceContextOptions& options )
 {
-    __align__( OPTIX_SBT_RECORD_ALIGNMENT ) char header[OPTIX_SBT_RECORD_HEADER_SIZE];
-    T data;
-};
+    options.logCallbackFunction = contextLog;
+    options.logCallbackLevel    = 4;
+}
 
-struct EmptyData {};
-
-typedef Record<EmptyData> EmptyRecord;
-
-} // namespace otk
+}  // namespace util
+}  // namespace otk
