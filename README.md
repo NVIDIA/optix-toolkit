@@ -6,11 +6,11 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 See the [CHANGELOG](https://github.com/NVIDIA/optix-toolkit/CHANGELOG.md) for recent changes.
 
 ## Current Utilities
-- **[PyOptiX](https://github.com/NVIDIA/otk-pyoptix)** - Complete Python bindings for the OptiX host API.
-- **[OmmBaking](https://github.com/NVIDIA/otk-omm-baking)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
 - **[DemandLoading](https://github.com/NVIDIA/otk-demand-loading)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
-- **[ShaderUtil](https://github.com/NVIDIA/otk-shader-util)** - Header-only libraries for OptiX kernels (e.g. vector math, Self Intersection Avoidance).
 - **[Memory](https://github.com/NVIDIA/otk-memory)** - Memory allocators (used by DemandLoading library).
+- **[OmmBaking](https://github.com/NVIDIA/otk-omm-baking)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
+- **[PyOptiX](https://github.com/NVIDIA/otk-pyoptix)** - Complete Python bindings for the OptiX host API.
+- **[ShaderUtil](https://github.com/NVIDIA/otk-shader-util)** - Header-only libraries for OptiX kernels (e.g. vector math, Self Intersection Avoidance).
 
 Each of these components is stored in a separate git repository, which is referenced as a git submodule.
 After checking out the OptiX Toolkit repository, be sure to update the submodules, e.g.
