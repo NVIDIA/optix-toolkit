@@ -2,6 +2,8 @@
 
 CMake modules for the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
 
+See the [CHANGELOG](CHANGELOG.md) for recent changes.
+
 ## Attributions
 
 This project contains build logic from the
