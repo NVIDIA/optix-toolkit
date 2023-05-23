@@ -120,8 +120,9 @@ INPUT                  = \
   @CMAKE_SOURCE_DIR@/OmmBaking/README.md \
   @CMAKE_SOURCE_DIR@/DemandLoading/include \
   @CMAKE_SOURCE_DIR@/DemandLoading/README.md \
-  @CMAKE_SOURCE_DIR@/PyOptiX/README.md \
-  @CMAKE_SOURCE_DIR@/Util/include
+  @CMAKE_SOURCE_DIR@/Memory/include \
+  @CMAKE_SOURCE_DIR@/Memory/README.md \
+  @CMAKE_SOURCE_DIR@/PyOptiX/README.md
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.h 
 RECURSIVE              = YES

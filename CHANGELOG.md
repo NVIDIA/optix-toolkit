@@ -1,6 +1,11 @@
 # OptiX Toolkit changes
 
-## v0.6 - 2022-01-18
+## Version 0.8
+
+* Added DemandGeometry library
+* Added DemandGeometryViewer example
+
+## Version 0.6 - 2022-01-18
 
 * Added OmmBaking library in [b4810b0](commit/b4810b0)
 * Added a simple OptiX example (OtkHello) in [7db1ace](commit/94628f28f05e6b19b4c956b53d06bf6d37db1ace)

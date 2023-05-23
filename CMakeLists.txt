@@ -35,8 +35,9 @@
 # CMake helper files are located in the CMake subdirectory.
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
+# We rely on CMake 3.24 for its integration of FetchContent and find_package.
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 include(Policies)
 
 #########################################################
@@ -66,6 +67,16 @@ install(FILES ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfig.cmake
   ${OptiXToolkit_BINARY_DIR}/CMake/OptiXToolkitConfigVersion.cmake
   CMake/FindOptiX.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit)
+
+#########################################################
+# Third-party libraries
+
+find_package(CUDAToolkit)
+
+# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
+set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
+find_package(OptiX)
+
 
 #########################################################
 # Subdirectories
