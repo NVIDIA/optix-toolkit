@@ -37,7 +37,7 @@ and get intersected proxies reported back to `ProxyInstances`.  This returns
 a ticket to synchronize with the demand loader.
 8. Call `Ticket::wait` on the returned ticket to get all proxy ids reported
 back to `ProxyInstances`.
-9. Call `ProxyInstances::requestedResources` to get the ids of the intersected
+9. Call `ProxyInstances::requestedProxyIds` to get the ids of the intersected
 proxies.  For each id, the application can either ignore the request or load
 the corresponding real geometry and remove the proxy associated with the id.
 Any proxy not removed from the scene may continue to be intersected and report
