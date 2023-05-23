@@ -59,6 +59,10 @@ is obtained by calling `ProxyInstances::getCHFunctionName` and
 `ProxyInstances::getISFunctionName`.  The hit group associated with these programs
 is designated by the value passed to `ProxyInstances::setSbtIndex`.
 
+The number of attributes used by the proxy intersection and closest hit programs
+is returned by `ProxyInstances::getNumAttributes`.  The application should ensure
+that the value of `OptixPipelineOptions::numAttributeValues` is at least this large.
+
 ## Device API
 
 The proxy instances have their own intersection and closest hit programs.  The
