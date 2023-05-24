@@ -137,6 +137,7 @@ target_link_libraries(OptiXMemory INTERFACE
   Memory
   CUDA::cuda_driver
   )
+set_target_properties(OptiXMemory PROPERTIES FOLDER Memory)
 if(NOT PROJECT_IS_TOP_LEVEL)
   add_library(OptiXToolkit::OptiXMemory ALIAS OptiXMemory)
 endif()
