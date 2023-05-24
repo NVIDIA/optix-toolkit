@@ -61,6 +61,7 @@ target_include_directories(ShaderUtil INTERFACE
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
+set_target_properties(ShaderUtil PROPERTIES FOLDER "ShaderUtil")
 install(TARGETS ShaderUtil
   EXPORT ShaderUtilTargets
   FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
