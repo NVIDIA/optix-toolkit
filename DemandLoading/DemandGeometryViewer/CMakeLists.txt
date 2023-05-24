@@ -47,6 +47,7 @@ embed_ptx(
         OptiXToolkit::ShaderUtil
     SOURCES
         DemandGeometryViewer.cu
+        Sphere.cu
     FOLDER Examples/DemandLoading
 )
 

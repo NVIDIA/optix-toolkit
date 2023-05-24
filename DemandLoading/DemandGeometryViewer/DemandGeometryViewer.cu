@@ -96,71 +96,6 @@ extern "C" __global__ void __miss__backgroundColor()
     setRayPayload( make_float3( data->background.x, data->background.y, data->background.z ) );
 }
 
-static __device__ void phongShade( float3 const& p_Kd,
-                                   float3 const& p_Ka,
-                                   float3 const& p_Ks,
-                                   float3 const& p_Kr,
-                                   float const&  p_phong_exp,
-                                   float3 const& p_normal )
-{
-    const float3 rayDir = optixGetWorldRayDirection();
-
-    // ambient contribution
-    float3 result = p_Ka * params.ambientColor;
-
-    // Illuminate using three lights
-    for( int i = 0; i < 3; i++ )
-    {
-        // note that the light "position" (really a direction) passed in is assumed to be normalized
-        float3 lightPos = params.lights[i].pos;
-
-        // for directional lights the effect is simply the surface normal dot light position
-        float nDl = dot( p_normal, lightPos );
-
-        if( nDl > 0.0f )
-        {
-            // perform the computation
-            float3 phongRes = p_Kd * nDl;
-
-            float3 H   = normalize( lightPos - rayDir );
-            float  nDh = dot( p_normal, H );
-            if( nDh > 0 )
-            {
-                float power = pow( nDh, p_phong_exp );
-                phongRes += p_Ks * power;
-            }
-            result += phongRes * params.lights[i].color;
-        }
-    }
-
-    // pass the color back
-    setRayPayload( result );
-}
-
-extern "C" __global__ void __closesthit__sphere()
-{
-    const float tHit = optixGetRayTmax();
-
-    const float3 rayOrigin = optixGetWorldRayOrigin();
-    const float3 rayDir    = optixGetWorldRayDirection();
-
-    const unsigned int           primIdx     = optixGetPrimitiveIndex();
-    const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
-    const unsigned int           sbtGASIndex = optixGetSbtGASIndex();
-
-    float4 q;
-    // sphere center (q.x, q.y, q.z), sphere radius q.w
-    optixGetSphereData( gas, primIdx, sbtGASIndex, 0.f, &q );
-
-    const float3 worldRayPos  = rayOrigin + tHit * rayDir;
-    const float3 objectRayPos = optixTransformPointFromWorldToObjectSpace( worldRayPos );
-    const float3 objectNormal = ( objectRayPos - make_float3( q ) ) / q.w;
-    const float3 worldNormal  = normalize( optixTransformNormalFromObjectToWorldSpace( objectNormal ) ) * 0.5f + 0.5f;
-
-    const PhongMaterial& mat = getSbtData<HitGroupData>()->material;
-    phongShade( mat.Kd, mat.Ka, mat.Ks, mat.Kr, mat.phongExp, worldNormal );
-}
-
 }  // namespace demandGeometryViewer
 
 namespace demandGeometry {
@@ -178,11 +113,24 @@ __device__ const demandLoading::DeviceContext& getDeviceContext()
 
 __device__ void reportClosestHitNormal( float3 ffNormal )
 {
-    // Use a single material for all proxies.
-    const demandGeometryViewer::PhongMaterial& mat = demandGeometryViewer::params.proxyMaterial;
-    demandGeometryViewer::phongShade( mat.Kd, mat.Ka, mat.Ks, mat.Kr, mat.phongExp, ffNormal );
-}
+    // Color the proxy faces by a solid color per face.
+    const float3* colors = demandGeometryViewer::params.proxyFaceColors;
+    uint_t        index{};
+    if( ffNormal.x > 0.5f )
+        index = 0;
+    else if( ffNormal.x < -0.5f )
+        index = 1;
+    else if( ffNormal.y > 0.5f )
+        index = 2;
+    else if( ffNormal.y < -0.5f )
+        index = 3;
+    else if( ffNormal.z > 0.5f )
+        index = 4;
+    else if( ffNormal.z < -0.5f )
+        index = 5;
 
+    demandGeometryViewer::setRayPayload( colors[index] );
+}
 
 }  // namespace app
 }  // namespace demandGeometry

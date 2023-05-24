@@ -89,7 +89,7 @@ struct Params
     uint_t                       height;
     BasicLight                   lights[3];
     float3                       ambientColor;
-    PhongMaterial                proxyMaterial;
+    float3                       proxyFaceColors[6];
     float                        sceneEpsilon;
     OptixTraversableHandle       traversable;
     demandLoading::DeviceContext demandContext;

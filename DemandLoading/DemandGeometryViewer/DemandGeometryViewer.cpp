@@ -200,7 +200,7 @@ class Application
     void createContext();
     void initPipelineOpts();
 
-    OptixModule createModuleFromSource( OptixModuleCompileOptions compileOptions );
+    OptixModule createModuleFromSource( OptixModuleCompileOptions compileOptions, const char* ptx, size_t ptxSize );
 
     void createModules();
     void createProgramGroups();
@@ -251,7 +251,8 @@ class Application
     OptixDeviceContext          m_context{};
     CUstream                    m_stream{};
     OptixPipelineCompileOptions m_pipelineOpts{};
-    OptixModule                 m_sampleModule{};
+    OptixModule                 m_viewerModule{};
+    OptixModule                 m_materialModule{};
     OptixModule                 m_sphereModule{};
     bool                        m_updateNeeded{};
 
@@ -354,11 +355,10 @@ void Application::initPipelineOpts()
     m_pipelineOpts.pipelineLaunchParamsVariableName = "params";
 }
 
-OptixModule Application::createModuleFromSource( OptixModuleCompileOptions compileOptions )
+OptixModule Application::createModuleFromSource( OptixModuleCompileOptions compileOptions, const char* ptx, size_t ptxSize )
 {
     OptixModule module;
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DemandGeometryViewer_ptx_text(),
-                                         DemandGeometryViewer_ptx_size, LOG, &LOG_SIZE, &module ) );
+    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, ptx, ptxSize, LOG, &LOG_SIZE, &module ) );
     return module;
 }
 
@@ -374,7 +374,8 @@ void Application::createModules()
     compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 : OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
 
-    m_sampleModule = createModuleFromSource( compileOptions );
+    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_ptx_text(), DemandGeometryViewer_ptx_size );
+    m_materialModule = createModuleFromSource( compileOptions, Sphere_ptx_text(), Sphere_ptx_size );
 
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
@@ -386,11 +387,11 @@ void Application::createProgramGroups()
 {
     OptixProgramGroupOptions options{};
     OptixProgramGroupDesc    descs[NUM_GROUPS]{};
-    otk::ProgramGroupDescBuilder( descs, m_sampleModule )
+    otk::ProgramGroupDescBuilder( descs, m_viewerModule )
         .raygen( "__raygen__pinHoleCamera" )
         .miss( "__miss__backgroundColor" )
-        .hitGroupCHIS( m_sampleModule, m_proxies->getCHFunctionName(), m_sampleModule, m_proxies->getISFunctionName() )
-        .hitGroupCHIS( m_sampleModule, "__closesthit__sphere", m_sphereModule, nullptr );
+        .hitGroupCHIS( m_viewerModule, m_proxies->getCHFunctionName(), m_viewerModule, m_proxies->getISFunctionName() )
+        .hitGroupCHIS( m_materialModule, "__closesthit__sphere", m_sphereModule, nullptr );
     OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_GROUPS, &options, LOG, &LOG_SIZE, m_groups ) );
 }
 
@@ -435,15 +436,15 @@ void Application::createPrimitives()
     m_proxies->copyToDeviceAsync( m_stream );
     m_params[0].demandGeomContext = m_proxies->getContext();
 
-    const float3        Ka       = { 0.0f, 0.0f, 0.0f };
-    const float3        Kd       = { 0.5f * 1.0f, 0.5f * 0.9f, 0.5f * 0.7f };
-    const float3        Ks       = { 0.5f * 1.0f, 0.5f * 0.9f, 0.5f * 0.7f };
-    const float3        Kr       = { 0.5f, 0.5f, 0.5f };
-    const float         phongExp = 128.0f;
-    const PhongMaterial mat      = {
-        Ka, Kd, Ks, Kr, phongExp,
+    const float3 proxyFaceColors[6] = {
+        { 1.0f, 0.0f, 0.0f },  // +x
+        { 0.5f, 0.0f, 0.0f },  // -x
+        { 0.0f, 1.0f, 0.0f },  // +y
+        { 0.0f, 0.5f, 0.0f },  // -y
+        { 0.0f, 0.0f, 1.0f },  // +z
+        { 0.0f, 0.0f, 0.5f }   // -z
     };
-    m_params[0].proxyMaterial = mat;
+    std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( m_params[0].proxyFaceColors ) );
 }
 
 void Application::createAccels()
@@ -816,7 +817,8 @@ void Application::cleanupContext()
 
 void Application::cleanupModule()
 {
-    OTK_ERROR_CHECK( optixModuleDestroy( m_sampleModule ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( m_viewerModule ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( m_materialModule ) );
 }
 
 void Application::cleanupProgramGroups()
