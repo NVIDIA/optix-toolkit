@@ -631,9 +631,9 @@ void DemandTextureApp::startLaunchLoop()
 
 void DemandTextureApp::drawGui()
 {
-    sutil::beginFrameImGui();
-    sutil::displayFPS( m_launchCycles );
-    sutil::endFrameImGui();
+    otk::beginFrameImGui();
+    otk::displayFPS( m_launchCycles );
+    otk::endFrameImGui();
 }
 
 void DemandTextureApp::displayFrame()

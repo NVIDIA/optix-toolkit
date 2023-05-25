@@ -38,8 +38,8 @@
 
 #include <TexturePaintingKernelPTX.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
-
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include "CanvasImage.h"
 #include "TexturePaintingParams.h"
 
@@ -89,6 +89,10 @@ class TexturePaintingApp : public DemandTextureApp
     float4 brushColor( float color, float a );
 };
 
+// std::min/max requires references to these static members.
+const int TexturePaintingApp::MIN_BRUSH_SIZE;
+const int TexturePaintingApp::MAX_BRUSH_SIZE;
+
 void TexturePaintingApp::createTexture()
 {
     // Create the backing images
@@ -110,7 +114,11 @@ void TexturePaintingApp::initTexture()
     // Initialize the texture samplers for each device (not required, but saves a launch)
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        m_demandLoader->initTexture( state.device_idx, state.stream, m_texture->getId() );
+        CUcontext context;
+        OTK_ERROR_CHECK( cuStreamGetCtx( state.stream, &context ) );
+        OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
+
+        m_demandLoader->initTexture( state.stream, m_texture->getId() );
     }
 }
 
@@ -261,8 +269,8 @@ void TexturePaintingApp::reloadDirtyTiles()
         {
             int3 tileCoord = m_canvases[m_activeCanvas]->unpackTileId( *it );
             unsigned int pageId = m_demandLoader->getTextureTilePageId( m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
-            if( m_demandLoader->pageResident( state.device_idx, pageId ) )
-                 m_demandLoader->loadTextureTile( state.device_idx, state.stream,  m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
+            if( m_demandLoader->pageResident( pageId ) )
+                 m_demandLoader->loadTextureTile( state.stream,  m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
         }
     }
 

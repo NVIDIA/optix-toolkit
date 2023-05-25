@@ -50,7 +50,7 @@ class CanvasBrush
 };
 
 /// An image for texture painting
-class CanvasImage : public MipTailImageSource
+class CanvasImage : public ImageSourceBase
 {
   public:
     /// Create a canvas image with the specified dimensions.
