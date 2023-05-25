@@ -86,6 +86,8 @@ In order to include the entire OptiX Toolkit in your project, simply add it as a
 ```
 git submodule add https://github.com/NVIDIA/optix-toolkit.git OptiXToolkit
 ```
+Be sure to use `git submodule update --init --recursive` to fetch the submodules of the OptiX Toolkit.
+
 If your build uses CMake, you can simply include the OptiX Toolkit as a subdirectory in your
 `CMakeLists.txt`, e.g.
 ```
@@ -94,9 +96,13 @@ add_subirectory( OptiXToolkit )
 
 Alternatively, the Demand Loading repository can be incorporated directly into a project as a
 submodule without including the rest of the OptiX Toolkit.  When doing so, you should also include
-the [otk-cmake](https://github.com/NVIDIA/otk-cmake) repository as a submodule.  For example,
+the [otk-memory](https://github.com/NVIDIA/otk-memory),
+[otk-shader-util](https://github.com/NVIDIA/otk-shader-util), and
+[otk-cmake](https://github.com/NVIDIA/otk-cmake) repositories as submodules.  For example,
 ```
 git submodule add https://github.com/NVIDIA/otk-demand-loading.git DemandLoading
+git submodule add https://github.com/NVIDIA/otk-memory.git Memory
+git submodule add https://github.com/NVIDIA/otk-shader-util.git ShaderUtil
 git submodule add https://github.com/NVIDIA/otk-cmake.git CMake
 ```
 In this scenario it's necessary to add the CMake folder to the CMake module path:
