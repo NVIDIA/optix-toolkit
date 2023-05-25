@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,80 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+
 #pragma once
 
-#include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
+#include <OptiXToolkit/Memory/SyncVector.h>
 
-#include <optix_types.h>
+#include <mutex>
+#include <vector>
 
-#include <vector_types.h>
+namespace demandLoading {
+class DemandLoader;
+}  // namespace demandLoading
 
 namespace demandGeometryViewer {
 
 using uint_t = unsigned int;
 
-enum RayType
+class DemandMaterial
 {
-    RAYTYPE_RADIANCE = 0,
-    RAYTYPE_COUNT
-};
+  public:
+    DemandMaterial( demandLoading::DemandLoader* loader );
 
-struct CameraData
-{
-    float3 eye;
-    float3 U;
-    float3 V;
-    float3 W;
-};
+    uint_t add();
+    void remove( uint_t id );
 
-struct MissData
-{
-    float3 background;
-};
+    std::vector<uint_t> requestedMaterialIds() const { return m_requestedMaterials; }
 
-struct PhongMaterial
-{
-    float3 Ka;
-    float3 Kd;
-    float3 Ks;
-    float3 Kr;
-    float  phongExp;
-};
+  private:
+    demandLoading::DemandLoader* m_loader;
+    std::vector<uint_t>          m_materialIds;
+    std::vector<uint_t>          m_requestedMaterials;
+    std::mutex                   m_requestedMaterialsMutex;
 
-struct HitGroupData
-{
-    PhongMaterial material;
-};
+    bool loadMaterial( CUstream stream, uint_t pageId, void** pageTableEntry );
 
-struct BasicLight
-{
-    float3 pos;
-    float3 color;
-};
-
-struct Debug
-{
-    bool  enabled;
-    bool  debugIndexSet;
-    uint3 debugIndex;
-};
-
-struct Params
-{
-    uchar4*                      image;
-    uint_t                       width;
-    uint_t                       height;
-    BasicLight                   lights[3];
-    float3                       ambientColor;
-    float3                       proxyFaceColors[6];
-    float                        sceneEpsilon;
-    OptixTraversableHandle       traversable;
-    demandLoading::DeviceContext demandContext;
-    demandGeometry::Context      demandGeomContext;
-    const uint_t*                demandMaterialPageIds;
-    float3                       demandMaterialColor;
-    const uint_t*                sphereIds;
-    Debug                        debug;
+    static bool callback( CUstream stream, uint_t pageIndex, void* context, void** pageTableEntry )
+    {
+        return static_cast<DemandMaterial*>( context )->loadMaterial( stream, pageIndex, pageTableEntry );
+    }
 };
 
 }  // namespace demandGeometryViewer

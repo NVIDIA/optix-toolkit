@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,80 +25,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#pragma once
 
-#include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
+#include "DemandGeometryViewer.h"
 
-#include <optix_types.h>
+#include <OptiXToolkit/DemandLoading/Paging.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
-#include <vector_types.h>
+#include <optix.h>
+
+#include <vector_functions.h>
 
 namespace demandGeometryViewer {
 
-using uint_t = unsigned int;
+extern "C" __constant__ Params g_params;
 
-enum RayType
+template <typename T>
+__forceinline__ __device__ T* getSbtData()
 {
-    RAYTYPE_RADIANCE = 0,
-    RAYTYPE_COUNT
-};
+    return reinterpret_cast<T*>( optixGetSbtDataPointer() );
+}
 
-struct CameraData
+static __forceinline__ __device__ void setRayPayload( float3 p )
 {
-    float3 eye;
-    float3 U;
-    float3 V;
-    float3 W;
-};
+    optixSetPayload_0( __float_as_uint( p.x ) );
+    optixSetPayload_1( __float_as_uint( p.y ) );
+    optixSetPayload_2( __float_as_uint( p.z ) );
+}
 
-struct MissData
+extern "C" __global__ void __closesthit__proxyMaterial()
 {
-    float3 background;
-};
-
-struct PhongMaterial
-{
-    float3 Ka;
-    float3 Kd;
-    float3 Ks;
-    float3 Kr;
-    float  phongExp;
-};
-
-struct HitGroupData
-{
-    PhongMaterial material;
-};
-
-struct BasicLight
-{
-    float3 pos;
-    float3 color;
-};
-
-struct Debug
-{
-    bool  enabled;
-    bool  debugIndexSet;
-    uint3 debugIndex;
-};
-
-struct Params
-{
-    uchar4*                      image;
-    uint_t                       width;
-    uint_t                       height;
-    BasicLight                   lights[3];
-    float3                       ambientColor;
-    float3                       proxyFaceColors[6];
-    float                        sceneEpsilon;
-    OptixTraversableHandle       traversable;
-    demandLoading::DeviceContext demandContext;
-    demandGeometry::Context      demandGeomContext;
-    const uint_t*                demandMaterialPageIds;
-    float3                       demandMaterialColor;
-    const uint_t*                sphereIds;
-    Debug                        debug;
-};
+    const uint_t             pageId = g_params.demandMaterialPageIds[optixGetPrimitiveIndex()];
+    bool                     isResident{};
+    const unsigned long long pageTableEntry = demandLoading::pagingMapOrRequest( g_params.demandContext, pageId, &isResident );
+    setRayPayload( g_params.demandMaterialColor );
+}
 
 }  // namespace demandGeometryViewer

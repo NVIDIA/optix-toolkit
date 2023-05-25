@@ -38,7 +38,7 @@ using namespace otk;  // for vec_math operators
 
 namespace demandGeometryViewer {
 
-extern "C" __constant__ Params params;
+extern "C" __constant__ Params g_params;
 
 template <typename T>
 __forceinline__ __device__ T* getSbtData()
@@ -65,9 +65,9 @@ extern "C" __global__ void __raygen__pinHoleCamera()
 {
     const uint3  idx    = optixGetLaunchIndex();
     const auto*  camera = getSbtData<CameraData>();
-    const uint_t pixel  = params.width * idx.y + idx.x;
+    const uint_t pixel  = g_params.width * idx.y + idx.x;
 
-    float2 d         = make_float2( idx.x, idx.y ) / make_float2( params.width, params.height ) * 2.f - 1.f;
+    float2 d         = make_float2( idx.x, idx.y ) / make_float2( g_params.width, g_params.height ) * 2.f - 1.f;
     float3 rayOrigin = camera->eye;
     float3 rayDir    = normalize( d.x * camera->U + d.y * camera->V + camera->W );
     float3 result{};
@@ -79,10 +79,10 @@ extern "C" __global__ void __raygen__pinHoleCamera()
     uint_t        sbtOffset    = RAYTYPE_RADIANCE;
     uint_t        sbtStride    = RAYTYPE_COUNT;
     uint_t        missSbtIndex = RAYTYPE_RADIANCE;
-    optixTrace( params.traversable, rayOrigin, rayDir, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
+    optixTrace( g_params.traversable, rayOrigin, rayDir, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, sbtStride, missSbtIndex, float3Attr( result ) );
 
-    params.image[pixel] = makeColor( result );
+    g_params.image[pixel] = makeColor( result );
 }
 
 static __forceinline__ __device__ void setRayPayload( float3 p )
@@ -105,18 +105,18 @@ namespace app {
 
 __device__ Context& getContext()
 {
-    return demandGeometryViewer::params.demandGeomContext;
+    return demandGeometryViewer::g_params.demandGeomContext;
 }
 
 __device__ const demandLoading::DeviceContext& getDeviceContext()
 {
-    return demandGeometryViewer::params.demandContext;
+    return demandGeometryViewer::g_params.demandContext;
 }
 
 __device__ void reportClosestHitNormal( float3 ffNormal )
 {
     // Color the proxy faces by a solid color per face.
-    const float3* colors = demandGeometryViewer::params.proxyFaceColors;
+    const float3* colors = demandGeometryViewer::g_params.proxyFaceColors;
     uint_t        index{};
     if( ffNormal.x > 0.5f )
         index = 0;

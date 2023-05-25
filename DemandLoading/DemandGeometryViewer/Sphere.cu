@@ -38,7 +38,7 @@ using namespace otk;  // for vec_math operators
     
 namespace demandGeometryViewer {
 
-extern "C" __constant__ Params params;
+extern "C" __constant__ Params g_params;
 
 template <typename T>
 __forceinline__ __device__ T* getSbtData()
@@ -46,11 +46,16 @@ __forceinline__ __device__ T* getSbtData()
     return reinterpret_cast<T*>( optixGetSbtDataPointer() );
 }
 
+static __forceinline__ __device__ void setRayPayload( float x, float y, float z )
+{
+    optixSetPayload_0( __float_as_uint( x ) );
+    optixSetPayload_1( __float_as_uint( y ) );
+    optixSetPayload_2( __float_as_uint( z ) );
+}
+
 static __forceinline__ __device__ void setRayPayload( float3 p )
 {
-    optixSetPayload_0( __float_as_uint( p.x ) );
-    optixSetPayload_1( __float_as_uint( p.y ) );
-    optixSetPayload_2( __float_as_uint( p.z ) );
+    setRayPayload( p.x, p.y, p.z );
 }
 
 static __device__ void phongShade( float3 const& p_Kd,
@@ -63,13 +68,13 @@ static __device__ void phongShade( float3 const& p_Kd,
     const float3 rayDir = optixGetWorldRayDirection();
 
     // ambient contribution
-    float3 result = p_Ka * params.ambientColor;
+    float3 result = p_Ka * g_params.ambientColor;
 
     // Illuminate using three lights
     for( int i = 0; i < 3; i++ )
     {
         // note that the light "position" (really a direction) passed in is assumed to be normalized
-        float3 lightPos = params.lights[i].pos;
+        float3 lightPos = g_params.lights[i].pos;
 
         // for directional lights the effect is simply the surface normal dot light position
         float nDl = dot( p_normal, lightPos );
@@ -86,12 +91,58 @@ static __device__ void phongShade( float3 const& p_Kd,
                 float power = pow( nDh, p_phong_exp );
                 phongRes += p_Ks * power;
             }
-            result += phongRes * params.lights[i].color;
+            result += phongRes * g_params.lights[i].color;
         }
     }
 
     // pass the color back
     setRayPayload( result );
+}
+
+static __forceinline__ __device__ bool outsideWindow( uint_t lhs, uint_t rhs, uint_t width )
+{
+    const uint_t bigger  = max( lhs, rhs );
+    const uint_t smaller = min( lhs, rhs );
+    return bigger - smaller > width;
+}
+
+static __forceinline__ __device__ bool inDebugWindow( const uint3& launchIndex, const uint3& debugIndex, uint_t width )
+{
+    return !( outsideWindow( launchIndex.x, debugIndex.x, width ) || outsideWindow( launchIndex.y, debugIndex.y, width )
+              || outsideWindow( launchIndex.z, debugIndex.z, width ) );
+}
+
+static __forceinline__ __device__ bool debugInfo( const Debug &debug, const float4 &q, const float3 &worldNormal )
+{
+    if( debug.enabled && debug.debugIndexSet )
+    {
+        const uint3 launchIndex = optixGetLaunchIndex();
+        if( debug.debugIndex == launchIndex )
+        {
+            const uint_t                 primIdx     = optixGetPrimitiveIndex();
+            const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
+            const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
+            const PhongMaterial&         mat         = getSbtData<HitGroupData>()->material;
+            printf( "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g], D: [%g,%g,%g]\n",
+                    launchIndex.x, launchIndex.y, launchIndex.z, primIdx, sbtGASIndex, gas,
+                    q.x, q.y, q.z, q.w,
+                    worldNormal.x, worldNormal.y, worldNormal.z,
+                    mat.Kd.x, mat.Kd.y, mat.Kd.z );
+            setRayPayload( 1.0f, 0.0f, 0.0f );
+            return true;
+        }
+        if( inDebugWindow( launchIndex, debug.debugIndex, 2 ) )
+        {
+            setRayPayload( 0.0f, 0.0f, 0.0f );
+            return true;
+        }
+        if( inDebugWindow( launchIndex, debug.debugIndex, 4 ) )
+        {
+            setRayPayload( 1.0f, 1.0f, 1.0f );
+            return true;
+        }
+    }
+    return false;
 }
 
 extern "C" __global__ void __closesthit__sphere()
@@ -113,6 +164,9 @@ extern "C" __global__ void __closesthit__sphere()
     const float3 objectRayPos = optixTransformPointFromWorldToObjectSpace( worldRayPos );
     const float3 objectNormal = ( objectRayPos - make_float3( q ) ) / q.w;
     const float3 worldNormal  = normalize( optixTransformNormalFromObjectToWorldSpace( objectNormal ) ) * 0.5f + 0.5f;
+
+    if( debugInfo( g_params.debug, q, worldNormal ) )
+        return;
 
     const PhongMaterial& mat = getSbtData<HitGroupData>()->material;
     phongShade( mat.Kd, mat.Ka, mat.Ks, mat.Kr, mat.phongExp, worldNormal );

@@ -47,6 +47,7 @@ embed_ptx(
         OptiXToolkit::ShaderUtil
     SOURCES
         DemandGeometryViewer.cu
+        DemandMaterial.cu
         Sphere.cu
     FOLDER Examples/DemandLoading
 )
@@ -54,6 +55,8 @@ embed_ptx(
 add_executable( DemandGeometryViewer
     DemandGeometryViewer.h
     DemandGeometryViewer.cpp
+    DemandMaterial.h
+    DemandMaterial.cpp
     SphereInstances.h
     SphereInstances.cpp
 )
