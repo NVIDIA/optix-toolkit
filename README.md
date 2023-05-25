@@ -17,9 +17,10 @@ After checking out the OptiX Toolkit repository, be sure to update the submodule
 ```
 git submodule update --init --recursive
 ```
-Alternatively, a subset of the submodules can be specified, for example:
+Alternatively, a subset of the submodules can be specified.  For example, the DemandLoading library
+can be built in isolation by fetching the following submodules:
 ```
-git submodule update --init --recursive DemandLoading ShaderUtil
+git submodule update --init --recursive DemandLoading Memory ShaderUtil CMake
 ```
 
 ## Requirements
