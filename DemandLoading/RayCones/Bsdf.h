@@ -33,7 +33,7 @@
 using namespace demandLoading;
 using namespace demandTextureApp;
 
-const float MIN_ROUGHNESS = 0.0000001f;
+OTK_DEVICE const float MIN_ROUGHNESS = 0.0000001f;
 
 static __forceinline__ __device__
 float3 evalPhongBsdf( float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, float3 D, float3 R, 

@@ -37,8 +37,8 @@
 using namespace demandLoading;
 using namespace demandTextureApp;
 
-const float EPS = 0.0001f;
-const float INF = 1e16f;
+OTK_DEVICE const float EPS = 0.0001f;
+OTK_DEVICE const float INF = 1e16f;
 
 //------------------------------------------------------------------------------
 // Render modes
