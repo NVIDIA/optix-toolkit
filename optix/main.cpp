@@ -82,8 +82,6 @@ namespace py = pybind11;
 
 
 
-
-
 namespace pyoptix
 {
 
@@ -595,23 +593,19 @@ struct PipelineCompileOptions
 
 struct PipelineLinkOptions
 {
-#if OPTIX_VERSION < 70700
-    PipelineLinkOptions(
-        unsigned int maxTraceDepth,
-        OptixCompileDebugLevel debugLevel
-        )
-    {
-        options.maxTraceDepth = maxTraceDepth;
-        options.debugLevel    = debugLevel;
-    }
-#else
     PipelineLinkOptions(
         unsigned int maxTraceDepth
+#if OPTIX_VERSION < 70700
+        COMMA OptixCompileDebugLevel debugLevel
+#endif
         )
     {
         options.maxTraceDepth = maxTraceDepth;
-    }
+#if OPTIX_VERSION < 70700
+        options.debugLevel    = debugLevel;
 #endif
+    }
+
     OptixPipelineLinkOptions options{};
 };
 
@@ -1682,19 +1676,17 @@ OptixTraversableHandle accelBuild(
 }
 
 #if OPTIX_VERSION < 70600
-OptixAccelRelocationInfo accelGetRelocationInfo(
+#    define RELOCATION_INFO OptixAccelRelocationInfo
 #else 
-OptixRelocationInfo accelGetRelocationInfo(
+#    define RELOCATION_INFO OptixRelocationInfo 
 #endif
+
+RELOCATION_INFO accelGetRelocationInfo(
        pyoptix::DeviceContext context,
        OptixTraversableHandle handle
     )
 {
-#if OPTIX_VERSION < 70600
-    OptixAccelRelocationInfo info;
-#else
-    OptixRelocationInfo info;
-#endif
+    RELOCATION_INFO info;
     PYOPTIX_CHECK(
         optixAccelGetRelocationInfo(
             context.deviceContext,
@@ -1708,11 +1700,7 @@ OptixRelocationInfo accelGetRelocationInfo(
 
 py::bool_ accelCheckRelocationCompatibility(
         pyoptix::DeviceContext context,
-#if OPTIX_VERSION < 70600
-        const OptixAccelRelocationInfo* info
-#else
-        const OptixRelocationInfo* info
-#endif
+        const RELOCATION_INFO* info
     )
 {
     int compatible;
@@ -1731,23 +1719,19 @@ py::bool_ accelCheckRelocationCompatibility(
 }
 
 OptixTraversableHandle accelRelocate(
-#if OPTIX_VERSION < 70600
         pyoptix::DeviceContext          context,
         uintptr_t                       stream,
-        const OptixAccelRelocationInfo* info,
+        const RELOCATION_INFO*          info,
+#if OPTIX_VERSION < 70600
         CUdeviceptr                     instanceTraversableHandles,
         size_t                          numInstanceTraversableHandles,
-        CUdeviceptr                     targetAccel,
-        size_t                          targetAccelSizeInBytes
 #else
-        pyoptix::DeviceContext     context,
-        uintptr_t                  stream,
-        const OptixRelocationInfo* info,
         const OptixRelocateInput*  relocateInputs,
         size_t                     numRelocateInputs,
+#endif
         CUdeviceptr                targetAccel,
         size_t                     targetAccelSizeInBytes
-#endif
+
     )
 {
     OptixTraversableHandle targetHandle;
@@ -1759,14 +1743,12 @@ OptixTraversableHandle accelRelocate(
 #if OPTIX_VERSION < 70600
             instanceTraversableHandles,
             numInstanceTraversableHandles,
-            targetAccel,
-            targetAccelSizeInBytes,
 #else
             relocateInputs,
             numRelocateInputs,
+#endif
             targetAccel,
             targetAccelSizeInBytes,
-#endif
             &targetHandle
         )
     );
@@ -3906,18 +3888,21 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         )
 #endif
         ;
-#if OPTIX_VERSION < 70700
     py::class_<pyoptix::PipelineLinkOptions>(m, "PipelineLinkOptions")
         .def(
             py::init<
-                uint32_t,
-                OptixCompileDebugLevel
-                >(),
-            py::arg( "maxTraceDepth" ) = 0u,
-            py::arg( "debugLevel"       ) = 
+                uint32_t
+#if OPTIX_VERSION < 70700
+                COMMA OptixCompileDebugLevel
+#endif
+        >(),
+            py::arg( "maxTraceDepth" ) = 0u
+#if OPTIX_VERSION < 70700
+            COMMA py::arg( "debugLevel"       ) = 
             IF_OPTIX71_ELSE( 
                 OPTIX_COMPILE_DEBUG_LEVEL_DEFAULT, OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO 
                 )
+#endif
             )
         .def_property( "maxTraceDepth",
             [](const pyoptix::PipelineLinkOptions& self)
@@ -3925,29 +3910,15 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
             [](pyoptix::PipelineLinkOptions& self, uint32_t val)
             { self.options.maxTraceDepth = val; }
             )
+#if OPTIX_VERSION < 70700
         .def_property( "debugLevel",
             [](const pyoptix::PipelineLinkOptions& self)
             { return self.options.debugLevel; },
             [](pyoptix::PipelineLinkOptions& self, OptixCompileDebugLevel val)
             { self.options.debugLevel = val; }
             )
-        ;
-#else 
-    py::class_<pyoptix::PipelineLinkOptions>(m, "PipelineLinkOptions")
-        .def(
-            py::init<
-                uint32_t
-                >(),
-            py::arg( "maxTraceDepth" ) = 0u
-            )
-        .def_property( "maxTraceDepth",
-            [](const pyoptix::PipelineLinkOptions& self)
-            { return self.options.maxTraceDepth; },
-            [](pyoptix::PipelineLinkOptions& self, uint32_t val)
-            { self.options.maxTraceDepth = val; }
-            )
-        ;
 #endif
+        ;
 
     py::class_<pyoptix::ShaderBindingTable>(m, "ShaderBindingTable")
         .def(
