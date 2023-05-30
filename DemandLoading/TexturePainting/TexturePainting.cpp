@@ -83,10 +83,11 @@ class TexturePaintingApp : public DemandTextureApp
     const demandLoading::DemandTexture* m_texture;
 
     void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
-    
     int2 mouseToImageCoords( int mx, int my );
-    void reloadDirtyTiles();
     float4 brushColor( float color, float a );
+    void reloadDirtyTiles();
+    void clearImage();
+    void replaceTexture( unsigned int newCanvasId );
 };
 
 // std::min/max requires references to these static members.
@@ -127,22 +128,18 @@ void TexturePaintingApp::mouseButtonCallback( GLFWwindow* window, int button, in
     glfwGetCursorPos( window, &m_mousePrevX, &m_mousePrevY );
     m_mouseButton = ( action == GLFW_PRESS ) ? button : NO_BUTTON;
 
-    if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT && m_mousePrevY >= m_windowHeight - (BUTTON_SIZE + BUTTON_SPACING) )
+    // Map cursor position to button index
+    unsigned int buttonIndex = 0xFFFFFFFF;
+    if( m_mousePrevY >= m_windowHeight - (BUTTON_SIZE + BUTTON_SPACING) )
     {
-        int buttonIndex = static_cast<int>( m_mousePrevX ) / (BUTTON_SIZE + BUTTON_SPACING);
-        if( buttonIndex < static_cast<int>( NUM_CANVASES ) ) 
-        {
-            // Switch the image that the texture is using, and unload all of the resident texture tiles.
-            // This reuses the virtual address space when the textures are the same size.
-            m_activeCanvas = buttonIndex;
-            demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-            m_demandLoader->replaceTexture( 0, m_canvases[m_activeCanvas], texDesc );
-            m_mouseButton = NO_BUTTON;
-            return;
-        }
+        buttonIndex = static_cast<unsigned int>( m_mousePrevX / ( BUTTON_SIZE + BUTTON_SPACING ) );
     }
 
-    if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )
+    if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT && buttonIndex < NUM_CANVASES )
+    {
+        replaceTexture( buttonIndex );
+    }
+    else if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )
     {
         int2 p = mouseToImageCoords( m_mousePrevX, m_mousePrevY );
         m_canvases[m_activeCanvas]->drawBrush( m_brush, p.x, p.y );
@@ -198,19 +195,11 @@ void TexturePaintingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t s
     }
     else if( key == GLFW_KEY_X )
     {
-        // Clear the current canvas image, and unload all of the resident tiles in the texture.
-        m_canvases[m_activeCanvas]->clearImage( m_canvasBackgroundColor ); 
-        m_demandLoader->unloadTextureTiles( m_textureIds[0] );
+        clearImage();
     }
     else if( key >= GLFW_KEY_1 && key < (int32_t)( GLFW_KEY_1 + NUM_CANVASES ) )
     {
-        if( key - GLFW_KEY_1 != (int32_t) m_activeCanvas )
-        {
-            m_activeCanvas = key - GLFW_KEY_1;
-            // Switch the image that the texture is using, and unload all of the resident texture tiles.
-            demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-            m_demandLoader->replaceTexture( 0, m_canvases[m_activeCanvas], texDesc );
-        }
+        replaceTexture( key - GLFW_KEY_1 );
     }
     else if( key == GLFW_KEY_UP )
     {
@@ -257,6 +246,14 @@ int2 TexturePaintingApp::mouseToImageCoords( int mx, int my )
     return int2{ static_cast<int>( x * imageWidth ), static_cast<int>( y * imageHeight ) };
 }
 
+float4 TexturePaintingApp::brushColor( float color, float a )
+{
+    const float s = 0.85f;
+    int c = int( floorf( color ) );
+    // Construct an RGB color from the 3 low order bits of c.
+    return float4{s * float( c & 1 ), s * float( ( c >> 1 ) & 1 ), s * float( ( c >> 2 ) & 1 ), a};
+}
+
 void TexturePaintingApp::reloadDirtyTiles()
 {
     std::set<int>& dirtyTiles = m_canvases[m_activeCanvas]->getDirtyTiles();
@@ -277,12 +274,30 @@ void TexturePaintingApp::reloadDirtyTiles()
     m_canvases[m_activeCanvas]->clearDirtyTiles();
 }
 
- float4 TexturePaintingApp::brushColor( float color, float a )
+void TexturePaintingApp::clearImage()
 {
-    const float s = 0.85f;
-    int c = int( floorf( color ) );
-    // Construct an RGB color from the 3 low order bits of c.
-    return float4{s * float( c & 1 ), s * float( ( c >> 1 ) & 1 ), s * float( ( c >> 2 ) & 1 ), a};
+    // Clear the current canvas image, and unload all of the resident tiles in the texture.
+    m_canvases[m_activeCanvas]->clearImage( m_canvasBackgroundColor ); 
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        cudaSetDevice( state.device_idx );
+        m_demandLoader->unloadTextureTiles( m_textureIds[0] );
+    }
+}
+
+void TexturePaintingApp::replaceTexture( unsigned int newCanvasId )
+{
+    if( newCanvasId != m_activeCanvas )
+    {
+        // Switch the image that the texture is using, and unload all of the resident texture tiles.
+        m_activeCanvas = newCanvasId;
+        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        {
+            cudaSetDevice( state.device_idx );
+            demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+            m_demandLoader->replaceTexture( m_textureIds[0], m_canvases[m_activeCanvas], texDesc );
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
