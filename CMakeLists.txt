@@ -28,15 +28,18 @@
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
 
 project(ShaderUtil LANGUAGES C CXX CUDA)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(GNUInstallDirs)
-include(BuildConfig)
+if(MSVC)
+  add_definitions(-DNOMINMAX)
+endif()
+
+# Use fast math for CUDA code.
+add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
 
 if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 10.0 REQUIRED )
@@ -62,16 +65,6 @@ target_include_directories(ShaderUtil INTERFACE
   )
 
 set_target_properties(ShaderUtil PROPERTIES FOLDER "ShaderUtil")
-install(TARGETS ShaderUtil
-  EXPORT ShaderUtilTargets
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
-
-install(EXPORT ShaderUtilTargets
-  FILE ShaderUtilTargets.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
-  NAMESPACE OptiXToolkit::
-  )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )

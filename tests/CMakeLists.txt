@@ -26,17 +26,31 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(FetchGtest)
+find_package( GTest QUIET )
+if(NOT GTEST_FOUND)
+  message(WARNING "GTest not found.  Skipping ShaderUtil/tests.")
+  return()
+endif()
+
 include(GoogleTest)
 
 if(NOT TARGET OptiX::OptiX)
   # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
   set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-  find_package(OptiX 7.3 REQUIRED)
+  find_package(OptiX 7.3 QUIET)
+  if(NOT OPTIX_FOUND)
+    message(WARNING "OptiX not found.  Skipping ShaderUtil/tests.")
+    return()
+  endif()  
 endif()
 
 # The SIA test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(embed_ptx)
+include(embed_ptx OPTIONAL RESULT_VARIABLE EMBED_PTX_FOUND)
+if(NOT EMBED_PTX_FOUND)
+  message(WARNING "embed_ptx.cmake not found.  Skipping ShaderUtil/tests.")
+  return()
+endif()  
+
 embed_ptx(
   CONST HEADER testSiaKernelsPTX.h
   OUTPUT_TARGET
