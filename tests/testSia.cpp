@@ -45,6 +45,10 @@
 
 #include <testSiaKernelsPTX.h>
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 #define CUDA_THROW( x )                                                                                                                                                                                                                                                                \
     {                                                                                                                                                                                                                                                                                  \
         cudaError_t err = (cudaError_t)( x );                                                                                                                                                                                                                                          \
@@ -467,7 +471,7 @@ protected:
         pipelineCompileOptions.usesPrimitiveTypeFlags           = OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
 
         OptixModule ptxModule;
-        OPTIX_THROW( optixModuleCreateFromPTX( optixContext, &moduleCompileOptions, &pipelineCompileOptions, testSiaOptix_ptx_text(), testSiaOptix_ptx_size, 0, 0, &ptxModule ) );
+        OPTIX_THROW( optixModuleCreate( optixContext, &moduleCompileOptions, &pipelineCompileOptions, testSiaOptix_ptx_text(), testSiaOptix_ptx_size, 0, 0, &ptxModule ) );
 
         OptixProgramGroupOptions programGroupOptions = {};
 
@@ -502,10 +506,16 @@ protected:
 
         // Calculate the stack sizes, so we can specify all parameters to optixPipelineSetStackSize.
         OptixStackSizes stack_sizes = {};
+#if OPTIX_VERSION < 70700
         OPTIX_THROW( optixUtilAccumulateStackSizes( hitgroupProgramGroup, &stack_sizes ) );
         OPTIX_THROW( optixUtilAccumulateStackSizes( msProgramGroup, &stack_sizes ) );
         OPTIX_THROW( optixUtilAccumulateStackSizes( rgProgramGroup, &stack_sizes ) );
-
+#else
+        OPTIX_THROW( optixUtilAccumulateStackSizes( hitgroupProgramGroup, &stack_sizes, optixPipeline ) );
+        OPTIX_THROW( optixUtilAccumulateStackSizes( msProgramGroup, &stack_sizes, optixPipeline ) );
+        OPTIX_THROW( optixUtilAccumulateStackSizes( rgProgramGroup, &stack_sizes, optixPipeline ) );
+#endif
+        
         // We need to specify the max traversal depth.  
         uint32_t max_cc_depth = 0;
         uint32_t max_dc_depth = 0;
