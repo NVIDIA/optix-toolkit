@@ -27,6 +27,7 @@
 //
 
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
@@ -36,6 +37,7 @@
 
 using namespace demandLoading;
 using namespace demandTextureApp;
+using namespace otk;  // for vec_math operators
 
 OTK_DEVICE const float EPS = 0.0001f;
 OTK_DEVICE const float INF = 1e16f;

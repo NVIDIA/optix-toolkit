@@ -147,6 +147,7 @@ static __forceinline__ __device__ float2 concentricMapping( float2 u )
 // Make an orthonormal basis from unit length vector N.
 static __forceinline__ __device__ void makeOrthoBasis( float3 N, float3& S, float3& T )
 {
+    using namespace otk;
     S = ( fabsf( N.x ) < fabsf( N.y ) ) ? float3{-N.y, N.x, 0.0f} : float3{0.0f, -N.z, N.y};
     S = normalize( S );
     T = cross( S, N );
@@ -180,6 +181,7 @@ static __forceinline__ __device__ float tentFilter( float x )
 static __forceinline__ __device__ 
 void makeEyeRayOrthographic( CameraFrame camera, uint2 image_dim, float2 px, float3& origin, float3& direction )
 {
+    using namespace otk;
     origin = camera.eye; 
     origin += ( 2.0f * ( px.x - 0.5f * image_dim.x ) / image_dim.x ) * camera.U;
     origin += ( 2.0f * ( px.y - 0.5f * image_dim.y ) / image_dim.y ) * camera.V;
@@ -190,6 +192,7 @@ void makeEyeRayOrthographic( CameraFrame camera, uint2 image_dim, float2 px, flo
 static __forceinline__ __device__ 
 void makeEyeRayPinhole( CameraFrame camera, uint2 image_dim, float2 px, float3& origin, float3& direction )
 {
+    using namespace otk;
     origin = camera.eye;
     direction = camera.W;
     direction += ( 2.0f * ( px.x - 0.5f * image_dim.x ) / image_dim.x ) * camera.U;
@@ -201,6 +204,7 @@ void makeEyeRayPinhole( CameraFrame camera, uint2 image_dim, float2 px, float3& 
 static __forceinline__ __device__ 
 void makeCameraRayThinLens( CameraFrame camera, float lens_width, uint2 image_dim, float2 lx, float2 px, float3& origin, float3& direction )
 {
+    using namespace otk;
     // Calculate ray origin offset from eye point, (assuming lens at origin)
     float2 luv = concentricMapping( lx );
     origin = float3{0.0f, 0.0f, 0.0f};
@@ -253,6 +257,7 @@ TYPE tex2DGradWalkup( const DeviceContext context, unsigned int texture_id, floa
 static __forceinline__ __device__ 
 float3 sampleTexture( const DeviceContext context, SurfaceGeometry g, ColorTex tex, bool* is_resident )
 {
+    using namespace otk;
     if( tex.texid < 0 )
         return tex.color;
     float4 t = tex2DGradWalkup<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident );
@@ -263,6 +268,7 @@ float3 sampleTexture( const DeviceContext context, SurfaceGeometry g, ColorTex t
 // where the overlay display is located at (x0, y0).
 static __forceinline__ __device__ float4 tileDisplayColor( const DeviceContext& context, int texture_id, int x0, int y0, uint2 px )
 {
+    using namespace otk;
     if( texture_id < 0 )
         return make_float4( 0.0f );
 

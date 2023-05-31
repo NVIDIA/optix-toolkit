@@ -34,6 +34,8 @@
 
 #include <vector_functions.h>
 
+using namespace otk;  // for vec_math operators
+
 namespace demandGeometryViewer {
 
 extern "C" __constant__ Params params;

@@ -32,10 +32,13 @@
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include "ShapeMaker.h"
 #include "RayConesParams.h"
+
 using namespace demandTextureApp;
+using namespace otk;  // for vec_math operators
 
 //------------------------------------------------------------------------------
 // RayConesApp

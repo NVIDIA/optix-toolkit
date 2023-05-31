@@ -35,6 +35,11 @@
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
+#include <OptiXToolkit/Gui/Camera.h>
+#include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/Util/Logger.h>
 
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
@@ -47,11 +52,6 @@
 
 #include <cuda_runtime.h>
 
-#include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
-#include <OptiXToolkit/Gui/Camera.h>
-#include <OptiXToolkit/Gui/Window.h>
-#include <OptiXToolkit/Util/Logger.h>
-
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -63,6 +63,7 @@
 
 using namespace demandLoading;
 using namespace imageSource;
+using namespace otk;  // for vec_math operators
 
 int          g_numThreads       = 0;
 int          g_totalLaunches    = 0;

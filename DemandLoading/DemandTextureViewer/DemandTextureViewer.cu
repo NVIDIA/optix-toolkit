@@ -27,12 +27,14 @@
 //
 
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
 
 using namespace demandLoading;
 using namespace demandTextureApp;
+using namespace otk;  // for vec_math operators
 
 //------------------------------------------------------------------------------
 // Params - globally visible struct

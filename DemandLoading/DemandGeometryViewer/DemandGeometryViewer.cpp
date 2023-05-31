@@ -49,6 +49,7 @@
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 #include <OptiXToolkit/OptiXMemory/Record.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
 
@@ -73,6 +74,8 @@
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
+
+using namespace otk;  // for vec_math operators
 
 namespace demandGeometryViewer {
 

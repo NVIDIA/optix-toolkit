@@ -28,6 +28,11 @@
 
 #include "ShapeMaker.h"
 
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+
+using namespace otk;  // for vec_math operators
+
+
 void ShapeMaker::makeGroundPlane( float3 A, float3 B, std::vector<Vert>& shape )
 {
     shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{0.0f, 0.0f, 1.0f}, float2{0.0f, 0.0f} } );

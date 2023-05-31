@@ -40,6 +40,7 @@
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -61,6 +62,8 @@
 #ifndef M_PI
 constexpr float M_PI = 3.14159265358979323846f;
 #endif
+
+using namespace otk;  // for vec_math operators
 
 namespace demandTextureApp
 {

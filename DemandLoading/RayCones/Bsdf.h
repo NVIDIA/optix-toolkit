@@ -39,6 +39,7 @@ static __forceinline__ __device__
 float3 evalPhongBsdf( float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, float3 D, float3 R, 
                       float& prob, float curvature )
 {
+    using namespace otk;
     float kd = ( Kd.x + Kd.y + Kd.z ) / 3.0f;
     float ks = ( Ks.x + Ks.y + Ks.z ) / 3.0f;
     float ksum = kd + ks;
@@ -62,6 +63,7 @@ float3 evalPhongBsdf( float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, 
 static __forceinline__ __device__
 float3 sampleDiffuseLobe( float2 xi, float3 N, float3 S, float3 T )
 {
+    using namespace otk;
     const float2 st = concentricMapping( xi );
     return ( st.x * S ) + ( st.y * T ) + ( sqrtf( 1.0f - dot( st, st ) ) * N );
 }
@@ -69,6 +71,7 @@ float3 sampleDiffuseLobe( float2 xi, float3 N, float3 S, float3 T )
 static __forceinline__ __device__ 
 float3 samplePhongLobe( float2 xi, float s, float3 R, float3 U, float3 V )
 {
+    using namespace otk;
     float cosTheta = pow( 1.0f-xi.x, 1.0f/(2.0f+s) );
     float sinTheta = sqrtf( 1.0f - cosTheta*cosTheta );
     float phi = 2.0f * M_PIf * xi.y;
@@ -78,6 +81,7 @@ float3 samplePhongLobe( float2 xi, float s, float3 R, float3 U, float3 V )
 static __forceinline__ __device__
 bool samplePhongBsdf( float2 xi, float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, float3 D, float3& R )
 {
+    using namespace otk;
     float kd = ( Kd.x + Kd.y + Kd.z ) / 3.0f;
     float ks = ( Ks.x + Ks.y + Ks.z ) / 3.0f;
     float ksum = kd + ks;
@@ -116,6 +120,7 @@ static __forceinline__ __device__ float schlick( float ior, float cosTheta )
 
 static __forceinline__ __device__ bool refract( float3 D, float3 N, float ior, float3& T )
 {
+    using namespace otk;
     float dt = dot( D, N );
     float disc = 1.0f - ior * ior * ( 1.0f - dt * dt );
     T = ( disc >= 0.0f ) ? ior * (D - dt*N) - sqrt( disc ) * N : float3{0.0f};
@@ -126,6 +131,7 @@ static __forceinline__ __device__
 float3 evalGlassBsdf( float3 Ks, float3 Kt, float ior, float roughness, SurfaceGeometry g, float3 D, float3 R, 
                       float& prob, float curvature )
 {
+    using namespace otk;
     float fr = schlick( ior, fabsf( dot( g.N, D ) ) );
     float ks = fr * (Ks.x + Ks.y + Ks.z) / 3.0f;
     float kt = ( 1.0f - fr ) * ( Kt.x + Kt.y + Kt.z ) / 3.0f;
@@ -159,6 +165,7 @@ float3 evalGlassBsdf( float3 Ks, float3 Kt, float ior, float roughness, SurfaceG
 static __forceinline__ __device__
 bool sampleGlassBsdf( float2 xi, float3 Ks, float3 Kt, float ior, float roughness, SurfaceGeometry g, float3 D, float3& R )
 {
+    using namespace otk;
     float fr = schlick( ior, fabsf( dot( g.N, D ) ) );
     float ks = fr * ( Ks.x + Ks.y + Ks.z ) / 3.0f;
     float kt = ( 1.0f - fr ) * ( Kt.x + Kt.y + Kt.z ) / 3.0f;

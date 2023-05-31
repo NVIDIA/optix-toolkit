@@ -30,7 +30,10 @@
 #include "LaunchParams.h"
 #include "CuOmmBakingAppDeviceUtil.h"
 
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+
 using namespace ommBakingApp;
+using namespace otk;  // for vec_math operators
 
 //------------------------------------------------------------------------------
 // Params - globally visible struct
