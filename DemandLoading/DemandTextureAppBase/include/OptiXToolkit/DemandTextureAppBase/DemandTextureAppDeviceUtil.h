@@ -36,6 +36,8 @@
 #include <OptiXToolkit/DemandLoading/Texture2DExtended.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
+#include <cstdint>
+
 using namespace demandLoading;
 struct RayPayload;
 
