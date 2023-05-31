@@ -42,8 +42,9 @@ struct Parallelogram
         : v1( v1_ )
         , v2( v2_ )
         , anchor( anchor )
-        , normal( normalize( cross( v1_, v2_ ) ) )
+        , normal( otk::normalize( otk::cross( v1_, v2_ ) ) )
     {
+        using namespace otk;
         float d = dot( normal, anchor );
         v1 *= 1.0f / dot( v1_, v1_ );
         v2 *= 1.0f / dot( v2_, v2_ );
@@ -64,6 +65,7 @@ __forceinline__ bool __device__ intersectParallelogram( const float3& rayOrigin,
                                                         const Parallelogram& floor,
                                                         float& tIntersect )
 {
+    using namespace otk;
     float3 n  = make_float3( floor.plane );
     float  dt = dot( rayDir, n );
     float  t  = ( floor.plane.w - dot( n, rayOrigin ) ) / dt;
@@ -89,6 +91,7 @@ __forceinline__ __device__ Parallelogram makeParallelogram( const float3& p0,
                                                             const float3& p1,
                                                             const float3& anchor )
 {
+    using namespace otk;
     const float3 v1 = p0 - anchor;
     const float3 v2 = p1 - anchor;
     return { v1, v2, anchor };

@@ -36,6 +36,7 @@
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 #include <OptiXToolkit/DemandGeometry/intersectAabb.h>
 #include <OptiXToolkit/DemandLoading/Paging.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <optix.h>
 
@@ -64,6 +65,8 @@ extern "C" __global__ void __intersection__electricBoundingBox()
 
 extern "C" __global__ void __closesthit__electricBoundingBox()
 {
+    using namespace otk;
+    
     float3 objectNormal = make_float3( __uint_as_float( optixGetAttribute_0() ), __uint_as_float( optixGetAttribute_1() ),
                                        __uint_as_float( optixGetAttribute_2() ) );
     const uint_t pageId = optixGetAttribute_3();
