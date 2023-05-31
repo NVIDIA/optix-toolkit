@@ -32,6 +32,8 @@
 
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
+using namespace otk;  // for vec_math operators
+
 __forceinline__ __device__ unsigned lane_id()
 {
     unsigned ret;

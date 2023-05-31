@@ -35,6 +35,8 @@
 #include <curand_kernel.h>
 #include <cstdint>
 
+using namespace otk;  // for vec_math operators
+
 extern "C" {
     __constant__ Params params;
 }

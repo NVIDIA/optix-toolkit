@@ -44,6 +44,7 @@ struct RayCone
 // U and V are the semi-axes of the view rectangle, image_dim is the image dimensions in pixels.
 OTK_INLINE OTK_HOSTDEVICE RayCone initRayConeOrthoCamera( float3 U, float3 V, uint2 image_dim )
 {
+    using namespace otk;
     return RayCone{0.0f, 2.0f * fminf( length( U ) / image_dim.x, length( V ) / image_dim.y )};
 }
 
@@ -52,6 +53,7 @@ OTK_INLINE OTK_HOSTDEVICE RayCone initRayConeOrthoCamera( float3 U, float3 V, ui
 // image_dim is the image dimensions in pixels, D is the normalized ray direction.
 OTK_INLINE OTK_HOSTDEVICE RayCone initRayConePinholeCamera( float3 U, float3 V, float3 W, uint2 image_dim, float3 D )
 {
+    using namespace otk;
     const float invDist = dot( D, W ) / dot( W, W );
     return RayCone{2.0f * fminf( invDist * length( U ) / image_dim.x, invDist * length( V ) / image_dim.y ), 0.0f};
 }
@@ -60,6 +62,7 @@ OTK_INLINE OTK_HOSTDEVICE RayCone initRayConePinholeCamera( float3 U, float3 V, 
 // W is the vector from the eye to the view center, D is the normalized ray direction.
 OTK_INLINE OTK_HOSTDEVICE RayCone initRayConeThinLensCamera( float3 W, float lens_width, float3 D )
 {
+    using namespace otk;
     return RayCone{-lens_width * dot( D, W ) / dot( W, W ), lens_width};  
 }
 
@@ -125,6 +128,7 @@ OTK_INLINE OTK_HOSTDEVICE float texFootprintWidth( float rayConeWidth, float dPd
 // given the normalized ray direction D and surface normal N.
 OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayConeWidth, float3 D, float3 N, float3& dPdx, float3& dPdy )
 {
+    using namespace otk;
     float DdotN = dot(D, N);
     dPdx = normalize( D - DdotN * N ) * ( rayConeWidth / fmaxf( fabsf( DdotN ), INV_MAX_ANISOTROPY ) );
     dPdy = normalize( cross( D, N ) ) * rayConeWidth;
@@ -150,6 +154,7 @@ OTK_INLINE OTK_HOSTDEVICE RayCone unpackRayCone( unsigned int p )
 // Get the curvature of a triangle edge
 OTK_INLINE OTK_HOSTDEVICE float edgeCurvature( float3 A, float3 B, float3 Na, float3 Nb )
 {
+    using namespace otk;
     return dot( Nb - Na, B - A ) / dot( B - A, B - A );
 }
 
@@ -177,6 +182,7 @@ OTK_INLINE OTK_HOSTDEVICE float minTriangleCurvature( float3 A, float3 B, float3
 OTK_INLINE OTK_HOSTDEVICE 
 void computeTexGradientsFromDerivatives( float3 dPds, float3 dPdt, float3 dPdx, float3 dPdy, float2& ddx, float2& ddy )
 {
+    using namespace otk;
     const float dPds2 = dot(dPds, dPds);
     const float dPdt2 = dot(dPdt, dPdt);
     ddx = float2{dot(dPdx, dPds) / dPds2, dot(dPdx, dPdt) / dPdt2};
@@ -203,6 +209,8 @@ OTK_INLINE OTK_HOSTDEVICE
 void computeTexGradientsForTriangle( float3 A, float3 B, float3 C, float2 Ta, float2 Tb, float2 Tc, 
                                      float3 dPdx, float3 dPdy, float2& ddx, float2& ddy )
 {
+    using namespace otk;
+
     // Scaled normal and inverse squared area of the triangle
     const float3 ABC = cross( (B - A), (C - A) );
     const float abc2 = 1.0f / dot( ABC, ABC ); 

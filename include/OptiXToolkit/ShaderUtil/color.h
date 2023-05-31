@@ -49,7 +49,8 @@ __forceinline__ __device__ float3 toSRGB( const float3& c )
 //}
 __forceinline__ __device__ unsigned char quantizeUnsigned8Bits( float x )
 {
-    x = clamp( x, 0.0f, 1.0f );
+    using namespace otk;
+    x = otk::clamp( x, 0.0f, 1.0f );
     enum { N = (1 << 8) - 1, Np1 = (1 << 8) };
     return (unsigned char)min((unsigned int)(x * (float)Np1), (unsigned int)N);
 }
@@ -57,7 +58,7 @@ __forceinline__ __device__ unsigned char quantizeUnsigned8Bits( float x )
 __forceinline__ __device__ uchar4 make_color( const float3& c )
 {
     // first apply gamma, then convert to unsigned char
-    float3 srgb = toSRGB( clamp( c, 0.0f, 1.0f ) );
+    float3 srgb = toSRGB( otk::clamp( c, 0.0f, 1.0f ) );
     return make_uchar4( quantizeUnsigned8Bits( srgb.x ), quantizeUnsigned8Bits( srgb.y ), quantizeUnsigned8Bits( srgb.z ), 255u );
 }
 __forceinline__ __device__ uchar4 make_color( const float4& c )
