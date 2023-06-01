@@ -51,23 +51,25 @@ class SyncRecord
   public:
     using iterator = typename SyncVector<Record<T>>::iterator;
 
+    /// Default constructor
+    ///
+    SyncRecord() = default;
+
     /// Constructor
     ///
     /// @param size The number of elements in the vector.
     ///
-    SyncRecord<T>( size_t size )
-        : m_size( size )
-        , m_records( size )
+    SyncRecord( size_t size )
+        : m_records( size )
     {
     }
 
     /// Accessor for the size of the vector.
-    size_t size() const { return m_size; }
+    size_t size() const { return m_records.size(); }
 
     /// Resize the number of records.
     void resize( size_t size )
     {
-        m_size = size;
         m_records.resize( size );
     }
 
@@ -111,7 +113,6 @@ class SyncRecord
     void copyToDeviceAsync( CUstream stream ) { m_records.copyToDeviceAsync( stream ); }
 
   private:
-    size_t                m_size;
     SyncVector<Record<T>> m_records;
 };
 
