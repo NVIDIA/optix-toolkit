@@ -28,6 +28,10 @@
 
 #pragma once 
 
+/// \file ray_cone.h
+/// Header-only library for using ray cones to drive texture filtering.  See
+/// https://github.com/NVIDIA/otk-shader-util/blob/master/docs/RayCones.pdf
+
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 OTK_DEVICE const static float INV_MAX_ANISOTROPY = 1.0f/16.0f;
@@ -40,17 +44,17 @@ struct RayCone
 };
 
 
-// Initialize a ray cone for an orthographic camera.
-// U and V are the semi-axes of the view rectangle, image_dim is the image dimensions in pixels.
+/// Initialize a ray cone for an orthographic camera.
+/// U and V are the semi-axes of the view rectangle, image_dim is the image dimensions in pixels.
 OTK_INLINE OTK_HOSTDEVICE RayCone initRayConeOrthoCamera( float3 U, float3 V, uint2 image_dim )
 {
     using namespace otk;
     return RayCone{0.0f, 2.0f * fminf( length( U ) / image_dim.x, length( V ) / image_dim.y )};
 }
 
-// Initialize the ray cone for a pinhole camera. 
-// U and V are the semi-axes of the view rectangle, W is the vector from the eye to the view center,
-// image_dim is the image dimensions in pixels, D is the normalized ray direction.
+/// Initialize the ray cone for a pinhole camera. 
+/// U and V are the semi-axes of the view rectangle, W is the vector from the eye to the view center,
+/// image_dim is the image dimensions in pixels, D is the normalized ray direction.
 OTK_INLINE OTK_HOSTDEVICE RayCone initRayConePinholeCamera( float3 U, float3 V, float3 W, uint2 image_dim, float3 D )
 {
     using namespace otk;
@@ -58,15 +62,15 @@ OTK_INLINE OTK_HOSTDEVICE RayCone initRayConePinholeCamera( float3 U, float3 V, 
     return RayCone{2.0f * fminf( invDist * length( U ) / image_dim.x, invDist * length( V ) / image_dim.y ), 0.0f};
 }
 
-// Initialize the ray cone for a thin lens camera. 
-// W is the vector from the eye to the view center, D is the normalized ray direction.
+/// Initialize the ray cone for a thin lens camera. 
+/// W is the vector from the eye to the view center, D is the normalized ray direction.
 OTK_INLINE OTK_HOSTDEVICE RayCone initRayConeThinLensCamera( float3 W, float lens_width, float3 D )
 {
     using namespace otk;
     return RayCone{-lens_width * dot( D, W ) / dot( W, W ), lens_width};  
 }
 
-// Propagate the cone width through the given distance.
+/// Propagate the cone width through the given distance.
 OTK_INLINE OTK_HOSTDEVICE RayCone propagate( RayCone rayCone, float distance ) 
 { 
     RayCone rc = RayCone{rayCone.angle, rayCone.width + rayCone.angle * distance};
@@ -75,7 +79,7 @@ OTK_INLINE OTK_HOSTDEVICE RayCone propagate( RayCone rayCone, float distance )
     return rc;
 }
 
-// Reflect the cone angle from a mirror reflector with the given curvature.
+/// Reflect the cone angle from a mirror reflector with the given curvature.
 OTK_INLINE OTK_HOSTDEVICE RayCone reflect( RayCone rayCone, float curvature ) 
 {
     const float curvatureAngle = curvature * fabsf( rayCone.width );
@@ -85,7 +89,7 @@ OTK_INLINE OTK_HOSTDEVICE RayCone reflect( RayCone rayCone, float curvature )
         return rayCone;
 }
 
-// Refract the cone angle from a surface with the given curvature.
+/// Refract the cone angle from a surface with the given curvature.
 OTK_INLINE OTK_HOSTDEVICE RayCone refract( RayCone rayCone, float curvature, float n_out, float n_in ) 
 {
     const float curvatureAngle = curvature * fabsf( rayCone.width );
@@ -95,13 +99,13 @@ OTK_INLINE OTK_HOSTDEVICE RayCone refract( RayCone rayCone, float curvature, flo
         return rayCone;
 }
 
-// Set the ray cone angle to the max, as if from a diffuse scatter event.
+/// Set the ray cone angle to the max, as if from a diffuse scatter event.
 OTK_INLINE OTK_HOSTDEVICE RayCone setDiffuse( RayCone rayCone ) 
 {
     return RayCone{fabsf( rayCone.width ), MAX_CONE_ANGLE};
 }
 
-// Update the cone angle for a bsdf scattering event.
+/// Update the cone angle for a bsdf scattering event.
 OTK_INLINE OTK_HOSTDEVICE RayCone scatterBsdf( RayCone rayCone, float bsdfVal )
 {
     if( rayCone.angle >= MAX_CONE_ANGLE )
@@ -111,21 +115,21 @@ OTK_INLINE OTK_HOSTDEVICE RayCone scatterBsdf( RayCone rayCone, float bsdfVal )
     return ( fabsf(angle) < MAX_CONE_ANGLE ) ? RayCone{angle, rayCone.width} : setDiffuse( rayCone );
 }
 
-// Update the cone angle for a participating medium scattering event.
+/// Update the cone angle for a participating medium scattering event.
 OTK_INLINE OTK_HOSTDEVICE void scatterPhaseFunction( RayCone rayCone, float phaseFunctionVal )
 {
     scatterBsdf( rayCone, phaseFunctionVal );
 }
 
-// Return the isotropic texture footprint width in texture space, 
-// given the world-space texture derivative lengths.
+/// Return the isotropic texture footprint width in texture space, 
+/// given the world-space texture derivative lengths.
 OTK_INLINE OTK_HOSTDEVICE float texFootprintWidth( float rayConeWidth, float dPdsLen, float dPdtLen ) 
 { 
     return fabsf( rayConeWidth ) / fmaxf( dPdsLen, dPdtLen ); 
 }
 
-// Project the ray cone onto the surface to get ray differentials, 
-// given the normalized ray direction D and surface normal N.
+/// Project the ray cone onto the surface to get ray differentials, 
+/// given the normalized ray direction D and surface normal N.
 OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayConeWidth, float3 D, float3 N, float3& dPdx, float3& dPdy )
 {
     using namespace otk;
@@ -134,14 +138,14 @@ OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayCone
     dPdy = normalize( cross( D, N ) ) * rayConeWidth;
 }
 
-// Pack the ray cone into a 4 byte uint (as two bf16 values).
+/// Pack the ray cone into a 4 byte uint (as two bf16 values).
 OTK_INLINE OTK_HOSTDEVICE unsigned int packRayCone( RayCone rayCone )
 {
     unsigned int* a = (unsigned int*) &rayCone.angle;
     return ( a[0] >> 16 ) | ( a[1] & 0xffff0000 );
 }
 
-// Unpack a packed ray cone.
+/// Unpack a packed ray cone.
 OTK_INLINE OTK_HOSTDEVICE RayCone unpackRayCone( unsigned int p )
 {
     RayCone rc;
@@ -151,20 +155,20 @@ OTK_INLINE OTK_HOSTDEVICE RayCone unpackRayCone( unsigned int p )
     return rc;
 }
 
-// Get the curvature of a triangle edge
+/// Get the curvature of a triangle edge
 OTK_INLINE OTK_HOSTDEVICE float edgeCurvature( float3 A, float3 B, float3 Na, float3 Nb )
 {
     using namespace otk;
     return dot( Nb - Na, B - A ) / dot( B - A, B - A );
 }
 
-// Get the mean curvature of a triangle based on the normals
+/// Get the mean curvature of a triangle based on the normals
 OTK_INLINE OTK_HOSTDEVICE float meanTriangleCurvature( float3 A, float3 B, float3 C, float3 Na, float3 Nb, float3 Nc )
 {
     return ( edgeCurvature( A, B, Na, Nb ) + edgeCurvature( B, C, Nb, Nc ) + edgeCurvature( A, C, Na, Nc ) ) / 3.0f;
 }
 
-// Return the min magnitude curvature of the triangle, or zero if the curvature signs are mixed
+/// Return the min magnitude curvature of the triangle, or zero if the curvature signs are mixed
 OTK_INLINE OTK_HOSTDEVICE float minTriangleCurvature( float3 A, float3 B, float3 C, float3 Na, float3 Nb, float3 Nc )
 {
     const float cab = edgeCurvature( A, B, Na, Nb );
@@ -177,8 +181,8 @@ OTK_INLINE OTK_HOSTDEVICE float minTriangleCurvature( float3 A, float3 B, float3
     return 0.0f;
 }
 
-// Compute the texture space gradients (ddx, ddy) to be used in tex2DGrad from the world space
-// texture derivatives (dPds, dPdt) and projected ray differentials (dPdx, dPdy).
+/// Compute the texture space gradients (ddx, ddy) to be used in tex2DGrad from the world space
+/// texture derivatives (dPds, dPdt) and projected ray differentials (dPdx, dPdy).
 OTK_INLINE OTK_HOSTDEVICE 
 void computeTexGradientsFromDerivatives( float3 dPds, float3 dPdt, float3 dPdx, float3 dPdy, float2& ddx, float2& ddy )
 {
@@ -189,22 +193,22 @@ void computeTexGradientsFromDerivatives( float3 dPds, float3 dPdt, float3 dPdx, 
     ddy = float2{dot(dPdy, dPds) / dPds2, dot(dPdy, dPdt) / dPdt2};
 }
 
-// Compute texture gradients for a latitude-longitude map from the cone angle.
+/// Compute texture gradients for a latitude-longitude map from the cone angle.
 OTK_INLINE OTK_HOSTDEVICE void computeTexGradientsForLatLongMap( float coneAngle, float2& ddx, float2& ddy )
 {
     ddx = float2{coneAngle / ( 2.0f * M_PIf ), 0.0f};
     ddy = float2{0.0f, coneAngle / M_PIf};
 }
 
-// Compute texture gradients for a cube map from the cone angle.
+/// Compute texture gradients for a cube map from the cone angle.
 OTK_INLINE OTK_HOSTDEVICE void computeTexGradientsForCubeMap( float coneAngle, float2& ddx, float2& ddy )
 {
     ddx = float2{coneAngle / ( 0.5f * M_PIf ), 0.0f};
     ddy = float2{0.0f, coneAngle / ( 0.5f * M_PIf )};
 }
 
-// Compute the texture gradients (ddx, ddy) for triangle (A, B, C), with texture coordinates (Ta, Tb, Tc),
-// given world space texture footprint offset vectors dPdx and dPdy
+/// Compute the texture gradients (ddx, ddy) for triangle (A, B, C), with texture coordinates (Ta, Tb, Tc),
+/// given world space texture footprint offset vectors dPdx and dPdy
 OTK_INLINE OTK_HOSTDEVICE
 void computeTexGradientsForTriangle( float3 A, float3 B, float3 C, float2 Ta, float2 Tb, float2 Tc, 
                                      float3 dPdx, float3 dPdy, float2& ddx, float2& ddy )

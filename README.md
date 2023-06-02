@@ -4,9 +4,16 @@ The OptiX Toolkit ShaderUtil is a library of functions commonly used in OptiX
 and other raytracing programs.  It is currently header-only.
 
 Among other things, the library provides utility headers for 
-* vector type math operations. (___vec_math.h___)
-* color representation and conversion operations. (___color.h___)
-* for self-intersection avoidance for secondary rays. (___SelfIntersectionAvoidance.h___)
+* [vector type math operations](include/OptiXToolkit/ShaderUtil/vec_math.h)
+* [color representation and conversion operations](include/OptiXToolkit/ShaderUtil/color.h)
+* [self-intersection avoidance for secondary rays](include/OptiXToolkit/ShaderUtil/SelfIntersectionAvoidance.h)
+
+## Ray cones for texture filtering
+
+Helper functions in [ray_cone.h](include/OptiXToolkit/ShaderUtil/ray_cone.h) facilitate using ray
+cones to drive texture filtering.  See the [Ray Cones whitepaper](docs/RayCones.pdf) for more information.
+An [example application](https://github.com/NVIDIA/otk-examples/DemandLoading/RayCones) illustrates
+how to use ray cones with the [Demand Loading library](https://github.com/NVIDIA/otk-demand-loading).
 
 ## Self-intersection avoidance
 
@@ -26,7 +33,10 @@ normal by a small but conservative epsilon. The library provides functionality t
 offset for Optix builtin triangles and to convert an object-space offset into world-space.
 For custom primitives, developers should plug in a conservative object-space offset corresponding to their custom intersector.
 
-The library provides both an OptiX API (See OptixSelfIntersectionAvoidance.h) and a CUDA API (See CudaSelfIntersectionAvoidance.h)
+The library provides both an OptiX API 
+(See [OptixSelfIntersectionAvoidance.h](include/OptiXToolkit/ShaderUtil/OptixSelfIntersectionAvoidance.h)) 
+and a CUDA API 
+(See [CudaSelfIntersectionAvoidance.h](include/OptiXToolkit/ShaderUtil/CudaSelfIntersectionAvoidance.h))
 for cuda/optix interoperability.
 
 ### Quick start
