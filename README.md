@@ -32,6 +32,16 @@ git submodule update --init --recursive DemandLoading Memory ShaderUtil CMake
 language support.
 - git (any modern version).
 
+On some Linux systems it may be necessary to install some commonly used developer packages with the following commands:
+```
+sudo apt-get install curl git-lfs pkg-config
+git lfs install
+```
+Building the OptiX Toolkit examples requires an OpenGL development environment.  In many Linux systems the necessary packages can be installed using the following command:
+```
+sudo apt-get install libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev mesa-common-dev 
+```
+
 ## Building the OptiX Toolkit
 
 - In the directory containing the OTK source code, create a subdirectory called `build` and `cd` to that directory.
