@@ -46,7 +46,7 @@ class OptixOmmScene
 
     const std::vector<uchar3>& getImage() const { return m_image; };
 
-    const uint32_t getErrorCount() const { return m_errorCount; }
+    uint32_t getErrorCount() const { return m_errorCount; }
 
     OptixResult destroy();
 

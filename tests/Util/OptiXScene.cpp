@@ -85,7 +85,6 @@ uint32_t getIndexFormatSizeInBytes( cuOmmBaking::IndexFormat format )
     default:
         return 0;
     }
-    return 0;
 }
 
 OptixResult OptixOmmScene::build( OptixDeviceContext context, const char* ptxInput, const size_t ptxInputize, const OptixOmmArray& optixOmm, const cuOmmBaking::BakeInputDesc* ommBuildInput, unsigned int numBuildInputs )

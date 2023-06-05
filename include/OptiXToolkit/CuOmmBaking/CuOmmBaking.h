@@ -526,4 +526,4 @@ namespace cuOmmBaking {
         const BakeBuffers*       buffers,
         cudaStream_t             stream = 0 );
 
-};  // namespace cuOmmBaking
+}  // namespace cuOmmBaking

@@ -336,8 +336,10 @@ __host__ cudaError_t launchTransposedSummedAreaTable3(
         return launchTransposedSummedAreaTable4<IsLayered, IsNormalizedCoords, cuOmmBaking::CudaTextureAlphaMode::CHANNEL_W, T>( d_temp_storage, temp_storage_bytes, config, inputTexture, output, stream );
     case cuOmmBaking::CudaTextureAlphaMode::RGB_INTENSITY:
         return launchTransposedSummedAreaTable4<IsLayered, IsNormalizedCoords, cuOmmBaking::CudaTextureAlphaMode::RGB_INTENSITY, T>( d_temp_storage, temp_storage_bytes, config, inputTexture, output, stream );
+    case cuOmmBaking::CudaTextureAlphaMode::DEFAULT:
+    case cuOmmBaking::CudaTextureAlphaMode::MAX_NUM:
+        return cudaErrorInvalidChannelDescriptor;
     }
-
     return cudaErrorInvalidChannelDescriptor;
 }
 

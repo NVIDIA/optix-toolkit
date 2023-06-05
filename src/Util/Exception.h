@@ -101,7 +101,7 @@ class Exception : public std::runtime_error
 //
 //------------------------------------------------------------------------------
 
-inline void checkCudaError( cudaError_t error, const char* expr, const char* file, unsigned int line )
+inline void checkCudaError( cudaError_t error, const char* expr, const char* /*file*/, unsigned int /*line*/ )
 {
     if( error != cudaSuccess )
     {

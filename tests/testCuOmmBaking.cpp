@@ -577,8 +577,6 @@ TEST_F( OmmBakingOptionsTest, Format )
     cuOmmBaking::Result res = runTest( opt, "OmmBakingOptionsTest_Format" );
     ASSERT_EQ( res, cuOmmBaking::Result::SUCCESS );
 
-    uint32_t numOmms = ommArray.getNumOmms();
-
     if( HasFatalFailure() )
         return;
     // compareImage();
@@ -639,7 +637,7 @@ TEST_F( OmmBakingOptionsTest, PostBakeInfo )
     ASSERT_EQ( res, cuOmmBaking::Result::SUCCESS );
 
     EXPECT_LE( ommArray.getPostBakeInfo().compactedSizeInBytes, opt.options.maximumSizeInBytes );
-    EXPECT_GT( ommArray.getPostBakeInfo().compactedSizeInBytes, 0 );
+    EXPECT_GT( ommArray.getPostBakeInfo().compactedSizeInBytes, 0U );
 
     uint32_t numOmms = ommArray.getNumOmms();
     EXPECT_GE( numOmms, 1u );

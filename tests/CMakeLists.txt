@@ -49,7 +49,7 @@ set_target_properties(testCuOmmBakingKernels testCuOmmBakingKernels_ptx PROPERTI
 add_definitions( -DTEST_OMM_BAKING_TEXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Textures/" )
 add_definitions( -DTEST_OMM_BAKING_GOLD_DIR="${CMAKE_CURRENT_SOURCE_DIR}/gold/" )
 
-add_executable( testCuOmmBaking
+otk_add_executable( testCuOmmBaking
   testCommon.h
   testCommon.cpp
   testCuOmmBaking.cpp
@@ -87,6 +87,11 @@ target_link_libraries( testCuOmmBaking
   CuOmmBaking
   OptiX::OptiX
   )
+
+if(NOT MSVC)
+  # Work around warnings in stb_image and tinyddsloader
+  target_compile_options(testCuOmmBaking PRIVATE -Wno-type-limits -Wno-switch) 
+endif()
 
 add_dependencies( testCuOmmBaking testCuOmmBakingKernels )
 

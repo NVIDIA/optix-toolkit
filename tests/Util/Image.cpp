@@ -299,7 +299,7 @@ cudaError_t CuTexture::createFromFile( const char* fname, int32_t force_componen
                 uint32_t widthInBlocks = ( imageData->m_width + blockWidth - 1 ) / blockWidth;
                 uint32_t heightInBlocks = ( imageData->m_width + blockWidth - 1 ) / blockWidth;
 
-                cudaMemcpy3DParms copyParams = { 0 };
+                cudaMemcpy3DParms copyParams{};
                 copyParams.srcPos = make_cudaPos( 0, 0, 0 );
                 copyParams.srcPtr = make_cudaPitchedPtr( imageData->m_mem, 
                     widthInBlocks * bytesPerBlock,

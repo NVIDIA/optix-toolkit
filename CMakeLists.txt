@@ -53,7 +53,7 @@ endif()
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
-add_library( CuOmmBaking
+otk_add_library( CuOmmBaking
   src/CuOmmBakingImpl.cpp
   src/CuOmmBakingImpl.cu
   src/CuOmmBakingImpl.h

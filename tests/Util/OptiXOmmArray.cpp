@@ -54,8 +54,8 @@
             return err;                                                                                                                                                                                                                                                                \
     };
 
+#if 0
 namespace {
-
     std::ostream& operator<<( std::ostream& os, const unsigned char c )
     {
         os << std::hex << ( uint32_t )c;
@@ -67,8 +67,8 @@ namespace {
         os << "byteOffset=" << desc.byteOffset << ", format=" << desc.format << ", subdivisionLevel=" << desc.subdivisionLevel;
         return os;
     }
-
 };
+#endif
 
 cuOmmBaking::Result OptixOmmArray::create( OptixDeviceContext context, const cuOmmBaking::BakeOptions& options, const cuOmmBaking::BakeInputDesc* inputs, unsigned int numInputs )
 {

@@ -42,6 +42,7 @@
 
 namespace {
 
+#if 0    
     std::ostream& operator<<( std::ostream& os, const uint2 v  )
     {
         os << "[" << v.x << "," << v.y << "]";
@@ -53,7 +54,8 @@ namespace {
         os << "byteOffset=" << desc.byteOffset << ", format=" << desc.format << ", subdivisionLevel=" << desc.subdivisionLevel;
         return os;
     }
-
+#endif
+    
     // Use compiler annotations to declare the argument to be a printf-style format string
     // to get format specifier checking against actual arguments.
 #if defined( __GNUC__ )
@@ -199,7 +201,7 @@ public:
 
         virtual cudaError_t build( void* temp, size_t& tempStorageInBytes, cudaStream_t stream ) = 0;
 
-        virtual TextureData get( const cuOmmBaking::TextureDesc& desc )
+        virtual TextureData get( const cuOmmBaking::TextureDesc& /*desc*/ )
         {
             TextureData textureInput = {};
             textureInput.id = m_id;
@@ -264,8 +266,8 @@ public:
             CudaTextureConfig      config )
             : TextureBase( id, config.width, config.height )
             , m_texture( texture )
-            , m_filterKernelWidthInTexels( filterKernelWidthInTexels )
             , m_config( config )
+            , m_filterKernelWidthInTexels( filterKernelWidthInTexels )
         {
             m_addressMode[0] = addressMode[0];
             m_addressMode[1] = addressMode[1];
@@ -514,7 +516,7 @@ public:
                                     opacityCutoff = ( float )( ( 1u << chanDesc.w ) - 1 );
                                     break;
                                 case CudaTextureAlphaMode::RGB_INTENSITY:
-                                    opacityCutoff = ( float )( ( ( ( 1u << chanDesc.x ) - 1 ) + ( ( 1u << chanDesc.y - 1 ) ) + ( ( 1u << chanDesc.z - 1 ) ) ) / 3 );
+                                    opacityCutoff = ( float )( ( ( ( 1u << chanDesc.x ) - 1 ) + ( ( ( 1u << chanDesc.y ) - 1 ) ) + ( ( ( 1u << chanDesc.z ) - 1 ) ) ) / 3 );
                                     break;
                                 default:
                                     opacityCutoff = 1.f;
@@ -644,7 +646,7 @@ public:
 
         m_inputBuf.setNumElems( numInputs );
 
-        m_numTriangles = totalNumTriangles;
+        m_numTriangles = static_cast<uint32_t>(totalNumTriangles);
         m_inIdBuf.setNumElems( m_numTriangles );
         m_outIdBuf.setNumElems( m_numTriangles );
         m_inHashBuf.setNumElems( m_numTriangles );

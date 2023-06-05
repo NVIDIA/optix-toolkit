@@ -923,13 +923,13 @@ VECTOR_MATH_API ushort2 make_ushort2( const float2& a )
 /** min */
 VECTOR_MATH_API ushort2 min( const ushort2& a, const ushort2& b )
 {
-    return make_ushort2( min( a.x, b.x ), min( a.y, b.y ) );
+    return make_ushort2( static_cast<unsigned short>( min( a.x, b.x ) ), static_cast<unsigned short>( min( a.y, b.y ) ) );
 }
 
 /** max */
 VECTOR_MATH_API ushort2 max( const ushort2& a, const ushort2& b )
 {
-    return make_ushort2( max( a.x, b.x ), max( a.y, b.y ) );
+    return make_ushort2( static_cast<unsigned short>( max( a.x, b.x ) ), static_cast<unsigned short>( max( a.y, b.y ) ) );
 }
 
 /** add
@@ -991,12 +991,12 @@ VECTOR_MATH_API void operator*=( ushort2& a, const unsigned short s )
 */
 VECTOR_MATH_API ushort2 clamp( const ushort2& v, const unsigned short a, const unsigned short b )
 {
-    return make_ushort2( clamp( v.x, a, b ), clamp( v.y, a, b ) );
+    return make_ushort2( static_cast<unsigned short>( clamp( v.x, a, b ) ), static_cast<unsigned short>( clamp( v.y, a, b ) ) );
 }
 
 VECTOR_MATH_API ushort2 clamp( const ushort2& v, const ushort2& a, const ushort2& b )
 {
-    return make_ushort2( clamp( v.x, a.x, b.x ), clamp( v.y, a.y, b.y ) );
+    return make_ushort2( static_cast<unsigned short>( clamp( v.x, a.x, b.x ) ), static_cast<unsigned short>( clamp( v.y, a.y, b.y ) ) );
 }
 /** @} */
 
@@ -1023,7 +1023,7 @@ VECTOR_MATH_API unsigned short getByIndex( const ushort2& v, unsigned int i )
 /** If used on the device, this could place the the 'v' in local memory */
 VECTOR_MATH_API void setByIndex( ushort2& v, int i, unsigned int x )
 {
-    ( ( unsigned short* )( &v ) )[i] = x;
+    ( ( unsigned short* )( &v ) )[i] = static_cast<unsigned short>( x );
 }
 
 /* int functions */

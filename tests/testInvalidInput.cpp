@@ -715,6 +715,8 @@ namespace {  // anonymous
                 case cuOmmBaking::IndexFormat::I32_UINT:
                     outBuffers.indexFormat = cuOmmBaking::IndexFormat::I8_UINT;
                     break;
+                default:
+                    break;
                 }
                 m_expectedResult = cuOmmBaking::Result::ERROR_INVALID_VALUE;
             }
