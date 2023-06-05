@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,15 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+const int BUTTON_SIZE    = 12;
+const int BUTTON_SPACING = 5;
 
-#include "Util/interval_math.h"
-
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
-
-template <typename T>
-__device__ __forceinline__ T eval_procedural( vec2<T> uv )
-{
-    using namespace otk;
-    return clamp( 2.f * cosf( length( uv - make_float2( 0.5f, 0.5f ) ) * 4.f * M_PIf ), 0.f, 1.f );
-}
+const int NUM_CANVASES_ID  = 0;
+const int ACTIVE_CANVAS_ID = 1;
+const int BRUSH_WIDTH_ID   = 2;
+const int BRUSH_HEIGHT_ID  = 3;
+const int BRUSH_COLOR_ID   = 0;

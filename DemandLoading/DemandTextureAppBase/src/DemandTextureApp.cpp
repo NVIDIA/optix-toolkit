@@ -40,6 +40,7 @@
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -56,6 +57,14 @@
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
 
+#include <cmath>
+
+#ifndef M_PI
+constexpr float M_PI = 3.14159265358979323846f;
+#endif
+
+using namespace otk;  // for vec_math operators
+
 namespace demandTextureApp
 {
 
@@ -64,8 +73,18 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     , m_windowHeight( height )
     , m_outputFileName( outFileName )
 {
+    // Init cuda on all devices
     CUDA_CHECK( cudaSetDevice( 0 ) );
     CUDA_CHECK( cudaFree( 0 ) );
+    
+    int numDevices;
+    CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+    for( unsigned int deviceIdx = 1; deviceIdx < numDevices; ++deviceIdx )
+    {
+        CUDA_CHECK( cudaSetDevice( deviceIdx ) );
+        CUDA_CHECK( cudaFree( 0 ) );
+    }
+    CUDA_CHECK( cudaSetDevice( 0 ) );
 
     // Create display window for interactive mode
     if( isInteractive() )
@@ -76,13 +95,17 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
         setGLFWCallbacks( this );
     }
 
-    int numDevices;
-    CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-
+    // Reset the output buffer
     glInterop = glInterop && isInteractive() && (numDevices==1);
     otk::CUDAOutputBufferType outputBufferType =
         glInterop ? otk::CUDAOutputBufferType::GL_INTEROP : otk::CUDAOutputBufferType::ZERO_COPY;
     m_outputBuffer.reset( new otk::CUDAOutputBuffer<uchar4>( outputBufferType, m_windowWidth, m_windowHeight ) );
+
+    // Create the per device optix states
+    OPTIX_CHECK( optixInit() );
+    m_perDeviceOptixStates.resize( numDevices );
+    for( unsigned int device_idx = 0; device_idx < numDevices; ++device_idx )
+        m_perDeviceOptixStates[device_idx].device_idx = device_idx;
 
     initView();
 }
@@ -197,7 +220,7 @@ void DemandTextureApp::createModule( PerDeviceOptixState& state, const char* mod
 
     state.pipeline_compile_options.usesMotionBlur        = false;
     state.pipeline_compile_options.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
-    state.pipeline_compile_options.numPayloadValues      = 3;
+    state.pipeline_compile_options.numPayloadValues      = 2;
     state.pipeline_compile_options.numAttributeValues    = 6;
     state.pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
     state.pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
@@ -239,8 +262,8 @@ void DemandTextureApp::createProgramGroups( PerDeviceOptixState& state )
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
     hitgroup_prog_group_desc.hitgroup.moduleAH            = nullptr;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = nullptr;
-    hitgroup_prog_group_desc.hitgroup.moduleIS            = state.ptx_module;
-    hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = "__intersection__is";
+    hitgroup_prog_group_desc.hitgroup.moduleIS            = m_scene_is_triangles ? nullptr : state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = m_scene_is_triangles ? nullptr : "__intersection__is";
     OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.hitgroup_prog_group ) );
@@ -340,21 +363,11 @@ void DemandTextureApp::cleanupState( PerDeviceOptixState& state )
 
 void DemandTextureApp::initOptixPipelines( const char* moduleCode )
 {
-    OPTIX_CHECK( optixInit() );
-
-    int numDevices;
-    CUDA_CHECK( cudaGetDeviceCount( &numDevices ) );
-    m_perDeviceOptixStates.resize( numDevices );
-
-    size_t codeSize = ::strlen( moduleCode );
-
-    for( unsigned int i = 0; i < m_perDeviceOptixStates.size(); ++i )
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        PerDeviceOptixState& state = m_perDeviceOptixStates[i];
-        state.device_idx           = i;
         createContext( state );
         buildAccel( state );
-        createModule( state, moduleCode, codeSize );
+        createModule( state, moduleCode, ::strlen( moduleCode ) );
         createProgramGroups( state );
         createPipeline( state );
         createSBT( state );
@@ -406,7 +419,7 @@ void DemandTextureApp::initDemandLoading()
     // a low value to keep the system from being bogged down by pullRequests for any single launch.
     if( isInteractive() )
     {
-        maxTexMem     = 256 * 1024 * 1024;
+        maxTexMem     = 2ULL * 1024 * 1024 * 1024;
         maxRequests   = 128;
         maxStalePages = 128;
     }
@@ -478,26 +491,54 @@ void DemandTextureApp::printDemandLoadingStats()
 
 void DemandTextureApp::initView()
 {
-    float aspectRatio = static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight );
-    m_eye             = INITIAL_LOOK_FROM;
-    m_viewDims        = float2{INITIAL_VIEW_DIM * aspectRatio, INITIAL_VIEW_DIM};
+    // Set the view so that the square (0,0,0) to (1,1,0) exactly covers the viewport.
+    setView( float3{0.5f, 0.5f, 1.0f}, float3{0.5f, 0.5f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, 53.130102354f );
 }
 
+void DemandTextureApp::setView( float3 eye, float3 lookAt, float3 up, float fovY )
+{
+    float aspectRatio = static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight );
+    m_camera = otk::Camera( eye, lookAt, up, fovY, aspectRatio );
+    m_subframeId = 0;
+}
+
+void DemandTextureApp::panCamera( float3 pan )
+{
+    m_camera.setEye( m_camera.eye() + pan );
+    m_camera.setLookat( m_camera.lookat() + pan );
+    m_subframeId = 0;
+}
+
+void DemandTextureApp::zoomCamera( float zoom )
+{
+    float tanVal = zoom * tanf( m_camera.fovY() * (M_PI / 360.0f) );
+    m_camera.setFovY( atanf( tanVal ) * 360.0f / M_PI );
+    m_subframeId = 0;
+}
+
+void DemandTextureApp::rotateCamera( float rot )
+{
+    float3 U, V, W;
+    m_camera.UVWFrame( U, V, W );
+    W = float3{ W.x * cosf(rot) - W.y * sinf(rot), W.x * sinf(rot) + W.y * cosf(rot), W.z };
+    m_camera.setLookat( m_camera.eye() + W );
+    m_subframeId = 0;
+}
 
 void DemandTextureApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
 {
-    // Account for the aspect ratio of the view.
-    m_viewDims.x = m_viewDims.y * m_outputBuffer->width() / m_outputBuffer->height();
-
-    state.params.image_width        = m_outputBuffer->width();
-    state.params.image_height       = m_outputBuffer->height();
+    state.params.image_dim.x        = m_outputBuffer->width();
+    state.params.image_dim.y        = m_outputBuffer->height();
     state.params.traversable_handle = state.gas_handle;
     state.params.device_idx         = state.device_idx;
     state.params.num_devices        = numDevices;
-    state.params.eye                = m_eye;
-    state.params.view_dims          = m_viewDims;
     state.params.display_texture_id = m_textureIds[0];
     state.params.interactive_mode   = isInteractive();
+    state.params.render_mode        = m_render_mode;
+    state.params.projection         = m_projection;
+    state.params.lens_width         = m_lens_width;
+    state.params.camera.eye         = m_camera.eye();
+    m_camera.UVWFrame( state.params.camera.U, state.params.camera.V, state.params.camera.W );
 
     // Make sure a device-side copy of the params has been allocated
     if( state.d_params == nullptr )
@@ -533,13 +574,13 @@ unsigned int DemandTextureApp::performLaunches( )
         CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( state.d_params ), &state.params, sizeof( Params ), cudaMemcpyHostToDevice ) );
 
         // Peform the OptiX launch, with each device doing a part of the work
-        unsigned int launchHeight = ( state.params.image_height + numDevices - 1 ) / numDevices;
+        unsigned int launchHeight = ( state.params.image_dim.y + numDevices - 1 ) / numDevices;
         OPTIX_CHECK( optixLaunch( state.pipeline,  // OptiX pipeline
                                   state.stream,    // Stream for launch and demand loading
                                   reinterpret_cast<CUdeviceptr>( state.d_params ),  // Launch params
                                   sizeof( Params ),                                 // Param size in bytes
                                   &state.sbt,                                       // Shader binding table
-                                  state.params.image_width,                         // Launch width
+                                  state.params.image_dim.x,                         // Launch width
                                   launchHeight,                                     // Launch height
                                   1                                                 // launch depth
                                   ) );
@@ -559,32 +600,34 @@ unsigned int DemandTextureApp::performLaunches( )
 
 void DemandTextureApp::startLaunchLoop()
 {
+    int numFilled = 0;
     if( isInteractive() )
     {
         while( !glfwWindowShouldClose( getWindow() ) )
         {
             glfwPollEvents();
             pollKeys();
-            m_numFilledRequests += performLaunches();
+            numFilled = performLaunches();
+            m_numFilledRequests += numFilled;
             ++m_launchCycles;
+            if( numFilled == 0 )
+                m_subframeId++;
             displayFrame();
-
-            otk::beginFrameImGui();
-            otk::displayFPS( m_launchCycles );
-            otk::endFrameImGui();
+            drawGui();
             glfwSwapBuffers( getWindow() );
         }
     }
     else 
     {
         // Launch repeatedly until there are no more requests to fill.
-        int numFilled = 0;
         do
         {
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-        } while( numFilled > 0 || m_launchCycles <= 1 );
+            if( numFilled == 0 )
+                m_subframeId++;
+        } while( numFilled > 0 || m_launchCycles < m_minLaunches );
 
         saveImage();
     }
@@ -594,6 +637,13 @@ void DemandTextureApp::startLaunchLoop()
 //------------------------------------------------------------------------------
 // Display
 //------------------------------------------------------------------------------
+
+void DemandTextureApp::drawGui()
+{
+    otk::beginFrameImGui();
+    otk::displayFPS( m_launchCycles );
+    otk::endFrameImGui();
+}
 
 void DemandTextureApp::displayFrame()
 {
@@ -611,6 +661,16 @@ void DemandTextureApp::saveImage()
     otk::saveImage( m_outputFileName.c_str(), buffer, false );
 }
 
+ void DemandTextureApp::resetAccumulator()
+ {
+    size_t accumulatorSize = sizeof(float4) * m_windowWidth * m_windowHeight;
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        CUDA_CHECK( cudaFree( state.params.accum_buffer ) );
+        CUDA_CHECK( cudaMalloc( &state.params.accum_buffer, accumulatorSize ) );
+    }
+ }
 
 //------------------------------------------------------------------------------
 // User Interaction via GLFW
@@ -624,18 +684,17 @@ void DemandTextureApp::mouseButtonCallback( GLFWwindow* window, int button, int 
 
 void DemandTextureApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
 {
-    double dx = xpos - m_mousePrevX;
-    double dy = ypos - m_mousePrevY;
+    float dx = static_cast<float>( xpos - m_mousePrevX );
+    float dy = static_cast<float>( ypos - m_mousePrevY );
 
     if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )  // pan camera
     {
-        m_eye.x -= static_cast<float>( dx * m_viewDims.x / m_windowWidth );
-        m_eye.y += static_cast<float>( dy * m_viewDims.y / m_windowHeight );
+        float moveScale = 2.0f * tanf( m_camera.fovY() * M_PIf / 360.0f ) / m_windowHeight;
+        panCamera( float3{ -dx * moveScale, dy * moveScale, 0.0f } );
     }
     else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )  // zoom camera
     {
-        float zoom = powf( 1.003f, static_cast<float>( dy - dx ) );
-        m_viewDims.y *= zoom;  // x is reset based on y later
+        zoomCamera( powf( 1.003f, ( dy - dx ) ) );
     }
 
     m_mousePrevX = xpos;
@@ -646,25 +705,29 @@ void DemandTextureApp::windowSizeCallback( GLFWwindow* window, int32_t width, in
 {
     m_windowWidth  = width;
     m_windowHeight = height;
+    m_camera.setAspectRatio( static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight ) );
+    if( m_perDeviceOptixStates[0].params.accum_buffer != nullptr )
+        resetAccumulator();
+    m_subframeId = 0;
 }
 
 void DemandTextureApp::pollKeys()
 {
-    const float pan  = 0.003f * m_viewDims.y;
+    const float pan  = 0.003f * ( m_camera.fovY() * M_PIf / 360.0f );
     const float zoom = 1.003f;
 
     if( glfwGetKey( getWindow(), GLFW_KEY_A ) )
-        m_eye.x -= pan;
+        panCamera( float3{-pan, 0.0f, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_D ) )
-        m_eye.x += pan;
+        panCamera( float3{pan, 0.0f, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_S ) )
-        m_eye.y -= pan;
+        panCamera( float3{0.0f, -pan, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_W ) )
-        m_eye.y += pan;
+        panCamera( float3{0.0f, pan, 0.0f} );
     if( glfwGetKey( getWindow(), GLFW_KEY_Q ) )
-        m_viewDims.y *= zoom;  // x is reset based on y later
+        zoomCamera( zoom );
     if( glfwGetKey( getWindow(), GLFW_KEY_E ) )
-        m_viewDims.y /= zoom;  // x is reset based on y later
+        zoomCamera( 1.0f / zoom );
 }
 
 void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )

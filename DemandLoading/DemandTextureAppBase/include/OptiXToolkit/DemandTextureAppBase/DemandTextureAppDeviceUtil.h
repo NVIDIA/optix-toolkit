@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -36,6 +36,8 @@
 #include <OptiXToolkit/DemandLoading/Texture2DExtended.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
+#include <cstdint>
+
 using namespace demandLoading;
 struct RayPayload;
 
@@ -54,9 +56,9 @@ static __forceinline__ __device__ uint2 getPixelIndex( unsigned int num_devices,
 }
 
 // Return whether a pixel index is in bounds
-static __forceinline__ __device__ bool pixelInBounds( uint2 p, unsigned int width, unsigned int height )
+static __forceinline__ __device__ bool pixelInBounds( uint2 p, uint2 dim )
 {
-    return ( p.x < width && p.y < height );
+    return ( p.x < dim.x && p.y < dim.y );
 }
 
 // Convert 2 unsigned ints to a void*
@@ -83,48 +85,143 @@ static __forceinline__ __device__ RayPayload* getRayPayload()
     return reinterpret_cast<RayPayload*>( unpackPointer( u0, u1 ) );
 }
 
+// Get triangle barycentrics in a slightly more convenient form than OptiX gives them
+static __forceinline__ __device__ float3 getTriangleBarycentrics()
+{
+    const float2 bary = optixGetTriangleBarycentrics();
+    return float3{1.0f - bary.x - bary.y, bary.x, bary.y};
+}
+
 // Pack a float3 as ints for reporting an intersection in OptiX
 #define float3_as_uints( u ) __float_as_uint( u.x ), __float_as_uint( u.y ), __float_as_uint( u.z )
 
 // Trace a ray
 static __forceinline__ __device__ void traceRay( OptixTraversableHandle handle,
-                                                 RayType                ray_type,
                                                  float3                 ray_origin,
                                                  float3                 ray_direction,
                                                  float                  tmin,
                                                  float                  tmax,
-                                                 float                  ray_time,
-                                                 RayPayload*            ray_payload )
+                                                 uint32_t               ray_flags,
+                                                 void*                  ray_payload )
 {
+
     unsigned int u0, u1;
     packPointer( ray_payload, u0, u1 );
+    const float ray_time = 0.0f;
     optixTrace( handle,                                           // traversable handle
                 ray_origin, ray_direction, tmin, tmax, ray_time,  // ray definition
                 OptixVisibilityMask( 1 ),                         // visibility mask
-                OPTIX_RAY_FLAG_NONE,                              // flags
-                ray_type,                                         // SBT offset
+                ray_flags,                                        // flags
+                RAY_TYPE_RADIANCE,                                // SBT offset
                 RAY_TYPE_COUNT,                                   // SBT stride
                 RAY_TYPE_RADIANCE,                                // missSBTIndex
                 u0, u1                                            // Ray payload pointer
                 );
 }
 
-
-//------------------------------------------------------------------------------
-// Ray cones
-//------------------------------------------------------------------------------
-
-// Propagate a ray cone through distance
-static __forceinline__ __device__ float propagateRayCone( float cone_width, float cone_angle, float distance )
+// Determine if the current ray is an occlusion ray
+static __forceinline__ __device__ unsigned int isOcclusionRay() 
 {
-    return fabsf( cone_width + cone_angle * distance );
+    return ( optixGetRayFlags() & OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT );
 }
 
-// Compute a conservative bound (at least as small as) the minimum width in texture space that a ray cone projects to.
-// The resulting mip level does not over-blur the texture, but anisotropy is not handled.
-static __forceinline__ __device__ float computeTextureFootprintMinWidth( float dPds_len, float dPdt_len, float cone_width )
+// Concentric mapping from Ray Tracing Gems : Sampling Transformations Zoo
+static __forceinline__ __device__ float2 concentricMapping( float2 u )
 {
-    return cone_width / maxf( dPds_len, dPdt_len );
+    float a = 2.0f * u.x - 1.0f; 
+    float b = 2.0f * u.y - 1.0f;
+    if ( b == 0.0f ) b = 1.0f;
+    float r, phi;
+
+    if ( a * a > b * b ) 
+    {
+        r = a;
+        phi = ( M_PIf / 4.0f ) * ( b / a );
+    } 
+    else 
+    {
+        r = b;
+        phi = ( M_PIf / 2.0f ) - ( M_PIf / 4.0f ) * ( a / b );
+    }
+    return float2{r * cos( phi ), r * sin( phi )};
+}
+
+// Make an orthonormal basis from unit length vector N.
+static __forceinline__ __device__ void makeOrthoBasis( float3 N, float3& S, float3& T )
+{
+    using namespace otk;
+    S = ( fabsf( N.x ) < fabsf( N.y ) ) ? float3{-N.y, N.x, 0.0f} : float3{0.0f, -N.z, N.y};
+    S = normalize( S );
+    T = cross( S, N );
+}
+
+// Seed a random number generator for a given pixel and launch index
+static __forceinline__ __device__ unsigned int srand( unsigned int x, unsigned int y, unsigned int z )
+{
+    const unsigned int xyz = 84721u * x + 28411u * y + 339341u * z + 23478;
+    return xyz + xyz * xyz * xyz;
+}
+
+// get a random number in [0,1)
+static __forceinline__ __device__ float rnd( unsigned int& prev )
+{
+    prev = 1664525u * prev + 1013904223u;
+    return static_cast<float>( prev & 0x00FFFFFF ) / 0x01000000;
+}
+
+// transform a point in [0,1) to a tent filter distribution in [-0.5, 1.5)
+static __forceinline__ __device__ float tentFilter( float x )
+{
+    return ( x < 0.5f ) ? -0.5f + sqrtf( x * 2.0f ) : 1.5f - sqrtf( 2.0f - x * 2.0f );
+}
+
+//------------------------------------------------------------------------------
+// Camera rays
+//------------------------------------------------------------------------------
+
+// Get eye ray for orthographic camera, where par.U, par.V are semi-axes of view
+static __forceinline__ __device__ 
+void makeEyeRayOrthographic( CameraFrame camera, uint2 image_dim, float2 px, float3& origin, float3& direction )
+{
+    using namespace otk;
+    origin = camera.eye; 
+    origin += ( 2.0f * ( px.x - 0.5f * image_dim.x ) / image_dim.x ) * camera.U;
+    origin += ( 2.0f * ( px.y - 0.5f * image_dim.y ) / image_dim.y ) * camera.V;
+    direction = normalize( camera.W );
+}
+
+// Get eye ray for pinhole camera, where par.U, par.V are semi-axes of view
+static __forceinline__ __device__ 
+void makeEyeRayPinhole( CameraFrame camera, uint2 image_dim, float2 px, float3& origin, float3& direction )
+{
+    using namespace otk;
+    origin = camera.eye;
+    direction = camera.W;
+    direction += ( 2.0f * ( px.x - 0.5f * image_dim.x ) / image_dim.x ) * camera.U;
+    direction += ( 2.0f * ( px.y - 0.5f * image_dim.y) / image_dim.y ) * camera.V;
+    direction = normalize( direction );
+}
+
+// Get eye ray for a thin lens camera, where  where par.U, par.V are semi-axes of view
+static __forceinline__ __device__ 
+void makeCameraRayThinLens( CameraFrame camera, float lens_width, uint2 image_dim, float2 lx, float2 px, float3& origin, float3& direction )
+{
+    using namespace otk;
+    // Calculate ray origin offset from eye point, (assuming lens at origin)
+    float2 luv = concentricMapping( lx );
+    origin = float3{0.0f, 0.0f, 0.0f};
+    origin += ( 0.5f * lens_width * luv.x / length( camera.U ) ) * camera.U;
+    origin += ( 0.5f * lens_width * luv.y / length( camera.V ) ) * camera.V;
+
+    // Ray direction is vector from lens point to a point on the image plane
+    direction = camera.W;
+    direction += ( 2.0f * ( px.x - 0.5f * image_dim.x ) / image_dim.x ) * camera.U;
+    direction += ( 2.0f * ( px.y - 0.5f * image_dim.y ) / image_dim.y ) * camera.V;
+    direction -= origin;
+    direction = normalize( direction );
+
+    // Add the eye point to the origin
+    origin += camera.eye;
 }
 
 //------------------------------------------------------------------------------
@@ -132,9 +229,9 @@ static __forceinline__ __device__ float computeTextureFootprintMinWidth( float d
 //------------------------------------------------------------------------------
 
 // Sample demand-load texture, walking up the mip pyramid to find a resident sample
-template <class TYPE>
-static __forceinline__ __device__ TYPE
-tex2DGradWalkup( const DeviceContext& context, unsigned int texture_id, float x, float y, float2 ddx, float2 ddy, bool* is_resident )
+template <class TYPE> 
+static __forceinline__ __device__ 
+TYPE tex2DGradWalkup( const DeviceContext context, unsigned int texture_id, float x, float y, float2 ddx, float2 ddy, bool* is_resident )
 {
     const float mipTailSampleWidth = 1.0f / 32.0f;
     const int   maxWalkup          = 4;
@@ -158,10 +255,22 @@ tex2DGradWalkup( const DeviceContext& context, unsigned int texture_id, float x,
     return color;
 }
 
+// Sample a ColorTex
+static __forceinline__ __device__ 
+float3 sampleTexture( const DeviceContext context, SurfaceGeometry g, ColorTex tex, bool* is_resident )
+{
+    using namespace otk;
+    if( tex.texid < 0 )
+        return tex.color;
+    float4 t = tex2DGradWalkup<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident );
+    return tex.color * float3{t.x, t.y, t.z};
+}
+
 // For pixel px, compute the color of an overlay showing resident texture tiles graphically,
 // where the overlay display is located at (x0, y0).
 static __forceinline__ __device__ float4 tileDisplayColor( const DeviceContext& context, int texture_id, int x0, int y0, uint2 px )
 {
+    using namespace otk;
     if( texture_id < 0 )
         return make_float4( 0.0f );
 

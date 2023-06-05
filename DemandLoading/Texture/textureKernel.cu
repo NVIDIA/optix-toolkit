@@ -36,6 +36,8 @@
 
 #include <cuda_runtime.h>
 
+using namespace otk;  // for vec_math operators
+
 // Whether to use tex2DLod or tex2DGrad
 //#define USE_TEX2DLOD 1
 

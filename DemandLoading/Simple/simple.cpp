@@ -30,15 +30,17 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <stdexcept>
 
-using namespace demandLoading;
+#include "Simple.h"
 
-// Launch kernel.  Defined in optixDemandLoadSimple.cu
-void launchPageRequester( cudaStream_t stream, const DeviceContext& context, unsigned int pageBegin, unsigned int pageEnd );
+using namespace demandLoading;
 
 // Check status returned by a CUDA call.
 inline void check( cudaError_t status )
@@ -50,21 +52,39 @@ inline void check( cudaError_t status )
 // Global count of requests processed.
 std::atomic<int> g_numRequestsProcessed( 0 );
 
+void* toPageEntry( unsigned int value )
+{
+    void*         result{};
+    std::intptr_t source = value;
+    std::memcpy( &result, &source, sizeof( result ) );
+    return result;
+}
+
 // This callback is invoked by the demand loading library when a page request is processed.
-bool loadResourceCallback( cudaStream_t stream, unsigned int pageIndex, void* context, void** pageTableEntry )
+bool loadResourceCallback( cudaStream_t stream, unsigned int pageId, void* context, void** pageTableEntry )
 {
     ++g_numRequestsProcessed;
-    *pageTableEntry = nullptr;
+    *pageTableEntry = toPageEntry( pageId );
     return true;
+}
+
+void validatePageTableEntries( const std::vector<PageTableEntry>& pageTableEntries, unsigned int currentPage, unsigned int batchSize )
+{
+    for( unsigned int i = 0; i < batchSize; ++i )
+    {
+        if( pageTableEntries[i] != currentPage )
+            printf( "Mismatch pageTable[%u]=%llu != %u\n", i, pageTableEntries[i], currentPage );
+        ++currentPage;
+    }
 }
 
 int main()
 {
     // Initialize CUDA.
     check( cudaFree( nullptr ) );
-    
+
     // Create DemandLoader
-    DemandLoader*             loader = createDemandLoader( Options() );
+    DemandLoader* loader = createDemandLoader( Options() );
 
     // Create a resource, using the given callback to handle page requests.
     const unsigned int numPages  = 128;
@@ -79,14 +99,21 @@ int main()
     // Process all the pages of the resource in batches.
     const unsigned int batchSize   = 32;
     unsigned int       numLaunches = 0;
+
+    void* devPageTableEntries{};
+    cudaMalloc( &devPageTableEntries, sizeof( PageTableEntry ) * numPages );
+
+    std::vector<PageTableEntry> pageTableEntries;
+
     for( unsigned int currentPage = startPage; currentPage < startPage + numPages; )
     {
         // Prepare for launch, obtaining DeviceContext.
-        DeviceContext      context;
+        DeviceContext context;
         loader->launchPrepare( stream, context );
 
         // Launch the kernel.
-        launchPageRequester( stream, context, currentPage, currentPage + batchSize );
+        launchPageRequester( stream, context, currentPage, currentPage + batchSize,
+                             static_cast<PageTableEntry*>( devPageTableEntries ) );
         ++numLaunches;
 
         // Initiate request processing, which returns a Ticket.
@@ -97,12 +124,18 @@ int main()
 
         // Advance the loop counter only when there were no page requests.
         if( ticket.numTasksTotal() == 0 )
+        {
+            pageTableEntries.resize( batchSize );
+            cudaMemcpy( pageTableEntries.data(), devPageTableEntries, batchSize * sizeof( PageTableEntry ), cudaMemcpyDeviceToHost );
+            validatePageTableEntries( pageTableEntries, currentPage, batchSize );
             currentPage += batchSize;
+        }
     }
 
     printf( "Processed %i requests in %i launches.\n", g_numRequestsProcessed.load(), numLaunches );
 
     // Clean up
+    cudaFree( devPageTableEntries );
     check( cudaStreamDestroy( stream ) );
     destroyDemandLoader( loader );
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,15 +26,38 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include "DemandGeometryViewer.h"
 
-#include "Util/interval_math.h"
-
+#include <OptiXToolkit/DemandLoading/Paging.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
+#include <optix.h>
+
+#include <vector_functions.h>
+
+namespace demandGeometryViewer {
+
+extern "C" __constant__ Params g_params;
+
 template <typename T>
-__device__ __forceinline__ T eval_procedural( vec2<T> uv )
+__forceinline__ __device__ T* getSbtData()
 {
-    using namespace otk;
-    return clamp( 2.f * cosf( length( uv - make_float2( 0.5f, 0.5f ) ) * 4.f * M_PIf ), 0.f, 1.f );
+    return reinterpret_cast<T*>( optixGetSbtDataPointer() );
 }
+
+static __forceinline__ __device__ void setRayPayload( float3 p )
+{
+    optixSetPayload_0( __float_as_uint( p.x ) );
+    optixSetPayload_1( __float_as_uint( p.y ) );
+    optixSetPayload_2( __float_as_uint( p.z ) );
+}
+
+extern "C" __global__ void __closesthit__proxyMaterial()
+{
+    const uint_t             pageId = g_params.demandMaterialPageIds[optixGetPrimitiveIndex()];
+    bool                     isResident{};
+    const unsigned long long pageTableEntry = demandLoading::pagingMapOrRequest( g_params.demandContext, pageId, &isResident );
+    setRayPayload( g_params.demandMaterialColor );
+}
+
+}  // namespace demandGeometryViewer

@@ -56,11 +56,6 @@ struct MissData
     float3 background;
 };
 
-struct SphereData
-{
-    const uint_t* indices;
-};
-
 struct PhongMaterial
 {
     float3 Ka;
@@ -72,7 +67,6 @@ struct PhongMaterial
 
 struct HitGroupData
 {
-    SphereData    spheres;
     PhongMaterial material;
 };
 
@@ -82,6 +76,20 @@ struct BasicLight
     float3 color;
 };
 
+struct Debug
+{
+    bool  enabled;
+    bool  debugIndexSet;
+    uint3 debugIndex;
+};
+
+struct GetSphereData
+{
+    bool          useOptixGetSphereData;
+    const float3* centers;
+    const float*  radii;
+};
+
 struct Params
 {
     uchar4*                      image;
@@ -89,11 +97,16 @@ struct Params
     uint_t                       height;
     BasicLight                   lights[3];
     float3                       ambientColor;
-    PhongMaterial                proxyMaterial;
+    float3                       proxyFaceColors[6];
     float                        sceneEpsilon;
     OptixTraversableHandle       traversable;
     demandLoading::DeviceContext demandContext;
     demandGeometry::Context      demandGeomContext;
+    const uint_t*                demandMaterialPageIds;
+    float3                       demandMaterialColor;
+    const uint_t*                sphereIds;
+    GetSphereData                getSphereData;
+    Debug                        debug;
 };
 
 }  // namespace demandGeometryViewer

@@ -44,22 +44,23 @@ using uint_t = unsigned int;
 class SphereInstances
 {
   public:
-    void add( float3 center, float radius, int index );
-    void remove( int index );
-    void setSbtIndex( uint_t index ) { m_sbtIndex = index; }
+    void add( float3 center, float radius, uint_t id, uint_t sbtIndex );
+    void remove( uint_t id );
+    void setInstanceSbtIndex( uint_t id, uint_t index );
 
     OptixTraversableHandle createTraversable( OptixDeviceContext dc, CUstream stream );
 
-    const uint_t* getIndicesDevicePtr() const { return m_indices.typedDevicePtr(); }
+    const uint_t* getSphereIdsDevicePtr() const { return m_sphereIds.typedDevicePtr(); }
+    const float3* getSphereCentersDevicePtr() const { return m_centers.typedDevicePtr(); }
+    const float*  getSphereRadiiDevicePtr() const { return m_radii.typedDevicePtr(); }
 
   private:
-    otk::SyncVector<uint_t>        m_indices;
+    otk::SyncVector<uint_t>        m_sphereIds;
     otk::SyncVector<float3>        m_centers;
     otk::SyncVector<float>         m_radii;
     otk::SyncVector<std::uint32_t> m_sbtIndices;
     otk::DeviceBuffer              m_devTempBufferGas;
     otk::DeviceBuffer              m_devGeomAs;
-    uint_t                         m_sbtIndex{};
 };
 
 }  // namespace demandGeometryViewer

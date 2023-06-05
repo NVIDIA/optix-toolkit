@@ -28,30 +28,45 @@
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(FetchGlfw)
+include(FetchGlad)
+include(embed_ptx)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
+embed_ptx(
+  CONST HEADER TexturePaintingKernelPTX.h
+  OUTPUT_TARGET
+    texturePaintingKernel
+  FOLDER
+    Examples/DemandLoading
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    TexturePainting.cu
+)
 
-add_executable( demandLoadSimple
-  simple.cpp
-  Simple.h
-  PageRequester.cu
+add_executable( texturePainting
+  CanvasImage.cpp
+  CanvasImage.h
+  TexturePainting.cpp
   )
 
-target_link_libraries( demandLoadSimple
+target_link_libraries( texturePainting
+  texturePaintingKernel
   OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::Gui
   OptiXToolkit::Util
-  CUDA::cudart
   )
 
-set_target_properties( demandLoadSimple PROPERTIES
+set_target_properties( texturePainting PROPERTIES
   FOLDER Examples/DemandLoading
   INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:demandLoadSimple> )
-  add_custom_command( TARGET demandLoadSimple POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
+if( $<TARGET_RUNTIME_DLLS:texturePainting> )
+  add_custom_command( TARGET texturePainting POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:texturePainting> $<TARGET_FILE_DIR:texturePainting>
     COMMAND_EXPAND_LISTS )
 endif()

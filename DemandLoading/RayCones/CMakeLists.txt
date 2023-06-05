@@ -28,30 +28,46 @@
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(FetchGlfw)
+include(FetchGlad)
+include(embed_ptx)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
+embed_ptx(
+  CONST HEADER RayConesKernelPTX.h
+  OUTPUT_TARGET
+    rayConesKernel
+  FOLDER
+    Examples/DemandLoading
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    RayCones.cu
+)
 
-add_executable( demandLoadSimple
-  simple.cpp
-  Simple.h
-  PageRequester.cu
+add_executable( rayCones
+  Bsdf.h
+  RayCones.cpp
+  ShapeMaker.cpp 
+  ShapeMaker.h
   )
 
-target_link_libraries( demandLoadSimple
+target_link_libraries( rayCones
+  rayConesKernel
   OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::Gui
   OptiXToolkit::Util
-  CUDA::cudart
   )
 
-set_target_properties( demandLoadSimple PROPERTIES
+set_target_properties( rayCones PROPERTIES
   FOLDER Examples/DemandLoading
   INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:demandLoadSimple> )
-  add_custom_command( TARGET demandLoadSimple POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadSimple> $<TARGET_FILE_DIR:demandLoadSimple>
+if( $<TARGET_RUNTIME_DLLS:rayCones> )
+  add_custom_command( TARGET rayCones POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:rayCones> $<TARGET_FILE_DIR:rayCones>
     COMMAND_EXPAND_LISTS )
 endif()

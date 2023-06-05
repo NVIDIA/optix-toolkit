@@ -14,10 +14,10 @@ See the [CHANGELOG](CHANGELOG.md) for recent changes.
   - DemandGeometryViewer is a simple demand loaded geometry example.
   - demandTextureViewer visualizes texture tiles loaded from a mipmapped texture.
   - textureVariantViewer shows two textures with the same backing storage.
-  One texture uses linear interpolation, and the other uses point interpolation.
+    One texture uses linear interpolation, and the other uses point interpolation.
+  - RayCones demonstrates using ray cones to drive texture filtering.
   - udimTextureViewer demonstrates demand loaded udim textures.
-- CmOmmBaking:
+- CuOmmBaking:
   - ommBakingSimple is a simple example of opacity micromap baking and creating an OptiX triangle
 primitive acceleration structure using the micromap.  No rendering is performed.
   - ommBakingViewer is an interactive viewer for a scene using opacity micromaps.
-  

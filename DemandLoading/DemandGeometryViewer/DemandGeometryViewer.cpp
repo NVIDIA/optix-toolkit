@@ -32,6 +32,7 @@
 #include <glad/glad.h>
 
 #include "DemandGeometryViewerKernelPTX.h"
+#include "DemandMaterial.h"
 #include "SphereInstances.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
@@ -49,6 +50,7 @@
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 #include <OptiXToolkit/OptiXMemory/Record.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
 
@@ -74,6 +76,8 @@
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
 
+using namespace otk;  // for vec_math operators
+
 namespace demandGeometryViewer {
 
 using RayGenSbtRecord   = otk::Record<CameraData>;
@@ -81,9 +85,8 @@ using MissSbtRecord     = otk::Record<MissData>;
 using HitGroupSbtRecord = otk::Record<HitGroupData>;
 using OutputBuffer      = otk::CUDAOutputBuffer<uchar4>;
 
-const int    NUM_PAYLOAD_VALUES   = 4;
-const int    NUM_ATTRIBUTE_VALUES = 3;
-const uint_t PROXY_SBT_INDEX      = 0;
+const int NUM_PAYLOAD_VALUES   = 4;
+const int NUM_ATTRIBUTE_VALUES = 3;
 
 [[noreturn]] void printUsageAndExit( const char* argv0 )
 {
@@ -93,7 +96,9 @@ const uint_t PROXY_SBT_INDEX      = 0;
         "Options: --file | -f <filename>      Specify file for image output\n"
         "         --help | -h                 Print this usage message\n"
         "         --dim=<width>x<height>      Set image dimensions; defaults to 512x384\n"
-        "         --frames=<num>              Specify number of warmup frames before writing to file\n";
+        "         --frames=<num>              Specify number of warmup frames before writing to file\n"
+        "         --optixGetSphereData=yes/no Use optixGetSphereData or application data access\n"
+        "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n";
     // clang-format on
     exit( 1 );
 }
@@ -101,17 +106,19 @@ const uint_t PROXY_SBT_INDEX      = 0;
 struct Options
 {
     std::string outFile;
-    int         width{ 512 };
-    int         height{ 512 };
+    int         width{512};
+    int         height{512};
     float3      background;
     int         warmup{};
+    Debug       debug{};
+    bool        useOptixGetSphereData{true};
 };
 
 bool hasOption( const std::string& arg, const std::string& flag, std::istringstream& value )
 {
     if( arg.substr( 0, flag.length() ) == flag )
     {
-        value.str( arg.substr( flag.length() ) );
+        value = std::istringstream( arg.substr( flag.length() ) );
         return true;
     }
     return false;
@@ -151,6 +158,33 @@ Options parseArguments( int argc, char* argv[] )
                 printUsageAndExit( argv[0] );
             options.warmup = warmup;
         }
+        else if( hasOption( arg, "--optixGetSphereData=", value ) )
+        {
+            const std::string text = value.str();
+            if( text != "yes" && text != "no" )
+            {
+                std::cerr << "Unknown option '" << arg << "'\n";
+                printUsageAndExit( argv[0] );
+            }
+
+            options.useOptixGetSphereData = text == "yes";
+        }
+        else if( hasOption( arg, "--debug=", value ) )
+        {
+            int  x{-1};
+            char separator{};
+            int  y{-1};
+            value >> x;
+            value >> separator;
+            value >> y;
+            if( !value || x < 0 || y < 0 )
+                printUsageAndExit( argv[0] );
+
+            Debug& debug        = options.debug;
+            debug.enabled       = true;
+            debug.debugIndexSet = true;
+            debug.debugIndex    = make_uint3( x, y, 0 );
+        }
         else
         {
             std::cerr << "Unknown option '" << arg << "'\n";
@@ -168,15 +202,15 @@ struct SceneProxy
     uint_t level;
     uint_t pageId;
     float3 center;
-    float radius;
+    float  radius;
 };
 
 struct ScenePrimitive
 {
     uint_t level;
     float3 center;
-    float radius;
-    int index;
+    float  radius;
+    int    index;
 };
 
 class DemandLoaderDestroyer
@@ -200,7 +234,7 @@ class Application
     void createContext();
     void initPipelineOpts();
 
-    OptixModule createModuleFromSource( OptixModuleCompileOptions compileOptions );
+    OptixModule createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* ptx, size_t ptxSize );
 
     void createModules();
     void createProgramGroups();
@@ -216,9 +250,12 @@ class Application
     void writeHitGroupRecords();
     void writeSbt();
     void buildShaderBindingTable();
+    void setParamSphereData();
     void initLaunchParams();
+    void updateLaunchParams();
 
-    void createGeometry( uint_t pageId );
+    void createGeometry( uint_t proxyId );
+    void realizeMaterial( uint_t materialId );
     void updateSbt();
 
     void runInteractive();
@@ -251,24 +288,33 @@ class Application
     OptixDeviceContext          m_context{};
     CUstream                    m_stream{};
     OptixPipelineCompileOptions m_pipelineOpts{};
-    OptixModule                 m_sampleModule{};
+    OptixModule                 m_viewerModule{};
+    OptixModule                 m_proxyMaterialModule{};
+    OptixModule                 m_realizedMaterialModule{};
     OptixModule                 m_sphereModule{};
     bool                        m_updateNeeded{};
 
     enum
     {
-        GROUP_RAYGEN = 0,
-        GROUP_MISS,
-        GROUP_HIT_GROUP_PROXIES,
-        GROUP_HIT_GROUP_PRIMITIVES,
-        NUM_GROUPS
+        GROUP_RAYGEN                      = 0,
+        GROUP_MISS                        = 1,
+        GROUP_HIT_GROUP_PROXY_GEOMETRY    = 2,
+        GROUP_HIT_GROUP_PROXY_MATERIAL    = 3,
+        GROUP_HIT_GROUP_REALIZED_MATERIAL = 4,
+        NUM_STATIC_PROGRAM_GROUPS         = 4,
     };
-    OptixProgramGroup m_groups[NUM_GROUPS]{};
-    OptixPipeline     m_pipeline{};
+    enum
+    {
+        HITGROUP_INDEX_PROXY_GEOMETRY = 0,
+        HITGROUP_INDEX_PROXY_MATERIAL,
+        HITGROUP_INDEX_REALIZED_MATERIAL,
+    };
+    std::vector<OptixProgramGroup> m_programGroups;
+    OptixPipeline                  m_pipeline{};
 
-    otk::SyncRecord<CameraData>   m_rayGenRecord{ 1 };
-    otk::SyncRecord<MissData>     m_missRecord{ 1 };
-    otk::SyncRecord<HitGroupData> m_hitGroupRecords{ 2 * RAYTYPE_COUNT };
+    otk::SyncRecord<CameraData>   m_rayGenRecord{1};
+    otk::SyncRecord<MissData>     m_missRecords{1};
+    otk::SyncRecord<HitGroupData> m_hitGroupRecords{NUM_STATIC_PROGRAM_GROUPS};
     OptixShaderBindingTable       m_sbt{};
 
     DemandLoaderPtr                                 m_loader;
@@ -284,15 +330,18 @@ class Application
     otk::SyncVector<OptixInstance> m_topLevelInstances;
     OptixTraversableHandle         m_topLevelTraversable{};
 
-    otk::SyncVector<Params> m_params{ 1 };
+
+    otk::SyncVector<Params> m_params{1};
 
     demandLoading::Ticket m_ticket;
 
     GLFWwindow*          m_window{};
     otk::TrackballCamera m_trackballCamera;
 
-    std::vector<SceneProxy>     m_sceneProxies;
-    std::vector<ScenePrimitive> m_scenePrimitives;
+    std::vector<SceneProxy>         m_sceneProxies;
+    std::vector<ScenePrimitive>     m_scenePrimitives;
+    std::unique_ptr<DemandMaterial> m_materials;
+    otk::SyncVector<uint_t>         m_materialIds;
 };
 
 Application::Application( Options&& cliOptions )
@@ -341,6 +390,7 @@ void Application::createContext()
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
 
     m_proxies.reset( new demandGeometry::ProxyInstances( m_loader.get() ) );
+    m_materials.reset( new DemandMaterial( m_loader.get() ) );
 }
 
 void Application::initPipelineOpts()
@@ -351,30 +401,37 @@ void Application::initPipelineOpts()
     m_pipelineOpts.numAttributeValues     = std::max( NUM_ATTRIBUTE_VALUES, m_proxies->getNumAttributes() );
     m_pipelineOpts.exceptionFlags         = OPTIX_EXCEPTION_FLAG_NONE;
     m_pipelineOpts.usesPrimitiveTypeFlags = OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM | OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
-    m_pipelineOpts.pipelineLaunchParamsVariableName = "params";
+    m_pipelineOpts.pipelineLaunchParamsVariableName = "g_params";
 }
 
-OptixModule Application::createModuleFromSource( OptixModuleCompileOptions compileOptions )
+OptixModule Application::createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* ptx, size_t ptxSize )
 {
     OptixModule module;
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DemandGeometryViewer_ptx_text(),
-                                         DemandGeometryViewer_ptx_size, LOG, &LOG_SIZE, &module ) );
+    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, ptx, ptxSize, LOG, &LOG_SIZE, &module ) );
     return module;
 }
 
-void Application::createModules()
+static OptixModuleCompileOptions getCompileOptions()
 {
     OptixModuleCompileOptions compileOptions{};
     compileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
 #ifdef NDEBUG
-    bool debugInfo{ false };
+    bool debugInfo{false};
 #else
-    bool debugInfo{ true };
+    bool debugInfo{true};
 #endif
     compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 : OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
 
-    m_sampleModule = createModuleFromSource( compileOptions );
+    return compileOptions;
+}
+
+void Application::createModules()
+{
+    const OptixModuleCompileOptions compileOptions{getCompileOptions()};
+
+    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_ptx_text(), DemandGeometryViewer_ptx_size );
+    m_proxyMaterialModule = createModuleFromSource( compileOptions, DemandMaterial_ptx_text(), DemandMaterial_ptx_size );
 
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
@@ -385,24 +442,32 @@ void Application::createModules()
 void Application::createProgramGroups()
 {
     OptixProgramGroupOptions options{};
-    OptixProgramGroupDesc    descs[NUM_GROUPS]{};
-    otk::ProgramGroupDescBuilder( descs, m_sampleModule )
+    m_programGroups.resize( NUM_STATIC_PROGRAM_GROUPS );
+    OptixProgramGroupDesc descs[NUM_STATIC_PROGRAM_GROUPS]{};
+    otk::ProgramGroupDescBuilder( descs, m_viewerModule )
         .raygen( "__raygen__pinHoleCamera" )
         .miss( "__miss__backgroundColor" )
-        .hitGroupCHIS( m_sampleModule, m_proxies->getCHFunctionName(), m_sampleModule, m_proxies->getISFunctionName() )
-        .hitGroupCHIS( m_sampleModule, "__closesthit__sphere", m_sphereModule, nullptr );
-    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_GROUPS, &options, LOG, &LOG_SIZE, m_groups ) );
+        .hitGroupCHIS( m_viewerModule, m_proxies->getCHFunctionName(), m_viewerModule, m_proxies->getISFunctionName() )
+        .hitGroupCHIS( m_proxyMaterialModule, "__closesthit__proxyMaterial", m_sphereModule, nullptr );
+    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
+                                               m_programGroups.data() ) );
 }
 
 void Application::createPipeline()
 {
     const uint_t             maxTraceDepth = 1;
-    OptixPipelineLinkOptions options;
+    OptixPipelineLinkOptions options{};
     options.maxTraceDepth = maxTraceDepth;
-    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
+#ifdef NDEBUG
+    options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
+#else
+    options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
+#endif
+    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
+                                           m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
-    for( OptixProgramGroup group : m_groups )
+    for( OptixProgramGroup group : m_programGroups )
     {
 #if OPTIX_VERSION < 70700
         OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
@@ -414,48 +479,47 @@ void Application::createPipeline()
     uint_t directCallableStateStackSize{};
     uint_t continuationStackSize{};
     OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stackSizes, maxTraceDepth, 0, 0, &directCallableTraversalStackSize,
-                                             &directCallableStateStackSize, &continuationStackSize ) );
+                                                 &directCallableStateStackSize, &continuationStackSize ) );
     const uint_t maxTraversableDepth = 3;
     OTK_ERROR_CHECK( optixPipelineSetStackSize( m_pipeline, directCallableTraversalStackSize, directCallableStateStackSize,
-                                            continuationStackSize, maxTraversableDepth ) );
+                                                continuationStackSize, maxTraversableDepth ) );
 }
 
 void Application::addProxy( uint_t level, float3 center, float radius )
 {
     const float3    min = center - radius * make_float3( 1.0f, 1.0f, 1.0f );
     const float3    max = center + radius * make_float3( 1.0f, 1.0f, 1.0f );
-    const OptixAabb bounds{ min.x, min.y, min.z, max.x, max.y, max.z };
+    const OptixAabb bounds{min.x, min.y, min.z, max.x, max.y, max.z};
     const uint_t    pageId = m_proxies->add( bounds );
-    m_sceneProxies.push_back( { level, pageId, center, radius } );
+    m_sceneProxies.push_back( {level, pageId, center, radius} );
 }
 
 void Application::createPrimitives()
 {
-    addProxy( 0, { 0.0f, 0.0f, 0.0f }, 1.0f );
+    addProxy( 0, {0.0f, 0.0f, 0.0f}, 1.0f );
     m_proxies->copyToDeviceAsync( m_stream );
     m_params[0].demandGeomContext = m_proxies->getContext();
 
-    const float3        Ka       = { 0.0f, 0.0f, 0.0f };
-    const float3        Kd       = { 0.5f * 1.0f, 0.5f * 0.9f, 0.5f * 0.7f };
-    const float3        Ks       = { 0.5f * 1.0f, 0.5f * 0.9f, 0.5f * 0.7f };
-    const float3        Kr       = { 0.5f, 0.5f, 0.5f };
-    const float         phongExp = 128.0f;
-    const PhongMaterial mat      = {
-        Ka, Kd, Ks, Kr, phongExp,
+    const float3 proxyFaceColors[6] = {
+        {1.0f, 0.0f, 0.0f},  // +x
+        {0.5f, 0.0f, 0.0f},  // -x
+        {0.0f, 1.0f, 0.0f},  // +y
+        {0.0f, 0.5f, 0.0f},  // -y
+        {0.0f, 0.0f, 1.0f},  // +z
+        {0.0f, 0.0f, 0.5f}   // -z
     };
-    m_params[0].proxyMaterial = mat;
+    std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( m_params[0].proxyFaceColors ) );
 }
 
 void Application::createAccels()
 {
-    m_proxies->setSbtIndex( PROXY_SBT_INDEX );
+    m_proxies->setSbtIndex( HITGROUP_INDEX_PROXY_GEOMETRY );
     m_proxyInstanceTraversable = m_proxies->createTraversable( m_context, m_stream );
-    CUDA_SYNC_CHECK();
-    m_spheres.setSbtIndex( RAYTYPE_COUNT );
+    OTK_CUDA_SYNC_CHECK();
     m_sphereTraversable = m_spheres.createTraversable( m_context, m_stream );
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
     createTopLevelTraversable();
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
 }
 
 static void identity( float ( &result )[12] )
@@ -488,7 +552,7 @@ void Application::createTopLevelTraversable()
     pushInstance( m_proxyInstanceTraversable );
     pushInstance( m_sphereTraversable );
     m_topLevelInstances.copyToDeviceAsync( m_stream );
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
 
     const uint_t    NUM_BUILD_INPUTS = 1;
     OptixBuildInput inputs[NUM_BUILD_INPUTS]{};
@@ -503,10 +567,10 @@ void Application::createTopLevelTraversable()
 
     m_devTopLevelInstanceTempBuffer.resize( sizes.tempSizeInBytes );
     m_devTopLevelInstanceAccelBuffer.resize( sizes.outputSizeInBytes );
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
     OTK_ERROR_CHECK( optixAccelBuild( m_context, m_stream, &options, inputs, NUM_BUILD_INPUTS, m_devTopLevelInstanceTempBuffer,
-                                  sizes.tempSizeInBytes, m_devTopLevelInstanceAccelBuffer, sizes.outputSizeInBytes,
-                                  &m_topLevelTraversable, nullptr, 0 ) );
+                                      sizes.tempSizeInBytes, m_devTopLevelInstanceAccelBuffer, sizes.outputSizeInBytes,
+                                      &m_topLevelTraversable, nullptr, 0 ) );
 }
 
 void Application::updateTopLevelTraversable()
@@ -529,63 +593,47 @@ void Application::updateTopLevelTraversable()
     m_devTopLevelInstanceTempBuffer.resize( sizes.tempUpdateSizeInBytes );
     m_devTopLevelInstanceAccelBuffer.resize( sizes.outputSizeInBytes );
     OTK_ERROR_CHECK( optixAccelBuild( m_context, m_stream, &options, inputs, NUM_BUILD_INPUTS, m_devTopLevelInstanceTempBuffer,
-                                  sizes.tempSizeInBytes, m_devTopLevelInstanceAccelBuffer, sizes.outputSizeInBytes,
-                                  &m_topLevelTraversable, nullptr, 0 ) );
-    CUDA_SYNC_CHECK();
+                                      sizes.tempSizeInBytes, m_devTopLevelInstanceAccelBuffer, sizes.outputSizeInBytes,
+                                      &m_topLevelTraversable, nullptr, 0 ) );
+    OTK_CUDA_SYNC_CHECK();
 }
 
 void Application::writeRayGenRecords()
 {
+    // A single raygen record.
     m_rayGenRecord[0].eye = m_trackballCamera.getCameraEye();
     m_trackballCamera.cameraUVWFrame( m_rayGenRecord[0].U, m_rayGenRecord[0].V, m_rayGenRecord[0].W );
-    m_rayGenRecord.packHeader( 0, m_groups[GROUP_RAYGEN] );
+    m_rayGenRecord.packHeader( 0, m_programGroups[GROUP_RAYGEN] );
     m_rayGenRecord.copyToDeviceAsync( m_stream );
 }
 
 void Application::writeMissRecords()
 {
-    m_missRecord[0].background = m_options.background;
-    m_missRecord.packHeader( 0, m_groups[GROUP_MISS] );
-    m_missRecord.copyToDeviceAsync( m_stream );
+    // A single miss record.
+    m_missRecords[0].background = m_options.background;
+    m_missRecords.packHeader( 0, m_programGroups[GROUP_MISS] );
+    m_missRecords.copyToDeviceAsync( m_stream );
 }
 
 void Application::writeHitGroupRecords()
 {
-    // HitGroup records for proxies.
-    uint_t record = 0;
-    for( size_t i = 0; i < RAYTYPE_COUNT; ++i )
-    {
-        m_hitGroupRecords.packHeader( record, m_groups[GROUP_HIT_GROUP_PROXIES] );
-        ++record;
-    }
+    // HitGroup record for proxy geometry.
+    m_hitGroupRecords.packHeader( HITGROUP_INDEX_PROXY_GEOMETRY, m_programGroups[GROUP_HIT_GROUP_PROXY_GEOMETRY] );
 
-    // HitGroup records for loaded geometries.
-    // Use a blue material initially so we know that the proper SBT
-    // hit group record was rewritten when the geometry is loaded.
-    for( size_t i = 0; i < RAYTYPE_COUNT; ++i )
-    {
-        m_hitGroupRecords.packHeader( record, m_groups[GROUP_HIT_GROUP_PRIMITIVES] );
-        HitGroupData& primData   = m_hitGroupRecords[record];
-        primData.spheres.indices = m_spheres.getIndicesDevicePtr();
-        const float3 Ka          = { 0.0f, 0.0f, 0.0f };
-        const float3 Kd          = { 0.0f, 0.0f, 1.0f };  // blue
-        const float3 Ks          = { 0.5f * 1.0f, 0.5f * 0.0f, 0.5f * 0.0f };
-        const float3 Kr          = { 0.5f, 0.5f, 0.5f };
-        const float  phongExp    = 128.0f;
-        primData.material        = {
-            Ka, Kd, Ks, Kr, phongExp,
-        };
-        ++record;
-    }
+    // HitGroup record for proxy material.
+    m_hitGroupRecords.packHeader( HITGROUP_INDEX_PROXY_MATERIAL, m_programGroups[GROUP_HIT_GROUP_PROXY_MATERIAL] );
+
+    // Initially no hitgroup record(s) for realized materials.
+
     m_hitGroupRecords.copyToDeviceAsync( m_stream );
 }
 
 void Application::writeSbt()
 {
     m_sbt.raygenRecord                = m_rayGenRecord;
-    m_sbt.missRecordBase              = m_missRecord;
+    m_sbt.missRecordBase              = m_missRecords;
     m_sbt.missRecordStrideInBytes     = static_cast<uint_t>( sizeof( MissSbtRecord ) );
-    m_sbt.missRecordCount             = 1;
+    m_sbt.missRecordCount             = static_cast<uint_t>( m_missRecords.size() );
     m_sbt.hitgroupRecordBase          = m_hitGroupRecords;
     m_sbt.hitgroupRecordCount         = static_cast<uint_t>( m_hitGroupRecords.size() );
     m_sbt.hitgroupRecordStrideInBytes = static_cast<uint_t>( sizeof( HitGroupSbtRecord ) );
@@ -599,64 +647,137 @@ void Application::buildShaderBindingTable()
     writeSbt();
 }
 
-void Application::initLaunchParams()
+void Application::setParamSphereData()
 {
-    BasicLight lights[]{ {
-                             make_float3( 4.0f, 2.0f, -3.0f ),  // pos
-                             make_float3( 0.5f, 0.5f, 0.5f )    // color
-                         },
-                         {
-                             make_float3( 1.0f, 4.0f, 4.0f ),  // pos
-                             make_float3( 0.5f, 0.5f, 0.5f )   // color
-                         },
-                         {
-                             make_float3( -3.0f, 5.0f, -1.0f ),  // pos
-                             make_float3( 0.5f, 0.5f, 0.5f )     // color
-                         } };
-    // normalize the light directions to start
-    for( BasicLight& light : lights )
-        light.pos = normalize( light.pos );
-    Params& params = m_params[0];
-    std::copy( std::begin( lights ), std::end( lights ), std::begin( params.lights ) );
-    params.ambientColor = make_float3( 0.4f, 0.4f, 0.4f );
-    params.sceneEpsilon = 1.e-4f;
-    params.traversable  = m_topLevelTraversable;
+    Params&       params = m_params[0];
+    GetSphereData getSphereData{};
+    getSphereData.useOptixGetSphereData = m_options.useOptixGetSphereData;
+    if( !getSphereData.useOptixGetSphereData )
+    {
+        getSphereData.centers = m_spheres.getSphereCentersDevicePtr();
+        getSphereData.radii   = m_spheres.getSphereRadiiDevicePtr();
+    }
+    params.getSphereData = getSphereData;
 }
 
-void Application::createGeometry( uint_t pageId )
+void Application::initLaunchParams()
+{
+    BasicLight lights[]{{
+                            make_float3( 4.0f, 2.0f, -3.0f ),  // pos
+                            make_float3( 0.5f, 0.5f, 0.5f )    // color
+                        },
+                        {
+                            make_float3( 1.0f, 4.0f, 4.0f ),  // pos
+                            make_float3( 0.5f, 0.5f, 0.5f )   // color
+                        },
+                        {
+                            make_float3( -3.0f, 5.0f, -1.0f ),  // pos
+                            make_float3( 0.5f, 0.5f, 0.5f )     // color
+                        }};
+    // normalize the light directions to start
+    for( BasicLight& light : lights )
+        light.pos  = normalize( light.pos );
+    Params& params = m_params[0];
+    std::copy( std::begin( lights ), std::end( lights ), std::begin( params.lights ) );
+    params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
+    params.sceneEpsilon        = 1.e-4f;
+    params.traversable         = m_topLevelTraversable;
+    params.sphereIds           = m_spheres.getSphereIdsDevicePtr();
+    const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
+    params.demandMaterialColor = yellow;
+    params.debug               = m_options.debug;
+    setParamSphereData();
+}
+
+void Application::updateLaunchParams()
+{
+    Params& params   = m_params[0];
+    params.sphereIds = m_spheres.getSphereIdsDevicePtr();
+    m_materialIds.copyToDevice();
+    params.demandMaterialPageIds = m_materialIds.typedDevicePtr();
+
+    setParamSphereData();
+}
+
+void Application::createGeometry( uint_t proxyId )
 {
     auto pos = std::find_if( m_sceneProxies.begin(), m_sceneProxies.end(),
-                             [pageId]( const SceneProxy& prim ) { return prim.pageId == pageId; } );
+                             [proxyId]( const SceneProxy& prim ) { return prim.pageId == proxyId; } );
     if( pos == m_sceneProxies.end() )
     {
-        throw std::runtime_error("Unknown page id " + std::to_string(pageId));
+        throw std::runtime_error( "Unknown page id " + std::to_string( proxyId ) );
     }
 
-    m_proxies->remove( pageId );
-    m_scenePrimitives.push_back( { pos->level, pos->center, pos->radius, static_cast<int>( m_scenePrimitives.size() ) } );
-    m_spheres.add( pos->center, pos->radius, m_scenePrimitives.back().index );
+    m_proxies->remove( proxyId );
+    m_scenePrimitives.push_back( {pos->level, pos->center, pos->radius, static_cast<int>( m_scenePrimitives.size() )} );
+    m_materialIds.push_back( m_materials->add() );
+    m_spheres.add( pos->center, pos->radius, m_materialIds.back(), HITGROUP_INDEX_PROXY_MATERIAL );
+    m_updateNeeded = true;
+}
+
+static PhongMaterial red()
+{
+    const float3 Ka       = {0.0f, 0.0f, 0.0f};
+    const float3 Kd       = {1.0f, 0.0f, 0.0f};  // red
+    const float3 Ks       = {0.5f * 1.0f, 0.5f * 0.0f, 0.5f * 0.0f};
+    const float3 Kr       = {0.5f, 0.5f, 0.5f};
+    const float  phongExp = 128.0f;
+    return {
+        Ka, Kd, Ks, Kr, phongExp,
+    };
+}
+
+void Application::realizeMaterial( uint_t materialId )
+{
+    auto pos = std::find( m_materialIds.begin(), m_materialIds.end(), materialId );
+    if( pos == m_materialIds.end() )
+        throw std::runtime_error( "Unknown material id " + std::to_string( materialId ) );
+    m_materialIds.erase( pos );
+
+    std::cout << "Requested realization of material " << materialId << '\n';
+
+    // compile real material module
+    {
+        const OptixModuleCompileOptions compileOptions{getCompileOptions()};
+        m_realizedMaterialModule = createModuleFromSource( compileOptions, Sphere_ptx_text(), Sphere_ptx_size );
+    }
+
+    // create real material program group
+    {
+        OptixProgramGroupOptions options{};
+        const unsigned int       NUM_PROGRAM_GROUPS = 1;
+        OptixProgramGroupDesc    descs[NUM_PROGRAM_GROUPS]{};
+        otk::ProgramGroupDescBuilder( descs, nullptr ).hitGroupCHIS( m_realizedMaterialModule, "__closesthit__sphere", m_sphereModule, nullptr );
+        OptixProgramGroup materialGroup{};
+        OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_PROGRAM_GROUPS, &options, LOG, &LOG_SIZE, &materialGroup ) );
+        m_programGroups.push_back( materialGroup );
+    }
+
+    // recreate pipeline
+    {
+        OTK_ERROR_CHECK( optixPipelineDestroy( m_pipeline ) );
+        createPipeline();
+    }
+
+    // create real material hit group record
+    m_hitGroupRecords.resize( m_hitGroupRecords.size() + 1 );
+    m_hitGroupRecords.packHeader( HITGROUP_INDEX_REALIZED_MATERIAL, m_programGroups[GROUP_HIT_GROUP_REALIZED_MATERIAL] );
+    m_hitGroupRecords[HITGROUP_INDEX_REALIZED_MATERIAL].material = red();
+
+    // remove proxy material
+    m_materials->remove( materialId );
+
+    // set sphere instance SBT index to real material index
+    m_spheres.setInstanceSbtIndex( materialId, HITGROUP_INDEX_REALIZED_MATERIAL );
+
+    // mark update needed
     m_updateNeeded = true;
 }
 
 void Application::updateSbt()
 {
-    uint_t record = RAYTYPE_COUNT;  // First RAYTYPE_COUNT records are for proxies.
-    for( size_t i = 0; i < RAYTYPE_COUNT; ++i )
-    {
-        m_hitGroupRecords.packHeader( record, m_groups[GROUP_HIT_GROUP_PRIMITIVES] );
-        HitGroupData& primData   = m_hitGroupRecords[record];
-        primData.spheres.indices = m_spheres.getIndicesDevicePtr();
-        const float3 Ka          = { 0.0f, 0.0f, 0.0f };
-        const float3 Kd          = { 1.0f, 0.0f, 0.0f };  // red
-        const float3 Ks          = { 0.5f * 1.0f, 0.5f * 0.0f, 0.5f * 0.0f };
-        const float3 Kr          = { 0.5f, 0.5f, 0.5f };
-        const float  phongExp    = 128.0f;
-        primData.material        = {
-            Ka, Kd, Ks, Kr, phongExp,
-        };
-        ++record;
-    }
     m_hitGroupRecords.copyToDeviceAsync( m_stream );
+    writeSbt();
 }
 
 void Application::run()
@@ -675,7 +796,7 @@ void Application::runInteractive()
     m_trackballCamera.setKeyHandler( &Application::keyCallback, this );
 
     {
-        OutputBuffer output{ otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height };
+        OutputBuffer output{otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height};
         output.setStream( m_stream );
         otk::GLDisplay display;
         do
@@ -727,7 +848,7 @@ void Application::displayOutput( OutputBuffer& output, const otk::GLDisplay& dis
 
 void Application::runToFile()
 {
-    OutputBuffer output{ otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height };
+    OutputBuffer output{otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height};
     output.setStream( m_stream );
 
     for( int i = 0; i < m_options.warmup; ++i )
@@ -747,23 +868,23 @@ void Application::launch( OutputBuffer& output, uint_t width, uint_t height )
 
     OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
     m_loader->launchPrepare( m_stream, params.demandContext );
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
 
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
     params.image  = map;
     params.width  = width;
     params.height = height;
     m_params.copyToDeviceAsync( m_stream );
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
 
     const int launchDepth = 1;
     OTK_ERROR_CHECK( optixLaunch( m_pipeline, m_stream, reinterpret_cast<CUdeviceptr>( m_params.devicePtr() ),
-                              sizeof( Params ), &m_sbt, params.width, params.height, launchDepth ) );
-    CUDA_SYNC_CHECK();
+                                  sizeof( Params ), &m_sbt, params.width, params.height, launchDepth ) );
+    OTK_CUDA_SYNC_CHECK();
 
     OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
     m_ticket = m_loader->processRequests( m_stream, params.demandContext );
-    CUDA_SYNC_CHECK();
+    OTK_CUDA_SYNC_CHECK();
 
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
 }
@@ -773,9 +894,14 @@ void Application::updateScene()
     m_ticket.wait();
 
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
-    for( const uint_t pageId : m_proxies->requestedProxyIds() )
+    for( const uint_t proxyId : m_proxies->requestedProxyIds() )
     {
-        createGeometry( pageId );
+        createGeometry( proxyId );
+    }
+    OTK_CUDA_SYNC_CHECK();
+    for( const uint_t materialId : m_materials->requestedMaterialIds() )
+    {
+        realizeMaterial( materialId );
     }
 
     if( m_updateNeeded )
@@ -784,6 +910,7 @@ void Application::updateScene()
         m_sphereTraversable        = m_spheres.createTraversable( m_context, m_stream );
         updateSbt();
         updateTopLevelTraversable();
+        updateLaunchParams();
         m_updateNeeded = false;
     }
 }
@@ -816,12 +943,15 @@ void Application::cleanupContext()
 
 void Application::cleanupModule()
 {
-    OTK_ERROR_CHECK( optixModuleDestroy( m_sampleModule ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( m_viewerModule ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( m_proxyMaterialModule ) );
+    if( m_realizedMaterialModule )
+        OTK_ERROR_CHECK( optixModuleDestroy( m_realizedMaterialModule ) );
 }
 
 void Application::cleanupProgramGroups()
 {
-    for( OptixProgramGroup group : m_groups )
+    for( OptixProgramGroup group : m_programGroups )
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
 }
 
@@ -843,6 +973,17 @@ void Application::key( GLFWwindow* window, int32_t key, int32_t /*scanCode*/, in
     if( action == GLFW_PRESS )
         switch( key )
         {
+            case GLFW_KEY_D:
+            {
+                Debug& debug  = m_params[0].debug;
+                debug.enabled = !debug.enabled;
+                if( debug.enabled && !debug.debugIndexSet )
+                {
+                    debug.debugIndexSet = true;
+                    debug.debugIndex    = make_uint3( m_options.width / 2, m_options.height / 2, 0 );
+                }
+                break;
+            }
             case GLFW_KEY_Q:
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose( window, 1 );

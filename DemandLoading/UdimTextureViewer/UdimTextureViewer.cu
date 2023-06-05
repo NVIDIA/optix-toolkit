@@ -26,11 +26,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
 
 using namespace demandLoading;
 using namespace demandTextureApp;
+using namespace otk;  // for vec_math operators
 
 //------------------------------------------------------------------------------
 // Params - globally visible struct
@@ -47,8 +51,7 @@ __constant__ Params params;
 struct RayPayload
 {
     float4 color; // return color
-    float  cone_width; 
-    float  cone_angle;
+    RayCone rayCone;
 };
 
 //------------------------------------------------------------------------------
@@ -58,30 +61,25 @@ struct RayPayload
 extern "C" __global__ void __raygen__rg()
 {
     uint2 px = getPixelIndex( params.num_devices, params.device_idx );
-    if( !pixelInBounds( px, params.image_width, params.image_height ) )
+    if( !pixelInBounds( px, params.image_dim ) )
         return;
 
-    // Ray for an orthographic view facing in the -z direction
-    float3 origin;
-    origin.x = params.eye.x + params.view_dims.x * (0.5f + px.x - 0.5f * params.image_width) / params.image_width;
-    origin.y = params.eye.y + params.view_dims.y * (0.5f + px.y - 0.5f * params.image_height) / params.image_height;
-    origin.z = params.eye.z;
-    float3 direction = make_float3( 0.0f, 0.0f, -1.0f );
+    // Eye ray
+    float3 origin, direction;
+    makeEyeRayOrthographic( params.camera, params.image_dim, float2{px.x+0.5f, px.y+0.5f}, origin, direction );
 
-    // Ray payload with ray cone
+    // Ray payload with ray cone for orthographic view
     RayPayload payload;
     payload.color = make_float4( 0.0f );
-    payload.cone_width = minf( params.view_dims.x / params.image_width, params.view_dims.y / params.image_height );
-    payload.cone_angle = 0.0f;
+    payload.rayCone = initRayConeOrthoCamera( params.camera.U, params.camera.V, params.image_dim );
     
     // Trace the ray
     float tmin = 0.0f;
     float tmax = 1e16f;
-    float time = 0.0f;
-    traceRay( params.traversable_handle, RAY_TYPE_RADIANCE, origin, direction, tmin, tmax, time, &payload );
+    traceRay( params.traversable_handle, origin, direction, tmin, tmax, OPTIX_RAY_FLAG_NONE, &payload );
 
     // Put the final color in the result buffer
-    params.result_buffer[px.y * params.image_width + px.x] = make_color( payload.color );
+    params.result_buffer[px.y * params.image_dim.x + px.x] = make_color( payload.color );
 }
 
 extern "C" __global__ void __miss__ms()
@@ -121,10 +119,10 @@ extern "C" __global__ void __closesthit__ch()
     // Get the world space ray cone width at the intersection point
     RayPayload* payload = getRayPayload();
     float rayDistance = optixGetRayTmax();
-    float coneWidth = propagateRayCone( payload->cone_width, payload->cone_angle, rayDistance );
+    payload->rayCone = propagate( payload->rayCone, rayDistance );
     
     // Get the texture footprint to sample from the cone width
-    float footprintWidth = computeTextureFootprintMinWidth( dPds_len, dPdt_len, coneWidth );
+    float footprintWidth = texFootprintWidth( payload->rayCone.width, dPds_len, dPdt_len );
     float2 ddx = make_float2( footprintWidth, 0.0f );
     float2 ddy = make_float2( 0.0f, footprintWidth );
 

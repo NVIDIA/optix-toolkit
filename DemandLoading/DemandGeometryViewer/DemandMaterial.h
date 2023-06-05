@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,13 +28,41 @@
 
 #pragma once
 
-#include "Util/interval_math.h"
+#include <OptiXToolkit/Memory/SyncVector.h>
 
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <mutex>
+#include <vector>
 
-template <typename T>
-__device__ __forceinline__ T eval_procedural( vec2<T> uv )
+namespace demandLoading {
+class DemandLoader;
+}  // namespace demandLoading
+
+namespace demandGeometryViewer {
+
+using uint_t = unsigned int;
+
+class DemandMaterial
 {
-    using namespace otk;
-    return clamp( 2.f * cosf( length( uv - make_float2( 0.5f, 0.5f ) ) * 4.f * M_PIf ), 0.f, 1.f );
-}
+  public:
+    DemandMaterial( demandLoading::DemandLoader* loader );
+
+    uint_t add();
+    void remove( uint_t id );
+
+    std::vector<uint_t> requestedMaterialIds() const { return m_requestedMaterials; }
+
+  private:
+    demandLoading::DemandLoader* m_loader;
+    std::vector<uint_t>          m_materialIds;
+    std::vector<uint_t>          m_requestedMaterials;
+    std::mutex                   m_requestedMaterialsMutex;
+
+    bool loadMaterial( CUstream stream, uint_t pageId, void** pageTableEntry );
+
+    static bool callback( CUstream stream, uint_t pageIndex, void* context, void** pageTableEntry )
+    {
+        return static_cast<DemandMaterial*>( context )->loadMaterial( stream, pageIndex, pageTableEntry );
+    }
+};
+
+}  // namespace demandGeometryViewer

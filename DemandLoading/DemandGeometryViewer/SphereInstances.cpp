@@ -36,54 +36,64 @@
 
 namespace demandGeometryViewer {
 
-void SphereInstances::add( float3 center, float radius, int index )
+void SphereInstances::add( float3 center, float radius, uint_t id, uint_t sbtIndex )
 {
     m_centers.push_back( center );
     m_radii.push_back( radius );
-    m_indices.push_back( index );
+    m_sphereIds.push_back( id );
+    m_sbtIndices.push_back( sbtIndex );
 }
 
-void SphereInstances::remove( int index )
+void SphereInstances::remove( uint_t id )
 {
-    auto pos = std::find( m_indices.begin(), m_indices.end(), index );
-    if( pos != m_indices.end() )
-    {
-        ptrdiff_t posIndex = pos - m_indices.begin();
-        m_centers.erase( m_centers.begin() + posIndex );
-        m_radii.erase( m_radii.begin() + posIndex );
-        m_indices.erase( m_indices.begin() + posIndex );
-    }
+    auto pos = std::find( m_sphereIds.begin(), m_sphereIds.end(), id );
+    if( pos == m_sphereIds.end() )
+        throw std::runtime_error( "Unknown sphere id " + std::to_string( id ) );
+
+    const ptrdiff_t posIndex = pos - m_sphereIds.begin();
+    m_centers.erase( m_centers.begin() + posIndex );
+    m_radii.erase( m_radii.begin() + posIndex );
+    m_sphereIds.erase( m_sphereIds.begin() + posIndex );
+    m_sbtIndices.erase( m_sbtIndices.begin() + posIndex );
+}
+
+void SphereInstances::setInstanceSbtIndex( uint_t id, uint_t index )
+{
+    auto pos = std::find( m_sphereIds.begin(), m_sphereIds.end(), id );
+    if( pos == m_sphereIds.end() )
+        throw std::runtime_error( "Unknown sphere id " + std::to_string( id ) );
+
+    const ptrdiff_t posIndex = pos - m_sphereIds.begin();
+    m_sbtIndices[posIndex]   = index;
 }
 
 OptixTraversableHandle SphereInstances::createTraversable( OptixDeviceContext dc, CUstream stream )
 {
     m_centers.copyToDeviceAsync( stream );
     m_radii.copyToDeviceAsync( stream );
-    m_indices.copyToDeviceAsync( stream );
+    m_sphereIds.copyToDeviceAsync( stream );
+    m_sbtIndices.copyToDeviceAsync( stream );
 
     const unsigned int NUM_MOTION_STEPS = 1;
-    const CUdeviceptr  devVertexBuffers[NUM_MOTION_STEPS]{ m_centers };
-    const CUdeviceptr  devRadiiBuffers[NUM_MOTION_STEPS]{ m_radii };
+    const CUdeviceptr  devVertexBuffers[NUM_MOTION_STEPS]{m_centers};
+    const CUdeviceptr  devRadiiBuffers[NUM_MOTION_STEPS]{m_radii};
 
-    const uint_t          NUM_SPHERE_SBT_RECORDS = m_centers.empty() ? 1 : m_sbtIndex + 1;
+    const uint_t NUM_SPHERE_SBT_RECORDS =
+        m_centers.empty() ? 1 : *std::max_element( m_sbtIndices.begin(), m_sbtIndices.end() ) + 1;
     std::vector<uint32_t> flags;
     flags.resize( NUM_SPHERE_SBT_RECORDS );
     otk::fill( flags, OPTIX_GEOMETRY_FLAG_NONE );
-
-    m_sbtIndices.resize( m_centers.size() );
-    fill( m_sbtIndices, m_sbtIndex );
-    m_sbtIndices.copyToDeviceAsync( stream );
 
     // All the spheres are described in a single build input.
     const uint_t    NUM_BUILD_INPUTS = 1;
     OptixBuildInput sphereInput[NUM_BUILD_INPUTS]{};
     otk::BuildInputBuilder( sphereInput )
         .spheres( devVertexBuffers, static_cast<uint_t>( m_centers.size() ), devRadiiBuffers, flags.data(),
-                  NUM_SPHERE_SBT_RECORDS, m_sbtIndices.devicePtr(), sizeof( uint32_t ) );
+                  NUM_SPHERE_SBT_RECORDS, m_sbtIndices.devicePtr(), sizeof( uint_t ) );
 
     const OptixAccelBuildOptions accelOptions = {
         OPTIX_BUILD_FLAG_ALLOW_UPDATE | OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS,  // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD     // operation
+        OPTIX_BUILD_OPERATION_BUILD                                                   // operation
     };
     OptixAccelBufferSizes gasSizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( dc, &accelOptions, sphereInput, NUM_BUILD_INPUTS, &gasSizes ) );
@@ -91,8 +101,8 @@ OptixTraversableHandle SphereInstances::createTraversable( OptixDeviceContext dc
     m_devTempBufferGas.resize( gasSizes.tempSizeInBytes );
     m_devGeomAs.resize( gasSizes.outputSizeInBytes );
     OptixTraversableHandle traversable;
-    OTK_ERROR_CHECK( optixAccelBuild( dc, stream, &accelOptions, sphereInput, NUM_BUILD_INPUTS, m_devTempBufferGas, gasSizes.tempSizeInBytes,
-                                  m_devGeomAs, gasSizes.outputSizeInBytes, &traversable, nullptr, 0 ) );
+    OTK_ERROR_CHECK( optixAccelBuild( dc, stream, &accelOptions, sphereInput, NUM_BUILD_INPUTS, m_devTempBufferGas,
+                                      gasSizes.tempSizeInBytes, m_devGeomAs, gasSizes.outputSizeInBytes, &traversable, nullptr, 0 ) );
     return traversable;
 }
 

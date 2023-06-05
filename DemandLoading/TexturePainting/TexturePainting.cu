@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,6 +32,8 @@
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
 
+#include "TexturePaintingParams.h"
+
 using namespace demandLoading;
 using namespace demandTextureApp;
 using namespace otk;  // for vec_math operators
@@ -45,17 +47,56 @@ __constant__ Params params;
 }
 
 //------------------------------------------------------------------------------
-// Ray Payload - per ray data for closest hit program
+// Ray Payload - per ray data for OptiX programs
 //------------------------------------------------------------------------------
 
 struct RayPayload
 {
-    float4 color; 
+    float4 color; // return color
     RayCone rayCone;
 };
 
 //------------------------------------------------------------------------------
-// Optix programs
+// Drawing overlay
+//------------------------------------------------------------------------------
+
+__device__ __forceinline__ float4 drawSuperellipse( uint2 px, int cx, int cy, int width, int height, float4 color, int exp )
+{
+    float dx = fabs( cx - static_cast<float>(px.x) ) / (width * 0.5f);
+    float dy = fabs( cy - static_cast<float>(px.y) ) / (height * 0.5f);
+    if( dx > 1.0f || dy > 1.0f )
+        return float4{0.0f, 0.0f, 0.0f, 0.0f};
+    float d2 = pow(dx, exp) + pow(dy, exp);
+    if( d2 > 1.0f )
+        return float4{0.0f, 0.0f, 0.0f, 0.0f};
+    float4 rval = color;
+    rval.w *= ( 1.0f - d2 * d2 );
+    return rval;
+}
+
+__device__ __forceinline__ float4 overlayColor( uint2 px )
+{
+    // Draw buttons
+    float4 rval = float4{0.0f, 0.0f, 0.0f, 0.0f};
+    for( int i = 0; i < params.i[NUM_CANVASES_ID]; ++i )
+    {
+        const int cx = BUTTON_SPACING * (i+1) + BUTTON_SIZE * i + BUTTON_SIZE / 2;
+        const int cy = BUTTON_SPACING + BUTTON_SIZE / 2;
+        const int bsize = ( i == params.i[ACTIVE_CANVAS_ID] ) ? BUTTON_SIZE + 4 : BUTTON_SIZE;
+        const float4 bcolor = ( i == params.i[ACTIVE_CANVAS_ID] ) ? float4{ 0.3f, 0.0f, 0.0f, 1.0f } : float4{ 0.0f, 0.0f, 0.3f, 1.0f };
+        rval += drawSuperellipse( px, cx, cy, bsize, bsize, bcolor, 6 );
+    }
+
+    // Draw brush
+    const int cx = params.image_dim.x - BUTTON_SPACING / 2 - params.i[BRUSH_WIDTH_ID] / 2;
+    const int cy = BUTTON_SPACING / 2 + params.i[BRUSH_HEIGHT_ID] / 2; 
+    rval += drawSuperellipse( px, cx, cy, params.i[BRUSH_WIDTH_ID], params.i[BRUSH_HEIGHT_ID], params.c[BRUSH_COLOR_ID], 2 );
+    
+    return rval;
+}
+
+//------------------------------------------------------------------------------
+// OptiX programs
 //------------------------------------------------------------------------------
  
 extern "C" __global__ void __raygen__rg()
@@ -72,17 +113,15 @@ extern "C" __global__ void __raygen__rg()
     RayPayload payload;
     payload.color = make_float4( 0.0f );
     payload.rayCone = initRayConeOrthoCamera( params.camera.U, params.camera.V, params.image_dim );
-    
+
     // Trace the ray
     float tmin = 0.0f;
     float tmax = 1e16f;
     traceRay( params.traversable_handle, origin, direction, tmin, tmax, OPTIX_RAY_FLAG_NONE, &payload );
 
-    // Blend result of ray trace with tile display color
-    float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
-    float4 color  = ( 1.0f - tcolor.w ) * payload.color + tcolor.w * tcolor;
-
-    // Put the final color in the result buffer
+    // Mix the texture color with the overlay color
+    float4 ocolor = overlayColor( px );
+    float4 color  = ( 1.0f - ocolor.w ) * payload.color + ocolor.w * ocolor;
     params.result_buffer[px.y * params.image_dim.x + px.x] = make_color( color );
 }
 
@@ -116,8 +155,7 @@ extern "C" __global__ void __closesthit__ch()
     // The hit object is a unit square, so the texture coord is the same as the hit point.
     float2 uv = make_float2( __uint_as_float( optixGetAttribute_0() ), __uint_as_float( optixGetAttribute_1() ) );
     
-    // The world space texture derivatives for a unit square that spans (0,0) to (1,1) are
-    // in texture space are just dPds=(1,0,0) and dPdt=(0,1,0). 
+    // The world space texture derivatives for a unit square are just dPds=(1,0,0) and dPdt=(0,1,0). 
     float dPds_len = 1.0f;
     float dPdt_len = 1.0f;
 
@@ -131,12 +169,9 @@ extern "C" __global__ void __closesthit__ch()
     float2 ddx = make_float2( footprintWidth, 0.0f );
     float2 ddy = make_float2( 0.0f, footprintWidth );
 
-    // Use the variant texture on the right half of the image
-    uint2 px = getPixelIndex( params.num_devices, params.device_idx );
-    if( px.x * 2 > params.image_dim.x )
-        textureId += PAGES_PER_TEXTURE; 
-
-    // Sample the texture or variant, and return this value in the ray payload
+    // Sample the texture, and put the value in the ray payload.
     bool resident  = false;
     payload->color = tex2DGrad<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
+    if( !resident )
+        payload->color = make_float4( 1.0f, 1.0f, 1.0f, 0.0f );
 }
