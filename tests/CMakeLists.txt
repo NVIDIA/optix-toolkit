@@ -67,7 +67,7 @@ embed_ptx(
 
 set_target_properties(testSIAKernels testSIAKernels_ptx PROPERTIES FOLDER ShaderUtil/tests )
 
-add_executable( testSelfIntersectionAvoidance
+otk_add_executable( testSelfIntersectionAvoidance
   testSia.h
   testSia.cpp
   testSiaCuda.cu
