@@ -17,9 +17,10 @@ After checking out the OptiX Toolkit repository, be sure to update the submodule
 ```
 git submodule update --init --recursive
 ```
-Alternatively, a subset of the submodules can be specified, for example:
+Alternatively, a subset of the submodules can be specified.  For example, the DemandLoading library
+can be built in isolation by fetching the following submodules:
 ```
-git submodule update --init --recursive DemandLoading ShaderUtil
+git submodule update --init --recursive DemandLoading Memory ShaderUtil CMake
 ```
 
 ## Requirements
@@ -30,6 +31,16 @@ git submodule update --init --recursive DemandLoading ShaderUtil
 - CMake 3.24 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
 language support.
 - git (any modern version).
+
+On some Linux systems it may be necessary to install some commonly used developer packages with the following commands:
+```
+sudo apt-get install curl git-lfs pkg-config
+git lfs install
+```
+Building the OptiX Toolkit examples requires an OpenGL development environment.  In many Linux systems the necessary packages can be installed using the following command:
+```
+sudo apt-get install libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev mesa-common-dev 
+```
 
 ## Building the OptiX Toolkit
 

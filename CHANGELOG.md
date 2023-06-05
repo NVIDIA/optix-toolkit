@@ -1,9 +1,18 @@
 # OptiX Toolkit changes
 
+More detailed change logs are available in various submodules, e.g. 
+[Demand Loading CHANGELOG](https://github.com/NVIDIA/otk-demand-loading/blob/master/CHANGELOG.md).
+
 ## Version 0.8
 
-* Added DemandGeometry library
-* Added DemandGeometryViewer example
+* Added [Self Intersection Avoidance library](https://github.com/NVIDIA/otk-shader-util).
+* Added [DemandGeometry library](https://github.com/NVIDIA/otk-demand-loading/tree/master/DemandGeometry)
+* Added [DemandGeometryViewer example](https://github.com/NVIDIA/otk-examples/tree/master/DemandLoading/DemandGeometryViewer)
+* OTK now requires cmake 3.24 or later, leveraging a [new feature of FetchContent](https://cmake.org/cmake/help/latest/guide/using-dependencies/index.html#fetchcontent-and-find-package-integration) that invokes find_package and uses installed third-party packages when possible. 
+* Added a new [Memory](https://github.com/NVIDIA/otk-memory) submodule that provides device memory allocators, etc.
+  * The demand loading library now depends on this submodule.
+* The Demand Loading library now supports a wide range of image file types (via OpenImageIO).  See 
+the [Demand Loading CHANGELOG](https://github.com/NVIDIA/otk-demand-loading/blob/master/CHANGELOG.md).
 
 ## Version 0.6 - 2022-01-18
 
