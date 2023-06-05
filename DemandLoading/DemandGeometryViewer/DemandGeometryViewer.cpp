@@ -96,7 +96,8 @@ const int NUM_ATTRIBUTE_VALUES = 3;
         "Options: --file | -f <filename>      Specify file for image output\n"
         "         --help | -h                 Print this usage message\n"
         "         --dim=<width>x<height>      Set image dimensions; defaults to 512x384\n"
-        "         --frames=<num>              Specify number of warmup frames before writing to file\n"
+        "         --warmup=<num>              Specify number of warmup frames before writing to file\n"
+        "         --bg=<r>,<g>,<b>            Specify the background color as 3 floating-point values in [0,1]\n"
         "         --optixGetSphereData=yes/no Use optixGetSphereData or application data access\n"
         "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n";
     // clang-format on
@@ -150,7 +151,7 @@ Options parseArguments( int argc, char* argv[] )
             char sep{};
             value >> options.background.x >> sep >> options.background.y >> sep >> options.background.z;
         }
-        else if( hasOption( arg, "--frames=", value ) )
+        else if( hasOption( arg, "--warmup=", value ) )
         {
             int warmup{};
             value >> warmup;
