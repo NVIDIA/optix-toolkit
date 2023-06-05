@@ -458,11 +458,14 @@ void Application::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options{};
     options.maxTraceDepth = maxTraceDepth;
+    
+#if OPTIX_VERSION < 70700
 #ifdef NDEBUG
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
 #else
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 #endif
+#endif    
     OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
                                            m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
