@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-if(TARGET GTest::GTest)
+if(TARGET GTest::gtest)
   return()
 endif()
 
