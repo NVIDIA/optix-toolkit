@@ -161,7 +161,7 @@ void runReadInfo()
     EXPECT_TRUE( floatInfo.numMipLevels >= 2U );  // maketx auto-generates the finer levels.
 }
 
-INSTANTIATE_READER_TESTS( ReadInfo );
+INSTANTIATE_READER_TESTS( ReadInfo )
 
 //------------------------------------------------------------------------------
 
@@ -177,7 +177,7 @@ void runReadInfoScanline()
     EXPECT_TRUE(floatInfo.numMipLevels == 1U);  // Scanline images are not mip-mapped
 }
 
-INSTANTIATE_READER_TESTS(ReadInfoScanline);
+INSTANTIATE_READER_TESTS(ReadInfoScanline)
 
 //------------------------------------------------------------------------------
 
@@ -203,7 +203,7 @@ void runReadFineTileFloat()
     EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( width - 1, height - 1, texels, width ) );
 }
 
-INSTANTIATE_READER_TESTS( ReadFineTileFloat );
+INSTANTIATE_READER_TESTS( ReadFineTileFloat )
 
 //------------------------------------------------------------------------------
 
@@ -229,7 +229,7 @@ void runReadFineScanlineFloat()
     EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( width - 1, height - 1, texels, width ) );
 }
 
-INSTANTIATE_READER_TESTS( ReadFineScanlineFloat );
+INSTANTIATE_READER_TESTS( ReadFineScanlineFloat )
 
 //------------------------------------------------------------------------------
 
@@ -279,7 +279,7 @@ void runReadCoarseScanlineFloat()
     EXPECT_EQ( make_float3( 0, 0, 1 ), getTexel( width - 1, height - 1, texels, width ) );
 }
 
-INSTANTIATE_READER_TESTS( ReadCoarseScanlineFloat );
+INSTANTIATE_READER_TESTS( ReadCoarseScanlineFloat )
 
 //------------------------------------------------------------------------------
 // Read a tile that is twice as wide/high as the native tile size.
@@ -311,7 +311,7 @@ void runReadLargeTile()
     }
 }
 
-INSTANTIATE_READER_TESTS( ReadLargeTile );
+INSTANTIATE_READER_TESTS( ReadLargeTile )
 
 //------------------------------------------------------------------------------
 // Tests related to halfs
@@ -341,7 +341,7 @@ void runReadCoarseTileHalf()
     EXPECT_EQ( blue, texels[( height - 1 ) * width + ( width - 1 )] );
 }
 
-INSTANTIATE_READER_TESTS( ReadCoarseTileHalf );
+INSTANTIATE_READER_TESTS( ReadCoarseTileHalf )
 
 //------------------------------------------------------------------------------
 
@@ -370,7 +370,7 @@ void runReadCoarseScanlineHalf()
     EXPECT_EQ( blue, texels[( height - 1 ) * width + ( width - 1 )] );
 }
 
-INSTANTIATE_READER_TESTS( ReadCoarseScanlineHalf );
+INSTANTIATE_READER_TESTS( ReadCoarseScanlineHalf )
 
 //------------------------------------------------------------------------------
 // Tests for reading non-square images
@@ -418,7 +418,7 @@ void runReadPartialTileNonSquare()
     EXPECT_EQ( black, texels[( tileHeight - 1 ) * tileWidth + ( tileWidth - 1 )] );
 }
 
-INSTANTIATE_READER_TESTS( ReadPartialTileNonSquare );
+INSTANTIATE_READER_TESTS( ReadPartialTileNonSquare )
 
 #if OTK_USE_OIIO
 

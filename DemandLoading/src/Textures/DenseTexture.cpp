@@ -92,7 +92,7 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     DEMAND_CUDA_CHECK( cuTexObjectCreate( &m_texture, &rd, &td, nullptr ) );
 
     m_isInitialized = true;
-};
+}
 
 uint2 DenseTexture::getMipLevelDims( unsigned int mipLevel ) const
 {

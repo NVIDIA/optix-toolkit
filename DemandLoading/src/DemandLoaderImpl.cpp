@@ -58,7 +58,7 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
         : m_deviceMemoryManager( deviceMemoryManager )
     {
     }
-    bool operator()( unsigned int pageId, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
     {
         m_deviceMemoryManager->freeTileBlock( TileBlockDesc( pageVal ) );
         return true;
@@ -76,7 +76,7 @@ class TextureSamplerReturnPredicate : public PageInvalidatorPredicate
         : m_deviceMemoryManager( deviceMemoryManager )
     {
     }
-    bool operator()( unsigned int pageId, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
     {
         m_deviceMemoryManager->freeSampler( reinterpret_cast<TextureSampler*>( pageVal ) );
         return true;
@@ -376,7 +376,7 @@ void DemandLoaderImpl::freeStagedTiles( CUstream stream )
     }
 }
 
-const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream stream )
+const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream /*stream*/ )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     const unsigned int alignment = 4096;

@@ -39,7 +39,7 @@ embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
     FOLDER DemandLoading/tests
 )
 
-add_executable( testDemandLoading
+otk_add_executable( testDemandLoading
   CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
@@ -125,7 +125,7 @@ embed_ptx(
     TestTextureFootprint.cu
 )
 
-add_executable( testTextureFootprint
+otk_add_executable( testTextureFootprint
   TestTextureFootprint.cpp
   TestTextureFootprint.h
   )

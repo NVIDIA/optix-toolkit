@@ -43,8 +43,8 @@ namespace imageSource {
 
 CoreEXRReader::CoreEXRReader( const std::string& filename, bool readBaseColor )
     : m_filename( filename )
-    , m_pixelType( EXR_PIXEL_LAST_TYPE )
     , m_readBaseColor( readBaseColor )
+    , m_pixelType( EXR_PIXEL_LAST_TYPE )
 {
 }
 
@@ -314,7 +314,7 @@ bool CoreEXRReader::readTile( char*        dest,
                               unsigned int tileY,
                               unsigned int destTileWidth,
                               unsigned int destTileHeight,
-                              CUstream     stream )
+                              CUstream     /*stream*/ )
 {
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
     DEMAND_ASSERT_MSG( !m_isScanline, "Attempting to read tiled data from scanline image." );
@@ -361,7 +361,7 @@ bool CoreEXRReader::readTile( char*        dest,
     return true;
 }
 
-bool CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream )
+bool CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream /*stream*/ )
 {
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 

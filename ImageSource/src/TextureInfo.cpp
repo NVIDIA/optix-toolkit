@@ -62,9 +62,6 @@ unsigned int getBytesPerChannel( const CUarray_format format )
             DEMAND_ASSERT_MSG( false, "Invalid CUDA array format" );
             return 0;
     }
-
-    DEMAND_ASSERT_MSG( false, "Invalid CUDA array format" );
-    return 0;
 }
 
 size_t getTextureSizeInBytes( const TextureInfo& info )

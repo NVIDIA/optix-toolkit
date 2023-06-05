@@ -86,15 +86,6 @@ bool supportsSparseTextures( unsigned int deviceIndex )
     return sparseSupport && !inTccMode;
 }
 
-bool tccModeEnabled( unsigned int deviceIndex )
-{
-    // Skip devices in TCC mode.  This guards against an "operation not supported" error when
-    // querying the recommended allocation granularity via cuMemGetAllocationGranularity.
-    int inTccMode = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, deviceIndex ) );
-    return inTccMode;
-}
-
 }  // anonymous namespace
 
 namespace demandLoading {
@@ -247,7 +238,7 @@ class ResizeTilePoolPredicate : public PageInvalidatorPredicate
         : m_maxArenas( maxArenas )
     {
     }
-    bool operator()( unsigned int pageId, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
     {
         TileBlockDesc tileBlock( pageVal );
         // Note: no need to free the tile block in the deviceMemoryManager because the

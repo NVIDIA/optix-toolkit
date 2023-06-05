@@ -92,7 +92,7 @@ TEST_F( TestContextSaver, TestNestedSave )
         DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
 
         {
-            ContextSaver saver;
+            ContextSaver saver2;
             CUcontext    nestedContext;
             DEMAND_CUDA_CHECK( cuCtxCreate( &nestedContext, 0, m_device ) );
             expectCurrentContext( nestedContext );

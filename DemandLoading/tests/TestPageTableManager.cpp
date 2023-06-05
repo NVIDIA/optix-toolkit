@@ -35,7 +35,7 @@ using namespace demandLoading;
 class DummyRequestHandler : public RequestHandler
 {
   public:
-    void fillRequest( CUstream stream, unsigned int pageId ) override {}
+    void fillRequest( CUstream /*stream*/, unsigned int /*pageId*/ ) override {}
 };
 
 class TestPageTableManager : public testing::Test

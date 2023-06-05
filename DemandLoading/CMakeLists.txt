@@ -54,7 +54,7 @@ find_package(OptiX 7.3 REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
-add_library( DemandLoading
+otk_add_library( DemandLoading
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.cpp

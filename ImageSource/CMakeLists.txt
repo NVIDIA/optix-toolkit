@@ -26,7 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library( ImageSource
+include(BuildConfig)
+
+otk_add_library( ImageSource
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
   src/DeviceConstantImage.cpp

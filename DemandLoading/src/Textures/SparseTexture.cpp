@@ -242,7 +242,7 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     DEMAND_CUDA_CHECK( cuTexObjectCreate( &m_texture, &rd, &td, nullptr ) );
 
     m_isInitialized = true;
-};
+}
 
 
 // Get the dimensions of the specified tile, which might be a partial tile.
@@ -268,7 +268,7 @@ void SparseTexture::fillTile( CUstream                     stream,
                               unsigned int                 tileY,
                               const char*                  tileData,
                               CUmemorytype                 tileMemoryType,
-                              size_t                       tileSize,
+                              size_t                       /*tileSize*/,
                               CUmemGenericAllocationHandle tileHandle,
                               size_t                       tileOffset ) const
 {

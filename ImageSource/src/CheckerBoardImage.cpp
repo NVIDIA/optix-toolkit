@@ -90,7 +90,7 @@ bool CheckerBoardImage::readTile( char*        dest,
                                   unsigned int tileY,
                                   unsigned int tileWidth,
                                   unsigned int tileHeight,
-                                  CUstream     stream )
+                                  CUstream     /*stream*/ )
 {
     DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
@@ -120,7 +120,7 @@ bool CheckerBoardImage::readTile( char*        dest,
     return true;
 }
 
-bool CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
+bool CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream /*stream*/ )
 {
     DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 

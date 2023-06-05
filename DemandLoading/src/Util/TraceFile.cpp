@@ -115,7 +115,7 @@ unsigned int TraceFileWriter::getStreamId( CUstream stream )
 
 // Check that the current CUDA context matches the one associated with the given stream
 // and return the associated device index.
-static unsigned int getDeviceIndex( CUstream stream )
+static unsigned int getDeviceIndex( CUstream /*stream*/ )
 {
     // Get the current CUDA context.
     CUcontext cudaContext, streamContext;

@@ -32,7 +32,7 @@ include( GoogleTest )
 # Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
-add_executable( testImageSource
+otk_add_executable( testImageSource
   TestCheckerBoardImage.cpp
   TestImageSource.cpp
 )

@@ -57,7 +57,7 @@ DemandTextureImpl::DemandTextureImpl( unsigned int                              
     , m_image( image )
     , m_masterTexture( nullptr )
     , m_loader( loader )
-    , m_sampler{0}
+    , m_sampler{}
 {
 }
 
@@ -67,7 +67,7 @@ DemandTextureImpl::DemandTextureImpl( unsigned int id, DemandTextureImpl* master
     , m_image( masterTexture->m_image )
     , m_masterTexture( masterTexture )
     , m_loader( loader )
-    , m_sampler{0}
+    , m_sampler{}
 {
 }
 
@@ -100,7 +100,7 @@ bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
     m_descriptor = descriptor;
     m_image      = newImage;
 
-    m_sampler       = {0};
+    m_sampler       = {};
     m_isInitialized = false;
 
     // Return true, the sampler needs to be replaced on the devices.  The cuda arrays and cuda textures 
@@ -494,8 +494,8 @@ void DemandTextureImpl::setUdimTexture( unsigned int udimStartPage, unsigned int
 {
     m_sampler.desc.isUdimBaseTexture = isBaseTexture ? 1 : 0;
     m_sampler.udimStartPage          = udimStartPage;
-    m_sampler.udim                   = udim;
-    m_sampler.vdim                   = vdim;
+    m_sampler.udim                   = static_cast<unsigned short>( udim );
+    m_sampler.vdim                   = static_cast<unsigned short>( vdim );
 }
 
 size_t DemandTextureImpl::getMipTailSize() 

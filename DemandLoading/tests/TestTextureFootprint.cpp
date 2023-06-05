@@ -170,7 +170,7 @@ inline int indexOfFirstSetBit( uint64_t m )
 
 TileCoords getTileCoordsFromFootprint( const demandLoading::Texture2DFootprint& footprint )
 {
-    TileCoords result{0};
+    TileCoords result{};
     result.mipLevel = footprint.level;
 
     uint64_t     mask      = footprint.mask;
@@ -550,9 +550,9 @@ class TextureFootprintFixture
                         params.sampler.mipLevelSizes[level].mipLevelStart =
                             MAX_PAGES_PER_MIP_LEVEL * ( m_mipTailFirstLevel - level );
                     params.sampler.mipLevelSizes[level].levelWidthInTiles =
-                        demandLoading::getLevelDimInTiles( m_textureWidth, level, m_tileWidth );
+                            static_cast<unsigned short>( demandLoading::getLevelDimInTiles( m_textureWidth, level, m_tileWidth ) );
                     params.sampler.mipLevelSizes[level].levelHeightInTiles =
-                        demandLoading::getLevelDimInTiles( m_textureHeight, level, m_tileHeight );
+                            static_cast<unsigned short>( demandLoading::getLevelDimInTiles( m_textureHeight, level, m_tileHeight ) );
                 }
 
                 CUdeviceptr d_params;
@@ -717,8 +717,10 @@ class TextureFootprintTest : public testing::Test
 TEST_F( TextureFootprintTest, TestCornersAndEdges )
 {
     // Corners and edges of the textures space
-    std::vector<FootprintInputs> inputs{{0.f, 0.f},    {1.f, 0.f},    {0.f, 1.f},    {1.f, 1.f},
-                                        {0.25f, 0.0f}, {0.25f, 1.0f}, {0.0f, 0.25f}, {1.0f, 0.25f}};
+    std::vector<FootprintInputs> inputs{FootprintInputs( 0.f, 0.f ),    FootprintInputs( 1.f, 0.f ),
+                                        FootprintInputs( 0.f, 1.f ),    FootprintInputs( 1.f, 1.f ),
+                                        FootprintInputs( 0.25f, 0.0f ), FootprintInputs( 0.25f, 1.0f ),
+                                        FootprintInputs( 0.0f, 0.25f ), FootprintInputs( 1.0f, 0.25f )};
 
     // Run test
     std::vector<TileCoords> expectedTileCoords{{0, 1, {{0, 0}}},         {0, 1, {{15, 0}}},
@@ -770,10 +772,10 @@ TEST_F( TextureFootprintTest, TestLodPoints )
 {
     // Tile corners at one level that are in the middle of a tile in the next level
     std::vector<FootprintInputs> inputs;
-    inputs.push_back( FootprintInputs{0.0625f, 0.0625f, 0.0f} );
-    inputs.push_back( FootprintInputs{0.0625f, 0.0625f, 1.0f} );
-    inputs.push_back( FootprintInputs{0.5f, 0.5f, 3.0f} );
-    inputs.push_back( FootprintInputs{0.5f, 0.5f, 4.0f} );
+    inputs.push_back( FootprintInputs( 0.0625f, 0.0625f, 0.0f ) );
+    inputs.push_back( FootprintInputs( 0.0625f, 0.0625f, 1.0f ) );
+    inputs.push_back( FootprintInputs( 0.5f, 0.5f, 3.0f ) );
+    inputs.push_back( FootprintInputs( 0.5f, 0.5f, 4.0f ) );
 
     // Run test.
     std::vector<TileCoords> expectedTileCoords{
@@ -786,13 +788,13 @@ TEST_F( TextureFootprintTest, TestGradLevels )
     // Test texture LODs resulting from different gradient lengths
     std::vector<FootprintInputs> inputs;
     const float                  dummyLod = 0.0f;
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.0f / 1000.0f, 0.0f, 0.0f, 1.0f / 1000.0f} );
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.0f / 500.0f, 0.0f, 0.0f, 1.0f / 500.0f} );
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.0f / 250.0f, 0.0f, 0.0f, 1.0f / 250.0f} );
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.0f / 125.0f, 0.0f, 0.0f, 1.0f / 125.0f} );
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.0f / 62.0f, 0.0f, 0.0f, 1.0f / 62.0f} );
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.0f / 31.0f, 0.0f, 0.0f, 1.0f / 31.0f} );
-    inputs.push_back( FootprintInputs{0.03125f, 0.03125f, dummyLod, 1.1f, 0.0f, 0.0f, 1.1f} );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.0f / 1000.0f, 0.0f, 0.0f, 1.0f / 1000.0f ) );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.0f / 500.0f, 0.0f, 0.0f, 1.0f / 500.0f ) );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.0f / 250.0f, 0.0f, 0.0f, 1.0f / 250.0f ) );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.0f / 125.0f, 0.0f, 0.0f, 1.0f / 125.0f ) );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.0f / 62.0f, 0.0f, 0.0f, 1.0f / 62.0f ) );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.0f / 31.0f, 0.0f, 0.0f, 1.0f / 31.0f ) );
+    inputs.push_back( FootprintInputs( 0.03125f, 0.03125f, dummyLod, 1.1f, 0.0f, 0.0f, 1.1f ) );
 
     // Run test.
     std::vector<TileCoords> expectedTileCoords{{0, 1, {{0, 0}}}, {1, 1, {{0, 0}}}, {2, 1, {{0, 0}}}, {3, 1, {{0, 0}}},
@@ -805,12 +807,12 @@ TEST_F( TextureFootprintTest, TestGradDirections )
     // Gradients in different directions spanning tiles
     std::vector<FootprintInputs> inputs;
     const float                  dummyLod = 0.0f;
-    inputs.push_back( FootprintInputs{0.497f, 0.497f, dummyLod, 1.0f / 1000.0f, 0.0f, 0.0f, 1.0f / 1000.0f} );
-    inputs.push_back( FootprintInputs{0.497f, 0.497f, dummyLod, 8.0f / 1000.0f, 0.0f, 0.0f, 1.0f / 1000.0f} );
-    inputs.push_back( FootprintInputs{0.497f, 0.497f, dummyLod, 1.0f / 1000.0f, 0.0f, 0.0f, 8.0f / 1000.0f} );
-    inputs.push_back( FootprintInputs{0.497f, 0.497f, dummyLod, 8.0f / 1000.0f, 8.0f / 1000.0f, 0.0f, 0.0f} );
-    inputs.push_back( FootprintInputs{0.497f, 0.497f, dummyLod, 8.0f / 1000.0f, -8.0f / 1000.0f, 0.0f, 0.0f} );
-    inputs.push_back( FootprintInputs{0.497f, 0.497f, dummyLod, 32.0f / 1000.0f, 0.0f, 0.0f, 0.0f} );
+    inputs.push_back( FootprintInputs(0.497f, 0.497f, dummyLod, 1.0f / 1000.0f, 0.0f, 0.0f, 1.0f / 1000.0f) );
+    inputs.push_back( FootprintInputs( 0.497f, 0.497f, dummyLod, 8.0f / 1000.0f, 0.0f, 0.0f, 1.0f / 1000.0f ) );
+    inputs.push_back( FootprintInputs( 0.497f, 0.497f, dummyLod, 1.0f / 1000.0f, 0.0f, 0.0f, 8.0f / 1000.0f ) );
+    inputs.push_back( FootprintInputs( 0.497f, 0.497f, dummyLod, 8.0f / 1000.0f, 8.0f / 1000.0f, 0.0f, 0.0f ) );
+    inputs.push_back( FootprintInputs( 0.497f, 0.497f, dummyLod, 8.0f / 1000.0f, -8.0f / 1000.0f, 0.0f, 0.0f ) );
+    inputs.push_back( FootprintInputs( 0.497f, 0.497f, dummyLod, 32.0f / 1000.0f, 0.0f, 0.0f, 0.0f ) );
 
     // Run test.
     std::vector<TileCoords> expectedTileCoords{{0, 1, {{7, 7}}},
@@ -835,7 +837,7 @@ TEST_F( TextureFootprintTest, TestOnGrid )
         {
             float x = static_cast<float>( i ) / launchWidth;
             float y = static_cast<float>( j ) / launchHeight;
-            inputs.push_back( FootprintInputs{x, y} );
+            inputs.push_back( FootprintInputs( x, y ) );
         }
     }
 
@@ -919,7 +921,7 @@ TEST_F( TextureFootprintTest, TestLodOnGrid )
             float y   = static_cast<float>( j ) / launchHeight;
             float lod = x * x * x * x * maxLod;
             lod       = floorf( lod + 0.25f );
-            inputs.push_back( FootprintInputs{x, y, lod} );
+            inputs.push_back( FootprintInputs( x, y, lod ) );
         }
     }
 
@@ -1017,7 +1019,7 @@ TEST_F( TextureFootprintTest, TestGradOnGrid )
             dPdx_x *= mipScale;
             dPdy_y *= mipScale;
 
-            inputs.push_back( FootprintInputs{x, y, 0, dPdx_x, dPdx_y, dPdy_x, dPdy_y} );
+            inputs.push_back( FootprintInputs( x, y, 0, dPdx_x, dPdx_y, dPdy_x, dPdy_y ) );
         }
     }
 
@@ -1608,10 +1610,10 @@ TEST_F( TextureFootprintTest, TestGradOnGrid )
 TEST_F( TextureFootprintTest, TestRequestMultipleLevels )
 {
     std::vector<FootprintInputs> inputs;
-    inputs.push_back( FootprintInputs{0.5, 0.5, 1.5} );
-    inputs.push_back( FootprintInputs{0.25, 0.25, 2.5} );
-    inputs.push_back( FootprintInputs{0.0f, 0.0f, 3.5f} );
-    inputs.push_back( FootprintInputs{0.5f, 0.5f, 4.5f} );
+    inputs.push_back( FootprintInputs( 0.5, 0.5, 1.5 ) );
+    inputs.push_back( FootprintInputs( 0.25, 0.25, 2.5 ) );
+    inputs.push_back( FootprintInputs( 0.0f, 0.0f, 3.5f ) );
+    inputs.push_back( FootprintInputs( 0.5f, 0.5f, 4.5f ) );
 
     // Run test.
     std::vector<TileCoords> expectedTileCoords{// Fine level
@@ -1630,9 +1632,9 @@ TEST_F( TextureFootprintTest, TestRequestMultipleLevels )
 TEST_F( TextureFootprintTest, TestMipTail )
 {
     std::vector<FootprintInputs> inputs;
-    inputs.push_back( FootprintInputs{0.5, 0.5, 3.5} );    // Straddle mip tail and tiles
-    inputs.push_back( FootprintInputs{0.5, 0.5, 4.5} );    // Just inside mip tail
-    inputs.push_back( FootprintInputs{0.5, 0.5, 20.5f} );  // Higher than the highest level
+    inputs.push_back( FootprintInputs( 0.5, 0.5, 3.5 ) );  // Straddle mip tail and tiles
+    inputs.push_back( FootprintInputs( 0.5, 0.5, 4.5 ) );  // Just inside mip tail
+    inputs.push_back( FootprintInputs( 0.5, 0.5, 20.5f ) );  // Higher than the highest level
 
     // Run test.
     std::vector<TileCoords> expectedTileCoords{{3, 4, {{0, 0}, {1, 0}, {0, 1}, {1, 1}}},
@@ -1647,13 +1649,19 @@ TEST_F( TextureFootprintTest, TestMipTail )
 TEST_F( TextureFootprintTest, TestWrapMode )
 {
     // Corners, edges, and outside [0,1]
-    std::vector<FootprintInputs> inputs{
-        {0.f, 0.f, 0.0f},     {1.f, 0.f, 0.0f},    {0.f, 1.f, 0.0f},    {1.f, 1.f, 0.0f},     {0.25f, 0.0f, 0.0f},
-        {0.25f, 1.0f, 0.0f},  {0.0f, 0.25f, 0.0f}, {1.0f, 0.25f, 0.0f}, {-0.5f, -0.5f, 0.0f}, {1.5f, 1.5f, 0.0f},
-        {-3.5f, -3.5f, 0.0f}, {10.5f, 3.5f, 0.0f}, {-0.1f, 0.1f, 0.0f},  //
-        {0.f, 0.f, 1.0f},     {1.f, 0.f, 1.0f},    {0.f, 1.f, 1.0f},    {1.f, 1.f, 1.0f},     {0.25f, 0.0f, 1.0f},
-        {0.25f, 1.0f, 1.0f},  {0.0f, 0.25f, 1.0f}, {1.0f, 0.25f, 1.0f}, {-0.5f, -0.5f, 1.0f}, {1.5f, 1.5f, 1.0f},
-        {-3.5f, -3.5f, 1.0f}, {10.5f, 3.5f, 1.0f}, {0.0f, 0.1f, 1.0f}};
+    std::vector<FootprintInputs> inputs{FootprintInputs( 0.f, 0.f, 0.0f ),     FootprintInputs( 1.f, 0.f, 0.0f ),
+                                        FootprintInputs( 0.f, 1.f, 0.0f ),     FootprintInputs( 1.f, 1.f, 0.0f ),
+                                        FootprintInputs( 0.25f, 0.0f, 0.0f ),  FootprintInputs( 0.25f, 1.0f, 0.0f ),
+                                        FootprintInputs( 0.0f, 0.25f, 0.0f ),  FootprintInputs( 1.0f, 0.25f, 0.0f ),
+                                        FootprintInputs( -0.5f, -0.5f, 0.0f ), FootprintInputs( 1.5f, 1.5f, 0.0f ),
+                                        FootprintInputs( -3.5f, -3.5f, 0.0f ), FootprintInputs( 10.5f, 3.5f, 0.0f ),
+                                        FootprintInputs( -0.1f, 0.1f, 0.0f ),  FootprintInputs( 0.f, 0.f, 1.0f ),
+                                        FootprintInputs( 1.f, 0.f, 1.0f ),     FootprintInputs( 0.f, 1.f, 1.0f ),
+                                        FootprintInputs( 1.f, 1.f, 1.0f ),     FootprintInputs( 0.25f, 0.0f, 1.0f ),
+                                        FootprintInputs( 0.25f, 1.0f, 1.0f ),  FootprintInputs( 0.0f, 0.25f, 1.0f ),
+                                        FootprintInputs( 1.0f, 0.25f, 1.0f ),  FootprintInputs( -0.5f, -0.5f, 1.0f ),
+                                        FootprintInputs( 1.5f, 1.5f, 1.0f ),   FootprintInputs( -3.5f, -3.5f, 1.0f ),
+                                        FootprintInputs( 10.5f, 3.5f, 1.0f ),  FootprintInputs( 0.0f, 0.1f, 1.0f )};
 
     // Run test
     std::vector<TileCoords> expectedTileCoords{{0, 4, {{0, 0}, {15, 0}, {0, 15}, {15, 15}}},
@@ -1691,9 +1699,9 @@ TEST_F( TextureFootprintTest, TestOddsizeWrap )
     // Gradients that wrap
     std::vector<FootprintInputs> inputs;
     const float                  lod = 3.1f;
-    inputs.push_back( FootprintInputs{0.99999f, 0.1f, lod, 0.0055f, 0.0f, 0.0f, 0.0055f} );  // left edge
-    inputs.push_back( FootprintInputs{0.00001f, 0.1f, lod, 0.0055f, 0.0f, 0.0f, 0.0055f} );  // right edge
-    inputs.push_back( FootprintInputs{0.77599f, 0.00001f, 1.1f, -0.00238f, -0.00150f, -0.00034f, 0.00152f} );
+    inputs.push_back( FootprintInputs( 0.99999f, 0.1f, lod, 0.0055f, 0.0f, 0.0f, 0.0055f ) );  // left edge
+    inputs.push_back( FootprintInputs( 0.00001f, 0.1f, lod, 0.0055f, 0.0f, 0.0f, 0.0055f ) );  // right edge
+    inputs.push_back( FootprintInputs( 0.77599f, 0.00001f, 1.1f, -0.00238f, -0.00150f, -0.00034f, 0.00152f ) );
 
     // Run test.
     m_fixture->setTextureWidth( 2000 );
@@ -1717,7 +1725,7 @@ TEST_F( TextureFootprintTest, TestOddsizeWrapX )
 {
     // Gradients that wrap
     std::vector<FootprintInputs> inputs;
-    inputs.push_back( FootprintInputs{0.00099f, 0.77599f, 1.1f, -0.00150f, -0.00238f, 0.00152f, -0.00034f} );
+    inputs.push_back( FootprintInputs( 0.00099f, 0.77599f, 1.1f, -0.00150f, -0.00238f, 0.00152f, -0.00034f ) );
 
     // Run test.
     m_fixture->setTextureWidth( 1500 );
@@ -1731,9 +1739,9 @@ TEST_F( TextureFootprintTest, TestMoreOddSizeWrap )
 {
     // Gradients that wrap
     std::vector<FootprintInputs> inputs;
-    inputs.push_back( FootprintInputs{0.9974206686f, 0.9383302331f, 1.0f, 2.777942973e-05f, -0.0005159105058f,
-                                      0.003821033984f, -0.006097915582f} );
-    inputs.push_back( FootprintInputs{0.0f, 0.9383302331f, 1.0f, 2.777942973e-05f, -0.0005159105058f, 0.003821033984f, -0.006097915582f} );
+    inputs.push_back( FootprintInputs( 0.9974206686f, 0.9383302331f, 1.0f, 2.777942973e-05f, -0.0005159105058f,
+                                       0.003821033984f, -0.006097915582f ) );
+    inputs.push_back( FootprintInputs( 0.0f, 0.9383302331f, 1.0f, 2.777942973e-05f, -0.0005159105058f, 0.003821033984f, -0.006097915582f ) );
 
     // Run test.
     m_fixture->setTextureWidth( 4095 );

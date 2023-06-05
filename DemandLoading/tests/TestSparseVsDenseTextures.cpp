@@ -65,7 +65,7 @@ void TestSparseVsDenseTextures::createSparseTexture( int width, int height )
     td.flags               = CU_TRSF_NORMALIZED_COORDINATES;
     td.maxAnisotropy       = 16;
     td.mipmapFilterMode    = CU_TR_FILTER_MODE_LINEAR;
-    td.maxMipmapLevelClamp = getNumMipLevels( width, height ) - 1;
+    td.maxMipmapLevelClamp = static_cast<float>( getNumMipLevels( width, height ) - 1 );
     td.minMipmapLevelClamp = 0.f;
 
     // Create texture object.
@@ -96,7 +96,7 @@ void TestSparseVsDenseTextures::createDenseTexture( int width, int height )
     td.flags               = CU_TRSF_NORMALIZED_COORDINATES;
     td.maxAnisotropy       = 16;
     td.mipmapFilterMode    = CU_TR_FILTER_MODE_LINEAR;
-    td.maxMipmapLevelClamp = getNumMipLevels( width, height ) - 1;
+    td.maxMipmapLevelClamp = static_cast<float>( getNumMipLevels( width, height ) - 1 );
     td.minMipmapLevelClamp = 0.f;
 
     // Create texture object
