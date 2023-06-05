@@ -28,7 +28,6 @@
 
 include( FetchGtest )
 include( GoogleTest )
-include( FetchStbImage )
 
 add_executable( testUtil
     TestException.cpp
@@ -40,8 +39,6 @@ set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)
 
 target_include_directories( testUtil PUBLIC
   ../src
-  ${stb_image_SOURCE_DIR}
-  ${stb_image_write_SOURCE_DIR}
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
   )
 
@@ -57,6 +54,7 @@ target_link_libraries( testUtil
   Util
   GTest::gtest_main
   Imath::Imath
+  Stb::Image
   )
 
 # Register test cases with CTest.

@@ -25,11 +25,6 @@ add_executable(imgtool
   imgtool.cpp
   pngcompare.cpp
   pngcompare.h
-  stb.cpp
   )
-
-target_include_directories(imgtool PRIVATE 
-  ${stb_image_SOURCE_DIR}
-  ${stb_image_write_SOURCE_DIR}
-  )
+target_link_libraries(imgtool PUBLIC Stb::Image)
 set_target_properties(imgtool PROPERTIES FOLDER Examples/tests)

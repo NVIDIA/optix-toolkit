@@ -33,6 +33,23 @@ endif()
 include(BuildConfig)
 include(CTest)
 include(FetchOpenEXR)
+include(FetchStbImage)
+
+# stub image library
+add_library(StbImage STATIC
+    src/stb.cpp
+    ${stb_image_SOURCE_DIR}/stb_image.h
+    ${stb_image_write_SOURCE_DIR}/stb_image_write.h
+)
+target_include_directories(StbImage
+    PUBLIC
+        ${stb_image_SOURCE_DIR}
+        ${stb_image_write_SOURCE_DIR}
+)
+set_target_properties(StbImage PROPERTIES FOLDER ThirdParty)
+if(NOT TARGET Stb::Image)
+  add_library(Stb::Image ALIAS StbImage)
+endif()
 
 add_library(Util STATIC
   include/OptiXToolkit/Util/Exception.h
@@ -57,6 +74,7 @@ target_link_libraries(Util PRIVATE
   CUDA::cuda_driver
   CUDA::cudart
   OpenEXR::OpenEXR
+  Stb::Image
   )
 target_link_libraries(Util PUBLIC OptiXToolkit::Memory)
 
