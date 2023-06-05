@@ -61,6 +61,7 @@ target_link_libraries(Gui
     imgui
     glfw
     glad::glad
+    Stb::Image
 )
 
 set_target_properties(Gui PROPERTIES FOLDER Examples)

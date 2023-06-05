@@ -35,9 +35,12 @@
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+
+#include <stb_image_write.h>
 
 namespace otk {
 
@@ -209,84 +212,101 @@ static float toSRGB( float c )
     return c < 0.0031308f ? 12.92f * c : 1.055f * powed - 0.055f;
 }
 
+static std::vector<std::uint8_t> getPixels( const ImageBuffer& image, bool disable_srgb_conversion )
+{
+    //
+    // Note -- we are flipping image vertically as we write it into output buffer
+    //
+    const int32_t              width  = image.width;
+    const int32_t              height = image.height;
+    std::vector<unsigned char> pix( width * height * 3 );
+
+    switch( image.pixel_format )
+    {
+        case BufferImageFormat::UNSIGNED_BYTE4:
+        {
+            for( int j = height - 1; j >= 0; --j )
+            {
+                for( int i = 0; i < width; ++i )
+                {
+                    const int32_t dst_idx = 3 * width * ( height - j - 1 ) + 3 * i;
+                    const int32_t src_idx = 4 * width * j + 4 * i;
+                    pix[dst_idx + 0]      = reinterpret_cast<uint8_t*>( image.data )[src_idx + 0];
+                    pix[dst_idx + 1]      = reinterpret_cast<uint8_t*>( image.data )[src_idx + 1];
+                    pix[dst_idx + 2]      = reinterpret_cast<uint8_t*>( image.data )[src_idx + 2];
+                }
+            }
+        }
+        break;
+
+        case BufferImageFormat::FLOAT3:
+        {
+            for( int j = height - 1; j >= 0; --j )
+            {
+                for( int i = 0; i < width; ++i )
+                {
+                    const int32_t dst_idx = 3 * width * ( height - j - 1 ) + 3 * i;
+                    const int32_t src_idx = 3 * width * j + 3 * i;
+                    for( int elem = 0; elem < 3; ++elem )
+                    {
+                        const float   f = reinterpret_cast<float*>( image.data )[src_idx + elem];
+                        const int32_t v = static_cast<int32_t>( 256.0f * ( disable_srgb_conversion ? f : toSRGB( f ) ) );
+                        const int32_t c     = v < 0 ? 0 : v > 0xff ? 0xff : v;
+                        pix[dst_idx + elem] = static_cast<uint8_t>( c );
+                    }
+                }
+            }
+        }
+        break;
+
+        case BufferImageFormat::FLOAT4:
+        {
+            for( int j = height - 1; j >= 0; --j )
+            {
+                for( int i = 0; i < width; ++i )
+                {
+                    const int32_t dst_idx = 3 * width * ( height - j - 1 ) + 3 * i;
+                    const int32_t src_idx = 4 * width * j + 4 * i;
+                    for( int elem = 0; elem < 3; ++elem )
+                    {
+                        const float   f = reinterpret_cast<float*>( image.data )[src_idx + elem];
+                        const int32_t v = static_cast<int32_t>( 256.0f * ( disable_srgb_conversion ? f : toSRGB( f ) ) );
+                        const int32_t c     = v < 0 ? 0 : v > 0xff ? 0xff : v;
+                        pix[dst_idx + elem] = static_cast<uint8_t>( c );
+                    }
+                }
+            }
+        }
+        break;
+
+        default:
+        {
+            throw Exception( "otk::saveImage(): Unrecognized image buffer pixel format.\n" );
+        }
+    }
+
+    return pix;
+}
+
 void saveImage( const char* fname, const ImageBuffer& image, bool disable_srgb_conversion )
 {
     const std::string filename( fname );
     if( filename.length() < 5 )
         throw Exception( "otk::saveImage(): Failed to determine filename extension" );
 
-    const std::string ext = filename.substr( filename.length()-3 );
+    const std::string ext = filename.substr( filename.find_last_of( '.' ) + 1 );
     if( ext == "PPM" || ext == "ppm" )
     {
-        //
-        // Note -- we are flipping image vertically as we write it into output buffer
-        //
-        const int32_t width  = image.width;
-        const int32_t height = image.height;
-        std::vector<unsigned char> pix( width*height*3 );
-
-        switch( image.pixel_format )
+        const std::vector<std::uint8_t> pix( getPixels( image, disable_srgb_conversion ) );
+        savePPM( pix.data(), filename.c_str(), image.width, image.height, 3 );
+    }
+    else if( ext == "png" || ext == "PNG" )
+    {
+        const std::vector<std::uint8_t> pix( getPixels( image, disable_srgb_conversion ) );
+        if( stbi_write_png( fname, image.width, image.height, 3, pix.data(), 3 * image.width ) == 0 )
         {
-            case BufferImageFormat::UNSIGNED_BYTE4:
-            {
-                for( int j = height - 1; j >= 0; --j )
-                {
-                    for( int i = 0; i < width; ++i )
-                    {
-                        const int32_t dst_idx = 3*width*(height-j-1) + 3*i;
-                        const int32_t src_idx = 4*width*j            + 4*i;
-                        pix[ dst_idx+0] = reinterpret_cast<uint8_t*>( image.data )[ src_idx+0 ];
-                        pix[ dst_idx+1] = reinterpret_cast<uint8_t*>( image.data )[ src_idx+1 ];
-                        pix[ dst_idx+2] = reinterpret_cast<uint8_t*>( image.data )[ src_idx+2 ];
-                    }
-                }
-            } break;
-
-            case BufferImageFormat::FLOAT3:
-            {
-                for( int j = height - 1; j >= 0; --j )
-                {
-                    for( int i = 0; i < width; ++i )
-                    {
-                        const int32_t dst_idx = 3*width*(height-j-1) + 3*i;
-                        const int32_t src_idx = 3*width*j            + 3*i;
-                        for( int elem = 0; elem < 3; ++elem )
-                        {
-                            const float   f = reinterpret_cast<float*>( image.data )[src_idx+elem ];
-                            const int32_t v = static_cast<int32_t>( 256.0f*(disable_srgb_conversion ? f : toSRGB(f)) );
-                            const int32_t c =  v < 0 ? 0 : v > 0xff ? 0xff : v;
-                            pix[ dst_idx+elem ] = static_cast<uint8_t>( c );
-                        }
-                    }
-                }
-            } break;
-
-            case BufferImageFormat::FLOAT4:
-            {
-                for( int j = height - 1; j >= 0; --j )
-                {
-                    for( int i = 0; i < width; ++i )
-                    {
-                        const int32_t dst_idx = 3*width*(height-j-1) + 3*i;
-                        const int32_t src_idx = 4*width*j            + 4*i;
-                        for( int elem = 0; elem < 3; ++elem )
-                        {
-                            const float   f = reinterpret_cast<float*>( image.data )[src_idx+elem ];
-                            const int32_t v = static_cast<int32_t>( 256.0f*(disable_srgb_conversion ? f : toSRGB(f)) );
-                            const int32_t c =  v < 0 ? 0 : v > 0xff ? 0xff : v;
-                            pix[ dst_idx+elem ] = static_cast<uint8_t>( c );
-                        }
-                    }
-                }
-            } break;
-
-            default:
-            {
-                throw Exception( "otk::saveImage(): Unrecognized image buffer pixel format.\n" );
-            }
+            throw Exception( ( "otk::saveImage(): Failed to write PNG image " + filename ).c_str() );
         }
-
-        savePPM( pix.data(), filename.c_str(), width, height, 3 );
     }
     else
     {
