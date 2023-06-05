@@ -97,6 +97,7 @@ const int NUM_ATTRIBUTE_VALUES = 3;
         "         --help | -h                 Print this usage message\n"
         "         --dim=<width>x<height>      Set image dimensions; defaults to 512x384\n"
         "         --frames=<num>              Specify number of warmup frames before writing to file\n"
+        "         --optixGetSphereData=yes/no Use optixGetSphereData or application data access\n"
         "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n";
     // clang-format on
     exit( 1 );
@@ -110,6 +111,7 @@ struct Options
     float3      background;
     int         warmup{};
     Debug       debug{};
+    bool        useOptixGetSphereData{true};
 };
 
 bool hasOption( const std::string& arg, const std::string& flag, std::istringstream& value )
@@ -155,6 +157,17 @@ Options parseArguments( int argc, char* argv[] )
             if( !value || warmup < 0 )
                 printUsageAndExit( argv[0] );
             options.warmup = warmup;
+        }
+        else if( hasOption( arg, "--optixGetSphereData=", value ) )
+        {
+            const std::string text = value.str();
+            if( text != "yes" && text != "no" )
+            {
+                std::cerr << "Unknown option '" << arg << "'\n";
+                printUsageAndExit( argv[0] );
+            }
+
+            options.useOptixGetSphereData = text == "yes";
         }
         else if( hasOption( arg, "--debug=", value ) )
         {
@@ -237,6 +250,7 @@ class Application
     void writeHitGroupRecords();
     void writeSbt();
     void buildShaderBindingTable();
+    void setParamSphereData();
     void initLaunchParams();
     void updateLaunchParams();
 
@@ -435,7 +449,8 @@ void Application::createProgramGroups()
         .miss( "__miss__backgroundColor" )
         .hitGroupCHIS( m_viewerModule, m_proxies->getCHFunctionName(), m_viewerModule, m_proxies->getISFunctionName() )
         .hitGroupCHIS( m_proxyMaterialModule, "__closesthit__proxyMaterial", m_sphereModule, nullptr );
-    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE, m_programGroups.data() ) );
+    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
+                                               m_programGroups.data() ) );
 }
 
 void Application::createPipeline()
@@ -448,7 +463,8 @@ void Application::createPipeline()
 #else
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 #endif
-    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(), m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
+    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
+                                           m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
     for( OptixProgramGroup group : m_programGroups )
@@ -631,6 +647,19 @@ void Application::buildShaderBindingTable()
     writeSbt();
 }
 
+void Application::setParamSphereData()
+{
+    Params&       params = m_params[0];
+    GetSphereData getSphereData{};
+    getSphereData.useOptixGetSphereData = m_options.useOptixGetSphereData;
+    if( !getSphereData.useOptixGetSphereData )
+    {
+        getSphereData.centers = m_spheres.getSphereCentersDevicePtr();
+        getSphereData.radii   = m_spheres.getSphereRadiiDevicePtr();
+    }
+    params.getSphereData = getSphereData;
+}
+
 void Application::initLaunchParams()
 {
     BasicLight lights[]{{
@@ -657,6 +686,7 @@ void Application::initLaunchParams()
     const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
     params.demandMaterialColor = yellow;
     params.debug               = m_options.debug;
+    setParamSphereData();
 }
 
 void Application::updateLaunchParams()
@@ -665,6 +695,8 @@ void Application::updateLaunchParams()
     params.sphereIds = m_spheres.getSphereIdsDevicePtr();
     m_materialIds.copyToDevice();
     params.demandMaterialPageIds = m_materialIds.typedDevicePtr();
+
+    setParamSphereData();
 }
 
 void Application::createGeometry( uint_t proxyId )

@@ -83,6 +83,13 @@ struct Debug
     uint3 debugIndex;
 };
 
+struct GetSphereData
+{
+    bool          useOptixGetSphereData;
+    const float3* centers;
+    const float*  radii;
+};
+
 struct Params
 {
     uchar4*                      image;
@@ -98,6 +105,7 @@ struct Params
     const uint_t*                demandMaterialPageIds;
     float3                       demandMaterialColor;
     const uint_t*                sphereIds;
+    GetSphereData                getSphereData;
     Debug                        debug;
 };
 

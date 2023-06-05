@@ -51,6 +51,8 @@ class SphereInstances
     OptixTraversableHandle createTraversable( OptixDeviceContext dc, CUstream stream );
 
     const uint_t* getSphereIdsDevicePtr() const { return m_sphereIds.typedDevicePtr(); }
+    const float3* getSphereCentersDevicePtr() const { return m_centers.typedDevicePtr(); }
+    const float*  getSphereRadiiDevicePtr() const { return m_radii.typedDevicePtr(); }
 
   private:
     otk::SyncVector<uint_t>        m_sphereIds;

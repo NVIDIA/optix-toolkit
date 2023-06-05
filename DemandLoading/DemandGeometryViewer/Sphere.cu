@@ -35,7 +35,7 @@
 #include <vector_functions.h>
 
 using namespace otk;  // for vec_math operators
-    
+
 namespace demandGeometryViewer {
 
 extern "C" __constant__ Params g_params;
@@ -112,7 +112,7 @@ static __forceinline__ __device__ bool inDebugWindow( const uint3& launchIndex, 
               || outsideWindow( launchIndex.z, debugIndex.z, width ) );
 }
 
-static __forceinline__ __device__ bool debugInfo( const Debug &debug, const float4 &q, const float3 &worldNormal )
+static __forceinline__ __device__ bool debugInfo( const Debug& debug, const float4& q, const float3& worldNormal )
 {
     if( debug.enabled && debug.debugIndexSet )
     {
@@ -123,11 +123,11 @@ static __forceinline__ __device__ bool debugInfo( const Debug &debug, const floa
             const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
             const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
             const PhongMaterial&         mat         = getSbtData<HitGroupData>()->material;
-            printf( "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g], D: [%g,%g,%g]\n",
-                    launchIndex.x, launchIndex.y, launchIndex.z, primIdx, sbtGASIndex, gas,
-                    q.x, q.y, q.z, q.w,
-                    worldNormal.x, worldNormal.y, worldNormal.z,
-                    mat.Kd.x, mat.Kd.y, mat.Kd.z );
+            printf(
+                "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g], D: "
+                "[%g,%g,%g]\n",
+                launchIndex.x, launchIndex.y, launchIndex.z, primIdx, sbtGASIndex, gas, q.x, q.y, q.z, q.w,
+                worldNormal.x, worldNormal.y, worldNormal.z, mat.Kd.x, mat.Kd.y, mat.Kd.z );
             setRayPayload( 1.0f, 0.0f, 0.0f );
             return true;
         }
@@ -157,8 +157,17 @@ extern "C" __global__ void __closesthit__sphere()
     const unsigned int           sbtGASIndex = optixGetSbtGASIndex();
 
     float4 q;
-    // sphere center (q.x, q.y, q.z), sphere radius q.w
-    optixGetSphereData( gas, primIdx, sbtGASIndex, 0.f, &q );
+    // Work around a bug in optixGetSphereData in drivers before 545.27
+    if( g_params.getSphereData.useOptixGetSphereData )
+    {
+        // sphere center (q.x, q.y, q.z), sphere radius q.w
+        optixGetSphereData( gas, primIdx, sbtGASIndex, 0.f, &q );
+    }
+    else
+    {
+        q   = make_float4( g_params.getSphereData.centers[primIdx] );
+        q.w = g_params.getSphereData.radii[primIdx];
+    }
 
     const float3 worldRayPos  = rayOrigin + tHit * rayDir;
     const float3 objectRayPos = optixTransformPointFromWorldToObjectSpace( worldRayPos );
