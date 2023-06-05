@@ -38,6 +38,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -75,6 +76,7 @@ private:
     std::vector<std::thread>          m_threads;
     std::unique_ptr<TraceFileWriter>  m_traceFile{};
     std::map<unsigned int, Ticket>    m_tickets;
+    std::mutex                        m_ticketsMutex;
 
     // Per-thread worker function.
     void worker();

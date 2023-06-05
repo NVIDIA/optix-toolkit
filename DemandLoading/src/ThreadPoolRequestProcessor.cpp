@@ -69,6 +69,7 @@ void ThreadPoolRequestProcessor::stop()
 
 void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
+    std::unique_lock<std::mutex> lock( m_ticketsMutex );
     auto it = m_tickets.find( id );
     DEMAND_ASSERT( it != m_tickets.end() );
     Ticket ticket = it->second;
@@ -93,6 +94,7 @@ void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::Ima
 
 void ThreadPoolRequestProcessor::setTicket( unsigned int id, Ticket ticket )
 {
+    std::unique_lock<std::mutex> lock( m_ticketsMutex );
     DEMAND_ASSERT( m_tickets.find( id ) == m_tickets.end() );
     m_tickets[id] = ticket;
 }
