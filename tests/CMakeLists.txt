@@ -26,10 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-find_package( GTest QUIET )
-if(NOT GTEST_FOUND)
-  message(WARNING "GTest not found.  Skipping ShaderUtil/tests.")
-  return()
+if(NOT TARGET GTest::gtest)
+    find_package( GTest QUIET )
+    if(NOT GTEST_FOUND)
+      message(WARNING "GTest not found.  Skipping ShaderUtil/tests.")
+      return()
+    endif()
 endif()
 
 include(GoogleTest)
