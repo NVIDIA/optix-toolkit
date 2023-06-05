@@ -132,7 +132,7 @@ class MemoryPool
 
         // If no suballocator, use the allocator directly
         if( !m_suballocator )
-            return MemoryBlockDesc{reinterpret_cast<uint64_t>( m_allocator->allocate( size, stream ) ), size};
+            return MemoryBlockDesc{reinterpret_cast<uint64_t>( m_allocator->allocate( size, stream ) ), size, 0};
 
         // Try to fill the request with the suballocator.  If it fails, allocate additional memory with the
         // allocator and try again.
@@ -216,20 +216,20 @@ class MemoryPool
     }
 
     /// Free a single item (used with FixedSuballocator).
-    void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr, m_suballocator->itemSize()} ); }
+    void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr, m_suballocator->itemSize(), 0} ); }
 
     /// Free an object (not compatible with RingSuballocator).
     template <typename TYPE>
     void freeObject( TYPE* ptr )
     {
-        free( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE )} );
+        free( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE ), 0} );
     }
 
     /// Free an array of objects (not compatible with RingSuballocator)
     template <typename TYPE>
     void freeObjects( TYPE* ptr, uint64_t numObjects )
     {
-        free( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE )} );
+        free( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE ), 0} );
     }
 
     /// Free texture tiles immediately
@@ -237,7 +237,7 @@ class MemoryPool
     {
         uint64_t ptr  = tileBlock.arenaId * getArenaSpacing() + tileBlock.tileId * TILE_SIZE_IN_BYTES;
         uint64_t size = tileBlock.numTiles * TILE_SIZE_IN_BYTES;
-        free( MemoryBlockDesc{ptr, size} );
+        free( MemoryBlockDesc{ptr, size, 0} );
     }
 
     /// Free block asynchronously, after operations currently in the stream have finished
@@ -286,7 +286,7 @@ class MemoryPool
     {
         uint64_t ptr  = tileBlock.arenaId * getArenaSpacing() + tileBlock.tileId * TILE_SIZE_IN_BYTES;
         uint64_t size = tileBlock.numTiles * TILE_SIZE_IN_BYTES;
-        freeAsync( MemoryBlockDesc{ptr, size}, stream );
+        freeAsync( MemoryBlockDesc{ptr, size, 0}, stream );
     }
 
     /// Return the free space currently tracked in the pool

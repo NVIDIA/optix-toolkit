@@ -29,7 +29,7 @@
 include( FetchGtest )
 include( GoogleTest )
 
-add_executable( testMemory
+otk_add_executable( testMemory
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
   TestDeviceMemoryPools.cpp
@@ -58,7 +58,7 @@ set_target_properties( testMemory PROPERTIES
 # Register test cases with CTest.
 gtest_discover_tests(testMemory)
 
-add_executable(testOptiXMemory
+otk_add_executable(testOptiXMemory
   TestBuilders.cpp
   TestSyncRecordHeader.cpp
 )

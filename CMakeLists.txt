@@ -65,7 +65,7 @@ endif()
 # specializing a couple template functions.  See ErrorCheck.h for details
 # and the provided API headers for examples.
 #
-add_library(Error INTERFACE)
+otk_add_library(Error INTERFACE)
 target_sources(Error
   PUBLIC
   FILE_SET HEADERS
@@ -82,7 +82,7 @@ if(NOT PROJECT_IS_TOP_LEVEL)
 endif()
 
 # Basic memory allocators and operations.
-add_library(Memory INTERFACE)
+otk_add_library(Memory INTERFACE)
 set_property(TARGET Memory PROPERTY FOLDER Memory)
 target_sources(Memory
   PUBLIC 
@@ -119,7 +119,7 @@ if(NOT PROJECT_IS_TOP_LEVEL)
 endif()
 
 # OptiX related memory operations.
-add_library(OptiXMemory INTERFACE)
+otk_add_library(OptiXMemory INTERFACE)
 target_sources(OptiXMemory
   PUBLIC
   FILE_SET HEADERS

@@ -70,7 +70,7 @@ class FixedSuballocator
     }
 
     /// Free an item from just its pointer
-    void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr, m_itemSize} ); }
+    void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr, m_itemSize, 0} ); }
 
     /// Return the size of items in the pool
     uint64_t itemSize() const { return m_itemSize; }
@@ -101,15 +101,15 @@ inline void FixedSuballocator::track( uint64_t ptr, uint64_t size )
     s -= s % m_itemSize;
 
     m_trackedSize += s;
-    free( MemoryBlockDesc{p, s} );
+    free( MemoryBlockDesc{p, s, 0} );
 }
 
-inline MemoryBlockDesc FixedSuballocator::alloc( uint64_t size, uint64_t alignment )
+inline MemoryBlockDesc FixedSuballocator::alloc( uint64_t /*size*/, uint64_t /*alignment*/ )
 {
     if( m_freeBlocks.empty() )
-        return MemoryBlockDesc{BAD_ADDR};
+        return MemoryBlockDesc{BAD_ADDR, 0, 0};
 
-    MemoryBlockDesc block{m_freeBlocks.back().ptr, m_itemSize};
+    MemoryBlockDesc block{m_freeBlocks.back().ptr, m_itemSize, 0};
     if( m_freeBlocks.back().size == m_itemSize )
     {
         m_freeBlocks.pop_back();

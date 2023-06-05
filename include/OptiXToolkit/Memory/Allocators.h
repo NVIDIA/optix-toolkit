@@ -42,9 +42,9 @@ const unsigned int HOST_DEVICE = 0xFFFFFFFF;
 class HostAllocator
 {
   public:
-    void* allocate( size_t numBytes, CUstream dummy = 0 ) { return malloc( numBytes ); }
-    void free( void* ptr, CUstream dummy = 0 ) { ::free( ptr ); }
-    void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 ) { memset( ptr, val, numBytes ); }
+    void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 ) { return malloc( numBytes ); }
+    void free( void* ptr, CUstream /*dummy*/ = 0 ) { ::free( ptr ); }
+    void set( void* ptr, int val, size_t numBytes, CUstream /*dummy*/ = 0 ) { memset( ptr, val, numBytes ); }
     bool allocationIsHandle() const { return false; }
 };
 
@@ -52,14 +52,14 @@ class HostAllocator
 class PinnedAllocator
 {
   public:
-    void* allocate( size_t numBytes, CUstream dummy = 0 )
+    void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         void* result;
         OTK_MEMORY_CUDA_CHECK( cuMemAllocHost( &result, numBytes ) );
         return result;
     }
-    void free( void* ptr, CUstream dummy = 0 ) { OTK_MEMORY_CUDA_CHECK( cuMemFreeHost( ptr ) ); }
-    void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 ) { memset( ptr, val, numBytes ); }
+    void free( void* ptr, CUstream /*dummy*/ = 0 ) { OTK_MEMORY_CUDA_CHECK( cuMemFreeHost( ptr ) ); }
+    void set( void* ptr, int val, size_t numBytes, CUstream /*dummy*/ = 0 ) { memset( ptr, val, numBytes ); }
     bool allocationIsHandle() const { return false; }
 };
 
@@ -73,7 +73,7 @@ class DeviceAllocator
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
-    void* allocate( size_t numBytes, CUstream dummy = 0 )
+    void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         checkCudaContext( m_context );
         if( numBytes == 0 )
@@ -83,16 +83,16 @@ class DeviceAllocator
         return result;
     }
 
-    void free( void* ptr, CUstream dummy = 0 )
+    void free( void* ptr, CUstream /*dummy*/ = 0 )
     {
         checkCudaContext( m_context );
         OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
     }
 
-    void set( void* ptr, int val, size_t numBytes, CUstream dummy = 0 )
+    void set( void* ptr, int val, size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         checkCudaContext( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), val, numBytes ) );
+        OTK_MEMORY_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<unsigned char>( val ), numBytes ) );
     }
 
     bool allocationIsHandle() const { return false; }
@@ -138,7 +138,7 @@ class DeviceAsyncAllocator
     void set( void* ptr, int val, size_t numBytes, CUstream stream = 0 )
     {
         checkCudaContext( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), val, numBytes, stream ) );
+        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<unsigned char>( val ), numBytes, stream ) );
     }
 
     bool allocationIsHandle() const { return false; }
@@ -158,7 +158,7 @@ class TextureTileAllocator
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
-    void* allocate( size_t numBytes, CUstream dummy = 0 )
+    void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         checkCudaContext( m_context );
         CUmemGenericAllocationHandle handle;
@@ -166,7 +166,7 @@ class TextureTileAllocator
         return reinterpret_cast<void*>( handle );
     }
 
-    void free( void* handle, CUstream dummy = 0 )
+    void free( void* handle, CUstream /*dummy*/ = 0 )
     {
         checkCudaContext( m_context );
         OTK_MEMORY_CUDA_CHECK( cuMemRelease( reinterpret_cast<CUmemGenericAllocationHandle>( handle ) ) );

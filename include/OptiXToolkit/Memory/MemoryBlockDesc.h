@@ -63,12 +63,21 @@ const uint32_t TILE_SIZE_IN_BYTES = 64 * 1024;
 /// Describe a block of texture tiles
 union TileBlockDesc
 {
+    // silence warning "ISO C++ prohibits anonymous structs"
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif    
     struct
     {
         uint32_t arenaId;
         uint16_t tileId;
         uint16_t numTiles;
     };
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+    
     uint64_t data = 0;
 
     TileBlockDesc( uint64_t data_ )

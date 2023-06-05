@@ -126,7 +126,7 @@ inline MemoryBlockDesc RingSuballocator::alloc( uint64_t size, uint64_t alignmen
 
     // Can't allocate 0 size, or something larger than an arena
     if( size == 0 || size > m_arenaSize )
-        return MemoryBlockDesc{BAD_ADDR};
+        return MemoryBlockDesc{BAD_ADDR, 0, 0};
 
     // Find the first arena with space to hold the allocation. Should be current or next arena.
     unsigned int numActiveArenas = static_cast<unsigned int>( activeArenas.size() );
@@ -159,7 +159,7 @@ inline MemoryBlockDesc RingSuballocator::alloc( uint64_t size, uint64_t alignmen
         }
     }
 
-    return MemoryBlockDesc{BAD_ADDR};
+    return MemoryBlockDesc{BAD_ADDR, 0, 0};
 }
 
 inline void RingSuballocator::decrementAllocCount( unsigned int arenaId, unsigned int inc )

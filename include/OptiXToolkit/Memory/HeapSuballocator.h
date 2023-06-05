@@ -60,7 +60,7 @@ class HeapSuballocator
     void track( uint64_t ptr, uint64_t size )
     {
         m_trackedSize += size;
-        free( MemoryBlockDesc{ptr, size} );
+        free( MemoryBlockDesc{ptr, size, 0} );
     }
 
     /// Allocate a block from tracked memory. Returns the address to the allocated block.
@@ -97,7 +97,7 @@ inline MemoryBlockDesc HeapSuballocator::alloc( uint64_t size, uint64_t alignmen
 
     // Can't allocate 0 size, or something larger than the largest free block
     if( size == 0 || size > m_gteLargestFree )
-        return MemoryBlockDesc{BAD_ADDR};
+        return MemoryBlockDesc{BAD_ADDR, 0, 0};
 
     // Start search at the start position
     uint64_t largestFreeSize = 0;
@@ -137,7 +137,7 @@ inline MemoryBlockDesc HeapSuballocator::alloc( uint64_t size, uint64_t alignmen
                 m_beginMap.erase( blockIt );
                 m_beginMap[blockBegin + size] = blockSize - size;
             }
-            return MemoryBlockDesc{usedBegin, size};
+            return MemoryBlockDesc{usedBegin, size, 0};
         }
 
         largestFreeSize = std::max( largestFreeSize, blockIt->second );
@@ -145,7 +145,7 @@ inline MemoryBlockDesc HeapSuballocator::alloc( uint64_t size, uint64_t alignmen
     }
 
     m_gteLargestFree = largestFreeSize;
-    return MemoryBlockDesc{BAD_ADDR};
+    return MemoryBlockDesc{BAD_ADDR, 0, 0};
 }
 
 inline void HeapSuballocator::free( const MemoryBlockDesc& memBlock )
