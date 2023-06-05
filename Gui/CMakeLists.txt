@@ -31,7 +31,7 @@ include(FetchGlfw)
 include(FetchGlad)
 include(FetchImgui)
 
-add_library(Gui STATIC
+otk_add_library(Gui STATIC
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp

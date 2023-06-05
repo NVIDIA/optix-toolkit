@@ -46,7 +46,7 @@ embed_ptx(
     RayCones.cu
 )
 
-add_executable( rayCones
+otk_add_executable( rayCones
   Bsdf.h
   RayCones.cpp
   ShapeMaker.cpp 

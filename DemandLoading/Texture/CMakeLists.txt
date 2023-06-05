@@ -48,7 +48,7 @@ embed_ptx(
     textureKernel.cu
 )
 
-add_executable( demandLoadTexture
+otk_add_executable( demandLoadTexture
   texture.cpp
   textureKernel.h
   )

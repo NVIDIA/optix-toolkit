@@ -51,7 +51,7 @@ if(NOT TARGET Stb::Image)
   add_library(Stb::Image ALIAS StbImage)
 endif()
 
-add_library(Util STATIC
+otk_add_library(Util STATIC
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h

@@ -29,7 +29,7 @@
 include(GNUInstallDirs)
 include(BuildConfig)
 
-add_executable( ommBakingSimple
+otk_add_executable( ommBakingSimple
   simple.cpp
   simple.cu
   )

@@ -21,7 +21,7 @@
 include(BuildConfig)
 include(FetchStbImage)
 
-add_executable(imgtool 
+otk_add_executable(imgtool 
   imgtool.cpp
   pngcompare.cpp
   pngcompare.h

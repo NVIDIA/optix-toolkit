@@ -50,7 +50,7 @@ embed_ptx(
     DemandTextureViewer.cu
 )
 
-add_executable( demandTextureViewer
+otk_add_executable( demandTextureViewer
   DemandTextureViewer.cpp
   )
 

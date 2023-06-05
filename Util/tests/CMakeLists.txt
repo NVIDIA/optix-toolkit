@@ -29,7 +29,7 @@
 include( FetchGtest )
 include( GoogleTest )
 
-add_executable( testUtil
+otk_add_executable( testUtil
     TestException.cpp
     TestEXRInputFile.cpp
     FunctionTable.cpp

@@ -52,7 +52,7 @@ embed_ptx(
     FOLDER Examples/DemandLoading
 )
 
-add_executable( DemandGeometryViewer
+otk_add_executable( DemandGeometryViewer
     DemandGeometryViewer.h
     DemandGeometryViewer.cpp
     DemandMaterial.h

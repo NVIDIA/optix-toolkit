@@ -33,7 +33,7 @@ if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.1 REQUIRED )
 endif()
 
-add_executable( demandLoadSimple
+otk_add_executable( demandLoadSimple
   simple.cpp
   Simple.h
   PageRequester.cu
