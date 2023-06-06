@@ -26,14 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
+
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Gui/GLCheck.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/Util/Exception.h>
-
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
 
 #include <cstdlib>
 #include <cstring>

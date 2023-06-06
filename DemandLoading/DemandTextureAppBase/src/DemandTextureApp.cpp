@@ -40,6 +40,7 @@
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
 
@@ -50,8 +51,6 @@
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-
-#include <GLFW/glfw3.h>
 
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
@@ -79,7 +78,7 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     
     int numDevices;
     CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    for( unsigned int deviceIdx = 1; deviceIdx < numDevices; ++deviceIdx )
+    for( int deviceIdx = 1; deviceIdx < numDevices; ++deviceIdx )
     {
         CUDA_CHECK( cudaSetDevice( deviceIdx ) );
         CUDA_CHECK( cudaFree( 0 ) );
@@ -104,7 +103,7 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     // Create the per device optix states
     OPTIX_CHECK( optixInit() );
     m_perDeviceOptixStates.resize( numDevices );
-    for( unsigned int device_idx = 0; device_idx < numDevices; ++device_idx )
+    for( int device_idx = 0; device_idx < numDevices; ++device_idx )
         m_perDeviceOptixStates[device_idx].device_idx = device_idx;
 
     initView();

@@ -31,11 +31,10 @@
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/Util/EXRInputFile.h>
 
 #include "PerDeviceOptixState.h"
-
-#include <GLFW/glfw3.h>
 
 namespace ommBakingApp
 {

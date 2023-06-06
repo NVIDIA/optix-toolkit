@@ -38,14 +38,12 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/glfw3.h>
+#include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include "PerDeviceOptixState.h"
 #include "CuOmmBakingApp.h"
-
-#include <OptiXToolkit/Util/Exception.h>
-
-#include <GLFW/glfw3.h>
 
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
@@ -77,8 +75,6 @@ void CudaTexture::create( otk::EXRInputFile* imageFile )
     size_t bytesPerPixel = ( desc.x + desc.y + desc.z + desc.w ) / 8;
     std::vector<char> data( bytesPerPixel * imageFile->getWidth() * imageFile->getHeight() );
     imageFile->read( data.data(), data.size() );
-
-    size_t bytesPerRow = imageFile->getWidth() * bytesPerPixel;
 
     CuPitchedBuffer<char> d_data;
     CUDA_CHECK( d_data.allocAndUpload( bytesPerPixel * imageFile->getWidth(), imageFile->getHeight(), data.data() ) );

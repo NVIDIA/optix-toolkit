@@ -26,11 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
+
 #include "DemandGeometryViewer.h"
-
-// This is disgusting, but glad.h insists it must be included first.
-#include <glad/glad.h>
-
 #include "DemandGeometryViewerKernelPTX.h"
 #include "DemandMaterial.h"
 #include "SphereInstances.h"
@@ -45,6 +43,7 @@
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Trackball.h>
 #include <OptiXToolkit/Gui/TrackballCamera.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
@@ -53,8 +52,6 @@
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
-
-#include <GLFW/glfw3.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>

@@ -28,11 +28,11 @@
 
 #pragma once
 
+#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
+
 #include <OptiXToolkit/Gui/GLCheck.h>
 #include <OptiXToolkit/Gui/Window.h>
 #include <OptiXToolkit/Util/Exception.h>
-
-#include <glad/glad.h> // Needs to be included before gl_interop
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>

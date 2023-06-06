@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
-#include <glad/glad.h>
+#include <OptiXToolkit/Util/Exception.h>
 
 #include <iostream>
 #include <sstream>

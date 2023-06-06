@@ -48,6 +48,8 @@ otk_add_library(Gui STATIC
   include/OptiXToolkit/Gui/Trackball.h
   include/OptiXToolkit/Gui/TrackballCamera.h
   include/OptiXToolkit/Gui/Window.h
+  include/OptiXToolkit/Gui/glad.h
+  include/OptiXToolkit/Gui/glfw3.h
   )
 
 add_library(OptiXToolkit::Gui ALIAS Gui)

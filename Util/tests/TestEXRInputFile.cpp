@@ -65,8 +65,8 @@ TEST_F( TestEXRInputFile, TestOpen )
 {
     EXRInputFile file;
     file.open( getSourceDir() + "/Textures/TiledMipMappedHalf.exr" );
-    EXPECT_NE( 0, file.getWidth() );
-    EXPECT_NE( 0, file.getHeight() );
+    EXPECT_NE( 0U, file.getWidth() );
+    EXPECT_NE( 0U, file.getHeight() );
 }
 
 TEST_F( TestEXRInputFile, TestReadHalf )

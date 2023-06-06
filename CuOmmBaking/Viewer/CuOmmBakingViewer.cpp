@@ -448,7 +448,7 @@ void OmmBakingViewer::initOptixPipelines( const char* moduleCode )
     CUDA_CHECK( cudaGetDeviceCount( &numDevices ) );
     m_state.resize( numDevices );
 
-    for( unsigned int i = 0; i < numDevices; ++i )
+    for( int i = 0; i < numDevices; ++i )
     {
         CUDA_CHECK( cudaSetDevice( i ) );
         CUDA_CHECK( cudaFree( 0 ) );
