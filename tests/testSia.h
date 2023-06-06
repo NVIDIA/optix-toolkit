@@ -70,10 +70,12 @@ struct Stats
     unsigned long long optixCudaMissmatch;
 };
 
+#ifdef __CUDACC__
 static __device__ bool operator!=( const float3& a, const float3& b )
 {
     return !(a.x == b.x && a.y == b.y && a.z == b.z);
 }
+#endif
 
 struct SpawnPoint
 {
@@ -153,7 +155,7 @@ static __device__ __host__ double detAffine3x4( double *m )
     return d;
 }
 
-static __device__ __host__ Matrix3x4 computeInverseAffine3x4( Matrix3x4 mtrx )
+inline __device__ __host__ Matrix3x4 computeInverseAffine3x4( Matrix3x4 mtrx )
 {
     double m[12], o[12];
 
@@ -176,9 +178,20 @@ static __device__ __host__ Matrix3x4 computeInverseAffine3x4( Matrix3x4 mtrx )
     o[7] = d * ( m[2] * ( m[8] * m[7] - m[4] * m[11] ) + m[6] * ( m[0] * m[11] - m[8] * m[3] ) + m[10] * ( m[4] * m[3] - m[0] * m[7] ) );
     o[11] = d * ( m[3] * ( m[8] * m[5] - m[4] * m[9] ) + m[7] * ( m[0] * m[9] - m[8] * m[1] ) + m[11] * ( m[4] * m[1] - m[0] * m[5] ) );
 
-    mtrx.row0.x = o[0]; mtrx.row0.y = o[1]; mtrx.row0.z = o[2];  mtrx.row0.w = o[3];
-    mtrx.row1.x = o[4]; mtrx.row1.y = o[5]; mtrx.row1.z = o[6];  mtrx.row1.w = o[7];
-    mtrx.row2.x = o[8]; mtrx.row2.y = o[9]; mtrx.row2.z = o[10]; mtrx.row2.w = o[11];
+    mtrx.row0.x = static_cast<float>( o[0] );
+    mtrx.row0.y = static_cast<float>( o[1] );
+    mtrx.row0.z = static_cast<float>( o[2] );
+    mtrx.row0.w = static_cast<float>( o[3] );
+    
+    mtrx.row1.x = static_cast<float>( o[4] );
+    mtrx.row1.y = static_cast<float>( o[5] );
+    mtrx.row1.z = static_cast<float>( o[6] );
+    mtrx.row1.w = static_cast<float>( o[7] );
+    
+    mtrx.row2.x = static_cast<float>( o[8] );
+    mtrx.row2.y = static_cast<float>( o[9] );
+    mtrx.row2.z = static_cast<float>( o[10] );
+    mtrx.row2.w = static_cast<float>( o[11] );
 
     return mtrx;
 }

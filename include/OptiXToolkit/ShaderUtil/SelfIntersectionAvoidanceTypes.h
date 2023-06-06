@@ -31,4 +31,4 @@ struct Matrix3x4
     float4 row2;
 };
 
-}; // SelfIntersectionAvoidance
+} // SelfIntersectionAvoidance

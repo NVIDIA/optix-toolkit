@@ -69,6 +69,7 @@ cudaError_t launchCudaValidate( const Params params, unsigned int size, cudaStre
 
 namespace {  // anonymous
 
+#if 0
 float3 operator*( float a, float3 b )
 {
     return { a * b.x, a * b.y, a * b.z };
@@ -78,6 +79,7 @@ float3 operator+( float3 a, float3 b )
 {
     return { a.x + b.x, a.y + b.y, a.z + b.z };
 }
+#endif
 
 float dot( float4 a, float4 b )
 {
@@ -103,7 +105,7 @@ Matrix3x4 operator*( Matrix3x4 a, Matrix3x4 b )
 float4 operator*( Matrix3x4 a, float4 b )
 {
     return { dot( a.row0, b ), dot( a.row1, b ), dot( a.row2, b ), b.w };
-};
+}
 
 const float time = 0.66f;
 
@@ -170,17 +172,17 @@ protected:
 
         float tmp1 = srt.qx * srt.qy;
         float tmp2 = srt.qz * srt.qw;
-        r.row1.x = 2.0 * ( tmp1 + tmp2 ) * invs;
-        r.row0.y = 2.0 * ( tmp1 - tmp2 ) * invs;
+        r.row1.x = 2.0f * ( tmp1 + tmp2 ) * invs;
+        r.row0.y = 2.0f * ( tmp1 - tmp2 ) * invs;
 
         tmp1 = srt.qx * srt.qz;
         tmp2 = srt.qy * srt.qw;
-        r.row2.x = 2.0 * ( tmp1 - tmp2 ) * invs;
-        r.row0.z = 2.0 * ( tmp1 + tmp2 ) * invs;
+        r.row2.x = 2.0f * ( tmp1 - tmp2 ) * invs;
+        r.row0.z = 2.0f * ( tmp1 + tmp2 ) * invs;
         tmp1 = srt.qy * srt.qz;
         tmp2 = srt.qx * srt.qw;
-        r.row2.y = 2.0 * ( tmp1 + tmp2 ) * invs;
-        r.row1.z = 2.0 * ( tmp1 - tmp2 ) * invs;
+        r.row2.y = 2.0f * ( tmp1 + tmp2 ) * invs;
+        r.row1.z = 2.0f * ( tmp1 - tmp2 ) * invs;
 
         t.row0 = { 1.f, 0.f, 0.f, srt.tx };
         t.row1 = { 0.f, 1.f, 0.f, srt.ty };
@@ -306,7 +308,7 @@ protected:
         std::vector<Transform> transforms;        
     };
 
-    void runTest( const TestOptions& opt, const std::string& imageNamePrefix )
+    void runTest( const TestOptions& opt, const std::string& /*imageNamePrefix*/ )
     {
         std::vector<float3> vertices = getTriangle();
 
@@ -450,7 +452,12 @@ protected:
 
                     ptr.srt = ( OptixSRTMotionTransform* )d_transform.get();
                     pointers.push_back( d_transform.release() );
-                } break;
+                }
+                break;
+                case OPTIX_TRANSFORM_TYPE_NONE: {
+                    ASSERT_TRUE( false && "Unexpected transform" );
+                    break;
+                }
             }
 
             p.transforms[opt.transforms.size() - 1 - p.depth] = ptr;
@@ -595,7 +602,7 @@ protected:
         OPTIX_THROW( optixDeviceContextDestroy( optixContext ) );
 
         double samples = width * height;
-        double total = m_stats.frontMissBackMiss + m_stats.frontHitBackMiss + m_stats.frontMissBackHit + m_stats.frontHitBackHit;
+        double total = static_cast<double>( m_stats.frontMissBackMiss + m_stats.frontHitBackMiss + m_stats.frontMissBackHit + m_stats.frontHitBackHit );
 
         double prcTest = total / samples;
         double prcMM = m_stats.frontMissBackMiss / total;
