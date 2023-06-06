@@ -56,6 +56,9 @@ namespace otk {
 using ::max;
 using ::min;
 #else
+#undef max
+#undef min
+
 OTK_INLINE OTK_HOSTDEVICE int max(int a, int b)
 {
     return a > b ? a : b;

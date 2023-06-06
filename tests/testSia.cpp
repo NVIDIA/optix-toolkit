@@ -102,7 +102,6 @@ Matrix3x4 operator*( Matrix3x4 a, Matrix3x4 b )
 
 float4 operator*( Matrix3x4 a, float4 b )
 {
-    Matrix3x4 c;
     return { dot( a.row0, b ), dot( a.row1, b ), dot( a.row2, b ), b.w };
 };
 
@@ -383,16 +382,16 @@ protected:
                     CuBuffer<OptixInstance> d_instances;
                     d_instances.allocAndUpload( 1u, &inst );
 
-                    OptixBuildInput optixBuildInput = {};
-                    optixBuildInput.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
-                    optixBuildInput.instanceArray.instances = d_instances.get();
-                    optixBuildInput.instanceArray.numInstances = 1;
+                    OptixBuildInput buildInput = {};
+                    buildInput.type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+                    buildInput.instanceArray.instances = d_instances.get();
+                    buildInput.instanceArray.numInstances = 1;
 #if OPTIX_VERSION >= 70600
-                    optixBuildInput.instanceArray.instanceStride = 0;
+                    buildInput.instanceArray.instanceStride = 0;
 #endif                    
 
                     OptixAccelBufferSizes iasBufferSizes;
-                    OPTIX_THROW( optixAccelComputeMemoryUsage( optixContext, &accelOptions, &optixBuildInput, 1, &iasBufferSizes ) );
+                    OPTIX_THROW( optixAccelComputeMemoryUsage( optixContext, &accelOptions, &buildInput, 1, &iasBufferSizes ) );
 
                     CuBuffer<char> d_ias;
 
@@ -400,7 +399,7 @@ protected:
                     CUDA_THROW( d_temp.allocIfRequired( iasBufferSizes.tempSizeInBytes ) );
 
                     OptixTraversableHandle iasHandle = {};
-                    OPTIX_THROW( optixAccelBuild( optixContext, 0, &accelOptions, &optixBuildInput, 1, d_temp.get(), d_temp.byteSize(), d_ias.get(), d_ias.byteSize(), &iasHandle, nullptr, 0 ) );
+                    OPTIX_THROW( optixAccelBuild( optixContext, 0, &accelOptions, &buildInput, 1, d_temp.get(), d_temp.byteSize(), d_ias.get(), d_ias.byteSize(), &iasHandle, nullptr, 0 ) );
 
                     ptr.inst = ( OptixInstance* )d_instances.get();
                     pointers.push_back( d_instances.release() );
