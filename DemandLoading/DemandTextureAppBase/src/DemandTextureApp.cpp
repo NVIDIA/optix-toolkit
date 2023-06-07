@@ -115,7 +115,8 @@ DemandTextureApp::~DemandTextureApp()
 {
     for( PerDeviceOptixState state : m_perDeviceOptixStates )
         cleanupState( state );
-    otk::cleanupUI( m_window );
+    if( isInteractive() )
+        otk::cleanupUI( m_window );
 }
 
 
