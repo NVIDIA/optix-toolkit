@@ -92,8 +92,9 @@ OptixTraversableHandle SphereInstances::createTraversable( OptixDeviceContext dc
                   NUM_SPHERE_SBT_RECORDS, m_sbtIndices.devicePtr(), sizeof( uint_t ) );
 
     const OptixAccelBuildOptions accelOptions = {
-        OPTIX_BUILD_FLAG_ALLOW_UPDATE | OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS,  // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD                                                   // operation
+        OPTIX_BUILD_FLAG_ALLOW_UPDATE | OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS,              // buildFlags
+        OPTIX_BUILD_OPERATION_BUILD,                                                               // operation
+        OptixMotionOptions{ /*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f }
     };
     OptixAccelBufferSizes gasSizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( dc, &accelOptions, sphereInput, NUM_BUILD_INPUTS, &gasSizes ) );

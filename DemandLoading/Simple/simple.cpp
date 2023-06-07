@@ -61,7 +61,7 @@ void* toPageEntry( unsigned int value )
 }
 
 // This callback is invoked by the demand loading library when a page request is processed.
-bool loadResourceCallback( cudaStream_t stream, unsigned int pageId, void* context, void** pageTableEntry )
+bool loadResourceCallback( cudaStream_t /*stream*/, unsigned int pageId, void* /*context*/, void** pageTableEntry )
 {
     ++g_numRequestsProcessed;
     *pageTableEntry = toPageEntry( pageId );

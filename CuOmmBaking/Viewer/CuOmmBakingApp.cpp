@@ -370,13 +370,13 @@ void OmmBakingApp::saveImage()
 // User Interaction via GLFW
 //------------------------------------------------------------------------------
 
-void OmmBakingApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int mods )
+void OmmBakingApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int /*mods*/ )
 {
     glfwGetCursorPos( window, &m_mousePrevX, &m_mousePrevY );
     m_mouseButton = ( action == GLFW_PRESS ) ? button : NO_BUTTON;
 }
 
-void OmmBakingApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
+void OmmBakingApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
     double dx = xpos - m_mousePrevX;
     double dy = ypos - m_mousePrevY;
@@ -396,7 +396,7 @@ void OmmBakingApp::cursorPosCallback( GLFWwindow* window, double xpos, double yp
     m_mousePrevY = ypos;
 }
 
-void OmmBakingApp::windowSizeCallback( GLFWwindow* window, int32_t width, int32_t height )
+void OmmBakingApp::windowSizeCallback( GLFWwindow* /*window*/, int32_t width, int32_t height )
 {
     m_windowWidth  = width;
     m_windowHeight = height;
@@ -421,7 +421,7 @@ void OmmBakingApp::pollKeys()
         m_viewDims.y /= zoom;  // x is reset based on y later
 }
 
-void OmmBakingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
+void OmmBakingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;

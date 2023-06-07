@@ -561,7 +561,8 @@ void Application::createTopLevelTraversable()
 
     const OptixAccelBuildOptions options = {
         OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD     // operation
+        OPTIX_BUILD_OPERATION_BUILD,    // operation
+        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}
     };
     OptixAccelBufferSizes sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( m_context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );
@@ -586,7 +587,8 @@ void Application::updateTopLevelTraversable()
 
     const OptixAccelBuildOptions options = {
         OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
-        OPTIX_BUILD_OPERATION_UPDATE    // operation
+        OPTIX_BUILD_OPERATION_UPDATE,   // operation
+        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}        
     };
     OptixAccelBufferSizes sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( m_context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );

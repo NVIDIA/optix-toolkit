@@ -46,6 +46,9 @@ target_include_directories(StbImage
         ${stb_image_SOURCE_DIR}
         ${stb_image_write_SOURCE_DIR}
 )
+if(NOT MSVC)
+  target_compile_options(StbImage PRIVATE -Wno-missing-field-initializers)
+endif()
 set_target_properties(StbImage PROPERTIES FOLDER ThirdParty)
 if(NOT TARGET Stb::Image)
   add_library(Stb::Image ALIAS StbImage)

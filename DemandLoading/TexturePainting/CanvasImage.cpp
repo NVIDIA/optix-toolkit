@@ -87,7 +87,7 @@ bool CanvasImage::readTile(  //
     unsigned int tileY,
     unsigned int tileWidth,
     unsigned int tileHeight,
-    CUstream     stream )
+    CUstream     /*stream*/ )
 {
     if( mipLevel >= m_info.numMipLevels )
     {
@@ -111,7 +111,7 @@ bool CanvasImage::readTile(  //
     return true;
 }
 
-bool CanvasImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
+bool CanvasImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int /*width*/, unsigned int /*height*/, CUstream /*stream*/ )
 {
     if( mipLevel >= m_info.numMipLevels )
     {

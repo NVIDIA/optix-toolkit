@@ -123,7 +123,7 @@ void TexturePaintingApp::initTexture()
     }
 }
 
-void TexturePaintingApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int mods )
+void TexturePaintingApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int /*mods*/ )
 {
     glfwGetCursorPos( window, &m_mousePrevX, &m_mousePrevY );
     m_mouseButton = ( action == GLFW_PRESS ) ? button : NO_BUTTON;
@@ -147,7 +147,7 @@ void TexturePaintingApp::mouseButtonCallback( GLFWwindow* window, int button, in
     }
 }
 
-void TexturePaintingApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
+void TexturePaintingApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
     const int BRUSH_SIZE_CHANGE_SPEED = 2;
     const float BRUSH_COLOR_CHANGE_SPEED = 20.0f;
@@ -174,7 +174,7 @@ void TexturePaintingApp::cursorPosCallback( GLFWwindow* window, double xpos, dou
     m_mousePrevY = ypos;
 }
 
-void TexturePaintingApp::windowSizeCallback( GLFWwindow* window, int32_t width, int32_t height )
+void TexturePaintingApp::windowSizeCallback( GLFWwindow* /*window*/, int32_t width, int32_t height )
 {
     m_windowWidth  = width;
     m_windowHeight = height;
@@ -184,7 +184,7 @@ void TexturePaintingApp::pollKeys()
 {
 }
 
-void TexturePaintingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
+void TexturePaintingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;

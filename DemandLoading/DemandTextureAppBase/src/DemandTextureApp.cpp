@@ -680,13 +680,13 @@ void DemandTextureApp::saveImage()
 // User Interaction via GLFW
 //------------------------------------------------------------------------------
 
-void DemandTextureApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int mods )
+void DemandTextureApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int /*mods*/ )
 {
     glfwGetCursorPos( window, &m_mousePrevX, &m_mousePrevY );
     m_mouseButton = ( action == GLFW_PRESS ) ? button : NO_BUTTON;
 }
 
-void DemandTextureApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
+void DemandTextureApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
     float dx = static_cast<float>( xpos - m_mousePrevX );
     float dy = static_cast<float>( ypos - m_mousePrevY );
@@ -705,7 +705,7 @@ void DemandTextureApp::cursorPosCallback( GLFWwindow* window, double xpos, doubl
     m_mousePrevY = ypos;
 }
 
-void DemandTextureApp::windowSizeCallback( GLFWwindow* window, int32_t width, int32_t height )
+void DemandTextureApp::windowSizeCallback( GLFWwindow* /*window*/, int32_t width, int32_t height )
 {
     m_windowWidth  = width;
     m_windowHeight = height;
@@ -734,7 +734,7 @@ void DemandTextureApp::pollKeys()
         zoomCamera( 1.0f / zoom );
 }
 
-void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
+void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;
