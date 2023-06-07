@@ -74,7 +74,7 @@ OTK_INLINE OTK_HOSTDEVICE RayCone initRayConeThinLensCamera( float3 W, float len
 OTK_INLINE OTK_HOSTDEVICE RayCone propagate( RayCone rayCone, float distance ) 
 { 
     RayCone rc = RayCone{rayCone.angle, rayCone.width + rayCone.angle * distance};
-    if( rc.angle < 0.0f || rc.width < 0.0f ) // If angle and width are negative, the cone is diverging
+    if( rc.angle < 0.0f && rc.width < 0.0f ) // If angle and width are negative, the cone is diverging
         rc = RayCone{-rc.angle, -rc.width};
     return rc;
 }
