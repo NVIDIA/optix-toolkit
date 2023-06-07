@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,59 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(GNUInstallDirs)
-include(BuildConfig)
-include(FetchGlad)
-include(embed_ptx)
+include(ImageTest)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
-
-embed_ptx(
-  CONST HEADER TextureKernelPTX.h
-  OUTPUT_TARGET
-    demandLoadTextureKernel
-  FOLDER
-    Examples/DemandLoading
-  PTX_LINK_LIBRARIES
-    OptiXToolkit::DemandLoading 
-    OptiXToolkit::ShaderUtil
-  SOURCES
-    textureKernel.cu
-)
-
-add_executable( demandLoadTexture
-  texture.cpp
-  textureKernel.h
-  )
-
-target_link_libraries( demandLoadTexture
-  demandLoadTextureKernel
-  OptiXToolkit::DemandLoading
-  OptiXToolkit::Gui
-  OptiXToolkit::Util
-  CUDA::cudart
-  )
-
-target_include_directories( demandLoadTexture PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
-  )
-
-# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
-configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
-
-set_target_properties( demandLoadTexture PROPERTIES
-  FOLDER Examples/DemandLoading
-  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
-
-# Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:demandLoadTexture> )
-  add_custom_command( TARGET demandLoadTexture POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadTexture> $<TARGET_FILE_DIR:demandLoadTexture>
-    COMMAND_EXPAND_LISTS )
-endif()
-
-if(BUILD_TESTING)
-    add_subdirectory(tests)
-endif()
+add_image_test(demandLoadTexture basic ALLOWED_PERCENTAGE 0.1)
