@@ -141,7 +141,7 @@ void TexturePaintingApp::mouseButtonCallback( GLFWwindow* window, int button, in
     }
     else if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )
     {
-        int2 p = mouseToImageCoords( m_mousePrevX, m_mousePrevY );
+        int2 p = mouseToImageCoords( static_cast<int>( m_mousePrevX ), static_cast<int>( m_mousePrevY ) );
         m_canvases[m_activeCanvas]->drawBrush( m_brush, p.x, p.y );
         reloadDirtyTiles();
     }
@@ -154,8 +154,8 @@ void TexturePaintingApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos,
 
     if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT ) 
     {
-        int2 p0 = mouseToImageCoords( m_mousePrevX, m_mousePrevY );
-        int2 p1 = mouseToImageCoords( xpos, ypos );
+        int2 p0 = mouseToImageCoords( static_cast<int>( m_mousePrevX ), static_cast<int>( m_mousePrevY ) );
+        int2 p1 = mouseToImageCoords( static_cast<int>( xpos ), static_cast<int>( ypos ) );
         m_canvases[m_activeCanvas]->drawStroke( m_brush, p0.x, p0.y, p1.x, p1.y );
         reloadDirtyTiles();
     }
