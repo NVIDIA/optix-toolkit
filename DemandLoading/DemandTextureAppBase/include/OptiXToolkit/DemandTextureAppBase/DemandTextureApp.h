@@ -115,7 +115,7 @@ class DemandTextureApp
     std::unique_ptr<otk::GLDisplay>                m_glDisplay;
     int                                            m_windowWidth;
     int                                            m_windowHeight;
-    std::string                                    m_outputFileName = "";
+    std::string                                    m_outputFileName;
     unsigned int                                   m_render_mode = 0;
 
     // OptiX states for each device

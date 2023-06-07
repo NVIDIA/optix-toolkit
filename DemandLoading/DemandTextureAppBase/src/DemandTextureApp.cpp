@@ -116,7 +116,11 @@ DemandTextureApp::~DemandTextureApp()
     for( PerDeviceOptixState state : m_perDeviceOptixStates )
         cleanupState( state );
     if( isInteractive() )
+    {
+        // The output buffer is tied to the OpenGL context in interactive mode.
+        m_outputBuffer.reset();
         otk::cleanupUI( m_window );
+    }
 }
 
 
