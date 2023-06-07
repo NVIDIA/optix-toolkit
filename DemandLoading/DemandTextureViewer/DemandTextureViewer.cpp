@@ -31,7 +31,7 @@
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
-#include <OptiXToolkit/ImageSOurce/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <stdexcept>
