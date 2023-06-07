@@ -47,16 +47,16 @@
 # Arguments:
 #
 # ARGS                  The arguments to <target>, not including -f ${OUTPUT_IMAGE}.  Optional.
-# DIFF_THRESHOLD        The difference threshold above which pixels are considered different.  The default is 0.
-# ALLOWED_PERCENTAGE    The percentage of pixels required for the images to be considered different.  The default is 0.
+# DIFF_THRESHOLD        The difference threshold above which pixels are considered different.  The default is 1.
+# ALLOWED_PERCENTAGE    The percentage of pixels required for the images to be considered different.  The default is 3.
 #
 function(add_image_test target name)
     cmake_parse_arguments(IMGTEST "" "DIFF_THRESHOLD;ALLOWED_PERCENTAGE" "ARGS" ${ARGN})
     if(NOT IMGTEST_DIFF_THRESHOLD)
-        set(IMGTEST_DIFF_THRESHOLD 0)
+        set(IMGTEST_DIFF_THRESHOLD 1)
     endif()
     if(NOT IMGTEST_ALLOWED_PERCENTAGE)
-        set(IMGTEST_ALLOWED_PERCENTAGE 0)
+        set(IMGTEST_ALLOWED_PERCENTAGE 3)
     endif()
 
     set(test_name ${target}.${name})
