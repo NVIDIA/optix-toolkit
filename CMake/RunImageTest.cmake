@@ -48,7 +48,8 @@
 #
 function(runProgram exe)
     cmake_parse_arguments(RUNPROG "" "" "ARGS" ${ARGN})
-    file(APPEND ${CMD_FILE} ${exe} ${RUNPROG_ARGS})
+    string(JOIN " " cmd_line ${exe} ${RUNPROG_ARGS})
+    file(APPEND ${CMD_FILE} "${cmd_line}\n")
     execute_process(COMMAND ${exe} ${RUNPROG_ARGS}
         RESULT_VARIABLE result
         OUTPUT_VARIABLE stdout OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -84,5 +85,5 @@ endif()
 file(WRITE ${CMD_FILE} "Command line:\n")
 file(WRITE ${STDOUT_FILE} "Standard output:\n")
 file(WRITE ${STDERR_FILE} "Standard error:\n")
-runProgram(${PROGRAM} ARGS ${ARGS} -f ${OUTPUT_IMAGE})
+runProgram(${PROGRAM} ARGS ${ARGS} --file ${OUTPUT_IMAGE})
 runProgram(${IMGTOOL} ARGS pngcompare ${GOLD_IMAGE} ${OUTPUT_IMAGE} ${DIFF_IMAGE} ${DIFF_THRESHOLD} ${ALLOWED_PERCENTAGE})

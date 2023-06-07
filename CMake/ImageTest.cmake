@@ -30,7 +30,7 @@
 #
 # Adds an image comparison test named <target>-<name>.  The test
 # will have the labels <target> and 'image'.  <target> will be invoked
-# with -f <output-image> ${ARGS} to save an output image which is then
+# with --file <output-image> ${ARGS} to save an output image which is then
 # compared against a 'gold' image representing the correct image output.
 # The gold image is in the current list directory with the filename
 # 'gold-<name>.png'.  Test output is placed in ${CMAKE_CURRENT_BINARY_DIR},
@@ -46,7 +46,7 @@
 #
 # Arguments:
 #
-# ARGS                  The arguments to <target>, not including -f ${OUTPUT_IMAGE}.  Optional.
+# ARGS                  The arguments to <target>, not including --file ${OUTPUT_IMAGE}.  Optional.
 # DIFF_THRESHOLD        The difference threshold above which pixels are considered different.  The default is 1.
 # ALLOWED_PERCENTAGE    The percentage of pixels required for the images to be considered different.  The default is 3.
 #
@@ -81,7 +81,7 @@ function(add_image_test target name)
             -DALLOWED_PERCENTAGE=${IMGTEST_ALLOWED_PERCENTAGE}
             -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/RunImageTest.cmake")
     set_tests_properties(${test_name} PROPERTIES
-        LABELS "${target}"
+        LABELS "${target};image"
         ATTACHED_FILES_ON_FAIL "${cmd_file};${stdout_file};${stderr_file};${gold_image};${output_image};${diff_image}"
     )
 endfunction()
