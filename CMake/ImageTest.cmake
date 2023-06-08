@@ -49,9 +49,10 @@
 # ARGS                  The arguments to <target>, not including --file ${OUTPUT_IMAGE}.  Optional.
 # DIFF_THRESHOLD        The difference threshold above which pixels are considered different.  The default is 1.
 # ALLOWED_PERCENTAGE    The percentage of pixels required for the images to be considered different.  The default is 3.
+# DISABLED              Mark the test as DISABLED with CTest
 #
 function(add_image_test target name)
-    cmake_parse_arguments(IMGTEST "" "DIFF_THRESHOLD;ALLOWED_PERCENTAGE" "ARGS" ${ARGN})
+    cmake_parse_arguments(IMGTEST "DISABLED" "DIFF_THRESHOLD;ALLOWED_PERCENTAGE" "ARGS" ${ARGN})
     if(NOT IMGTEST_DIFF_THRESHOLD)
         set(IMGTEST_DIFF_THRESHOLD 1)
     endif()
@@ -84,4 +85,7 @@ function(add_image_test target name)
         LABELS "${target};image"
         ATTACHED_FILES_ON_FAIL "${cmd_file};${stdout_file};${stderr_file};${gold_image};${output_image};${diff_image}"
     )
+    if(IMGTEST_DISABLED)
+        set_tests_properties(${test_name} PROPERTIES DISABLED ON)
+    endif()
 endfunction()
