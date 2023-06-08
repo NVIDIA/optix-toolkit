@@ -194,7 +194,7 @@ namespace {  // anonymous
             CuBuffer<float2> devTransform;
 
             devIndices.allocAndUpload( sizeof( g_indices ) / sizeof(uint3), g_indices);
-            devTexCoords.allocAndUpload( sizeof( g_texCoords ) / sizeof( uint3 ), g_texCoords );
+            devTexCoords.allocAndUpload( sizeof( g_texCoords ) / sizeof( float2), g_texCoords );
             devStates.allocAndUpload( sizeof( g_states ) / sizeof( uint8_t ), g_states );
             devTexIndices.allocAndUpload( sizeof( g_texIndices ) / sizeof( uint32_t ), g_texIndices );
             devTransform.allocAndUpload( sizeof( g_transform ) / sizeof( float2 ), g_transform );
