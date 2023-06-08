@@ -72,6 +72,11 @@ target_compile_definitions( ImageSource PUBLIC
   OTK_IMF_NAMESPACE=Imf_3_1
   )
 
+if(NOT MSVC)
+  # Silence 'ISO C++ prohibits anonymous structs' warning in OpenEXR header.
+  target_compile_options( ImageSource PRIVATE -Wno-pedantic )
+endif()
+
 target_include_directories( ImageSource
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
