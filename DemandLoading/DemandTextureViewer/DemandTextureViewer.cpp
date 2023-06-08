@@ -70,7 +70,7 @@ class DemandTextureViewer : public DemandTextureApp
     std::vector<float4> m_colorMap;
 };
 
-float4 hsva( float hue, float saturation, float value, float alpha )
+float4 hsva( float hue, float saturation, float value, float /*alpha*/ )
 {
     using namespace otk;  // for vec_math operators
     const float c = value * saturation;
