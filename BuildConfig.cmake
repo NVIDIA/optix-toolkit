@@ -65,7 +65,9 @@ function(otk_target_options target_name)
     # /wd4245 conversion from [enum type] to 'unsigned int', signed/unsigned mismatch
     # /wd4201 nonstandard extension used: nameless struct/union
     target_compile_options(${target_name} PRIVATE
-      $<$<COMPILE_LANGUAGE:CXX>:/wd4267 /wd4505 /wd4324 /wd4996 /wd4305 /wd4245 /wd4201>)
+      $<$<COMPILE_LANGUAGE:CXX>:/wd4267 /wd4505 /wd4324 /wd4996 /wd4305 /wd4245 /wd4201>
+      $<$<COMPILE_LANGUAGE:CUDA>:--compiler-options /wd4324,/wd4505>
+    )
   else()
     target_compile_options(${target_name} PRIVATE -Wall -Wextra $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>)
   endif()
