@@ -132,6 +132,7 @@ static std::string toString( DemandTextureViewer::TextureType textureType )
         case DemandTextureViewer::TEXTURE_MANDELBROT:
             return "mandelbrot";
     }
+    return "unknown";
 }
 
 imageSource::ImageSource* DemandTextureViewer::createImageSource()
