@@ -54,11 +54,17 @@ if(NOT TARGET Stb::Image)
   add_library(Stb::Image ALIAS StbImage)
 endif()
 
+configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)
+
 otk_add_library(Util STATIC
+  include/OptiXToolkit/Util/AssetLocator.h
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
   include/OptiXToolkit/Util/Logger.h
+  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
+  src/AssetLocator.cpp
+  src/BinaryDataDir.h.in
   src/EXRInputFile.cpp
   src/Exception.cpp
   src/Logger.cpp
@@ -71,6 +77,7 @@ target_include_directories(Util PUBLIC
   ${OptiX_INCLUDE_DIR}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
+target_include_directories(Util PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(Util PRIVATE
   OptiX::OptiX
