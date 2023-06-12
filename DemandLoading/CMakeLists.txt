@@ -37,6 +37,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(embed_ptx)
 include(FetchOpenEXR)
 include(CTest)
 
@@ -54,6 +55,14 @@ find_package(OptiX 7.3 REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
+embed_ptx(CONST RELOCATABLE
+    HEADER DemandLoadingKernelsPTX.h
+    OUTPUT_TARGET DemandLoadingKernels
+    FOLDER DemandLoading
+    PTX_INCLUDE_DIRECTORIES include
+    SOURCES src/PagingSystemKernels.cu
+)
+
 otk_add_library( DemandLoading
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
@@ -67,7 +76,7 @@ otk_add_library( DemandLoading
   src/PageTableManager.h
   src/PagingSystem.cpp
   src/PagingSystem.h
-  src/PagingSystemKernels.cu
+  src/PagingSystemKernels.cpp
   src/PagingSystemKernels.h
   src/RequestContext.h
   src/RequestHandler.h
@@ -190,6 +199,7 @@ target_include_directories( DemandLoading
   src
   )
 
+target_link_libraries(DemandLoading PRIVATE DemandLoadingKernels)
 target_link_libraries( DemandLoading
   PUBLIC
   ImageSource

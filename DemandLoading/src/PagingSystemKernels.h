@@ -34,15 +34,17 @@
 
 namespace demandLoading {
 
-void launchPullRequests( CUstream             stream,
+void launchPullRequests( CUmodule module,
+                         CUstream             stream,
                          const DeviceContext& context /*on host*/,
                          unsigned int         launchNum,
                          unsigned int         lruThreshold,
-                         unsigned int         startPage,
-                         unsigned int         endPage /*inclusive*/ );
+                         unsigned int         startPage, unsigned int         endPage /*inclusive*/ );
 
-void launchPushMappings( CUstream stream, const DeviceContext& context /*on host*/, int filledPageCount );
+void launchPushMappings( CUmodule module, CUstream stream, const DeviceContext& context /*on host*/
+                         , int filledPageCount );
 
-void launchInvalidatePages( CUstream stream, const DeviceContext& context /*on host*/, int invalidatedPageCount );
+void launchInvalidatePages( CUmodule module, CUstream stream, const DeviceContext& context /*on host*/
+                            , int invalidatedPageCount );
 
 }  // namespace demandLoading

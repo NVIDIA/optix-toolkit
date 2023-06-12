@@ -85,6 +85,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 target_link_libraries( testDemandLoading
   testDemandLoadingKernels
+  DemandLoadingKernels
   OptiX::OptiX
   DemandLoading
   CUDA::cudart

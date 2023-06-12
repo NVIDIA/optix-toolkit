@@ -29,6 +29,7 @@
 #include "PagingSystem.h"
 
 #include "DemandLoaderImpl.h"
+#include "DemandLoadingKernelsPTX.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PageMappingsContext.h"
 #include "PagingSystemKernels.h"
@@ -65,12 +66,16 @@ PagingSystem::PagingSystem( const Options&       options,
         m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( m_options ), alignof( PageMappingsContext ) );
     m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
     m_pageMappingsContext->init( m_options );
+
+    DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernels_ptx_text() ) );
 }
 
 PagingSystem::~PagingSystem()
 {
+    DEMAND_CUDA_CHECK_NOTHROW( cuModuleUnload( m_pagingKernels ) );
+    m_pagingKernels = CUmodule{};
     for( RequestContext* requestContext : m_pinnedRequestContextPool )
-        DEMAND_CUDA_CHECK( cuMemFreeHost( requestContext ) );
+        DEMAND_CUDA_CHECK_NOTHROW( cuMemFreeHost( requestContext ) );
     m_pinnedRequestContextPool.clear();
 }
 
@@ -125,7 +130,7 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     DEMAND_ASSERT( endPage <= m_options.numPages );
     m_launchNum++;
 
-    launchPullRequests( stream, context, m_launchNum, m_lruThreshold, startPage, endPage );
+    launchPullRequests( m_pagingKernels, stream, context, m_launchNum, m_lruThreshold, startPage, endPage);
 
     // Get a RequestContext from the pinned memory pool, which will serve as the destination for async copies.
     RequestContext* pinnedRequestContext = nullptr;
@@ -373,7 +378,7 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
         DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
                                           numFilledPages * sizeof( PageMapping ), stream ) );
-        launchPushMappings( stream, context, numFilledPages );
+        launchPushMappings( m_pagingKernels, stream, context, numFilledPages);
     }
     
     // Next, push the invalidated pages
@@ -383,7 +388,7 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
         DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),
                                           numInvalidatedPages * sizeof( unsigned int ), stream ) );
-        launchInvalidatePages( stream, context, numInvalidatedPages );
+        launchInvalidatePages( m_pagingKernels, stream, context, numInvalidatedPages);
     }
     
     m_pageMappingsContext->clear();

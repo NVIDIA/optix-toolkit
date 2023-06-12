@@ -126,7 +126,6 @@ class PagingSystem
 
     std::mt19937 m_rng; // Used for randomized eviction when LRU table is not present.
 
-  private:
     // Variables related to eviction
     const unsigned int MIN_LRU_THRESHOLD = 2;
     bool               m_evictionActive  = false;
@@ -156,6 +155,9 @@ class PagingSystem
 
     // Pool of pinned RequestContext for processRequests function
     std::vector<RequestContext*> m_pinnedRequestContextPool;
+
+    // CUDA module containing the PTX for the paging kernels.
+    CUmodule m_pagingKernels{};
 
     // A host function callback is used to invoke processRequests().
     friend class ProcessRequestsCallback;
