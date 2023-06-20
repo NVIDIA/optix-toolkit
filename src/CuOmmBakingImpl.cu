@@ -57,7 +57,15 @@ namespace {
 // workaround for bug in optix_micromap.h
 __device__ __host__ float __uint_as_float( unsigned int i )
 {
-    return *reinterpret_cast< float* >( &i );
+    // Type punning with pointer casts breaks strict aliasing, e.g. *reinterpret_cast<float*>( &i );
+    // Using a union for this purpose is legal in C99 but technically not in C++.
+    union
+    {
+        unsigned int i;
+        float        f;
+    } result;
+    result.i = i;
+    return result.f;
 }
 
 __device__ OpacityStateSet sampleTextureState( const TextureInput* textures, Triangle triangle, unsigned resolution )
