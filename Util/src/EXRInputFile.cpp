@@ -75,6 +75,7 @@ unsigned int EXRInputFile::getHeight() const
 
 void EXRInputFile::read( void* pixels, size_t size )
 {
+    (void)size;  // silence unused variable warning
     OTK_ASSERT( m_file );
     OTK_ASSERT( size >= 4 * sizeof( half ) * getWidth() * getHeight() );
     m_file->setFrameBuffer( reinterpret_cast<Imf::Rgba*>( pixels ), 1, getWidth() );
