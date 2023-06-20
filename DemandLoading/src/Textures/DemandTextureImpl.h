@@ -53,7 +53,7 @@ class ImageSource;
 namespace demandLoading {
 
 class DemandLoaderImpl;
-class Statistics;
+struct Statistics;
 class TilePool;
 
 /// Demand-loaded textures are created by the DemandLoader.

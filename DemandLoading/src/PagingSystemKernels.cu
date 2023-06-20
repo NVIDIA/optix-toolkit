@@ -224,26 +224,6 @@ __global__ void devicePullRequests( DeviceContext context, unsigned int launchNu
     }
 }
 
-__host__ void launchPullRequests( CUstream             stream,
-                                  const DeviceContext& context,
-                                  unsigned int         launchNum,
-                                  unsigned int         lruThreshold,
-                                  unsigned int         startPage,
-                                  unsigned int         endPage )
-{
-    int numPagesPerThread = context.maxNumPages / 65536;
-    numPagesPerThread     = ( numPagesPerThread + 31 ) & 0xFFFFFFE0;  // Round to nearest multiple of 32
-    if( numPagesPerThread < 32 )
-        numPagesPerThread = 32;
-
-    const int numThreadsPerBlock = 64;
-    const int numPagesPerBlock   = numPagesPerThread * numThreadsPerBlock;
-    const int numBlocks          = ( context.maxNumPages + ( numPagesPerBlock - 1 ) ) / numPagesPerBlock;
-
-    // The context is passed by value, which copies it to device memory.
-    devicePullRequests<<<numBlocks, numThreadsPerBlock, 0U, stream>>>( context, launchNum, lruThreshold, startPage, endPage );
-}
-
 __global__ void devicePushMappings( unsigned long long* pageTable,
                                     unsigned int        numPageTableEntries,
                                     unsigned int*       residenceBits,
@@ -272,19 +252,6 @@ __global__ void devicePushMappings( unsigned long long* pageTable,
     }
 }
 
-__host__ void launchPushMappings( CUstream stream, const DeviceContext& context, int filledPageCount )
-{
-    const int numPagesPerThread  = 2;
-    const int numThreadsPerBlock = 128;
-    const int numPagesPerBlock   = numPagesPerThread * numThreadsPerBlock;
-
-    const int numFilledPageBlocks = ( filledPageCount + numPagesPerBlock - 1 ) / numPagesPerBlock;
-    devicePushMappings<<<numFilledPageBlocks, numThreadsPerBlock, 0U, stream>>>( context.pageTable.data,
-                                                                                 context.pageTable.capacity,
-                                                                                 context.residenceBits, context.lruTable,
-                                                                                 context.filledPages.data, filledPageCount );
-}
-
 __global__ void deviceInvalidatePages( unsigned int* residenceBits, unsigned int* devInvalidatedPages, int invalidatedPageCount )
 {
     int globalIndex = threadIdx.x + blockIdx.x * blockDim.x;
@@ -293,17 +260,6 @@ __global__ void deviceInvalidatePages( unsigned int* residenceBits, unsigned int
         atomicUnsetBit( devInvalidatedPages[globalIndex], residenceBits );
         globalIndex += gridDim.x * blockDim.x;
     }
-}
-
-__host__ void launchInvalidatePages( CUstream stream, const DeviceContext& context, int invalidatedPageCount )
-{
-    const int numPagesPerThread  = 2;
-    const int numThreadsPerBlock = 128;
-    const int numPagesPerBlock   = numPagesPerThread * numThreadsPerBlock;
-
-    const int numInvalidatedPageBlocks = ( invalidatedPageCount + numPagesPerBlock - 1 ) / numPagesPerBlock;
-    deviceInvalidatePages<<<numInvalidatedPageBlocks, numThreadsPerBlock, 0U, stream>>>(
-        context.residenceBits, context.invalidatedPages.data, invalidatedPageCount );
 }
 
 }  // namespace demandLoading

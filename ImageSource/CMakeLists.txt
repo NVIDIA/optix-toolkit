@@ -26,7 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library( ImageSource
+include(BuildConfig)
+
+otk_add_library( ImageSource
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
   src/DeviceConstantImage.cpp
@@ -69,6 +71,11 @@ target_compile_definitions( ImageSource PUBLIC
   OPTIX_SAMPLE_USE_CORE_EXR
   OTK_IMF_NAMESPACE=Imf_3_1
   )
+
+if(NOT MSVC)
+  # Silence 'ISO C++ prohibits anonymous structs' warning in OpenEXR header.
+  target_compile_options( ImageSource PRIVATE -Wno-pedantic )
+endif()
 
 target_include_directories( ImageSource
   PUBLIC

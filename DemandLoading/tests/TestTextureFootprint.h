@@ -47,6 +47,17 @@ struct FootprintInputs
     float dPdx_y;
     float dPdy_x;
     float dPdy_y;
+
+    FootprintInputs( float _x, float _y, float _level = 0.f, float _dPdx_x = 0.f, float _dPdx_y = 0.f, float _dPdy_x = 0.f, float _dPdy_y = 0.f )
+        : x( _x )
+        , y( _y )
+        , level( _level )
+        , dPdx_x( _dPdx_x )
+        , dPdx_y( _dPdx_y )
+        , dPdy_x( _dPdy_x )
+        , dPdy_y( _dPdy_y )
+    {
+    }
 };
 
 struct MipLevelSizes

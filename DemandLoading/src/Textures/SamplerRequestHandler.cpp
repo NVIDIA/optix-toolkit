@@ -172,7 +172,7 @@ struct half4
     half x, y, z, w;
 };
 
-void SamplerRequestHandler::fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId )
+void SamplerRequestHandler::fillBaseColorRequest( CUstream /*stream*/, DemandTextureImpl* texture, unsigned int pageId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 

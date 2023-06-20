@@ -165,7 +165,7 @@ TEST_F( TestSparseTextureWrap, Test )
     desc.maxAnisotropy    = 16;
 
     TextureInfo info{
-        1024, 1024, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, 11 /*numMipLevels*/
+        1024, 1024, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, 11 /*numMipLevels*/, true /*isValid*/, true /*isTiled*/
     };
 
     SparseTexture texture;
@@ -241,7 +241,7 @@ void TestSparseTextureWrap::testLargeSparseTexture( CUstream stream, unsigned in
 
     unsigned int numMipLevels = (unsigned int)( log2( res ) + 1 );
 
-    TextureInfo info{res, res, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, numMipLevels};
+    TextureInfo info{res, res, CU_AD_FORMAT_FLOAT, 4 /*numChannels*/, numMipLevels, /*isValid=*/true, /*isTiled=*/true};
 
     SparseTexture texture;
     texture.init( desc, info, nullptr );

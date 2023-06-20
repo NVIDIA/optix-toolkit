@@ -54,4 +54,4 @@ void ResourceRequestHandler::fillRequest( CUstream stream, unsigned int pageInde
     }
 }
 
-};
+}

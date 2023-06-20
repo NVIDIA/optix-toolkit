@@ -27,6 +27,7 @@
 //
 
 #include "CudaCheck.h"
+#include "DemandLoadingKernelsPTX.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PagingSystemKernels.h"
 
@@ -48,36 +49,46 @@ class TestPagingSystemKernels : public testing::Test
         DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
 
         // Initialize paging system options.
-        m_options.numPages          = 1025;
+        m_options.numPages            = 1025;
         m_options.numPageTableEntries = 1025;
-        m_options.maxRequestedPages = 65;
-        m_options.maxFilledPages    = 63;
-        m_options.maxStalePages     = 33;
-        m_options.maxEvictablePages = 31;
-        m_options.maxStagedPages    = 31;
-        m_options.useLruTable       = true;
+        m_options.maxRequestedPages   = 65;
+        m_options.maxFilledPages      = 63;
+        m_options.maxStalePages       = 33;
+        m_options.maxEvictablePages   = 31;
+        m_options.maxStagedPages      = 31;
+        m_options.useLruTable         = true;
 
         // Allocate and initialize device context.
         m_deviceMemoryManager = new DeviceMemoryManager( m_options );
-        m_context = m_deviceMemoryManager->allocateDeviceContext();
+        m_context             = m_deviceMemoryManager->allocateDeviceContext();
+        DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernels_ptx_text() ) );
     }
 
-    void TearDown() override { delete m_deviceMemoryManager; }
+    void TearDown() override
+    {
+        DEMAND_CUDA_CHECK( cuModuleUnload( m_pagingKernels ) );
+        m_pagingKernels = CUmodule{};
+        delete m_deviceMemoryManager;
+    }
 
     const DeviceContext& getContext() const { return *m_context; }
 
+  protected:
+    CUmodule m_pagingKernels{};
+
   private:
-    const unsigned int                 m_deviceIndex = 0;
-    Options                            m_options{};
-    DeviceMemoryManager*               m_deviceMemoryManager;
-    DeviceContext*                     m_context;
+    const unsigned int   m_deviceIndex{};
+    Options              m_options{};
+    DeviceMemoryManager* m_deviceMemoryManager{};
+    DeviceContext*       m_context{};
 };
 
 TEST_F( TestPagingSystemKernels, TestEmptyPullRequests )
 {
     CUstream stream{};
-    launchPullRequests( stream, getContext(), 0 /*launchNum*/, 0 /*lruThreshold*/, 0 /*startPage*/,
-                        getContext().pageTable.capacity /*endPage*/ );
+    launchPullRequests( m_pagingKernels, stream, getContext() /*launchNum*/, 0 /*launchNum*/, 0 /*lruThreshold*/,
+                        0 /*startPage*/
+                        , getContext().pageTable.capacity /*endPage*/);
 }
 
 TEST_F( TestPagingSystemKernels, TestInvalidatePages )
@@ -96,7 +107,7 @@ TEST_F( TestPagingSystemKernels, TestInvalidatePages )
     CUstream stream{};
     DEMAND_CUDA_CHECK( cudaMemcpy( getContext().invalidatedPages.data, invalidatedPages.data(),
                                    numInvalidatedPages * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
-    launchInvalidatePages( stream, getContext(), numInvalidatedPages );
+    launchInvalidatePages( m_pagingKernels, stream, getContext(), numInvalidatedPages);
     cudaDeviceSynchronize();
 
     // Pull the first word of the residence bits back to the host
@@ -123,7 +134,7 @@ TEST_F( TestPagingSystemKernels, TestGetStalePages )
     unsigned int launchNum = 0;
     unsigned int startPage = 0;
     unsigned int endPage = 32;
-    launchPullRequests( stream, getContext(), launchNum, lruThreshold, startPage, endPage );
+    launchPullRequests( m_pagingKernels, stream, getContext(), launchNum, lruThreshold, startPage, endPage);
     cudaDeviceSynchronize();
 
     // Copy list of stale pages back to host
@@ -154,7 +165,7 @@ TEST_F( TestPagingSystemKernels, TestPullRequests )
     unsigned int launchNum = 0;
     unsigned int startPage = 0;
     unsigned int endPage = 32;
-    launchPullRequests( stream, getContext(), launchNum, lruThreshold, startPage, endPage );
+    launchPullRequests( m_pagingKernels, stream, getContext(), launchNum, lruThreshold, startPage, endPage);
     cudaDeviceSynchronize();
 
     // Copy list of stale pages back to host
@@ -180,7 +191,7 @@ TEST_F( TestPagingSystemKernels, TestPushMappings )
     CUstream stream{};
     DEMAND_CUDA_CHECK( cudaMemcpy( getContext().filledPages.data, filledPages.data(),
                                    numFilledPages * sizeof( PageMapping ), cudaMemcpyHostToDevice ) );
-    launchPushMappings( stream, getContext(), numFilledPages );
+    launchPushMappings( m_pagingKernels, stream, getContext(), numFilledPages);
     cudaDeviceSynchronize();
 
     // Pull the first word of the residence bits back to the host

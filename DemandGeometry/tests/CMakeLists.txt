@@ -32,7 +32,7 @@ include(GoogleTest)
 
 source_group( "CUDA Files" REGULAR_EXPRESSION ".+\\.cu$" )
 
-add_executable( TestDemandGeometry
+otk_add_executable( TestDemandGeometry
   LaunchIntersectAabb.h
   LaunchIntersectAabb.cu
   MockDemandLoader.h
@@ -43,6 +43,12 @@ add_executable( TestDemandGeometry
 )
 target_include_directories( TestDemandGeometry PRIVATE ../include )
 target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
+
+if(MSVC)
+  # Disable unused formal parameter warning in gmock.
+  target_compile_options(TestDemandGeometry PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/wd4100>)
+endif()
+
 set_target_properties(TestDemandGeometry PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
   FOLDER DemandLoading/tests

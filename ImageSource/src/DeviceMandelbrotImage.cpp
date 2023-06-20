@@ -136,9 +136,9 @@ bool DeviceMandelbrotImage::readMipLevel( char* dest, unsigned int mipLevel, uns
 
 bool DeviceMandelbrotImage::readMipTail( char* dest,
                                          unsigned int mipTailFirstLevel,
-                                         unsigned int numMipLevels,
+                                         unsigned int /*numMipLevels*/,
                                          const uint2* mipLevelDims,
-                                         unsigned int pixelSizeInBytes,
+                                         unsigned int /*pixelSizeInBytes*/,
                                          CUstream stream ) 
 {
     DEMAND_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );

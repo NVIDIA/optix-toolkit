@@ -31,6 +31,8 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/LRU.h>
 
+#include <cuda.h>
+
 namespace demandLoading {
 
 #ifndef DOXYGEN_SKIP

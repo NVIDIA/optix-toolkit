@@ -226,6 +226,7 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
+        (void)deviceIndex; // silence unused variable warning
         EXPECT_CALL( resLoader, loadResource( _, startPage, NotNull() ) ).WillOnce( DoAll( SetArgPointee<2>( nullptr ), Return( true ) ) );
     }
 
@@ -261,6 +262,7 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
+        (void)deviceIndex; // silence unused variable warning
         EXPECT_CALL( resLoader, loadResource( _, startPage, NotNull() ) )
             .WillOnce( Return( false ) )
             .WillOnce( DoAll( SetArgPointee<2>( nullptr ), Return( true ) ) );
@@ -366,7 +368,7 @@ static void* toPageEntry( unsigned int value )
     return result;
 }
 
-bool TestDemandLoaderBatches::loadResource( CUstream stream, unsigned int pageId, void** pageTableEntry )
+bool TestDemandLoaderBatches::loadResource( CUstream /*stream*/, unsigned int pageId, void** pageTableEntry )
 {
     ++m_numRequestsProcessed;
     *pageTableEntry = toPageEntry( pageId );

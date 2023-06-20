@@ -77,7 +77,7 @@ class CheckerBoardImage : public ImageSourceBase
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
-    bool readBaseColor( float4& dest ) override { return false; }
+    bool readBaseColor( float4& /*dest*/ ) override { return false; }
 
   private:
     bool isOddChecker( float x, float y, unsigned int squaresPerSide );

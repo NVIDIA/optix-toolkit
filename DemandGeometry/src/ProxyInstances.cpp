@@ -138,7 +138,8 @@ void ProxyInstances::createProxyGeomAS( OptixDeviceContext dc, CUstream stream )
 
     OptixAccelBuildOptions accelOptions = {
         OPTIX_BUILD_FLAG_NONE,       // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD  // operation
+        OPTIX_BUILD_OPERATION_BUILD,  // operation
+        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}
     };
     OptixAccelBufferSizes gasSizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( dc, &accelOptions, aabbInputs.data(), NUM_BUILD_INPUTS, &gasSizes ) );
@@ -187,7 +188,8 @@ OptixTraversableHandle ProxyInstances::createProxyInstanceAS( OptixDeviceContext
 
     OptixAccelBuildOptions options = {
         OPTIX_BUILD_FLAG_NONE,       // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD  // operation
+        OPTIX_BUILD_OPERATION_BUILD,  // operation
+        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}
     };
     OptixAccelBufferSizes sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( dc, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );
@@ -226,7 +228,7 @@ int ProxyInstances::getNumAttributes() const
     return NUM_ATTRIBUTES;
 }
 
-bool ProxyInstances::callback( CUstream stream, uint_t pageId, void** pageTableEntry )
+bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
