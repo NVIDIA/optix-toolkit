@@ -29,8 +29,7 @@
 
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/Trackball.h>
-
-#include <GLFW/glfw3.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 
 #include <functional>
 #include <utility>

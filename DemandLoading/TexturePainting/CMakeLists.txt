@@ -46,7 +46,7 @@ embed_ptx(
     TexturePainting.cu
 )
 
-add_executable( texturePainting
+otk_add_executable( texturePainting
   CanvasImage.cpp
   CanvasImage.h
   TexturePainting.cpp

@@ -26,11 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
+
 #include "DemandGeometryViewer.h"
-
-// This is disgusting, but glad.h insists it must be included first.
-#include <glad/glad.h>
-
 #include "DemandGeometryViewerKernelPTX.h"
 #include "DemandMaterial.h"
 #include "SphereInstances.h"
@@ -45,6 +43,7 @@
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Trackball.h>
 #include <OptiXToolkit/Gui/TrackballCamera.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
@@ -53,8 +52,6 @@
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
-
-#include <GLFW/glfw3.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>
@@ -96,7 +93,8 @@ const int NUM_ATTRIBUTE_VALUES = 3;
         "Options: --file | -f <filename>      Specify file for image output\n"
         "         --help | -h                 Print this usage message\n"
         "         --dim=<width>x<height>      Set image dimensions; defaults to 512x384\n"
-        "         --frames=<num>              Specify number of warmup frames before writing to file\n"
+        "         --warmup=<num>              Specify number of warmup frames before writing to file\n"
+        "         --bg=<r>,<g>,<b>            Specify the background color as 3 floating-point values in [0,1]\n"
         "         --optixGetSphereData=yes/no Use optixGetSphereData or application data access\n"
         "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n";
     // clang-format on
@@ -150,7 +148,7 @@ Options parseArguments( int argc, char* argv[] )
             char sep{};
             value >> options.background.x >> sep >> options.background.y >> sep >> options.background.z;
         }
-        else if( hasOption( arg, "--frames=", value ) )
+        else if( hasOption( arg, "--warmup=", value ) )
         {
             int warmup{};
             value >> warmup;
@@ -458,11 +456,14 @@ void Application::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options{};
     options.maxTraceDepth = maxTraceDepth;
+    
+#if OPTIX_VERSION < 70700
 #ifdef NDEBUG
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
 #else
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 #endif
+#endif    
     OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
                                            m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
@@ -560,7 +561,8 @@ void Application::createTopLevelTraversable()
 
     const OptixAccelBuildOptions options = {
         OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD     // operation
+        OPTIX_BUILD_OPERATION_BUILD,    // operation
+        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}
     };
     OptixAccelBufferSizes sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( m_context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );
@@ -585,7 +587,8 @@ void Application::updateTopLevelTraversable()
 
     const OptixAccelBuildOptions options = {
         OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
-        OPTIX_BUILD_OPERATION_UPDATE    // operation
+        OPTIX_BUILD_OPERATION_UPDATE,   // operation
+        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}        
     };
     OptixAccelBufferSizes sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( m_context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );

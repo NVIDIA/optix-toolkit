@@ -40,6 +40,7 @@
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
 
@@ -50,8 +51,6 @@
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-
-#include <GLFW/glfw3.h>
 
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
@@ -79,7 +78,7 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     
     int numDevices;
     CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    for( unsigned int deviceIdx = 1; deviceIdx < numDevices; ++deviceIdx )
+    for( int deviceIdx = 1; deviceIdx < numDevices; ++deviceIdx )
     {
         CUDA_CHECK( cudaSetDevice( deviceIdx ) );
         CUDA_CHECK( cudaFree( 0 ) );
@@ -104,7 +103,7 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     // Create the per device optix states
     OPTIX_CHECK( optixInit() );
     m_perDeviceOptixStates.resize( numDevices );
-    for( unsigned int device_idx = 0; device_idx < numDevices; ++device_idx )
+    for( int device_idx = 0; device_idx < numDevices; ++device_idx )
         m_perDeviceOptixStates[device_idx].device_idx = device_idx;
 
     initView();
@@ -115,7 +114,12 @@ DemandTextureApp::~DemandTextureApp()
 {
     for( PerDeviceOptixState state : m_perDeviceOptixStates )
         cleanupState( state );
-    otk::cleanupUI( m_window );
+    if( isInteractive() )
+    {
+        // The output buffer is tied to the OpenGL context in interactive mode.
+        m_outputBuffer.reset();
+        otk::cleanupUI( m_window );
+    }
 }
 
 
@@ -676,13 +680,13 @@ void DemandTextureApp::saveImage()
 // User Interaction via GLFW
 //------------------------------------------------------------------------------
 
-void DemandTextureApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int mods )
+void DemandTextureApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int /*mods*/ )
 {
     glfwGetCursorPos( window, &m_mousePrevX, &m_mousePrevY );
     m_mouseButton = ( action == GLFW_PRESS ) ? button : NO_BUTTON;
 }
 
-void DemandTextureApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
+void DemandTextureApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
     float dx = static_cast<float>( xpos - m_mousePrevX );
     float dy = static_cast<float>( ypos - m_mousePrevY );
@@ -701,7 +705,7 @@ void DemandTextureApp::cursorPosCallback( GLFWwindow* window, double xpos, doubl
     m_mousePrevY = ypos;
 }
 
-void DemandTextureApp::windowSizeCallback( GLFWwindow* window, int32_t width, int32_t height )
+void DemandTextureApp::windowSizeCallback( GLFWwindow* /*window*/, int32_t width, int32_t height )
 {
     m_windowWidth  = width;
     m_windowHeight = height;
@@ -730,7 +734,7 @@ void DemandTextureApp::pollKeys()
         zoomCamera( 1.0f / zoom );
 }
 
-void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
+void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;

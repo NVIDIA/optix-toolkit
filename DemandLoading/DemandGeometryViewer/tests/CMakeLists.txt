@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,54 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(GNUInstallDirs)
-include(BuildConfig)
-include(FetchGlfw)
-include(FetchGlad)
-include(embed_ptx)
+include(ImageTest)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
+# Render proxy geometry
+add_image_test(DemandGeometryViewer frame0 ARGS --bg=1,0,1 --warmup=0)
 
-embed_ptx(
-  CONST HEADER DemandTextureViewerKernelPTX.h
-  OUTPUT_TARGET
-    demandTextureViewerKernel
-  FOLDER
-    Examples/DemandLoading
-  PTX_LINK_LIBRARIES
-    OptiXToolkit::DemandLoading 
-    OptiXToolkit::DemandTextureAppBase
-    OptiXToolkit::ShaderUtil
-  SOURCES
-    DemandTextureViewer.cu
-)
+# Render realized geometry with proxy material
+add_image_test(DemandGeometryViewer frame1 ARGS --bg=1,0,1 --warmup=1)
 
-otk_add_executable( demandTextureViewer
-  DemandTextureViewer.cpp
-  )
-
-target_link_libraries( demandTextureViewer
-  demandTextureViewerKernel
-  OptiXToolkit::DemandLoading
-  OptiXToolkit::DemandTextureAppBase
-  OptiXToolkit::Gui
-  OptiXToolkit::Util
-  CUDA::cudart
-  )
-
-set_target_properties( demandTextureViewer PROPERTIES
-  FOLDER Examples/DemandLoading
-  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
-
-# Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:demandTextureViewer> )
-  add_custom_command( TARGET demandTextureViewer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandTextureViewer> $<TARGET_FILE_DIR:demandTextureViewer>
-    COMMAND_EXPAND_LISTS )
-endif()
-
-if(BUILD_TESTING)
-    add_subdirectory(tests)
-endif()
+# Render realized geometry with realized material
+add_image_test(DemandGeometryViewer frame2 ARGS --bg=1,0,1 --warmup=2)

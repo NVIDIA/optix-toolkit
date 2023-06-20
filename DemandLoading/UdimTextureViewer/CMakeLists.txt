@@ -50,7 +50,7 @@ embed_ptx(
     UdimTextureViewer.cu
 )
 
-add_executable( udimTextureViewer
+otk_add_executable( udimTextureViewer
   UdimTextureViewer.cpp
   )
 

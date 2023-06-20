@@ -38,7 +38,7 @@ endif()
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
-add_library(DemandTextureAppBase STATIC
+otk_add_library(DemandTextureAppBase STATIC
   src/DemandTextureApp.cpp
   include/OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h
   include/OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h

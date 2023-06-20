@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,36 +26,67 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include <OptiXToolkit/Util/AssetLocator.h>
 
-#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
+#include <OptiXToolkit/Util/Exception.h>
 
-#include <cstdint>
-#include <string>
+#include "BinaryDataDir.h"
 
-#include <OptiXToolkit/Gui/Window.h>
+#include <cstdlib>
+#include <fstream>
 
 namespace otk {
 
-class GLDisplay
+static bool fileExists( const char* path )
 {
-public:
-    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
-    ~GLDisplay();
+    return static_cast<bool>( std::ifstream( path ) );
+}
 
-    void display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_res_x, GLint framebuf_res_y, GLuint pbo ) const;
+static bool fileExists( const std::string& path )
+{
+    return fileExists( path.c_str() );
+}
 
-private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
-    GLuint   m_vertex_array{};
+static std::string existingFilePath( const char* directory, const char* relativeSubDir, const char* relativePath )
+{
+    std::string path;
+    if( directory )
+        path = directory;
+    if( relativeSubDir )
+    {
+        path += '/';
+        path += relativeSubDir;
+    }
+    if( relativePath )
+    {
+        path += '/';
+        path += relativePath;
+    }
+    if( fileExists( path ) )
+        return path;
+    return {};
+}
 
-    otk::BufferImageFormat m_image_format;
+std::string locateAsset( const char* relativeSubDir, const char* relativePath )
+{
+    static const char *directories[] = {
+        std::getenv("OTK_ASSET_DIR"),
+        OTK_BINARY_DATA_DIR,
+    };
 
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
-};
+    for( const char* directory : directories )
+    {
+        // getenv returns nullptr when the environment variable is not set.
+        if( directory == nullptr )
+            continue;
 
-} // end namespace otk
+        std::string s = existingFilePath( directory, relativeSubDir, relativePath );
+        if( !s.empty() )
+        {
+            return s;
+        }
+    }
+    throw Exception( ( std::string{ "Couldn't locate asset " } +relativePath ).c_str() );
+}
+
+}  // namespace otk

@@ -31,11 +31,10 @@
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/Util/EXRInputFile.h>
 
 #include "PerDeviceOptixState.h"
-
-#include <GLFW/glfw3.h>
 
 namespace ommBakingApp
 {
@@ -141,6 +140,10 @@ class OmmBakingApp
 
   private:
 
+    // Viewpoint description
+    const float3 INITIAL_LOOK_FROM{ 0.5f, 0.5f, 1.0f };
+    const float INITIAL_VIEW_DIM = 1.0f;
+
     float2 m_viewDims = float2{ INITIAL_VIEW_DIM, INITIAL_VIEW_DIM };
     float3 m_eye = INITIAL_LOOK_FROM;
 
@@ -154,10 +157,6 @@ class OmmBakingApp
 
     // OptiX states for each device
     std::vector<PerDeviceOptixState> m_perDeviceOptixStates;
-
-    // Viewpoint description
-    const float3 INITIAL_LOOK_FROM{ 0.5f, 0.5f, 1.0f };
-    const float INITIAL_VIEW_DIM = 1.0f;
 
     // Mouse state
     static const int NO_BUTTON = -1;

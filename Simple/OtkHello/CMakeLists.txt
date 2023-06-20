@@ -48,7 +48,7 @@ embed_ptx(
     draw_solid_color.cu
 )
 
-add_executable( otkHello
+otk_add_executable( otkHello
   hello.cpp
   hello.h
   )

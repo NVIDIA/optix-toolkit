@@ -33,12 +33,38 @@ endif()
 include(BuildConfig)
 include(CTest)
 include(FetchOpenEXR)
+include(FetchStbImage)
 
-add_library(Util STATIC
+# stub image library
+add_library(StbImage STATIC
+    src/stb.cpp
+    ${stb_image_SOURCE_DIR}/stb_image.h
+    ${stb_image_write_SOURCE_DIR}/stb_image_write.h
+)
+target_include_directories(StbImage
+    PUBLIC
+        ${stb_image_SOURCE_DIR}
+        ${stb_image_write_SOURCE_DIR}
+)
+if(NOT MSVC)
+  target_compile_options(StbImage PRIVATE -Wno-missing-field-initializers)
+endif()
+set_target_properties(StbImage PROPERTIES FOLDER ThirdParty)
+if(NOT TARGET Stb::Image)
+  add_library(Stb::Image ALIAS StbImage)
+endif()
+
+configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)
+
+otk_add_library(Util STATIC
+  include/OptiXToolkit/Util/AssetLocator.h
   include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
   include/OptiXToolkit/Util/Logger.h
+  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
+  src/AssetLocator.cpp
+  src/BinaryDataDir.h.in
   src/EXRInputFile.cpp
   src/Exception.cpp
   src/Logger.cpp
@@ -51,12 +77,14 @@ target_include_directories(Util PUBLIC
   ${OptiX_INCLUDE_DIR}
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
+target_include_directories(Util PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(Util PRIVATE
   OptiX::OptiX
   CUDA::cuda_driver
   CUDA::cudart
   OpenEXR::OpenEXR
+  Stb::Image
   )
 target_link_libraries(Util PUBLIC OptiXToolkit::Memory)
 

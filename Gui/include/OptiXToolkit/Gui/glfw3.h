@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,37 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-
 #pragma once
 
-#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
-
-#include <cstdint>
-#include <string>
-
-#include <OptiXToolkit/Gui/Window.h>
-
-namespace otk {
-
-class GLDisplay
-{
-public:
-    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
-    ~GLDisplay();
-
-    void display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_res_x, GLint framebuf_res_y, GLuint pbo ) const;
-
-private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
-    GLuint   m_vertex_array{};
-
-    otk::BufferImageFormat m_image_format;
-
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
-};
-
-} // end namespace otk
+// glfw3.h defines APIENTRY, causing an error when it is redefined by minwindef.h
+#ifdef APIENTRY
+#include <GLFW/glfw3.h>
+#else
+#include <GLFW/glfw3.h>
+#undef APIENTRY
+#endif

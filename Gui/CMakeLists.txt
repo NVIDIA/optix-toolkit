@@ -31,7 +31,7 @@ include(FetchGlfw)
 include(FetchGlad)
 include(FetchImgui)
 
-add_library(Gui STATIC
+otk_add_library(Gui STATIC
   src/Camera.cpp
   src/GLCheck.cpp
   src/GLDisplay.cpp
@@ -48,6 +48,8 @@ add_library(Gui STATIC
   include/OptiXToolkit/Gui/Trackball.h
   include/OptiXToolkit/Gui/TrackballCamera.h
   include/OptiXToolkit/Gui/Window.h
+  include/OptiXToolkit/Gui/glad.h
+  include/OptiXToolkit/Gui/glfw3.h
   )
 
 add_library(OptiXToolkit::Gui ALIAS Gui)
@@ -61,6 +63,7 @@ target_link_libraries(Gui
     imgui
     glfw
     glad::glad
+    Stb::Image
 )
 
 set_target_properties(Gui PROPERTIES FOLDER Examples)

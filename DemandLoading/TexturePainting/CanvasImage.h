@@ -88,7 +88,7 @@ class CanvasImage : public ImageSourceBase
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream = 0 ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
-    bool readBaseColor( float4& dest ) override { return false; }
+    bool readBaseColor( float4& /*dest*/ ) override { return false; }
 
     void clearImage( float4 color ) { std::fill( m_pixels.begin(), m_pixels.end(), color ); }
     void drawBrush( CanvasBrush& brush, int xcenter, int ycenter );

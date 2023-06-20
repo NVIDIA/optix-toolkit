@@ -87,7 +87,7 @@ bool CanvasImage::readTile(  //
     unsigned int tileY,
     unsigned int tileWidth,
     unsigned int tileHeight,
-    CUstream     stream )
+    CUstream     /*stream*/ )
 {
     if( mipLevel >= m_info.numMipLevels )
     {
@@ -111,7 +111,7 @@ bool CanvasImage::readTile(  //
     return true;
 }
 
-bool CanvasImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
+bool CanvasImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int /*width*/, unsigned int /*height*/, CUstream /*stream*/ )
 {
     if( mipLevel >= m_info.numMipLevels )
     {
@@ -158,7 +158,7 @@ void CanvasImage::drawBrush( CanvasBrush& brush, int xcenter, int ycenter )
 
 void CanvasImage::drawStroke( CanvasBrush& brush, int x0, int y0, int x1, int y1 )
 {
-    float d = sqrtf( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) );
+    float d = sqrtf( static_cast<float>( (x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) ) );
     int numIterations = std::max( static_cast<int>( 10 * d / brush.m_width ), 1 );
     for( int i=0; i<numIterations; ++i )
     {

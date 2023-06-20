@@ -52,7 +52,7 @@ embed_ptx(
     FOLDER Examples/DemandLoading
 )
 
-add_executable( DemandGeometryViewer
+otk_add_executable( DemandGeometryViewer
     DemandGeometryViewer.h
     DemandGeometryViewer.cpp
     DemandMaterial.h
@@ -72,4 +72,8 @@ target_link_libraries( DemandGeometryViewer PUBLIC
 set_target_properties(DemandGeometryViewer PROPERTIES FOLDER Examples/DemandLoading)
 if(WIN32)
     target_compile_definitions(DemandGeometryViewer PRIVATE NOMINMAX)
+endif()
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
 endif()

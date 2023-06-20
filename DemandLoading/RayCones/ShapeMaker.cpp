@@ -90,7 +90,7 @@ void ShapeMaker::makeCone( float3 basePoint, float radius, float height, int num
 {
     std::vector<Vert> silhouette;
     int vsegs = numSegments / 2;
-    for( unsigned int i=0; i <= vsegs; ++i )
+    for( int i=0; i <= vsegs; ++i )
     {
         Vert v;
         v.p = float3{ (radius * (vsegs - i)) / vsegs, 0.0f, (height * i) / vsegs };
@@ -145,7 +145,7 @@ void ShapeMaker::spinZaxis( std::vector<Vert>& silhouette, int numSegments, floa
     shape.clear();
     for( unsigned int j = 0; j < silhouette.size() - 1; ++j)
     {
-        for( unsigned int i = 0; i < numSegments; ++i )
+        for( int i = 0; i < numSegments; ++i )
         {
             // Triangle 1
             if( silhouette[j].p.x != 0.0f ) // skip degenerate triangles

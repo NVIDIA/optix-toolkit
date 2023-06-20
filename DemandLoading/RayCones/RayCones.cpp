@@ -462,13 +462,12 @@ void RayConesApp::copyGeometryToDevice()
     }
 }
 
-void RayConesApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypos )
+void RayConesApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
     if( m_mouseButton < 0 )
         return;
 
     const float pan = 0.03f;
-    const float zoom = 1.001f;
     const float rot = 0.002f;
 
     float3 U, V, W;
@@ -487,7 +486,7 @@ void RayConesApp::cursorPosCallback( GLFWwindow* window, double xpos, double ypo
     m_subframeId = 0;
 }
 
-void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
+void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;

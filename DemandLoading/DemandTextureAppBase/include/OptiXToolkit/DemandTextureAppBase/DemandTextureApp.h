@@ -32,6 +32,7 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
+#include <OptiXToolkit/Gui/glfw3.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
@@ -50,8 +51,6 @@
 
 #include "LaunchParams.h"
 #include "PerDeviceOptixState.h"
-
-#include <GLFW/glfw3.h>
 
 namespace demandTextureApp
 {
@@ -115,7 +114,7 @@ class DemandTextureApp
     std::unique_ptr<otk::GLDisplay>                m_glDisplay;
     int                                            m_windowWidth;
     int                                            m_windowHeight;
-    std::string                                    m_outputFileName = "";
+    std::string                                    m_outputFileName;
     unsigned int                                   m_render_mode = 0;
 
     // OptiX states for each device

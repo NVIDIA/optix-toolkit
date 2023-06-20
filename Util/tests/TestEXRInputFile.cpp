@@ -33,7 +33,6 @@
 #include <gtest/gtest.h>
 #include <half.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
 #include <vector>
@@ -66,8 +65,8 @@ TEST_F( TestEXRInputFile, TestOpen )
 {
     EXRInputFile file;
     file.open( getSourceDir() + "/Textures/TiledMipMappedHalf.exr" );
-    EXPECT_NE( 0, file.getWidth() );
-    EXPECT_NE( 0, file.getHeight() );
+    EXPECT_NE( 0U, file.getWidth() );
+    EXPECT_NE( 0U, file.getHeight() );
 }
 
 TEST_F( TestEXRInputFile, TestReadHalf )

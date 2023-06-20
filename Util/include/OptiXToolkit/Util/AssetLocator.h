@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,34 +28,21 @@
 
 #pragma once
 
-#include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
-
-#include <cstdint>
 #include <string>
-
-#include <OptiXToolkit/Gui/Window.h>
 
 namespace otk {
 
-class GLDisplay
+/// Return the location of an asset in relativeSubDIr with relativePath.
+/// Search the locations specified by the environment variable OTK_ASSET_DIR
+/// followed by the build-time configuration value of OTK_BINARY_DATA_DIR.
+///
+/// otk::Exception is thrown if the asset could not be located.
+///
+std::string locateAsset( const char* relativeSubDir, const char* relativePath );
+
+inline std::string locateAsset( const std::string& relativeSubDir, const std::string& relativePath )
 {
-public:
-    GLDisplay(BufferImageFormat format = otk::BufferImageFormat::UNSIGNED_BYTE4);
-    ~GLDisplay();
+    return locateAsset( relativeSubDir.c_str(), relativePath.c_str() );
+}
 
-    void display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_res_x, GLint framebuf_res_y, GLuint pbo ) const;
-
-private:
-    GLuint   m_render_tex = 0u;
-    GLuint   m_program = 0u;
-    GLint    m_render_tex_uniform_loc = -1;
-    GLuint   m_quad_vertex_buffer = 0;
-    GLuint   m_vertex_array{};
-
-    otk::BufferImageFormat m_image_format;
-
-    static const std::string s_vert_source;
-    static const std::string s_frag_source;
-};
-
-} // end namespace otk
+}  // namespace otk

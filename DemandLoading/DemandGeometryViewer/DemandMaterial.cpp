@@ -64,7 +64,7 @@ void DemandMaterial::remove( uint_t pageId )
     }
 }
 
-bool DemandMaterial::loadMaterial( CUstream stream, uint_t pageId, void** pageTableEntry )
+bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )
 {
     std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
 

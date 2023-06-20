@@ -48,7 +48,7 @@ embed_ptx(
     textureKernel.cu
 )
 
-add_executable( demandLoadTexture
+otk_add_executable( demandLoadTexture
   texture.cpp
   textureKernel.h
   )
@@ -77,4 +77,8 @@ if( $<TARGET_RUNTIME_DLLS:demandLoadTexture> )
   add_custom_command( TARGET demandLoadTexture POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:demandLoadTexture> $<TARGET_FILE_DIR:demandLoadTexture>
     COMMAND_EXPAND_LISTS )
+endif()
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
 endif()

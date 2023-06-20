@@ -45,7 +45,7 @@ embed_ptx(
     TextureVariantViewer.cu
 )
 
-add_executable( textureVariantViewer
+otk_add_executable( textureVariantViewer
   TextureVariantViewer.cpp
   )
 

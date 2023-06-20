@@ -43,7 +43,7 @@ embed_ptx(
     CuOmmBakingViewer.cu
 )
 
-add_executable( ommBakingViewer
+otk_add_executable( ommBakingViewer
   CuOmmBakingViewer.cpp
   CuOmmBakingApp.cu
   CuOmmBakingApp.cpp
