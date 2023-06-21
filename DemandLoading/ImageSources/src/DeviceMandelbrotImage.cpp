@@ -113,6 +113,8 @@ bool DeviceMandelbrotImage::readTile( char*        dest,
 
 bool DeviceMandelbrotImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
 {
+    (void)width;  // silence unused variable warning
+    (void)height;
     OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const unsigned int levelWidth  = std::max( 1u, m_info.width >> mipLevel );
