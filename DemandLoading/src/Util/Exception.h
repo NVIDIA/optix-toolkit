@@ -60,7 +60,7 @@ class Exception : public std::runtime_error
         {                                                                                                              \
             std::stringstream ss;                                                                                      \
             ss << __FILE__ << " (" << __LINE__ << "): " << #cond;                                                      \
-            throw Exception( ss.str().c_str() );                                                                       \
+            throw demandLoading::Exception( ss.str().c_str() );                                                                       \
         }                                                                                                              \
     } while( 0 )
 
@@ -72,7 +72,7 @@ class Exception : public std::runtime_error
         {                                                                                                              \
             std::stringstream ss;                                                                                      \
             ss << ( msg ) << ": " << __FILE__ << " (" << __LINE__ << "): " << #cond;                                   \
-            throw Exception( ss.str().c_str() );                                                                       \
+            throw demandLoading::Exception( ss.str().c_str() );                                                                       \
         }                                                                                                              \
     } while( 0 )
 
@@ -91,7 +91,7 @@ inline void checkCudaError( CUresult result, const char* expr, const char* file,
         cuGetErrorString( result, &errorStr );
         std::stringstream ss;
         ss << "CUDA call (" << expr << " ) failed with error: '" << errorStr << "' (" << file << ":" << line << ")\n";
-        throw Exception( ss.str().c_str() );
+        throw demandLoading::Exception( ss.str().c_str() );
     }
 }
 

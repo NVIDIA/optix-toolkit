@@ -31,7 +31,6 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
-#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
@@ -68,17 +67,6 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     if( filename == "checkerboard" )
     {
         return std::shared_ptr<ImageSource>( new CheckerBoardImage( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true ) );
-    }
-    else if( filename == "mandelbrot" )
-    {
-        std::vector<float4> colors = {{1.0f, 1.0f, 1.0f, 0.0f},
-                                      {0.0f, 0.0f, 1.0f, 0.0f},
-                                      {0.0f, 0.5f, 0.0f, 0.0f},
-                                      {1.0f, 0.0f, .0f, 0.0f},
-                                      {1.0f, 1.0f, 0.0f, 0.0f}};
-        return std::shared_ptr<ImageSource>( new DeviceMandelbrotImage( 2048, 2048, /*xmin=*/-2.0, /*ymin=*/-2.0,
-                                                                        /*xmax=*/2.0, /*ymax=*/2.0,
-                                                                        /*iterations=*/512, colors ) );
     }
 
     // Construct ImageSource based on filename extension.

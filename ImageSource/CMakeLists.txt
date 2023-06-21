@@ -31,10 +31,6 @@ include(BuildConfig)
 otk_add_library( ImageSource
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
-  src/DeviceConstantImage.cpp
-  src/DeviceConstantImageKernels.cu
-  src/DeviceMandelbrotImage.cpp
-  src/DeviceMandelbrotImageKernels.cu
   src/EXRReader.cpp
   src/Exception.h
   src/ImageSource.cpp
@@ -52,13 +48,9 @@ target_sources(ImageSource
   FILES
   include/OptiXToolkit/ImageSource/CheckerBoardImage.h
   include/OptiXToolkit/ImageSource/CoreEXRReader.h
-  include/OptiXToolkit/ImageSource/DeviceConstantImage.h
-  include/OptiXToolkit/ImageSource/DeviceConstantImageParams.h
-  include/OptiXToolkit/ImageSource/DeviceMandelbrotImage.h
-  include/OptiXToolkit/ImageSource/DeviceMandelbrotParams.h
   include/OptiXToolkit/ImageSource/EXRReader.h
+  include/OptiXToolkit/ImageSource/ImageHelpers.h
   include/OptiXToolkit/ImageSource/ImageSource.h
-  include/OptiXToolkit/ImageSource/MultiCheckerImage.h
   include/OptiXToolkit/ImageSource/TextureInfo.h
 )
 

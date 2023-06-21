@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ImageSource/DeviceConstantImage.h>
+#include "DeviceConstantImage.h"
 
 #include <gtest/gtest.h>
 
@@ -65,7 +65,7 @@ class TestTextureFill : public testing::Test
     static const unsigned int tileWidth  = 64;
     static const unsigned int tileHeight = 64;
     std::vector<float4> colors = {{1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.5f, 0.0f, 0.0f}, {1.0f, 0.0f, .0f, 0.0f}, {1.0f, 1.0f, 0.0f, 0.0f}};
-    imageSource::DeviceConstantImage testImage; 
+    DeviceConstantImage testImage; 
 
     void fillMapInfo( CUmipmappedArray&             array,
                       unsigned int                  mipLevel,

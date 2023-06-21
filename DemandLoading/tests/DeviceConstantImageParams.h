@@ -27,13 +27,9 @@
 //
 #pragma once
 
-namespace imageSource {
-
 struct DeviceConstantImageParams
 {
     unsigned int num_pixels;
     float4 color;
     float4* output_buffer;
 };
-
-}

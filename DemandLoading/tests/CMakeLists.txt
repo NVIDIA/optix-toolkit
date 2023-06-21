@@ -45,6 +45,8 @@ otk_add_executable( testDemandLoading
   DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu
   DemandLoaderTestKernels.h
+  DeviceConstantImage.cpp
+  DeviceConstantImageKernels.cu
   ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
