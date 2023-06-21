@@ -54,6 +54,7 @@ target_link_libraries( textureVariantViewer
   OptiXToolkit::DemandLoading
   OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui
+  OptiXToolkit::ImageSources
   OptiXToolkit::Util
   glad::glad
   glfw

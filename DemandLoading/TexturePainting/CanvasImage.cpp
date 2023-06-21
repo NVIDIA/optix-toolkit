@@ -32,7 +32,7 @@
 #include <cstring>
 
 #include "CanvasImage.h"
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
 namespace imageSource {
 

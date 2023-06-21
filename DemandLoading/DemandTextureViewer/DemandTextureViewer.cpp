@@ -30,8 +30,8 @@
 #include <DemandTextureViewerKernelPTX.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
-#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <stdexcept>
@@ -150,13 +150,13 @@ imageSource::ImageSource* DemandTextureViewer::createImageSource()
     }
     if( m_textureType == TEXTURE_CHECKERBOARD )
     {
-        img = new imageSource::MultiCheckerImage<float4>( 8192, 8192, 16, true );
+        img = new imageSources::MultiCheckerImage<float4>( 8192, 8192, 16, true );
     }
     else if( m_textureType == TEXTURE_MANDELBROT )
     {
         const int MAX_ITER = 256;
-        m_colorMap         = createColorMap( imageSource::MAX_MANDELBROT_COLORS );
-        img = new imageSource::DeviceMandelbrotImage( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
+        m_colorMap         = createColorMap( imageSources::MAX_MANDELBROT_COLORS );
+        img = new imageSources::DeviceMandelbrotImage( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
     }
     if( img == nullptr )
     {

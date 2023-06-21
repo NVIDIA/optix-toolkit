@@ -38,6 +38,7 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/ImageSources/ImageSources.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
 
@@ -595,7 +596,7 @@ int main( int argc, char* argv[] )
         std::shared_ptr<DemandLoader> demandLoader( createDemandLoader( options ), destroyDemandLoader );
 
         std::string                  directory( getSourceDir() + "/Textures/" );
-        std::shared_ptr<ImageSource> imageSource = createImageSource( textureFile, directory );
+        std::shared_ptr<ImageSource> imageSource = imageSources::createImageSource( textureFile, directory );
 
         // Create a demand-loaded texture
         TextureDescriptor    texDesc = makeTextureDescription();

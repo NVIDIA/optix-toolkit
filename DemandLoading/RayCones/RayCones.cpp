@@ -29,7 +29,7 @@
 #include <RayConesKernelPTX.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
@@ -38,6 +38,7 @@
 #include "RayConesParams.h"
 
 using namespace demandTextureApp;
+using namespace imageSource;
 using namespace otk;  // for vec_math operators
 
 //------------------------------------------------------------------------------
@@ -253,12 +254,12 @@ void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int num
 
 void RayConesApp::createTexture()
 {
-    imageSource::ImageSource* img = createExrImage( m_textureName.c_str() );
+    ImageSource* img = createExrImage( m_textureName.c_str() );
     if( !img && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !img )
-        img = new imageSource::MultiCheckerImage<ubyte4>( 16384, 16384, 64, true );
-    std::unique_ptr<imageSource::ImageSource> imageSource( img );
+        img = new imageSources::MultiCheckerImage<ubyte4>( 16384, 16384, 64, true );
+    std::unique_ptr<ImageSource> imageSource( img );
 
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
     const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( std::move( imageSource ), texDesc );

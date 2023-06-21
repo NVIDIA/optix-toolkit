@@ -31,7 +31,7 @@
 
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
 using namespace demandLoading;
 using namespace demandTextureApp;
@@ -63,7 +63,7 @@ void TextureVariantApp::createTexture()
     if( !img && ( !m_textureName.empty() ) )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !img )
-        img = new imageSource::MultiCheckerImage<float4>( 8192, 8192, 16, true );
+        img = new imageSources::MultiCheckerImage<float4>( 8192, 8192, 16, true );
     
     std::shared_ptr<imageSource::ImageSource> imageSource( img );
 
