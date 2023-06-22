@@ -28,7 +28,7 @@
 
 include(BuildConfig)
 
-otk_add_library( ImageSources
+otk_add_library( ImageSources STATIC
   src/DeviceConstantImage.cpp
   src/DeviceConstantImageKernels.cu
   src/DeviceMandelbrotImage.cpp
