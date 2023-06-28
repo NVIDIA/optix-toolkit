@@ -26,11 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ImageSource/DeviceConstantImage.h>
+#include "DeviceConstantImage.h"
+#include "Util/Exception.h"
 
-#include "Exception.h"
-
-namespace imageSource {
+using namespace imageSource;
 
 void launchReadConstantImage( const DeviceConstantImageParams& params, CUstream stream );
 
@@ -129,5 +128,3 @@ bool DeviceConstantImage::readBaseColor( float4& dest )
     dest = m_mipColors[ mipLevel % m_mipColors.size() ];
     return true;
 }
-
-}  // namespace imageSource
