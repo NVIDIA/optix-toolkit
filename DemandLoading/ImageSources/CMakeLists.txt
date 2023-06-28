@@ -26,48 +26,43 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-include(GNUInstallDirs)
 include(BuildConfig)
-include(FetchGlfw)
-include(FetchGlad)
-include(embed_ptx)
 
-embed_ptx(
-  CONST HEADER TexturePaintingKernelPTX.h
-  OUTPUT_TARGET
-    texturePaintingKernel
-  FOLDER
-    Examples/DemandLoading
-  PTX_LINK_LIBRARIES
-    OptiXToolkit::DemandLoading 
-    OptiXToolkit::DemandTextureAppBase
-    OptiXToolkit::ShaderUtil
-  SOURCES
-    TexturePainting.cu
+otk_add_library( ImageSources STATIC
+  src/DeviceConstantImage.cpp
+  src/DeviceConstantImageKernels.cu
+  src/DeviceMandelbrotImage.cpp
+  src/DeviceMandelbrotImageKernels.cu
+  src/ImageSources.cpp
+  )
+set_property(TARGET ImageSources PROPERTY FOLDER DemandLoading)
+
+add_library(OptiXToolkit::ImageSources ALIAS ImageSources)
+
+target_sources(ImageSources
+  PUBLIC 
+  FILE_SET HEADERS 
+  BASE_DIRS include
+  FILES
+  include/OptiXToolkit/ImageSources/DeviceConstantImage.h
+  include/OptiXToolkit/ImageSources/DeviceConstantImageParams.h
+  include/OptiXToolkit/ImageSources/DeviceMandelbrotImage.h
+  include/OptiXToolkit/ImageSources/DeviceMandelbrotParams.h
+  include/OptiXToolkit/ImageSources/ImageSources.h
+  include/OptiXToolkit/ImageSources/MultiCheckerImage.h
 )
 
-otk_add_executable( texturePainting
-  CanvasImage.cpp
-  CanvasImage.h
-  TexturePainting.cpp
+target_include_directories( ImageSources
+  PUBLIC
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+  PRIVATE
+  src
   )
 
-target_link_libraries( texturePainting
-  texturePaintingKernel
-  OptiXToolkit::DemandLoading
-  OptiXToolkit::DemandTextureAppBase
-  OptiXToolkit::Gui
-  OptiXToolkit::ImageSources
+target_link_libraries( ImageSources
+  PRIVATE
+  OptiXToolkit::ImageSource
   OptiXToolkit::Util
-  )
+)
 
-set_target_properties( texturePainting PROPERTIES
-  FOLDER Examples/DemandLoading
-  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
-
-# Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:texturePainting> )
-  add_custom_command( TARGET texturePainting POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:texturePainting> $<TARGET_FILE_DIR:texturePainting>
-    COMMAND_EXPAND_LISTS )
-endif()
+set_target_properties(ImageSources PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

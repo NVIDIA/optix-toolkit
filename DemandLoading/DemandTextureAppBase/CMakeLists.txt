@@ -54,6 +54,7 @@ target_link_libraries(DemandTextureAppBase
   PUBLIC
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
+  OptiXToolkit::ImageSources
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
   imgui

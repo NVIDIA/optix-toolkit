@@ -32,8 +32,8 @@
 #include <UdimTextureViewerKernelPTX.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
-#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
 using namespace demandTextureApp;
 
@@ -85,7 +85,7 @@ void UdimTextureApp::createTexture()
         if( m_textureName != "mandelbrot " )
             baseImage = createExrImage( ( m_textureName + ".exr" ).c_str() );
         if( !baseImage )
-            baseImage = new imageSource::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors );
+            baseImage = new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors );
         std::unique_ptr<imageSource::ImageSource> baseImageSource( baseImage );
 
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
@@ -116,7 +116,7 @@ void UdimTextureApp::createTexture()
                 int maxAspect = 64;
                 int w         = std::max( 4 << u, ( 4 << v ) / maxAspect );
                 int h         = std::max( 4 << v, ( 4 << u ) / maxAspect );
-                subImage      = new imageSource::MultiCheckerImage<float4>( w, h, 4, true );
+                subImage      = new imageSources::MultiCheckerImage<float4>( w, h, 4, true );
             }
             if( !subImage ) // many images of the same size
             {
@@ -124,7 +124,7 @@ void UdimTextureApp::createTexture()
                 double xmax = -2.0 + 4.0 * ( u + 1.0 ) / m_udim;
                 double ymin = -2.0 + 4.0 * v / m_vdim;
                 double ymax = -2.0 + 4.0 * ( v + 1.0 ) / m_vdim;
-                subImage = new imageSource::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax, iterations, colors );
+                subImage = new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax, iterations, colors );
             }
             subImageSources.emplace_back( subImage );
 
