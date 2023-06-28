@@ -28,6 +28,8 @@
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(FetchGlad)
+include(FetchGlfw)
 
 include(embed_ptx)
 embed_ptx(
