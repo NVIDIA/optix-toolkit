@@ -45,7 +45,7 @@ const unsigned int       WARP_SIZE = 32;
 __forceinline__ __device__ unsigned int getLaneId()
 {
     unsigned ret;
-    asm volatile( "mov.u32 %0, %laneid;" : "=r"( ret ) );
+    asm volatile( "mov.u32 %0, %%laneid;" : "=r"( ret ) );
     return ret;
 }
 #endif
