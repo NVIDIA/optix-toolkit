@@ -32,6 +32,8 @@
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
+#include <sstream>
+
 namespace otk {
 namespace error {
 
@@ -49,7 +51,25 @@ inline std::string getErrorMessage( OptixResult value )
     return ::optixGetErrorString( value );
 }
 
+inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, size_t sizeof_log_returned, const char* call, const char* file, unsigned int line )
+{
+    if( isFailure( res ) )
+    {
+        std::stringstream ss;
+        ss << "Log:\n" << log << ( sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "" ) << '\n';
+        reportError( res, call, file, line, ss.str().c_str() );
+    }
+}
+
 }  // namespace error
 }  // namespace otk
+
+#define OTK_ERROR_CHECK_LOG2( call )                                                                                   \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        char   LOG[400];                                                                                               \
+        size_t LOG_SIZE = sizeof( LOG );                                                                               \
+        ::otk::error::optixCheckLog( call, LOG, sizeof( LOG ), LOG_SIZE, #call, __FILE__, __LINE__ );                  \
+    } while( false )
 
 #endif
