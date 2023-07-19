@@ -30,10 +30,10 @@
 
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
+#include <OptiXToolkit/Gui/Window.h>
+
 #include <cstdint>
 #include <string>
-
-#include <OptiXToolkit/Gui/Window.h>
 
 namespace otk {
 
