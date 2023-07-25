@@ -304,6 +304,20 @@ OTK_INLINE OTK_HOSTDEVICE float2 clamp(const float2& v, const float2& a, const f
 }
 /** @} */
 
+/** equality 
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const float2& a, const float2& b )
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float2& a, const float2& b )
+{
+  return !( a.x == b.x && a.y == b.y );
+}
+/** @} */
+
 /** dot product */
 OTK_INLINE OTK_HOSTDEVICE float dot(const float2& a, const float2& b)
 {
