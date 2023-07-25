@@ -56,58 +56,43 @@ endif()
 embed_ptx(
   CONST HEADER testSiaKernelsPTX.h
   OUTPUT_TARGET
-    testSIAKernels
-  EMBED_PTX_PTX_TARGET
-    testSIAKernels_ptx
+    testSelfIntersectionAvoidanceKernels
   PTX_LINK_LIBRARIES
     OptiXToolkit::ShaderUtil
+    OptiX::OptiX
   SOURCES
     testSiaOptix.cu
+  FOLDER ShaderUtil/tests
 )
 
-set_target_properties(testSIAKernels testSIAKernels_ptx PROPERTIES FOLDER ShaderUtil/tests )
-
+# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
+configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 otk_add_executable( testSelfIntersectionAvoidance
   testSia.h
   testSia.cpp
   testSiaCuda.cu
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
+  SourceDir.h.in
   )
-
 set_target_properties(testSelfIntersectionAvoidance PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
   FOLDER ShaderUtil/tests 
-)
-
+  )
 target_include_directories( testSelfIntersectionAvoidance PUBLIC
-  ../support
-  ../src
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
-  ${OptiX_INCLUDE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}/include  # for SourceDir.h
   )
-
-target_include_directories( testSIAKernels_ptx PUBLIC
-  ${OptiX_INCLUDE_DIR}
-  )
-
-# Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
-configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
-
 target_link_libraries( testSelfIntersectionAvoidance
   GTest::gtest_main
-  testSIAKernels
+  testSelfIntersectionAvoidanceKernels
   OptiXToolkit::ShaderUtil
   OptiX::OptiX
   )
-
-add_dependencies( testSelfIntersectionAvoidance testSIAKernels )
-
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testSelfIntersectionAvoidance> )
   add_custom_command( TARGET testSelfIntersectionAvoidance POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testSelfIntersectionAvoidance> $<TARGET_FILE_DIR:testSelfIntersectionAvoidance>
     COMMAND_EXPAND_LISTS )
 endif()
-
 # Register test cases with CTest.
 gtest_discover_tests(testSelfIntersectionAvoidance)
 
