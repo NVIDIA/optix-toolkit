@@ -37,7 +37,9 @@
 
 namespace demandGeometryViewer {
 
-extern "C" __constant__ Params g_params;
+extern "C" {
+__constant__ Params g_params;
+}
 
 template <typename T>
 __forceinline__ __device__ T* getSbtData()
