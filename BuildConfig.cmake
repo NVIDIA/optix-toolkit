@@ -32,6 +32,9 @@
 # Set the default build type to RelWithDebInfo.
 set(CMAKE_BUILD_TYPE_INIT RelWithDebInfo)
 
+# Use the shared CUDA runtime library.
+set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
+
 # optixTexFootprint2D is hardware-accelerated in sm60+
 set(CMAKE_CUDA_ARCHITECTURES "60-virtual")
 
