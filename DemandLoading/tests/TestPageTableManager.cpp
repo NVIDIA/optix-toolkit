@@ -119,3 +119,18 @@ TEST_F( TestPageTableManager, TestFindExhaustive )
         EXPECT_EQ( &handlers[i], mgr.getRequestHandler( lastPage ) );
     }
 }
+
+TEST_F( TestPageTableManager, TestMappingOrderPreserved )
+{
+    const unsigned int  NUM_PAGES = 10;
+    DummyRequestHandler handler1;
+    DummyRequestHandler handler2;
+    DummyRequestHandler handler3;
+    const unsigned int  pageId1 = mgr.reserveBackedPages( NUM_PAGES, &handler1 );
+    const unsigned int  pageId2 = mgr.reserveUnbackedPages( NUM_PAGES, &handler2 );
+    const unsigned int  pageId3 = mgr.reserveBackedPages( NUM_PAGES, &handler3 );
+
+    EXPECT_EQ( &handler1, mgr.getRequestHandler( pageId1 ) );
+    EXPECT_EQ( &handler2, mgr.getRequestHandler( pageId2 ) );
+    EXPECT_EQ( &handler3, mgr.getRequestHandler( pageId3 ) );
+}

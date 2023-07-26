@@ -69,10 +69,7 @@ class PageTableManager
     unsigned int getEndPage() const
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        if(m_nextUnbackedPage > m_backedPages)  
-            return m_nextUnbackedPage; 
-        else 
-            return m_nextBackedPage;
+        return m_nextUnbackedPage > m_backedPages ? m_nextUnbackedPage : m_nextBackedPage;
     }
 
     /// Reserve the specified number of contiguous page table entries, associating them with the
@@ -80,18 +77,10 @@ class PageTableManager
     unsigned int reserveBackedPages( unsigned int numPages, RequestHandler* handler ) 
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        DEMAND_ASSERT_MSG(m_nextBackedPage + numPages <= m_backedPages, "Insufficient backed pages in demand loading page table" );
+        DEMAND_ASSERT_MSG( m_nextBackedPage + numPages <= m_backedPages,
+                           "Insufficient backed pages in demand loading page table" );
 
-        unsigned int firstPage = m_nextBackedPage;
-        if( handler )
-            handler->setPageRange( firstPage, numPages );
-
-        unsigned int lastPage =  firstPage + numPages - 1;
-        const PageMapping mapping{firstPage, lastPage, handler};
-        m_mappings.push_back( mapping );
-
-        m_nextBackedPage += numPages;
-        return firstPage;
+        return insertPageMapping( m_nextBackedPage, numPages, handler );
     }
 
     /// Reserve unbacked pages (pages with no backing storage on the device).
@@ -100,16 +89,7 @@ class PageTableManager
         std::unique_lock<std::mutex> lock( m_mutex );
         DEMAND_ASSERT_MSG( m_nextUnbackedPage + numPages <= m_totalPages, "Insufficient unbacked pages in demand loading page table" );
 
-        unsigned int firstPage = m_nextUnbackedPage;
-        if( handler )
-            handler->setPageRange( firstPage, numPages );
-
-        unsigned int lastPage =  m_nextUnbackedPage + numPages - 1;
-        const PageMapping mapping{firstPage, lastPage, handler};
-        m_mappings.push_back( mapping );
-
-        m_nextUnbackedPage += numPages;
-        return firstPage;
+        return insertPageMapping( m_nextUnbackedPage, numPages, handler );
     }
 
     /// Find the request handler associated with the specified page.  Returns nullptr if not found.
@@ -122,7 +102,7 @@ class PageTableManager
         const auto least =
             std::lower_bound( m_mappings.cbegin(), m_mappings.cend(), pageId,
                               []( const PageMapping& entry, unsigned int id ) { return id > entry.lastPage; } );
-        return ( least != m_mappings.cend() ) ? least->handler : nullptr;
+        return least != m_mappings.cend() ? least->handler : nullptr;
     }
 
   private:
@@ -132,6 +112,24 @@ class PageTableManager
         unsigned int    lastPage;
         RequestHandler* handler;
     };
+
+    unsigned int insertPageMapping( unsigned int& nextPage, unsigned int numPages, RequestHandler* handler )
+    {
+        const unsigned int firstPage = nextPage;
+        const unsigned int lastPage = firstPage + numPages - 1;
+        if( handler )
+            handler->setPageRange( firstPage, numPages );
+
+        const PageMapping mapping{ firstPage, lastPage, handler };
+
+        const auto least =
+            std::lower_bound( m_mappings.begin(), m_mappings.end(), firstPage,
+                              []( const PageMapping& entry, unsigned int id ) { return id > entry.lastPage; } );
+        m_mappings.insert( least, mapping );
+
+        nextPage += numPages;
+        return firstPage;
+    }
 
     unsigned int             m_totalPages;
     unsigned int             m_backedPages;
