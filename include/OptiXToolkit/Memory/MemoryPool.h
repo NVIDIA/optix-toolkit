@@ -65,6 +65,7 @@ class MemoryPool
         , m_maxSize( maxSize ? maxSize : std::numeric_limits<uint64_t>::max() )
     {
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_MEMORY_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when the suballocator has a default constructor
@@ -72,6 +73,7 @@ class MemoryPool
         : MemoryPool( allocator, new SubAllocator(), allocationGranularity, maxSize )
     {
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_MEMORY_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when the allocator has a default constructor
@@ -79,6 +81,7 @@ class MemoryPool
         : MemoryPool( new Allocator(), suballocator, allocationGranularity, maxSize )
     {
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_MEMORY_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when both the allocator and suballocator have default constructors
@@ -86,6 +89,7 @@ class MemoryPool
         : MemoryPool( new Allocator(), new SubAllocator(), allocationGranularity, maxSize )
     {
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_MEMORY_ASSERT( m_context != nullptr );
     }
 
     /// Move constructor
@@ -93,6 +97,7 @@ class MemoryPool
         : MemoryPool( p.m_allocator, p.m_suballocator, p.m_allocationGranularity, p.m_maxSize )
     {
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_MEMORY_ASSERT( m_context != nullptr );
         p.m_allocator    = nullptr;
         p.m_suballocator = nullptr;
     }

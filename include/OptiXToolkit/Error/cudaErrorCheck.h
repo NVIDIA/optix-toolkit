@@ -56,7 +56,6 @@ inline std::string getErrorMessage( cudaError_t value )
 inline void syncCheck( const char* file, unsigned int line )
 {
     cudaDeviceSynchronize();
-    // checkError( T result, const char* expr, const char* file, unsigned int line, const char* extra = nullptr )
     checkError( cudaGetLastError(), "otk::error::syncCheck()", file, line );
 }
 
