@@ -51,7 +51,11 @@ class DeviceBuffer
     /// DeviceBuffers are constructable from a given size.
     explicit DeviceBuffer( size_t size ) { allocate( size ); }
 
-    ~DeviceBuffer() noexcept { OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) ); }
+    ~DeviceBuffer() noexcept
+    {
+        if( m_devStorage )
+            OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) );
+    }
 
     /// DeviceBuffers are not copyable.
     DeviceBuffer( const DeviceBuffer& rhs )            = delete;
