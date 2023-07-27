@@ -32,6 +32,7 @@
 #include <cuda_runtime.h>
 
 #include <OptiXToolkit/ShaderUtil/SelfIntersectionAvoidance.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 using SelfIntersectionAvoidance::Matrix3x4;
 
@@ -69,13 +70,6 @@ struct Stats
     unsigned long long contextContextFreeMissmatch;
     unsigned long long optixCudaMissmatch;
 };
-
-#ifdef __CUDACC__
-static __device__ bool operator!=( const float3& a, const float3& b )
-{
-    return !(a.x == b.x && a.y == b.y && a.z == b.z);
-}
-#endif
 
 struct SpawnPoint
 {
