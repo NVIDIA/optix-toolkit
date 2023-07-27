@@ -304,6 +304,8 @@ OTK_INLINE OTK_HOSTDEVICE float2 clamp(const float2& v, const float2& a, const f
 }
 /** @} */
 
+}  // namespace otk
+
 /** equality 
 * @{
 */
@@ -314,9 +316,11 @@ OTK_INLINE OTK_HOSTDEVICE bool operator==( const float2& a, const float2& b )
 
 OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float2& a, const float2& b )
 {
-  return !( a.x == b.x && a.y == b.y );
+  return !( a == b );
 }
 /** @} */
+
+namespace otk {
 
 /** dot product */
 OTK_INLINE OTK_HOSTDEVICE float dot(const float2& a, const float2& b)
@@ -562,6 +566,24 @@ OTK_INLINE OTK_HOSTDEVICE float3 clamp(const float3& v, const float3& a, const f
   return ::make_float3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
 }
 /** @} */
+
+}  // namespace otk
+
+/** equality 
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const float3& a, const float3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float3& a, const float3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
 
 /** dot product */
 OTK_INLINE OTK_HOSTDEVICE float dot(const float3& a, const float3& b)

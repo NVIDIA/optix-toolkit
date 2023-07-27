@@ -97,11 +97,11 @@ endif()
 # Register test cases with CTest.
 gtest_discover_tests(testSelfIntersectionAvoidance)
 
-add_executable(TestShaderUtils TestOperators.cpp)
-target_link_libraries(TestShaderUtils PUBLIC
+add_executable(TestShaderUtil TestOperators.cpp)
+target_link_libraries(TestShaderUtil PUBLIC
     GTest::gtest_main
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
 )
-set_target_properties(TestShaderUtils PROPERTIES FOLDER ShaderUtil/tests)
-gtest_discover_tests(TestShaderUtils)
+set_target_properties(TestShaderUtil PROPERTIES FOLDER ShaderUtil/tests)
+gtest_discover_tests(TestShaderUtil)

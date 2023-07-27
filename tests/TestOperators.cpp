@@ -35,7 +35,7 @@ TEST( OperatorTest, float2Equal )
     const float2 lhs{1.0f, 2.0f};
     const float2 rhs{1.0f, 2.0f};
 
-    ASSERT_TRUE( otk::operator==( lhs, rhs ) );
+    ASSERT_EQ( lhs, rhs );
 }
 
 TEST( OperatorTest, float2NotEqual )
@@ -43,5 +43,21 @@ TEST( OperatorTest, float2NotEqual )
     const float2 lhs{1.0f, 2.0f};
     const float2 rhs{2.0f, 1.0f};
 
-    ASSERT_TRUE( otk::operator!=( lhs, rhs ) );
+    ASSERT_NE( lhs, rhs );
+}
+
+TEST( OperatorTest, float3Equal )
+{
+    const float3 lhs{1.0f, 2.0f, 3.0f};
+    const float3 rhs{1.0f, 2.0f, 3.0f};
+
+    ASSERT_EQ( lhs, rhs );
+}
+
+TEST( OperatorTest, float3NotEqual )
+{
+    const float3 lhs{1.0f, 2.0f, 3.0f};
+    const float3 rhs{3.0f, 2.0f, 1.0f};
+
+    ASSERT_NE( lhs, rhs );
 }
