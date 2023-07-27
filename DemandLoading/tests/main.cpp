@@ -50,7 +50,7 @@ bool sparseTexturesSupported()
 int main( int argc, char** argv )
 {
     testing::InitGoogleMock( &argc, argv );
-    if( !sparseTexturesSupported() )
+    if( !testing::GTEST_FLAG(list_tests) && !sparseTexturesSupported() )
     {
         std::string filter = ::testing::GTEST_FLAG( filter );
         if( filter.find( "-" ) == filter.npos )
