@@ -74,6 +74,8 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// Destroy demand loading system.
     ~DemandPageLoaderImpl() override = default;
 
+    static bool supportsSparseTextures( unsigned int deviceIndex );
+
     unsigned int allocatePages( unsigned int numPages, bool backed ) override;
 
     void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) override;

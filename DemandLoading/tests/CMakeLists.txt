@@ -40,6 +40,7 @@ embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
 )
 
 otk_add_executable( testDemandLoading
+  main.cpp
   CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
@@ -92,7 +93,7 @@ target_link_libraries( testDemandLoading
   DemandLoading
   CUDA::cudart
   OpenEXR::OpenEXR # for half
-  GTest::gmock_main
+  GTest::gmock
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )

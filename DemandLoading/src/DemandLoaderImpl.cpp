@@ -386,8 +386,6 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype 
         memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
         memoryBlock = getDeviceTransferPool()->alloc( size, alignment );
-
-    DEMAND_ASSERT_MSG( memoryBlock.isGood(), "Transfer buffer allocation failed." );
     return TransferBufferDesc{ memoryType, memoryBlock };
 }
 
