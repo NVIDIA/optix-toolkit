@@ -37,6 +37,8 @@
 #include "ShapeMaker.h"
 #include "RayConesParams.h"
 
+#include <optix_stubs.h>
+
 using namespace demandTextureApp;
 using namespace imageSource;
 using namespace otk;  // for vec_math operators
