@@ -26,37 +26,23 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef OTK_DEMAND_GEOMETRY_PROXY_INSTANCES_H
-#define OTK_DEMAND_GEOMETRY_PROXY_INSTANCES_H
+#ifndef OTK_DEMAND_GEOMETRY_GEOMETRY_LOADER_H
+#define OTK_DEMAND_GEOMETRY_GEOMETRY_LOADER_H
 
-#include <OptiXToolkit/DemandLoading/Resource.h>
+#include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 
 #include <optix.h>
 
 #include <cuda.h>
 
-#include <functional>
-#include <mutex>
 #include <vector>
-
-#include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
-#include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
-#include <OptiXToolkit/Memory/DeviceBuffer.h>
-#include <OptiXToolkit/Memory/SyncVector.h>
-
-namespace demandLoading {
-
-class DemandLoader;
-
-}  // namespace demandLoading
 
 namespace demandGeometry {
 
-class ProxyInstances : public GeometryLoader
+class GeometryLoader
 {
   public:
-    ProxyInstances( demandLoading::DemandLoader* loader );
-    ~ProxyInstances() override = default;
+      virtual ~GeometryLoader() = default;
 
     /// Register a proxy for the given bounds.
     ///
@@ -66,7 +52,7 @@ class ProxyInstances : public GeometryLoader
     ///
     /// @returns The pageId that will be requested when this proxy is intersected.
     ///
-    uint_t add( const OptixAabb& bounds ) override;
+    virtual uint_t add( const OptixAabb& bounds ) = 0;
 
     /// Unregister a proxy for the page id.
     ///
@@ -74,29 +60,29 @@ class ProxyInstances : public GeometryLoader
     ///
     /// @param  pageId      The page id of the proxy to remove.  This is the value returned by add().
     ///
-    void remove( uint_t pageId ) override;
+    virtual void remove( uint_t pageId ) = 0;
 
     /// Copy proxy data to the device synchronously.
-    void copyToDevice() override;
+    virtual void copyToDevice() = 0;
 
     /// Copy proxy data to the device asynchronously.
     ///
     /// @param  stream      The stream on which to enqueue the copy.
     ///
-    void copyToDeviceAsync( CUstream stream ) override;
+    virtual void copyToDeviceAsync( CUstream stream ) = 0;
 
     /// Returns the requested proxy ids.
     ///
     /// After DemandLoader::processRequests and Ticket::wait has been called, all
     /// the requested proxy ids are known and can be returned by this method.
     ///
-    std::vector<uint_t> requestedProxyIds() const override;
+    virtual std::vector<uint_t> requestedProxyIds() const = 0;
 
     /// Set the shader binding table index to be used by the proxy traversable.
     ///
     /// @param  index       The hit group index to use for the proxies.
     ///
-    void setSbtIndex( uint_t index )  override { m_sbtIndex = index; }
+    virtual void setSbtIndex( uint_t index )  = 0;
 
     /// Create the traversable for the proxies.
     ///
@@ -105,7 +91,7 @@ class ProxyInstances : public GeometryLoader
     ///
     /// @returns            The traversable used to intersect proxies.
     ///
-    OptixTraversableHandle createTraversable( OptixDeviceContext dc, CUstream stream ) override;
+    virtual OptixTraversableHandle createTraversable( OptixDeviceContext dc, CUstream stream ) = 0;
 
     /// Get the proxy instance context for the device.
     ///
@@ -114,67 +100,16 @@ class ProxyInstances : public GeometryLoader
     ///
     /// @returns    Context structure.
     ///
-    Context getContext() const override { return { m_proxyData.typedDevicePtr() }; }
+    virtual Context getContext() const = 0;
 
     /// Get the name of the closest hit program.
-    const char* getCHFunctionName() const override;
+    virtual const char* getCHFunctionName() const = 0;
 
     /// Get the name of the intersection program.
-    const char* getISFunctionName() const override;
+    virtual const char* getISFunctionName() const = 0;
 
     /// Return the maximum number of attributes used by IS and CH programs.
-    int getNumAttributes() const override;
-
-  private:
-    struct PageIdRange
-    {
-        uint_t m_size;
-        uint_t m_start;
-        uint_t m_used;
-    };
-    struct Resource
-    {
-        uint_t pageId;
-        size_t index;
-    };
-
-    static bool s_callback( CUstream stream, unsigned int pageId, void* context, void** pageTableEntry )
-    {
-        return static_cast<ProxyInstances*>( context )->callback( stream, pageId, pageTableEntry );
-    }
-
-    bool callback( CUstream stream, uint_t pageId, void** pageTableEntry );
-
-    uint_t allocateResource( size_t index );
-
-    void insertResource( uint_t pageId, size_t index );
-
-    void                   createProxyGeomAS( OptixDeviceContext dc, CUstream stream );
-    OptixTraversableHandle createProxyInstanceAS( OptixDeviceContext dc, CUstream stream );
-
-private:
-    mutable std::mutex m_proxyDataMutex;  // protects the CPU proxy data structures.
-
-    demandLoading::DemandLoader* m_loader;
-    std::vector<PageIdRange>     m_pageRanges;
-    std::vector<Resource>        m_resources;  // sorted by pageId and suitable for binary search.
-    const uint_t                 PAGE_CHUNK_SIZE = 16U;
-
-    otk::SyncVector<OptixAabb> m_primitiveBounds;
-    otk::SyncVector<OptixAabb> m_proxyData;
-    std::vector<uint_t>        m_proxyPageIds;
-    otk::DeviceBuffer          m_devTempAccelBuffer;
-    otk::DeviceBuffer          m_devProxyGeomAccelBuffer;
-    OptixTraversableHandle     m_proxyGeomTraversable{};
-
-    otk::SyncVector<OptixInstance> m_proxyInstances;
-    otk::DeviceBuffer              m_devProxyInstanceAccelBuffer;
-    OptixTraversableHandle         m_proxyInstanceTraversable{};
-    otk::SyncVector<uint32_t>      m_sbtIndices;
-
-    uint_t m_sbtIndex{};
-
-    std::vector<uint_t> m_requestedResources;
+    virtual int getNumAttributes() const = 0;
 };
 
 }  // namespace demandGeometry

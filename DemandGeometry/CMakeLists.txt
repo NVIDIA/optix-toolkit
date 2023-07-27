@@ -30,6 +30,7 @@ include(BuildConfig)
 
 otk_add_library( DemandGeometry STATIC
     include/OptiXToolkit/DemandGeometry/DemandGeometry.h
+    include/OptiXToolkit/DemandGeometry/GeometryLoader.h
     include/OptiXToolkit/DemandGeometry/intersectAabb.h
     include/OptiXToolkit/DemandGeometry/ProxyInstances.h
     include/OptiXToolkit/DemandGeometry/ProxyInstancesImpl.h
