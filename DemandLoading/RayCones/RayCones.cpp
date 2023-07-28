@@ -56,7 +56,7 @@ class RayConesApp : public DemandTextureApp
     void initView() override;
     void createScene();
     void setSceneId( int sceneId ) { m_sceneId = sceneId; }
-    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices );
+    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
     
     void buildAccel( PerDeviceOptixState& state ) override;
     void createSBT( PerDeviceOptixState& state ) override;
