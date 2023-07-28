@@ -403,6 +403,8 @@ bool DDSFile::IsCompressed(DXGIFormat fmt) {
         case DXGIFormat::BC7_UNorm:
         case DXGIFormat::BC7_UNorm_SRGB:
             return true;
+        default:
+            return false;
     }
     return false;
 }
