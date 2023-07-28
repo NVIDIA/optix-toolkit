@@ -85,7 +85,6 @@ target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCor
 target_link_libraries( ImageSource
   PUBLIC
   CUDA::cuda_driver
-  ${CMAKE_DL_LIBS}  
   PRIVATE
   OpenEXR_OTK
   )

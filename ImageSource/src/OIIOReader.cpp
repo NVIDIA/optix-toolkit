@@ -146,7 +146,7 @@ void OIIOReader::open( TextureInfo* info )
 
         float out[4];
 
-        for( int i = 0; i < m_info.numChannels; ++i )
+        for( unsigned int i = 0; i < m_info.numChannels; ++i )
             out[i] = toFloat( tmp.data() + getBytesPerChannel( m_info.format ) * i, m_info.format );
 
         m_baseColor = float4{out[0], out[1], out[2], out[3]};
@@ -180,7 +180,7 @@ void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int
                         getBytesPerChannel( m_info.format ) * m_info.numChannels, rowPitch );
 }
 
-bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream )
+bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream /*stream*/ )
 {
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
@@ -276,7 +276,7 @@ bool OIIOReader::readMipLevel( char*        dest,
                                unsigned int expectedWidth,
                                unsigned int expectedHeight,
                                unsigned int expectedDepth,
-                               CUstream     stream )
+                               CUstream     /*stream*/ )
 {
     DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
