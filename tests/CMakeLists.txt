@@ -103,4 +103,4 @@ if( $<TARGET_RUNTIME_DLLS:testCuOmmBaking> )
 endif()
 
 # Register test cases with CTest.
-gtest_discover_tests(testCuOmmBaking)
+gtest_discover_tests(testCuOmmBaking PROPERTIES LABELS OmmBaking)
