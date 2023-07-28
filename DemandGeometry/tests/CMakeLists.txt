@@ -54,4 +54,4 @@ set_target_properties(TestDemandGeometry PROPERTIES
   FOLDER DemandLoading/tests
   )
 
-gtest_discover_tests(TestDemandGeometry)
+gtest_discover_tests(TestDemandGeometry PROPERTIES LABELS DemandLoading)

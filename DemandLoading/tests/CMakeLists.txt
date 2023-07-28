@@ -114,7 +114,7 @@ set_target_properties( testDemandLoading
 
 
 # Register test cases with CTest.
-gtest_discover_tests(testDemandLoading)
+gtest_discover_tests(testDemandLoading PROPERTIES LABELS DemandLoading)
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include( embed_ptx )
@@ -159,4 +159,4 @@ set_target_properties( testDemandLoading PROPERTIES
 )
 
 # Register test cases with CTest.
-gtest_discover_tests(testTextureFootprint)
+gtest_discover_tests(testTextureFootprint PROPERTIES LABELS DemandLoading)

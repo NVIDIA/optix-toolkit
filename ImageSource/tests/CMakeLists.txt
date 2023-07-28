@@ -48,4 +48,4 @@ set_target_properties( testImageSource PROPERTIES
 )
 
 # Register test cases with CTest.
-gtest_discover_tests(testImageSource)
+gtest_discover_tests(testImageSource PROPERTIES LABELS DemandLoading)
