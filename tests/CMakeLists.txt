@@ -95,7 +95,7 @@ if( $<TARGET_RUNTIME_DLLS:testSelfIntersectionAvoidance> )
     COMMAND_EXPAND_LISTS )
 endif()
 # Register test cases with CTest.
-gtest_discover_tests(testSelfIntersectionAvoidance)
+gtest_discover_tests(testSelfIntersectionAvoidance PROPERTIES LABELS ShaderUtil)
 
 add_executable(TestShaderUtil TestOperators.cpp)
 target_link_libraries(TestShaderUtil PUBLIC
@@ -104,4 +104,4 @@ target_link_libraries(TestShaderUtil PUBLIC
     OptiX::OptiX
 )
 set_target_properties(TestShaderUtil PROPERTIES FOLDER ShaderUtil/tests)
-gtest_discover_tests(TestShaderUtil)
+gtest_discover_tests(TestShaderUtil PROPERTIES LABELS ShaderUtil)
