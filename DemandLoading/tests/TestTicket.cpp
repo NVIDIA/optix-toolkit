@@ -73,7 +73,7 @@ TEST_F( TestTicket, TestMultiThreaded )
     ticket.update( numTasks );
     std::vector<std::thread> workers;
 
-    auto worker = [&ticket, numTasks]() {
+    auto worker = [&ticket]() {
         for( unsigned int i = 0; i < numTasks / 2; ++i )
             ticket.notify();
     };

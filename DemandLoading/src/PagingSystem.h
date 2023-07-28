@@ -114,7 +114,6 @@ class PagingSystem
 
     Options              m_options{};
     DeviceMemoryManager* m_deviceMemoryManager{};
-    PinnedMemoryManager* m_pinnedMemoryManager{};
     RequestProcessor*    m_requestProcessor{};
 
     otk::MemoryBlockDesc m_pageMappingsContextBlock;

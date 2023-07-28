@@ -104,28 +104,6 @@ struct TileCoords
     uint2                     coords[MAX_TILE_COORDS];
 };
 
-inline bool operator==( const TileCoords& a, const TileCoords& b )
-{
-    if( a.mipLevel != b.mipLevel || a.numCoords != b.numCoords )
-        return false;
-
-    for( unsigned int i = 0; i < a.numCoords; ++i )
-    {
-        bool found = false;
-        for( unsigned int j = 0; j < b.numCoords; ++j )
-        {
-            if( 0 == memcmp( &a.coords[i], &b.coords[j], sizeof( uint2 ) ) )
-            {
-                found = true;
-                break;
-            }
-        }
-        if( !found )
-            return false;
-    }
-    return true;
-}
-
 inline bool isSuperset( const TileCoords& a, const TileCoords& b )
 {
     for( unsigned int j = 0; j < b.numCoords; ++j )
@@ -229,7 +207,6 @@ class TextureFootprintFixture
     unsigned int m_textureWidth      = DEFAULT_TEXTURE_SIZE;
     unsigned int m_textureHeight     = DEFAULT_TEXTURE_SIZE;
     unsigned int m_mipTailFirstLevel = 4;
-    unsigned int m_levelSize         = 1024;  // pages allocated per mip level
 
   public:
     void setTextureWidth( unsigned int w ) { m_textureWidth = w; }
