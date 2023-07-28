@@ -27,10 +27,9 @@ git submodule update --init --recursive DemandLoading Memory ShaderUtil CMake
 
 - OptiX 7.3 or later.
 - CUDA 11.1 or later.
-- C++ compiler (e.g. gcc under Linux, Visual Studio under Windows)
-- CMake 3.24 or later.  Using the latest CMake is highly recommended, to ensure up-to-date CUDA
-language support.
-- git (any modern version).
+- C++ compiler (gcc, Clang, or Visual Studio).
+- CMake 3.24 or later.  Using the latest CMake is recommended to ensure up-to-date CUDA language support.
+- git (any modern version with LFS).
 
 On some Linux systems it may be necessary to install some commonly used developer packages with the following commands:
 ```
