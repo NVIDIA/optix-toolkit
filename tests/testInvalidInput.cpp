@@ -50,13 +50,6 @@ namespace {  // anonymous
             throw std::runtime_error( cudaGetErrorString( status ) );
     }
 
-    // Check status returned by a CuOmmBaking call.
-    inline void check( cuOmmBaking::Result status )
-    {
-        if( status != cuOmmBaking::Result::SUCCESS )
-            throw std::runtime_error( "Omm baking failure." );
-    }
-
     const uint3 g_indices[2] = {
         {0,1,2},
         {1,3,2}
@@ -64,20 +57,12 @@ namespace {  // anonymous
 
     const float2 g_texCoords[6] =
     {
-        0.f, 0.f,
-        1.f, 0.f,
-        0.f, 1.f,
-        1.f, 0.f,
-        1.f, 1.f,
-        0.f, 1.f,
-    };
-
-    const float3 g_vertices[4] =
-    {
-        0.f, 0.f, 0.f,
-        1.f, 0.f, 0.f,
-        0.f, 1.f, 0.f,
-        1.f, 1.f, 0.f,
+        {0.f, 0.f},
+        {1.f, 0.f},
+        {0.f, 1.f},
+        {1.f, 0.f},
+        {1.f, 1.f},
+        {0.f, 1.f},
     };
 
     const uint32_t g_width = 4;
