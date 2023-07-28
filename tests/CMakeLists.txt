@@ -86,7 +86,6 @@ target_link_libraries( testSelfIntersectionAvoidance
   testSelfIntersectionAvoidanceKernels
   OptiXToolkit::ShaderUtil
   OptiX::OptiX
-  ${CMAKE_DL_LIBS}
   )
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testSelfIntersectionAvoidance> )
