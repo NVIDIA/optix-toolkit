@@ -1,7 +1,7 @@
 # Cuda Opacity Micromap Baking Library
 
 The OptiX cuda Opacity Micromap Baking library allows hardware-accelerated baking of 
-OptiX Opacity Micromap Arrays from textured goemetry. 
+OptiX Opacity Micromap Arrays from textured geometry. 
 
 It works by taking triangle texture coordinates and opacity textures as input, and generating all buffers needed to build the OptiX Opacity Micromap Array
 and Geometry Acceleration Structures using the Opacity Micromap Array. For a higher-level discussion on OptiX Opacity Micromaps, please see the [OptiX Programming Guide]
