@@ -160,10 +160,10 @@ template <typename T>
 class Vector2Test : public Test
 {
   protected:
-    using Component = typename ComponentType<T>::Type;
-    Component one{ createOne<Component>() };
-    Component two{ createTwo<Component>() };
-    Component three{ createThree<Component>() };
+    using C = typename ComponentType<T>::Type;
+    C one{ createOne<C>() };
+    C two{ createTwo<C>() };
+    C three{ createThree<C>() };
     T oneOne{ this->one, this->one };
     T oneTwo{ this->one, this->two };
     T twoOne{ this->two, this->one };
@@ -176,7 +176,7 @@ TYPED_TEST_SUITE( Vector2Test, Vector2Types );
 
 TYPED_TEST( Vector2Test, equal )
 {
-    using T = gtest_TypeParam_;
+    using T = TypeParam;
     T oneTwoCopy{ this->oneTwo };
 
     ASSERT_EQ( this->oneTwo, oneTwoCopy );
@@ -184,7 +184,7 @@ TYPED_TEST( Vector2Test, equal )
 
 TYPED_TEST( Vector2Test, notEqual )
 {
-    using T = gtest_TypeParam_;
+    using T = TypeParam;
 
     ASSERT_NE( this->oneOne, this->oneTwo );
     ASSERT_NE( this->oneOne, this->twoOne );
@@ -193,11 +193,11 @@ TYPED_TEST( Vector2Test, notEqual )
 
 TYPED_TEST( Vector2Test, add )
 {
-    using T = gtest_TypeParam_;
-    T val = this->oneOne;
+    using T = TypeParam;
+    T val   = this->oneOne;
 
     ( val += this->one ) += this->oneOne;
-    
+
     ASSERT_EQ( this->threeThree, this->oneTwo + this->twoOne );
     ASSERT_EQ( this->twoTwo, this->oneOne + this->one );
     ASSERT_EQ( this->twoTwo, this->one + this->oneOne );
@@ -206,8 +206,8 @@ TYPED_TEST( Vector2Test, add )
 
 TYPED_TEST( Vector2Test, subtract )
 {
-    using T = gtest_TypeParam_;
-    T val = this->threeThree;
+    using T = TypeParam;
+    T val   = this->threeThree;
 
     ( val -= this->one ) -= this->oneOne;
 
@@ -219,9 +219,9 @@ TYPED_TEST( Vector2Test, subtract )
 
 TYPED_TEST( Vector2Test, multiply )
 {
-    using T = gtest_TypeParam_;
+    using T          = TypeParam;
     const T fourFour = this->twoTwo + this->twoTwo;
-    T val = this->oneOne;
+    T       val      = this->oneOne;
 
     ( val *= this->two ) *= this->twoTwo;
 
@@ -233,9 +233,9 @@ TYPED_TEST( Vector2Test, multiply )
 
 TYPED_TEST( Vector2Test, divide )
 {
-    using T = gtest_TypeParam_;
+    using T          = TypeParam;
     const T fourFour = this->twoTwo + this->twoTwo;
-    T val = fourFour;
+    T       val      = fourFour;
 
     ( val /= this->two ) /= this->twoTwo;
 
@@ -248,8 +248,10 @@ TYPED_TEST( Vector2Test, divide )
 template <typename T>
 class SignedVector2Test : public Vector2Test<T>
 {
-protected:
-    T minusOneOne{ -this->one, -this->one };
+  protected:
+    using C = typename ComponentType<T>::Type;
+    C minusOne{ static_cast<C>( -this->one ) };
+    T minusOneOne{ minusOne, minusOne };
 };
 using SignedVector2Types = Types<short2, int2, long2, longlong2, float2, double2>;
 TYPED_TEST_SUITE( SignedVector2Test, SignedVector2Types );
@@ -263,10 +265,10 @@ template <typename T>
 class Vector3Test : public Test
 {
   protected:
-    using Component = typename ComponentType<T>::Type;
-    Component one{ createOne<Component>() };
-    Component two{ createTwo<Component>() };
-    Component three{ createThree<Component>() };
+    using C = typename ComponentType<T>::Type;
+    C one{ createOne<C>() };
+    C two{ createTwo<C>() };
+    C three{ createThree<C>() };
     T oneOneOne{ this->one, this->one, this->one };
     T oneOneTwo{ this->one, this->one, this->two };
     T oneTwoOne{ this->one, this->two, this->one };
@@ -300,12 +302,12 @@ TYPED_TEST( Vector3Test, notEqual )
 
 TYPED_TEST( Vector3Test, add )
 {
-    using T = gtest_TypeParam_;
+    using T = TypeParam;
     const T threeThreeTwo{ this->three, this->three, this->two };
-    T val = this->oneOneOne;
+    T       val = this->oneOneOne;
 
     ( val += this->one ) += this->oneOneOne;
-    
+
     ASSERT_EQ( threeThreeTwo, this->oneTwoOne + this->twoOneOne );
     ASSERT_EQ( this->twoTwoTwo, this->oneOneOne + this->one );
     ASSERT_EQ( this->twoTwoTwo, this->one + this->oneOneOne );
@@ -314,8 +316,8 @@ TYPED_TEST( Vector3Test, add )
 
 TYPED_TEST( Vector3Test, subtract )
 {
-    using T = gtest_TypeParam_;
-    T val = this->threeThreeThree;
+    using T = TypeParam;
+    T val   = this->threeThreeThree;
 
     ( val -= this->one ) -= this->oneOneOne;
 
@@ -327,9 +329,9 @@ TYPED_TEST( Vector3Test, subtract )
 
 TYPED_TEST( Vector3Test, multiply )
 {
-    using T = gtest_TypeParam_;
+    using T              = TypeParam;
     const T fourFourFour = this->twoTwoTwo + this->twoTwoTwo;
-    T val = this->oneOneOne;
+    T       val          = this->oneOneOne;
 
     ( val *= this->two ) *= this->twoTwoTwo;
 
@@ -341,9 +343,9 @@ TYPED_TEST( Vector3Test, multiply )
 
 TYPED_TEST( Vector3Test, divide )
 {
-    using T = gtest_TypeParam_;
+    using T              = TypeParam;
     const T fourFourFour = this->twoTwoTwo + this->twoTwoTwo;
-    T val = fourFourFour;
+    T       val          = fourFourFour;
 
     ( val /= this->two ) /= this->twoTwoTwo;
 
@@ -357,7 +359,9 @@ template <typename T>
 class SignedVector3Test : public Vector3Test<T>
 {
   protected:
-    T minusOneOneOne{ -this->one, -this->one, -this->one };
+    using C = typename ComponentType<T>::Type;
+    C minusOne{ static_cast<C>( -this->one ) };
+    T minusOneOneOne{ minusOne, minusOne, minusOne };
 };
 using SignedVector3Types = Types<short3, int3, long3, longlong3, float3, double3>;
 TYPED_TEST_SUITE( SignedVector3Test, SignedVector3Types );
@@ -371,10 +375,10 @@ template <typename T>
 class Vector4Test : public Test
 {
   protected:
-    using Component = typename ComponentType<T>::Type;
-    Component one{ createOne<Component>() };
-    Component two{ createTwo<Component>() };
-    Component three{ createThree<Component>() };
+    using C = typename ComponentType<T>::Type;
+    C one{ createOne<C>() };
+    C two{ createTwo<C>() };
+    C three{ createThree<C>() };
     T oneOneOneOne{ this->one, this->one, this->one, this->one };
     T oneOneOneTwo{ this->one, this->one, this->one, this->two };
     T oneOneTwoOne{ this->one, this->one, this->two, this->one };
@@ -413,17 +417,17 @@ TYPED_TEST( Vector4Test, notEqual )
 
 TYPED_TEST( Vector4Test, add )
 {
-    using T = gtest_TypeParam_;
-    const T threeThreeThreeThree{ this->three, this->three, this->three, this->three };
-    T val = this->oneOneOneOne;
+    using T = TypeParam;
     using C = typename ComponentType<T>::Type;
+    const T threeThreeThreeThree{ this->three, this->three, this->three, this->three };
     const T zeroZeroZeroOne{ C{}, C{}, C{}, this->one };
     const T zeroZeroOneZero{ C{}, C{}, this->one, C{} };
     const T zeroOneZeroZero{ C{}, this->one, C{}, C{} };
     const T oneZeroZeroZero{ this->one, C{}, C{}, C{} };
+    T       val{ this->oneOneOneOne };
 
     ( val += this->one ) += this->oneOneOneOne;
-    
+
     ASSERT_EQ( this->twoTwoTwoTwo, this->oneOneOneOne + this->oneOneOneOne );
     ASSERT_EQ( this->oneOneOneTwo, this->oneOneOneOne + zeroZeroZeroOne );
     ASSERT_EQ( this->oneOneTwoOne, this->oneOneOneOne + zeroZeroOneZero );
@@ -436,8 +440,8 @@ TYPED_TEST( Vector4Test, add )
 
 TYPED_TEST( Vector4Test, subtract )
 {
-    using T = gtest_TypeParam_;
-    T val = this->threeThreeThreeThree;
+    using T = TypeParam;
+    T val   = this->threeThreeThreeThree;
 
     ( val -= this->one ) -= this->oneOneOneOne;
 
@@ -451,7 +455,9 @@ template <typename T>
 class SignedVector4Test : public Vector4Test<T>
 {
   protected:
-    T minusOneOneOneOne{ -this->one, -this->one, -this->one, -this->one };
+    using C = typename ComponentType<T>::Type;
+    C minusOne{ static_cast<C>( -this->one ) };
+    T minusOneOneOneOne{ minusOne, minusOne, minusOne, minusOne };
 };
 using SignedVector4Types = Types<short4, int4, long4, longlong4, float4, double4>;
 TYPED_TEST_SUITE( SignedVector4Test, SignedVector4Types );
@@ -460,4 +466,3 @@ TYPED_TEST( SignedVector4Test, negate )
 {
     ASSERT_EQ( this->minusOneOneOneOne, -this->oneOneOneOne );
 }
-
