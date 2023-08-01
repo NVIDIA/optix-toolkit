@@ -50,6 +50,11 @@
 #define M_1_PIf     0.318309886183790671538f
 #endif
 
+// Operators are defined in the global namespace so that
+// argument-dependent lookup will find them.
+//
+// Functions are declared in namespace otk.
+
 namespace otk {
 
 #if defined( __CUDACC__ )
@@ -127,11 +132,146 @@ OTK_INLINE OTK_HOSTDEVICE float clamp( const float f, const float a, const float
     return ::fmaxf( a, fminf( f, b ) );
 }
 
+} // namespace otk
+
+/* float2 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float2& a)
+{
+  return ::make_float2(-a.x, -a.y);
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float2 operator+(const float2& a, const float2& b)
+{
+  return ::make_float2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator+(const float2& a, const float b)
+{
+  return ::make_float2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator+(const float a, const float2& b)
+{
+  return ::make_float2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator+=(float2& a, const float2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator+=(float2& a, const float b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float2& a, const float2& b)
+{
+  return ::make_float2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float2& a, const float b)
+{
+  return ::make_float2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float a, const float2& b)
+{
+  return ::make_float2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator-=(float2& a, const float2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator-=(float2& a, const float b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float2 operator*(const float2& a, const float2& b)
+{
+  return ::make_float2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator*(const float2& a, const float s)
+{
+  return ::make_float2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator*(const float s, const float2& a)
+{
+  return ::make_float2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator*=(float2& a, const float2& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator*=(float2& a, const float s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float2 operator/(const float2& a, const float2& b)
+{
+  return ::make_float2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator/(const float2& a, const float s)
+{
+  float inv = 1.0f / s;
+  return a * inv;
+}
+OTK_INLINE OTK_HOSTDEVICE float2 operator/(const float s, const float2& a)
+{
+  return ::make_float2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator/=(float2& a, const float2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float2& operator/=(float2& a, const float s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const float2& a, const float2& b )
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float2& a, const float2& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
 
 /* float2 functions */
 /******************************************************************************/
 
-/** additional constructors 
+/** additional constructors
 * @{
 */
 using ::make_float2;
@@ -151,13 +291,7 @@ OTK_INLINE OTK_HOSTDEVICE float2 make_float2(const uint2& a)
 }
 /** @} */
 
-/** negate */
-OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float2& a)
-{
-  return ::make_float2(-a.x, -a.y);
-}
-
-/** min 
+/** min
 * @{
 */
 using ::fminf;
@@ -172,7 +306,7 @@ OTK_INLINE OTK_HOSTDEVICE float fminf(const float2& a)
 }
 /** @} */
 
-/** max 
+/** max
 * @{
 */
 using ::fmaxf;
@@ -184,96 +318,6 @@ OTK_INLINE OTK_HOSTDEVICE float2 fmaxf(const float2& a, const float2& b)
 OTK_INLINE OTK_HOSTDEVICE float fmaxf(const float2& a)
 {
   return ::fmaxf(a.x, a.y);
-}
-/** @} */
-
-/** add 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float2 operator+(const float2& a, const float2& b)
-{
-  return ::make_float2(a.x + b.x, a.y + b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator+(const float2& a, const float b)
-{
-  return ::make_float2(a.x + b, a.y + b);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator+(const float a, const float2& b)
-{
-  return ::make_float2(a + b.x, a + b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(float2& a, const float2& b)
-{
-  a.x += b.x; a.y += b.y;
-}
-/** @} */
-
-/** subtract 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float2& a, const float2& b)
-{
-  return ::make_float2(a.x - b.x, a.y - b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float2& a, const float b)
-{
-  return ::make_float2(a.x - b, a.y - b);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator-(const float a, const float2& b)
-{
-  return ::make_float2(a - b.x, a - b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator-=(float2& a, const float2& b)
-{
-  a.x -= b.x; a.y -= b.y;
-}
-/** @} */
-
-/** multiply 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float2 operator*(const float2& a, const float2& b)
-{
-  return ::make_float2(a.x * b.x, a.y * b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator*(const float2& a, const float s)
-{
-  return ::make_float2(a.x * s, a.y * s);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator*(const float s, const float2& a)
-{
-  return ::make_float2(a.x * s, a.y * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(float2& a, const float2& s)
-{
-  a.x *= s.x; a.y *= s.y;
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(float2& a, const float s)
-{
-  a.x *= s; a.y *= s;
-}
-/** @} */
-
-/** divide 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float2 operator/(const float2& a, const float2& b)
-{
-  return ::make_float2(a.x / b.x, a.y / b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator/(const float2& a, const float s)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-OTK_INLINE OTK_HOSTDEVICE float2 operator/(const float s, const float2& a)
-{
-  return ::make_float2( s/a.x, s/a.y );
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(float2& a, const float s)
-{
-  float inv = 1.0f / s;
-  a *= inv;
 }
 /** @} */
 
@@ -290,7 +334,7 @@ OTK_INLINE OTK_HOSTDEVICE float2 bilerp(const float2& x00, const float2& x10, co
   return lerp( lerp( x00, x10, u ), lerp( x01, x11, u ), v );
 }
 
-/** clamp 
+/** clamp
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float2 clamp(const float2& v, const float a, const float b)
@@ -303,24 +347,6 @@ OTK_INLINE OTK_HOSTDEVICE float2 clamp(const float2& v, const float2& a, const f
   return ::make_float2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
 }
 /** @} */
-
-}  // namespace otk
-
-/** equality 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==( const float2& a, const float2& b )
-{
-  return a.x == b.x && a.y == b.y;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float2& a, const float2& b )
-{
-  return !( a == b );
-}
-/** @} */
-
-namespace otk {
 
 /** dot product */
 OTK_INLINE OTK_HOSTDEVICE float dot(const float2& a, const float2& b)
@@ -341,7 +367,7 @@ OTK_INLINE OTK_HOSTDEVICE float2 normalize(const float2& v)
   return v * invLen;
 }
 
-/** floor 
+/** floor
 * @{
 */
 using ::floor;
@@ -360,7 +386,7 @@ OTK_INLINE OTK_HOSTDEVICE float2 reflect(const float2& i, const float2& n)
 }
 
 /** Faceforward
-* Returns N if dot(i, nref) > 0; else -N; 
+* Returns N if dot(i, nref) > 0; else -N;
 * Typical usage is N = faceforward(N, -ray.dir, N);
 * Note that this is opposite of what faceforward does in Cg and GLSL */
 OTK_INLINE OTK_HOSTDEVICE float2 faceforward(const float2& n, const float2& i, const float2& nref)
@@ -384,18 +410,152 @@ OTK_INLINE OTK_HOSTDEVICE float getByIndex(const float2& v, int i)
 {
   return ((float*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(float2& v, int i, float x)
 {
   ((float*)(&v))[i] = x;
 }
 
+} // namespace otk
+
+/* float3 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE float3 operator-( const float3& a )
+{
+  return ::make_float3( -a.x, -a.y, -a.z );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float3 operator+( const float3& a, const float3& b )
+{
+  return ::make_float3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator+( const float3& a, const float b )
+{
+  return ::make_float3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator+( const float a, const float3& b )
+{
+  return ::make_float3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator+=( float3& a, const float3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator+=( float3& a, const float b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float3 operator-( const float3& a, const float3& b )
+{
+  return ::make_float3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator-( const float3& a, const float b )
+{
+  return ::make_float3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator-( const float a, const float3& b )
+{
+  return ::make_float3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator-=( float3& a, const float3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator-=( float3& a, const float b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float3 operator*(const float3& a, const float3& b)
+{
+  return ::make_float3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator*(const float3& a, const float s)
+{
+  return ::make_float3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator*(const float s, const float3& a)
+{
+  return ::make_float3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator*=(float3& a, const float3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator*=(float3& a, const float s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float3 operator/(const float3& a, const float3& b)
+{
+  return ::make_float3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator/(const float3& a, const float s)
+{
+  return ::make_float3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE float3 operator/(const float s, const float3& a)
+{
+  return ::make_float3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator/=(float3& a, const float3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float3& operator/=(float3& a, const float s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const float3& a, const float3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float3& a, const float3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
 
 /* float3 functions */
 /******************************************************************************/
 
-/** additional constructors 
+/** additional constructors
 * @{
 */
 using ::make_float3;
@@ -418,13 +578,7 @@ OTK_INLINE OTK_HOSTDEVICE float3 make_float3(const uint3& a)
 }
 /** @} */
 
-/** negate */
-OTK_INLINE OTK_HOSTDEVICE float3 operator-(const float3& a)
-{
-  return ::make_float3(-a.x, -a.y, -a.z);
-}
-
-/** min 
+/** min
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float3 fminf(const float3& a, const float3& b)
@@ -437,7 +591,7 @@ OTK_INLINE OTK_HOSTDEVICE float fminf(const float3& a)
 }
 /** @} */
 
-/** max 
+/** max
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float3 fmaxf(const float3& a, const float3& b)
@@ -447,96 +601,6 @@ OTK_INLINE OTK_HOSTDEVICE float3 fmaxf(const float3& a, const float3& b)
 OTK_INLINE OTK_HOSTDEVICE float fmaxf(const float3& a)
 {
   return ::fmaxf(::fmaxf(a.x, a.y), a.z);
-}
-/** @} */
-
-/** add 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float3 operator+(const float3& a, const float3& b)
-{
-  return ::make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator+(const float3& a, const float b)
-{
-  return ::make_float3(a.x + b, a.y + b, a.z + b);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator+(const float a, const float3& b)
-{
-  return ::make_float3(a + b.x, a + b.y, a + b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(float3& a, const float3& b)
-{
-  a.x += b.x; a.y += b.y; a.z += b.z;
-}
-/** @} */
-
-/** subtract 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float3 operator-(const float3& a, const float3& b)
-{
-  return ::make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator-(const float3& a, const float b)
-{
-  return ::make_float3(a.x - b, a.y - b, a.z - b);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator-(const float a, const float3& b)
-{
-  return ::make_float3(a - b.x, a - b.y, a - b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator-=(float3& a, const float3& b)
-{
-  a.x -= b.x; a.y -= b.y; a.z -= b.z;
-}
-/** @} */
-
-/** multiply 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float3 operator*(const float3& a, const float3& b)
-{
-  return ::make_float3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator*(const float3& a, const float s)
-{
-  return ::make_float3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator*(const float s, const float3& a)
-{
-  return ::make_float3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(float3& a, const float3& s)
-{
-  a.x *= s.x; a.y *= s.y; a.z *= s.z;
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(float3& a, const float s)
-{
-  a.x *= s; a.y *= s; a.z *= s;
-}
-/** @} */
-
-/** divide 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float3 operator/(const float3& a, const float3& b)
-{
-  return ::make_float3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator/(const float3& a, const float s)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-OTK_INLINE OTK_HOSTDEVICE float3 operator/(const float s, const float3& a)
-{
-  return ::make_float3( s/a.x, s/a.y, s/a.z );
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(float3& a, const float s)
-{
-  float inv = 1.0f / s;
-  a *= inv;
 }
 /** @} */
 
@@ -553,7 +617,7 @@ OTK_INLINE OTK_HOSTDEVICE float3 bilerp(const float3& x00, const float3& x10, co
   return lerp( lerp( x00, x10, u ), lerp( x01, x11, u ), v );
 }
 
-/** clamp 
+/** clamp
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float3 clamp(const float3& v, const float a, const float b)
@@ -566,24 +630,6 @@ OTK_INLINE OTK_HOSTDEVICE float3 clamp(const float3& v, const float3& a, const f
   return ::make_float3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
 }
 /** @} */
-
-}  // namespace otk
-
-/** equality 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==( const float3& a, const float3& b )
-{
-  return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float3& a, const float3& b )
-{
-  return !( a == b );
-}
-/** @} */
-
-namespace otk {
 
 /** dot product */
 OTK_INLINE OTK_HOSTDEVICE float dot(const float3& a, const float3& b)
@@ -642,17 +688,153 @@ OTK_INLINE OTK_HOSTDEVICE float getByIndex(const float3& v, int i)
 {
   return ((float*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(float3& v, int i, float x)
 {
   ((float*)(&v))[i] = x;
 }
-  
+
+}  // namespace otk
+
+/* float4 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float4& a)
+{
+  return ::make_float4(-a.x, -a.y, -a.z, -a.w);
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float4 operator+(const float4& a, const float4& b)
+{
+  return ::make_float4(a.x + b.x, a.y + b.y, a.z + b.z,  a.w + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator+(const float4& a, const float b)
+{
+  return ::make_float4(a.x + b, a.y + b, a.z + b,  a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator+(const float a, const float4& b)
+{
+  return ::make_float4(a + b.x, a + b.y, a + b.z,  a + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator+=(float4& a, const float4& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator+=(float4& a, const float b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float4& a, const float4& b)
+{
+  return ::make_float4(a.x - b.x, a.y - b.y, a.z - b.z,  a.w - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float4& a, const float b)
+{
+  return ::make_float4(a.x - b, a.y - b, a.z - b,  a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float a, const float4& b)
+{
+  return ::make_float4(a - b.x, a - b.y, a - b.z,  a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator-=(float4& a, const float4& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator-=(float4& a, const float b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float4 operator*(const float4& a, const float4& s)
+{
+  return ::make_float4(a.x * s.x, a.y * s.y, a.z * s.z, a.w * s.w);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator*(const float4& a, const float s)
+{
+  return ::make_float4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator*(const float s, const float4& a)
+{
+  return ::make_float4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator*=(float4& a, const float4& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator*=(float4& a, const float s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE float4 operator/(const float4& a, const float4& b)
+{
+  return ::make_float4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator/(const float4& a, const float s)
+{
+  float inv = 1.0f / s;
+  return a * inv;
+}
+OTK_INLINE OTK_HOSTDEVICE float4 operator/(const float s, const float4& a)
+{
+  return ::make_float4( s/a.x, s/a.y, s/a.z, s/a.w );
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator/=(float4& a, const float4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE float4& operator/=(float4& a, const float s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const float4& a, const float4& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const float4& a, const float4& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
 /* float4 functions */
 /******************************************************************************/
 
-/** additional constructors 
+/** additional constructors
 * @{
 */
 using ::make_float4;
@@ -675,13 +857,7 @@ OTK_INLINE OTK_HOSTDEVICE float4 make_float4(const uint4& a)
 }
 /** @} */
 
-/** negate */
-OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float4& a)
-{
-  return ::make_float4(-a.x, -a.y, -a.z, -a.w);
-}
-
-/** min 
+/** min
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float4 fminf(const float4& a, const float4& b)
@@ -694,7 +870,7 @@ OTK_INLINE OTK_HOSTDEVICE float fminf(const float4& a)
 }
 /** @} */
 
-/** max 
+/** max
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float4 fmaxf(const float4& a, const float4& b)
@@ -704,96 +880,6 @@ OTK_INLINE OTK_HOSTDEVICE float4 fmaxf(const float4& a, const float4& b)
 OTK_INLINE OTK_HOSTDEVICE float fmaxf(const float4& a)
 {
   return ::fmaxf(::fmaxf(a.x, a.y), ::fmaxf(a.z, a.w));
-}
-/** @} */
-
-/** add 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float4 operator+(const float4& a, const float4& b)
-{
-  return ::make_float4(a.x + b.x, a.y + b.y, a.z + b.z,  a.w + b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator+(const float4& a, const float b)
-{
-  return ::make_float4(a.x + b, a.y + b, a.z + b,  a.w + b);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator+(const float a, const float4& b)
-{
-  return ::make_float4(a + b.x, a + b.y, a + b.z,  a + b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(float4& a, const float4& b)
-{
-  a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
-}
-/** @} */
-
-/** subtract 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float4& a, const float4& b)
-{
-  return ::make_float4(a.x - b.x, a.y - b.y, a.z - b.z,  a.w - b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float4& a, const float b)
-{
-  return ::make_float4(a.x - b, a.y - b, a.z - b,  a.w - b);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator-(const float a, const float4& b)
-{
-  return ::make_float4(a - b.x, a - b.y, a - b.z,  a - b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator-=(float4& a, const float4& b)
-{
-  a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
-}
-/** @} */
-
-/** multiply 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float4 operator*(const float4& a, const float4& s)
-{
-  return ::make_float4(a.x * s.x, a.y * s.y, a.z * s.z, a.w * s.w);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator*(const float4& a, const float s)
-{
-  return ::make_float4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator*(const float s, const float4& a)
-{
-  return ::make_float4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(float4& a, const float4& s)
-{
-  a.x *= s.x; a.y *= s.y; a.z *= s.z; a.w *= s.w;
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(float4& a, const float s)
-{
-  a.x *= s; a.y *= s; a.z *= s; a.w *= s;
-}
-/** @} */
-
-/** divide 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE float4 operator/(const float4& a, const float4& b)
-{
-  return ::make_float4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator/(const float4& a, const float s)
-{
-  float inv = 1.0f / s;
-  return a * inv;
-}
-OTK_INLINE OTK_HOSTDEVICE float4 operator/(const float s, const float4& a)
-{
-  return ::make_float4( s/a.x, s/a.y, s/a.z, s/a.w );
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(float4& a, const float s)
-{
-  float inv = 1.0f / s;
-  a *= inv;
 }
 /** @} */
 
@@ -810,7 +896,7 @@ OTK_INLINE OTK_HOSTDEVICE float4 bilerp(const float4& x00, const float4& x10, co
   return lerp( lerp( x00, x10, u ), lerp( x01, x11, u ), v );
 }
 
-/** clamp 
+/** clamp
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE float4 clamp(const float4& v, const float a, const float b)
@@ -855,11 +941,11 @@ OTK_INLINE OTK_HOSTDEVICE float4 reflect(const float4& i, const float4& n)
   return i - 2.0f * n * dot(n,i);
 }
 
-/** 
+/**
 * Faceforward
 * Returns N if dot(i, nref) > 0; else -N;
 * Typical usage is N = faceforward(N, -ray.dir, N);
-* Note that this is opposite of what faceforward does in Cg and GLSL 
+* Note that this is opposite of what faceforward does in Cg and GLSL
 */
 OTK_INLINE OTK_HOSTDEVICE float4 faceforward(const float4& n, const float4& i, const float4& nref)
 {
@@ -883,8 +969,426 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(float4& v, int i, float x)
 {
   ((float*)(&v))[i] = x;
 }
-  
-  
+
+} // namespace otk
+
+/* double2 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE double2 operator-(const double2& a)
+{
+  return ::make_double2(-a.x, -a.y);
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double2 operator+(const double2& a, const double2& b)
+{
+  return ::make_double2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator+(const double2& a, const double b)
+{
+  return ::make_double2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator+(const double a, const double2& b)
+{
+  return ::make_double2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator+=(double2& a, const double2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator+=(double2& a, const double b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double2 operator-(const double2& a, const double2& b)
+{
+  return ::make_double2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator-(const double2& a, const double b)
+{
+  return ::make_double2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator-(const double a, const double2& b)
+{
+  return ::make_double2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator-=(double2& a, const double2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator-=(double2& a, const double b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double2 operator*(const double2& a, const double2& b)
+{
+  return ::make_double2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator*(const double2& a, const double s)
+{
+  return ::make_double2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator*(const double s, const double2& a)
+{
+  return ::make_double2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator*=(double2& a, const double2& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator*=(double2& a, const double s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double2 operator/(const double2& a, const double2& b)
+{
+  return ::make_double2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator/(const double2& a, const double s)
+{
+  double inv = 1.0 / s;
+  return a * inv;
+}
+OTK_INLINE OTK_HOSTDEVICE double2 operator/(const double s, const double2& a)
+{
+  return ::make_double2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator/=(double2& a, const double2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double2& operator/=(double2& a, const double s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const double2& a, const double2& b )
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const double2& a, const double2& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* double2 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* double3 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE double3 operator-( const double3& a )
+{
+  return ::make_double3( -a.x, -a.y, -a.z );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double3 operator+( const double3& a, const double3& b )
+{
+  return ::make_double3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator+( const double3& a, const double b )
+{
+  return ::make_double3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator+( const double a, const double3& b )
+{
+  return ::make_double3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator+=( double3& a, const double3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator+=( double3& a, const double b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double3 operator-( const double3& a, const double3& b )
+{
+  return ::make_double3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator-( const double3& a, const double b )
+{
+  return ::make_double3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator-( const double a, const double3& b )
+{
+  return ::make_double3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator-=( double3& a, const double3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator-=( double3& a, const double b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double3 operator*(const double3& a, const double3& b)
+{
+  return ::make_double3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator*(const double3& a, const double s)
+{
+  return ::make_double3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator*(const double s, const double3& a)
+{
+  return ::make_double3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator*=(double3& a, const double3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator*=(double3& a, const double s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double3 operator/(const double3& a, const double3& b)
+{
+  return ::make_double3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator/(const double3& a, const double s)
+{
+  return ::make_double3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE double3 operator/(const double s, const double3& a)
+{
+  return ::make_double3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator/=(double3& a, const double3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double3& operator/=(double3& a, const double s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const double3& a, const double3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const double3& a, const double3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* double3 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* double4 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE double4 operator-( const double4& a )
+{
+  return ::make_double4( -a.x, -a.y, -a.z, -a.w );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double4 operator+( const double4& a, const double4& b )
+{
+  return ::make_double4( a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator+( const double4& a, const double b )
+{
+  return ::make_double4( a.x + b, a.y + b, a.z + b, a.w + b );
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator+( const double a, const double4& b )
+{
+  return ::make_double4( a + b.x, a + b.y, a + b.z, a + b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator+=( double4& a, const double4& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator+=( double4& a, const double b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double4 operator-( const double4& a, const double4& b )
+{
+  return ::make_double4( a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator-( const double4& a, const double b )
+{
+  return ::make_double4( a.x - b, a.y - b, a.z - b, a.w - b );
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator-( const double a, const double4& b )
+{
+  return ::make_double4( a - b.x, a - b.y, a - b.z, a - b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator-=( double4& a, const double4& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator-=( double4& a, const double b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double4 operator*(const double4& a, const double4& b)
+{
+  return ::make_double4(a.x * b.x, a.y * b.y, a.z * b.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator*(const double4& a, const double s)
+{
+  return ::make_double4(a.x * s, a.y * s, a.z * s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator*(const double s, const double4& a)
+{
+  return ::make_double4(a.x * s, a.y * s, a.z * s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator*=(double4& a, const double4& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator*=(double4& a, const double s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE double4 operator/(const double4& a, const double4& b)
+{
+  return ::make_double4(a.x / b.x, a.y / b.y, a.z / b.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator/(const double4& a, const double s)
+{
+  return ::make_double4(a.x / s, a.y / s, a.z / s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE double4 operator/(const double s, const double4& a)
+{
+  return ::make_double4(s /a.x, s / a.y, s / a.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator/=(double4& a, const double4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE double4& operator/=(double4& a, const double s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const double4& a, const double4& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const double4& a, const double4& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* double4 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+namespace otk {
+
 /* int functions */
 /******************************************************************************/
 
@@ -899,31 +1403,785 @@ OTK_INLINE OTK_HOSTDEVICE int getByIndex(const int1& v, int i)
 {
   return ((int*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(int1& v, int i, int x)
 {
   ((int*)(&v))[i] = x;
 }
-  
 
-/* int2 functions */
+} // namespace otk
+
+/* short2 operators */
 /******************************************************************************/
 
-/** additional constructors 
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE short2 operator-(const short2& a)
+{
+  return ::make_short2(-a.x, -a.y);
+}
+
+/** add
 * @{
 */
-using ::make_int2;
-
-OTK_INLINE OTK_HOSTDEVICE int2 make_int2(const int s)
+OTK_INLINE OTK_HOSTDEVICE short2 operator+(const short2& a, const short2& b)
 {
-  return ::make_int2(s, s);
+  return ::make_short2(a.x + b.x, a.y + b.y);
 }
-OTK_INLINE OTK_HOSTDEVICE int2 make_int2(const float2& a)
+OTK_INLINE OTK_HOSTDEVICE short2 operator+(const short2& a, const short b)
 {
-  return ::make_int2(int(a.x), int(a.y));
+  return ::make_short2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator+(const short a, const short2& b)
+{
+  return ::make_short2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator+=(short2& a, const short2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator+=(short2& a, const short b)
+{
+  a = a + b;
+  return a;
 }
 /** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short2 operator-(const short2& a, const short2& b)
+{
+  return ::make_short2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator-(const short2& a, const short b)
+{
+  return ::make_short2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator-(const short a, const short2& b)
+{
+  return ::make_short2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator-=(short2& a, const short2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator-=(short2& a, const short b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short2 operator*(const short2& a, const short2& b)
+{
+  return ::make_short2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator*(const short2& a, const short s)
+{
+  return ::make_short2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator*(const short s, const short2& a)
+{
+  return ::make_short2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator*=(short2& a, const short2& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator*=(short2& a, const short s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short2 operator/(const short2& a, const short2& b)
+{
+  return ::make_short2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator/(const short2& a, const short s)
+{
+  return ::make_short2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE short2 operator/(const short s, const short2& a)
+{
+  return ::make_short2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator/=(short2& a, const short2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short2& operator/=(short2& a, const short s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const short2& a, const short2& b)
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const short2& a, const short2& b)
+{
+  return a.x != b.x || a.y != b.y;
+}
+/** @} */
+
+/* short3 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE short3 operator-( const short3& a )
+{
+  return ::make_short3( -a.x, -a.y, -a.z );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short3 operator+( const short3& a, const short3& b )
+{
+  return ::make_short3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator+( const short3& a, const short b )
+{
+  return ::make_short3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator+( const short a, const short3& b )
+{
+  return ::make_short3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator+=( short3& a, const short3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator+=( short3& a, const short b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short3 operator-( const short3& a, const short3& b )
+{
+  return ::make_short3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator-( const short3& a, const short b )
+{
+  return ::make_short3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator-( const short a, const short3& b )
+{
+  return ::make_short3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator-=( short3& a, const short3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator-=( short3& a, const short b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short3 operator*(const short3& a, const short3& b)
+{
+  return ::make_short3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator*(const short3& a, const short s)
+{
+  return ::make_short3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator*(const short s, const short3& a)
+{
+  return ::make_short3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator*=(short3& a, const short3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator*=(short3& a, const short s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short3 operator/(const short3& a, const short3& b)
+{
+  return ::make_short3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator/(const short3& a, const short s)
+{
+  return ::make_short3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE short3 operator/(const short s, const short3& a)
+{
+  return ::make_short3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator/=(short3& a, const short3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short3& operator/=(short3& a, const short s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const short3& a, const short3& b)
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const short3& a, const short3& b)
+{
+  return a.x != b.x || a.y != b.y || a.z != b.z;
+}
+/** @} */
+
+/* short4 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE short4 operator-(const short4& a)
+{
+  return ::make_short4(-a.x, -a.y, -a.z, -a.w);
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short4 operator+(const short4& a, const short4& b)
+{
+  return ::make_short4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator+(const short4& a, const short b)
+{
+  return ::make_short4(a.x + b, a.y + b, a.z + b, a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator+(const short a, const short4& b)
+{
+  return b + a;
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator+=(short4& a, const short4& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator+=(short4& a, const short b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short4 operator-(const short4& a, const short4& b)
+{
+  return ::make_short4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator-(const short a, const short4& b)
+{
+  return ::make_short4(a - b.x, a - b.y, a - b.z, a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator-(const short4& a, const short b)
+{
+  return ::make_short4(a.x - b, a.y - b, a.z - b, a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator-=(short4& a, const short4& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator-=(short4& a, const short b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short4 operator*(const short4& a, const short4& b)
+{
+  return ::make_short4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator*(const short4& a, const short s)
+{
+  return ::make_short4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator*(const short s, const short4& a)
+{
+  return ::make_short4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator*=(short4& a, const short4& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator*=(short4& a, const short s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE short4 operator/(const short4& a, const short4& b)
+{
+  return ::make_short4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator/(const short4& a, const short s)
+{
+  return ::make_short4(a.x / s, a.y / s, a.z / s, a.w / s);
+}
+OTK_INLINE OTK_HOSTDEVICE short4 operator/(const short s, const short4& a)
+{
+  return ::make_short4(s / a.x, s / a.y, s / a.z, s / a.w);
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator/=(short4& a, const short4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE short4& operator/=(short4& a, const short s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const short4& a, const short4& b)
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const short4& a, const short4& b)
+{
+  return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
+/** @} */
+
+/* ushort2 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator+(const ushort2& a, const ushort2& b)
+{
+  return ::make_ushort2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator+(const ushort2& a, const short b)
+{
+  return ::make_ushort2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator+(const short a, const ushort2& b)
+{
+  return ::make_ushort2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator+=(ushort2& a, const ushort2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator+=(ushort2& a, const short b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator-(const ushort2& a, const ushort2& b)
+{
+  return ::make_ushort2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator-(const ushort2& a, const short b)
+{
+  return ::make_ushort2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator-(const short a, const ushort2& b)
+{
+  return ::make_ushort2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator-=(ushort2& a, const ushort2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator-=(ushort2& a, const short b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator*(const ushort2& a, const ushort2& b)
+{
+  return ::make_ushort2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator*(const ushort2& a, const short s)
+{
+  return ::make_ushort2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator*(const short s, const ushort2& a)
+{
+  return ::make_ushort2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator*=(ushort2& a, const ushort2& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator*=(ushort2& a, const short s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator/(const ushort2& a, const ushort2& b)
+{
+  return ::make_ushort2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator/(const ushort2& a, const short s)
+{
+  return ::make_ushort2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2 operator/(const short s, const ushort2& a)
+{
+  return ::make_ushort2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator/=(ushort2& a, const ushort2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort2& operator/=(ushort2& a, const short s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const ushort2& a, const ushort2& b)
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ushort2& a, const ushort2& b)
+{
+  return a.x != b.x || a.y != b.y;
+}
+/** @} */
+
+/* ushort3 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator+( const ushort3& a, const ushort3& b )
+{
+  return ::make_ushort3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator+( const ushort3& a, const unsigned short b )
+{
+  return ::make_ushort3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator+( const unsigned short a, const ushort3& b )
+{
+  return ::make_ushort3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator+=( ushort3& a, const ushort3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator+=( ushort3& a, const unsigned short b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator-( const ushort3& a, const ushort3& b )
+{
+  return ::make_ushort3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator-( const ushort3& a, const unsigned short b )
+{
+  return ::make_ushort3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator-( const unsigned short a, const ushort3& b )
+{
+  return ::make_ushort3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator-=( ushort3& a, const ushort3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator-=( ushort3& a, const unsigned short b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator*(const ushort3& a, const ushort3& b)
+{
+  return ::make_ushort3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator*(const ushort3& a, const unsigned short s)
+{
+  return ::make_ushort3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator*(const unsigned short s, const ushort3& a)
+{
+  return ::make_ushort3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator*=(ushort3& a, const ushort3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator*=(ushort3& a, const unsigned short s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator/(const ushort3& a, const ushort3& b)
+{
+  return ::make_ushort3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator/(const ushort3& a, const unsigned short s)
+{
+  return ::make_ushort3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3 operator/(const unsigned short s, const ushort3& a)
+{
+  return ::make_ushort3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator/=(ushort3& a, const ushort3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort3& operator/=(ushort3& a, const unsigned short s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const ushort3& a, const ushort3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const ushort3& a, const ushort3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+/* ushort4 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator+(const ushort4& a, const ushort4& b)
+{
+  return ::make_ushort4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator+(const ushort4& a, const unsigned short b)
+{
+  return ::make_ushort4(a.x + b, a.y + b, a.z + b, a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator+(const unsigned short a, const ushort4& b)
+{
+  return b + a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator+=(ushort4& a, const ushort4& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator+=(ushort4& a, const unsigned short b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator-(const ushort4& a, const ushort4& b)
+{
+  return ::make_ushort4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator-(const ushort4& a, const unsigned short b)
+{
+  return ::make_ushort4(a.x - b, a.y - b, a.z - b, a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator-(const unsigned short a, const ushort4& b)
+{
+  return ::make_ushort4(a - b.x, a - b.y, a - b.z, a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator-=(ushort4& a, const ushort4& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator-=(ushort4& a, const unsigned short b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator*(const ushort4& a, const ushort4& b)
+{
+  return ::make_ushort4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator*(const ushort4& a, const unsigned short s)
+{
+  return ::make_ushort4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator*(const unsigned short s, const ushort4& a)
+{
+  return ::make_ushort4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator*=(ushort4& a, const ushort4& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator*=(ushort4& a, const unsigned short s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator/(const ushort4& a, const ushort4& b)
+{
+  return ::make_ushort4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator/(const ushort4& a, const unsigned short s)
+{
+  return ::make_ushort4(a.x / s, a.y / s, a.z / s, a.w / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4 operator/(const unsigned short s, const ushort4& a)
+{
+  return ::make_ushort4(s / a.x, s / a.y, s / a.z, s / a.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator/=(ushort4& a, const ushort4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ushort4& operator/=(ushort4& a, const unsigned short s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const ushort4& a, const ushort4& b)
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ushort4& a, const ushort4& b)
+{
+  return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
+/** @} */
+
+/* int2 operators */
+/******************************************************************************/
 
 /** negate */
 OTK_INLINE OTK_HOSTDEVICE int2 operator-(const int2& a)
@@ -931,32 +2189,34 @@ OTK_INLINE OTK_HOSTDEVICE int2 operator-(const int2& a)
   return ::make_int2(-a.x, -a.y);
 }
 
-/** min */
-OTK_INLINE OTK_HOSTDEVICE int2 min(const int2& a, const int2& b)
-{
-  return ::make_int2(min(a.x,b.x), min(a.y,b.y));
-}
-
-/** max */
-OTK_INLINE OTK_HOSTDEVICE int2 max(const int2& a, const int2& b)
-{
-  return ::make_int2(max(a.x,b.x), max(a.y,b.y));
-}
-
-/** add 
+/** add
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int2 operator+(const int2& a, const int2& b)
 {
   return ::make_int2(a.x + b.x, a.y + b.y);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator+=(int2& a, const int2& b)
+OTK_INLINE OTK_HOSTDEVICE int2 operator+(const int2& a, const int b)
 {
-  a.x += b.x; a.y += b.y;
+  return ::make_int2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE int2 operator+(const int a, const int2& b)
+{
+  return ::make_int2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator+=(int2& a, const int2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator+=(int2& a, const int b)
+{
+  a = a + b;
+  return a;
 }
 /** @} */
 
-/** subtract 
+/** subtract
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int2 operator-(const int2& a, const int2& b)
@@ -967,13 +2227,23 @@ OTK_INLINE OTK_HOSTDEVICE int2 operator-(const int2& a, const int b)
 {
   return ::make_int2(a.x - b, a.y - b);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator-=(int2& a, const int2& b)
+OTK_INLINE OTK_HOSTDEVICE int2 operator-(const int a, const int2& b)
 {
-  a.x -= b.x; a.y -= b.y;
+  return ::make_int2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator-=(int2& a, const int2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator-=(int2& a, const int b)
+{
+  a = a - b;
+  return a;
 }
 /** @} */
 
-/** multiply 
+/** multiply
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int2 operator*(const int2& a, const int2& b)
@@ -988,27 +2258,46 @@ OTK_INLINE OTK_HOSTDEVICE int2 operator*(const int s, const int2& a)
 {
   return ::make_int2(a.x * s, a.y * s);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator*=(int2& a, const int s)
+OTK_INLINE OTK_HOSTDEVICE int2& operator*=(int2& a, const int2& s)
 {
-  a.x *= s; a.y *= s;
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator*=(int2& a, const int s)
+{
+  a = a * s;
+  return a;
 }
 /** @} */
 
-/** clamp 
+/** divide
 * @{
 */
-OTK_INLINE OTK_HOSTDEVICE int2 clamp(const int2& v, const int a, const int b)
+OTK_INLINE OTK_HOSTDEVICE int2 operator/(const int2& a, const int2& b)
 {
-  return ::make_int2(clamp(v.x, a, b), clamp(v.y, a, b));
+  return ::make_int2(a.x / b.x, a.y / b.y);
 }
-
-OTK_INLINE OTK_HOSTDEVICE int2 clamp(const int2& v, const int2& a, const int2& b)
+OTK_INLINE OTK_HOSTDEVICE int2 operator/(const int2& a, const int s)
 {
-  return ::make_int2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
+  return ::make_int2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE int2 operator/(const int s, const int2& a)
+{
+  return ::make_int2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator/=(int2& a, const int2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int2& operator/=(int2& a, const int s)
+{
+  a = a / s;
+  return a;
 }
 /** @} */
 
-/** equality 
+/** equality
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE bool operator==(const int2& a, const int2& b)
@@ -1022,82 +2311,130 @@ OTK_INLINE OTK_HOSTDEVICE bool operator!=(const int2& a, const int2& b)
 }
 /** @} */
 
+namespace otk {
+
+/* int2 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+using ::make_int2;
+
+OTK_INLINE OTK_HOSTDEVICE int2 make_int2(const int s)
+{
+  return ::make_int2(s, s);
+}
+OTK_INLINE OTK_HOSTDEVICE int2 make_int2(const float2& a)
+{
+  return ::make_int2(int(a.x), int(a.y));
+}
+/** @} */
+
+/** min */
+OTK_INLINE OTK_HOSTDEVICE int2 min(const int2& a, const int2& b)
+{
+  return ::make_int2(min(a.x,b.x), min(a.y,b.y));
+}
+
+/** max */
+OTK_INLINE OTK_HOSTDEVICE int2 max(const int2& a, const int2& b)
+{
+  return ::make_int2(max(a.x,b.x), max(a.y,b.y));
+}
+
+/** clamp
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE int2 clamp(const int2& v, const int a, const int b)
+{
+  return ::make_int2(clamp(v.x, a, b), clamp(v.y, a, b));
+}
+
+OTK_INLINE OTK_HOSTDEVICE int2 clamp(const int2& v, const int2& a, const int2& b)
+{
+  return ::make_int2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
+}
+/** @} */
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE int getByIndex(const int2& v, int i)
 {
   return ((int*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(int2& v, int i, int x)
 {
   ((int*)(&v))[i] = x;
 }
-  
 
-/* int3 functions */
+}  // namespace otk
+
+/* int3 operators */
 /******************************************************************************/
 
-/** additional constructors 
-* @{
-*/
-using ::make_int3;
-OTK_INLINE OTK_HOSTDEVICE int3 make_int3(const int s)
-{
-  return ::make_int3(s, s, s);
-}
-OTK_INLINE OTK_HOSTDEVICE int3 make_int3(const float3& a)
-{
-  return ::make_int3(int(a.x), int(a.y), int(a.z));
-}
-/** @} */
-
 /** negate */
-OTK_INLINE OTK_HOSTDEVICE int3 operator-(const int3& a)
+OTK_INLINE OTK_HOSTDEVICE int3 operator-( const int3& a )
 {
-  return ::make_int3(-a.x, -a.y, -a.z);
+  return ::make_int3( -a.x, -a.y, -a.z );
 }
 
-/** min */
-OTK_INLINE OTK_HOSTDEVICE int3 min(const int3& a, const int3& b)
-{
-  return ::make_int3(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z));
-}
-
-/** max */
-OTK_INLINE OTK_HOSTDEVICE int3 max(const int3& a, const int3& b)
-{
-  return ::make_int3(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z));
-}
-
-/** add 
+/** add
 * @{
 */
-OTK_INLINE OTK_HOSTDEVICE int3 operator+(const int3& a, const int3& b)
+OTK_INLINE OTK_HOSTDEVICE int3 operator+( const int3& a, const int3& b )
 {
-  return ::make_int3(a.x + b.x, a.y + b.y, a.z + b.z);
+  return ::make_int3( a.x + b.x, a.y + b.y, a.z + b.z );
 }
-OTK_INLINE OTK_HOSTDEVICE void operator+=(int3& a, const int3& b)
+OTK_INLINE OTK_HOSTDEVICE int3 operator+( const int3& a, const int b )
 {
-  a.x += b.x; a.y += b.y; a.z += b.z;
+  return ::make_int3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE int3 operator+( const int a, const int3& b )
+{
+  return ::make_int3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE int3& operator+=( int3& a, const int3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int3& operator+=( int3& a, const int b )
+{
+  a = a + b;
+  return a;
 }
 /** @} */
 
-/** subtract 
+/** subtract
 * @{
 */
-OTK_INLINE OTK_HOSTDEVICE int3 operator-(const int3& a, const int3& b)
+OTK_INLINE OTK_HOSTDEVICE int3 operator-( const int3& a, const int3& b )
 {
-  return ::make_int3(a.x - b.x, a.y - b.y, a.z - b.z);
+  return ::make_int3( a.x - b.x, a.y - b.y, a.z - b.z );
 }
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(int3& a, const int3& b)
+OTK_INLINE OTK_HOSTDEVICE int3 operator-( const int3& a, const int b )
 {
-  a.x -= b.x; a.y -= b.y; a.z -= b.z;
+  return ::make_int3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE int3 operator-( const int a, const int3& b )
+{
+  return ::make_int3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE int3& operator-=( int3& a, const int3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int3& operator-=( int3& a, const int b )
+{
+  a = a - b;
+  return a;
 }
 /** @} */
 
-/** multiply 
+/** multiply
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int3 operator*(const int3& a, const int3& b)
@@ -1112,13 +2449,19 @@ OTK_INLINE OTK_HOSTDEVICE int3 operator*(const int s, const int3& a)
 {
   return ::make_int3(a.x * s, a.y * s, a.z * s);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator*=(int3& a, const int s)
+OTK_INLINE OTK_HOSTDEVICE int3& operator*=(int3& a, const int3& s)
 {
-  a.x *= s; a.y *= s; a.z *= s;
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int3& operator*=(int3& a, const int s)
+{
+  a = a * s;
+  return a;
 }
 /** @} */
 
-/** divide 
+/** divide
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int3 operator/(const int3& a, const int3& b)
@@ -1133,27 +2476,19 @@ OTK_INLINE OTK_HOSTDEVICE int3 operator/(const int s, const int3& a)
 {
   return ::make_int3(s /a.x, s / a.y, s / a.z);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator/=(int3& a, const int s)
+OTK_INLINE OTK_HOSTDEVICE int3& operator/=(int3& a, const int3& s)
 {
-  a.x /= s; a.y /= s; a.z /= s;
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int3& operator/=(int3& a, const int s)
+{
+  a = a / s;
+  return a;
 }
 /** @} */
 
-/** clamp 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE int3 clamp(const int3& v, const int a, const int b)
-{
-  return ::make_int3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
-}
-
-OTK_INLINE OTK_HOSTDEVICE int3 clamp(const int3& v, const int3& a, const int3& b)
-{
-  return ::make_int3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
-}
-/** @} */
-
-/** equality 
+/** equality
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE bool operator==(const int3& a, const int3& b)
@@ -1167,34 +2502,67 @@ OTK_INLINE OTK_HOSTDEVICE bool operator!=(const int3& a, const int3& b)
 }
 /** @} */
 
+namespace otk {
+
+/* int3 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+using ::make_int3;
+OTK_INLINE OTK_HOSTDEVICE int3 make_int3(const int s)
+{
+  return ::make_int3(s, s, s);
+}
+OTK_INLINE OTK_HOSTDEVICE int3 make_int3(const float3& a)
+{
+  return ::make_int3(int(a.x), int(a.y), int(a.z));
+}
+/** @} */
+
+/** min */
+OTK_INLINE OTK_HOSTDEVICE int3 min(const int3& a, const int3& b)
+{
+  return ::make_int3(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z));
+}
+
+/** max */
+OTK_INLINE OTK_HOSTDEVICE int3 max(const int3& a, const int3& b)
+{
+  return ::make_int3(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z));
+}
+
+/** clamp
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE int3 clamp(const int3& v, const int a, const int b)
+{
+  return ::make_int3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
+}
+
+OTK_INLINE OTK_HOSTDEVICE int3 clamp(const int3& v, const int3& a, const int3& b)
+{
+  return ::make_int3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
+}
+/** @} */
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE int getByIndex(const int3& v, int i)
 {
   return ((int*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(int3& v, int i, int x)
 {
   ((int*)(&v))[i] = x;
 }
-  
 
-/* int4 functions */
+} // namespace otk
+
+/* int4 operators */
 /******************************************************************************/
-
-/** additional constructors 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE int4 make_int4(const int s)
-{
-  return ::make_int4(s, s, s, s);
-}
-OTK_INLINE OTK_HOSTDEVICE int4 make_int4(const float4& a)
-{
-  return ::make_int4((int)a.x, (int)a.y, (int)a.z, (int)a.w);
-}
-/** @} */
 
 /** negate */
 OTK_INLINE OTK_HOSTDEVICE int4 operator-(const int4& a)
@@ -1202,46 +2570,61 @@ OTK_INLINE OTK_HOSTDEVICE int4 operator-(const int4& a)
   return ::make_int4(-a.x, -a.y, -a.z, -a.w);
 }
 
-/** min */
-OTK_INLINE OTK_HOSTDEVICE int4 min(const int4& a, const int4& b)
-{
-  return ::make_int4(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z), min(a.w,b.w));
-}
-
-/** max */
-OTK_INLINE OTK_HOSTDEVICE int4 max(const int4& a, const int4& b)
-{
-  return ::make_int4(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z), max(a.w,b.w));
-}
-
-/** add 
+/** add
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int4 operator+(const int4& a, const int4& b)
 {
   return ::make_int4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator+=(int4& a, const int4& b)
+OTK_INLINE OTK_HOSTDEVICE int4 operator+(const int4& a, const int b)
 {
-  a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+  return ::make_int4(a.x + b, a.y + b, a.z + b, a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE int4 operator+(const int a, const int4& b)
+{
+  return b + a;
+}
+OTK_INLINE OTK_HOSTDEVICE int4& operator+=(int4& a, const int4& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int4& operator+=(int4& a, const int b)
+{
+  a = a + b;
+  return a;
 }
 /** @} */
 
-/** subtract 
+/** subtract
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int4 operator-(const int4& a, const int4& b)
 {
   return ::make_int4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
 }
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(int4& a, const int4& b)
+OTK_INLINE OTK_HOSTDEVICE int4 operator-(const int a, const int4& b)
 {
-  a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
+  return ::make_int4(a - b.x, a - b.y, a - b.z, a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE int4 operator-(const int4& a, const int b)
+{
+  return ::make_int4(a.x - b, a.y - b, a.z - b, a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE int4& operator-=(int4& a, const int4& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int4& operator-=(int4& a, const int b)
+{
+  a = a - b;
+  return a;
 }
 /** @} */
 
-/** multiply 
+/** multiply
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int4 operator*(const int4& a, const int4& b)
@@ -1256,13 +2639,19 @@ OTK_INLINE OTK_HOSTDEVICE int4 operator*(const int s, const int4& a)
 {
   return ::make_int4(a.x * s, a.y * s, a.z * s, a.w * s);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator*=(int4& a, const int s)
+OTK_INLINE OTK_HOSTDEVICE int4& operator*=(int4& a, const int4& s)
 {
-  a.x *= s; a.y *= s; a.z *= s; a.w *= s;
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int4& operator*=(int4& a, const int s)
+{
+  a = a * s;
+  return a;
 }
 /** @} */
 
-/** divide 
+/** divide
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int4 operator/(const int4& a, const int4& b)
@@ -1277,27 +2666,19 @@ OTK_INLINE OTK_HOSTDEVICE int4 operator/(const int s, const int4& a)
 {
   return ::make_int4(s / a.x, s / a.y, s / a.z, s / a.w);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator/=(int4& a, const int s)
+OTK_INLINE OTK_HOSTDEVICE int4& operator/=(int4& a, const int4& s)
 {
-  a.x /= s; a.y /= s; a.z /= s; a.w /= s;
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE int4& operator/=(int4& a, const int s)
+{
+  a = a / s;
+  return a;
 }
 /** @} */
 
-/** clamp 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE int4 clamp(const int4& v, const int a, const int b)
-{
-  return ::make_int4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
-}
-
-OTK_INLINE OTK_HOSTDEVICE int4 clamp(const int4& v, const int4& a, const int4& b)
-{
-  return ::make_int4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
-}
-/** @} */
-
-/** equality 
+/** equality
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE bool operator==(const int4& a, const int4& b)
@@ -1311,18 +2692,62 @@ OTK_INLINE OTK_HOSTDEVICE bool operator!=(const int4& a, const int4& b)
 }
 /** @} */
 
+namespace otk {
+
+/* int4 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE int4 make_int4(const int s)
+{
+  return ::make_int4(s, s, s, s);
+}
+OTK_INLINE OTK_HOSTDEVICE int4 make_int4(const float4& a)
+{
+  return ::make_int4((int)a.x, (int)a.y, (int)a.z, (int)a.w);
+}
+/** @} */
+
+/** min */
+OTK_INLINE OTK_HOSTDEVICE int4 min(const int4& a, const int4& b)
+{
+  return ::make_int4(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z), min(a.w,b.w));
+}
+
+/** max */
+OTK_INLINE OTK_HOSTDEVICE int4 max(const int4& a, const int4& b)
+{
+  return ::make_int4(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z), max(a.w,b.w));
+}
+
+/** clamp
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE int4 clamp(const int4& v, const int a, const int b)
+{
+  return ::make_int4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
+}
+
+OTK_INLINE OTK_HOSTDEVICE int4 clamp(const int4& v, const int4& a, const int4& b)
+{
+  return ::make_int4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
+}
+/** @} */
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE int getByIndex(const int4& v, int i)
 {
   return ((int*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(int4& v, int i, int x)
 {
   ((int*)(&v))[i] = x;
 }
-  
+
 
 /* uint functions */
 /******************************************************************************/
@@ -1338,18 +2763,146 @@ OTK_INLINE OTK_HOSTDEVICE unsigned int getByIndex(const uint1& v, unsigned int i
 {
   return ((unsigned int*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(uint1& v, int i, unsigned int x)
 {
   ((unsigned int*)(&v))[i] = x;
 }
-  
+
+} // namespace otk
+
+/* uint2 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint2 operator+(const uint2& a, const uint2& b)
+{
+  return ::make_uint2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator+(const uint2& a, const unsigned int b)
+{
+  return ::make_uint2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator+(const unsigned int a, const uint2& b)
+{
+  return ::make_uint2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator+=(uint2& a, const uint2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator+=(uint2& a, const unsigned int b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint2 operator-(const uint2& a, const uint2& b)
+{
+  return ::make_uint2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator-(const uint2& a, const unsigned int b)
+{
+  return ::make_uint2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator-(const unsigned int a, const uint2& b)
+{
+  return ::make_uint2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator-=(uint2& a, const uint2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator-=(uint2& a, const unsigned int b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint2 operator*(const uint2& a, const uint2& b)
+{
+  return ::make_uint2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator*(const uint2& a, const unsigned int s)
+{
+  return ::make_uint2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator*(const unsigned int s, const uint2& a)
+{
+  return ::make_uint2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator*=( uint2& a, const uint2& s )
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator*=( uint2& a, const unsigned int s )
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint2 operator/(const uint2& a, const uint2& b)
+{
+  return ::make_uint2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator/(const uint2& a, const unsigned int s)
+{
+  return ::make_uint2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint2 operator/(const unsigned int s, const uint2& a)
+{
+  return ::make_uint2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator/=(uint2& a, const uint2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint2& operator/=(uint2& a, const unsigned int s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const uint2& a, const uint2& b)
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const uint2& a, const uint2& b)
+{
+  return a.x != b.x || a.y != b.y;
+}
+/** @} */
+
+namespace otk {
 
 /* uint2 functions */
 /******************************************************************************/
 
-/** additional constructors 
+/** additional constructors
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE uint2 make_uint2(const unsigned int s)
@@ -1374,57 +2927,6 @@ OTK_INLINE OTK_HOSTDEVICE uint2 max(const uint2& a, const uint2& b)
   return ::make_uint2(max(a.x,b.x), max(a.y,b.y));
 }
 
-/** add
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint2 operator+(const uint2& a, const uint2& b)
-{
-  return ::make_uint2(a.x + b.x, a.y + b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(uint2& a, const uint2& b)
-{
-  a.x += b.x; a.y += b.y;
-}
-/** @} */
-
-/** subtract
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint2 operator-(const uint2& a, const uint2& b)
-{
-  return ::make_uint2(a.x - b.x, a.y - b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE uint2 operator-(const uint2& a, const unsigned int b)
-{
-  return ::make_uint2(a.x - b, a.y - b);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator-=(uint2& a, const uint2& b)
-{
-  a.x -= b.x; a.y -= b.y;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint2 operator*(const uint2& a, const uint2& b)
-{
-  return ::make_uint2(a.x * b.x, a.y * b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE uint2 operator*(const uint2& a, const unsigned int s)
-{
-  return ::make_uint2(a.x * s, a.y * s);
-}
-OTK_INLINE OTK_HOSTDEVICE uint2 operator*(const unsigned int s, const uint2& a)
-{
-  return ::make_uint2(a.x * s, a.y * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(uint2& a, const unsigned int s)
-{
-  a.x *= s; a.y *= s;
-}
-/** @} */
-
 /** clamp
 * @{
 */
@@ -1439,37 +2941,151 @@ OTK_INLINE OTK_HOSTDEVICE uint2 clamp(const uint2& v, const uint2& a, const uint
 }
 /** @} */
 
-/** equality
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const uint2& a, const uint2& b)
-{
-  return a.x == b.x && a.y == b.y;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const uint2& a, const uint2& b)
-{
-  return a.x != b.x || a.y != b.y;
-}
-/** @} */
-
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE unsigned int getByIndex(const uint2& v, unsigned int i)
 {
   return ((unsigned int*)(&v))[i];
 }
-  
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(uint2& v, int i, unsigned int x)
 {
   ((unsigned int*)(&v))[i] = x;
 }
-  
+
+} // namespace otk
+
+/* uint3 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint3 operator+( const uint3& a, const uint3& b )
+{
+  return ::make_uint3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator+( const uint3& a, const unsigned int b )
+{
+  return ::make_uint3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator+( const unsigned int a, const uint3& b )
+{
+  return ::make_uint3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator+=( uint3& a, const uint3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator+=( uint3& a, const unsigned int b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint3 operator-( const uint3& a, const uint3& b )
+{
+  return ::make_uint3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator-( const uint3& a, const unsigned int b )
+{
+  return ::make_uint3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator-( const unsigned int a, const uint3& b )
+{
+  return ::make_uint3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator-=( uint3& a, const uint3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator-=( uint3& a, const unsigned int b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint3 operator*(const uint3& a, const uint3& b)
+{
+  return ::make_uint3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator*(const uint3& a, const unsigned int s)
+{
+  return ::make_uint3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator*(const unsigned int s, const uint3& a)
+{
+  return ::make_uint3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator*=(uint3& a, const uint3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator*=(uint3& a, const unsigned int s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint3 operator/(const uint3& a, const uint3& b)
+{
+  return ::make_uint3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator/(const uint3& a, const unsigned int s)
+{
+  return ::make_uint3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint3 operator/(const unsigned int s, const uint3& a)
+{
+  return ::make_uint3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator/=(uint3& a, const uint3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint3& operator/=(uint3& a, const unsigned int s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const uint3& a, const uint3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const uint3& a, const uint3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
 
 /* uint3 functions */
 /******************************************************************************/
 
-/** additional constructors 
+/** additional constructors
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE uint3 make_uint3(const unsigned int s)
@@ -1494,76 +3110,7 @@ OTK_INLINE OTK_HOSTDEVICE uint3 max(const uint3& a, const uint3& b)
   return ::make_uint3(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z));
 }
 
-/** add 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint3 operator+(const uint3& a, const uint3& b)
-{
-  return ::make_uint3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(uint3& a, const uint3& b)
-{
-  a.x += b.x; a.y += b.y; a.z += b.z;
-}
-/** @} */
-
-/** subtract
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint3 operator-(const uint3& a, const uint3& b)
-{
-  return ::make_uint3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(uint3& a, const uint3& b)
-{
-  a.x -= b.x; a.y -= b.y; a.z -= b.z;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint3 operator*(const uint3& a, const uint3& b)
-{
-  return ::make_uint3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE uint3 operator*(const uint3& a, const unsigned int s)
-{
-  return ::make_uint3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE uint3 operator*(const unsigned int s, const uint3& a)
-{
-  return ::make_uint3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(uint3& a, const unsigned int s)
-{
-  a.x *= s; a.y *= s; a.z *= s;
-}
-/** @} */
-
-/** divide
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint3 operator/(const uint3& a, const uint3& b)
-{
-  return ::make_uint3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE uint3 operator/(const uint3& a, const unsigned int s)
-{
-  return ::make_uint3(a.x / s, a.y / s, a.z / s);
-}
-OTK_INLINE OTK_HOSTDEVICE uint3 operator/(const unsigned int s, const uint3& a)
-{
-  return ::make_uint3(s / a.x, s / a.y, s / a.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(uint3& a, const unsigned int s)
-{
-  a.x /= s; a.y /= s; a.z /= s;
-}
-/** @} */
-
-/** clamp 
+/** clamp
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE uint3 clamp(const uint3& v, const unsigned int a, const unsigned int b)
@@ -1577,39 +3124,153 @@ OTK_INLINE OTK_HOSTDEVICE uint3 clamp(const uint3& v, const uint3& a, const uint
 }
 /** @} */
 
-/** equality 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const uint3& a, const uint3& b)
-{
-  return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const uint3& a, const uint3& b)
-{
-  return a.x != b.x || a.y != b.y || a.z != b.z;
-}
-/** @} */
-
-/** If used on the device, this could place the the 'v' in local memory 
+/** If used on the device, this could place the the 'v' in local memory
 */
 OTK_INLINE OTK_HOSTDEVICE unsigned int getByIndex(const uint3& v, unsigned int i)
 {
   return ((unsigned int*)(&v))[i];
 }
-  
-/** If used on the device, this could place the the 'v' in local memory 
+
+/** If used on the device, this could place the the 'v' in local memory
 */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(uint3& v, int i, unsigned int x)
 {
   ((unsigned int*)(&v))[i] = x;
 }
-  
+
+} // namespace otk
+
+/* uint4 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint4 operator+(const uint4& a, const uint4& b)
+{
+  return ::make_uint4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator+(const uint4& a, const unsigned int b)
+{
+  return ::make_uint4(a.x + b, a.y + b, a.z + b, a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator+(const unsigned int a, const uint4& b)
+{
+  return b + a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator+=(uint4& a, const uint4& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator+=(uint4& a, const unsigned int b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint4 operator-(const uint4& a, const uint4& b)
+{
+  return ::make_uint4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator-(const uint4& a, const unsigned int b)
+{
+  return ::make_uint4(a.x - b, a.y - b, a.z - b, a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator-(const unsigned int a, const uint4& b)
+{
+  return ::make_uint4(a - b.x, a - b.y, a - b.z, a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator-=(uint4& a, const uint4& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator-=(uint4& a, const unsigned int b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint4 operator*(const uint4& a, const uint4& b)
+{
+  return ::make_uint4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator*(const uint4& a, const unsigned int s)
+{
+  return ::make_uint4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator*(const unsigned int s, const uint4& a)
+{
+  return ::make_uint4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator*=(uint4& a, const uint4& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator*=(uint4& a, const unsigned int s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE uint4 operator/(const uint4& a, const uint4& b)
+{
+  return ::make_uint4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator/(const uint4& a, const unsigned int s)
+{
+  return ::make_uint4(a.x / s, a.y / s, a.z / s, a.w / s);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4 operator/(const unsigned int s, const uint4& a)
+{
+  return ::make_uint4(s / a.x, s / a.y, s / a.z, s / a.w);
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator/=(uint4& a, const uint4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE uint4& operator/=(uint4& a, const unsigned int s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const uint4& a, const uint4& b)
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const uint4& a, const uint4& b)
+{
+  return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
+/** @} */
+
+namespace otk {
 
 /* uint4 functions */
 /******************************************************************************/
 
-/** additional constructors 
+/** additional constructors
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE uint4 make_uint4(const unsigned int s)
@@ -1631,7 +3292,7 @@ OTK_INLINE OTK_HOSTDEVICE uint4 min(const uint4& a, const uint4& b)
 }
 /** @} */
 
-/** max 
+/** max
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE uint4 max(const uint4& a, const uint4& b)
@@ -1640,76 +3301,7 @@ OTK_INLINE OTK_HOSTDEVICE uint4 max(const uint4& a, const uint4& b)
 }
 /** @} */
 
-/** add
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint4 operator+(const uint4& a, const uint4& b)
-{
-  return ::make_uint4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(uint4& a, const uint4& b)
-{
-  a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
-}
-/** @} */
-
-/** subtract 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint4 operator-(const uint4& a, const uint4& b)
-{
-  return ::make_uint4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-}
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(uint4& a, const uint4& b)
-{
-  a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint4 operator*(const uint4& a, const uint4& b)
-{
-  return ::make_uint4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE uint4 operator*(const uint4& a, const unsigned int s)
-{
-  return ::make_uint4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-OTK_INLINE OTK_HOSTDEVICE uint4 operator*(const unsigned int s, const uint4& a)
-{
-  return ::make_uint4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(uint4& a, const unsigned int s)
-{
-  a.x *= s; a.y *= s; a.z *= s; a.w *= s;
-}
-/** @} */
-
-/** divide 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE uint4 operator/(const uint4& a, const uint4& b)
-{
-  return ::make_uint4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE uint4 operator/(const uint4& a, const unsigned int s)
-{
-  return ::make_uint4(a.x / s, a.y / s, a.z / s, a.w / s);
-}
-OTK_INLINE OTK_HOSTDEVICE uint4 operator/(const unsigned int s, const uint4& a)
-{
-  return ::make_uint4(s / a.x, s / a.y, s / a.z, s / a.w);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(uint4& a, const unsigned int s)
-{
-  a.x /= s; a.y /= s; a.z /= s; a.w /= s;
-}
-/** @} */
-
-/** clamp 
+/** clamp
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE uint4 clamp(const uint4& v, const unsigned int a, const unsigned int b)
@@ -1723,33 +3315,697 @@ OTK_INLINE OTK_HOSTDEVICE uint4 clamp(const uint4& v, const uint4& a, const uint
 }
 /** @} */
 
-/** equality 
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const uint4& a, const uint4& b)
-{
-  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const uint4& a, const uint4& b)
-{
-  return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
-}
-/** @} */
-
-/** If used on the device, this could place the the 'v' in local memory 
+/** If used on the device, this could place the the 'v' in local memory
 */
 OTK_INLINE OTK_HOSTDEVICE unsigned int getByIndex(const uint4& v, unsigned int i)
 {
   return ((unsigned int*)(&v))[i];
 }
-  
-/** If used on the device, this could place the the 'v' in local memory 
+
+/** If used on the device, this could place the the 'v' in local memory
 */
 OTK_INLINE OTK_HOSTDEVICE void setByIndex(uint4& v, int i, unsigned int x)
 {
   ((unsigned int*)(&v))[i] = x;
 }
+
+} // namespace otk
+
+/* long2 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE long2 operator-(const long2& a)
+{
+    return ::make_long2(-a.x, -a.y);
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long2 operator+(const long2& a, const long2& b)
+{
+  return ::make_long2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator+(const long2& a, const long b)
+{
+  return ::make_long2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator+(const long a, const long2& b)
+{
+  return ::make_long2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator+=(long2& a, const long2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator+=(long2& a, const long b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long2 operator-(const long2& a, const long2& b)
+{
+  return ::make_long2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator-(const long2& a, const long b)
+{
+  return ::make_long2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator-(const long a, const long2& b)
+{
+  return ::make_long2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator-=(long2& a, const long2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator-=(long2& a, const long b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long2 operator*(const long2& a, const long2& b)
+{
+  return ::make_long2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator*(const long2& a, const long s)
+{
+  return ::make_long2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator*(const long s, const long2& a)
+{
+  return ::make_long2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator*=(long2& a, const long2& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator*=(long2& a, const long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long2 operator/(const long2& a, const long2& b)
+{
+  return ::make_long2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator/(const long2& a, const long s)
+{
+  return ::make_long2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE long2 operator/(const long s, const long2& a)
+{
+  return ::make_long2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator/=(long2& a, const long2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long2& operator/=(long2& a, const long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const long2& a, const long2& b )
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const long2& a, const long2& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* long2 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* long3 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE long3 operator-( const long3& a )
+{
+  return ::make_long3( -a.x, -a.y, -a.z );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long3 operator+( const long3& a, const long3& b )
+{
+  return ::make_long3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator+( const long3& a, const long b )
+{
+  return ::make_long3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator+( const long a, const long3& b )
+{
+  return ::make_long3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator+=( long3& a, const long3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator+=( long3& a, const long b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long3 operator-( const long3& a, const long3& b )
+{
+  return ::make_long3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator-( const long3& a, const long b )
+{
+  return ::make_long3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator-( const long a, const long3& b )
+{
+  return ::make_long3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator-=( long3& a, const long3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator-=( long3& a, const long b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long3 operator*(const long3& a, const long3& b)
+{
+  return ::make_long3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator*(const long3& a, const long s)
+{
+  return ::make_long3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator*(const long s, const long3& a)
+{
+  return ::make_long3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator*=(long3& a, const long3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator*=(long3& a, const long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long3 operator/(const long3& a, const long3& b)
+{
+  return ::make_long3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator/(const long3& a, const long s)
+{
+  return ::make_long3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE long3 operator/(const long s, const long3& a)
+{
+  return ::make_long3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator/=(long3& a, const long3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long3& operator/=(long3& a, const long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const long3& a, const long3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const long3& a, const long3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* long3 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* long4 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE long4 operator-( const long4& a )
+{
+  return ::make_long4( -a.x, -a.y, -a.z, -a.w );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long4 operator+( const long4& a, const long4& b )
+{
+  return ::make_long4( a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator+( const long4& a, const long b )
+{
+  return ::make_long4( a.x + b, a.y + b, a.z + b, a.w + b );
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator+( const long a, const long4& b )
+{
+  return ::make_long4( a + b.x, a + b.y, a + b.z, a + b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator+=( long4& a, const long4& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator+=( long4& a, const long b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long4 operator-( const long4& a, const long4& b )
+{
+  return ::make_long4( a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator-( const long4& a, const long b )
+{
+  return ::make_long4( a.x - b, a.y - b, a.z - b, a.w - b );
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator-( const long a, const long4& b )
+{
+  return ::make_long4( a - b.x, a - b.y, a - b.z, a - b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator-=( long4& a, const long4& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator-=( long4& a, const long b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long4 operator*(const long4& a, const long4& b)
+{
+  return ::make_long4(a.x * b.x, a.y * b.y, a.z * b.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator*(const long4& a, const long s)
+{
+  return ::make_long4(a.x * s, a.y * s, a.z * s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator*(const long s, const long4& a)
+{
+  return ::make_long4(a.x * s, a.y * s, a.z * s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator*=(long4& a, const long4& s)
+{
+  a = a *s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator*=(long4& a, const long s)
+{
+  a = a *s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE long4 operator/(const long4& a, const long4& b)
+{
+  return ::make_long4(a.x / b.x, a.y / b.y, a.z / b.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator/(const long4& a, const long s)
+{
+  return ::make_long4(a.x / s, a.y / s, a.z / s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE long4 operator/(const long s, const long4& a)
+{
+  return ::make_long4(s /a.x, s / a.y, s / a.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator/=(long4& a, const long4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE long4& operator/=(long4& a, const long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const long4& a, const long4& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const long4& a, const long4& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* long4 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* ulong4 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator+( const ulong4& a, const ulong4& b )
+{
+  return ::make_ulong4( a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator+( const ulong4& a, const long b )
+{
+  return ::make_ulong4( a.x + b, a.y + b, a.z + b, a.w + b );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator+( const long a, const ulong4& b )
+{
+  return ::make_ulong4( a + b.x, a + b.y, a + b.z, a + b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator+=( ulong4& a, const ulong4& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator+=( ulong4& a, const long b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator-( const ulong4& a, const ulong4& b )
+{
+  return ::make_ulong4( a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator-( const ulong4& a, const long b )
+{
+  return ::make_ulong4( a.x - b, a.y - b, a.z - b, a.w - b );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator-( const long a, const ulong4& b )
+{
+  return ::make_ulong4( a - b.x, a - b.y, a - b.z, a - b.w );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator-=( ulong4& a, const ulong4& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator-=( ulong4& a, const long b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator*(const ulong4& a, const ulong4& b)
+{
+  return ::make_ulong4(a.x * b.x, a.y * b.y, a.z * b.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator*(const ulong4& a, const long s)
+{
+  return ::make_ulong4(a.x * s, a.y * s, a.z * s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator*(const long s, const ulong4& a)
+{
+  return ::make_ulong4(a.x * s, a.y * s, a.z * s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator*=(ulong4& a, const ulong4& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator*=(ulong4& a, const long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator/(const ulong4& a, const ulong4& b)
+{
+  return ::make_ulong4(a.x / b.x, a.y / b.y, a.z / b.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator/(const ulong4& a, const long s)
+{
+  return ::make_ulong4(a.x / s, a.y / s, a.z / s, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4 operator/(const long s, const ulong4& a)
+{
+  return ::make_ulong4(s /a.x, s / a.y, s / a.z, 0);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator/=(ulong4& a, const ulong4& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong4& operator/=(ulong4& a, const long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const ulong4& a, const ulong4& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const ulong4& a, const ulong4& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* ulong4 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* ulong2 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator+(const ulong2& a, const ulong2& b)
+{
+  return ::make_ulong2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator+(const ulong2& a, const unsigned long b)
+{
+  return ::make_ulong2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator+(const unsigned long a, const ulong2& b)
+{
+  return ::make_ulong2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator+=(ulong2& a, const ulong2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator+=(ulong2& a, const unsigned long b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator-(const ulong2& a, const ulong2& b)
+{
+  return ::make_ulong2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator-(const ulong2& a, const unsigned long b)
+{
+  return ::make_ulong2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator-(const unsigned long a, const ulong2& b)
+{
+  return ::make_ulong2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator-=(ulong2& a, const ulong2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator-=(ulong2& a, const unsigned long b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator*(const ulong2& a, const ulong2& b)
+{
+  return ::make_ulong2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator*(const ulong2& a, const unsigned long s)
+{
+  return ::make_ulong2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator*(const unsigned long s, const ulong2& a)
+{
+  return ::make_ulong2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator*=(ulong2& a, const ulong2& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator*=(ulong2& a, const unsigned long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator/(const ulong2& a, const ulong2& b)
+{
+  return ::make_ulong2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator/(const ulong2& a, const unsigned long s)
+{
+  return ::make_ulong2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2 operator/(const unsigned long s, const ulong2& a)
+{
+  return ::make_ulong2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator/=(ulong2& a, const ulong2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong2& operator/=(ulong2& a, const unsigned long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const ulong2& a, const ulong2& b )
+{
+  return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const ulong2& a, const ulong2& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* ulong2 functions */
+/******************************************************************************/
 
 /* long long functions */
 /******************************************************************************/
@@ -1772,22 +4028,142 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(longlong1& v, int i, long long x)
     ((long long*)(&v))[i] = x;
 }
 
+} // namespace otk
 
-/* longlong2 functions */
+/* ulong3 operators */
 /******************************************************************************/
 
-/** additional constructors
+/** add
 * @{
 */
-OTK_INLINE OTK_HOSTDEVICE longlong2 make_longlong2(const long long s)
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator+( const ulong3& a, const ulong3& b )
 {
-    return ::make_longlong2(s, s);
+  return ::make_ulong3( a.x + b.x, a.y + b.y, a.z + b.z );
 }
-OTK_INLINE OTK_HOSTDEVICE longlong2 make_longlong2(const float2& a)
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator+( const ulong3& a, const unsigned long b )
 {
-    return ::make_longlong2(int(a.x), int(a.y));
+  return ::make_ulong3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator+( const unsigned long a, const ulong3& b )
+{
+  return ::make_ulong3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator+=( ulong3& a, const ulong3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator+=( ulong3& a, const unsigned long b )
+{
+  a = a + b;
+  return a;
 }
 /** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator-( const ulong3& a, const ulong3& b )
+{
+  return ::make_ulong3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator-( const ulong3& a, const unsigned long b )
+{
+  return ::make_ulong3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator-( const unsigned long a, const ulong3& b )
+{
+  return ::make_ulong3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator-=( ulong3& a, const ulong3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator-=( ulong3& a, const unsigned long b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator*(const ulong3& a, const ulong3& b)
+{
+  return ::make_ulong3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator*(const ulong3& a, const unsigned long s)
+{
+  return ::make_ulong3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator*(const unsigned long s, const ulong3& a)
+{
+  return ::make_ulong3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator*=(ulong3& a, const ulong3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator*=(ulong3& a, const unsigned long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator/(const ulong3& a, const ulong3& b)
+{
+  return ::make_ulong3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator/(const ulong3& a, const unsigned long s)
+{
+  return ::make_ulong3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3 operator/(const unsigned long s, const ulong3& a)
+{
+  return ::make_ulong3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator/=(ulong3& a, const ulong3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulong3& operator/=(ulong3& a, const unsigned long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const ulong3& a, const ulong3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const ulong3& a, const ulong3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
+
+/* ulong3 functions */
+/******************************************************************************/
+
+} // namespace otk
+
+/* longlong2 operators */
+/******************************************************************************/
 
 /** negate */
 OTK_INLINE OTK_HOSTDEVICE longlong2 operator-(const longlong2& a)
@@ -1795,28 +4171,30 @@ OTK_INLINE OTK_HOSTDEVICE longlong2 operator-(const longlong2& a)
     return ::make_longlong2(-a.x, -a.y);
 }
 
-/** min */
-OTK_INLINE OTK_HOSTDEVICE longlong2 min(const longlong2& a, const longlong2& b)
-{
-    return ::make_longlong2(min(a.x, b.x), min(a.y, b.y));
-}
-
-/** max */
-OTK_INLINE OTK_HOSTDEVICE longlong2 max(const longlong2& a, const longlong2& b)
-{
-    return ::make_longlong2(max(a.x, b.x), max(a.y, b.y));
-}
-
 /** add
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE longlong2 operator+(const longlong2& a, const longlong2& b)
 {
-    return ::make_longlong2(a.x + b.x, a.y + b.y);
+  return ::make_longlong2(a.x + b.x, a.y + b.y);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator+=(longlong2& a, const longlong2& b)
+OTK_INLINE OTK_HOSTDEVICE longlong2 operator+(const longlong2& a, const long long b)
 {
-    a.x += b.x; a.y += b.y;
+  return ::make_longlong2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2 operator+(const long long a, const longlong2& b)
+{
+  return ::make_longlong2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator+=(longlong2& a, const longlong2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator+=(longlong2& a, const long long b)
+{
+  a = a + b;
+  return a;
 }
 /** @} */
 
@@ -1825,15 +4203,25 @@ OTK_INLINE OTK_HOSTDEVICE void operator+=(longlong2& a, const longlong2& b)
 */
 OTK_INLINE OTK_HOSTDEVICE longlong2 operator-(const longlong2& a, const longlong2& b)
 {
-    return ::make_longlong2(a.x - b.x, a.y - b.y);
+  return ::make_longlong2(a.x - b.x, a.y - b.y);
 }
 OTK_INLINE OTK_HOSTDEVICE longlong2 operator-(const longlong2& a, const long long b)
 {
-    return ::make_longlong2(a.x - b, a.y - b);
+  return ::make_longlong2(a.x - b, a.y - b);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator-=(longlong2& a, const longlong2& b)
+OTK_INLINE OTK_HOSTDEVICE longlong2 operator-(const long long a, const longlong2& b)
 {
-    a.x -= b.x; a.y -= b.y;
+  return ::make_longlong2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator-=(longlong2& a, const longlong2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator-=(longlong2& a, const long long b)
+{
+  a = a - b;
+  return a;
 }
 /** @} */
 
@@ -1852,23 +4240,42 @@ OTK_INLINE OTK_HOSTDEVICE longlong2 operator*(const long long s, const longlong2
 {
     return ::make_longlong2(a.x * s, a.y * s);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator*=(longlong2& a, const long long s)
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator*=(longlong2& a, const longlong2& s)
 {
-    a.x *= s; a.y *= s;
+    a = a * s;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator*=(longlong2& a, const long long s)
+{
+    a = a * s;
+    return a;
 }
 /** @} */
 
-/** clamp
+/** divide
 * @{
 */
-OTK_INLINE OTK_HOSTDEVICE longlong2 clamp(const longlong2& v, const long long a, const long long b)
+OTK_INLINE OTK_HOSTDEVICE longlong2 operator/(const longlong2& a, const longlong2& b)
 {
-    return ::make_longlong2(clamp(v.x, a, b), clamp(v.y, a, b));
+  return ::make_longlong2(a.x / b.x, a.y / b.y);
 }
-
-OTK_INLINE OTK_HOSTDEVICE longlong2 clamp(const longlong2& v, const longlong2& a, const longlong2& b)
+OTK_INLINE OTK_HOSTDEVICE longlong2 operator/(const longlong2& a, const long long s)
 {
-    return ::make_longlong2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
+  return ::make_longlong2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2 operator/(const long long s, const longlong2& a)
+{
+  return ::make_longlong2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator/=(longlong2& a, const longlong2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2& operator/=(longlong2& a, const long long s)
+{
+  a = a / s;
+  return a;
 }
 /** @} */
 
@@ -1886,6 +4293,50 @@ OTK_INLINE OTK_HOSTDEVICE bool operator!=(const longlong2& a, const longlong2& b
 }
 /** @} */
 
+namespace otk {
+
+/* longlong2 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong2 make_longlong2(const long long s)
+{
+    return ::make_longlong2(s, s);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong2 make_longlong2(const float2& a)
+{
+    return ::make_longlong2(int(a.x), int(a.y));
+}
+/** @} */
+
+/** min */
+OTK_INLINE OTK_HOSTDEVICE longlong2 min(const longlong2& a, const longlong2& b)
+{
+    return ::make_longlong2(min(a.x, b.x), min(a.y, b.y));
+}
+
+/** max */
+OTK_INLINE OTK_HOSTDEVICE longlong2 max(const longlong2& a, const longlong2& b)
+{
+    return ::make_longlong2(max(a.x, b.x), max(a.y, b.y));
+}
+
+/** clamp
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong2 clamp(const longlong2& v, const long long a, const long long b)
+{
+    return ::make_longlong2(clamp(v.x, a, b), clamp(v.y, a, b));
+}
+
+OTK_INLINE OTK_HOSTDEVICE longlong2 clamp(const longlong2& v, const longlong2& a, const longlong2& b)
+{
+    return ::make_longlong2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
+}
+/** @} */
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE long long getByIndex(const longlong2& v, int i)
 {
@@ -1898,6 +4349,140 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(longlong2& v, int i, long long x)
     ((long long*)(&v))[i] = x;
 }
 
+} // namespace otk
+
+/* longlong3 operators */
+/******************************************************************************/
+
+/** negate */
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator-( const longlong3& a )
+{
+  return ::make_longlong3( -a.x, -a.y, -a.z );
+}
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator+( const longlong3& a, const longlong3& b )
+{
+  return ::make_longlong3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator+( const longlong3& a, const long long b )
+{
+  return ::make_longlong3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator+( const long long a, const longlong3& b )
+{
+  return ::make_longlong3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator+=( longlong3& a, const longlong3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator+=( longlong3& a, const long long b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator-( const longlong3& a, const longlong3& b )
+{
+  return ::make_longlong3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator-( const longlong3& a, const long long b )
+{
+  return ::make_longlong3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator-( const long long a, const longlong3& b )
+{
+  return ::make_longlong3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator-=( longlong3& a, const longlong3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator-=( longlong3& a, const long long b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator*(const longlong3& a, const longlong3& b)
+{
+  return ::make_longlong3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator*(const longlong3& a, const long long s)
+{
+  return ::make_longlong3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator*(const long long s, const longlong3& a)
+{
+  return ::make_longlong3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator*=(longlong3& a, const longlong3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator*=(longlong3& a, const long long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator/(const longlong3& a, const longlong3& b)
+{
+  return ::make_longlong3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator/(const longlong3& a, const long long s)
+{
+  return ::make_longlong3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3 operator/(const long long s, const longlong3& a)
+{
+  return ::make_longlong3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator/=(longlong3& a, const longlong3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong3& operator/=(longlong3& a, const long long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const longlong3& a, const longlong3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const longlong3& a, const longlong3& b )
+{
+  return !( a == b );
+}
+/** @} */
+
+namespace otk {
 
 /* longlong3 functions */
 /******************************************************************************/
@@ -1915,12 +4500,6 @@ OTK_INLINE OTK_HOSTDEVICE longlong3 make_longlong3(const float3& a)
 }
 /** @} */
 
-/** negate */
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator-(const longlong3& a)
-{
-    return ::make_longlong3(-a.x, -a.y, -a.z);
-}
-
 /** min */
 OTK_INLINE OTK_HOSTDEVICE longlong3 min(const longlong3& a, const longlong3& b)
 {
@@ -1932,75 +4511,6 @@ OTK_INLINE OTK_HOSTDEVICE longlong3 max(const longlong3& a, const longlong3& b)
 {
     return ::make_longlong3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
 }
-
-/** add
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator+(const longlong3& a, const longlong3& b)
-{
-    return ::make_longlong3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(longlong3& a, const longlong3& b)
-{
-    a.x += b.x; a.y += b.y; a.z += b.z;
-}
-/** @} */
-
-/** subtract
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator-(const longlong3& a, const longlong3& b)
-{
-    return ::make_longlong3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(longlong3& a, const longlong3& b)
-{
-    a.x -= b.x; a.y -= b.y; a.z -= b.z;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator*(const longlong3& a, const longlong3& b)
-{
-    return ::make_longlong3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator*(const longlong3& a, const long long s)
-{
-    return ::make_longlong3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator*(const long long s, const longlong3& a)
-{
-    return ::make_longlong3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(longlong3& a, const long long s)
-{
-    a.x *= s; a.y *= s; a.z *= s;
-}
-/** @} */
-
-/** divide
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator/(const longlong3& a, const longlong3& b)
-{
-    return ::make_longlong3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator/(const longlong3& a, const long long s)
-{
-    return ::make_longlong3(a.x / s, a.y / s, a.z / s);
-}
-OTK_INLINE OTK_HOSTDEVICE longlong3 operator/(const long long s, const longlong3& a)
-{
-    return ::make_longlong3(s /a.x, s / a.y, s / a.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(longlong3& a, const long long s)
-{
-    a.x /= s; a.y /= s; a.z /= s;
-}
-/** @} */
 
 /** clamp
 * @{
@@ -2016,20 +4526,6 @@ OTK_INLINE OTK_HOSTDEVICE longlong3 clamp(const longlong3& v, const longlong3& a
 }
 /** @} */
 
-/** equality
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const longlong3& a, const longlong3& b)
-{
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const longlong3& a, const longlong3& b)
-{
-    return a.x != b.x || a.y != b.y || a.z != b.z;
-}
-/** @} */
-
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE long long getByIndex(const longlong3& v, int i)
 {
@@ -2042,39 +4538,15 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(longlong3& v, int i, int x)
     ((long long*)(&v))[i] = x;
 }
 
+} // namespace otk
 
-/* longlong4 functions */
+/* longlong4 operators */
 /******************************************************************************/
-
-/** additional constructors
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE longlong4 make_longlong4(const long long s)
-{
-    return ::make_longlong4(s, s, s, s);
-}
-OTK_INLINE OTK_HOSTDEVICE longlong4 make_longlong4(const float4& a)
-{
-    return ::make_longlong4((long long)a.x, (long long)a.y, (long long)a.z, (long long)a.w);
-}
-/** @} */
 
 /** negate */
 OTK_INLINE OTK_HOSTDEVICE longlong4 operator-(const longlong4& a)
 {
     return ::make_longlong4(-a.x, -a.y, -a.z, -a.w);
-}
-
-/** min */
-OTK_INLINE OTK_HOSTDEVICE longlong4 min(const longlong4& a, const longlong4& b)
-{
-    return ::make_longlong4(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
-}
-
-/** max */
-OTK_INLINE OTK_HOSTDEVICE longlong4 max(const longlong4& a, const longlong4& b)
-{
-    return ::make_longlong4(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
 }
 
 /** add
@@ -2084,9 +4556,23 @@ OTK_INLINE OTK_HOSTDEVICE longlong4 operator+(const longlong4& a, const longlong
 {
     return ::make_longlong4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator+=(longlong4& a, const longlong4& b)
+OTK_INLINE OTK_HOSTDEVICE longlong4 operator+(const long long a, const longlong4& b)
 {
-    a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+    return ::make_longlong4(a + b.x, a + b.y, a + b.z, a + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4 operator+(const longlong4& a, const long long b)
+{
+    return ::make_longlong4(a.x + b, a.y + b, a.z + b, a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator+=(longlong4& a, const longlong4& b)
+{
+    a = a + b;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator+=(longlong4& a, const long long b)
+{
+    a = a + b;
+    return a;
 }
 /** @} */
 
@@ -2097,10 +4583,23 @@ OTK_INLINE OTK_HOSTDEVICE longlong4 operator-(const longlong4& a, const longlong
 {
     return ::make_longlong4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
 }
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(longlong4& a, const longlong4& b)
+OTK_INLINE OTK_HOSTDEVICE longlong4 operator-(const long long a, const longlong4& b)
 {
-    a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
+    return ::make_longlong4(a - b.x, a - b.y, a - b.z, a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4 operator-(const longlong4& a, const long long b)
+{
+    return ::make_longlong4(a.x - b, a.y - b, a.z - b, a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator-=(longlong4& a, const longlong4& b)
+{
+    a = a - b;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator-=(longlong4& a, const long long b)
+{
+    a = a - b;
+    return a;
 }
 /** @} */
 
@@ -2119,9 +4618,15 @@ OTK_INLINE OTK_HOSTDEVICE longlong4 operator*(const long long s, const longlong4
 {
     return ::make_longlong4(a.x * s, a.y * s, a.z * s, a.w * s);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator*=(longlong4& a, const long long s)
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator*=(longlong4& a, const longlong4& s)
 {
-    a.x *= s; a.y *= s; a.z *= s; a.w *= s;
+    a = a * s;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator*=(longlong4& a, const long long s)
+{
+    a = a * s;
+    return a;
 }
 /** @} */
 
@@ -2140,23 +4645,15 @@ OTK_INLINE OTK_HOSTDEVICE longlong4 operator/(const long long s, const longlong4
 {
     return ::make_longlong4(s / a.x, s / a.y, s / a.z, s / a.w);
 }
-OTK_INLINE OTK_HOSTDEVICE void operator/=(longlong4& a, const long long s)
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator/=(longlong4& a, const longlong4& s)
 {
-    a.x /= s; a.y /= s; a.z /= s; a.w /= s;
+    a = a / s;
+    return a;
 }
-/** @} */
-
-/** clamp
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE longlong4 clamp(const longlong4& v, const long long a, const long long b)
+OTK_INLINE OTK_HOSTDEVICE longlong4& operator/=(longlong4& a, const long long s)
 {
-    return ::make_longlong4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
-}
-
-OTK_INLINE OTK_HOSTDEVICE longlong4 clamp(const longlong4& v, const longlong4& a, const longlong4& b)
-{
-    return ::make_longlong4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
+    a = a / s;
+    return a;
 }
 /** @} */
 
@@ -2174,6 +4671,50 @@ OTK_INLINE OTK_HOSTDEVICE bool operator!=(const longlong4& a, const longlong4& b
 }
 /** @} */
 
+namespace otk {
+
+/* longlong4 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong4 make_longlong4(const long long s)
+{
+    return ::make_longlong4(s, s, s, s);
+}
+OTK_INLINE OTK_HOSTDEVICE longlong4 make_longlong4(const float4& a)
+{
+    return ::make_longlong4((long long)a.x, (long long)a.y, (long long)a.z, (long long)a.w);
+}
+/** @} */
+
+/** min */
+OTK_INLINE OTK_HOSTDEVICE longlong4 min(const longlong4& a, const longlong4& b)
+{
+    return ::make_longlong4(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+}
+
+/** max */
+OTK_INLINE OTK_HOSTDEVICE longlong4 max(const longlong4& a, const longlong4& b)
+{
+    return ::make_longlong4(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+}
+
+/** clamp
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE longlong4 clamp(const longlong4& v, const long long a, const long long b)
+{
+    return ::make_longlong4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
+}
+
+OTK_INLINE OTK_HOSTDEVICE longlong4 clamp(const longlong4& v, const longlong4& a, const longlong4& b)
+{
+    return ::make_longlong4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
+}
+/** @} */
+
 /** If used on the device, this could place the the 'v' in local memory */
 OTK_INLINE OTK_HOSTDEVICE long long getByIndex(const longlong4& v, int i)
 {
@@ -2185,6 +4726,13 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(longlong4& v, int i, long long x)
 {
     ((long long*)(&v))[i] = x;
 }
+
+} // namespace otk
+
+/* ulonglong operators */
+/******************************************************************************/
+
+namespace otk {
 
 /* ulonglong functions */
 /******************************************************************************/
@@ -2207,6 +4755,134 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(ulonglong1& v, int i, unsigned long lo
     ((unsigned long long*)(&v))[i] = x;
 }
 
+} // namespace otk
+
+/* ulonglong2 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator+(const ulonglong2& a, const ulonglong2& b)
+{
+  return ::make_ulonglong2(a.x + b.x, a.y + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator+(const ulonglong2& a, const unsigned long long b)
+{
+  return ::make_ulonglong2(a.x + b, a.y + b);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator+(const unsigned long long a, const ulonglong2& b)
+{
+  return ::make_ulonglong2(a + b.x, a + b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator+=(ulonglong2& a, const ulonglong2& b)
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator+=(ulonglong2& a, const unsigned long long b)
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator-(const ulonglong2& a, const ulonglong2& b)
+{
+  return ::make_ulonglong2(a.x - b.x, a.y - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator-(const ulonglong2& a, const unsigned long long b)
+{
+  return ::make_ulonglong2(a.x - b, a.y - b);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator-(const unsigned long long a, const ulonglong2& b)
+{
+  return ::make_ulonglong2(a - b.x, a - b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator-=(ulonglong2& a, const ulonglong2& b)
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator-=(ulonglong2& a, const unsigned long long b)
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator*(const ulonglong2& a, const ulonglong2& b)
+{
+    return ::make_ulonglong2(a.x * b.x, a.y * b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator*(const ulonglong2& a, const unsigned long long s)
+{
+    return ::make_ulonglong2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator*(const unsigned long long s, const ulonglong2& a)
+{
+    return ::make_ulonglong2(a.x * s, a.y * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator*=(ulonglong2& a, const ulonglong2& s)
+{
+    a = a * s;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator*=(ulonglong2& a, const unsigned long long s)
+{
+    a = a * s;
+    return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator/(const ulonglong2& a, const ulonglong2& b)
+{
+  return ::make_ulonglong2(a.x / b.x, a.y / b.y);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator/(const ulonglong2& a, const unsigned long long s)
+{
+  return ::make_ulonglong2(a.x / s, a.y / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator/(const unsigned long long s, const ulonglong2& a)
+{
+  return ::make_ulonglong2( s/a.x, s/a.y );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator/=(ulonglong2& a, const ulonglong2& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong2& operator/=(ulonglong2& a, const unsigned long long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const ulonglong2& a, const ulonglong2& b)
+{
+    return a.x == b.x && a.y == b.y;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ulonglong2& a, const ulonglong2& b)
+{
+    return a.x != b.x || a.y != b.y;
+}
+/** @} */
+
+namespace otk {
 
 /* ulonglong2 functions */
 /******************************************************************************/
@@ -2236,57 +4912,6 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong2 max(const ulonglong2& a, const ulonglong2& 
     return ::make_ulonglong2(max(a.x, b.x), max(a.y, b.y));
 }
 
-/** add
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator+(const ulonglong2& a, const ulonglong2& b)
-{
-    return ::make_ulonglong2(a.x + b.x, a.y + b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(ulonglong2& a, const ulonglong2& b)
-{
-    a.x += b.x; a.y += b.y;
-}
-/** @} */
-
-/** subtract
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator-(const ulonglong2& a, const ulonglong2& b)
-{
-    return ::make_ulonglong2(a.x - b.x, a.y - b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator-(const ulonglong2& a, const unsigned long long b)
-{
-    return ::make_ulonglong2(a.x - b, a.y - b);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator-=(ulonglong2& a, const ulonglong2& b)
-{
-    a.x -= b.x; a.y -= b.y;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator*(const ulonglong2& a, const ulonglong2& b)
-{
-    return ::make_ulonglong2(a.x * b.x, a.y * b.y);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator*(const ulonglong2& a, const unsigned long long s)
-{
-    return ::make_ulonglong2(a.x * s, a.y * s);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong2 operator*(const unsigned long long s, const ulonglong2& a)
-{
-    return ::make_ulonglong2(a.x * s, a.y * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(ulonglong2& a, const unsigned long long s)
-{
-    a.x *= s; a.y *= s;
-}
-/** @} */
-
 /** clamp
 * @{
 */
@@ -2298,20 +4923,6 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong2 clamp(const ulonglong2& v, const unsigned l
 OTK_INLINE OTK_HOSTDEVICE ulonglong2 clamp(const ulonglong2& v, const ulonglong2& a, const ulonglong2& b)
 {
     return ::make_ulonglong2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
-}
-/** @} */
-
-/** equality
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const ulonglong2& a, const ulonglong2& b)
-{
-    return a.x == b.x && a.y == b.y;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ulonglong2& a, const ulonglong2& b)
-{
-    return a.x != b.x || a.y != b.y;
 }
 /** @} */
 
@@ -2327,9 +4938,137 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(ulonglong2& v, int i, unsigned long lo
     ((unsigned long long*)(&v))[i] = x;
 }
 
+} // namespace otk
+
+/* ulonglong3 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator+( const ulonglong3& a, const ulonglong3& b )
+{
+  return ::make_ulonglong3( a.x + b.x, a.y + b.y, a.z + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator+( const ulonglong3& a, const unsigned long long b )
+{
+  return ::make_ulonglong3( a.x + b, a.y + b, a.z + b );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator+( const unsigned long long a, const ulonglong3& b )
+{
+  return ::make_ulonglong3( a + b.x, a + b.y, a + b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator+=( ulonglong3& a, const ulonglong3& b )
+{
+  a = a + b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator+=( ulonglong3& a, const unsigned long long b )
+{
+  a = a + b;
+  return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator-( const ulonglong3& a, const ulonglong3& b )
+{
+  return ::make_ulonglong3( a.x - b.x, a.y - b.y, a.z - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator-( const ulonglong3& a, const unsigned long long b )
+{
+  return ::make_ulonglong3( a.x - b, a.y - b, a.z - b );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator-( const unsigned long long a, const ulonglong3& b )
+{
+  return ::make_ulonglong3( a - b.x, a - b.y, a - b.z );
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator-=( ulonglong3& a, const ulonglong3& b )
+{
+  a = a - b;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator-=( ulonglong3& a, const unsigned long long b )
+{
+  a = a - b;
+  return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator*(const ulonglong3& a, const ulonglong3& b)
+{
+  return ::make_ulonglong3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator*(const ulonglong3& a, const unsigned long long s)
+{
+  return ::make_ulonglong3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator*(const unsigned long long s, const ulonglong3& a)
+{
+  return ::make_ulonglong3(a.x * s, a.y * s, a.z * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator*=(ulonglong3& a, const ulonglong3& s)
+{
+  a = a * s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator*=(ulonglong3& a, const unsigned long long s)
+{
+  a = a * s;
+  return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator/(const ulonglong3& a, const ulonglong3& b)
+{
+  return ::make_ulonglong3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator/(const ulonglong3& a, const unsigned long long s)
+{
+  return ::make_ulonglong3(a.x / s, a.y / s, a.z / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator/(const unsigned long long s, const ulonglong3& a)
+{
+  return ::make_ulonglong3(s /a.x, s / a.y, s / a.z);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator/=(ulonglong3& a, const ulonglong3& s)
+{
+  a = a / s;
+  return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong3& operator/=(ulonglong3& a, const unsigned long long s)
+{
+  a = a / s;
+  return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==( const ulonglong3& a, const ulonglong3& b )
+{
+  return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=( const ulonglong3& a, const ulonglong3& b )
+{
+  return !( a == b );
+}
+/** @} */
 
 /* ulonglong3 functions */
 /******************************************************************************/
+
+namespace otk {
 
 /** additional constructors
 * @{
@@ -2356,75 +5095,6 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong3 max(const ulonglong3& a, const ulonglong3& 
     return ::make_ulonglong3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
 }
 
-/** add
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator+(const ulonglong3& a, const ulonglong3& b)
-{
-    return ::make_ulonglong3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(ulonglong3& a, const ulonglong3& b)
-{
-    a.x += b.x; a.y += b.y; a.z += b.z;
-}
-/** @} */
-
-/** subtract
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator-(const ulonglong3& a, const ulonglong3& b)
-{
-    return ::make_ulonglong3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(ulonglong3& a, const ulonglong3& b)
-{
-    a.x -= b.x; a.y -= b.y; a.z -= b.z;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator*(const ulonglong3& a, const ulonglong3& b)
-{
-    return ::make_ulonglong3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator*(const ulonglong3& a, const unsigned long long s)
-{
-    return ::make_ulonglong3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator*(const unsigned long long s, const ulonglong3& a)
-{
-    return ::make_ulonglong3(a.x * s, a.y * s, a.z * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(ulonglong3& a, const unsigned long long s)
-{
-    a.x *= s; a.y *= s; a.z *= s;
-}
-/** @} */
-
-/** divide
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator/(const ulonglong3& a, const ulonglong3& b)
-{
-    return ::make_ulonglong3(a.x / b.x, a.y / b.y, a.z / b.z);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator/(const ulonglong3& a, const unsigned long long s)
-{
-    return ::make_ulonglong3(a.x / s, a.y / s, a.z / s);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong3 operator/(const unsigned long long s, const ulonglong3& a)
-{
-    return ::make_ulonglong3(s / a.x, s / a.y, s / a.z);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(ulonglong3& a, const unsigned long long s)
-{
-    a.x /= s; a.y /= s; a.z /= s;
-}
-/** @} */
-
 /** clamp
 * @{
 */
@@ -2436,20 +5106,6 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong3 clamp(const ulonglong3& v, const unsigned l
 OTK_INLINE OTK_HOSTDEVICE ulonglong3 clamp(const ulonglong3& v, const ulonglong3& a, const ulonglong3& b)
 {
     return ::make_ulonglong3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
-}
-/** @} */
-
-/** equality
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const ulonglong3& a, const ulonglong3& b)
-{
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ulonglong3& a, const ulonglong3& b)
-{
-    return a.x != b.x || a.y != b.y || a.z != b.z;
 }
 /** @} */
 
@@ -2467,6 +5123,134 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(ulonglong3& v, int i, unsigned long lo
     ((unsigned long long*)(&v))[i] = x;
 }
 
+} // namespace otk
+
+/* ulonglong4 operators */
+/******************************************************************************/
+
+/** add
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator+(const ulonglong4& a, const ulonglong4& b)
+{
+    return ::make_ulonglong4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator+(const unsigned long long a, const ulonglong4& b)
+{
+    return ::make_ulonglong4(a + b.x, a + b.y, a + b.z, a + b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator+(const ulonglong4& a, const unsigned long long b)
+{
+    return ::make_ulonglong4(a.x + b, a.y + b, a.z + b, a.w + b);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator+=(ulonglong4& a, const ulonglong4& b)
+{
+    a = a + b;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator+=(ulonglong4& a, const unsigned long long b)
+{
+    a = a + b;
+    return a;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator-(const ulonglong4& a, const ulonglong4& b)
+{
+    return ::make_ulonglong4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator-(const unsigned long long a, const ulonglong4& b)
+{
+    return ::make_ulonglong4(a - b.x, a - b.y, a - b.z, a - b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator-(const ulonglong4& a, const unsigned long long b)
+{
+    return ::make_ulonglong4(a.x - b, a.y - b, a.z - b, a.w - b);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator-=(ulonglong4& a, const ulonglong4& b)
+{
+    a = a - b;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator-=(ulonglong4& a, const unsigned long long b)
+{
+    a = a - b;
+    return a;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator*(const ulonglong4& a, const ulonglong4& b)
+{
+    return ::make_ulonglong4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator*(const ulonglong4& a, const unsigned long long s)
+{
+    return ::make_ulonglong4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator*(const unsigned long long s, const ulonglong4& a)
+{
+    return ::make_ulonglong4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator*=(ulonglong4& a, const ulonglong4& s)
+{
+    a = a * s;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator*=(ulonglong4& a, const unsigned long long s)
+{
+    a = a * s;
+    return a;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator/(const ulonglong4& a, const ulonglong4& b)
+{
+    return ::make_ulonglong4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator/(const ulonglong4& a, const unsigned long long s)
+{
+    return ::make_ulonglong4(a.x / s, a.y / s, a.z / s, a.w / s);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator/(const unsigned long long s, const ulonglong4& a)
+{
+    return ::make_ulonglong4(s / a.x, s / a.y, s / a.z, s / a.w);
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator/=(ulonglong4& a, const ulonglong4& s)
+{
+    a = a / s;
+    return a;
+}
+OTK_INLINE OTK_HOSTDEVICE ulonglong4& operator/=(ulonglong4& a, const unsigned long long s)
+{
+    a = a / s;
+    return a;
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OTK_INLINE OTK_HOSTDEVICE bool operator==(const ulonglong4& a, const ulonglong4& b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ulonglong4& a, const ulonglong4& b)
+{
+    return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
+/** @} */
+
+namespace otk {
 
 /* ulonglong4 functions */
 /******************************************************************************/
@@ -2502,75 +5286,6 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong4 max(const ulonglong4& a, const ulonglong4& 
 }
 /** @} */
 
-/** add
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator+(const ulonglong4& a, const ulonglong4& b)
-{
-    return ::make_ulonglong4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator+=(ulonglong4& a, const ulonglong4& b)
-{
-    a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
-}
-/** @} */
-
-/** subtract
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator-(const ulonglong4& a, const ulonglong4& b)
-{
-    return ::make_ulonglong4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-}
-
-OTK_INLINE OTK_HOSTDEVICE void operator-=(ulonglong4& a, const ulonglong4& b)
-{
-    a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
-}
-/** @} */
-
-/** multiply
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator*(const ulonglong4& a, const ulonglong4& b)
-{
-    return ::make_ulonglong4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator*(const ulonglong4& a, const unsigned long long s)
-{
-    return ::make_ulonglong4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator*(const unsigned long long s, const ulonglong4& a)
-{
-    return ::make_ulonglong4(a.x * s, a.y * s, a.z * s, a.w * s);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator*=(ulonglong4& a, const unsigned long long s)
-{
-    a.x *= s; a.y *= s; a.z *= s; a.w *= s;
-}
-/** @} */
-
-/** divide
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator/(const ulonglong4& a, const ulonglong4& b)
-{
-    return ::make_ulonglong4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator/(const ulonglong4& a, const unsigned long long s)
-{
-    return ::make_ulonglong4(a.x / s, a.y / s, a.z / s, a.w / s);
-}
-OTK_INLINE OTK_HOSTDEVICE ulonglong4 operator/(const unsigned long long s, const ulonglong4& a)
-{
-    return ::make_ulonglong4(s / a.x, s / a.y, s / a.z, s / a.w);
-}
-OTK_INLINE OTK_HOSTDEVICE void operator/=(ulonglong4& a, const unsigned long long s)
-{
-    a.x /= s; a.y /= s; a.z /= s; a.w /= s;
-}
-/** @} */
-
 /** clamp
 * @{
 */
@@ -2585,33 +5300,6 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong4 clamp(const ulonglong4& v, const ulonglong4
 }
 /** @} */
 
-/** equality
-* @{
-*/
-OTK_INLINE OTK_HOSTDEVICE bool operator==(const ulonglong4& a, const ulonglong4& b)
-{
-    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
-}
-
-OTK_INLINE OTK_HOSTDEVICE bool operator!=(const ulonglong4& a, const ulonglong4& b)
-{
-    return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
-}
-/** @} */
-
-/** If used on the device, this could place the the 'v' in local memory
-*/
-OTK_INLINE OTK_HOSTDEVICE unsigned long long getByIndex(const ulonglong4& v, unsigned int i)
-{
-    return ((unsigned long long*)(&v))[i];
-}
-
-/** If used on the device, this could place the the 'v' in local memory
-*/
-OTK_INLINE OTK_HOSTDEVICE void setByIndex(ulonglong4& v, int i, unsigned long long x)
-{
-    ((unsigned long long*)(&v))[i] = x;
-}
 
 
 /******************************************************************************/
@@ -2636,7 +5324,7 @@ OTK_INLINE OTK_HOSTDEVICE float2 make_float2(const float4& v0) { return ::make_f
 OTK_INLINE OTK_HOSTDEVICE float3 make_float3(const float4& v0) { return ::make_float3( v0.x, v0.y, v0.z ); }
 /** @} */
 
-/** Assemble functions from smaller vectors 
+/** Assemble functions from smaller vectors
 * @{
 */
 OTK_INLINE OTK_HOSTDEVICE int3 make_int3(const int v0, const int2& v1) { return ::make_int3( v0, v1.x, v1.y ); }
