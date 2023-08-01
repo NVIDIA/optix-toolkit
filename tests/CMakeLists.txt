@@ -64,7 +64,9 @@ otk_add_executable( testCuOmmBaking
   Util/OptiXOmmArray.cpp
   Util/OptiXOmmArray.h
   Util/OptiXScene.cpp
-  Util/OptiXScene.h  
+  Util/OptiXScene.h
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )  
 
 set_target_properties(testCuOmmBaking PROPERTIES 
@@ -73,9 +75,8 @@ set_target_properties(testCuOmmBaking PROPERTIES
   )
 
 target_include_directories( testCuOmmBaking PUBLIC
-  ../support
   ../src
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>  # for SourceDir.h
+  ${CMAKE_CURRENT_BINARY_DIR}/include  # for SourceDir.h
   )
 
 # Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
@@ -86,14 +87,15 @@ target_link_libraries( testCuOmmBaking
   testCuOmmBakingKernels
   CuOmmBaking
   OptiX::OptiX
+  tinyddsloader
+  tinyexr
+  tinygltf
   )
 
 if(NOT MSVC)
   # Work around warnings in stb_image and tinyddsloader
-  target_compile_options(testCuOmmBaking PRIVATE -Wno-type-limits -Wno-switch) 
+  target_compile_options(testCuOmmBaking PRIVATE -Wno-type-limits -Wno-switch)
 endif()
-
-add_dependencies( testCuOmmBaking testCuOmmBakingKernels )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testCuOmmBaking> )
