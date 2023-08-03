@@ -32,6 +32,7 @@ include( GoogleTest )
 otk_add_executable( testMemory
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
+  TestDeviceBuffer.cpp
   TestDeviceMemoryPools.cpp
   TestDeviceMemoryPools.cu
   TestDeviceMemoryPools.h

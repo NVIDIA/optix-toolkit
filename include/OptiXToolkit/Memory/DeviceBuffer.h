@@ -72,8 +72,17 @@ class DeviceBuffer
         rhs.m_size       = 0;
     }
 
-    /// DeviceBuffers are not move assignable (this would potentially leak memory).
-    DeviceBuffer operator=( DeviceBuffer&& rhs ) = delete;
+    /// DeviceBuffers are move assignable.
+    DeviceBuffer& operator=( DeviceBuffer&& rhs ) noexcept
+    {
+        m_devStorage     = rhs.m_devStorage;
+        m_capacity       = rhs.m_capacity;
+        m_size           = rhs.m_size;
+        rhs.m_devStorage = CUdeviceptr{};
+        rhs.m_capacity   = 0;
+        rhs.m_size       = 0;
+        return *this;
+    }
 
     /// Query the size of the allocated memory that is in-use.
     size_t size() const { return m_size; }
