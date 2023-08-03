@@ -30,6 +30,8 @@ if (TARGET OptiX::OptiX)
   return()
 endif()
 
+find_package(CUDAToolkit REQUIRED)
+
 file(GLOB OPTIX_SDK_DIR "$ENV{ProgramData}/NVIDIA Corporation/OptiX SDK 7.6.*")
 find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR} ${OPTIX_SDK_DIR} REQUIRED)
 
@@ -49,5 +51,5 @@ find_package_handle_standard_args(OptiX
 set(OptiX_INCLUDE_DIR ${OptiX_ROOT_DIR}/include)
 
 add_library(OptiX::OptiX INTERFACE IMPORTED)
-target_include_directories(OptiX::OptiX INTERFACE ${OptiX_INCLUDE_DIR})
+target_include_directories(OptiX::OptiX INTERFACE ${OptiX_INCLUDE_DIR} ${CUDAToolkit_INCLUDE_DIRS})
 target_link_libraries(OptiX::OptiX INTERFACE ${CMAKE_DL_LIBS})
