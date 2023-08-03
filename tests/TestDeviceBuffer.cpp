@@ -64,8 +64,9 @@ TEST_F( DeviceBufferTest, moveAssignable )
 {
     otk::DeviceBuffer rhs( 512U );
     const CUdeviceptr address = rhs;
+    otk::DeviceBuffer lhs( 128U );
 
-    otk::DeviceBuffer lhs = std::move( rhs );
+    lhs = std::move( rhs );
 
     ASSERT_EQ( 0U, rhs.size() );
     ASSERT_EQ( 0U, rhs.capacity() );

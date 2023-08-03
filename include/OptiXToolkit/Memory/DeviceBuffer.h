@@ -53,8 +53,7 @@ class DeviceBuffer
 
     ~DeviceBuffer() noexcept
     {
-        if( m_devStorage )
-            OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) );
+        release();
     }
 
     /// DeviceBuffers are not copyable.
@@ -75,6 +74,7 @@ class DeviceBuffer
     /// DeviceBuffers are move assignable.
     DeviceBuffer& operator=( DeviceBuffer&& rhs ) noexcept
     {
+        release();
         m_devStorage     = rhs.m_devStorage;
         m_capacity       = rhs.m_capacity;
         m_size           = rhs.m_size;
@@ -133,6 +133,13 @@ class DeviceBuffer
     void* devicePtr() const { return bit_cast<void*>( m_devStorage ); }
 
   private:
+    void release() noexcept
+    {
+        if( m_devStorage )
+            OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) );
+        m_devStorage = CUdeviceptr{};
+    }
+
     CUdeviceptr m_devStorage{};
     size_t      m_capacity{};
     size_t      m_size{};
