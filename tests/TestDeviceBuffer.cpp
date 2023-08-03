@@ -60,6 +60,18 @@ TEST_F( DeviceBufferTest, constructFromSize )
     ASSERT_NE( CUdeviceptr{}, static_cast<CUdeviceptr>( buffer ) );
 }
 
+TEST_F( DeviceBufferTest, constructFromPointerAndSize )
+{
+    const std::size_t size{ 512U };
+    CUdeviceptr       storage{};
+    OTK_ERROR_CHECK( cuMemAlloc( &storage, size ) );
+    otk::DeviceBuffer buffer( storage, size );
+
+    ASSERT_EQ( size, buffer.size() );
+    ASSERT_EQ( size, buffer.capacity() );
+    ASSERT_EQ( storage, static_cast<CUdeviceptr>( buffer ) );
+}
+
 TEST_F( DeviceBufferTest, moveAssignable )
 {
     otk::DeviceBuffer rhs( 512U );
@@ -87,4 +99,32 @@ TEST_F( DeviceBufferTest, moveConstructable )
     ASSERT_EQ( 512U, lhs.size() );
     ASSERT_EQ( 512U, lhs.capacity() );
     ASSERT_EQ( address, static_cast<CUdeviceptr>( lhs ) );
+}
+
+TEST_F( DeviceBufferTest, attach )
+{
+    CUdeviceptr storage{};
+    std::size_t size{ 128U };
+    OTK_ERROR_CHECK( cuMemAlloc( &storage, size ) );
+    otk::DeviceBuffer buff;
+
+    buff.attach( storage, size );
+
+    ASSERT_EQ( storage, static_cast<CUdeviceptr>( buff ) );
+    ASSERT_EQ( size, buff.size() );
+    ASSERT_EQ( size, buff.capacity() );
+}
+
+TEST_F( DeviceBufferTest, detach )
+{
+    otk::DeviceBuffer buff{ 128U };
+    const CUdeviceptr data = buff;
+
+    CUdeviceptr storage = buff.detach();
+
+    ASSERT_EQ( data, storage );
+    ASSERT_EQ( 0U, buff.size() );
+    ASSERT_EQ( 0U, buff.capacity() );
+
+    OTK_ERROR_CHECK( cuMemFree( storage ) );
 }

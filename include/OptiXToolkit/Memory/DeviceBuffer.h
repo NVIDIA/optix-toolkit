@@ -50,6 +50,13 @@ class DeviceBuffer
     DeviceBuffer() = default;
     /// DeviceBuffers are constructable from a given size.
     explicit DeviceBuffer( size_t size ) { allocate( size ); }
+    /// Construct from existing storage and size and take ownership.
+    DeviceBuffer( CUdeviceptr storage, size_t size )
+        : m_devStorage( storage )
+        , m_capacity( size )
+        , m_size( size )
+    {
+    }
 
     ~DeviceBuffer() noexcept
     {
@@ -131,6 +138,25 @@ class DeviceBuffer
 
     /// Return the associated void* with the allocated device memory.
     void* devicePtr() const { return bit_cast<void*>( m_devStorage ); }
+
+    /// Attach raw storage and size to this buffer.
+    void attach( CUdeviceptr storage, size_t size )
+    {
+        free();
+        m_devStorage = storage;
+        m_capacity   = size;
+        m_size       = size;
+    }
+
+    /// Detach the raw storage from this buffer.
+    CUdeviceptr detach()
+    {
+        const CUdeviceptr storage = m_devStorage;
+        m_devStorage              = CUdeviceptr{};
+        m_capacity                = 0;
+        m_size                    = 0;
+        return storage;
+    }
 
   private:
     void release() noexcept
