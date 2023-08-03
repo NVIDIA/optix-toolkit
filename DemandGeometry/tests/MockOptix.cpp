@@ -18,11 +18,11 @@
 //  SUCH DAMAGES
 //
 
-#include "MockOptix.h"
+#include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 
 OptixFunctionTable g_optixFunctionTable{};
 
-namespace optix {
+namespace otk {
 namespace testing {
 
 MockOptix* g_mockOptix{};
@@ -53,4 +53,4 @@ void initMockOptix( MockOptix& mock )
 }
 
 }  // namespace testing
-}  // namespace optix
+}  // namespace otk

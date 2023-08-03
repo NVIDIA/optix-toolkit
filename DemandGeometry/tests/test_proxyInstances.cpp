@@ -19,10 +19,10 @@
 //
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
-#include <OptiXToolkit/Error/cuErrorCheck.h>
 
-#include "MockDemandLoader.h"
-#include "MockOptix.h"
+#include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
+#include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <optix_stubs.h>
 
@@ -47,9 +47,9 @@ class TestProxyInstance : public Test
     void configureAccelBuildInputs( OptixBuildInput* gasBuildInput, OptixBuildInput* iasBuildInput );
     void configureZeroInstanceIASAccelBuildInput( OptixBuildInput& iasBuildInput );
 
-    optix::testing::MockDemandLoader m_loader;
-    ProxyInstances                   m_instances{ &m_loader };
-    optix::testing::MockOptix        m_optix;
+    otk::testing::MockDemandLoader m_loader;
+    ProxyInstances                 m_instances{ &m_loader };
+    otk::testing::MockOptix        m_optix;
     
     // We need to use the real default stream because we're not mocking CUDA.
     CUstream m_stream{};

@@ -24,7 +24,7 @@
 
 #include <gmock/gmock.h>
 
-namespace optix {
+namespace otk {
 namespace testing {
 
 class MockDemandLoader : public demandLoading::DemandLoader
@@ -65,4 +65,4 @@ class MockDemandLoader : public demandLoading::DemandLoader
 };
 
 }  // namespace testing
-}  // namespace optix
+}  // namespace otk

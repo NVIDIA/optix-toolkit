@@ -23,11 +23,10 @@
 #include <optix_function_table.h>
 
 #include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 extern "C" OptixFunctionTable g_optixFunctionTable;
 
-namespace optix {
+namespace otk {
 namespace testing {
 
 class MockOptix
@@ -59,4 +58,4 @@ class MockOptix
 void initMockOptix( MockOptix& mock );
 
 }  // namespace testing
-}  // namespace optix
+}  // namespace otk
