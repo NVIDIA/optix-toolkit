@@ -87,7 +87,7 @@ inline bool operator==( const OptixProgramGroupDesc& lhs, const OptixProgramGrou
         case OPTIX_PROGRAM_GROUP_KIND_MISS:
             return lhs.miss == rhs.miss;
         case OPTIX_PROGRAM_GROUP_KIND_EXCEPTION:
-            lhs.exception == rhs.exception;
+            return lhs.exception == rhs.exception;
         case OPTIX_PROGRAM_GROUP_KIND_HITGROUP:
             return lhs.hitgroup == rhs.hitgroup;
         case OPTIX_PROGRAM_GROUP_KIND_CALLABLES:
