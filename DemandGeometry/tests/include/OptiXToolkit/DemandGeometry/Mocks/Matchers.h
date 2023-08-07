@@ -63,6 +63,18 @@ inline bool operator!=( const OptixProgramGroupHitgroup& lhs, const OptixProgram
     return !( lhs == rhs );
 }
 
+inline bool operator==( const OptixProgramGroupCallables& lhs, const OptixProgramGroupCallables& rhs )
+{
+    using namespace otk::testing::detail;
+    return lhs.moduleDC == rhs.moduleDC && stringsBothNullOrSame( lhs.entryFunctionNameDC, rhs.entryFunctionNameDC )
+           && lhs.moduleCC == rhs.moduleCC && stringsBothNullOrSame( lhs.entryFunctionNameCC, rhs.entryFunctionNameCC );
+}
+
+inline bool operator!=( const OptixProgramGroupCallables& lhs, const OptixProgramGroupCallables& rhs )
+{
+    return !( lhs == rhs );
+}
+
 inline bool operator==( const OptixProgramGroupDesc& lhs, const OptixProgramGroupDesc& rhs )
 {
     if( lhs.kind != rhs.kind || lhs.flags != rhs.flags )
@@ -78,7 +90,8 @@ inline bool operator==( const OptixProgramGroupDesc& lhs, const OptixProgramGrou
             lhs.exception == rhs.exception;
         case OPTIX_PROGRAM_GROUP_KIND_HITGROUP:
             return lhs.hitgroup == rhs.hitgroup;
-            //case OPTIX_PROGRAM_GROUP_KIND_CALLABLES: return lhs.callables == rhs.callables;
+        case OPTIX_PROGRAM_GROUP_KIND_CALLABLES:
+            return lhs.callables == rhs.callables;
     }
 
     return false;
