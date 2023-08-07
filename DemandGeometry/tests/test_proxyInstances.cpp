@@ -20,6 +20,7 @@
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 
+#include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
@@ -36,6 +37,7 @@
 using namespace testing;
 using namespace demandLoading;
 using namespace demandGeometry;
+using namespace otk::testing;
 
 namespace {
 
@@ -47,10 +49,10 @@ class TestProxyInstance : public Test
     void configureAccelBuildInputs( OptixBuildInput* gasBuildInput, OptixBuildInput* iasBuildInput );
     void configureZeroInstanceIASAccelBuildInput( OptixBuildInput& iasBuildInput );
 
-    otk::testing::MockDemandLoader m_loader;
-    ProxyInstances                 m_instances{ &m_loader };
-    otk::testing::MockOptix        m_optix;
-    
+    MockDemandLoader m_loader;
+    ProxyInstances   m_instances{ &m_loader };
+    MockOptix        m_optix;
+
     // We need to use the real default stream because we're not mocking CUDA.
     CUstream m_stream{};
 
@@ -82,11 +84,6 @@ MATCHER( allowsUpdate, "" )
 MATCHER( isCustomPrimitiveBuildInput, "" )
 {
     return arg->type == OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-}
-
-MATCHER( isInstanceBuildInput, "" )
-{
-    return arg->type == OPTIX_BUILD_INPUT_TYPE_INSTANCES;
 }
 
 MATCHER( isZeroInstances, "" )

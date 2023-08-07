@@ -53,6 +53,25 @@ class MockOptix
                    OptixTraversableHandle*       outputHandle,
                    const OptixAccelEmitDesc*     emittedProperties,
                    unsigned int                  numEmittedProperties ) );
+    MOCK_METHOD( OptixResult,
+                 moduleCreateFromPTX,
+                 ( OptixDeviceContext                 context,
+                   const OptixModuleCompileOptions*   moduleCompileOptions,
+                   const OptixPipelineCompileOptions* pipelineCompileOptions,
+                   const char*                        PTX,
+                   size_t                             PTXsize,
+                   char*                              logString,
+                   size_t*                            logStringSize,
+                   OptixModule*                       module ) );
+    MOCK_METHOD( OptixResult,
+                 programGroupCreate,
+                 ( OptixDeviceContext              context,
+                   const OptixProgramGroupDesc*    programDescriptions,
+                   unsigned int                    numProgramGroups,
+                   const OptixProgramGroupOptions* options,
+                   char*                           logString,
+                   size_t*                         logStringSize,
+                   OptixProgramGroup*              programGroups ) );
 };
 
 void initMockOptix( MockOptix& mock );

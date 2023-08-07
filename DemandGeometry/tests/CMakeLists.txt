@@ -33,6 +33,7 @@ include(GoogleTest)
 source_group( "CUDA Files" REGULAR_EXPRESSION ".+\\.cu$" )
 
 add_library(DemandGeometryMocks STATIC
+  include/OptiXToolkit/DemandGeometry/Mocks/Matchers.h
   include/OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h
   include/OptiXToolkit/DemandGeometry/Mocks/MockOptix.h
   MockOptix.cpp

@@ -50,6 +50,19 @@ void initMockOptix( MockOptix& mock )
                                             outputBufferSizeInBytes, outputHandle,
                                             emittedProperties, numEmittedProperties );
         };
+    g_optixFunctionTable.optixModuleCreateFromPTX =
+        []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
+            const OptixPipelineCompileOptions* pipelineCompileOptions, const char* PTX, size_t PTXsize, char* logString,
+            size_t* logStringSize, OptixModule* module ) {
+            return g_mockOptix->moduleCreateFromPTX( context, moduleCompileOptions, pipelineCompileOptions, PTX,
+                                                     PTXsize, logString, logStringSize, module );
+        };
+    g_optixFunctionTable.optixProgramGroupCreate =
+        []( OptixDeviceContext context, const OptixProgramGroupDesc* programDescriptions, unsigned int numProgramGroups,
+            const OptixProgramGroupOptions* options, char* logString, size_t* logStringSize, OptixProgramGroup* programGroups ) {
+            return g_mockOptix->programGroupCreate( context, programDescriptions, numProgramGroups, options, logString,
+                                                    logStringSize, programGroups );
+        };
 }
 
 }  // namespace testing
