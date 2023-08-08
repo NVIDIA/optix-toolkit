@@ -110,6 +110,11 @@ MATCHER( isInstanceBuildInput, "" )
     return arg->type == OPTIX_BUILD_INPUT_TYPE_INSTANCES;
 }
 
+MATCHER( isTriangleBuildInput, "" )
+{
+    return arg->type == OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+}
+
 namespace detail {
 
 inline bool programGroupDescsContain( const OptixProgramGroupDesc* begin, int numDescs, const OptixProgramGroupDesc& desc )
