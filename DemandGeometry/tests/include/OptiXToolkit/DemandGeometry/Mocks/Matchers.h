@@ -25,6 +25,8 @@
 #include <gmock/gmock.h>
 
 #include <algorithm>
+#include <cmath>
+#include <functional>
 #include <string>
 
 namespace otk {
@@ -33,7 +35,7 @@ namespace detail {
 
 inline bool stringsBothNullOrSame( const char* lhs, const char* rhs )
 {
-    return ( lhs == nullptr && rhs == nullptr ) || std::string{ lhs } == rhs;
+    return ( lhs == nullptr && rhs == nullptr ) || ( lhs != nullptr && rhs != nullptr && std::string{ lhs } == rhs );
 }
 
 }  // namespace detail
@@ -94,7 +96,8 @@ inline bool operator==( const OptixProgramGroupDesc& lhs, const OptixProgramGrou
             return lhs.callables == rhs.callables;
     }
 
-    return false;
+    // No kind and no flags are equal, regardless of union contents.
+    return lhs.kind == 0 && lhs.flags == 0;
 }
 
 inline bool operator!=( const OptixProgramGroupDesc& lhs, const OptixProgramGroupDesc& rhs )
@@ -113,6 +116,56 @@ MATCHER( isInstanceBuildInput, "" )
 MATCHER( isTriangleBuildInput, "" )
 {
     return arg->type == OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+}
+
+MATCHER( isBuildOperation, "" )
+{
+    return arg->operation == OPTIX_BUILD_OPERATION_BUILD;
+}
+
+MATCHER( buildAllowsUpdate, "" )
+{
+    return ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE ) != 0;
+}
+
+MATCHER( isCustomPrimitiveBuildInput, "" )
+{
+    return arg->type == OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+}
+
+MATCHER( isZeroInstances, "" )
+{
+    return arg->instanceArray.numInstances == 0;
+}
+
+inline std::string compareRanges( const float* begin, const float* end, const float* rhs, const std::function<bool( float, float )>& compare )
+{
+    std::string result;
+    int         index{};
+    while( begin != end )
+    {
+        if( !compare( *begin, *rhs ) )
+        {
+            if( !result.empty() )
+                result += ", ";
+            result += "index " + std::to_string( index ) + ' ' + std::to_string( *begin ) + " != " + std::to_string( *rhs );
+        }
+        ++begin;
+        ++rhs;
+        ++index;
+    }
+    return result;
+}
+
+/// Assertion for testing instance 4x3 transforms, e.g. ASSERT_TRUE( isSameeTransfrom( expected, actual ) )
+inline ::testing::AssertionResult isSameTransform( const float ( &expectedTransform )[12], const float ( &transform )[12] )
+{
+    auto compare = []( float lhs, float rhs ) { return std::abs( rhs - lhs ) < 1.0e-6f; };
+    if( std::equal( std::begin( expectedTransform ), std::end( expectedTransform ), std::begin( transform ), compare ) )
+        return ::testing::AssertionSuccess() << "transforms are equal";
+
+    return ::testing::AssertionFailure()
+           << compareRanges( std::begin( expectedTransform ), std::end( expectedTransform ), std::begin( transform ), compare );
 }
 
 namespace detail {
