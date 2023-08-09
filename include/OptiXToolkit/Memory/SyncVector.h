@@ -151,6 +151,9 @@ class SyncVector
     /// Clear the host vector.
     void clear() { m_host.clear(); }
 
+    /// Detach the device storage
+    CUdeviceptr detach() { return m_device.detach(); }
+
   private:
     void ensureDeviceMemory()
     {
