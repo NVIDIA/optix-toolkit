@@ -49,6 +49,7 @@ TEST_F( TestBuildInputBuilder, ZeroInstancesSetsInstanceArrayToZero )
     EXPECT_EQ( 0U, buildInputs[0].instanceArray.instances );
 }
 
+#if OPTIX_VERSION >= 70600
 inline bool operator==( const OptixBuildInputOpacityMicromap& lhs, const OptixBuildInputOpacityMicromap& rhs )
 {
     return lhs.indexingMode == rhs.indexingMode && lhs.opacityMicromapArray == rhs.opacityMicromapArray
@@ -56,6 +57,7 @@ inline bool operator==( const OptixBuildInputOpacityMicromap& lhs, const OptixBu
            && lhs.indexStrideInBytes == rhs.indexStrideInBytes && lhs.indexOffset == rhs.indexOffset
            && lhs.numMicromapUsageCounts == rhs.numMicromapUsageCounts && lhs.micromapUsageCounts == rhs.micromapUsageCounts;
 }
+#endif
 
 TEST_F( TestBuildInputBuilder, Triangles )
 {
