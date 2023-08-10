@@ -93,7 +93,7 @@ TEST_F( TestBuildInputBuilder, Triangles )
     EXPECT_EQ( 0U, triangles.sbtIndexOffsetSizeInBytes );
     EXPECT_EQ( 0U, triangles.sbtIndexOffsetStrideInBytes );
     EXPECT_EQ( 0U, triangles.primitiveIndexOffset );
-#if OPTIX_VERSION >= 70500
+#if OPTIX_VERSION >= 70600
     EXPECT_EQ( OptixBuildInputOpacityMicromap{}, triangles.opacityMicromap );
 #endif
 }
