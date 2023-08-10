@@ -49,6 +49,53 @@ TEST_F( TestBuildInputBuilder, ZeroInstancesSetsInstanceArrayToZero )
     EXPECT_EQ( 0U, buildInputs[0].instanceArray.instances );
 }
 
+inline bool operator==( const OptixBuildInputOpacityMicromap& lhs, const OptixBuildInputOpacityMicromap& rhs )
+{
+    return lhs.indexingMode == rhs.indexingMode && lhs.opacityMicromapArray == rhs.opacityMicromapArray
+           && lhs.indexBuffer == rhs.indexBuffer && lhs.indexSizeInBytes == rhs.indexSizeInBytes
+           && lhs.indexStrideInBytes == rhs.indexStrideInBytes && lhs.indexOffset == rhs.indexOffset
+           && lhs.numMicromapUsageCounts == rhs.numMicromapUsageCounts && lhs.micromapUsageCounts == rhs.micromapUsageCounts;
+}
+
+TEST_F( TestBuildInputBuilder, Triangles )
+{
+    const unsigned int NUM_VERTICES{ 6 };
+    const unsigned int NUM_MOTION_STEPS{ 1 };
+    const CUdeviceptr  FAKE_VERTICES{ 0xdeadbeefU };
+    const CUdeviceptr  FAKE_INDICES{ 0xbadf00dU };
+    const CUdeviceptr  devVertexBuffers[NUM_MOTION_STEPS]{ FAKE_VERTICES };
+    const CUdeviceptr  devIndexBuffer{ FAKE_INDICES };
+    const unsigned int NUM_TRIANGLES{ 0U };
+    const unsigned int NUM_TRIANGLE_SBT_RECORDS{ 1U };
+    // SBT flags
+    std::array<uint32_t, NUM_TRIANGLE_SBT_RECORDS> flags;
+    std::fill( flags.begin(), flags.end(), OPTIX_GEOMETRY_FLAG_NONE );
+
+    builder.triangles( NUM_VERTICES, devVertexBuffers, OPTIX_VERTEX_FORMAT_FLOAT3, NUM_TRIANGLES, devIndexBuffer,
+                       OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3, flags.data(), NUM_TRIANGLE_SBT_RECORDS );
+
+    EXPECT_EQ( OPTIX_BUILD_INPUT_TYPE_TRIANGLES, buildInputs[0].type );
+    OptixBuildInputTriangleArray& triangles = buildInputs[0].triangleArray;
+    EXPECT_EQ( devVertexBuffers, triangles.vertexBuffers );
+    EXPECT_EQ( NUM_VERTICES, triangles.numVertices );
+    EXPECT_EQ( OPTIX_VERTEX_FORMAT_FLOAT3, triangles.vertexFormat );
+    EXPECT_EQ( 0U, triangles.vertexStrideInBytes );
+    EXPECT_EQ( devIndexBuffer, triangles.indexBuffer );
+    EXPECT_EQ( NUM_TRIANGLES, triangles.numIndexTriplets );
+    EXPECT_EQ( OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3, triangles.indexFormat );
+    EXPECT_EQ( 0U, triangles.indexStrideInBytes );
+    EXPECT_EQ( CUdeviceptr{}, triangles.preTransform );
+    EXPECT_EQ( flags.data(), triangles.flags );
+    EXPECT_EQ( NUM_TRIANGLE_SBT_RECORDS, triangles.numSbtRecords );
+    EXPECT_EQ( CUdeviceptr{}, triangles.sbtIndexOffsetBuffer );
+    EXPECT_EQ( 0U, triangles.sbtIndexOffsetSizeInBytes );
+    EXPECT_EQ( 0U, triangles.sbtIndexOffsetStrideInBytes );
+    EXPECT_EQ( 0U, triangles.primitiveIndexOffset );
+#if OPTIX_VERSION >= 70500
+    EXPECT_EQ( OptixBuildInputOpacityMicromap{}, triangles.opacityMicromap );
+#endif
+}
+
 #if OPTIX_VERSION >= 70500
 TEST_F( TestBuildInputBuilder, ZeroSpheresSetsNullBufferPointers )
 {
