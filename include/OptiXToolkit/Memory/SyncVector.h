@@ -58,6 +58,7 @@ class SyncVector
   public:
     using const_iterator = typename std::vector<T>::const_iterator;
     using iterator       = typename std::vector<T>::iterator;
+    using value_type     = T;
 
     /// Default Constructor
     SyncVector<T>() = default;
