@@ -108,14 +108,14 @@ inline bool operator!=( const OptixProgramGroupDesc& lhs, const OptixProgramGrou
 namespace otk {
 namespace testing {
 
-MATCHER( isInstanceBuildInput, "" )
+MATCHER_P( isInstanceBuildInput, n, "" )
 {
-    return arg->type == OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+    return arg[n].type == OPTIX_BUILD_INPUT_TYPE_INSTANCES;
 }
 
-MATCHER( isTriangleBuildInput, "" )
+MATCHER_P( isTriangleBuildInput, n, "" )
 {
-    return arg->type == OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+    return arg[n].type == OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
 }
 
 MATCHER( isBuildOperation, "" )
@@ -128,14 +128,14 @@ MATCHER( buildAllowsUpdate, "" )
     return ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE ) != 0;
 }
 
-MATCHER( isCustomPrimitiveBuildInput, "" )
+MATCHER_P( isCustomPrimitiveBuildInput, n, "" )
 {
-    return arg->type == OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+    return arg[n].type == OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
 }
 
-MATCHER( isZeroInstances, "" )
+MATCHER_P( isZeroInstances, n, "" )
 {
-    return arg->instanceArray.numInstances == 0;
+    return arg[n].instanceArray.numInstances == 0;
 }
 
 inline std::string compareRanges( const float* begin, const float* end, const float* rhs, const std::function<bool( float, float )>& compare )

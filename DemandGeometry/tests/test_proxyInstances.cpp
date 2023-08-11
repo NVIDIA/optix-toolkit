@@ -75,8 +75,8 @@ void TestProxyInstance::configureAccelBuildInputs( OptixBuildInput* gasBuildInpu
 {
     const uint_t numBuildInputs{ 1 };
     auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
-    auto         isGAS     = AllOf( NotNull(), isCustomPrimitiveBuildInput() );
-    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput() );
+    auto         isGAS     = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ) );
+    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput( 0 ) );
     auto&        callMemUsageGAS =
         EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isGAS, numBuildInputs, NotNull() ) );
     auto& callMemUsageIAS =
@@ -100,7 +100,7 @@ void TestProxyInstance::configureZeroInstanceIASAccelBuildInput( OptixBuildInput
 {
     const uint_t numBuildInputs{ 1 };
     auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
-    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput(), isZeroInstances() );
+    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput( 0 ), isZeroInstances( 0 ) );
     EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isIAS, numBuildInputs, NotNull() ) )
         .WillOnce( DoAll( SaveArgPointee<2>( &iasBuildInput ), Return( OPTIX_SUCCESS ) ) );
     EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isIAS, numBuildInputs, _, _, _, _, NotNull(), _, _ ) )
