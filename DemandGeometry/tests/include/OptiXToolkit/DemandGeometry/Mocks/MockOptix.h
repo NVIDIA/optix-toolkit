@@ -33,6 +33,10 @@ class MockOptix
 {
   public:
     MOCK_METHOD( OptixResult,
+                 deviceContextCreate,
+                 ( CUcontext fromContext, const OptixDeviceContextOptions* options, OptixDeviceContext* context ) );
+    MOCK_METHOD( OptixResult, deviceContextDestroy, ( OptixDeviceContext context ) );
+    MOCK_METHOD( OptixResult,
                  accelComputeMemoryUsage,
                  ( OptixDeviceContext            context,
                    const OptixAccelBuildOptions* accelOptions,
@@ -63,6 +67,7 @@ class MockOptix
                    char*                              logString,
                    size_t*                            logStringSize,
                    OptixModule*                       module ) );
+    MOCK_METHOD( OptixResult, moduleDestroy, ( OptixModule module ) );
     MOCK_METHOD( OptixResult,
                  programGroupCreate,
                  ( OptixDeviceContext              context,
@@ -72,6 +77,7 @@ class MockOptix
                    char*                           logString,
                    size_t*                         logStringSize,
                    OptixProgramGroup*              programGroups ) );
+    MOCK_METHOD( OptixResult, programGroupDestroy, ( OptixProgramGroup group ) );
 };
 
 void initMockOptix( MockOptix& mock );
