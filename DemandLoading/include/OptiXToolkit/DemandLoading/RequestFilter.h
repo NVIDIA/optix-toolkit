@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,33 +28,14 @@
 
 #pragma once
 
-#include "RequestHandler.h"
+#include <vector>
 
 namespace demandLoading {
 
-class DemandLoaderImpl;
-class DemandTextureImpl;
-
-class SamplerRequestHandler : public RequestHandler
+class RequestFilter
 {
   public:
-    /// Construct SamplerRequestHandler, which shares state with the DemandLoader.
-    SamplerRequestHandler( DemandLoaderImpl* loader )
-        : m_loader( loader )
-    {
-    }
-
-    /// Fill a request for the specified page using the given stream.  
-    void fillRequest( CUstream stream, unsigned int pageId ) override;
-
-    /// Load or reload a page on the given stream
-    void loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident = true );
-
-  private:
-    bool fillDenseTexture( CUstream stream, unsigned int pageId );
-    void fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId );
-
-    DemandLoaderImpl* m_loader;
+    virtual std::vector<unsigned int> filter( const unsigned int* requests, unsigned int numRequests ) = 0;
 };
 
 }  // namespace demandLoading

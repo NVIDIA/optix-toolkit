@@ -81,7 +81,8 @@ class DemandLoader
     virtual void unloadTextureTiles( unsigned int textureId ) = 0;
 
     /// Replace the indicated texture, clearing out the old texture as needed
-    virtual void replaceTexture( unsigned int                              textureId,
+    virtual void replaceTexture( CUstream                                  stream,
+                                 unsigned int                              textureId,
                                  std::shared_ptr<imageSource::ImageSource> image,
                                  const TextureDescriptor&                  textureDesc ) = 0;
 

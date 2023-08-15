@@ -94,8 +94,11 @@ class DemandTextureImpl : public DemandTexture
     /// Get the memory fill type for this texture.
     CUmemorytype getFillType() const { return m_image->getFillType(); }
 
-    /// Replace the current texture image. Return true if the sampler for the texture needs to be updated.
-    bool setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage );
+    /// Replace the current texture image.
+    void setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage );
+
+    /// Get the current texture image.
+    std::shared_ptr<imageSource::ImageSource> getImage() { return m_image; }
 
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
@@ -191,6 +194,7 @@ class DemandTextureImpl : public DemandTexture
     /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
     void open();
 
+    /// Return true if the texture is open
     bool isOpen() const { return m_isOpen; }
 
     /// Set this texture as an entry point to a udim texture array
@@ -201,6 +205,15 @@ class DemandTextureImpl : public DemandTexture
     
     /// Return the size of the mip tail if the texture is initialized.
     size_t getMipTailSize(); 
+
+    /// Get the master texture for a texture variant
+    DemandTextureImpl* getMasterTexture() { return m_masterTexture; }
+
+    /// Add a variant id to this (assumes this is a master texture)
+    void addVariantId( unsigned int id ) { m_variantTextureIds.push_back( id ); }
+
+    /// Return a list of all the variant ids
+    const std::vector<unsigned int>& getVariantsIds() { return m_variantTextureIds; }
 
   private:
     // A mutex guards against concurrent initialization, which can arise when the sampler
@@ -218,6 +231,7 @@ class DemandTextureImpl : public DemandTexture
 
     // Master texture, if this is a texture variant (shares image backing store with master texture). 
     DemandTextureImpl* m_masterTexture;
+    std::vector<unsigned int> m_variantTextureIds;
 
     // The DemandLoader provides access to the PageTableManager, etc.
     DemandLoaderImpl* const m_loader = nullptr;

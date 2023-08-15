@@ -29,6 +29,7 @@
 include(BuildConfig)
 
 otk_add_library( ImageSource
+  src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
   src/EXRReader.cpp
@@ -46,6 +47,7 @@ target_sources(ImageSource
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
+  include/OptiXToolkit/ImageSource/CascadeImage.h
   include/OptiXToolkit/ImageSource/CheckerBoardImage.h
   include/OptiXToolkit/ImageSource/CoreEXRReader.h
   include/OptiXToolkit/ImageSource/EXRReader.h

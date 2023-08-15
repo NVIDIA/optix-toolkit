@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -33,28 +33,27 @@
 namespace demandLoading {
 
 class DemandLoaderImpl;
-class DemandTextureImpl;
 
-class SamplerRequestHandler : public RequestHandler
+class CascadeRequestHandler : public RequestHandler
 {
   public:
-    /// Construct SamplerRequestHandler, which shares state with the DemandLoader.
-    SamplerRequestHandler( DemandLoaderImpl* loader )
-        : m_loader( loader )
-    {
-    }
+    /// Construct CascaderRequestHandler for the given DemandLoaderImpl.
+    CascadeRequestHandler( DemandLoaderImpl* loader ) 
+    : m_loader{ loader }
+    {}
 
-    /// Fill a request for the specified page using the given stream.  
+    /// Fill a request for the specified page on the stream.
     void fillRequest( CUstream stream, unsigned int pageId ) override;
 
-    /// Load or reload a page on the given stream
-    void loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident = true );
+    /// Load or reload a page on the given stream.
+    void loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident );
 
   private:
-    bool fillDenseTexture( CUstream stream, unsigned int pageId );
-    void fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId );
-
     DemandLoaderImpl* m_loader;
+
+    unsigned int cascadeIdToSamplerId( unsigned int pageId );
+    unsigned int cascadeIdToCascadeLevel( unsigned int pageId );
+    unsigned int cascadeLevelToTextureSize( unsigned int cascadeLevel );
 };
 
 }  // namespace demandLoading

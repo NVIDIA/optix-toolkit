@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,33 +28,37 @@
 
 #pragma once
 
-#include "RequestHandler.h"
+#include <stdio.h>
+#include <OptiXToolkit/DemandLoading/RequestFilter.h>
+#include "DemandLoaderImpl.h"
 
 namespace demandLoading {
 
-class DemandLoaderImpl;
-class DemandTextureImpl;
-
-class SamplerRequestHandler : public RequestHandler
+class CascadeRequestFilter : public RequestFilter
 {
   public:
-    /// Construct SamplerRequestHandler, which shares state with the DemandLoader.
-    SamplerRequestHandler( DemandLoaderImpl* loader )
-        : m_loader( loader )
+    CascadeRequestFilter( unsigned int cascadePagesStart, unsigned int cascadePagesEnd, DemandLoaderImpl* demandLoader )
+      : m_cascadePagesStart( cascadePagesStart )
+      , m_cascadePagesEnd( cascadePagesEnd )
+      , m_demandLoader( demandLoader )
     {
     }
-
-    /// Fill a request for the specified page using the given stream.  
-    void fillRequest( CUstream stream, unsigned int pageId ) override;
-
-    /// Load or reload a page on the given stream
-    void loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident = true );
+    std::vector<unsigned int> filter( const unsigned int* requests, unsigned int numRequests ) override;
 
   private:
-    bool fillDenseTexture( CUstream stream, unsigned int pageId );
-    void fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId );
+    unsigned int m_cascadePagesStart;
+    unsigned int m_cascadePagesEnd;
+    DemandLoaderImpl* m_demandLoader;
 
-    DemandLoaderImpl* m_loader;
+    bool isCascadePage( unsigned int pageId ) 
+    { 
+        return pageId >= m_cascadePagesStart && pageId < m_cascadePagesEnd;
+    }
+
+    unsigned int cascadePageToTextureId( unsigned int pageId )
+    {
+        return PAGES_PER_TEXTURE * ( ( pageId - m_cascadePagesStart ) / NUM_CASCADES );
+    }
 };
 
 }  // namespace demandLoading

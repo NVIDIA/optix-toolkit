@@ -43,6 +43,46 @@ __device__ static __forceinline__ void wrapAndSeparateUdimCoord( float x, CUaddr
     newx -= floorf( newx );
 }
 
+template <class TYPE>
+__device__ static __forceinline__ TYPE
+tex2DGradUdim2( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
+{
+    const float minGradSquared = minf( ddx.x * ddx.x + ddx.y * ddx.y, ddy.x * ddy.x + ddy.y * ddy.y );
+    bool useBaseTexture = ( minGradSquared >= 1.0f );
+    TYPE rval;
+    
+    TextureSampler* smp = nullptr;
+    if( !useBaseTexture )
+    {
+        smp = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
+        float mipLevel = ( smp ) ? getMipLevel( ddx, ddy, smp->width, smp->height, 1.0f / smp->desc.maxAnisotropy ) : -1.0f;
+        useBaseTexture = ( !smp ) || ( ( smp->desc.isUdimBaseTexture || smp->udim == 0 ) && ( mipLevel < 0.0f || smp->hasCascade ) );
+    }
+
+    // Sample the subtexture
+    if( !useBaseTexture )
+    {
+        float        sx, sy;
+        unsigned int xidx, yidx;
+        wrapAndSeparateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, smp->udim, sx, xidx );
+        wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, smp->vdim, sy, yidx );
+
+        unsigned int subTexId = smp->udimStartPage + PAGES_PER_TEXTURE * ( yidx * smp->udim + xidx );
+        const float2 ddx_dim = make_float2( ddx.x * smp->udim, ddx.y * smp->vdim );
+        const float2 ddy_dim = make_float2( ddy.x * smp->udim, ddy.y * smp->vdim );
+        rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx_dim, ddy_dim, isResident );
+        if( *isResident )
+            return rval;
+    }
+
+    // Sample the base texture
+    rval = tex2DGrad<TYPE>( context, textureId, x, y, ddx, ddy, isResident );
+    *isResident = *isResident && useBaseTexture;
+    return rval;
+}
+
+
+
 /// Fetch from a demand-loaded udim texture.  A "udim" texture is an array of texture images that are treated as a single texture
 /// object (with an optional base texture). This entry point is fast, but assumes that texture samples will not cross subtexture boundaries. 
 /// When using this entry point, use CU_TR_ADDRESS_MODE_CLAMP when defining all subtextures to prevent dark lines between textures.
@@ -92,7 +132,7 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
         mipLevel = getMipLevel( ddx, ddy, baseWidth, baseHeight, 1.0f / baseSampler->desc.maxAnisotropy );
 
     // Sample the subtexture
-    if( mipLevel < 0.0f || ( !isUdimBaseTexture && udim > 0 ) )
+    if( ( mipLevel < 0.0f && !baseSampler->hasCascade ) || ( !isUdimBaseTexture && udim > 0 ) )
     {
         float        sx, sy;
         unsigned int xidx, yidx;
@@ -123,6 +163,11 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
         if( *isResident && context.requestIfResident )
             rval = tex2DGrad<TYPE>( baseSampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
     }
+
+#ifdef REQUEST_CASCADE
+    *isResident = *isResident && !requestCascade( context, textureId, baseSampler, ddx, ddy);
+#endif
+
     return rval;
 }
 
@@ -135,10 +180,12 @@ template <class TYPE>
 __device__ static __forceinline__ TYPE
 tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
 {
+    //tex2DGradUdim<TYPE>( context, textureId, x, y, ddx, ddy, isResident );
+
     // Check for base color
     TYPE rval;
     bool baseColorResident;
-    convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
+    //convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
 
     float minGradSquared = minf( ddx.x * ddx.x + ddx.y * ddx.y, ddy.x * ddy.x + ddy.y * ddy.y );
     if( minGradSquared >= 1.0f )
@@ -192,7 +239,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         mipLevel = getMipLevel( ddx, ddy, baseWidth, baseHeight, 1.0f / baseSampler->desc.maxAnisotropy );
 
     // If the mip level is coarse enough, use the base texture if one exists.
-    if( mipLevel >= 0.0f && ( isUdimBaseTexture || udim == 0 ) )
+    if( ( mipLevel >= 0.0f || baseSampler->hasCascade ) && ( isUdimBaseTexture || udim == 0 ) )
     {
         // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
         *isResident = !baseSampler->desc.isSparseTexture;
@@ -207,13 +254,17 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         if( *isResident && context.requestIfResident )
             rval = tex2DGrad<TYPE>( baseSampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
 
+#ifdef REQUEST_CASCADE
+        *isResident = *isResident && !requestCascade( context, textureId, baseSampler, ddx, ddy);
+#endif
+
         return rval;
     }
 
     // sample from up to 4 subtextures and add the results. (this only works if the subtextures are defined
     // using CU_TR_ADDRESS_MODE_BORDER, which puts black on the edges. Adding multiple samples in border mode blends
     // across texture boundaries.)  If subtextures are not found, use the baseSampler instead, if available.
-    TextureSampler* samplers[4]{};
+    TextureSampler* samplers[4] = {0, 0, 0, 0};
 
     // Find subtexture for texture coordinate (x,y)
     const CUaddress_mode wrapMode0 = CU_TR_ADDRESS_MODE_WRAP;  // always using wrap mode
@@ -226,7 +277,8 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
     bool         oneSampler     = true;
     bool         subTexResident = true;
-    unsigned int subTexId       = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx * udim + xidx );
+    unsigned int subTexId0      = baseSampler->udimStartPage + PAGES_PER_TEXTURE * ( yidx * udim + xidx );
+    unsigned int subTexId       = subTexId0;
 
     // Check for base color
     if( minGradSquared >= 1.0f )
@@ -239,6 +291,15 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
     
     samplers[0] = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, subTexId, &subTexResident ) );
     *isResident = static_cast<bool>( samplers[0] );
+
+#ifdef REQUEST_CASCADE
+    if( samplers[0] )
+    {
+        // Note: This only requests a cascade for samplers[0], which could miss a cascade in edge cases
+        float2 uvdim = make_float2( udim, vdim );
+        *isResident = *isResident && !requestCascade( context, subTexId0, samplers[0], ddx * uvdim, ddy * uvdim );
+    }
+#endif
 
     if( !samplers[0] )
     {
@@ -363,9 +424,17 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
             rval += tex2DGrad<TYPE>( samplers[i]->texture, xx, yy, ddx, ddy ); // non-pedicated texture fetch
 
         *isResident = *isResident && texResident;
+
         if( oneSampler )  // Early exit
             break;
     }
+
+/*
+#ifdef REQUEST_CASCADE
+    // Note: This only requests a cascade for samplers[0], which could miss a cascade in edge cases
+    *isResident = *isResident && !requestCascade( context, subTexId0, samplers[0], ddx, ddy );
+#endif
+*/
 
     return rval;
 }

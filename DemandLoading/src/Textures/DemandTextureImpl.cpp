@@ -69,43 +69,44 @@ DemandTextureImpl::DemandTextureImpl( unsigned int id, DemandTextureImpl* master
     , m_loader( loader )
     , m_sampler{}
 {
+    masterTexture->addVariantId( id );
 }
 
-bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage )
+void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
-    // If the original image was not opened, just replace it
+    // If the original image was not opened, avoid opening the new image
     if( !m_image->isOpen() )
     {
         m_descriptor = descriptor;
         m_image = newImage;
-        return false;
+        return;
     }
 
-    // If the two images are the same size and format, replace the image and use the existing textures
+    // Get the info for the new image
     imageSource::TextureInfo newInfo;
     newImage->open( &newInfo );
-    DEMAND_ASSERT( m_info.isValid );
-    if( ( descriptor == m_descriptor ) && ( newInfo == m_info ) )
+    DEMAND_ASSERT( newInfo.isValid );
+
+    // If the new image is a different size or format, the texture will need to be re-initialized
+    // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
+    // There is also the possibility that these stale pages will be requested in the future, so that
+    // problem must also be fixed.
+    if( !( descriptor == m_descriptor ) || !( newInfo == m_info ) )
     {
-        m_descriptor = descriptor;
-        m_image      = newImage;
-        return false;
+        m_isInitialized = false;
+        // Reset the sampler so the texture will be reinitialized, keeping only the udim info
+        TextureSampler newSampler = {0};
+        newSampler.udimStartPage = m_sampler.udimStartPage;
+        newSampler.udim = m_sampler.udim;
+        newSampler.vdim = m_sampler.vdim;
+        m_sampler = newSampler;
     }
 
-    // If there is a size or format mismatch, create new textures
-    // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
     m_info       = newInfo;
     m_descriptor = descriptor;
     m_image      = newImage;
-
-    m_sampler       = {};
-    m_isInitialized = false;
-
-    // Return true, the sampler needs to be replaced on the devices.  The cuda arrays and cuda textures 
-    // will be updated when the sparse/dense textures for each device are re-initialized.
-    return true; 
 }
 
 unsigned int DemandTextureImpl::getId() const
@@ -124,7 +125,7 @@ void DemandTextureImpl::init()
     if( useSparseTexture() )
     {
         // Per-device initialization.
-        
+
         // Get the master array (backing store) if there is master texture
         std::shared_ptr<SparseArray> masterArray( nullptr );
         if( m_masterTexture )
@@ -154,7 +155,6 @@ void DemandTextureImpl::init()
             {
                 m_mipLevelDims[i] = sparseTexture.getMipLevelDims( i );
             }
-
             initSampler();
         }
     }
@@ -190,7 +190,6 @@ void DemandTextureImpl::init()
                 m_mipTailSize += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels
                                  * imageSource::getBytesPerChannel( m_info.format );
             }
-
             initSampler();
         }
     }
@@ -247,16 +246,24 @@ void DemandTextureImpl::initSampler()
         }
         else
         {
+            // If the texture is being resized, remove the existing request handler
+            if( m_requestHandler != nullptr )
+                m_loader->getPageTableManager()->removeRequestHandler( m_requestHandler->getStartPage() );
             m_requestHandler.reset( new TextureRequestHandler( this, m_loader ) );
             m_sampler.startPage = m_loader->getPageTableManager()->reserveUnbackedPages( m_sampler.numPages, m_requestHandler.get() );
         }
     }
     else // Dense texture 
     {
+        // FIXME: Test cascading dense textures.
         // Dense textures do not need extra page table entries
         m_sampler.numPages = 0;
         m_sampler.startPage = m_id;
     }
+
+    // Fill in the hasCascade and cascadeLevel values in the sampler
+    m_sampler.hasCascade = m_image->hasCascade();
+    m_sampler.cascadeLevel = getCascadeLevel( m_sampler.width, m_sampler.height );
 }
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const

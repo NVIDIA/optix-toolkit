@@ -85,6 +85,11 @@ struct TextureSampler
     unsigned int udimStartPage;
     unsigned short udim;
     unsigned short vdim;
+
+    // Cascaded textures
+    unsigned short cascadeLevel;
+    bool hasCascade;
+
 };
 
 // Indexing related to base colors

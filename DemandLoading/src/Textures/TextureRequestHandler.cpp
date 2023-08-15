@@ -206,7 +206,7 @@ void TextureRequestHandler::unmapTileResource( CUstream stream, unsigned int pag
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to fill the same tile (or the mip tail).
     unsigned int tileIndex = pageId - m_startPage;
-    MutexArrayLock lock( m_mutex.get(), tileIndex);
+    MutexArrayLock lock( m_mutex.get(), tileIndex );
 
     // If the page has already been remapped, don't unmap it
     PagingSystem* pagingSystem = m_loader->getPagingSystem();

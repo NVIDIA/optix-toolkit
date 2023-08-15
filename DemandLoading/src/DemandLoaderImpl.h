@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -40,6 +40,8 @@
 #include "ResourceRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
+#include "Textures/CascadeRequestHandler.h"
+#include <OptiXToolkit/DemandLoading/TextureCascade.h>
 #include "TransferBufferDesc.h"
 
 #include <cuda.h>
@@ -93,7 +95,7 @@ class DemandLoaderImpl : public DemandLoader
     void unloadTextureTiles( unsigned int textureId ) override;
 
     /// Replace the indicated texture, clearing out the old texture as needed
-    void replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
+    void replaceTexture( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
 
     /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches
     /// the given stream.
@@ -187,7 +189,8 @@ class DemandLoaderImpl : public DemandLoader
     std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures;     // demand-loaded textures, indexed by textureId
     std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // lookup from image* to textureId
 
-    SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
+    CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
+    SamplerRequestHandler m_samplerRequestHandler;  // Handles requests for texture samplers.
 
 #if CUDA_VERSION >= 11020
     PerContextData<otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>> m_deviceTransferPools;

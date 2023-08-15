@@ -50,6 +50,7 @@ struct Options
     unsigned int maxFilledPages    = 8192;  ///< num slots to push mappings back to device in processRequests
     bool         useSparseTextures = true;  ///< whether to use sparse or dense textures
     bool         useSmallTextureOptimization = false;  ///< whether to use dense textures for very small textures
+    bool         useCascadingTextureSizes = false; ///< whether to use cascading texture sizes
 
     // Memory limits
     size_t maxTexMemPerDevice = 0;  ///< texture to allocate per device (in MB) before starting eviction (0 is unlimited)

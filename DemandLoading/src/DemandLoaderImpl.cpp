@@ -28,6 +28,7 @@
 
 #include "DemandLoaderImpl.h"
 
+#include "CascadeRequestFilter.h"
 #include "DemandPageLoaderImpl.h"
 #include "Util/CudaContext.h"
 #include "Util/ContextSaver.h"
@@ -39,6 +40,7 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/ImageSource/CascadeImage.h>
 
 #include <cuda.h>
 
@@ -68,32 +70,27 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
     DeviceMemoryManager* m_deviceMemoryManager;
 };
 
-// Predicate that returns TextureSamplers to texture sampler pool
-class TextureSamplerReturnPredicate : public PageInvalidatorPredicate
-{
-  public:
-    TextureSamplerReturnPredicate( DeviceMemoryManager* deviceMemoryManager )
-        : m_deviceMemoryManager( deviceMemoryManager )
-    {
-    }
-    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
-    {
-        m_deviceMemoryManager->freeSampler( reinterpret_cast<TextureSampler*>( pageVal ) );
-        return true;
-    }
-    ~TextureSamplerReturnPredicate() override {}
-  private:
-    DeviceMemoryManager* m_deviceMemoryManager;
-};
-
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages, options.numPageTableEntries ) )
     , m_requestProcessor( m_pageTableManager, options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
     , m_samplerRequestHandler( this )
+    , m_cascadeRequestHandler( this )
 {
-    // Reserve bits in the sampler request handler for all possible textures.
+    // Reserve pages in the sampler request handler for all possible textures.
     m_samplerRequestHandler.setPageRange( 0, options.numPageTableEntries );
+
+    // Reserve pages for the cascade request handler if supported
+    if( options.useCascadingTextureSizes )
+    {
+        unsigned int maxTextures = options.numPageTableEntries / PAGES_PER_TEXTURE;
+        unsigned int numCascadePages = NUM_CASCADES * maxTextures;
+        unsigned int cascadeStartPage = m_pageTableManager->reserveUnbackedPages( numCascadePages, &m_cascadeRequestHandler );
+        CascadeRequestFilter* requestFilter = new CascadeRequestFilter( cascadeStartPage, cascadeStartPage + numCascadePages, this );
+        m_requestProcessor.setRequestFilter( std::shared_ptr<RequestFilter>(requestFilter) );
+    }
+
+    m_requestProcessor.start( options.maxThreads );
 }
 
 DemandLoaderImpl::~DemandLoaderImpl()
@@ -151,7 +148,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 entryPointId = std::min( textureId, entryPointId );
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
-                
+
                 // Record the image reader and texture descriptor.
                 m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
@@ -176,15 +173,21 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
                                                            std::shared_ptr<imageSource::ImageSource>& imageSource )
 {
     auto imageIt = m_imageToTextureId.find( imageSource.get() );
-    if( imageIt == m_imageToTextureId.end() )
+    if( imageIt == m_imageToTextureId.end() ) // image was not found. Make a new texture.
     {
-        // image was not found. Make a new texture.
+        if( getOptions().useCascadingTextureSizes )
+        {
+            imageSource::CascadeImage* cascadeImg = new imageSource::CascadeImage( imageSource, CASCADE_BASE );
+            std::shared_ptr<imageSource::ImageSource> cascadeImage(cascadeImg);
+            m_imageToTextureId[imageSource.get()] = textureId;
+            return new DemandTextureImpl( textureId, textureDesc, cascadeImage, this );
+        }
+
         m_imageToTextureId[imageSource.get()] = textureId;
         return new DemandTextureImpl( textureId, textureDesc, imageSource, this );
     }
-    else
+    else // image was found. Make a variant texture.
     {
-        // image was found. Make a variant texture.
         DemandTextureImpl* masterTexture = m_textures[imageIt->second].get();
         return new DemandTextureImpl( textureId, masterTexture, textureDesc, this );
     }
@@ -220,20 +223,28 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
     }
 }
 
-void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc )
+void DemandLoaderImpl::replaceTexture( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc )
 {
     unloadTextureTiles( textureId );
     std::unique_lock<std::mutex> lock( m_mutex );
-    bool samplerNeedsReset = m_textures.at( textureId )->setImage( textureDesc, image );
+    m_textures.at( textureId )->setImage( textureDesc, image );
 
-    // Invalidate the texture sampler 
-    if( samplerNeedsReset )
+    if( m_textures.at( textureId )->isOpen() )
     {
-        TextureSamplerReturnPredicate* predicate = new TextureSamplerReturnPredicate( getDeviceMemoryManager() );
-        m_pageLoader->invalidatePageRange( textureId, textureId + 1, predicate );
-    }
+        m_samplerRequestHandler.loadPage( stream, textureId );
+        m_samplerRequestHandler.loadPage( stream, textureId + BASE_COLOR_OFFSET );
 
-    // Record the image reader and texture descriptor.
+        // Take care of any variants
+        DemandTextureImpl* masterTexture = getTexture( textureId );
+        const std::vector<unsigned int>& variantIds = masterTexture->getVariantsIds();
+        for( unsigned int variantId : variantIds )
+        {
+            const TextureDescriptor& variantDesc = m_textures.at( variantId )->getDescriptor();
+            m_textures.at( variantId )->setImage( variantDesc, image );
+            m_samplerRequestHandler.loadPage( stream, variantId );
+            m_samplerRequestHandler.loadPage( stream, variantId + BASE_COLOR_OFFSET );
+        }
+    }
     m_requestProcessor.recordTexture( image, textureDesc );
 }
 
@@ -313,9 +324,13 @@ void DemandLoaderImpl::abort()
 void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.
-    TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager->getRequestHandler( pageId ) );
-    DEMAND_ASSERT_MSG( handler != nullptr, "Page request does not correspond to a known resource" );
-    handler->unmapTileResource( stream, pageId );
+    RequestHandler* handler = m_pageTableManager->getRequestHandler( pageId );
+    DEMAND_ASSERT_MSG( handler, "Page request does not correspond to a known resource." );
+
+    // Make sure that the handler is a TextureRequestHandler instead of a null request handler
+    TextureRequestHandler* textureRequestHandler = dynamic_cast<TextureRequestHandler*>( handler );
+    if( textureRequestHandler ) 
+        textureRequestHandler->unmapTileResource( stream, pageId );
 }
 
 void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, void* pageTableEntry )

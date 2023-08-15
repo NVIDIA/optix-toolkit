@@ -278,7 +278,7 @@ void PagingSystem::stageStalePages( RequestContext* requestContext, std::deque<P
     for( int i = static_cast<int>( numStalePages - 1 ); i >= 0; --i )
     {
         StalePage sp = requestContext->stalePages[i];
-        if( numStaged >= m_options.maxStagedPages || m_pageMappingsContext->numInvalidatedPages >= m_options.maxInvalidatedPages )
+        if( numStaged >= m_options.maxStagedPages || m_pageMappingsContext->numInvalidatedPages >= m_options.maxInvalidatedPages - 1 )
             break;
 
         const auto& p = m_pageTable.find( sp.pageId );
@@ -315,7 +315,13 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
         m_stagedPages[0].mappings.pop_front();
 
         const auto& p = m_pageTable.find( m->id );
-        DEMAND_ASSERT( p != m_pageTable.end() );
+        if( p == m_pageTable.end() )
+        {
+            // FIXME: Avoid the duplicate frees
+            //printf("PagingSystem::freeStagedPage duplicate free %d\n", m->id);
+            continue;
+        }
+
         p->second.inStagedList = false;
 
         // If the page is still staged, return. Otherwise, go around and look for another one
@@ -375,6 +381,8 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
     if( numFilledPages > 0 )
     {
+        DEMAND_ASSERT_MSG( numFilledPages <= m_options.maxFilledPages,
+                           "Too many filled pages. Increase options.maxFilledPages." );
         DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
                                           numFilledPages * sizeof( PageMapping ), stream ) );
@@ -385,6 +393,8 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     const unsigned int numInvalidatedPages = m_pageMappingsContext->numInvalidatedPages;
     if( numInvalidatedPages > 0 )
     {
+        DEMAND_ASSERT_MSG( numInvalidatedPages <= m_options.maxInvalidatedPages,
+                           "Too many invalidated pages. Increase options.maxInvalidPages." );
         DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),
                                           numInvalidatedPages * sizeof( unsigned int ), stream ) );
@@ -425,6 +435,7 @@ void PagingSystem::invalidatePages( unsigned int              startId,
             {
                 pushMappingsAndInvalidations( context, stream );
                 cuStreamSynchronize( stream ); // wait for the stream because we will reuse the context
+                m_pageMappingsContext->numInvalidatedPages = 0;
             }
         }
         else 

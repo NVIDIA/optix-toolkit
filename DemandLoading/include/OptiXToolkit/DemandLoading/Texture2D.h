@@ -36,6 +36,7 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Paging.h>
 #include <OptiXToolkit/DemandLoading/Texture2DFootprint.h>
+#include <OptiXToolkit/DemandLoading/TextureCascade.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
@@ -55,6 +56,8 @@ struct half4
 #endif
 
 namespace demandLoading {
+
+#if defined( __CUDACC__ ) || defined( OPTIX_PAGING_BIT_OPS )
 
 #ifndef DOXYGEN_SKIP
 
@@ -211,6 +214,48 @@ __device__ __forceinline__ float getMipLevel( float2 ddx, float2 ddy, int texWid
     const float mipLevel     = 0.5f * log2f( filterWidth2 );
     return mipLevel;
 }
+
+// Request a cascade (texture resolution) big enough handle a sample with texture derivatives ddx, ddy
+__device__ static __forceinline__ bool
+requestCascade( const DeviceContext& context, unsigned int textureId, const TextureSampler* sampler, float2 ddx, float2 ddy )
+{
+    if( sampler && !sampler->hasCascade )
+        return false;
+
+    // Early out based on the fact that a cascade is not needed unless the footprint
+    // is for a single mip level (level 0)
+    /*
+    unsigned int singleMipLevel;
+    unsigned int desc   = *reinterpret_cast<const unsigned int*>( &sampler->desc );
+    uint4 fp = optixTexFootprint2DGrad( sampler->texture, desc, 0.0f, 0.0f, ddx.x, ddx.y, ddy.x, ddy.y, FINE_MIP_LEVEL, &singleMipLevel );
+    if( !singleMipLevel )
+        return false;
+    */
+
+    // Get the mip level
+    float texWidth = ( sampler ) ? sampler->width : CASCADE_BASE;
+    float texHeight = ( sampler ) ? sampler->height : CASCADE_BASE;
+    float anisotropy = ( sampler ) ? sampler->desc.maxAnisotropy : 16.0f;
+    float mipLevel = getMipLevel( ddx, ddy, texWidth, texHeight, 1.0f / anisotropy );
+
+    // The current size is large enough, don't request a cascade
+    if( sampler && mipLevel >= 0.0f )
+        return false;
+    if( mipLevel >= 0.0f )
+        mipLevel = 0.0f;
+
+    // The current size is too small, request a cascade
+    unsigned int cascadeStartIndex = context.pageTable.capacity; // FIXME: Should this be an explicit variable?
+    unsigned int requestCascadeLevel = ( sampler ) ? sampler->cascadeLevel : 0;
+    requestCascadeLevel += (unsigned int)( ceilf( -mipLevel ) );
+    requestCascadeLevel = max( 0, min( requestCascadeLevel, NUM_CASCADES - 1 ) );
+    unsigned int textureNum = textureId / PAGES_PER_TEXTURE;
+    unsigned int cascadePage = cascadeStartIndex + textureNum * NUM_CASCADES + requestCascadeLevel;
+    pagingRequest( context.referenceBits, cascadePage );
+    return true;
+}
+
+
 
 __device__ static __forceinline__ bool requestTexFootprint2DGrad( const TextureSampler& sampler,
                                                                   unsigned int*         referenceBits,
@@ -380,6 +425,9 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     {
         if( *isResident )
             *isResident = getBaseColor<TYPE>( context, textureId, rval, &baseColorResident );
+#ifdef REQUEST_CASCADE
+        *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
+#endif
         return rval;
     }
 
@@ -422,6 +470,10 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
             printf("ERROR: Mipmap mismatch between tex2DGrad and requestTexFootprint2DGrad!\n");
     }
     */
+
+#ifdef REQUEST_CASCADE
+    *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
+#endif
 
     return rval;
 }
@@ -472,6 +524,12 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     if( *isResident && context.requestIfResident )
         rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
 
+#ifdef REQUEST_CASCADE
+    float2 ddx  = make_float2( expLod / sampler->width, 0.0f );
+    float2 ddy  = make_float2( 0.0f, expLod / sampler->height );
+    *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
+#endif
+
     return rval;
 }
 
@@ -486,5 +544,7 @@ tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, b
     return tex2DLod<TYPE>( context, textureId, x, y, 0.0f, isResident );
 }
 
+
+#endif
 
 }  // namespace demandLoading

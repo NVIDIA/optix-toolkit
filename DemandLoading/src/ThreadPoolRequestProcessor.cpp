@@ -89,9 +89,19 @@ void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, 
     auto it = m_tickets.find( id );
     DEMAND_ASSERT( it != m_tickets.end() );
     Ticket ticket = it->second;
-    // We won't be issued this id again, so we can discard it from the map.
+    // We won't issue this id again, so we can discard it from the map.
     m_tickets.erase( it );
-    m_requests->push( pageIds, numPageIds, ticket );
+   
+    // Filter the batch of requests, and add it to the main request list with the ticket to track their progress
+    if( numPageIds > 0 && m_requestFilter )
+    {
+        std::vector<unsigned int> filteredRequests = m_requestFilter->filter( pageIds, numPageIds );
+        m_requests->push( &filteredRequests[0], static_cast<unsigned int>( filteredRequests.size() ), ticket );
+    }
+    else
+    {
+        m_requests->push( pageIds, numPageIds, ticket );
+    }
 
     // If recording is enabled, write the requests to the trace file.
     if( m_traceFile && numPageIds > 0 )

@@ -55,7 +55,7 @@ SparseArray::~SparseArray()
 
 void SparseArray::init( const imageSource::TextureInfo& info )
 {
-    if( m_initialized )
+    if( m_initialized && info == m_info )
         return;
 
     // Record device index and current CUDA context.
@@ -206,15 +206,13 @@ void SparseArray::unmapMipTailAsync( CUstream stream, size_t mipTailSize ) const
 
 void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<SparseArray> masterArray )
 {
-    // Redundant initialization can occur because requests from multiple streams are not yet
-    // deduplicated.
-    if( m_isInitialized )
+    // Redundant initialization can occur because requests from multiple streams are not yet deduplicated.
+    if( m_isInitialized && info == m_info )
         return;
 
     // Record current CUDA context.
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
-
     m_info = info;
+    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
 
     // Set the array to a new array, or the master array if one was passed in
     m_array = masterArray;
@@ -232,7 +230,7 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     td.flags               = CU_TRSF_NORMALIZED_COORDINATES | descriptor.flags;
     td.maxAnisotropy       = descriptor.maxAnisotropy;
     td.mipmapFilterMode    = descriptor.mipmapFilterMode;
-    td.maxMipmapLevelClamp = float( info.numMipLevels - 1 );
+    td.maxMipmapLevelClamp = float( m_info.numMipLevels - 1 );
     td.minMipmapLevelClamp = 0.f;
 
     // Create texture object.

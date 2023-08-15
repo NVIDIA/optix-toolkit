@@ -110,6 +110,8 @@ class ImageSource
     /// Returns the time in seconds spent reading image data (tiles or mip levels).  This number may
     /// be zero if the reader does not load tiles from disk, e.g. for procedural textures.
     virtual double getTotalReadTime() const = 0;
+
+    virtual bool hasCascade() { return false; }
 };
 
 /// Base class for ImageSource with default implementation of readMipTail, etc.

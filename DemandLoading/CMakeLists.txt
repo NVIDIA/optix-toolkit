@@ -64,6 +64,8 @@ embed_ptx(CONST RELOCATABLE
 )
 
 otk_add_library( DemandLoading
+  src/CascadeRequestFilter.cpp
+  src/CascadeRequestFilter.h
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.cpp
@@ -84,6 +86,8 @@ otk_add_library( DemandLoading
   src/RequestQueue.h
   src/ResourceRequestHandler.cpp
   src/ResourceRequestHandler.h
+  src/Textures/CascadeRequestHandler.cpp
+  src/Textures/CascadeRequestHandler.h
   src/Textures/DemandTextureImpl.cpp
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.cpp
@@ -128,6 +132,7 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/LRU.h
   include/OptiXToolkit/DemandLoading/Options.h
   include/OptiXToolkit/DemandLoading/Paging.h
+  include/OptiXToolkit/DemandLoading/RequestFilter.h
   include/OptiXToolkit/DemandLoading/RequestProcessor.h
   include/OptiXToolkit/DemandLoading/Resource.h
   include/OptiXToolkit/DemandLoading/Statistics.h
@@ -141,6 +146,7 @@ target_sources(DemandLoading
 )
 
 source_group( "Header Files\\Implementation" FILES
+  src/CascadeRequestFilter.h
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.h
@@ -164,11 +170,12 @@ source_group( "Header Files\\Implementation" FILES
   src/PagingSystem.h
   src/PagingSystemKernels.h
   src/RequestContext.h
+  src/RequestFilter.h
   src/RequestHandler.h
   src/RequestProcessor.h
   src/RequestQueue.h
   src/ResourceRequestHandler.h
-  src/Textures/BaseColorRequestHandler.h
+  src/Textures/CascadeRequestHandler.h
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.h
   src/Textures/SamplerRequestHandler.h

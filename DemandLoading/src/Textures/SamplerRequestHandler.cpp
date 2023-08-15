@@ -47,15 +47,19 @@ namespace demandLoading {
 
 void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
+    loadPage( stream, pageId, false );
+}
+
+void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident )
+{
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to create the same sampler.
+
     MutexArrayLock lock( m_mutex.get(), pageId - m_startPage );
 
-    // Do nothing if the request has already been filled.
-    PagingSystem* pagingSystem = m_loader->getPagingSystem();
-    if( pagingSystem->isResident( pageId ) )
+    if( !reloadIfResident && m_loader->getPagingSystem()->isResident( pageId ) )
         return;
 
     // Get the texture and make sure it is open.
@@ -78,7 +82,7 @@ void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
         return;
     }
 
-    // Initialize the texture, creating a per-device CUDA texture objects.
+    // Initialize the texture, creating per-device CUDA texture objects.
     try
     {
         texture->init();
@@ -184,8 +188,9 @@ void SamplerRequestHandler::fillBaseColorRequest( CUstream /*stream*/, DemandTex
     // Store the base color as a half4 in the page table
     unsigned long long  noColor   = 0xFFFFFFFFFFFFFFFFull; // four half NaNs, to indicate when no baseColor exists
     half4               baseColor = half4{fBaseColor.x, fBaseColor.y, fBaseColor.z, fBaseColor.w};
-    unsigned long long* baseVal   = ( hasBaseColor ) ? reinterpret_cast<unsigned long long*>( &baseColor ) : &noColor;
-    m_loader->getPagingSystem()->addMapping( pageId, NON_EVICTABLE_LRU_VAL, *baseVal );
+    unsigned long long* baseVal   = reinterpret_cast<unsigned long long*>( &baseColor );
+    unsigned long long  val = ( hasBaseColor ) ? *baseVal : noColor;
+    m_loader->getPagingSystem()->addMapping( pageId, NON_EVICTABLE_LRU_VAL, val );
 }
 
 }  // namespace demandLoading
