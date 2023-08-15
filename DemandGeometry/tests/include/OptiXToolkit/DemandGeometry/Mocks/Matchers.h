@@ -115,27 +115,62 @@ MATCHER_P( isInstanceBuildInput, n, "" )
 
 MATCHER_P( isTriangleBuildInput, n, "" )
 {
-    return arg[n].type == OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_TRIANGLES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type << ", not OPTIX_BUILD_INPUT_TYPE_TRIANGLES";
+        return false;
+    }
+    return true;
 }
 
 MATCHER( isBuildOperation, "" )
 {
-    return arg->operation == OPTIX_BUILD_OPERATION_BUILD;
+    if( arg->operation != OPTIX_BUILD_OPERATION_BUILD )
+    {
+        *result_listener << "build operation " << arg->operation << " is not OPTIX_BUILD_OPERATION_BUILD";
+        return false;
+    }
+    return true;
 }
 
 MATCHER( buildAllowsUpdate, "" )
 {
-    return ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE ) != 0;
+    if( ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE ) == 0 )
+    {
+        *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_UPDATE not set in value " << arg->buildFlags;
+        return false;
+    }
+    return true;
+}
+
+MATCHER( buildAllowsRandomVertexAccess, "" )
+{
+    if( ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS ) == 0 )
+    {
+        *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS not set in value " << arg->buildFlags;
+        return false;
+    }
+    return true;
 }
 
 MATCHER_P( isCustomPrimitiveBuildInput, n, "" )
 {
-    return arg[n].type == OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type << ", not OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES";
+        return false;
+    }
+    return true;
 }
 
 MATCHER_P( isZeroInstances, n, "" )
 {
-    return arg[n].instanceArray.numInstances == 0;
+    if( arg[n].instanceArray.numInstances != 0 )
+    {
+        *result_listener << "input " << n << " has non-zero numInstances (" << arg[n].instanceArray.numInstances << ')';
+        return false;
+    }
+    return true;
 }
 
 inline std::string compareRanges( const float* begin, const float* end, const float* rhs, const std::function<bool( float, float )>& compare )
