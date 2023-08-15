@@ -25,11 +25,12 @@ git submodule update --init --recursive DemandLoading Memory ShaderUtil CMake
 
 ## Requirements
 
-- OptiX 7.3 or later.
-- CUDA 11.1 or later.
-- C++ compiler (gcc, Clang, or Visual Studio).
-- CMake 3.24 or later.  Using the latest CMake is recommended to ensure up-to-date CUDA language support.
-- git (any modern version with LFS).
+- C++ compiler (gcc, Clang, or Visual Studio)
+- git (any modern version with LFS) ([download](https://git-scm.com/downloads))
+- CMake 3.24 or later ([download](https://cmake.org/download/)).  
+  - Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
+- CUDA 11.1 or later ([download](https://developer.nvidia.com/cuda-downloads))
+- OptiX 7.3 or later ([download](https://developer.nvidia.com/designworks/optix/download))
 
 On some Linux systems it may be necessary to install some commonly used developer packages with the following commands:
 ```
@@ -147,20 +148,25 @@ described above.
 
 ## Troubleshooting
 
-Problem: CMake Error: include could not find requested file: Policies
-Solution: Git submodules must be initialized, e.g. `git submodule update --init --recursive`
+**Problem:** CMake Error: include could not find requested file: Policies<br>
+**Solution:** Git submodules must be initialized, e.g. `git submodule update --init --recursive`
 
-Problem: add_library cannot create ALIAS target "OpenEXR::Config" because another target with the same name already exists.
-Solution: Install OpenEXR 3.1 or later or set `OpenEXR_DIR` to such an installation.
+**Problem:** add_library cannot create ALIAS target "OpenEXR::Config" because another target with the same name already exists.<br>
+**Solution:** Install OpenEXR 3.1 or later or set `OpenEXR_DIR` to such an installation.
 
-Problem: CMake configuration error: "could not find git for clone of glad-populate" <br>
-Solution: [git is required](https://git-scm.com/download) in order to download third-party libraries (e.g. glad)
+**Problem:** CMake configuration error: "could not find git for clone of glad-populate" <br>
+**Solution:** [git is required](https://git-scm.com/download) in order to download third party libraries (e.g. glad)
 
-Problem: Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed <br>
-Solution: [Download newer driver](https://www.nvidia.com/download)
+**Problem:** Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed <br>
+**Solution:** [Download newer driver](https://www.nvidia.com/download)
 
-Problem: CMake configuration error: "Failed to detect a default cuda architecture" <br>
-Solution: Set configuration variable `CMAKE_CUDA_COMPILER` to the full path of the NVCC compiler.
+**Problem:** CMake configuration error: "Failed to detect a default cuda architecture" <br>
+**Solution:** Set configuration variable `CMAKE_CUDA_COMPILER` to the full path of the NVCC compiler.
+
+**Problem:** Tests fail with "Cannot read image file filename.exr. File is not an image file."
+**Solution:** Install git lfs (`git lfs install`) and re-clone repository.
+
+If you encounter a problem, we encourage you to post on the [OptiX forums](https://devtalk.nvidia.com/default/board/90/) or open a ticket on the [OptiX Toolkit issues](https://github.com/NVIDIA/optix-toolkit/issues) page on GitHub.
 
 ## Attributions
 
