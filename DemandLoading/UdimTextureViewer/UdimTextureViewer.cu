@@ -128,8 +128,12 @@ extern "C" __global__ void __closesthit__ch()
 
     // Sample the texture, and put the value in the ray payload.
     bool resident  = false;
+    /*
     if( params.interactive_mode )
         payload->color = tex2DGradWalkup<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
     else 
         payload->color = tex2DGradUdimBlend<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
+    */
+    payload->color = tex2DGradUdimBlend<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
+    //payload->color = tex2DGradUdim<float4>( params.demand_texture_context, textureId, uv.x, uv.y, ddx, ddy, &resident );
 }

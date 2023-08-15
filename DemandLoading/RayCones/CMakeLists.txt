@@ -54,6 +54,7 @@ otk_add_executable( rayCones
   )
 
 target_link_libraries( rayCones
+  PUBLIC
   rayConesKernel
   OptiXToolkit::DemandLoading
   OptiXToolkit::DemandTextureAppBase

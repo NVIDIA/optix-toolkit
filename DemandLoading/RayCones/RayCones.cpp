@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+// This include is needed to avoid a link error
+#include <optix_stubs.h>
+
 #include <RayConesKernelPTX.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
@@ -39,6 +42,7 @@
 
 #include <optix_stubs.h>
 
+using namespace otk;
 using namespace demandTextureApp;
 using namespace imageSource;
 using namespace otk;  // for vec_math operators

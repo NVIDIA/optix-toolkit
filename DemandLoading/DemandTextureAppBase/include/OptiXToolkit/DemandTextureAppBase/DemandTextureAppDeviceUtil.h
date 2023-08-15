@@ -38,6 +38,7 @@
 
 #include <cstdint>
 
+using namespace otk;
 using namespace demandLoading;
 struct RayPayload;
 

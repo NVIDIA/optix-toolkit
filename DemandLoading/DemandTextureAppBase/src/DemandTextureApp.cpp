@@ -430,12 +430,17 @@ void DemandTextureApp::initDemandLoading()
 
     demandLoading::Options options{};
     options.maxRequestedPages   = maxRequests;       // max requests to pull from device in pullRequests
-    options.maxFilledPages      = 2 * maxRequests;   // number of slots to push mappings back to device
+    options.maxFilledPages      = 32768;             // number of slots to push mappings back to device
     options.maxStalePages       = maxStalePages;     // max stale pages to pull from the device in pullRequests
     options.maxInvalidatedPages = maxStalePages;     // max slots to push invalidated pages back to device
     options.maxStagedPages      = maxStalePages;     // max pages to stage for eviction
     options.maxRequestQueueSize = maxStalePages;     // max size of host-side request queue
     options.maxTexMemPerDevice  = maxTexMem;         // max texture to use before starting eviction (0 is unlimited)
+    options.maxPinnedMemory     = 64 * 1024 * 1024;  // max pinned memory to reserve for transfers.
+    options.maxThreads          = 0;                 // request threads. (0 is std::thread::hardware_concurrency)
+    options.evictionActive      = true;              // turn on or off eviction
+    options.useSparseTextures   = true;              // use sparse or dense textures
+    options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
 
     m_demandLoader =
         std::shared_ptr<demandLoading::DemandLoader>( createDemandLoader( options ), demandLoading::destroyDemandLoader );
@@ -627,6 +632,9 @@ void DemandTextureApp::startLaunchLoop()
 
         saveImage();
     }
+
+    // destroy output buffer before cuda context
+    m_outputBuffer = nullptr;
 }
 
 

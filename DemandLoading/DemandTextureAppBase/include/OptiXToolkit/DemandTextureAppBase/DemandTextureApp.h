@@ -71,6 +71,7 @@ class DemandTextureApp
     void printDemandLoadingStats();
     void resetAccumulator();
     void setMipScale( float scale ) { m_mipScale = scale; }
+    void useCascadingTextureSizes( bool useCascade ) { m_useCascadingTextureSizes = useCascade; }
 
     // GLFW callbacks
     virtual void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
@@ -128,6 +129,7 @@ class DemandTextureApp
     int                                          m_subframeId = 0;
     int                                          m_numFilledRequests = 0;
     int                                          m_minLaunches = 2;
+    bool                                         m_useCascadingTextureSizes = false;
 
     // Camera and view
     otk::Camera m_camera;
