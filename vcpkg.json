@@ -1,9 +1,0 @@
-{
-  "dependencies": [
-    "glad",
-    "glfw3",
-    "gtest",
-    "imath",
-    "openexr"
-  ]
-}

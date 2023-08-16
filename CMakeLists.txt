@@ -41,6 +41,35 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 include(Policies)
 
 #########################################################
+# vcpkg configuration (must precede project())
+
+# The use of vcpkg is disabled by default if OTK is a submodule of another project,
+# since the vcpkg.json manifest is written to the project root directory.
+if( PROJECT_IS_TOP_LEVEL )
+  option( OTK_USE_VCPKG "Use vcpkg for third party libraries" ON )
+else()
+  option( OTK_USE_VCPKG "Use vcpkg for third party libraries" OFF )
+endif()
+
+if( OTK_USE_VCPKG )
+  option( OTK_FETCH_OPENEXR "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" ON )
+  option( OTK_FETCH_OIIO "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
+
+  # Configure vcpkg manifest file, possibly adding OpenEXR and OpenImageIO.
+  if( OTK_FETCH_OPENEXR )
+    set( OTK_DEPEND_IMATH "\"imath\"," )
+    set( OTK_DEPEND_OPENEXR "\"openexr\"," )
+  endif()
+  if( OTK_FETCH_OIIO )
+    set( OTK_DEPEND_OIIO "\"openimageio\"," )
+  endif()
+  configure_file( vcpkg.json.in ${PROJECT_SOURCE_DIR}/vcpkg.json @ONLY )
+
+  # Load vcpkg toolchain file, which triggers downloading and building dependencies in the manifest.
+  include( vcpkg/scripts/buildsystems/vcpkg.cmake )
+endif()
+
+#########################################################
 # Set the project name (i.e. the VS solution file).
 project(OptiXToolkit LANGUAGES C CXX CUDA VERSION 1.0)
 set(CMAKE_CXX_STANDARD 11)
