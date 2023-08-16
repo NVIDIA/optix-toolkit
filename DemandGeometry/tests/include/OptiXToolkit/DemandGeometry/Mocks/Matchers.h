@@ -110,14 +110,20 @@ namespace testing {
 
 MATCHER_P( isInstanceBuildInput, n, "" )
 {
-    return arg[n].type == OPTIX_BUILD_INPUT_TYPE_INSTANCES;
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+    }
+    return true;
 }
 
 MATCHER_P( isTriangleBuildInput, n, "" )
 {
     if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_TRIANGLES )
     {
-        *result_listener << "input " << n << " is of type " << arg[n].type << ", not OPTIX_BUILD_INPUT_TYPE_TRIANGLES";
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_TRIANGLES (" << OPTIX_BUILD_INPUT_TYPE_TRIANGLES << ')';
         return false;
     }
     return true;
@@ -127,7 +133,8 @@ MATCHER( isBuildOperation, "" )
 {
     if( arg->operation != OPTIX_BUILD_OPERATION_BUILD )
     {
-        *result_listener << "build operation " << arg->operation << " is not OPTIX_BUILD_OPERATION_BUILD";
+        *result_listener << "build operation is " << arg->operation << ", expected OPTIX_BUILD_OPERATION_BUILD ("
+                         << OPTIX_BUILD_OPERATION_BUILD << ')';
         return false;
     }
     return true;
@@ -137,7 +144,8 @@ MATCHER( buildAllowsUpdate, "" )
 {
     if( ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE ) == 0 )
     {
-        *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_UPDATE not set in value " << arg->buildFlags;
+        *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_UPDATE (" << OPTIX_BUILD_FLAG_ALLOW_UPDATE
+                         << ") not set in value " << arg->buildFlags;
         return false;
     }
     return true;
@@ -147,7 +155,8 @@ MATCHER( buildAllowsRandomVertexAccess, "" )
 {
     if( ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS ) == 0 )
     {
-        *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS not set in value " << arg->buildFlags;
+        *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS ("
+                         << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ") not set in value " << arg->buildFlags;
         return false;
     }
     return true;
@@ -157,7 +166,8 @@ MATCHER_P( isCustomPrimitiveBuildInput, n, "" )
 {
     if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES )
     {
-        *result_listener << "input " << n << " is of type " << arg[n].type << ", not OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES";
+        *result_listener << "input " << n << " is of type " << arg[n].type << ", not OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES ("
+                         << OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES << ')';
         return false;
     }
     return true;
@@ -211,33 +221,56 @@ inline bool programGroupDescsContain( const OptixProgramGroupDesc* begin, int nu
     return std::find( begin, end, desc ) != end;
 }
 
+inline const char* nameOrNullPtr( const char* name )
+{
+    return name == nullptr ? "(nullptr)" : name;
+}
+
 }  // namespace detail
 
 MATCHER_P3( hasRayGenDesc, count, module, entryPoint, "" )
 {
     OptixProgramGroupDesc desc{ OPTIX_PROGRAM_GROUP_KIND_RAYGEN, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
-    desc.raygen = { module, entryPoint };
-    return detail::programGroupDescsContain( arg, count, desc );
+    desc.raygen       = { module, entryPoint };
+    const bool result = detail::programGroupDescsContain( arg, count, desc );
+    if( !result )
+    {
+        *result_listener << "raygen group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
+                         << ") not found in descs[" << count << ']';
+    }
+    return result;
 }
 
 MATCHER_P3( hasMissDesc, count, module, entryPoint, "" )
 {
     OptixProgramGroupDesc desc{ OPTIX_PROGRAM_GROUP_KIND_MISS, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
-    desc.miss = { module, entryPoint };
-    return detail::programGroupDescsContain( arg, count, desc );
+    desc.miss         = { module, entryPoint };
+    const bool result = detail::programGroupDescsContain( arg, count, desc );
+    if( !result )
+    {
+        *result_listener << "miss group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
+                         << ") not found in descs[" << count << ']';
+    }
+    return result;
 }
 
-MATCHER_P7( hasHitGroupDesc, count, chModule, chEntryPoint, ahModule, ahEntryPoint, isModule, isEntryPoint, "" )
+MATCHER_P5( hasHitGroupDesc, count, chModule, chEntryPoint, isModule, isEntryPoint, "" )
 {
     OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
     OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
     hitgroup.moduleCH                   = chModule;
     hitgroup.entryFunctionNameCH        = chEntryPoint;
-    hitgroup.moduleAH                   = ahModule;
-    hitgroup.entryFunctionNameAH        = ahEntryPoint;
+    hitgroup.moduleAH                   = nullptr;
+    hitgroup.entryFunctionNameAH        = nullptr;
     hitgroup.moduleIS                   = isModule;
     hitgroup.entryFunctionNameIS        = isEntryPoint;
-    return detail::programGroupDescsContain( arg, count, desc );
+    const bool result                   = detail::programGroupDescsContain( arg, count, desc );
+    if( !result )
+    {
+        *result_listener << "hitgroup desc (" << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ", " << isModule
+                         << ", " << detail::nameOrNullPtr( isEntryPoint ) << ") not found in descs[" << count << ']';
+    }
+    return result;
 }
 
 }  // namespace testing
