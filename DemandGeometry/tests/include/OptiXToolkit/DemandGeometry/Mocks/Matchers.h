@@ -114,6 +114,7 @@ MATCHER_P( isInstanceBuildInput, n, "" )
     {
         *result_listener << "input " << n << " is of type " << arg[n].type
                          << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
     }
     return true;
 }
