@@ -76,6 +76,10 @@ target_sources(Error
   include/OptiXToolkit/Error/ErrorCheck.h
   include/OptiXToolkit/Error/optixErrorCheck.h
 )
+target_link_libraries( Error INTERFACE
+  CUDA::cuda_driver
+  CUDA::cudart
+  )
 set_property(TARGET Error PROPERTY FOLDER Memory)
 if(NOT PROJECT_IS_TOP_LEVEL)
   add_library(OptiXToolkit::Error ALIAS Error)
