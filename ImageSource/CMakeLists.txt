@@ -100,8 +100,8 @@ if(OpenImageIO_FOUND)
   target_link_libraries(ImageSource
     PUBLIC # TODO: make this private
     OpenImageIO::OpenImageIO
-    boost_filesystem
-    boost_thread
+    Boost::filesystem
+    Boost::thread
   )
 else()
   message(WARNING "OpenImageIO not found.  Skipping OIIOReader.")
