@@ -51,18 +51,20 @@ else()
   option( OTK_USE_VCPKG "Use vcpkg for third party libraries" OFF )
 endif()
 
+ # Configure vcpkg manifest file, possibly adding OpenEXR and OpenImageIO.
 if( OTK_USE_VCPKG )
-  option( OTK_FETCH_OPENEXR "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" ON )
-  option( OTK_FETCH_OIIO "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
-
-  # Configure vcpkg manifest file, possibly adding OpenEXR and OpenImageIO.
-  if( OTK_FETCH_OPENEXR )
+  # Don't include OpenEXR if the user has explicitly configured its location.
+  if( NOT OpenEXR_DIR )
     set( OTK_DEPEND_IMATH "\"imath\"," )
     set( OTK_DEPEND_OPENEXR "\"openexr\"," )
   endif()
+
+  # OpenImageIO is too costly to include by default (it depends on Boost).
+  option( OTK_FETCH_OIIO "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
   if( OTK_FETCH_OIIO )
     set( OTK_DEPEND_OIIO "\"openimageio\"," )
   endif()
+
   configure_file( vcpkg.json.in ${PROJECT_SOURCE_DIR}/vcpkg.json @ONLY )
 
   # Load vcpkg toolchain file, which triggers downloading and building dependencies in the manifest.
