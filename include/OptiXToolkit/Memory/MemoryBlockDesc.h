@@ -45,6 +45,12 @@ struct MemoryBlockDesc
     uint64_t size : 48;
     uint64_t description : 16;
 
+    MemoryBlockDesc( uint64_t ptr_ = 0, uint64_t size_ = 0, uint64_t description_ = 0 )
+        : ptr( ptr_ )
+        , size( size_ )
+        , description( description_ )
+    {}
+
     bool isGood() { return ptr != BAD_ADDR; }
     bool isBad() { return ptr == BAD_ADDR; }
 };
@@ -61,7 +67,7 @@ inline uint64_t alignVal( uint64_t p, uint64_t alignment )
 const uint32_t TILE_SIZE_IN_BYTES = 64 * 1024;
 
 /// Describe a block of texture tiles
-union TileBlockDesc
+struct TileBlockDesc
 {
     // silence warning "ISO C++ prohibits anonymous structs"
 #ifdef __GNUC__
@@ -81,14 +87,20 @@ union TileBlockDesc
     uint64_t data = 0;
 
     TileBlockDesc( uint64_t data_ )
-        : data{data_}
     {
+        uint64_t* d = (uint64_t*)this;
+        *d = data_;
     }
     TileBlockDesc( uint32_t arenaId_, uint16_t tileId_, uint16_t numTiles_ )
         : arenaId{arenaId_}
         , tileId{tileId_}
         , numTiles{numTiles_}
     {
+    }
+    uint64_t data()
+    {
+        uint64_t* d = (uint64_t*)this;
+        return *d;
     }
     bool         isGood() { return numTiles != 0; }
     bool         isBad() { return numTiles == 0; }
