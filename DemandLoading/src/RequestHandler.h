@@ -67,7 +67,7 @@ class RequestHandler
     }
 
     /// Fill a request for the specified page using the given stream.
-    virtual void fillRequest( CUstream stream, unsigned int pageId ) {}
+    virtual void fillRequest( CUstream /*stream*/, unsigned int /*pageId*/ ) {}
 
     /// Get the start page for the request handler
     unsigned int getStartPage() { return m_startPage; }

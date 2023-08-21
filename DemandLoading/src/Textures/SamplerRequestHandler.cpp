@@ -136,6 +136,7 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     // Try to get transfer buffer
     // The buffer needs to be a little larger than the texture size for some reason to prevent a crash
     size_t transferBufferSize = getTextureSizeInBytes( info ) * 4 / 3;
+
     TransferBufferDesc transferBuffer =
         m_loader->allocateTransferBuffer( texture->getFillType(), transferBufferSize, stream );
 

@@ -74,8 +74,8 @@ void CascadeImage::open( imageSource::TextureInfo* info )
 
 bool CascadeImage::readMipTail( char*        dest,
                                 unsigned int mipTailFirstLevel,
-                                unsigned int numMipLevels,
-                                const uint2* mipLevelDims,
+                                unsigned int /*numMipLevels*/,
+                                const uint2* /*mipLevelDims*/,
                                 unsigned int pixelSizeInBytes,
                                 CUstream     stream )
 {
@@ -86,6 +86,7 @@ bool CascadeImage::readMipTail( char*        dest,
     unsigned int backingMipTailFirstLevel = mipTailFirstLevel + m_backingMipLevel;
     const imageSource::TextureInfo& backingInfo = m_backingImage->getInfo();
     std::vector<uint2> backingMipLevelDims( backingInfo.numMipLevels );
+
     for( unsigned int mip = 0; mip < backingMipLevelDims.size(); ++mip )
         backingMipLevelDims[mip] = uint2{ std::max( backingInfo.width >> mip, 1U ), std::max( backingInfo.height >> mip, 1U ) };
 

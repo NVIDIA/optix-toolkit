@@ -74,7 +74,7 @@ std::vector<unsigned int> CascadeRequestFilter::filter( const unsigned int* requ
     }
     
     // Remove tile requests for textures with cascades and return final request list
-    for( int i = 0; i < numRequests; ++i )
+    for( unsigned int i = 0; i < numRequests; ++i )
     {
         if( isCascadePage( requests[i] ) )
             continue;

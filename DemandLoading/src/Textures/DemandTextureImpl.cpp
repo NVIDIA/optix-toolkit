@@ -97,7 +97,7 @@ void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
     {
         m_isInitialized = false;
         // Reset the sampler so the texture will be reinitialized, keeping only the udim info
-        TextureSampler newSampler = {0};
+        TextureSampler newSampler = {};
         newSampler.udimStartPage = m_sampler.udimStartPage;
         newSampler.udim = m_sampler.udim;
         newSampler.vdim = m_sampler.vdim;
@@ -186,7 +186,9 @@ void DemandTextureImpl::init()
             m_mipLevelDims.resize( numMipLevels );
             for( unsigned int i = 0; i < numMipLevels; ++i )
             {
+
                 m_mipLevelDims[i] = denseTexture.getMipLevelDims( i );
+
                 m_mipTailSize += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels
                                  * imageSource::getBytesPerChannel( m_info.format );
             }
@@ -255,7 +257,6 @@ void DemandTextureImpl::initSampler()
     }
     else // Dense texture 
     {
-        // FIXME: Test cascading dense textures.
         // Dense textures do not need extra page table entries
         m_sampler.numPages = 0;
         m_sampler.startPage = m_id;

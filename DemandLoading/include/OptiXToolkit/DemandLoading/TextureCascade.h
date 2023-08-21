@@ -29,8 +29,8 @@
 namespace demandLoading {
 
 #define REQUEST_CASCADE true
-#define CASCADE_BASE 64
-#define NUM_CASCADES 8
+#define CASCADE_BASE 64u
+#define NUM_CASCADES 8u
 
 inline unsigned int getCascadeLevel( unsigned int texWidth, unsigned int texHeight )
 {

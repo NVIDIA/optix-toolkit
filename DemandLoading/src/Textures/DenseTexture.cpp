@@ -41,9 +41,8 @@ namespace demandLoading {
 
 void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<CUmipmappedArray> masterArray )
 {
-    // Redundant initialization can occur because requests from multiple streams are not yet
-    // deduplicated.
-    if( m_isInitialized )
+    // Redundant initialization can occur since requests from multiple streams are not deduplicated.
+    if( m_isInitialized && info == m_info )
         return;
 
     // Record the current CUDA context.

@@ -92,10 +92,8 @@ class CascadeImage : public ImageSourceBase
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     bool readBaseColor( float4& dest ) override 
-    { 
-        if( !m_backingImage ) 
-            return false;
-        m_backingImage->readBaseColor( dest ); 
+    {
+        return ( m_backingImage ) ? m_backingImage->readBaseColor( dest ) : false;
     }
 
     // Get the backing image

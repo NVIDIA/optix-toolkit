@@ -189,8 +189,8 @@ class DemandLoaderImpl : public DemandLoader
     std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures;     // demand-loaded textures, indexed by textureId
     std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // lookup from image* to textureId
 
-    CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
     SamplerRequestHandler m_samplerRequestHandler;  // Handles requests for texture samplers.
+    CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
 
 #if CUDA_VERSION >= 11020
     PerContextData<otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>> m_deviceTransferPools;

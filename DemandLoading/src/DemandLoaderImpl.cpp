@@ -396,9 +396,8 @@ void DemandLoaderImpl::freeStagedTiles( CUstream stream )
 
 const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream /*stream*/ )
 {
-    std::unique_lock<std::mutex> lock( m_mutex );
     const unsigned int alignment = 4096;
-    
+
     MemoryBlockDesc memoryBlock{};
     if( memoryType == CU_MEMORYTYPE_HOST )
         memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );

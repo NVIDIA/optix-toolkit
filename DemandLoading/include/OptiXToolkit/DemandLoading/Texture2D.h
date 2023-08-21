@@ -502,7 +502,8 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     // Check for base color.
     // Note: It would be preferable to check for baseColor before the sampler is loaded, but 
     // texture width and height are needed to determine if we are in the base color case from lod.
-    if( !sampler || exp2f( lod ) >= max( sampler->width, sampler->height ) )
+    float exp2Lod = exp2f( lod );
+    if( !sampler || exp2Lod >= max( sampler->width, sampler->height ) )
     {
         bool baseColorResident;
         if( getBaseColor<TYPE>( context, textureId, rval, &baseColorResident ) )
@@ -525,8 +526,8 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
         rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
 
 #ifdef REQUEST_CASCADE
-    float2 ddx  = make_float2( expLod / sampler->width, 0.0f );
-    float2 ddy  = make_float2( 0.0f, expLod / sampler->height );
+    float2 ddx  = make_float2( exp2Lod / sampler->width, 0.0f );
+    float2 ddy  = make_float2( 0.0f, exp2Lod / sampler->height );
     *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
 #endif
 
