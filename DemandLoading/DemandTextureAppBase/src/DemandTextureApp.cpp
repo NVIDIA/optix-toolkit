@@ -110,19 +110,6 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
 }
 
 
-DemandTextureApp::~DemandTextureApp()
-{
-    for( PerDeviceOptixState state : m_perDeviceOptixStates )
-        cleanupState( state );
-    if( isInteractive() )
-    {
-        // The output buffer is tied to the OpenGL context in interactive mode.
-        m_outputBuffer.reset();
-        otk::cleanupUI( m_window );
-    }
-}
-
-
 //------------------------------------------------------------------------------
 // OptiX setup
 //------------------------------------------------------------------------------
@@ -350,6 +337,7 @@ void DemandTextureApp::createSBT( PerDeviceOptixState& state )
 
 void DemandTextureApp::cleanupState( PerDeviceOptixState& state )
 {
+    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
     OPTIX_CHECK( optixPipelineDestroy( state.pipeline ) );
     OPTIX_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
     OPTIX_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
@@ -439,7 +427,7 @@ void DemandTextureApp::initDemandLoading()
     options.maxPinnedMemory     = 64 * 1024 * 1024;  // max pinned memory to reserve for transfers.
     options.maxThreads          = 0;                 // request threads. (0 is std::thread::hardware_concurrency)
     options.evictionActive      = true;              // turn on or off eviction
-    options.useSparseTextures   = true;              // use sparse or dense textures
+    options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
     options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
 
     m_demandLoader =
@@ -601,18 +589,20 @@ unsigned int DemandTextureApp::performLaunches( )
 
 void DemandTextureApp::startLaunchLoop()
 {
+    const int RESET_SUBFRAME_THRESHOLD = 10;
     int numFilled = 0;
+
     if( isInteractive() )
     {
         while( !glfwWindowShouldClose( getWindow() ) )
         {
+
             glfwPollEvents();
             pollKeys();
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-            if( numFilled == 0 )
-                m_subframeId++;
+            m_subframeId = ( numFilled <= RESET_SUBFRAME_THRESHOLD ) ? m_subframeId + 1 : 0;
             displayFrame();
             drawGui();
             glfwSwapBuffers( getWindow() );
@@ -626,15 +616,28 @@ void DemandTextureApp::startLaunchLoop()
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-            if( numFilled == 0 )
-                m_subframeId++;
+            m_subframeId = ( numFilled <= RESET_SUBFRAME_THRESHOLD ) ? m_subframeId + 1 : 0;
         } while( numFilled > 0 || m_launchCycles < m_minLaunches );
 
         saveImage();
     }
 
-    // destroy output buffer before cuda context
-    m_outputBuffer = nullptr;
+    cleanup();
+}
+
+void DemandTextureApp::cleanup()
+{
+    for( PerDeviceOptixState state : m_perDeviceOptixStates )
+    {
+        cleanupState( state );
+    }
+    if( isInteractive() )
+    {
+        // The output buffer is tied to the OpenGL context in interactive mode.
+        CUDA_CHECK( cudaSetDevice( m_perDeviceOptixStates[0].device_idx ) );
+        m_outputBuffer.reset();
+        otk::cleanupUI( m_window );
+    }
 }
 
 

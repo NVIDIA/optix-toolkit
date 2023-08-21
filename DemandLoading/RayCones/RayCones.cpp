@@ -580,6 +580,7 @@ void printUsage( const char* argv0 )
     std::cout << "          C:              reset view\n";
     std::cout << "          +,-:            change mip bias\n";
     std::cout << "          P:              toggle thin lens camera\n";
+    std::cout << "          U:              toggle distance-based vs. ray cones\n";
     std::cout << "          I,O:            change lens width\n";
     std::cout << "          X:              unload all texture tiles\n\n";
 }

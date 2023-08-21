@@ -33,8 +33,7 @@
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/CascadeImage.h>
-#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
-#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
 
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
@@ -88,7 +87,7 @@ void UdimTextureApp::createTexture()
         if( m_textureName != "mandelbrot" && m_textureName != "checker" )
             baseImage = createExrImage( ( m_textureName + ".exr" ).c_str() );
         if( !baseImage && m_textureName == "checker" )
-            baseImage = new imageSource::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
+            baseImage = new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
         if( !baseImage )
             baseImage = new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors );
         std::unique_ptr<imageSource::ImageSource> baseImageSource( baseImage );
@@ -125,7 +124,7 @@ void UdimTextureApp::createTexture()
             }
             if( !subImage && m_textureName == "checker" )
             {
-                subImage = new imageSource::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
+                subImage = new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
             }
             if( !subImage ) // many images of the same size
             {
@@ -157,7 +156,7 @@ void printUsage( const char* argv0 )
 {
     std::cerr << "\nUsage: " << argv0 << " [options]\n\n";
     std::cout << "Options:  --texture <mandelbrot|checker|texturefile.exr>, --dim=<width>x<height>, --file <outputfile.ppm>\n";
-    std::cout << "          --no-gl-interop, --texdim=<width>x<height>, --udim=<udim>x<vdim>, --base-image, --cascade\n";
+    std::cout << "          --no-gl-interop, --texdim=<width>x<height>, --udim=<udim>x<vdim>, --base-image, --cascade, --dense\n";
     std::cout << "Keyboard: <ESC>:exit, WASD:pan, QE:zoom, C:recenter\n";
     std::cout << "Mouse:    <LMB>:pan, <RMB>:zoom\n" << std::endl;
     exit(0);
@@ -176,6 +175,7 @@ int main( int argc, char* argv[] )
     int udim = 10;
     int vdim = 10;
     bool useBaseImage = false;
+    bool useSparseTextures = true;
     bool cascadingTextureSizes = false;
 
     for( int i = 1; i < argc; ++i )
@@ -197,6 +197,8 @@ int main( int argc, char* argv[] )
             glInterop = false;
         else if( arg == "--base-image" )
             useBaseImage = true;
+        else if( arg == "--dense" )
+            useSparseTextures = false;
         else if( arg == "--cascade" )
             cascadingTextureSizes = true;
         else
@@ -204,6 +206,7 @@ int main( int argc, char* argv[] )
     }
 
     UdimTextureApp app( "UDIM Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
+    app.useSparseTextures( useSparseTextures );
     app.useCascadingTextureSizes( cascadingTextureSizes );
     app.initDemandLoading();
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );

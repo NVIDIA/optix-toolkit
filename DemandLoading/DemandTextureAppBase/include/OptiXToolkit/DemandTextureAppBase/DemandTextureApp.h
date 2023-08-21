@@ -59,7 +59,7 @@ class DemandTextureApp
 {
   public:
     DemandTextureApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
-    virtual ~DemandTextureApp();
+    virtual ~DemandTextureApp() {}
 
     // Public functions to initialize the app and start rendering
     void setNumLaunches( int numLaunches ) { m_minLaunches = numLaunches; }
@@ -68,9 +68,11 @@ class DemandTextureApp
     virtual void createTexture() = 0;
     void initOptixPipelines( const char* moduleCode );
     void startLaunchLoop();
+    void cleanup();
     void printDemandLoadingStats();
     void resetAccumulator();
     void setMipScale( float scale ) { m_mipScale = scale; }
+    void useSparseTextures( bool useSparseTextures ) { m_useSparseTextures = useSparseTextures; }
     void useCascadingTextureSizes( bool useCascade ) { m_useCascadingTextureSizes = useCascade; }
 
     // GLFW callbacks
@@ -129,6 +131,7 @@ class DemandTextureApp
     int                                          m_subframeId = 0;
     int                                          m_numFilledRequests = 0;
     int                                          m_minLaunches = 2;
+    bool                                         m_useSparseTextures = true;
     bool                                         m_useCascadingTextureSizes = false;
 
     // Camera and view

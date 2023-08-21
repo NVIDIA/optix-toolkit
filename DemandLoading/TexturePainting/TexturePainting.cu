@@ -66,7 +66,7 @@ __device__ __forceinline__ float4 drawSuperellipse( uint2 px, int cx, int cy, in
     float dy = fabs( cy - static_cast<float>(px.y) ) / (height * 0.5f);
     if( dx > 1.0f || dy > 1.0f )
         return float4{0.0f, 0.0f, 0.0f, 0.0f};
-    float d2 = pow(dx, exp) + pow(dy, exp);
+    float d2 = powf(dx, exp) + powf(dy, exp);
     if( d2 > 1.0f )
         return float4{0.0f, 0.0f, 0.0f, 0.0f};
     float4 rval = color;
