@@ -69,6 +69,13 @@ class MockOptix
                    OptixModule*                       module ) );
     MOCK_METHOD( OptixResult, moduleDestroy, ( OptixModule module ) );
     MOCK_METHOD( OptixResult,
+                 builtinISModuleGet,
+                 ( OptixDeviceContext                 context,
+                   const OptixModuleCompileOptions*   moduleCompileOptions,
+                   const OptixPipelineCompileOptions* pipelineCompileOptions,
+                   const OptixBuiltinISOptions*       builtinISOptions,
+                   OptixModule*                       builtinModule ) );
+    MOCK_METHOD( OptixResult,
                  programGroupCreate,
                  ( OptixDeviceContext              context,
                    const OptixProgramGroupDesc*    programDescriptions,

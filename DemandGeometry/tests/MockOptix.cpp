@@ -59,6 +59,11 @@ void initMockOptix( MockOptix& mock )
                                                      PTXsize, logString, logStringSize, module );
         };
     g_optixFunctionTable.optixModuleDestroy = []( OptixModule module ) { return g_mockOptix->moduleDestroy( module ); };
+    g_optixFunctionTable.optixBuiltinISModuleGet = []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
+                                                       const OptixPipelineCompileOptions* pipelineCompileOptions,
+                                                       const OptixBuiltinISOptions* builtinISOptions, OptixModule* builtinModule ) {
+        return g_mockOptix->builtinISModuleGet( context, moduleCompileOptions, pipelineCompileOptions, builtinISOptions, builtinModule );
+    };
     g_optixFunctionTable.optixProgramGroupCreate =
         []( OptixDeviceContext context, const OptixProgramGroupDesc* programDescriptions, unsigned int numProgramGroups,
             const OptixProgramGroupOptions* options, char* logString, size_t* logStringSize, OptixProgramGroup* programGroups ) {
