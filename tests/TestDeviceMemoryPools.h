@@ -35,3 +35,4 @@
 
 void launchDeviceRingBufferTest( const otk::DeviceRingBuffer& ringBuffer, char** output, int width );
 void launchDeviceFixedPoolTest( const otk::DeviceFixedPool& fixedPool, char** output, int width );
+void launchDeviceFixedPoolInterleavedTest( const otk::DeviceFixedPool& fixedPool, char** output, int width );
