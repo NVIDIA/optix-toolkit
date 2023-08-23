@@ -67,7 +67,8 @@ inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, 
 #define OTK_ERROR_CHECK_LOG2( call )                                                                                   \
     do                                                                                                                 \
     {                                                                                                                  \
-        char   LOG[400];                                                                                               \
+        char LOG[400];                                                                                                 \
+        LOG[0]          = 0;                                                                                           \
         size_t LOG_SIZE = sizeof( LOG );                                                                               \
         ::otk::error::optixCheckLog( call, LOG, sizeof( LOG ), LOG_SIZE, #call, __FILE__, __LINE__ );                  \
     } while( false )
