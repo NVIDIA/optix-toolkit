@@ -108,8 +108,6 @@ class CanvasImage : public ImageSourceBase
     const int m_tileHeight = 64; 
 
     std::vector<float4> m_brushPixels;
-    int                 m_brushWidth;
-    int                 m_brushHeight;
 
     std::set<int> m_dirtyTiles;
 

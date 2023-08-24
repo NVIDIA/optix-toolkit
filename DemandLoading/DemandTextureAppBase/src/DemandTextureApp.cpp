@@ -429,21 +429,13 @@ void DemandTextureApp::initDemandLoading()
     }
 
     demandLoading::Options options{};
-    options.numPages            = 64 * 1024 * 1024;  // max possible texture tiles in virtual memory system
-    options.numPageTableEntries = 1024 * 1024;       // 2 * max possible textures
     options.maxRequestedPages   = maxRequests;       // max requests to pull from device in pullRequests
     options.maxFilledPages      = 2 * maxRequests;   // number of slots to push mappings back to device
     options.maxStalePages       = maxStalePages;     // max stale pages to pull from the device in pullRequests
-    options.maxEvictablePages   = 0;                 // evicatable pages currently not used
     options.maxInvalidatedPages = maxStalePages;     // max slots to push invalidated pages back to device
     options.maxStagedPages      = maxStalePages;     // max pages to stage for eviction
     options.maxRequestQueueSize = maxStalePages;     // max size of host-side request queue
-    options.useLruTable         = true;              // Whether to use an LRU table for eviction
     options.maxTexMemPerDevice  = maxTexMem;         // max texture to use before starting eviction (0 is unlimited)
-    options.maxPinnedMemory     = 64 * 1024 * 1024;  // max pinned memory to reserve for transfers.
-    options.maxThreads          = 0;                 // request threads. (0 is std::thread::hardware_concurrency)
-    options.evictionActive      = true;              // turn on or off eviction
-    options.useSparseTextures   = true;              // use sparse or dense textures
 
     m_demandLoader =
         std::shared_ptr<demandLoading::DemandLoader>( createDemandLoader( options ), demandLoading::destroyDemandLoader );

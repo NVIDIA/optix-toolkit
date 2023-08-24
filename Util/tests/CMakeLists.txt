@@ -58,4 +58,4 @@ target_link_libraries( testUtil
   )
 
 # Register test cases with CTest.
-gtest_discover_tests(testUtil)
+gtest_discover_tests(testUtil PROPERTIES LABELS examples)

@@ -102,7 +102,7 @@ class Trackball
     float    m_cameraEyeLookatDistance = 0.0f;
     float    m_zoomMultiplier          = 1.1f;
     float    m_moveSpeed               = 1.0f;
-    float    m_rollSpeed               = 0.5f;
+    // float    m_rollSpeed               = 0.5f;
 
     float m_latitude  = 0.0f;  // in radians
     float m_longitude = 0.0f;  // in radians

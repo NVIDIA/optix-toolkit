@@ -60,7 +60,6 @@ target_link_libraries( otkHello
   OptiX::OptiX
   CUDA::cuda_driver
   CUDA::cudart
-  ${CMAKE_DL_LIBS}  
   )
 
 set_target_properties( otkHello PROPERTIES
