@@ -307,6 +307,11 @@ Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requeste
     return ticket;
 }
 
+void DemandLoaderImpl::abort()
+{
+    m_requestProcessor.stop();
+}
+
 void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.

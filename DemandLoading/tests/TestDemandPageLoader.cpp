@@ -50,6 +50,7 @@ class MockRequestProcessor : public demandLoading::RequestProcessor
 {
 public:
   MOCK_METHOD( void, addRequests, ( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds ) );
+  MOCK_METHOD( void, stop, () );
 };
 
 class DemandPageLoaderTest : public Test

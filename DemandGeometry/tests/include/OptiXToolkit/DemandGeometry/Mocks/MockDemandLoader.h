@@ -49,6 +49,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( demandLoading::Ticket,
                  processRequests,
                  ( unsigned int deviceIndex, CUstream stream, const demandLoading::DeviceContext& deviceContext ) );
+    MOCK_METHOD( void, abort, () );
     MOCK_METHOD( demandLoading::Statistics, getStatistics, (), ( const ) );
     MOCK_METHOD( std::vector<unsigned int>, getDevices, (), ( const ) );
     MOCK_METHOD( const demandLoading::Options&, getOptions, () );

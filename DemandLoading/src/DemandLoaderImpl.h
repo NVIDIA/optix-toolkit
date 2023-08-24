@@ -132,6 +132,10 @@ class DemandLoaderImpl : public DemandLoader
     /// the given stream.  Returns a ticket that is notified when the requests have been filled.
     Ticket replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
 
+    /// Abort demand loading, with minimal cleanup and no CUDA calls.  Halts asynchronous request
+    /// processing.  Useful in case of catastrophic CUDA error or corruption.
+    void abort() override;
+    
     /// Get current statistics.
     Statistics getStatistics() const override;
 

@@ -104,7 +104,8 @@ class DemandLoader
     virtual bool pageResident( unsigned int pageId ) = 0;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
-    /// stream.  Returns false if the corresponding device does not support sparse textures.  If
+    /// stream.  The stream and its context are retained until the DemandLoader is destroyed.
+    /// Returns false if the corresponding device does not support sparse textures.  If
     /// successful, returns a DeviceContext via result parameter, which should be copied to device
     /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
     /// Tex2D().
@@ -112,11 +113,16 @@ class DemandLoader
 
     /// Fetch page requests from the given device context and enqueue them for background
     /// processing.  The caller must ensure that the current CUDA context matches the given stream.
+    /// The stream and its context are retained until the DemandLoader is destroyed.
     /// The given DeviceContext must reside in host memory.  The given stream is used when copying
     /// tile data to the device.  Returns a ticket that is notified when the requests have been
     /// filled on the host side.
     virtual Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) = 0;
 
+    /// Abort demand loading, with minimal cleanup and no CUDA calls.  Halts asynchronous request
+    /// processing.  Useful in case of catastrophic CUDA error or corruption.
+    virtual void abort() = 0;
+    
     /// Get current statistics.
     virtual Statistics getStatistics() const = 0;
 
