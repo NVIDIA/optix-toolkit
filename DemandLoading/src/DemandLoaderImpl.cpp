@@ -307,6 +307,11 @@ Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requeste
     return ticket;
 }
 
+void DemandLoaderImpl::abort()
+{
+    m_requestProcessor.stop();
+}
+
 void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.
@@ -386,8 +391,6 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype 
         memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
         memoryBlock = getDeviceTransferPool()->alloc( size, alignment );
-
-    DEMAND_ASSERT_MSG( memoryBlock.isGood(), "Transfer buffer allocation failed." );
     return TransferBufferDesc{ memoryType, memoryBlock };
 }
 

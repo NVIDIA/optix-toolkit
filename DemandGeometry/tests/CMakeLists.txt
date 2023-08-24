@@ -32,17 +32,25 @@ include(GoogleTest)
 
 source_group( "CUDA Files" REGULAR_EXPRESSION ".+\\.cu$" )
 
+add_library(DemandGeometryMocks STATIC
+  include/OptiXToolkit/DemandGeometry/Mocks/Matchers.h
+  include/OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h
+  include/OptiXToolkit/DemandGeometry/Mocks/MockOptix.h
+  MockOptix.cpp
+)
+target_include_directories(DemandGeometryMocks PUBLIC include)
+target_link_libraries(DemandGeometryMocks PUBLIC OptiX::OptiX GTest::gmock)
+set_target_properties(DemandGeometryMocks PROPERTIES FOLDER DemandLoading/tests)
+add_library(OptiXToolkit::DemandGeometry::Mocks ALIAS DemandGeometryMocks)
+
 otk_add_executable( TestDemandGeometry
   LaunchIntersectAabb.h
   LaunchIntersectAabb.cu
-  MockDemandLoader.h
-  MockOptix.h
-  MockOptix.cpp
   test_intersectAabb.cpp
   test_proxyInstances.cpp
+  TestMatchers.cpp
 )
-target_include_directories( TestDemandGeometry PRIVATE ../include )
-target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
+target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::DemandGeometry::Mocks OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
 
 if(MSVC)
   # Disable unused formal parameter warning in gmock.
@@ -54,4 +62,4 @@ set_target_properties(TestDemandGeometry PROPERTIES
   FOLDER DemandLoading/tests
   )
 
-gtest_discover_tests(TestDemandGeometry)
+gtest_discover_tests(TestDemandGeometry PROPERTIES LABELS DemandLoading)

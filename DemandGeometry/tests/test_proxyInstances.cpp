@@ -19,10 +19,11 @@
 //
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
-#include <OptiXToolkit/Error/cuErrorCheck.h>
 
-#include "MockDemandLoader.h"
-#include "MockOptix.h"
+#include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
+#include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
+#include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <optix_stubs.h>
 
@@ -36,6 +37,7 @@
 using namespace testing;
 using namespace demandLoading;
 using namespace demandGeometry;
+using namespace otk::testing;
 
 namespace {
 
@@ -47,10 +49,10 @@ class TestProxyInstance : public Test
     void configureAccelBuildInputs( OptixBuildInput* gasBuildInput, OptixBuildInput* iasBuildInput );
     void configureZeroInstanceIASAccelBuildInput( OptixBuildInput& iasBuildInput );
 
-    optix::testing::MockDemandLoader m_loader;
-    ProxyInstances                   m_instances{ &m_loader };
-    optix::testing::MockOptix        m_optix;
-    
+    MockDemandLoader m_loader;
+    ProxyInstances   m_instances{ &m_loader };
+    MockOptix        m_optix;
+
     // We need to use the real default stream because we're not mocking CUDA.
     CUstream m_stream{};
 
@@ -69,37 +71,12 @@ void TestProxyInstance::SetUp()
     initMockOptix( m_optix );
 }
 
-MATCHER( isBuildOperation, "" )
-{
-    return arg->operation == OPTIX_BUILD_OPERATION_BUILD;
-}
-
-MATCHER( allowsUpdate, "" )
-{
-    return ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_UPDATE ) != 0;
-}
-
-MATCHER( isCustomPrimitiveBuildInput, "" )
-{
-    return arg->type == OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-}
-
-MATCHER( isInstanceBuildInput, "" )
-{
-    return arg->type == OPTIX_BUILD_INPUT_TYPE_INSTANCES;
-}
-
-MATCHER( isZeroInstances, "" )
-{
-    return arg->instanceArray.numInstances == 0;
-}
-
 void TestProxyInstance::configureAccelBuildInputs( OptixBuildInput* gasBuildInput, OptixBuildInput* iasBuildInput )
 {
     const uint_t numBuildInputs{ 1 };
-    auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( allowsUpdate() ) );
-    auto         isGAS     = AllOf( NotNull(), isCustomPrimitiveBuildInput() );
-    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput() );
+    auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
+    auto         isGAS     = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ) );
+    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput( 0 ) );
     auto&        callMemUsageGAS =
         EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isGAS, numBuildInputs, NotNull() ) );
     auto& callMemUsageIAS =
@@ -122,8 +99,8 @@ void TestProxyInstance::configureAccelBuildInputs( OptixBuildInput* gasBuildInpu
 void TestProxyInstance::configureZeroInstanceIASAccelBuildInput( OptixBuildInput& iasBuildInput )
 {
     const uint_t numBuildInputs{ 1 };
-    auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( allowsUpdate() ) );
-    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput(), isZeroInstances() );
+    auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
+    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput( 0 ), isZeroInstances( 0 ) );
     EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isIAS, numBuildInputs, NotNull() ) )
         .WillOnce( DoAll( SaveArgPointee<2>( &iasBuildInput ), Return( OPTIX_SUCCESS ) ) );
     EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isIAS, numBuildInputs, _, _, _, _, NotNull(), _, _ ) )
@@ -149,35 +126,6 @@ TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
     const uint_t pageId2 = m_instances.add( m_proxy2Bounds );
 
     ASSERT_NE( pageId1, pageId2 );
-}
-
-static std::string compareRanges( const float* begin, const float* end, const float* rhs, const std::function<bool( float, float )>& compare )
-{
-    std::string result;
-    int         index{};
-    while( begin != end )
-    {
-        if( !compare( *begin, *rhs ) )
-        {
-            if( !result.empty() )
-                result += ", ";
-            result += "index " + std::to_string( index ) + ' ' + std::to_string( *begin ) + " != " + std::to_string( *rhs );
-        }
-        ++begin;
-        ++rhs;
-        ++index;
-    }
-    return result;
-}
-
-static AssertionResult isSameTransform( const float ( &expectedTransform )[12], const float ( &transform )[12] )
-{
-    auto compare = []( float lhs, float rhs ) { return std::abs( rhs - lhs ) < 1.0e-6f; };
-    if( std::equal( std::begin( expectedTransform ), std::end( expectedTransform ), std::begin( transform ), compare ) )
-        return AssertionSuccess() << "transforms are equal";
-
-    return AssertionFailure() << compareRanges( std::begin( expectedTransform ), std::end( expectedTransform ),
-                                                std::begin( transform ), compare );
 }
 
 static void getDeviceInstances( OptixInstance* dest, const OptixBuildInput& iasBuildInput )

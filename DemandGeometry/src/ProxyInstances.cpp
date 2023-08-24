@@ -50,7 +50,7 @@ void fill( std::vector<T>& vec, U value )
 
 namespace demandGeometry {
 
-const uint_t                 NUM_PROXY_INSTANCES   = 1;
+// const uint_t                 NUM_PROXY_INSTANCES   = 1;
 const uint_t                 NUM_CUSTOM_PRIMITIVES = 1;
 const OptixTraversableHandle NULL_TRAVERSABLE{ 0 };
 

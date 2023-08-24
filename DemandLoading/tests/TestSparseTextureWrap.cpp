@@ -53,8 +53,6 @@ using namespace otk;
 
 namespace {  // anonymous
 
-const unsigned long long TEX_MEM_PER_DEVICE = 1u << 30; // 1 GB
-
 // Return ceil(x/y) for integers x and y
 inline unsigned int idivCeil( unsigned int x, unsigned int y )
 {

@@ -18,39 +18,62 @@
 //  SUCH DAMAGES
 //
 
-#include "MockOptix.h"
+#include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 
 OptixFunctionTable g_optixFunctionTable{};
 
-namespace optix {
+namespace otk {
 namespace testing {
 
 MockOptix* g_mockOptix{};
 
 void initMockOptix( MockOptix& mock )
 {
-    g_mockOptix = &mock;
-    g_optixFunctionTable.optixAccelComputeMemoryUsage =
-        []( OptixDeviceContext context, const OptixAccelBuildOptions* accelOptions,
-            const OptixBuildInput* buildInputs, unsigned int numBuildInputs,
-            OptixAccelBufferSizes* bufferSizes ) {
-            return g_mockOptix->accelComputeMemoryUsage( context, accelOptions, buildInputs,
-                                                         numBuildInputs, bufferSizes );
-        };
+    g_mockOptix                                   = &mock;
+    g_optixFunctionTable.optixDeviceContextCreate = []( CUcontext fromContext, const OptixDeviceContextOptions* options,
+                                                        OptixDeviceContext* context ) {
+        return g_mockOptix->deviceContextCreate( fromContext, options, context );
+    };
+    g_optixFunctionTable.optixDeviceContextDestroy = []( OptixDeviceContext context ) {
+        return g_mockOptix->deviceContextDestroy( context );
+    };
+    g_optixFunctionTable.optixAccelComputeMemoryUsage = []( OptixDeviceContext context, const OptixAccelBuildOptions* accelOptions,
+                                                            const OptixBuildInput* buildInputs, unsigned int numBuildInputs,
+                                                            OptixAccelBufferSizes* bufferSizes ) {
+        return g_mockOptix->accelComputeMemoryUsage( context, accelOptions, buildInputs, numBuildInputs, bufferSizes );
+    };
     g_optixFunctionTable.optixAccelBuild =
-        []( OptixDeviceContext context, CUstream stream,
-            const OptixAccelBuildOptions* accelOptions,
-            const OptixBuildInput* buildInputs, unsigned int numBuildInputs,
-            CUdeviceptr tempBuffer, size_t tempBufferSizeInBytes, CUdeviceptr outputBuffer,
-            size_t outputBufferSizeInBytes, OptixTraversableHandle* outputHandle,
+        []( OptixDeviceContext context, CUstream stream, const OptixAccelBuildOptions* accelOptions,
+            const OptixBuildInput* buildInputs, unsigned int numBuildInputs, CUdeviceptr tempBuffer, size_t tempBufferSizeInBytes,
+            CUdeviceptr outputBuffer, size_t outputBufferSizeInBytes, OptixTraversableHandle* outputHandle,
             const OptixAccelEmitDesc* emittedProperties, unsigned int numEmittedProperties ) {
-            return g_mockOptix->accelBuild( context, stream, accelOptions,
-                                            buildInputs, numBuildInputs, tempBuffer,
-                                            tempBufferSizeInBytes, outputBuffer,
-                                            outputBufferSizeInBytes, outputHandle,
+            return g_mockOptix->accelBuild( context, stream, accelOptions, buildInputs, numBuildInputs, tempBuffer,
+                                            tempBufferSizeInBytes, outputBuffer, outputBufferSizeInBytes, outputHandle,
                                             emittedProperties, numEmittedProperties );
         };
+    g_optixFunctionTable.optixModuleCreateFromPTX =
+        []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
+            const OptixPipelineCompileOptions* pipelineCompileOptions, const char* PTX, size_t PTXsize, char* logString,
+            size_t* logStringSize, OptixModule* module ) {
+            return g_mockOptix->moduleCreateFromPTX( context, moduleCompileOptions, pipelineCompileOptions, PTX,
+                                                     PTXsize, logString, logStringSize, module );
+        };
+    g_optixFunctionTable.optixModuleDestroy = []( OptixModule module ) { return g_mockOptix->moduleDestroy( module ); };
+    g_optixFunctionTable.optixBuiltinISModuleGet = []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
+                                                       const OptixPipelineCompileOptions* pipelineCompileOptions,
+                                                       const OptixBuiltinISOptions* builtinISOptions, OptixModule* builtinModule ) {
+        return g_mockOptix->builtinISModuleGet( context, moduleCompileOptions, pipelineCompileOptions, builtinISOptions, builtinModule );
+    };
+    g_optixFunctionTable.optixProgramGroupCreate =
+        []( OptixDeviceContext context, const OptixProgramGroupDesc* programDescriptions, unsigned int numProgramGroups,
+            const OptixProgramGroupOptions* options, char* logString, size_t* logStringSize, OptixProgramGroup* programGroups ) {
+            return g_mockOptix->programGroupCreate( context, programDescriptions, numProgramGroups, options, logString,
+                                                    logStringSize, programGroups );
+        };
+    g_optixFunctionTable.optixProgramGroupDestroy = []( OptixProgramGroup group ) {
+        return g_mockOptix->programGroupDestroy( group );
+    };
 }
 
 }  // namespace testing
-}  // namespace optix
+}  // namespace otk

@@ -220,7 +220,7 @@ class DemandTextureImpl : public DemandTexture
     DemandTextureImpl* m_masterTexture;
 
     // The DemandLoader provides access to the PageTableManager, etc.
-    DemandLoaderImpl* const m_loader;
+    DemandLoaderImpl* const m_loader = nullptr;
 
     // The image is lazily opened.  Invariant after open().
     bool m_isOpen{};

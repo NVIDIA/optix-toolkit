@@ -49,8 +49,6 @@ using namespace demandLoading;
 using namespace imageSource;
 using namespace otk;
 
-const unsigned long long TEX_MEM_PER_DEVICE = 1u << 30; // 1 GB
-
 class TestDemandTexture : public testing::Test
 {
   public:

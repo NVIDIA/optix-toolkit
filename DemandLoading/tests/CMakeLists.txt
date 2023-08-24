@@ -40,6 +40,7 @@ embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
 )
 
 otk_add_executable( testDemandLoading
+  main.cpp
   CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
@@ -92,7 +93,7 @@ target_link_libraries( testDemandLoading
   DemandLoading
   CUDA::cudart
   OpenEXR::OpenEXR # for half
-  GTest::gmock_main
+  GTest::gmock
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
@@ -113,7 +114,7 @@ set_target_properties( testDemandLoading
 
 
 # Register test cases with CTest.
-gtest_discover_tests(testDemandLoading)
+gtest_discover_tests(testDemandLoading PROPERTIES LABELS DemandLoading)
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
 include( embed_ptx )
@@ -158,4 +159,4 @@ set_target_properties( testDemandLoading PROPERTIES
 )
 
 # Register test cases with CTest.
-gtest_discover_tests(testTextureFootprint)
+gtest_discover_tests(testTextureFootprint PROPERTIES LABELS DemandLoading)

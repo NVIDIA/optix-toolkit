@@ -206,7 +206,6 @@ target_link_libraries( DemandLoading
   OptiXToolkit::Memory
   OptiX::OptiX
   CUDA::cuda_driver
-  ${CMAKE_DL_LIBS}  
   )
 
 set_target_properties(DemandLoading PROPERTIES

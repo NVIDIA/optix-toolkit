@@ -73,7 +73,11 @@ demandLoading::Options configure( demandLoading::Options options )
     return options;
 }
 
-bool supportsSparseTextures( unsigned int deviceIndex )
+}  // anonymous namespace
+
+namespace demandLoading {
+
+bool DemandPageLoaderImpl::supportsSparseTextures( unsigned int deviceIndex )
 {
     int sparseSupport = 0;
     DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, deviceIndex ) );
@@ -85,10 +89,6 @@ bool supportsSparseTextures( unsigned int deviceIndex )
 
     return sparseSupport && !inTccMode;
 }
-
-}  // anonymous namespace
-
-namespace demandLoading {
 
 DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
     : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )

@@ -23,16 +23,19 @@
 #include <optix_function_table.h>
 
 #include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 extern "C" OptixFunctionTable g_optixFunctionTable;
 
-namespace optix {
+namespace otk {
 namespace testing {
 
 class MockOptix
 {
   public:
+    MOCK_METHOD( OptixResult,
+                 deviceContextCreate,
+                 ( CUcontext fromContext, const OptixDeviceContextOptions* options, OptixDeviceContext* context ) );
+    MOCK_METHOD( OptixResult, deviceContextDestroy, ( OptixDeviceContext context ) );
     MOCK_METHOD( OptixResult,
                  accelComputeMemoryUsage,
                  ( OptixDeviceContext            context,
@@ -54,9 +57,37 @@ class MockOptix
                    OptixTraversableHandle*       outputHandle,
                    const OptixAccelEmitDesc*     emittedProperties,
                    unsigned int                  numEmittedProperties ) );
+    MOCK_METHOD( OptixResult,
+                 moduleCreateFromPTX,
+                 ( OptixDeviceContext                 context,
+                   const OptixModuleCompileOptions*   moduleCompileOptions,
+                   const OptixPipelineCompileOptions* pipelineCompileOptions,
+                   const char*                        PTX,
+                   size_t                             PTXsize,
+                   char*                              logString,
+                   size_t*                            logStringSize,
+                   OptixModule*                       module ) );
+    MOCK_METHOD( OptixResult, moduleDestroy, ( OptixModule module ) );
+    MOCK_METHOD( OptixResult,
+                 builtinISModuleGet,
+                 ( OptixDeviceContext                 context,
+                   const OptixModuleCompileOptions*   moduleCompileOptions,
+                   const OptixPipelineCompileOptions* pipelineCompileOptions,
+                   const OptixBuiltinISOptions*       builtinISOptions,
+                   OptixModule*                       builtinModule ) );
+    MOCK_METHOD( OptixResult,
+                 programGroupCreate,
+                 ( OptixDeviceContext              context,
+                   const OptixProgramGroupDesc*    programDescriptions,
+                   unsigned int                    numProgramGroups,
+                   const OptixProgramGroupOptions* options,
+                   char*                           logString,
+                   size_t*                         logStringSize,
+                   OptixProgramGroup*              programGroups ) );
+    MOCK_METHOD( OptixResult, programGroupDestroy, ( OptixProgramGroup group ) );
 };
 
 void initMockOptix( MockOptix& mock );
 
 }  // namespace testing
-}  // namespace optix
+}  // namespace otk

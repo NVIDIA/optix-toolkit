@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,24 +26,45 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include "DemandPageLoaderImpl.h"
 
-#include <OptiXToolkit/DemandLoading/Ticket.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include <cuda.h>
+#include <cuda_runtime.h>
 
-namespace demandLoading {
-
-class RequestProcessor
+// Check whether sparse textures are supported on at least one device.
+bool sparseTexturesSupported()
 {
-  public:
-    virtual ~RequestProcessor() = default;
+    cudaFree(nullptr);
+    int numDevices;
+    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+    for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+    {
+        if( demandLoading::DemandPageLoaderImpl::supportsSparseTextures( deviceIndex ) )
+            return true;
+    }
+    return false;
+}
 
-    /// Add a batch of page requests from the specified device to the request queue.
-    virtual void addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds ) = 0;
-
-    /// Stop processing requests, waking and joining with worker threads.
-    virtual void stop() = 0;
-};
-
-}  // namespace demandLoading
+int main( int argc, char** argv )
+{
+    testing::InitGoogleMock( &argc, argv );
+    if( !testing::GTEST_FLAG(list_tests) && !sparseTexturesSupported() )
+    {
+        std::string filter = ::testing::GTEST_FLAG( filter );
+        if( filter.find( "-" ) == filter.npos )
+            filter += '-';  // start negative filters
+        else
+            filter += ':';  // extend negative filters
+        filter +=
+            "DeferredImageLoadingTest.deferredTileIsLoadedAgain"
+            ":TestDemandLoader.TestTextureVariants"
+            ":TestDemandTexture.TestFillTile"
+            ":TestDemandTexture.TestReadMipTail"
+            ":TestDemandTexture.TestFillMipTail"
+            ":TestDemandTexture.TestSparseNonMipmappedTexture";
+        testing::GTEST_FLAG( filter ) = filter;
+    }
+    return RUN_ALL_TESTS();
+}
