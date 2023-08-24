@@ -132,7 +132,9 @@ void ThreadPoolRequestProcessor::worker()
     catch( const std::exception& e )
     {
         std::cerr << "Error: " << e.what() << std::endl;
+#ifndef NDEBUG
         std::terminate();
+#endif        
     }
 }
 
