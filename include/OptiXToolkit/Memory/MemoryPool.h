@@ -268,21 +268,21 @@ class MemoryPool
     /// Async free of a single address slot (not compatible with RingSuballocator)
     void freeItemAsync( uint64_t ptr, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{ptr, m_suballocator->itemSize()}, stream );
+        freeAsync( MemoryBlockDesc{ptr, m_suballocator->itemSize(), 0}, stream );
     }
 
     /// Async free an object (not compatible with RingSuballocator)
     template <typename TYPE>
     void freeObjectAsync( TYPE* ptr, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE )}, stream );
+        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), sizeof( TYPE ), 0}, stream );
     }
 
     /// Free an array of objects (not compatible with RingSuballocator)
     template <typename TYPE>
     void freeObjectsAsync( TYPE* ptr, uint64_t numObjects, CUstream stream = 0 )
     {
-        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE )}, stream );
+        freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE ), 0}, stream );
     }
 
 

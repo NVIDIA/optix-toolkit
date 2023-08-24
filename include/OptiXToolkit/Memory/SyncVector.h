@@ -58,6 +58,7 @@ class SyncVector
   public:
     using const_iterator = typename std::vector<T>::const_iterator;
     using iterator       = typename std::vector<T>::iterator;
+    using value_type     = T;
 
     /// Default Constructor
     SyncVector<T>() = default;
@@ -150,6 +151,9 @@ class SyncVector
 
     /// Clear the host vector.
     void clear() { m_host.clear(); }
+
+    /// Detach the device storage
+    CUdeviceptr detach() { return m_device.detach(); }
 
   private:
     void ensureDeviceMemory()

@@ -192,6 +192,42 @@ class BuildInputBuilder
     {
     }
 
+    /// Describe a triangle array build input.
+    ///
+    BuildInputBuilder& triangles( unsigned int       numVertices,
+                                  const CUdeviceptr* vertices,
+                                  OptixVertexFormat  vertexFormat,
+                                  unsigned int       numTriangles,
+                                  const CUdeviceptr  indices,
+                                  OptixIndicesFormat indexFormat,
+                                  const uint32_t*    flags,
+                                  unsigned int       numSbtRecords )
+    {
+        checkOverflow();
+        current().type                          = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+        OptixBuildInputTriangleArray& triangles = current().triangleArray;
+        triangles.vertexBuffers                 = vertices;
+        triangles.numVertices                   = numVertices;
+        triangles.vertexFormat                  = vertexFormat;
+        triangles.vertexStrideInBytes           = 0;
+        triangles.indexBuffer                   = indices;
+        triangles.numIndexTriplets              = numTriangles;
+        triangles.indexFormat                   = indexFormat;
+        triangles.indexStrideInBytes            = 0;
+        triangles.preTransform                  = CUdeviceptr{};
+        triangles.flags                         = flags;
+        triangles.numSbtRecords                 = numSbtRecords;
+        triangles.sbtIndexOffsetBuffer          = 0;
+        triangles.sbtIndexOffsetSizeInBytes     = 0;
+        triangles.sbtIndexOffsetStrideInBytes   = 0;
+        triangles.primitiveIndexOffset          = 0;
+        triangles.transformFormat               = OPTIX_TRANSFORM_FORMAT_NONE;
+#if OPTIX_VERSION >= 70600
+        triangles.opacityMicromap = OptixBuildInputOpacityMicromap{};
+#endif
+        return next();
+    }
+
     /// Describe a custom primitive build input.
     ///
     /// The arguments match the members of the customPrimitiveArray member

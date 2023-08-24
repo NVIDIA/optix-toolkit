@@ -50,8 +50,18 @@ class DeviceBuffer
     DeviceBuffer() = default;
     /// DeviceBuffers are constructable from a given size.
     explicit DeviceBuffer( size_t size ) { allocate( size ); }
+    /// Construct from existing storage and size and take ownership.
+    DeviceBuffer( CUdeviceptr storage, size_t size )
+        : m_devStorage( storage )
+        , m_capacity( size )
+        , m_size( size )
+    {
+    }
 
-    ~DeviceBuffer() noexcept { OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) ); }
+    ~DeviceBuffer() noexcept
+    {
+        release();
+    }
 
     /// DeviceBuffers are not copyable.
     DeviceBuffer( const DeviceBuffer& rhs )            = delete;
@@ -68,8 +78,18 @@ class DeviceBuffer
         rhs.m_size       = 0;
     }
 
-    /// DeviceBuffers are not move assignable (this would potentially leak memory).
-    DeviceBuffer operator=( DeviceBuffer&& rhs ) = delete;
+    /// DeviceBuffers are move assignable.
+    DeviceBuffer& operator=( DeviceBuffer&& rhs ) noexcept
+    {
+        release();
+        m_devStorage     = rhs.m_devStorage;
+        m_capacity       = rhs.m_capacity;
+        m_size           = rhs.m_size;
+        rhs.m_devStorage = CUdeviceptr{};
+        rhs.m_capacity   = 0;
+        rhs.m_size       = 0;
+        return *this;
+    }
 
     /// Query the size of the allocated memory that is in-use.
     size_t size() const { return m_size; }
@@ -119,7 +139,33 @@ class DeviceBuffer
     /// Return the associated void* with the allocated device memory.
     void* devicePtr() const { return bit_cast<void*>( m_devStorage ); }
 
+    /// Attach raw storage and size to this buffer.
+    void attach( CUdeviceptr storage, size_t size )
+    {
+        free();
+        m_devStorage = storage;
+        m_capacity   = size;
+        m_size       = size;
+    }
+
+    /// Detach the raw storage from this buffer.
+    CUdeviceptr detach()
+    {
+        const CUdeviceptr storage = m_devStorage;
+        m_devStorage              = CUdeviceptr{};
+        m_capacity                = 0;
+        m_size                    = 0;
+        return storage;
+    }
+
   private:
+    void release() noexcept
+    {
+        if( m_devStorage )
+            OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) );
+        m_devStorage = CUdeviceptr{};
+    }
+
     CUdeviceptr m_devStorage{};
     size_t      m_capacity{};
     size_t      m_size{};

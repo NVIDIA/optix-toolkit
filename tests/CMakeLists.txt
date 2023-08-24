@@ -32,6 +32,7 @@ include( GoogleTest )
 otk_add_executable( testMemory
   TestAllocators.cpp
   TestBinnedSuballocator.cpp
+  TestDeviceBuffer.cpp
   TestDeviceMemoryPools.cpp
   TestDeviceMemoryPools.cu
   TestDeviceMemoryPools.h
@@ -56,7 +57,7 @@ set_target_properties( testMemory PROPERTIES
 )
 
 # Register test cases with CTest.
-gtest_discover_tests(testMemory)
+gtest_discover_tests(testMemory PROPERTIES LABELS Memory)
 
 otk_add_executable(testOptiXMemory
   TestBuilders.cpp
@@ -69,4 +70,4 @@ target_link_libraries(testOptiXMemory
   GTest::gtest_main
 )
 set_property(TARGET testOptiXMemory PROPERTY FOLDER Memory/tests)
-gtest_discover_tests(testOptiXMemory)
+gtest_discover_tests(testOptiXMemory PROPERTIES LABELS Memory)
