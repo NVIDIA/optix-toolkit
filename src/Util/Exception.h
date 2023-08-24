@@ -119,7 +119,9 @@ inline void checkCudaErrorNoThrow( cudaError_t error, const char* expr, const ch
     {
         std::cerr << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
                   << ":" << line << ")\n";
+#ifndef NDEBUG
         std::terminate();
+#endif        
     }
 }
 
@@ -143,7 +145,9 @@ inline void checkCudaErrorNoThrow( CUresult result, const char* expr, const char
         const char* errorStr;
         cuGetErrorString( result, &errorStr );
         std::cerr << "CUDA call (" << expr << " ) failed with error: '" << errorStr << "' (" << file << ":" << line << ")\n";
+#ifndef NDEBUG
         std::terminate();
+#endif
     }
 }
 
