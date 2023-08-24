@@ -63,7 +63,9 @@ inline void checkCudaErrorNoThrow( CUresult result, const char* expr, const char
         catch( ... )
         {
         }
+#ifndef NDEBUG
         std::terminate();
+#endif        
     }
 }
 
