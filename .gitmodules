@@ -24,5 +24,7 @@
 	branch = master
 [submodule "Memory"]
 	path = Memory
-	url = https://github.com/NVIDIA/otk-memory.git 
-	branch = master
+	url = ../otk-memory.git
+[submodule "vcpkg"]
+	path = vcpkg
+	url = https://github.com/microsoft/vcpkg.git
