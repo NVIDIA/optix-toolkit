@@ -30,11 +30,11 @@
 
 #include "DemandGeometryViewer.h"
 #include "DemandGeometryViewerKernelPTX.h"
-#include "DemandMaterial.h"
 #include "SphereInstances.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
@@ -72,8 +72,6 @@
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
-
-using namespace otk;  // for vec_math operators
 
 namespace demandGeometryViewer {
 
@@ -287,7 +285,6 @@ class Application
     CUstream                    m_stream{};
     OptixPipelineCompileOptions m_pipelineOpts{};
     OptixModule                 m_viewerModule{};
-    OptixModule                 m_proxyMaterialModule{};
     OptixModule                 m_realizedMaterialModule{};
     OptixModule                 m_sphereModule{};
     bool                        m_updateNeeded{};
@@ -338,8 +335,9 @@ class Application
 
     std::vector<SceneProxy>         m_sceneProxies;
     std::vector<ScenePrimitive>     m_scenePrimitives;
-    std::unique_ptr<DemandMaterial> m_materials;
-    otk::SyncVector<uint_t>         m_materialIds;
+
+    std::shared_ptr<demandMaterial::MaterialLoader> m_materials;
+    otk::SyncVector<uint_t>                         m_materialIds;
 };
 
 Application::Application( Options&& cliOptions )
@@ -388,7 +386,7 @@ void Application::createContext()
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
 
     m_proxies.reset( new demandGeometry::ProxyInstances( m_loader.get() ) );
-    m_materials.reset( new DemandMaterial( m_loader.get() ) );
+    m_materials = demandMaterial::createMaterialLoader( m_loader.get() );
 }
 
 void Application::initPipelineOpts()
@@ -429,7 +427,6 @@ void Application::createModules()
     const OptixModuleCompileOptions compileOptions{getCompileOptions()};
 
     m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_ptx_text(), DemandGeometryViewer_ptx_size );
-    m_proxyMaterialModule = createModuleFromSource( compileOptions, DemandMaterial_ptx_text(), DemandMaterial_ptx_size );
 
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
@@ -446,7 +443,7 @@ void Application::createProgramGroups()
         .raygen( "__raygen__pinHoleCamera" )
         .miss( "__miss__backgroundColor" )
         .hitGroupCHIS( m_viewerModule, m_proxies->getCHFunctionName(), m_viewerModule, m_proxies->getISFunctionName() )
-        .hitGroupCHIS( m_proxyMaterialModule, "__closesthit__proxyMaterial", m_sphereModule, nullptr );
+        .hitGroupCHIS( m_viewerModule, m_materials->getCHFunctionName(), m_sphereModule, nullptr );
     OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
                                                m_programGroups.data() ) );
 }
@@ -679,7 +676,7 @@ void Application::initLaunchParams()
                         }};
     // normalize the light directions to start
     for( BasicLight& light : lights )
-        light.pos  = normalize( light.pos );
+        light.pos  = otk::normalize( light.pos );
     Params& params = m_params[0];
     std::copy( std::begin( lights ), std::end( lights ), std::begin( params.lights ) );
     params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
@@ -947,7 +944,6 @@ void Application::cleanupContext()
 void Application::cleanupModule()
 {
     OTK_ERROR_CHECK( optixModuleDestroy( m_viewerModule ) );
-    OTK_ERROR_CHECK( optixModuleDestroy( m_proxyMaterialModule ) );
     if( m_realizedMaterialModule )
         OTK_ERROR_CHECK( optixModuleDestroy( m_realizedMaterialModule ) );
 }

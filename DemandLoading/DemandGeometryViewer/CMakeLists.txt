@@ -44,10 +44,10 @@ embed_ptx(
     PTX_LINK_LIBRARIES
         OptiXToolkit::DemandGeometry
         OptiXToolkit::DemandLoading
+        OptiXToolkit::DemandMaterial
         OptiXToolkit::ShaderUtil
     SOURCES
         DemandGeometryViewer.cu
-        DemandMaterial.cu
         Sphere.cu
     FOLDER Examples/DemandLoading
 )
@@ -55,17 +55,16 @@ embed_ptx(
 otk_add_executable( DemandGeometryViewer
     DemandGeometryViewer.h
     DemandGeometryViewer.cpp
-    DemandMaterial.h
-    DemandMaterial.cpp
     SphereInstances.h
     SphereInstances.cpp
 )
 target_link_libraries( DemandGeometryViewer PUBLIC
     DemandGeometryViewerKernel
-    DemandGeometry
-    ShaderUtil
-    Gui
-    Util
+    OptiXToolkit::DemandGeometry
+    OptiXToolkit::DemandMaterial
+    OptiXToolkit::ShaderUtil
+    OptiXToolkit::Gui
+    OptiXToolkit::Util
     OptiXToolkit::Error
     CUDA::cudart
 )

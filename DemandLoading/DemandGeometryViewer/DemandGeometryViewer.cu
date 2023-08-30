@@ -139,4 +139,23 @@ __device__ void reportClosestHitNormal( float3 ffNormal )
 }  // namespace app
 }  // namespace demandGeometry
 
+namespace demandMaterial {
+namespace app {
+
+using ::demandGeometry::app::getDeviceContext;
+
+__device__ __forceinline__ unsigned int getMaterialId()
+{
+    return demandGeometryViewer::g_params.demandMaterialPageIds[optixGetPrimitiveIndex()];
+}
+
+__device__ __forceinline__ void reportClosestHit( unsigned int /*materialId*/, bool /*isResident*/, unsigned long long /*pageTableEntry*/ )
+{
+    demandGeometryViewer::setRayPayload( demandGeometryViewer::g_params.demandMaterialColor );
+}
+
+}  // namespace app
+}  // namespace demandMaterial
+
 #include <OptiXToolkit/DemandGeometry/ProxyInstancesImpl.h>
+#include "DemandMaterial.cu"
