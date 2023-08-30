@@ -25,17 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-
-#include "DemandGeometryViewer.h"
+#ifndef OTK_DEMAND_MATERIAL_MATERIAL_LOADER_IMPL_H
+#define OTK_DEMAND_MATERIAL_MATERIAL_LOADER_IMPL_H
 
 #include <OptiXToolkit/DemandLoading/Paging.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
-
-#include <optix.h>
-
-#include <vector_functions.h>
 
 namespace demandMaterial {
+
+namespace app {
+
+__device__ unsigned int getMaterialId();
+__device__ void         reportClosestHit( unsigned int pageId, bool isResident );
+__device__ const demandLoading::DeviceContext& getDeviceContext();
+
+}  // namespace app
 
 extern "C" __global__ void __closesthit__proxyMaterial()
 {
@@ -46,3 +49,5 @@ extern "C" __global__ void __closesthit__proxyMaterial()
 }
 
 }  // namespace demandMaterial
+
+#endif
