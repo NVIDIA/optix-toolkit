@@ -158,4 +158,4 @@ __device__ __forceinline__ void reportClosestHit( unsigned int /*materialId*/, b
 }  // namespace demandMaterial
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstancesImpl.h>
-#include "DemandMaterial.cu"
+#include <OptiXToolkit/DemandMaterial/MaterialLoaderIMpl.h>
