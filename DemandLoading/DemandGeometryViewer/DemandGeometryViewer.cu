@@ -149,7 +149,7 @@ __device__ __forceinline__ unsigned int getMaterialId()
     return demandGeometryViewer::g_params.demandMaterialPageIds[optixGetPrimitiveIndex()];
 }
 
-__device__ __forceinline__ void reportClosestHit( unsigned int /*materialId*/, bool /*isResident*/, unsigned long long /*pageTableEntry*/ )
+__device__ __forceinline__ void reportClosestHit( unsigned int /*materialId*/, bool /*isResident*/ )
 {
     demandGeometryViewer::setRayPayload( demandGeometryViewer::g_params.demandMaterialColor );
 }
