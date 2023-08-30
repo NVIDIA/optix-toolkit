@@ -142,7 +142,10 @@ __device__ void reportClosestHitNormal( float3 ffNormal )
 namespace demandMaterial {
 namespace app {
 
-using ::demandGeometry::app::getDeviceContext;
+__device__ __forceinline__ const demandLoading::DeviceContext& getDeviceContext()
+{
+    return demandGeometryViewer::g_params.demandContext;
+}
 
 __device__ __forceinline__ unsigned int getMaterialId()
 {
