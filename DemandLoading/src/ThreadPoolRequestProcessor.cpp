@@ -36,8 +36,8 @@ namespace demandLoading {
 
 ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )
     : m_pageTableManager( std::move( pageTableManager ) )
+    , m_options( options )
 {
-    m_requests.reset( new RequestQueue( options.maxRequestQueueSize ) );
     if( !options.traceFile.empty() )
     {
         m_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
@@ -45,8 +45,13 @@ ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTabl
     }
 }
 
-void ThreadPoolRequestProcessor::start( unsigned int maxThreads )
+void ThreadPoolRequestProcessor::start()
 {
+    if( m_started )
+        return;
+
+    m_requests.reset( new RequestQueue( m_options.maxRequestQueueSize ) );
+    unsigned int maxThreads = m_options.maxThreads;
     if( maxThreads == 0 )
         maxThreads = std::thread::hardware_concurrency();
     m_threads.reserve( maxThreads );
@@ -54,10 +59,16 @@ void ThreadPoolRequestProcessor::start( unsigned int maxThreads )
     {
         m_threads.emplace_back( &ThreadPoolRequestProcessor::worker, this );
     }
+    m_started = true;
 }
 
 void ThreadPoolRequestProcessor::stop()
 {
+    std::unique_lock<std::mutex> lock( m_ticketsMutex );
+
+    if( !m_started )
+        return;
+
     // Any threads that are waiting in RequestQueue::popOrWait will be notified when the queue is
     // shut down.
     m_requests->shutDown();
@@ -65,11 +76,16 @@ void ThreadPoolRequestProcessor::stop()
     {
         thread.join();
     }
+    m_requests.reset();
+    m_threads.clear();
+    m_started = false;
 }
 
 void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
     std::unique_lock<std::mutex> lock( m_ticketsMutex );
+    start();
+    
     auto it = m_tickets.find( id );
     DEMAND_ASSERT( it != m_tickets.end() );
     Ticket ticket = it->second;

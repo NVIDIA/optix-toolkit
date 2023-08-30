@@ -55,11 +55,6 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options );
     ~ThreadPoolRequestProcessor() override = default;
 
-    /// Start processing requests using the specified number of threads.  Options supplies
-    /// the number of specified threads (if zero, std::thread::hardware_concurrency is used),
-    /// the trace file and the size of the request queue.
-    void start( unsigned int maxThreads );
-
     /// Stop processing requests, terminating threads.
     void stop();
 
@@ -77,6 +72,11 @@ private:
     std::unique_ptr<TraceFileWriter>  m_traceFile{};
     std::map<unsigned int, Ticket>    m_tickets;
     std::mutex                        m_ticketsMutex;
+    Options                           m_options;
+    bool                              m_started = false;
+
+    /// Start processing requests.
+    void start();
 
     // Per-thread worker function.
     void worker();

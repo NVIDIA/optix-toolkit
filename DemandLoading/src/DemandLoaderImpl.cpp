@@ -94,8 +94,6 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
 {
     // Reserve bits in the sampler request handler for all possible textures.
     m_samplerRequestHandler.setPageRange( 0, options.numPageTableEntries );
-
-    m_requestProcessor.start( options.maxThreads );
 }
 
 DemandLoaderImpl::~DemandLoaderImpl()

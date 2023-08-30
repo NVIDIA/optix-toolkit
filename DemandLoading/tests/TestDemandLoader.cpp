@@ -340,7 +340,7 @@ class TestDemandLoaderBatches : public TestDemandLoader
         return static_cast<TestDemandLoaderBatches*>( context )->loadResource( stream, pageId, pageTableEntry );
     }
     bool loadResource( CUstream stream, unsigned int pageId, void** pageTableEntry );
-    void testBatch( CUstream stream );
+    void testBatch( CUstream stream, bool testAbort );
 
     std::atomic<int> m_numRequestsProcessed{ 0 };
 };
@@ -375,7 +375,7 @@ bool TestDemandLoaderBatches::loadResource( CUstream /*stream*/, unsigned int pa
     return true;
 }
 
-void TestDemandLoaderBatches::testBatch( CUstream stream )
+void TestDemandLoaderBatches::testBatch( CUstream stream, bool testAbort )
 {
     // Create a resource, using the given callback to handle page requests.
     const unsigned int numPages  = 128;
@@ -404,17 +404,28 @@ void TestDemandLoaderBatches::testBatch( CUstream stream )
         // Initiate request processing, which returns a Ticket.
         Ticket ticket = m_loader->processRequests( stream, context );
 
+        // Test abort functionality, which halts request processing.  The request processor
+        // should automatically restart on the next iteration.
+        if( testAbort )
+        {
+            m_loader->abort();
+            cudaDeviceSynchronize();
+            currentPage += batchSize;
+        }
+
         cudaDeviceSynchronize();
 
         // Wait for any page requests to be processed.
         ticket.wait();
 
-        // Advance the loop counter only when there were no page requests.
         if( ticket.numTasksTotal() == 0 )
         {
+            // Validate page table entries.
             pageTableEntries.resize( batchSize );
             cudaMemcpy( pageTableEntries.data(), devPageTableEntries, batchSize * sizeof( PageTableEntry ), cudaMemcpyDeviceToHost );
             validatePageTableEntries( pageTableEntries, currentPage, startPage + numPages, batchSize, numLaunches );
+
+            // Advance the loop counter only when there were no page requests.
             currentPage += batchSize;
         }
     }
@@ -429,6 +440,15 @@ TEST_F( TestDemandLoaderBatches, LoopTest )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( device ) );
         for( int i = 0; i < 4; ++i )
-            testBatch( m_streams[device] );
+            testBatch( m_streams[device], /*testAbort=*/false );
+    }
+}
+
+TEST_F( TestDemandLoaderBatches, TestAbort )
+{
+    for( unsigned int device : m_loader->getDevices() )
+    {
+        DEMAND_CUDA_CHECK( cudaSetDevice( device ) );
+        testBatch( m_streams[device], /*testAbort=*/true );
     }
 }
