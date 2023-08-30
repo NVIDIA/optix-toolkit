@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,39 +26,40 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
-include(Policies)
-
-project(DemandLoading LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-include(GNUInstallDirs)
-include(BuildConfig)
-include(FetchOpenEXR)
 include(CTest)
+include(FetchGtest)
+include(GoogleTest)
 
-if(NOT TARGET CUDA::cuda_driver)
-  find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
-
-if ( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" ON )
-else()
-  option( OTK_USE_CUDA_MEMORY_POOLS "Use CUDA memory pools and stream-ordered allocators" OFF )
-endif()
-
-if(NOT TARGET OptiX::OptiX)
-  # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-  set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-  find_package(OptiX 7.3 REQUIRED)
-endif()
-
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-add_subdirectory(DemandGeometry)
-add_subdirectory(DemandLoading)
-add_subdirectory(DemandMaterial)
-add_subdirectory(ImageSource)
+#source_group( "CUDA Files" REGULAR_EXPRESSION ".+\\.cu$" )
+#
+#add_library(DemandGeometryMocks STATIC
+#  include/OptiXToolkit/DemandGeometry/Mocks/Matchers.h
+#  include/OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h
+#  include/OptiXToolkit/DemandGeometry/Mocks/MockOptix.h
+#  MockOptix.cpp
+#)
+#target_include_directories(DemandGeometryMocks PUBLIC include)
+#target_link_libraries(DemandGeometryMocks PUBLIC OptiX::OptiX GTest::gmock)
+#set_target_properties(DemandGeometryMocks PROPERTIES FOLDER DemandLoading/tests)
+#add_library(OptiXToolkit::DemandGeometry::Mocks ALIAS DemandGeometryMocks)
+#
+#otk_add_executable( TestDemandGeometry
+#  LaunchIntersectAabb.h
+#  LaunchIntersectAabb.cu
+#  test_intersectAabb.cpp
+#  test_proxyInstances.cpp
+#  TestMatchers.cpp
+#)
+#target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::DemandGeometry::Mocks OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
+#
+#if(MSVC)
+#  # Disable unused formal parameter warning in gmock.
+#  target_compile_options(TestDemandGeometry PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/wd4100>)
+#endif()
+#
+#set_target_properties(TestDemandGeometry PROPERTIES 
+#  CXX_STANDARD 14  # Required by latest gtest
+#  FOLDER DemandLoading/tests
+#  )
+#
+#gtest_discover_tests(TestDemandGeometry PROPERTIES LABELS DemandLoading)
