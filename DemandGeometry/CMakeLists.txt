@@ -27,6 +27,7 @@
 #
 
 include(BuildConfig)
+find_package( CUDAToolkit 11.1 REQUIRED )
 
 otk_add_library( DemandGeometry STATIC
     include/OptiXToolkit/DemandGeometry/DemandGeometry.h

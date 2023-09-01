@@ -94,6 +94,7 @@ target_link_libraries( testDemandLoading
   CUDA::cudart
   OpenEXR::OpenEXR # for half
   GTest::gmock
+  ${CMAKE_DL_LIBS}
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
@@ -143,6 +144,7 @@ target_link_libraries( testTextureFootprint
   DemandLoading
   CUDA::cudart
   GTest::gtest_main
+  ${CMAKE_DL_LIBS}
   )
 set_target_properties( testTextureFootprint PROPERTIES FOLDER DemandLoading/tests )
 
