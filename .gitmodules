@@ -1,24 +1,24 @@
 [submodule "DemandLoading"]
 	path = DemandLoading
-	url = ../otk-demand-loading.git 
+	url = https://gitlab-master.nvidia.com/raven/otk-demand-loading.git 
 [submodule "examples"]
 	path = examples
-	url = ../otk-examples.git 
+	url = https://gitlab-master.nvidia.com/raven/otk-examples.git 
 [submodule "OmmBaking"]
 	path = OmmBaking
-	url = ../otk-omm-baking.git 
+	url = https://gitlab-master.nvidia.com/raven/otk-omm-baking.git 
 [submodule "ShaderUtil"]
 	path = ShaderUtil
-	url = ../otk-shader-util.git 
+	url = https://gitlab-master.nvidia.com/raven/otk-shader-util.git 
 [submodule "PyOptiX"]
 	path = PyOptiX
-	url = ../otk-pyoptix.git 
+	url = https://gitlab-master.nvidia.com/raven/otk-pyoptix.git 
 [submodule "CMake"]
 	path = CMake
-	url = ../otk-cmake.git 
+	url = https://gitlab-master.nvidia.com/raven/otk-cmake.git 
 [submodule "Memory"]
 	path = Memory
-	url = ../otk-memory.git
+	url = https://gitlab-master.nvidia.com/raven/otk-memory.git
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/microsoft/vcpkg.git
