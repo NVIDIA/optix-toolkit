@@ -92,7 +92,7 @@ target_link_libraries( ImageSource
 find_package(OpenImageIO QUIET)
 if(OpenImageIO_FOUND)
   set(Boost_NO_WARN_NEW_VERSIONS ON)
-  find_package(Boost COMPONENTS system filesystem REQUIRED)
+  find_package(Boost COMPONENTS system filesystem thread REQUIRED)
   target_sources(ImageSource PRIVATE 
     src/OIIOReader.cpp 
     include/OptiXToolkit/ImageSource/OIIOReader.h

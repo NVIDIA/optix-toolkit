@@ -65,7 +65,7 @@ CUarray_format pixelTypeToArrayFormat( const OIIO::TypeDesc& type )
 
 namespace {
 
-double toFloat( const char* src, const CUarray_format format )
+float toFloat( const char* src, const CUarray_format format )
 {
     switch( format )
     {
@@ -94,7 +94,7 @@ double toFloat( const char* src, const CUarray_format format )
             DEMAND_ASSERT_MSG( false, "Invalid CUDA array format" );
     }
 
-    return 0.;
+    return 0.f;
 }
 }
 
