@@ -35,7 +35,7 @@
 
 namespace otk {
 
-const uint64_t DEFAULT_ALLOC_SIZE = 2 * 1024 * 1024;
+const uint64_t DEFAULT_ALLOC_SIZE = 4 * 1024 * 1024;
 const uint64_t BAD_ADDR           = ~0ull;
 
 /// Allocation description, returned by a suballocator or memory pool

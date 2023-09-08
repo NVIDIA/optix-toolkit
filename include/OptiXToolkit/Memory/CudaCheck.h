@@ -72,23 +72,31 @@ inline void checkCudaErrorNoThrow( CUresult result, const char* expr, const char
 #define OTK_MEMORY_CUDA_CHECK( call ) otk::checkCudaError( call, #call, __FILE__, __LINE__ )
 #define OTK_MEMORY_CUDA_CHECK_NOTHROW( call ) otk::checkCudaErrorNoThrow( call, #call, __FILE__, __LINE__ )
 
+
+/// Get the context of a stream
+inline CUcontext getCudaContext( CUstream stream ) 
+{
+    CUcontext context;
+    OTK_MEMORY_CUDA_CHECK( cuStreamGetCtx( stream, &context ) );
+    return context;
+}
+
 /// Verify that the current CUDA context matches the given context.
-inline void checkCudaContext( CUcontext expected )
+inline void cudaContextCheck( CUcontext expected, const char* file, unsigned int line )
 {
     CUcontext current;
     OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &current ) );
-    OTK_MEMORY_ASSERT( current == expected );
-}
-
-/// Verify that the current CUDA context matches the context associated with the given stream.
-inline void checkCudaContext( CUstream stream )
-{
-    if( stream )
+    if( expected != current )
     {
-        CUcontext context;
-        OTK_MEMORY_CUDA_CHECK( cuStreamGetCtx( stream, &context ) );
-        checkCudaContext( context );
+        std::stringstream ss;
+        ss << "Cuda context check failed (" << file << ":" << line << ")\n";
+        throw std::runtime_error( ss.str() );
     }
 }
+
+#define OTK_CONTEXT_CUDA_CHECK( context ) otk::cudaContextCheck( context, __FILE__, __LINE__ )
+#define OTK_STREAM_CUDA_CHECK( stream ) if( stream ) otk::cudaContextCheck( getCudaContext( stream ), __FILE__, __LINE__ )
+#define OTK_CONTEXT_STREAM_CUDA_CHECK( context, stream ) otk::cudaContextCheck( context, __FILE__, __LINE__ ); \
+    if( stream ) otk::cudaContextCheck( otk::getCudaContext( stream ), __FILE__, __LINE__ )
 
 }  // namespace otk

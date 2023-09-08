@@ -129,7 +129,7 @@ class MemoryPool
     /// Allocate a memory block with (at least) the given size and alignment. Returns BAD_ADDR on failure.
     MemoryBlockDesc alloc( uint64_t size = 0, uint64_t alignment = 1, CUstream stream = 0 )
     {
-        checkCudaContext( stream );
+        OTK_STREAM_CUDA_CHECK( stream );
 
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( false );
@@ -211,7 +211,7 @@ class MemoryPool
     /// Free block immediately on the specified stream.
     void free( const MemoryBlockDesc& block, CUstream stream = 0 )
     {
-        checkCudaContext( stream );
+        OTK_STREAM_CUDA_CHECK( stream );
 
         std::unique_lock<std::mutex> lock( m_mutex );
         if( m_suballocator )
@@ -248,7 +248,7 @@ class MemoryPool
     /// Free block asynchronously, after operations currently in the stream have finished
     void freeAsync( const MemoryBlockDesc& block, CUstream stream )
     {
-        checkCudaContext( stream );
+        OTK_STREAM_CUDA_CHECK( stream );
 
         CUcontext context;
         OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &context ) );
@@ -285,7 +285,6 @@ class MemoryPool
         freeAsync( MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), numObjects * sizeof( TYPE ), 0}, stream );
     }
 
-
     /// Async free of texture tiles
     void freeTextureTilesAsync( const TileBlockDesc& tileBlock, CUstream stream = 0 )
     {
@@ -300,7 +299,7 @@ class MemoryPool
     /// Return the amount of space that can be allocated in the pool without freeing anything
     uint64_t allocatableSpace() const { return currentFreeSpace() + maxSize() - std::min( maxSize(), trackedSize() ); }
 
-    /// Return the amount of memory currently tracked (free or giving out) by the pool
+    /// Return the amount of memory currently tracked (free or given out) by the pool
     uint64_t trackedSize() const { return m_suballocator ? m_suballocator->trackedSize() : 0; }
 
     /// Return the maximum memory that the pool will allocate
@@ -332,7 +331,7 @@ class MemoryPool
     uint64_t           m_maxSize;
     mutable std::mutex m_mutex;
 
-    std::deque<StagedBlock>              m_stagedBlocks;
+    std::deque<StagedBlock> m_stagedBlocks;
 
     // Free blocks with events that have finished
     inline void freeStagedBlocks( bool waitOnEvents )
