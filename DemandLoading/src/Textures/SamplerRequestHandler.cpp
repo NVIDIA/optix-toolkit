@@ -65,7 +65,6 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     // Get the texture and make sure it is open.
     unsigned int samplerId = pageIdToSamplerId( pageId );
     DemandTextureImpl* texture = m_loader->getTexture( samplerId );
-
     texture->open();
 
     // Load base color if the page is for a base color
@@ -133,23 +132,33 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     DemandTextureImpl* texture = m_loader->getTexture( pageId );
     const imageSource::TextureInfo& info = texture->getInfo();
 
-    // Try to get transfer buffer
-    // The buffer needs to be a little larger than the texture size for some reason to prevent a crash
+    // Try to get transfer buffer from the demand loader. We prefer it because it allows asynchronous fill.
+    // The buffer needs to be a little larger than the texture size for some reason to prevent a crash, hence the extra 4 / 3.
     size_t transferBufferSize = getTextureSizeInBytes( info ) * 4 / 3;
-
     TransferBufferDesc transferBuffer =
         m_loader->allocateTransferBuffer( texture->getFillType(), transferBufferSize, stream );
+    char* dataPtr = reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr );
+    size_t bufferSize = transferBuffer.memoryBlock.size;
 
-    // Make a backup buffer on the host if the transfer buffer was unsuccessful
-    size_t hostBufferSize = ( transferBuffer.memoryBlock.size == 0 && transferBuffer.memoryType == CU_MEMORYTYPE_HOST ) ? transferBufferSize : 0;
-    std::vector<char> hostBuffer( hostBufferSize );
+    // Make a alternate buffer on the host if needed
+    std::vector<char> hostBuffer;
+    if( transferBuffer.memoryType == CU_MEMORYTYPE_HOST && transferBuffer.memoryBlock.size == 0 )
+    {
+        hostBuffer.resize( transferBufferSize );
+        dataPtr = hostBuffer.data();
+        bufferSize = transferBufferSize;
+    }
 
-    // Get the final data pointer
-    char* dataPtr = ( transferBuffer.memoryBlock.size > 0 ) ? reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ) : hostBuffer.data();
-    size_t bufferSize = std::max( hostBuffer.size(), transferBuffer.memoryBlock.size );
-    DEMAND_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense textures." );
+    // Make alternate buffer on device if needed
+    if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE && transferBuffer.memoryBlock.size == 0 )
+    {
+        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &dataPtr ), transferBufferSize ) );
+        bufferSize = transferBufferSize;
+    }
 
-    // Read the texture data into the buffer
+    DEMAND_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense texture." );
+
+    // Read the texture data into the buffer (either a single mip level, or all mip levels)
     bool satisfied;
     if( info.numMipLevels == 1 && !texture->isDegenerate() )
         satisfied = texture->readNonMipMappedData( dataPtr, bufferSize, stream );
@@ -159,14 +168,20 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     // Copy texture data from the buffer to the texture array on the device
     if( satisfied )
         texture->fillDenseTexture( stream, dataPtr, info.width, info.height, transferBuffer.memoryBlock.size > 0 );
+
+    // Free the transfer buffer from the demand loader
     if( transferBuffer.memoryBlock.size > 0 )
     {
         m_loader->freeTransferBuffer( transferBuffer, stream );
     }
     else 
     {
-        // fillDenseTexture uses an async copy, so synchronize the stream when using the backup pageable buffer.
+        // fillDenseTexture uses an async copy, so synchronize the stream when using an alternate buffer.
         DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
+
+        // Free device-side alternate buffer if one was made
+        if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
+            cuMemFree( reinterpret_cast<CUdeviceptr>( dataPtr ) );
     }
 
     return satisfied;

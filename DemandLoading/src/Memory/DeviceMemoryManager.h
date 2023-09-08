@@ -88,8 +88,6 @@ class DeviceMemoryManager
         return m_samplerPool.trackedSize() + m_deviceContextMemory.trackedSize() + m_tilePool.trackedSize();
     }
 
-    void accumulateStatistics( DeviceStatistics& stats ) const { stats.memoryUsed += getTotalDeviceMemory(); }
-
   private:
     Options      m_options;
 

@@ -69,7 +69,7 @@ private:
     std::shared_ptr<PageTableManager> m_pageTableManager;
     std::unique_ptr<RequestQueue>     m_requests;
     std::vector<std::thread>          m_threads;
-    std::unique_ptr<TraceFileWriter>  m_traceFile{};
+//    std::unique_ptr<TraceFileWriter>  m_traceFile{};
     std::map<unsigned int, Ticket>    m_tickets;
     std::mutex                        m_ticketsMutex;
     Options                           m_options;
@@ -77,6 +77,15 @@ private:
 
     /// Start processing requests.
     void start();
+
+    static std::mutex s_traceFileMutex;
+    static std::unique_ptr<TraceFileWriter> s_traceFile;
+    static void initTraceFile( const Options& options )
+    {
+        std::unique_lock<std::mutex> lock( s_traceFileMutex );
+        if( !s_traceFile )
+            s_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
+    }
 
     // Per-thread worker function.
     void worker();

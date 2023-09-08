@@ -33,6 +33,7 @@
 #include "ErrorCheck.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
@@ -182,16 +183,12 @@ void DeferredImageLoadingTest::initDemandLoading()
 #ifndef NDEBUG
     options.maxThreads = 1;
 #endif
-    m_loader = createDemandLoader( options );
-    std::vector<uint_t> devices = m_loader->getDevices();
-    if( devices.empty() )
-    {
-        throw std::runtime_error( "No devices support demand loading." );
-    }
-    m_deviceIndex = devices[0];
+
+    m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
     ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
     ERROR_CHECK( cudaFree( nullptr ) );
     ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
+    m_loader = createDemandLoader( options );
 }
 
 void DeferredImageLoadingTest::createContext()

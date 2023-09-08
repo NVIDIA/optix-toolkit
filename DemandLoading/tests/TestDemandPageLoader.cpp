@@ -59,12 +59,12 @@ class DemandPageLoaderTest : public Test
     void SetUp() override
     {
         ERROR_CHECK( cudaFree( nullptr ) );
+        m_deviceIndex = 0;
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
         ERROR_CHECK( cuStreamCreate( &m_stream, 0 ) );
         ERROR_CHECK( cudaMalloc( &m_devIsResident, sizeof( bool ) ) );
         ERROR_CHECK( cudaMalloc( &m_devPageTableEntry, sizeof( unsigned long long ) ) );
-        m_loader      = createDemandPageLoader( &m_processor, demandLoading::Options{} );
-        m_deviceIndex = m_loader->getDevices()[0];
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        m_loader = createDemandPageLoader( &m_processor, demandLoading::Options{} );
     }
 
     void TearDown() override

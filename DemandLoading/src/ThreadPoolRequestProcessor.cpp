@@ -34,14 +34,23 @@
 
 namespace demandLoading {
 
+std::mutex ThreadPoolRequestProcessor::s_traceFileMutex;
+std::unique_ptr<TraceFileWriter> ThreadPoolRequestProcessor::s_traceFile;
+
 ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )
     : m_pageTableManager( std::move( pageTableManager ) )
     , m_options( options )
 {
+    m_requests.reset( new RequestQueue( options.maxRequestQueueSize ) );
+
     if( !options.traceFile.empty() )
     {
-        m_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
-        m_traceFile->recordOptions( options );
+        std::unique_lock<std::mutex> lock( s_traceFileMutex );
+        if( !s_traceFile )
+        {
+            s_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
+        }
+        s_traceFile->recordOptions( options );
     }
 }
 
@@ -104,17 +113,17 @@ void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, 
     }
 
     // If recording is enabled, write the requests to the trace file.
-    if( m_traceFile && numPageIds > 0 )
+    if( s_traceFile && numPageIds > 0 )
     {
-        m_traceFile->recordRequests( stream, pageIds, numPageIds );
+        s_traceFile->recordRequests( stream, pageIds, numPageIds );
     }
 }
 
 void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc )
 {
-    if( m_traceFile )
+    if( s_traceFile )
     {
-        m_traceFile->recordTexture( imageSource, textureDesc );
+        s_traceFile->recordTexture( imageSource, textureDesc );
     }
 }
 

@@ -35,6 +35,7 @@
 #include "Textures/DemandTextureImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
@@ -64,15 +65,15 @@ class TestDemandTexture : public testing::Test
         m_width = width;
         m_height = height;
 
+        // Use the first capable device.
+        m_deviceIndex = getFirstSparseTextureDevice();
+        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,
         // and it's provides a PageTableManager that's needed by initSampler().
         demandLoading::Options options{};
         options.useSmallTextureOptimization = true;
         m_loader.reset( new DemandLoaderImpl( options ) );
-
-        // Use the first capable device.
-        m_deviceIndex = m_loader->getDevices().at(0);
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         // Create TextureDescriptor.
         m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;

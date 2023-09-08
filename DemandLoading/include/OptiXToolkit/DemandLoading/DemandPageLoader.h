@@ -77,9 +77,6 @@ class DemandPageLoader
     /// kernel to obtain requested page ids and asynchronously copy them to host memory.
     virtual void pullRequests( CUstream stream, const DeviceContext& deviceContext, unsigned int id ) = 0;
 
-    /// Get indices of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
-    virtual std::vector<unsigned int> getDevices() const = 0;
-
     /// Turn on or off eviction
     virtual void enableEviction( bool evictionActive ) = 0;
 };

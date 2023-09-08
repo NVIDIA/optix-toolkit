@@ -143,8 +143,8 @@ class DemandTextureImpl : public DemandTexture
     /// Get the request handler for this texture.
     TextureRequestHandler* getRequestHandler() { return m_requestHandler.get(); }
 
-    /// Accumulate statistics for this texture, if the associated ImageSource is not in the set.
-    void accumulateStatistics( Statistics& stats, std::set<imageSource::ImageSource*>& images );
+    /// Accumulate statistics for this texture.
+    void accumulateStatistics( Statistics& stats );
 
     /// Read the specified tile into the given buffer.
     /// Throws an exception on error.
@@ -251,11 +251,9 @@ class DemandTextureImpl : public DemandTexture
     size_t             m_mipTailSize       = 0;
     std::vector<uint2> m_mipLevelDims;
 
-    // Sparse and dense textures (one per CUDA context).
-    PerContextData<SparseTexture> m_sparseTextures;
-    PerContextData<DenseTexture> m_denseTextures;
-    std::mutex m_sparseTexturesMutex;
-    std::mutex m_denseTexturesMutex;
+    // Sparse and dense textures
+    SparseTexture m_sparseTexture;
+    DenseTexture m_denseTexture;
 
     // Request handler.
     std::unique_ptr<TextureRequestHandler> m_requestHandler;
@@ -265,18 +263,6 @@ class DemandTextureImpl : public DemandTexture
 
     // Threshold number of pixels to switch between sparse and dense texture
     const unsigned int SPARSE_TEXTURE_THRESHOLD = 1024;
-
-    // Get the sparse texture for the current CUDA context, creating it if necessary.
-    SparseTexture& getSparseTexture();
-
-    // Get a const reference to the sparse texture for the current CUDA context, creating it if necessary.
-    const SparseTexture& getSparseTexture() const { return const_cast<DemandTextureImpl*>( this )->getSparseTexture(); }
-
-    // Get the dense texture for the current CUDA context, creating it if necessary.
-    DenseTexture& getDenseTexture();
-
-    // Get a const reference to the dense texture for the current CUDA context, creating it if necessary.
-    const DenseTexture& getDenseTexture() const { return const_cast<DemandTextureImpl*>( this )->getDenseTexture(); }
 };
 
 }  // namespace demandLoading

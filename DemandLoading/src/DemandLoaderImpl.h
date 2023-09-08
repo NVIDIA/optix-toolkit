@@ -43,6 +43,7 @@
 #include "Textures/CascadeRequestHandler.h"
 #include <OptiXToolkit/DemandLoading/TextureCascade.h>
 #include "TransferBufferDesc.h"
+#include "Util/TraceFile.h"
 
 #include <cuda.h>
 
@@ -62,6 +63,12 @@ class DeviceMemoryManager;
 class DemandTexture;
 class RequestProcessor;
 struct TextureDescriptor;
+
+#if CUDA_VERSION >= 11020
+#define DEVICE_MEMORY_POOL_ALLOCATOR otk::DeviceAsyncAllocator
+#else
+#define DEVICE_MEMORY_POOL_ALLOCATOR otk::DeviceAllocator
+#endif
 
 /// DemandLoader demonstrates how to implement demand-loaded textures using the OptiX paging library.
 class DemandLoaderImpl : public DemandLoader
@@ -137,15 +144,12 @@ class DemandLoaderImpl : public DemandLoader
     /// Abort demand loading, with minimal cleanup and no CUDA calls.  Halts asynchronous request
     /// processing.  Useful in case of catastrophic CUDA error or corruption.
     void abort() override;
-    
-    /// Get current statistics.
+
+    /// Get time/space stats for the DemandLoader.
     Statistics getStatistics() const override;
 
     /// Get the demand loading configuration options.
     const Options& getOptions() const override;
-
-    /// Get indices of the devices that can be employed by the DemandLoader.
-    std::vector<unsigned int> getDevices() const override;
 
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
@@ -179,25 +183,24 @@ class DemandLoaderImpl : public DemandLoader
 
     void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry );
 
+    /// Get the CUDA context associated with this demand loader
+    virtual CUcontext getCudaContext() { return m_cudaContext; }
+
   private:
-    mutable std::mutex        m_mutex;
+    CUcontext m_cudaContext;  // The demand loader is for this context
+    mutable std::mutex m_mutex;
 
     std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.
     std::unique_ptr<DemandPageLoaderImpl> m_pageLoader;
 
-    std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures;     // demand-loaded textures, indexed by textureId
-    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // lookup from image* to textureId
+    std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures; // demand-loaded textures, indexed by textureId
+    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId;  // lookup from image* to textureId
 
     SamplerRequestHandler m_samplerRequestHandler;  // Handles requests for texture samplers.
     CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
 
-#if CUDA_VERSION >= 11020
-    PerContextData<otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>> m_deviceTransferPools;
-#else
-    PerContextData<otk::MemoryPool<otk::DeviceAllocator, otk::RingSuballocator>> m_deviceTransferPools;
-#endif
-    std::mutex m_deviceTransferPoolsMutex;
+    otk::MemoryPool<DEVICE_MEMORY_POOL_ALLOCATOR, otk::RingSuballocator> m_deviceTransferPool;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
@@ -210,12 +213,6 @@ class DemandLoaderImpl : public DemandLoader
     DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
 
     unsigned int allocateTexturePages( unsigned int numTextures );
-
-#if CUDA_VERSION >= 11020
-    otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>* getDeviceTransferPool();
-#else
-    otk::MemoryPool<otk::DeviceAllocator, otk::RingSuballocator>* getDeviceTransferPool();
-#endif
 };
 
 }  // namespace demandLoading

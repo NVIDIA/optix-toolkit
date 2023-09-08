@@ -30,52 +30,22 @@
 
 #include <cstddef>
 
-/// \file Statistics.h
-/// Demand loading statistics.
-
 namespace demandLoading {
 
-struct DeviceStatistics
-{
-    /// Amount of device memory allocated per device.
-    size_t memoryUsed;
-
-    /// Amount of texture image data transferred to each device
-    size_t bytesTransferred;
-
-    /// Number of tiles evicted by demand loading system
-    unsigned int numEvictions;
-};
-
-/// Demand loading statistics.  \see DemandLoader::getStatistics
 struct Statistics
 {
-    enum
-    {
-        NUM_DEVICES = 16
-    };
-
-    /// Time in seconds spent processing page requests.
-    double requestProcessingTime;
-
-    /// Total number of tiles read by all ImageSources.
+    // Stats that are shared between devices
     size_t numTilesRead;
-
-    /// Number of bytes read from disk by all ImageSources.
     size_t numBytesRead;
-
-    /// Number of textures 
+    double readTime;
+    double requestProcessingTime;
     size_t numTextures;
-
-    /// Number of bytes in all textures, if they were all completely loaded
     size_t virtualTextureBytes;
 
-    /// Total time in seconds spent reading image data by all ImageSources.  This is
-    /// the cumulative time and does not take into account simultaneous reads, e.g. by multiple threads.
-    double readTime;
-
-    /// Statistics per device.
-    DeviceStatistics perDevice[NUM_DEVICES];
+    // Per-device stats
+    size_t deviceMemoryUsed;
+    size_t bytesTransferredToDevice;
+    unsigned int numEvictions;
 };
 
 }  // namespace demandLoading

@@ -35,6 +35,7 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/Resource.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/Statistics.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/DemandLoading/Ticket.h>
@@ -124,11 +125,8 @@ class DemandLoader
     /// processing.  Useful in case of catastrophic CUDA error or corruption.
     virtual void abort() = 0;
     
-    /// Get current statistics.
+    /// Get time/space stats for the DemandLoader.
     virtual Statistics getStatistics() const = 0;
-
-    /// Get the ordinals of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
-    virtual std::vector<unsigned int> getDevices() const = 0;
 
     /// Get the current options
     virtual const Options& getOptions() const = 0;
@@ -138,6 +136,9 @@ class DemandLoader
 
     /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
     virtual void setMaxTextureMemory( size_t maxMem ) = 0;
+
+    /// Get the CUDA context associated with this demand loader
+    virtual CUcontext getCudaContext() = 0;
 };
 
 /// Create a DemandLoader with the given options.  
@@ -145,5 +146,12 @@ DemandLoader* createDemandLoader( const Options& options );
 
 /// Function to destroy a DemandLoader.
 void destroyDemandLoader( DemandLoader* manager );
+
+/// Get a bitmap of devices to use for demand loading
+inline unsigned int getDemandLoadDevices( bool sparseOnly )
+{
+    unsigned int devices = ( sparseOnly ) ? getSparseTextureDevices() : getCudaDevices();
+    return ( devices ) ? devices : getCudaDevices();
+}
 
 }  // namespace demandLoading
