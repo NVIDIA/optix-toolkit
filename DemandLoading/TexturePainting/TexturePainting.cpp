@@ -59,7 +59,6 @@ class TexturePaintingApp : public DemandTextureApp
     // GLFW callbacks
     void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods ) override;
     virtual void cursorPosCallback( GLFWwindow* window, double xpos, double ypos ) override;
-    virtual void windowSizeCallback( GLFWwindow* window, int width, int height ) override;
     virtual void pollKeys() override;
     virtual void keyCallback( GLFWwindow* window, int key, int scancode, int action, int mods ) override;
 
@@ -104,10 +103,15 @@ void TexturePaintingApp::createTexture()
         m_canvases[i]->clearImage( m_canvasBackgroundColor );
     }
 
-    // Create a single texture that will switch between canvases
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-    m_texture = &m_demandLoader->createTexture( m_canvases[m_activeCanvas], texDesc );
-    m_textureIds.push_back( m_texture->getId() );
+
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        // Create a single texture that will switch between canvases
+        m_texture = &state.demandLoader->createTexture( m_canvases[m_activeCanvas], texDesc );
+        m_textureIds.push_back( m_texture->getId() );
+    }
 }
 
 void TexturePaintingApp::initTexture()
@@ -119,7 +123,7 @@ void TexturePaintingApp::initTexture()
         OTK_ERROR_CHECK( cuStreamGetCtx( state.stream, &context ) );
         OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
 
-        m_demandLoader->initTexture( state.stream, m_texture->getId() );
+        state.demandLoader->initTexture( state.stream, m_texture->getId() );
     }
 }
 
@@ -172,12 +176,6 @@ void TexturePaintingApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos,
 
     m_mousePrevX = xpos;
     m_mousePrevY = ypos;
-}
-
-void TexturePaintingApp::windowSizeCallback( GLFWwindow* /*window*/, int32_t width, int32_t height )
-{
-    m_windowWidth  = width;
-    m_windowHeight = height;
 }
 
 void TexturePaintingApp::pollKeys()
@@ -265,9 +263,9 @@ void TexturePaintingApp::reloadDirtyTiles()
         for (std::set<int>::iterator it = dirtyTiles.begin(); it != dirtyTiles.end(); ++it)
         {
             int3 tileCoord = m_canvases[m_activeCanvas]->unpackTileId( *it );
-            unsigned int pageId = m_demandLoader->getTextureTilePageId( m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
-            if( m_demandLoader->pageResident( pageId ) )
-                 m_demandLoader->loadTextureTile( state.stream,  m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
+            unsigned int pageId = state.demandLoader->getTextureTilePageId( m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
+            if( state.demandLoader->pageResident( pageId ) )
+                 state.demandLoader->loadTextureTile( state.stream,  m_texture->getId(), tileCoord.z, tileCoord.x, tileCoord.y );
         }
     }
 
@@ -281,7 +279,7 @@ void TexturePaintingApp::clearImage()
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         cudaSetDevice( state.device_idx );
-        m_demandLoader->unloadTextureTiles( m_textureIds[0] );
+        state.demandLoader->unloadTextureTiles( m_textureIds[0] );
     }
 }
 
@@ -295,7 +293,7 @@ void TexturePaintingApp::replaceTexture( unsigned int newCanvasId )
         {
             cudaSetDevice( state.device_idx );
             demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-            m_demandLoader->replaceTexture( state.stream, m_textureIds[0], m_canvases[m_activeCanvas], texDesc );
+            state.demandLoader->replaceTexture( state.stream, m_textureIds[0], m_canvases[m_activeCanvas], texDesc );
         }
     }
 }
@@ -314,8 +312,8 @@ void printUsage( const char* argv0 )
 
 int main( int argc, char* argv[] )
 {
-    int         windowWidth  = 768;
-    int         windowHeight = 768;
+    int         windowWidth  = 950;
+    int         windowHeight = 700;
     const char* outFileName  = "";
     bool        glInterop    = true;
 

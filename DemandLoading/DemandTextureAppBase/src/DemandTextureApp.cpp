@@ -52,6 +52,9 @@
 #include <OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 
+#include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
@@ -63,6 +66,7 @@ constexpr float M_PI = 3.14159265358979323846f;
 #endif
 
 using namespace otk;  // for vec_math operators
+using namespace demandLoading;
 
 namespace demandTextureApp
 {
@@ -72,18 +76,20 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     , m_windowHeight( height )
     , m_outputFileName( outFileName )
 {
-    // Init cuda on all devices
-    CUDA_CHECK( cudaSetDevice( 0 ) );
+    // Initialize CUDA and OptiX, create per device optix states
     CUDA_CHECK( cudaFree( 0 ) );
-    
-    int numDevices;
-    CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    for( int deviceIdx = 1; deviceIdx < numDevices; ++deviceIdx )
+    unsigned int devices = getDemandLoadDevices( m_useSparseTextures );
+    for( unsigned int deviceIndex = 0; deviceIndex < MAX_DEVICES; ++deviceIndex )
     {
-        CUDA_CHECK( cudaSetDevice( deviceIdx ) );
-        CUDA_CHECK( cudaFree( 0 ) );
+        if( devices & ( 1U << deviceIndex ) )
+        {
+            CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+            CUDA_CHECK( cudaFree( 0 ) );
+            m_perDeviceOptixStates.emplace_back();
+            m_perDeviceOptixStates.back().device_idx = deviceIndex;
+        }
     }
-    CUDA_CHECK( cudaSetDevice( 0 ) );
+    OPTIX_CHECK( optixInit() );
 
     // Create display window for interactive mode
     if( isInteractive() )
@@ -95,16 +101,10 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     }
 
     // Reset the output buffer
-    glInterop = glInterop && isInteractive() && (numDevices==1);
+    glInterop = glInterop && isInteractive() && ( m_perDeviceOptixStates.size() == 1U );
     otk::CUDAOutputBufferType outputBufferType =
         glInterop ? otk::CUDAOutputBufferType::GL_INTEROP : otk::CUDAOutputBufferType::ZERO_COPY;
     m_outputBuffer.reset( new otk::CUDAOutputBuffer<uchar4>( outputBufferType, m_windowWidth, m_windowHeight ) );
-
-    // Create the per device optix states
-    OPTIX_CHECK( optixInit() );
-    m_perDeviceOptixStates.resize( numDevices );
-    for( int device_idx = 0; device_idx < numDevices; ++device_idx )
-        m_perDeviceOptixStates[device_idx].device_idx = device_idx;
 
     initView();
 }
@@ -116,10 +116,6 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
 
 void DemandTextureApp::createContext( PerDeviceOptixState& state )
 {
-    // Initialize CUDA on this device
-    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-    CUDA_CHECK( cudaFree( 0 ) );
-
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
     otk::util::setLogger( options );
@@ -357,6 +353,7 @@ void DemandTextureApp::initOptixPipelines( const char* moduleCode )
 {
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
         createContext( state );
         buildAccel( state );
         createModule( state, moduleCode, ::strlen( moduleCode ) );
@@ -430,28 +427,33 @@ void DemandTextureApp::initDemandLoading()
     options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
     options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
 
-    m_demandLoader =
-        std::shared_ptr<demandLoading::DemandLoader>( createDemandLoader( options ), demandLoading::destroyDemandLoader );
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        state.demandLoader.reset( createDemandLoader( options ), demandLoading::destroyDemandLoader );
+    }
 }
 
 
 void DemandTextureApp::printDemandLoadingStats()
 {
-    demandLoading::Statistics stats = m_demandLoader->getStatistics();
+    std::vector<demandLoading::Statistics> stats;
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        stats.push_back( state.demandLoader->getStatistics() );
    
     std::cout << std::fixed << std::setprecision( 1 );
     std::cout << "\n============================================\n";
     std::cout << "Demand Loading Stats\n";
     std::cout << "============================================\n";
     std::cout << "Launch cycles:            " << m_launchCycles << "\n";
-    std::cout << "Num textures:             " << stats.numTextures << "\n";
-    std::cout << "Virtual texture Size:     " << stats.virtualTextureBytes / (1024.0 * 1024.0) << " MiB\n";
-    std::cout << "Tiles read from disk:     " << stats.numTilesRead << "\n";
+    std::cout << "Num textures:             " << stats[0].numTextures << "\n";
+    std::cout << "Virtual texture Size:     " << stats[0].virtualTextureBytes / ( 1024.0 * 1024.0 ) << " MiB\n";
+    std::cout << "Tiles read from disk:     " << stats[0].numTilesRead << "\n";
     
     std::cout << "Max device memory used:   ";
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        const double deviceMemory = stats.perDevice[state.device_idx].memoryUsed / (1024.0 * 1024.0);
+        const double deviceMemory = stats[state.device_idx].deviceMemoryUsed / ( 1024.0 * 1024.0 );
         std::cout << "[GPU-" << state.device_idx << ": " << deviceMemory << " MiB]  ";
     }
     std::cout << "\n";
@@ -459,8 +461,8 @@ void DemandTextureApp::printDemandLoadingStats()
     std::cout << "Texture data transferred: ";
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        const size_t tilesTransferred = stats.perDevice[state.device_idx].bytesTransferred / 65536;
-        const double transferData = stats.perDevice[state.device_idx].bytesTransferred / (1024.0 * 1024.0);
+        const size_t tilesTransferred = stats[state.device_idx].bytesTransferredToDevice / 65536;
+        const double transferData = stats[state.device_idx].bytesTransferredToDevice / ( 1024.0 * 1024.0 );
         std::cout << "[GPU-" << state.device_idx << ": " << tilesTransferred << " tiles (" << transferData << " MiB)]  ";
     }
     std::cout << "\n";
@@ -468,7 +470,7 @@ void DemandTextureApp::printDemandLoadingStats()
     std::cout << "Evicted tiles:            ";
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        std::cout << "[GPU-" << state.device_idx << ": " << stats.perDevice[state.device_idx].numEvictions << "]  ";
+        std::cout << "[GPU-" << state.device_idx << ": " << stats[state.device_idx].numEvictions << "]  ";
     }
     std::cout << "\n" << std::endl;
 }
@@ -542,7 +544,7 @@ unsigned int DemandTextureApp::performLaunches( )
 
     // Resize the output buffer if needed. 
     m_outputBuffer->resize( m_windowWidth, m_windowHeight );
-   
+
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         // Wait on the ticket from the previous launch
@@ -552,7 +554,7 @@ unsigned int DemandTextureApp::performLaunches( )
 
         // Call launchPrepare to synchronize new texture samplers and texture info to device memory,
         // and allocate device memory for the demand texture context.
-        m_demandLoader->launchPrepare( state.stream, state.params.demand_texture_context );
+        state.demandLoader->launchPrepare( state.stream, state.params.demand_texture_context );
 
         // Finish initialization of the launch params.
         state.params.result_buffer = m_outputBuffer->map();
@@ -577,7 +579,7 @@ unsigned int DemandTextureApp::performLaunches( )
         // Begin to process demand load requests. This asynchronously pulls a batch of requests 
         // from the device and places them in a queue for processing.  The progress of the batch
         // can be polled using the returned ticket.
-        state.ticket = m_demandLoader->processRequests( state.stream, state.params.demand_texture_context );
+        state.ticket = state.demandLoader->processRequests( state.stream, state.params.demand_texture_context );
         
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();

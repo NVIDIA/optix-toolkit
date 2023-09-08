@@ -27,6 +27,11 @@
 //
 #pragma once
 
+namespace demandLoading
+{
+    class DemandLoader;
+}
+
 namespace demandTextureApp
 {
 
@@ -53,7 +58,9 @@ struct PerDeviceOptixState
     Params                      params                   = {};  // Host-side copy of parameters for OptiX launch
     Params*                     d_params                 = nullptr;  // Device-side copy of params
     CUstream                    stream                   = 0;   // Cuda stream where OptiX launches will occur
-    demandLoading::Ticket       ticket;                         // Ticket to track demand load requests for an OptiX launch
+
+    std::shared_ptr<demandLoading::DemandLoader> demandLoader;  // Manages demand load requests
+    demandLoading::Ticket       ticket;                         // Tracks demand load requests for last OptiX launch
 };
 
 // Shader binding table records

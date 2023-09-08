@@ -67,19 +67,26 @@ void TextureVariantApp::createTexture()
     
     std::shared_ptr<imageSource::ImageSource> imageSource( img );
 
-    // Make first texture with trilinear filtering.
-    demandLoading::TextureDescriptor    texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-    const demandLoading::DemandTexture& texture1 = m_demandLoader->createTexture( imageSource, texDesc1 );
-    m_textureIds.push_back( texture1.getId() );
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
 
-    // Make second texture with point filtering.
-    // The demand loader will share the backing store for textures created with the same imageSource pointer.
-    demandLoading::TextureDescriptor    texDesc2 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_POINT );
-    const demandLoading::DemandTexture& texture2 = m_demandLoader->createTexture( imageSource, texDesc2 );
-    m_textureIds.push_back( texture2.getId() );
+        // Make first texture with trilinear filtering.
+        demandLoading::TextureDescriptor    texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+        const demandLoading::DemandTexture& texture1 = state.demandLoader->createTexture( imageSource, texDesc1 );
+        if( m_textureIds.size() == 0 )
+            m_textureIds.push_back( texture1.getId() );
 
-    // The OptiX closest hit program assumes the textures are consecutive.
-    assert( texture2.getId() == texture1.getId() + PAGES_PER_TEXTURE ); 
+        // Make second texture with point filtering.
+        // The demand loader will share the backing store for textures created with the same imageSource pointer.
+        demandLoading::TextureDescriptor    texDesc2 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_POINT );
+        const demandLoading::DemandTexture& texture2 = state.demandLoader->createTexture( imageSource, texDesc2 );
+        if( m_textureIds.size() == 1 )
+            m_textureIds.push_back( texture2.getId() );
+
+        // The OptiX closest hit program assumes the textures are consecutive.
+        assert( texture2.getId() == texture1.getId() + PAGES_PER_TEXTURE ); 
+    }
 }
 
 //------------------------------------------------------------------------------

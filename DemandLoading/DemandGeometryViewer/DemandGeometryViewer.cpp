@@ -361,30 +361,26 @@ void Application::initialize()
 void Application::createContext()
 {
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
-
-    m_loader.reset( createDemandLoader( demandLoading::Options{} ) );
-
-    std::vector<uint_t> devices = m_loader->getDevices();
-    if( devices.empty() )
-    {
-        throw std::runtime_error( "No devices support demand loading." );
-    }
-    m_deviceIndex = devices[0];
-    OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
-    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
-
     OTK_ERROR_CHECK( optixInit() );
+
+    // Using a single device
+    m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+    if( m_deviceIndex >= demandLoading::MAX_DEVICES )
+        m_deviceIndex = 0;
+
     OptixDeviceContextOptions options{};
     otk::util::setLogger( options );
 #ifndef NDEBUG
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
 #endif
-    OTK_ERROR_CHECK( optixDeviceContextCreate( m_cudaContext, &options, &m_context ) );
 
+    OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+    OTK_ERROR_CHECK( cudaFree( nullptr ) );
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
+    OTK_ERROR_CHECK( optixDeviceContextCreate( m_cudaContext, &options, &m_context ) );
     OTK_ERROR_CHECK( cudaStreamCreate( &m_stream ) );
 
-    OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
-
+    m_loader.reset( createDemandLoader( demandLoading::Options{} ) );
     m_proxies.reset( new demandGeometry::ProxyInstances( m_loader.get() ) );
     m_materials = demandMaterial::createMaterialLoader( m_loader.get() );
 }

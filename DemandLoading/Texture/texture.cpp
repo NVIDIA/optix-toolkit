@@ -100,6 +100,7 @@ struct PerDeviceSampleState
     CUstream                    stream                   = 0;
 
     // Only valid on the host
+    std::shared_ptr<DemandLoader> demandLoader;
     demandLoading::Ticket ticket;
 };
 
@@ -138,6 +139,7 @@ void printUsageAndExit( const char* argv0 )
     exit( 1 );
 }
 
+
 void initCameraState()
 {
     float3 camEye = {-6.0f, 0.0f, 0.0f};
@@ -149,17 +151,12 @@ void initCameraState()
 }
 
 
-unsigned int getNumDevices()
-{
-    int numDevices;
-    CUDA_CHECK( cudaGetDeviceCount( &numDevices ) );
-    return static_cast<unsigned int>( numDevices );
-}
-
 void createContext( PerDeviceSampleState& state )
 {
     // Initialize CUDA on this device
+    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
     CUDA_CHECK( cudaFree( nullptr ) );
+    CUDA_CHECK( cudaStreamCreate( &state.stream ) );
 
     OptixDeviceContext        context;
     CUcontext                 cuCtx   = 0;  // zero means take the current context
@@ -168,24 +165,20 @@ void createContext( PerDeviceSampleState& state )
     OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
 
     state.context = context;
-
-    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-    CUDA_CHECK( cudaStreamCreate( &state.stream ) );
 }
 
 
 void createContexts( std::vector<PerDeviceSampleState>& states )
 {
-    OPTIX_CHECK( optixInit() );
-
-    unsigned int numDevices = getNumDevices();
-    states.resize( numDevices );
-
-    for( unsigned int i = 0; i < numDevices; ++i )
+    unsigned int devices = getDemandLoadDevices( true );
+    for( unsigned int device_index = 0; device_index < MAX_DEVICES; ++device_index )
     {
-        states[i].device_idx = i;
-        CUDA_CHECK( cudaSetDevice( i ) );
-        createContext( states[i] );
+        if( ( 1U << device_index ) & devices )
+        {
+            states.emplace_back();
+            states.back().device_idx = device_index;
+            createContext( states.back() );
+        }
     }
 }
 
@@ -393,6 +386,7 @@ void createSBT( PerDeviceSampleState& state, const DemandTexture& texture, float
     state.sbt.hitgroupRecordCount         = 1;
 }
 
+
 void cleanupState( PerDeviceSampleState& state )
 {
     OPTIX_CHECK( optixPipelineDestroy( state.pipeline ) );
@@ -446,7 +440,7 @@ void initLaunchParams( PerDeviceSampleState& state, unsigned int numDevices )
 
 
 // Returns number of requests processed (over all streams and devices).
-unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std::vector<PerDeviceSampleState>& states, DemandLoader& demandLoader )
+unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std::vector<PerDeviceSampleState>& states )
 {
     auto startTime = std::chrono::steady_clock::now();
 
@@ -474,8 +468,7 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
             state.params.bucket_height = g_bucketSize;
 
             CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-            demandLoader.launchPrepare( state.stream,
-                                        state.params.demandTextureContext );
+            state.demandLoader->launchPrepare( state.stream, state.params.demandTextureContext );
 
             initLaunchParams( state, static_cast<unsigned int>( states.size() ) );
 
@@ -493,7 +486,7 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
                                       ) );
 
             // Initiate asynchronous request processing for the previous launch
-            state.ticket = demandLoader.processRequests( state.stream, state.params.demandTextureContext );
+            state.ticket = state.demandLoader->processRequests( state.stream, state.params.demandTextureContext );
         }
 
         // Wait for any outstanding requests
@@ -504,7 +497,6 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
             numRequestsProcessed += state.ticket.numTasksTotal();
         }
     }
-
     output_buffer.unmap();
 
     ++g_totalLaunches;
@@ -512,6 +504,7 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
 
     return numRequestsProcessed;
 }
+
 
 int main( int argc, char* argv[] )
 {
@@ -585,27 +578,30 @@ int main( int argc, char* argv[] )
     {
         initCameraState();
 
+        // Initialize OptiX
+        CUDA_CHECK( cudaFree( nullptr ) );
+        OPTIX_CHECK( optixInit() );
+
         std::vector<PerDeviceSampleState> states;
         createContexts( states );
-
-        // Initialize DemandLoader and create a demand-loaded texture.
-        // The texture id is passed to the closest hit shader via a hit group record in the SBT.
-        // The texture sampler array (indexed by texture id) is passed as a launch parameter.
-        demandLoading::Options options{};
-        options.maxThreads = g_numThreads;  // maximum threads to use when processing page requests
-        std::shared_ptr<DemandLoader> demandLoader( createDemandLoader( options ), destroyDemandLoader );
 
         std::string                  directory( getSourceDir() + "/Textures/" );
         std::shared_ptr<ImageSource> imageSource = imageSources::createImageSource( textureFile, directory );
 
-        // Create a demand-loaded texture
+        // Set up OptiX per-device states and demand loaders
+        // The texture id is passed to the closest hit shader via a hit group record in the SBT.
+        // The texture sampler array (indexed by texture id) is passed as a launch parameter.
+        demandLoading::Options options{};
+        options.maxThreads = g_numThreads;  // maximum threads to use when processing page requests
         TextureDescriptor    texDesc = makeTextureDescription();
-        const DemandTexture& texture = demandLoader->createTexture( imageSource, texDesc );
 
         // Set up OptiX per-device states
         for( PerDeviceSampleState& state : states )
         {
             CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+            state.demandLoader.reset( createDemandLoader( options ), destroyDemandLoader );
+            const DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
+
             buildAccel( state );
             createModule( state );
             createProgramGroups( state );
@@ -616,14 +612,13 @@ int main( int argc, char* argv[] )
         // Create the output buffer to hold the rendered image
         otk::CUDAOutputBuffer<uchar4> outputBuffer( otk::CUDAOutputBufferType::ZERO_COPY, g_width, g_height );
 
-        unsigned int numFilled   = 0;
-        const int    maxLaunches = 1024;
-
         // Perform launches (launch until there are no more requests to fill), up to
         // the maximum number of launches.
+        unsigned int numFilled   = 0;
+        const int    maxLaunches = 1024;
         do
         {
-            numFilled = performLaunches( outputBuffer, states, *demandLoader );
+            numFilled = performLaunches( outputBuffer, states );
             g_totalRequests += numFilled;
         } while( numFilled > 0 && g_totalLaunches < maxLaunches );
 

@@ -260,16 +260,21 @@ void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int num
 
 void RayConesApp::createTexture()
 {
-    ImageSource* img = createExrImage( m_textureName.c_str() );
-    if( !img && !m_textureName.empty() )
+    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName.c_str() ) );
+    if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
-    if( !img )
-        img = new imageSources::MultiCheckerImage<ubyte4>( 16384, 16384, 64, true );
-    std::unique_ptr<ImageSource> imageSource( img );
-
+    if( !imageSource )
+        imageSource.reset( new imageSources::MultiCheckerImage<ubyte4>( 16384, 16384, 64, true ) );
+    
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-    const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( std::move( imageSource ), texDesc );
-    m_textureIds.push_back( texture.getId() );
+
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
+        if( m_textureIds.empty() )
+            m_textureIds.push_back( texture.getId() );
+    }
 }
 
 void RayConesApp::createScene()
@@ -517,7 +522,11 @@ void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scanco
     } else if( key == GLFW_KEY_MINUS ) {
         m_mipScale *= 2.0f;
     } else if( key == GLFW_KEY_X ) {
-        m_demandLoader->unloadTextureTiles( 0 );
+        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        {
+            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+            state.demandLoader->unloadTextureTiles( m_textureIds[0] );
+        }
     } else if( key == GLFW_KEY_U ) {
         m_updateRayCones = static_cast<int>( !m_updateRayCones );
     } else if( key == GLFW_KEY_P && m_projection == Projection::PINHOLE ) {

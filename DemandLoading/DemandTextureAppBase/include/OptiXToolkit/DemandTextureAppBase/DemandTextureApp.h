@@ -125,14 +125,13 @@ class DemandTextureApp
     bool m_scene_is_triangles = false;
 
     // Demand loading and textures
-    std::shared_ptr<demandLoading::DemandLoader> m_demandLoader;
-    std::vector<unsigned int>                    m_textureIds;
-    int                                          m_launchCycles = 0;
-    int                                          m_subframeId = 0;
-    int                                          m_numFilledRequests = 0;
-    int                                          m_minLaunches = 2;
-    bool                                         m_useSparseTextures = true;
-    bool                                         m_useCascadingTextureSizes = false;
+    std::vector<unsigned int> m_textureIds;
+    int                       m_launchCycles = 0;
+    int                       m_subframeId = 0;
+    int                       m_numFilledRequests = 0;
+    int                       m_minLaunches = 2;
+    bool                      m_useSparseTextures = true;
+    bool                      m_useCascadingTextureSizes = false;
 
     // Camera and view
     otk::Camera m_camera;

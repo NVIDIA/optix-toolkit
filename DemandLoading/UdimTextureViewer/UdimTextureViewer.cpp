@@ -83,20 +83,25 @@ void UdimTextureApp::createTexture()
     int baseTextureId = -1;
     if( m_useBaseImage )
     {
-        imageSource::ImageSource* baseImage = nullptr;
+        std::shared_ptr<imageSource::ImageSource> baseImageSource;
         if( m_textureName != "mandelbrot" && m_textureName != "checker" )
-            baseImage = createExrImage( ( m_textureName + ".exr" ).c_str() );
-        if( !baseImage && m_textureName == "checker" )
-            baseImage = new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
-        if( !baseImage )
-            baseImage = new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors );
-        std::unique_ptr<imageSource::ImageSource> baseImageSource( baseImage );
+            baseImageSource.reset( createExrImage( ( m_textureName + ".exr" ).c_str() ) );
+        if( !baseImageSource && m_textureName == "checker" )
+            baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
+        if( !baseImageSource )
+            baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors ) );
 
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-        const demandLoading::DemandTexture& baseTexture = m_demandLoader->createTexture( std::move( baseImageSource ), texDesc );
-        baseTextureId                                   = baseTexture.getId();
-        if( baseTextureId >= 0 )
-            m_textureIds.push_back( baseTextureId );
+
+        // Create a base texture for all devices
+        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        {
+            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+            const demandLoading::DemandTexture& baseTexture = state.demandLoader->createTexture( baseImageSource, texDesc );
+            baseTextureId                                   = baseTexture.getId();
+            if( m_textureIds.empty() )
+                m_textureIds.push_back( baseTextureId );
+        }
     }
     if( m_udim == 0 ) // just a regular texture
         return;
@@ -141,11 +146,17 @@ void UdimTextureApp::createTexture()
             subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, CU_TR_FILTER_MODE_LINEAR ) );
         }
     }
-    const demandLoading::DemandTexture& udimTexture =
-        m_demandLoader->createUdimTexture( subImageSources, subTexDescs, m_udim, m_vdim, baseTextureId );
 
-    if( m_textureIds.empty() )
-        m_textureIds.push_back( udimTexture.getId() );
+    // Create a udim texture for all the devices
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        const demandLoading::DemandTexture& udimTexture =
+            state.demandLoader->createUdimTexture( subImageSources, subTexDescs, m_udim, m_vdim, baseTextureId );
+
+        if( m_textureIds.empty() )
+            m_textureIds.push_back( udimTexture.getId() );
+    }
 }
 
 //------------------------------------------------------------------------------
