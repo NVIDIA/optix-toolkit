@@ -451,7 +451,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
             return rval;
     }
 
-    // Check whether the texture sampler is resident.  The samplers occupy the first N entries of the page table.
+    // Check whether the texture sampler is resident.
     const TextureSampler* sampler =
         reinterpret_cast<const TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
     if( !sampler )
@@ -519,7 +519,7 @@ template <class Sample>
 __device__ static __forceinline__ Sample
 tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y, float lod, bool* isResident )
 {
-    // Check whether the texture sampler is resident.  The samplers occupy the first N entries of the page table.
+    // Check whether the texture sampler is resident.
     const TextureSampler* sampler =
         reinterpret_cast<const TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
     
