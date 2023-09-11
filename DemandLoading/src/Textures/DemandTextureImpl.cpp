@@ -480,6 +480,9 @@ void DemandTextureImpl::open()
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
+    if (m_masterTexture)
+        m_masterTexture->open();
+
     // Open the image if necessary, fetching the dimensions and other info.
     if( !m_isOpen )
     {
