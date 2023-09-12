@@ -221,7 +221,8 @@ void CoreEXRReader::readActualTile( char* dest, int rowPitch, int mipLevel, int 
                            "All channels must have same bit depth" );
 
         int channelIdx = -1;
-        if( strcmp( "R", decoder.channels[c].channel_name ) == 0 )
+        if( strcmp( "R", decoder.channels[c].channel_name ) == 0 ||
+            ( strcmp( "Y", decoder.channels[c].channel_name ) == 0 && decoder.channel_count == 1 ) ) // Support single-channel, luminance-only files.
             channelIdx = 0;
         else if( strcmp( "G", decoder.channels[c].channel_name ) == 0 )
             channelIdx = 1;
