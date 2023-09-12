@@ -396,8 +396,8 @@ bool TestDemandLoaderBatches::loadResource( CUstream /*stream*/, unsigned int pa
 
 void TestDemandLoaderBatches::testBatch( unsigned int deviceIndex, bool testAbort )
 {
-    CUstream stream = m_streams[deviceIndex];
     DemandLoaderImpl* loader = m_loaders[deviceIndex];
+    CUstream stream = m_streams[deviceIndex];
 
     // Create a resource, using the given callback to handle page requests.
     const unsigned int numPages  = 128;
