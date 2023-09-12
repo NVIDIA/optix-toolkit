@@ -67,7 +67,7 @@ inline uint64_t alignVal( uint64_t p, uint64_t alignment )
 const uint32_t TILE_SIZE_IN_BYTES = 64 * 1024;
 
 /// Describe a block of texture tiles
-struct TileBlockDesc
+union TileBlockDesc
 {
     // silence warning "ISO C++ prohibits anonymous structs"
 #ifdef __GNUC__
