@@ -97,11 +97,7 @@ struct TileBlockDesc
         , numTiles{numTiles_}
     {
     }
-    uint64_t data()
-    {
-        uint64_t* d = (uint64_t*)this;
-        return *d;
-    }
+
     bool         isGood() { return numTiles != 0; }
     bool         isBad() { return numTiles == 0; }
     unsigned int offset() { return tileId * TILE_SIZE_IN_BYTES; }
