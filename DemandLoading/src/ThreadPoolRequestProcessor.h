@@ -61,19 +61,24 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     /// Add a batch of page requests to the request queue.
     void addRequests( CUstream stream, unsigned id, const unsigned int* pageIds, unsigned int numPageIds ) override;
 
+    /// Add a request filter to preprocess batches of requests
+    void setRequestFilter( std::shared_ptr<RequestFilter> requestFilter ) { m_requestFilter = requestFilter; }
+
+    /// Record a texture creation for later playback
     void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
 
+    /// Set the ticket that will track requests with the given ticket id
     void setTicket( unsigned int id, Ticket ticket );
 
 private:
     std::shared_ptr<PageTableManager> m_pageTableManager;
     std::unique_ptr<RequestQueue>     m_requests;
     std::vector<std::thread>          m_threads;
-//    std::unique_ptr<TraceFileWriter>  m_traceFile{};
     std::map<unsigned int, Ticket>    m_tickets;
     std::mutex                        m_ticketsMutex;
     Options                           m_options;
     bool                              m_started = false;
+    std::shared_ptr<RequestFilter>    m_requestFilter;
 
     /// Start processing requests.
     void start();

@@ -45,13 +45,6 @@ class RequestProcessor
 
     /// Stop processing requests, waking and joining with worker threads.
     virtual void stop() = 0;
-    
-    /// Add a request filter to preprocess batches of requests
-    void setRequestFilter( std::shared_ptr<RequestFilter> requestFilter ) { m_requestFilter = requestFilter; }
-
-  protected:
-    std::shared_ptr<RequestFilter> m_requestFilter;
-
 };
 
 }  // namespace demandLoading

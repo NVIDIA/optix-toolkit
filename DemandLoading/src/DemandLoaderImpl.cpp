@@ -113,7 +113,7 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
         unsigned int numCascadePages = NUM_CASCADES * maxTextures;
         unsigned int cascadeStartPage = m_pageTableManager->reserveUnbackedPages( numCascadePages, &m_cascadeRequestHandler );
         CascadeRequestFilter* requestFilter = new CascadeRequestFilter( cascadeStartPage, cascadeStartPage + numCascadePages, this );
-        m_requestProcessor.setRequestFilter( std::shared_ptr<RequestFilter>(requestFilter) );
+        m_requestProcessor.setRequestFilter( std::shared_ptr<RequestFilter>( requestFilter ) );
     }
 }
 
