@@ -38,6 +38,17 @@
 #include "Exception.h"
 
 #include <cstddef>  // for size_t
+#include <fstream>
+
+namespace { // anonymous
+
+bool fileExists( const char* path )
+{
+    return static_cast<bool>( std::ifstream( path ) );
+}
+
+}  // anonymous namespace
+
 
 namespace imageSource {
 
@@ -72,7 +83,9 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     // Construct ImageSource based on filename extension.
     size_t      dot       = filename.find_last_of( "." );
     std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
-    std::string path = directory + '/' + filename;
+
+    // Attempt relative path first, then absolute path.
+    std::string path = fileExists( filename.c_str() ) ? filename : directory + '/' + filename;
 
     if( extension == ".exr" )
     {
