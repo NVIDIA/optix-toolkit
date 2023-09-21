@@ -342,8 +342,8 @@ void DemandLoaderImpl::replaceTexture( CUstream                                 
 
     if( textureOpen )
     {
-        // Reload the sampler to the GPU
         m_samplerRequestHandler.loadPage( stream, textureId, true );
+        m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ), true );
 
         // Reload base color if not migrating the tiles
         if( !migrateTiles )

@@ -113,7 +113,6 @@ D_INLINE bool requestCascade( const DeviceContext& context, unsigned int texture
     return true;
 }
 
-
 #if __CUDA_ARCH__ >= 600
 #define SPARSE_TEX_SUPPORT true
 #endif
@@ -243,6 +242,7 @@ D_INLINE bool requestTexFootprint2DGrad( const TextureSampler& sampler,
     return isResident;
 }
 
+#endif  // SPARSE_TEX_SUPPORT
 
 /// Request the footprint for a texture sample at coords (x,y) with the specified lod value.
 D_INLINE bool requestTexFootprint2DLod( const TextureSampler& sampler,
@@ -285,8 +285,6 @@ getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval
     }
     return false;
 }
-
-#endif  // ndef DOXYGEN_SKIP
 
 /// Fetch from a demand-loaded texture with the specified identifer, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
