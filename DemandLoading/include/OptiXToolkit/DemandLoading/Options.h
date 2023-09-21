@@ -48,9 +48,12 @@ struct Options
     // Demand loading
     unsigned int maxRequestedPages = 8192;  ///< max requests to pull from device in processRequests
     unsigned int maxFilledPages    = 8192;  ///< num slots to push mappings back to device in processRequests
-    bool         useSparseTextures = true;  ///< whether to use sparse or dense textures
-    bool         useSmallTextureOptimization = false;  ///< whether to use dense textures for very small textures
-    bool         useCascadingTextureSizes = false; ///< whether to use cascading texture sizes
+
+    // Demand load textures
+    unsigned int maxTextures = 256 * 1024;     ///< The maximum demand load textures that can be defined
+    bool useSparseTextures = true;             ///< whether to use sparse or dense textures
+    bool useSmallTextureOptimization = false;  ///< whether to use dense textures for very small textures
+    bool useCascadingTextureSizes = false;     ///< whether to use cascading texture sizes
 
     // Memory limits
     size_t maxTexMemPerDevice = 0;  ///< texture to allocate per device (in MB) before starting eviction (0 is unlimited)

@@ -100,7 +100,7 @@ void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, 
     Ticket ticket = it->second;
     // We won't issue this id again, so we can discard it from the map.
     m_tickets.erase( it );
-   
+
     // Filter the batch of requests, and add it to the main request list with the ticket to track their progress
     if( numPageIds > 0 && m_requestFilter )
     {

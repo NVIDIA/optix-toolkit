@@ -69,13 +69,12 @@ void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     imageSource::CascadeImage* cascadeImage = reinterpret_cast<imageSource::CascadeImage*>( texture->getImage().get() );
     std::shared_ptr<imageSource::ImageSource> backingImage = cascadeImage->getBackingImage();
 
-    // Cascade image is already as large as possible, or larger than proposed size. Just return
+    // Cascade image is already as large as possible, or larger than the proposed size. Just return
     const imageSource::TextureInfo& cascadeInfo = cascadeImage->getInfo();
     const imageSource::TextureInfo& backingInfo = backingImage->getInfo();
     if( cascadeInfo.width >= backingInfo.width || ( cascadeInfo.width >= requestCascadeSize && cascadeInfo.height >= requestCascadeSize ) )
         return;
 
-    // FIXME: Cascading sizes only works for a single device.
     // Create a new cascadeImage and replace the current image with it.
     cascadeImage->setBackingImage( std::shared_ptr<imageSource::ImageSource>(nullptr) );
     unsigned int newCascadeSize = requestCascadeSize;
@@ -88,7 +87,7 @@ void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 
 unsigned int CascadeRequestHandler::cascadeIdToSamplerId( unsigned int pageId )
 { 
-    return PAGES_PER_TEXTURE * ( ( pageId - m_startPage ) / NUM_CASCADES ); 
+    return ( pageId - m_startPage ) / NUM_CASCADES;
 }
 
 unsigned int CascadeRequestHandler::cascadeIdToCascadeLevel( unsigned int pageId )

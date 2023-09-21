@@ -36,6 +36,7 @@
 #include "Util/NVTXProfiling.h"
 
 #include <OptiXToolkit/DemandLoading/LRU.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 #include <cuda_fp16.h>
 
@@ -63,12 +64,12 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
         return;
 
     // Get the texture and make sure it is open.
-    unsigned int samplerId = pageIdToSamplerId( pageId );
+    unsigned int samplerId = pageIdToSamplerId( pageId, m_loader->getOptions().maxTextures );
     DemandTextureImpl* texture = m_loader->getTexture( samplerId );
     texture->open();
 
     // Load base color if the page is for a base color
-    if( isBaseColorId( pageId ) )
+    if( isBaseColorId( pageId, m_loader->getOptions().maxTextures ) )
     {
         fillBaseColorRequest( stream, texture, pageId );
         return;
@@ -202,10 +203,9 @@ void SamplerRequestHandler::fillBaseColorRequest( CUstream /*stream*/, DemandTex
     hasBaseColor = texture->readBaseColor( fBaseColor );
 
     // Store the base color as a half4 in the page table
-    unsigned long long  noColor   = 0xFFFFFFFFFFFFFFFFull; // four half NaNs, to indicate when no baseColor exists
     half4               baseColor = half4{fBaseColor.x, fBaseColor.y, fBaseColor.z, fBaseColor.w};
     unsigned long long* baseVal   = reinterpret_cast<unsigned long long*>( &baseColor );
-    unsigned long long  val = ( hasBaseColor ) ? *baseVal : noColor;
+    unsigned long long  val = ( hasBaseColor ) ? *baseVal : NO_BASE_COLOR;
     m_loader->getPagingSystem()->addMapping( pageId, NON_EVICTABLE_LRU_VAL, val );
 }
 

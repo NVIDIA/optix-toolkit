@@ -50,6 +50,7 @@ void DeviceContextImpl::allocatePerDeviceData( MemoryPool<DeviceAllocator, HeapS
     pageTable.data     = allocItems<unsigned long long>( memPool, options.numPageTableEntries );
     pageTable.capacity = options.numPageTableEntries;
     maxNumPages        = options.numPages;
+    maxTextures        = options.maxTextures;
 
     const unsigned int sizeofResidenceBitsInInts = ( options.numPages + 31 ) / 32;
     residenceBits = allocItems<unsigned int>( memPool, sizeofResidenceBitsInInts, BIT_VECTOR_ALIGNMENT );
@@ -67,6 +68,7 @@ void DeviceContextImpl::setPerDeviceData( const DeviceContext& other )
 {
     pageTable     = other.pageTable;
     maxNumPages   = other.maxNumPages;
+    maxTextures   = other.maxTextures;
     residenceBits = other.residenceBits;
     lruTable      = other.lruTable;
 }

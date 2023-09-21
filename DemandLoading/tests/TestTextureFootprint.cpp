@@ -291,14 +291,19 @@ class TextureFootprintFixture
                 // Initialize CUDA
                 OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
+                // Ignore tests for devices that do not support texture footprints
+                DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+                int sparseSupport = 0;
+                DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
+                if( !sparseSupport )
+                    return 0;
+
                 CUcontext cuCtx = 0;  // zero means take the current context
                 OTK_ERROR_CHECK( optixInit() );
                 OptixDeviceContextOptions options = {};
                 options.logCallbackFunction       = &context_log_cb;
                 options.logCallbackLevel          = 4;
                 OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
-
-                OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
             }
 
             //

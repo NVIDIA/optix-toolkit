@@ -40,6 +40,7 @@ __constant__ Params params;
 
 extern "C" __global__ void __raygen__testFootprintGrad()
 {
+#ifdef SPARSE_TEX_SUPPORT
     uint3                  launchDim   = optixGetLaunchDimensions();
     uint3                  launchIndex = optixGetLaunchIndex();
     const FootprintInputs& inputs      = params.inputs[launchIndex.x];
@@ -56,10 +57,12 @@ extern "C" __global__ void __raygen__testFootprintGrad()
 
     requestTexFootprint2DGrad( params.sampler, params.referenceBits, params.residenceBits, inputs.x, inputs.y, inputs.dPdx_x,
                                inputs.dPdx_y, inputs.dPdy_x, inputs.dPdy_y );
+#endif
 }
 
 extern "C" __global__ void __raygen__testFootprintLod()
 {
+#ifdef SPARSE_TEX_SUPPORT
     uint3           launchDim   = optixGetLaunchDimensions();
     uint3           launchIndex = optixGetLaunchIndex();
     FootprintInputs inputs      = params.inputs[launchIndex.x];
@@ -75,10 +78,12 @@ extern "C" __global__ void __raygen__testFootprintLod()
     params.outputs[launchIndex.x + launchDim.x] = coarseFootprint;
 
     requestTexFootprint2DLod( params.sampler, params.referenceBits, params.residenceBits, inputs.x, inputs.y, inputs.level );
+#endif
 }
 
 extern "C" __global__ void __raygen__testFootprint()
 {
+#ifdef SPARSE_TEX_SUPPORT
     uint3           launchDim   = optixGetLaunchDimensions();
     uint3           launchIndex = optixGetLaunchIndex();
     FootprintInputs inputs      = params.inputs[launchIndex.x];
@@ -93,4 +98,5 @@ extern "C" __global__ void __raygen__testFootprint()
     params.outputs[launchIndex.x + launchDim.x] = coarseFootprint;
 
     requestTexFootprint2DLod( params.sampler, params.referenceBits, params.residenceBits, inputs.x, inputs.y, inputs.level );
+#endif
 }

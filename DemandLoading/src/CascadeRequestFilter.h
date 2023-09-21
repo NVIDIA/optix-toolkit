@@ -57,7 +57,7 @@ class CascadeRequestFilter : public RequestFilter
 
     unsigned int cascadePageToTextureId( unsigned int pageId )
     {
-        return PAGES_PER_TEXTURE * ( ( pageId - m_cascadePagesStart ) / NUM_CASCADES );
+        return ( pageId - m_cascadePagesStart ) / NUM_CASCADES;
     }
 };
 

@@ -106,11 +106,13 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     // Reserve pages in the sampler request handler for all possible textures.
     m_samplerRequestHandler.setPageRange( 0, m_options->numPageTableEntries );
 
+    unsigned int samplerStartPage = m_pageTableManager->reserveBackedPages( options.maxTextures * NUM_PAGES_PER_TEXTURE, &m_samplerRequestHandler );
+    m_samplerRequestHandler.setPageRange( samplerStartPage, options.maxTextures * NUM_PAGES_PER_TEXTURE );
+
     // Reserve pages for the cascade request handler if supported
-    if( m_options->useCascadingTextureSizes )
-    { 
-       unsigned int maxTextures = m_options->numPageTableEntries / PAGES_PER_TEXTURE;
-        unsigned int numCascadePages = NUM_CASCADES * maxTextures;
+    if( options.useCascadingTextureSizes )
+    {
+        unsigned int numCascadePages = NUM_CASCADES * options.maxTextures;
         unsigned int cascadeStartPage = m_pageTableManager->reserveUnbackedPages( numCascadePages, &m_cascadeRequestHandler );
         CascadeRequestFilter* requestFilter = new CascadeRequestFilter( cascadeStartPage, cascadeStartPage + numCascadePages, this );
         m_requestProcessor.setRequestFilter( std::shared_ptr<RequestFilter>( requestFilter ) );
@@ -167,7 +169,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
         for( unsigned int u=0; u<udim; ++u )
         {
             unsigned int imageIndex = v*udim + u;
-            unsigned int textureId = startTextureId + imageIndex * PAGES_PER_TEXTURE;
+            unsigned int textureId = startTextureId + imageIndex;
             if(imageIndex < imageSources.size() && imageSources[imageIndex].get() != nullptr )
             {
                 // Create the texture and put it in the list of textures
@@ -204,7 +206,7 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
         if( getOptions().useCascadingTextureSizes )
         {
             imageSource::CascadeImage* cascadeImg = new imageSource::CascadeImage( imageSource, CASCADE_BASE );
-            std::shared_ptr<imageSource::ImageSource> cascadeImage(cascadeImg);
+            std::shared_ptr<imageSource::ImageSource> cascadeImage( cascadeImg );
             m_imageToTextureId[imageSource.get()] = textureId;
             return new DemandTextureImpl( textureId, textureDesc, cascadeImage, this );
         }
@@ -246,7 +248,7 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
         m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
 
         // Unload base color
-        unsigned int baseColorId = textureId + BASE_COLOR_OFFSET;
+        unsigned int baseColorId = samplerIdToBaseColorId( textureId, getOptions().maxTextures );
         m_pageLoader->invalidatePageRange( baseColorId, baseColorId + 1, nullptr );
     }
 }
@@ -262,7 +264,7 @@ void DemandLoaderImpl::replaceTexture( CUstream stream, unsigned int textureId, 
     if( m_textures.at( textureId )->isOpen() )
     {
         m_samplerRequestHandler.loadPage( stream, textureId );
-        m_samplerRequestHandler.loadPage( stream, textureId + BASE_COLOR_OFFSET );
+        m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ) );
 
         // Take care of any variants
         DemandTextureImpl* masterTexture = getTexture( textureId );
@@ -272,7 +274,7 @@ void DemandLoaderImpl::replaceTexture( CUstream stream, unsigned int textureId, 
             const TextureDescriptor& variantDesc = m_textures.at( variantId )->getDescriptor();
             m_textures.at( variantId )->setImage( variantDesc, image );
             m_samplerRequestHandler.loadPage( stream, variantId );
-            m_samplerRequestHandler.loadPage( stream, variantId + BASE_COLOR_OFFSET );
+            m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( variantId, getOptions().maxTextures ) );
         }
     }
     m_requestProcessor.recordTexture( image, textureDesc );
@@ -283,7 +285,7 @@ void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     m_samplerRequestHandler.fillRequest( stream, textureId );
-    m_samplerRequestHandler.fillRequest( stream, textureId + BASE_COLOR_OFFSET );
+    m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ) );
 }
 
 unsigned int DemandLoaderImpl::getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
@@ -487,14 +489,9 @@ void DemandLoaderImpl::setMaxTextureMemory( size_t maxMem )
 
 unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
 {
-    // Allocate enough pages per texture, aligned to PAGES_PER_TEXTURE
-    unsigned int textureId = m_pageTableManager->reserveBackedPages( PAGES_PER_TEXTURE * numTextures, &m_samplerRequestHandler );
-    if( textureId % PAGES_PER_TEXTURE != 0 )
-    {
-        unsigned int alignmentPages = PAGES_PER_TEXTURE - (textureId % PAGES_PER_TEXTURE);
-        m_pageTableManager->reserveBackedPages( alignmentPages, &m_samplerRequestHandler );
-        textureId = textureId + alignmentPages;
-    }
+    // Allocate pages for numTextures. Note: pages for all textures were reserved in the constructor of DemandLoaderImpl.
+    unsigned int textureId = static_cast<unsigned int>( m_textures.size() );
+    DEMAND_ASSERT_MSG( textureId + numTextures - 1 < getOptions().maxTextures, "Too many textures defined.\n" );
     return textureId;
 }
 

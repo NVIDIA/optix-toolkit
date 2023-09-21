@@ -70,7 +70,7 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
         wrapAndSeparateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, sx, xidx );
         wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, sy, yidx );
 
-        unsigned int subTexId = bsmp->udimStartPage + PAGES_PER_TEXTURE * ( yidx * bsmp->udim + xidx );
+        unsigned int subTexId = bsmp->udimStartPage + ( yidx * bsmp->udim + xidx );
         const float2 ddx_dim = make_float2( ddx.x * bsmp->udim, ddx.y * bsmp->vdim );
         const float2 ddy_dim = make_float2( ddy.x * bsmp->udim, ddy.y * bsmp->vdim );
         rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx_dim, ddy_dim, isResident );
@@ -156,7 +156,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
         // Try to sample up to 4 subtextures
         bool subTexResident;
-        unsigned int subTexId = bsmp->udimStartPage + PAGES_PER_TEXTURE * ( yidx0 * udim + xidx0 );
+        unsigned int subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx0 );
         float xoff = ( xidx != xidx0 ) ? 1.0f : 0.0f;
         float yoff = ( yidx != yidx0 ) ? 1.0f : 0.0f;
         rval = tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
@@ -168,7 +168,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
         if( xidx1 != xidx0 )
         {
-            subTexId = bsmp->udimStartPage + PAGES_PER_TEXTURE * ( yidx0 * udim + xidx1 );
+            subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx1 );
             xoff = ( xidx != xidx1 ) ? -1.0f : 0.0f;
             yoff = ( yidx != yidx0 ) ? 1.0f : 0.0f;
             rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
@@ -176,7 +176,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         }
         if( yidx1 != yidx0 )
         {
-            subTexId = bsmp->udimStartPage + PAGES_PER_TEXTURE * ( yidx1 * udim + xidx0 );
+            subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx0 );
             xoff = ( xidx != xidx0 ) ? 1.0f : 0.0f;
             yoff = ( yidx != yidx1 ) ? -1.0f : 0.0f;
             rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
@@ -184,7 +184,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         }
         if( xidx1 != xidx0 && yidx1 != yidx0 )
         {
-            subTexId = bsmp->udimStartPage + PAGES_PER_TEXTURE * ( yidx1 * udim + xidx1 );
+            subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx1 );
             xoff = ( xidx != xidx1 ) ? -1.0f : 0.0f;
             yoff = ( yidx != yidx1 ) ? -1.0f : 0.0f;
             rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );

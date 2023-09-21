@@ -431,6 +431,14 @@ static imageSource::TextureInfo stockNonTiledMipMappedImage()
 
 TEST_F( DeferredImageLoadingTest, deferredTileIsLoadedAgain )
 {
+    // Ignore tests for devices that do not support texture footprints
+    CUdevice device;
+    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    int sparseSupport = 0;
+    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
+    if( !sparseSupport )
+        return;
+
     using namespace testing;
     auto                                image{ std::make_shared<StrictMock<MockImageSource>>() };
     const demandLoading::DemandTexture& texture = m_loader->createTexture( image, pointSampledTexture() );

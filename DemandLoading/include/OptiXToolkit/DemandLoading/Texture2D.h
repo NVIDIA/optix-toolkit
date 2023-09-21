@@ -104,12 +104,72 @@ __device__ static __forceinline__ void convertColor( const half4& a, unsigned ch
 __device__ static __forceinline__ void convertColor( const half4& a, uint4& b )             { b = uint4{ toUInt( a.x ), toUInt( a.y ), toUInt( a.z ), toUInt( a.w ) }; }
 __device__ static __forceinline__ void convertColor( const half4& a, uint2& b )             { b = uint2{ toUInt( a.x ), toUInt( a.y ) }; }
 __device__ static __forceinline__ void convertColor( const half4& a, unsigned int& b )      { b = toUInt( a.x ); }
+
+__device__ static __forceinline__ unsigned int isNonPowerOfTwo( unsigned int x ) { return ( x & ( x - 1 ) ); }
 // clang-format on
 
-__device__ static __forceinline__ unsigned int isNonPowerOfTwo( unsigned int x )
+
+/// Compute mip level from the texture gradients.
+__device__ __forceinline__ float getMipLevel( float2 ddx, float2 ddy, int texWidth, int texHeight, float invAnisotropy )
 {
-    return ( x & ( x - 1 ) );
+    ddx = float2{ddx.x * texWidth, ddx.y * texHeight};
+    ddy = float2{ddy.x * texWidth, ddy.y * texHeight};
+
+    // Trying to follow CUDA. CUDA performs a low precision EWA filter
+    // correction on the texture gradients to determine the mip level.
+    // This calculation is described in the Siggraph 1999 paper:
+    // Feline: Fast Elliptical Lines for Anisotropic Texture Mapping
+
+    const float A    = ddy.x * ddy.x + ddy.y * ddy.y;
+    const float B    = -2.0f * ( ddx.x * ddy.x + ddx.y * ddy.y );
+    const float C    = ddx.x * ddx.x + ddx.y * ddx.y;
+    const float root = sqrtf( fmaxf( A * A - 2.0f * A * C + C * C + B * B, 0.0f ) );
+
+    // Compute the square of the major and minor ellipse radius lengths to avoid sqrts.
+    // Then compensate by taking half the log to get the mip level.
+
+    const float minorRadius2 = ( A + C - root ) * 0.5f;
+    const float majorRadius2 = ( A + C + root ) * 0.5f;
+    const float filterWidth2 = fmaxf( minorRadius2, majorRadius2 * invAnisotropy * invAnisotropy );
+    const float mipLevel     = 0.5f * log2f( filterWidth2 );
+    return mipLevel;
 }
+
+
+/// Request a cascade (texture resolution) big enough handle a sample with texture derivatives ddx, ddy
+__device__ static __forceinline__ bool
+requestCascade( const DeviceContext& context, unsigned int textureId, const TextureSampler* sampler, float2 ddx, float2 ddy )
+{
+    if( sampler && !sampler->hasCascade )
+        return false;
+
+    // Get the mip level
+    float texWidth = ( sampler ) ? sampler->width : CASCADE_BASE;
+    float texHeight = ( sampler ) ? sampler->height : CASCADE_BASE;
+    float anisotropy = ( sampler ) ? sampler->desc.maxAnisotropy : 16.0f;
+    float mipLevel = getMipLevel( ddx, ddy, texWidth, texHeight, 1.0f / anisotropy );
+
+    // The current size is large enough, don't request a cascade
+    if( sampler && mipLevel >= 0.0f )
+        return false;
+    if( mipLevel >= 0.0f )
+        mipLevel = 0.0f;
+
+    // The current size is too small, request a cascade
+    unsigned int cascadeStartIndex = context.pageTable.capacity; // FIXME: Should this be an explicit variable?
+    unsigned int requestCascadeLevel = ( sampler ) ? sampler->cascadeLevel : 0;
+    requestCascadeLevel += (unsigned int)( ceilf( -mipLevel ) );
+    requestCascadeLevel = max( 0, min( requestCascadeLevel, NUM_CASCADES - 1 ) );
+    unsigned int cascadePage = cascadeStartIndex + textureId * NUM_CASCADES + requestCascadeLevel;
+    pagingRequest( context.referenceBits, cascadePage );
+    return true;
+}
+
+#if __CUDA_ARCH__ >= 600
+#define SPARSE_TEX_SUPPORT true
+#endif
+
+#ifdef SPARSE_TEX_SUPPORT
 
 __device__ static __forceinline__ void fixOddSizeWrapFootprint( uint4& fp )
 {
@@ -220,74 +280,6 @@ __device__ static __forceinline__ bool requestTexFootprint2D( unsigned int*     
 
     return isResident;
 }
-
-
-/// Compute mip level from the texture gradients.
-__device__ __forceinline__ float getMipLevel( float2 ddx, float2 ddy, int texWidth, int texHeight, float invAnisotropy )
-{
-    ddx = float2{ddx.x * texWidth, ddx.y * texHeight};
-    ddy = float2{ddy.x * texWidth, ddy.y * texHeight};
-
-    // Trying to follow CUDA. CUDA performs a low precision EWA filter
-    // correction on the texture gradients to determine the mip level.
-    // This calculation is described in the Siggraph 1999 paper:
-    // Feline: Fast Elliptical Lines for Anisotropic Texture Mapping
-
-    const float A    = ddy.x * ddy.x + ddy.y * ddy.y;
-    const float B    = -2.0f * ( ddx.x * ddy.x + ddx.y * ddy.y );
-    const float C    = ddx.x * ddx.x + ddx.y * ddx.y;
-    const float root = sqrtf( fmaxf( A * A - 2.0f * A * C + C * C + B * B, 0.0f ) );
-
-    // Compute the square of the major and minor ellipse radius lengths to avoid sqrts.
-    // Then compensate by taking half the log to get the mip level.
-
-    const float minorRadius2 = ( A + C - root ) * 0.5f;
-    const float majorRadius2 = ( A + C + root ) * 0.5f;
-    const float filterWidth2 = fmaxf( minorRadius2, majorRadius2 * invAnisotropy * invAnisotropy );
-    const float mipLevel     = 0.5f * log2f( filterWidth2 );
-    return mipLevel;
-}
-
-// Request a cascade (texture resolution) big enough handle a sample with texture derivatives ddx, ddy
-__device__ static __forceinline__ bool
-requestCascade( const DeviceContext& context, unsigned int textureId, const TextureSampler* sampler, float2 ddx, float2 ddy )
-{
-    if( sampler && !sampler->hasCascade )
-        return false;
-
-    // Early out based on the fact that a cascade is not needed unless the footprint
-    // is for a single mip level (level 0)
-    /*
-    unsigned int singleMipLevel;
-    unsigned int desc   = *reinterpret_cast<const unsigned int*>( &sampler->desc );
-    uint4 fp = optixTexFootprint2DGrad( sampler->texture, desc, 0.0f, 0.0f, ddx.x, ddx.y, ddy.x, ddy.y, FINE_MIP_LEVEL, &singleMipLevel );
-    if( !singleMipLevel )
-        return false;
-    */
-
-    // Get the mip level
-    float texWidth = ( sampler ) ? sampler->width : CASCADE_BASE;
-    float texHeight = ( sampler ) ? sampler->height : CASCADE_BASE;
-    float anisotropy = ( sampler ) ? sampler->desc.maxAnisotropy : 16.0f;
-    float mipLevel = getMipLevel( ddx, ddy, texWidth, texHeight, 1.0f / anisotropy );
-
-    // The current size is large enough, don't request a cascade
-    if( sampler && mipLevel >= 0.0f )
-        return false;
-    if( mipLevel >= 0.0f )
-        mipLevel = 0.0f;
-
-    // The current size is too small, request a cascade
-    unsigned int cascadeStartIndex = context.pageTable.capacity; // FIXME: Should this be an explicit variable?
-    unsigned int requestCascadeLevel = ( sampler ) ? sampler->cascadeLevel : 0;
-    requestCascadeLevel += (unsigned int)( ceilf( -mipLevel ) );
-    requestCascadeLevel = max( 0, min( requestCascadeLevel, NUM_CASCADES - 1 ) );
-    unsigned int textureNum = textureId / PAGES_PER_TEXTURE;
-    unsigned int cascadePage = cascadeStartIndex + textureNum * NUM_CASCADES + requestCascadeLevel;
-    pagingRequest( context.referenceBits, cascadePage );
-    return true;
-}
-
 
 
 __device__ static __forceinline__ bool requestTexFootprint2DGrad( const TextureSampler& sampler,
@@ -414,15 +406,21 @@ __device__ static __forceinline__ bool requestTexFootprint2DLod( const TextureSa
     return isResident;
 }
 
+#endif  // SPARSE_TEX_SUPPORT
+
+#endif  // ndef DOXYGEN_SKIP
+
 
 template <class Sample> 
+/// Fetch the base color of a texture stored in the demand loader page table as a half4
+template <class TYPE> 
 __device__ static __forceinline__ bool
 getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval, bool* baseColorResident )
 {
-    const unsigned long long baseVal = pagingMapOrRequest( context, textureId + BASE_COLOR_OFFSET, baseColorResident );
-    const half4* baseColor = reinterpret_cast<const half4*>( &baseVal );
-    if( *baseColorResident && !__hisnan( baseColor->x ) ) // NaN indicates nonexistent base color
+    const unsigned long long baseVal = pagingMapOrRequest( context, textureId + context.maxTextures, baseColorResident );
+    if( *baseColorResident && baseVal != NO_BASE_COLOR )
     {
+        const half4* baseColor = reinterpret_cast<const half4*>( &baseVal );
         convertColor( *baseColor, rval );
         return true;
     }
@@ -431,7 +429,7 @@ getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval
 
 #endif  // ndef DOXYGEN_SKIP
 
-/// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
+/// Fetch from a demand-loaded texture with the specified identifer, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
 template <class Sample>
@@ -465,7 +463,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     }
 
     // Prevent footprint from exceeding min tile width for non-mipmapped textures
-    if( sampler->desc.numMipLevels == 1 )
+    if( sampler->desc.numMipLevels == 1 && sampler->desc.isSparseTexture )
     {
         float       pixelSpanX       = max( fabsf( ddx.x ), fabsf( ddy.x ) ) * sampler->width;
         float       pixelSpanY       = max( fabsf( ddx.y ), fabsf( ddy.y ) ) * sampler->height;
@@ -479,7 +477,8 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
             ddy         = make_float2( ddy.x * scale, ddy.y * scale );
         }
     }
-    
+
+#ifdef SPARSE_TEX_SUPPORT
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = !sampler->desc.isSparseTexture;
     if( !context.requestIfResident )
@@ -491,18 +490,11 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy ); // non-predicated texture fetch
-
-    // Debug Code: This checks consistency between residency result from requestTexFootprint2DGrad and predicated tex2DGrad
-    /*
-    if( *isResident && context.requestIfResident )
-    {
-        bool texResident;
-        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy, &texResident );
-        if( !texResident )
-            printf("ERROR: Mipmap mismatch between tex2DGrad and requestTexFootprint2DGrad!\n");
-    }
-    */
+        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
+#else
+    *isResident = true;
+    rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy );
+#endif
 
 #ifdef REQUEST_CASCADE
     *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
@@ -547,6 +539,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
         return rval;
     }
 
+#ifdef SPARSE_TEX_SUPPORT
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = false;
     if( !context.requestIfResident )
@@ -558,7 +551,11 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod ); // non-predicated texture fetch
+        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
+#else
+    *isResident = true;
+    rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod );
+#endif
 
 #ifdef REQUEST_CASCADE
     float2 ddx  = make_float2( exp2Lod / sampler->width, 0.0f );
@@ -579,7 +576,6 @@ tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, b
 {
     return tex2DLod<Sample>( context, textureId, x, y, 0.0f, isResident );
 }
-
 
 #endif
 
