@@ -159,7 +159,7 @@ class TestProxyInstance : public Test
     }
 
     template <typename Matcher>
-    void configureUpdatedBuild( uint_t numInstances, const ExpectationSet& first, Matcher& isUpdatedIAS, OptixTraversableHandle updatedIAS )
+    void configureUpdatedBuild( const ExpectationSet& first, Matcher& isUpdatedIAS, OptixTraversableHandle updatedIAS )
     {
         const uint_t numUpdatedBuildInputs{ 1 };
         EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isUpdatedIAS, numUpdatedBuildInputs, NotNull() ) )
@@ -348,7 +348,7 @@ TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
     first += configureAccelBuild( isIAS, m_fakeIAS );
     OptixTraversableHandle updatedIAS{ 7777 };
     auto                   isUpdatedIAS = isBuildingNumInstances( 0, 0 );
-    configureUpdatedBuild( 0, first, isUpdatedIAS, updatedIAS );
+    configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     m_instances.createTraversable( m_fakeDc, m_stream );
 
     m_instances.remove( m_startPageId );
@@ -380,7 +380,7 @@ TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
     first += configureAccelBuild( isIAS, m_fakeIAS );
     OptixTraversableHandle updatedIAS{ 7777 };
     auto isUpdatedIAS = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
-    configureUpdatedBuild( 1, first, isUpdatedIAS, updatedIAS );
+    configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
 
     m_instances.remove( id2 );
