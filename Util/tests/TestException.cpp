@@ -45,18 +45,16 @@ TEST_F( TestException, TestRequireTrue )
     EXPECT_NO_THROW( OTK_REQUIRE( true ) );
 }
 
+#ifndef NDEBUG
+// OTK_ASSERT() expands to empty on release builds;
+// you can't call EXPECT_NO_THROW() with no arguments.
 TEST_F( TestException, TestAssertFalse )
 {
-#ifndef NDEBUG
     EXPECT_THROW( OTK_ASSERT( false ), otk::Exception );
-#else
-    EXPECT_NO_THROW( OTK_ASSERT( false ) );
-#endif
 }
 
 TEST_F( TestException, TestAssertTrue )
 {
     EXPECT_NO_THROW( OTK_ASSERT( true ) );
 }
-
-
+#endif
