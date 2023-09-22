@@ -39,6 +39,101 @@ using namespace demandLoading;
 using namespace demandGeometry;
 using namespace otk::testing;
 
+MATCHER_P2( hasNumCustomPrimitives, n, numPrims, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type << ", not OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES ("
+                         << OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES << ')';
+        return false;
+    }
+    const OptixBuildInputCustomPrimitiveArray& prims = arg[n].customPrimitiveArray;
+    if( prims.numPrimitives != numPrims )
+    {
+        *result_listener << "input " << n << " has " << prims.numPrimitives << " primitives, expected " << numPrims;
+        return false;
+    }
+
+    return true;
+}
+
+static void getDeviceInstances( OptixInstance* dest, const OptixBuildInput& iasBuildInput )
+{
+    OTK_ERROR_CHECK( cudaMemcpy( dest, reinterpret_cast<const void*>( iasBuildInput.instanceArray.instances ),
+                                 iasBuildInput.instanceArray.numInstances * sizeof( OptixInstance ), cudaMemcpyDeviceToHost ) );
+}
+
+MATCHER_P3( hasDeviceInstanceTransform, n, instanceIndex, expectedTransform, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    if( instanceIndex >= instances.numInstances )
+    {
+        *result_listener << "input " << n << " has " << instances.numInstances << " instances, expected at least "
+                         << instanceIndex + 1;
+        return false;
+    }
+    std::vector<OptixInstance> actualInstances;
+    actualInstances.resize( instances.numInstances );
+    OTK_ERROR_CHECK( cudaMemcpy( actualInstances.data(), reinterpret_cast<const void*>( instances.instances ),
+                                 instances.numInstances * sizeof( OptixInstance ), cudaMemcpyDeviceToHost ) );
+    auto compare                        = []( float lhs, float rhs ) { return std::abs( rhs - lhs ) < 1.0e-6f; };
+    const float( &actualTransform )[12] = actualInstances[instanceIndex].transform;
+    if( !std::equal( expectedTransform, expectedTransform + 12, std::begin( actualTransform ), compare ) )
+    {
+        *result_listener << "input " << n << " instance " << instanceIndex << " has mismatched transform "
+                         << compareRanges( expectedTransform, expectedTransform + 12, std::begin( actualTransform ), compare );
+        return false;
+    }
+
+    return true;
+}
+
+MATCHER_P3( hasDeviceInstanceTraversable, n, instanceIndex, expectedTraversable, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    if( instanceIndex >= instances.numInstances )
+    {
+        *result_listener << "input " << n << " has " << instances.numInstances << " instances, expected at least "
+                         << instanceIndex + 1;
+        return false;
+    }
+    std::vector<OptixInstance> actualInstances;
+    actualInstances.resize( instances.numInstances );
+    OTK_ERROR_CHECK( cudaMemcpy( actualInstances.data(), reinterpret_cast<const void*>( instances.instances ),
+                                 instances.numInstances * sizeof( OptixInstance ), cudaMemcpyDeviceToHost ) );
+    if( expectedTraversable != actualInstances[instanceIndex].traversableHandle )
+    {
+        *result_listener << "input " << n << " instance " << instanceIndex << " has traversable "
+                         << actualInstances[instanceIndex].traversableHandle << ", expected " << expectedTraversable;
+        return false;
+    }
+
+    return true;
+}
+
+static auto isBuildingNumInstances = []( uint_t buildInput, uint_t numInstances ) {
+    return AllOf( NotNull(), isInstanceBuildInput( buildInput ), hasNumInstances( buildInput, numInstances ) );
+};
+
+static auto immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
+
+static auto setHandle = []( OptixTraversableHandle handle ) {
+    return DoAll( SetArgPointee<9>( handle ), Return( OPTIX_SUCCESS ) );
+};
+
+
 namespace {
 
 class TestProxyInstance : public Test
@@ -46,8 +141,35 @@ class TestProxyInstance : public Test
   protected:
     void SetUp() override;
 
-    void configureAccelBuildInputs( OptixBuildInput* gasBuildInput, OptixBuildInput* iasBuildInput );
-    void configureZeroInstanceIASAccelBuildInput( OptixBuildInput& iasBuildInput );
+    template <typename Matcher>
+    Expectation configureAccelComputeMemoryUsage( Matcher& matcher )
+    {
+        const uint_t numBuildInputs = 1;
+        return EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, matcher, numBuildInputs, NotNull() ) )
+            .WillOnce( Return( OPTIX_SUCCESS ) );
+    }
+
+    template <typename Matcher>
+    Expectation configureAccelBuild( Matcher& matcher, OptixTraversableHandle traversable )
+    {
+        const uint_t numBuildInputs = 1;
+        return EXPECT_CALL( m_optix,
+                            accelBuild( m_fakeDc, m_stream, immutable, matcher, numBuildInputs, _, _, _, _, NotNull(), _, _ ) )
+            .WillOnce( setHandle( traversable ) );
+    }
+
+    template <typename Matcher>
+    void configureUpdatedBuild( uint_t numInstances, const ExpectationSet& first, Matcher& isUpdatedIAS, OptixTraversableHandle updatedIAS )
+    {
+        const uint_t numUpdatedBuildInputs{ 1 };
+        EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isUpdatedIAS, numUpdatedBuildInputs, NotNull() ) )
+            .After( first )
+            .WillOnce( Return( OPTIX_SUCCESS ) );
+        EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isUpdatedIAS, numUpdatedBuildInputs, _, _, _,
+                                          _, NotNull(), _, _ ) )
+            .After( first )
+            .WillOnce( setHandle( updatedIAS ) );
+    }
 
     MockDemandLoader m_loader;
     ProxyInstances   m_instances{ &m_loader };
@@ -71,42 +193,6 @@ void TestProxyInstance::SetUp()
     initMockOptix( m_optix );
 }
 
-void TestProxyInstance::configureAccelBuildInputs( OptixBuildInput* gasBuildInput, OptixBuildInput* iasBuildInput )
-{
-    const uint_t numBuildInputs{ 1 };
-    auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
-    auto         isGAS     = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ) );
-    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput( 0 ) );
-    auto&        callMemUsageGAS =
-        EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isGAS, numBuildInputs, NotNull() ) );
-    auto& callMemUsageIAS =
-        EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isIAS, numBuildInputs, NotNull() ) );
-    auto savePtr = []( OptixBuildInput* ptr ) { return DoAll( SaveArgPointee<2>( ptr ), Return( OPTIX_SUCCESS ) ); };
-    if( gasBuildInput != nullptr )
-        callMemUsageGAS.WillOnce( savePtr( gasBuildInput ) );
-    else
-        callMemUsageGAS.WillOnce( Return( OPTIX_SUCCESS ) );
-    if( iasBuildInput != nullptr )
-        callMemUsageIAS.WillOnce( savePtr( iasBuildInput ) );
-    else
-        callMemUsageIAS.WillOnce( Return( OPTIX_SUCCESS ) );
-    EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isGAS, numBuildInputs, _, _, _, _, NotNull(), _, _ ) )
-        .WillOnce( DoAll( SetArgPointee<9>( m_fakeGAS ), Return( OPTIX_SUCCESS ) ) );
-    EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isIAS, numBuildInputs, _, _, _, _, NotNull(), _, _ ) )
-        .WillOnce( DoAll( SetArgPointee<9>( m_fakeIAS ), Return( OPTIX_SUCCESS ) ) );
-}
-
-void TestProxyInstance::configureZeroInstanceIASAccelBuildInput( OptixBuildInput& iasBuildInput )
-{
-    const uint_t numBuildInputs{ 1 };
-    auto         immutable = AllOf( NotNull(), isBuildOperation(), Not( buildAllowsUpdate() ) );
-    auto         isIAS     = AllOf( NotNull(), isInstanceBuildInput( 0 ), isZeroInstances( 0 ) );
-    EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isIAS, numBuildInputs, NotNull() ) )
-        .WillOnce( DoAll( SaveArgPointee<2>( &iasBuildInput ), Return( OPTIX_SUCCESS ) ) );
-    EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isIAS, numBuildInputs, _, _, _, _, NotNull(), _, _ ) )
-        .WillOnce( DoAll( SetArgPointee<9>( m_fakeIAS ), Return( OPTIX_SUCCESS ) ) );
-}
-
 }  // namespace
 
 TEST_F( TestProxyInstance, addProxyAllocatesResource )
@@ -128,26 +214,12 @@ TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
     ASSERT_NE( pageId1, pageId2 );
 }
 
-static void getDeviceInstances( OptixInstance* dest, const OptixBuildInput& iasBuildInput )
-{
-    OTK_ERROR_CHECK( cudaMemcpy( dest, reinterpret_cast<const void*>( iasBuildInput.instanceArray.instances ),
-                                 iasBuildInput.instanceArray.numInstances * sizeof( OptixInstance ), cudaMemcpyDeviceToHost ) );
-}
-
 TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).Times( 1 );
     m_instances.add( m_proxyBounds );
-    OptixBuildInput gasBuildInput{}, iasBuildInput{};
-    configureAccelBuildInputs( &gasBuildInput, &iasBuildInput );
-
-    OptixTraversableHandle result = m_instances.createTraversable( m_fakeDc, m_stream );
-
-    EXPECT_EQ( m_fakeIAS, result );
-    ASSERT_EQ( OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES, gasBuildInput.type );
-    EXPECT_EQ( 1U, gasBuildInput.customPrimitiveArray.numPrimitives );
-    ASSERT_EQ( OPTIX_BUILD_INPUT_TYPE_INSTANCES, iasBuildInput.type );
-    EXPECT_EQ( 1U, iasBuildInput.instanceArray.numInstances );
+    const uint_t numBuildInputs{ 1 };
+    auto         isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     // clang-format off
     const float expectedTransform[12]{
         2.0f, 0.0f, 0.0f, -1.0f,
@@ -155,9 +227,24 @@ TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
         0.0f, 0.0f, 2.0f, -1.0f
     };
     // clang-format on
-    OptixInstance actualInstance{};
-    getDeviceInstances( &actualInstance, iasBuildInput );
-    EXPECT_TRUE( isSameTransform( expectedTransform, actualInstance.transform ) );
+    auto isIAS   = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+    auto setSize = []( const OptixAccelBufferSizes& sizes ) {
+        return DoAll( SetArgPointee<4>( sizes ), Return( OPTIX_SUCCESS ) );
+    };
+    OptixAccelBufferSizes gasSizes{ 1000, 1100, 0 };
+    EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isGAS, numBuildInputs, NotNull() ) ).WillOnce( setSize( gasSizes ) );
+    OptixAccelBufferSizes iasSizes{ 2000, 2200, 0 };
+    EXPECT_CALL( m_optix, accelComputeMemoryUsage( m_fakeDc, immutable, isIAS, numBuildInputs, NotNull() ) ).WillOnce( setSize( iasSizes ) );
+    EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isGAS, numBuildInputs, Ne( 0 ), gasSizes.tempSizeInBytes,
+                                      Ne( 0 ), gasSizes.outputSizeInBytes, NotNull(), nullptr, 0 ) )
+        .WillOnce( setHandle( m_fakeGAS ) );
+    EXPECT_CALL( m_optix, accelBuild( m_fakeDc, m_stream, immutable, isIAS, numBuildInputs, Ne( 0 ), iasSizes.tempSizeInBytes,
+                                      Ne( 0 ), iasSizes.outputSizeInBytes, NotNull(), nullptr, 0 ) )
+        .WillOnce( setHandle( m_fakeIAS ) );
+
+    OptixTraversableHandle result = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    EXPECT_EQ( m_fakeIAS, result );
 }
 
 TEST_F( TestProxyInstance, multipleProxiesInstantiatesGASOncePerProxy )
@@ -165,19 +252,7 @@ TEST_F( TestProxyInstance, multipleProxiesInstantiatesGASOncePerProxy )
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
     m_instances.add( m_proxyBounds );
     m_instances.add( m_proxy2Bounds );
-    OptixBuildInput gasBuildInput{}, iasBuildInput{};
-    configureAccelBuildInputs( &gasBuildInput, &iasBuildInput );
-
-    OptixTraversableHandle result = m_instances.createTraversable( m_fakeDc, m_stream );
-
-    EXPECT_EQ( m_fakeIAS, result );
-    ASSERT_EQ( OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES, gasBuildInput.type );
-    EXPECT_EQ( 1U, gasBuildInput.customPrimitiveArray.numPrimitives );
-    ASSERT_EQ( OPTIX_BUILD_INPUT_TYPE_INSTANCES, iasBuildInput.type );
-    const uint_t NUM_EXPECTED_INSTANCES{ 2 };
-    EXPECT_EQ( NUM_EXPECTED_INSTANCES, iasBuildInput.instanceArray.numInstances );
-    OptixInstance actualInstance[NUM_EXPECTED_INSTANCES]{};
-    getDeviceInstances( actualInstance, iasBuildInput );
+    auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     // clang-format off
     const float expectedTransform1[12]{
         2.0f, 0.0f, 0.0f, -1.0f,
@@ -190,24 +265,30 @@ TEST_F( TestProxyInstance, multipleProxiesInstantiatesGASOncePerProxy )
         0.0f, 0.0f, 1.0f, 12.0f
     };
     // clang-format on
-    EXPECT_TRUE( isSameTransform( expectedTransform1, actualInstance[0].transform ) );
-    EXPECT_TRUE( isSameTransform( expectedTransform2, actualInstance[1].transform ) );
+    auto isIAS = AllOf( isBuildingNumInstances( 0, 2 ), hasDeviceInstanceTransform( 0, 0U, expectedTransform1 ),
+                        hasDeviceInstanceTransform( 0, 1U, expectedTransform2 ) );
+    configureAccelComputeMemoryUsage( isGAS );
+    configureAccelComputeMemoryUsage( isIAS );
+    configureAccelBuild( isGAS, m_fakeGAS );
+    configureAccelBuild( isIAS, m_fakeIAS );
+
+    OptixTraversableHandle result = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    EXPECT_EQ( m_fakeIAS, result );
 }
 
 TEST_F( TestProxyInstance, proxyInstantiatesCustomPrimitive )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).Times( 1 );
     m_instances.add( m_proxyBounds );
-    OptixBuildInput gasBuildInput{}, iasBuildInput{};
-    configureAccelBuildInputs( &gasBuildInput, &iasBuildInput );
+    auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
+    auto isIAS = AllOf( isBuildingNumInstances( 0, 1U ), hasDeviceInstanceTraversable( 0, 0U, m_fakeGAS ) );
+    configureAccelComputeMemoryUsage( isGAS );
+    configureAccelComputeMemoryUsage( isIAS );
+    configureAccelBuild( isGAS, m_fakeGAS );
+    configureAccelBuild( isIAS, m_fakeIAS );
 
     m_instances.createTraversable( m_fakeDc, m_stream );
-
-    OptixInstance actualInstance{};
-    ASSERT_EQ( OPTIX_BUILD_INPUT_TYPE_INSTANCES, iasBuildInput.type );
-    EXPECT_EQ( 1U, iasBuildInput.instanceArray.numInstances );
-    getDeviceInstances( &actualInstance, iasBuildInput );
-    EXPECT_EQ( m_fakeGAS, actualInstance.traversableHandle );
 }
 
 TEST_F( TestProxyInstance, resourceCallbackSavesPageId )
@@ -251,11 +332,61 @@ TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
     m_instances.add( m_proxyBounds );
-    configureAccelBuildInputs( nullptr, nullptr );
-    OptixBuildInput instanceInput{};
-    configureZeroInstanceIASAccelBuildInput( instanceInput );
+    auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
+    // clang-format off
+    const float expectedTransform[12]{
+        2.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 2.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, 2.0f, -1.0f
+    };
+    // clang-format on
+    auto isIAS = AllOf( isBuildingNumInstances( 0, 1U ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+    ExpectationSet first;
+    first += configureAccelComputeMemoryUsage( isGAS );
+    first += configureAccelComputeMemoryUsage( isIAS );
+    first += configureAccelBuild( isGAS, m_fakeGAS );
+    first += configureAccelBuild( isIAS, m_fakeIAS );
+    OptixTraversableHandle updatedIAS{ 7777 };
+    auto                   isUpdatedIAS = isBuildingNumInstances( 0, 0 );
+    configureUpdatedBuild( 0, first, isUpdatedIAS, updatedIAS );
     m_instances.createTraversable( m_fakeDc, m_stream );
 
     m_instances.remove( m_startPageId );
-    m_instances.createTraversable( m_fakeDc, m_stream );
+    OptixTraversableHandle updatedHandle = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    ASSERT_EQ( updatedHandle, updatedIAS );
+}
+
+TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
+{
+    EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
+    uint_t    id1 = m_instances.add( m_proxyBounds );
+    uint_t    id2 = m_instances.add( m_proxy2Bounds );
+    OptixAabb bounds3{ -5.0f, -5.0f, -5.0f, -4.0f, -4.0f, -4.0f };
+    uint_t    id3   = m_instances.add( bounds3 );
+    auto      isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
+    // clang-format off
+    float expectedTransform[12]{
+        1.0f, 0.0f, 0.0f, -5.0f,
+        0.0f, 1.0f, 0.0f, -5.0f,
+        0.0f, 0.0f, 1.0f, -5.0f
+    };
+    // clang-format on
+    auto isIAS = AllOf( isBuildingNumInstances( 0, 3 ), hasDeviceInstanceTransform( 0, 2U, expectedTransform ) );
+    ExpectationSet first;
+    first += configureAccelComputeMemoryUsage( isGAS );
+    first += configureAccelComputeMemoryUsage( isIAS );
+    first += configureAccelBuild( isGAS, m_fakeGAS );
+    first += configureAccelBuild( isIAS, m_fakeIAS );
+    OptixTraversableHandle updatedIAS{ 7777 };
+    auto isUpdatedIAS = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+    configureUpdatedBuild( 1, first, isUpdatedIAS, updatedIAS );
+    OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    m_instances.remove( id2 );
+    m_instances.remove( id1 );
+    OptixTraversableHandle handle = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    ASSERT_NE( initialHandle, handle );
+    ASSERT_NE( m_startPageId, id3 );
 }

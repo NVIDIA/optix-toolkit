@@ -184,6 +184,24 @@ MATCHER_P( isZeroInstances, n, "" )
     return true;
 }
 
+MATCHER_P2( hasNumInstances, n, num, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    if( num != instances.numInstances )
+    {
+        *result_listener << "input " << n << " has " << instances.numInstances << " instances, expected " << num;
+        return false;
+    }
+
+    return true;
+}
+
 inline std::string compareRanges( const float* begin, const float* end, const float* rhs, const std::function<bool( float, float )>& compare )
 {
     std::string result;

@@ -132,11 +132,6 @@ class ProxyInstances : public GeometryLoader
         uint_t m_start;
         uint_t m_used;
     };
-    struct Resource
-    {
-        uint_t pageId;
-        size_t index;
-    };
 
     static bool s_callback( CUstream stream, unsigned int pageId, void* context, void** pageTableEntry )
     {
@@ -145,9 +140,9 @@ class ProxyInstances : public GeometryLoader
 
     bool callback( CUstream stream, uint_t pageId, void** pageTableEntry );
 
-    uint_t allocateResource( size_t index );
+    uint_t allocateResource();
 
-    void insertResource( uint_t pageId, size_t index );
+    void insertResource( uint_t pageId );
 
     void                   createProxyGeomAS( OptixDeviceContext dc, CUstream stream );
     OptixTraversableHandle createProxyInstanceAS( OptixDeviceContext dc, CUstream stream );
@@ -157,7 +152,6 @@ private:
 
     demandLoading::DemandLoader* m_loader;
     std::vector<PageIdRange>     m_pageRanges;
-    std::vector<Resource>        m_resources;  // sorted by pageId and suitable for binary search.
     const uint_t                 PAGE_CHUNK_SIZE = 16U;
 
     otk::SyncVector<OptixAabb> m_primitiveBounds;

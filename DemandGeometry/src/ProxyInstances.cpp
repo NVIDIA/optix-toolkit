@@ -76,10 +76,8 @@ uint_t ProxyInstances::add( const OptixAabb& bounds )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
-    const size_t resourceIndex = m_proxyData.size();
     m_proxyData.push_back( bounds );
-    const uint_t pageId = allocateResource( resourceIndex );
-    m_proxyPageIds.push_back( pageId );
+    const uint_t pageId = allocateResource();
     return pageId;
 }
 
@@ -88,13 +86,11 @@ void ProxyInstances::remove( uint_t pageId )
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
     {
-        auto pos = std::lower_bound( m_resources.begin(), m_resources.end(), pageId,
-                                     []( const Resource& lhs, uint_t pageId ) { return lhs.pageId < pageId; } );
-        if( pos == m_resources.end() || pos->pageId != pageId )
+        auto pos = std::lower_bound( m_proxyPageIds.begin(), m_proxyPageIds.end(), pageId );
+        if( pos == m_proxyPageIds.end() || *pos != pageId )
             throw std::runtime_error( "Resource not found for page " + std::to_string( pageId ) );
 
-        const int index = static_cast<int>( pos->index );
-        m_resources.erase( pos );
+        const int index = static_cast<int>( pos - m_proxyPageIds.begin() );
         m_proxyData.erase( m_proxyData.begin() + index );
         m_proxyPageIds.erase( m_proxyPageIds.begin() + index );
     }
@@ -233,9 +229,8 @@ bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTa
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
     {
-        auto pos = std::lower_bound( m_resources.begin(), m_resources.end(), pageId,
-                                     []( const Resource& lhs, uint_t pageId ) { return lhs.pageId < pageId; } );
-        if( pos == m_resources.end() || pos->pageId != pageId )
+        auto pos = std::lower_bound( m_proxyPageIds.begin(), m_proxyPageIds.end(), pageId);
+        if( pos == m_proxyPageIds.end() || *pos != pageId )
             throw std::runtime_error( "Callback invoked for resource " + std::to_string( pageId )
                                       + " not associated with a proxy." );
     }
@@ -251,24 +246,23 @@ bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTa
     return true;
 }
 
-void ProxyInstances::insertResource( const uint_t pageId, size_t index )
+void ProxyInstances::insertResource( const uint_t pageId )
 {
-    auto pos = std::lower_bound( m_resources.begin(), m_resources.end(), pageId,
-                                 []( const Resource& lhs, uint_t pageId ) { return lhs.pageId < pageId; } );
-    if( pos != m_resources.end() && pos->pageId == pageId )
+    auto pos = std::lower_bound( m_proxyPageIds.begin(), m_proxyPageIds.end(), pageId);
+    if( pos != m_proxyPageIds.end() && *pos == pageId )
         throw std::runtime_error( "Duplicate Resource found for page " + std::to_string( pageId ) );
 
-    m_resources.insert( pos, { pageId, index } );
+    m_proxyPageIds.insert( pos, pageId );
 }
 
-uint_t ProxyInstances::allocateResource( size_t index )
+uint_t ProxyInstances::allocateResource()
 {
     for( PageIdRange& range : m_pageRanges )
     {
         if( range.m_used < range.m_size )
         {
             const uint_t pageId = range.m_start + range.m_used++;
-            insertResource( pageId, index );
+            insertResource( pageId);
             return pageId;
         }
     }
@@ -278,7 +272,7 @@ uint_t ProxyInstances::allocateResource( size_t index )
     range.m_start = m_loader->createResource( range.m_size, s_callback, this );
     range.m_used  = 1;
     m_pageRanges.push_back( range );
-    insertResource( range.m_start, index );
+    insertResource( range.m_start );
     return range.m_start;
 }
 
