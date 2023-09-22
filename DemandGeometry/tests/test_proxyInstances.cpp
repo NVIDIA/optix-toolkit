@@ -57,12 +57,6 @@ MATCHER_P2( hasNumCustomPrimitives, n, numPrims, "" )
     return true;
 }
 
-static void getDeviceInstances( OptixInstance* dest, const OptixBuildInput& iasBuildInput )
-{
-    OTK_ERROR_CHECK( cudaMemcpy( dest, reinterpret_cast<const void*>( iasBuildInput.instanceArray.instances ),
-                                 iasBuildInput.instanceArray.numInstances * sizeof( OptixInstance ), cudaMemcpyDeviceToHost ) );
-}
-
 MATCHER_P3( hasDeviceInstanceTransform, n, instanceIndex, expectedTransform, "" )
 {
     if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
