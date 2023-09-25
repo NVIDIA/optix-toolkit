@@ -76,9 +76,9 @@ uint_t ProxyInstances::add( const OptixAabb& bounds )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
-    m_proxyData.push_back( bounds );
-    const uint_t pageId = allocateResource();
-    return pageId;
+    const uint_t index = allocateResource();
+    m_proxyData.insert( m_proxyData.begin() + index, bounds );
+    return m_proxyPageIds[index];
 }
 
 void ProxyInstances::remove( uint_t pageId )
@@ -246,13 +246,15 @@ bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTa
     return true;
 }
 
-void ProxyInstances::insertResource( const uint_t pageId )
+uint_t ProxyInstances::insertResource( const uint_t pageId )
 {
     auto pos = std::lower_bound( m_proxyPageIds.begin(), m_proxyPageIds.end(), pageId);
     if( pos != m_proxyPageIds.end() && *pos == pageId )
         throw std::runtime_error( "Duplicate Resource found for page " + std::to_string( pageId ) );
 
+    const uint_t index = static_cast<uint_t>( pos - m_proxyPageIds.begin() );
     m_proxyPageIds.insert( pos, pageId );
+    return index;
 }
 
 uint_t ProxyInstances::allocateResource()
@@ -262,8 +264,7 @@ uint_t ProxyInstances::allocateResource()
         if( range.m_used < range.m_size )
         {
             const uint_t pageId = range.m_start + range.m_used++;
-            insertResource( pageId);
-            return pageId;
+            return insertResource( pageId );
         }
     }
 
@@ -272,8 +273,7 @@ uint_t ProxyInstances::allocateResource()
     range.m_start = m_loader->createResource( range.m_size, s_callback, this );
     range.m_used  = 1;
     m_pageRanges.push_back( range );
-    insertResource( range.m_start );
-    return range.m_start;
+    return insertResource( range.m_start );
 }
 
 }  // namespace demandGeometry

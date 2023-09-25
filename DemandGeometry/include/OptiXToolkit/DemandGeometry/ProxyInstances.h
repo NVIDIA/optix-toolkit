@@ -55,6 +55,8 @@ namespace demandGeometry {
 class ProxyInstances : public GeometryLoader
 {
   public:
+    static constexpr uint_t PAGE_CHUNK_SIZE = 16U;
+
     ProxyInstances( demandLoading::DemandLoader* loader );
     ~ProxyInstances() override = default;
 
@@ -142,17 +144,15 @@ class ProxyInstances : public GeometryLoader
 
     uint_t allocateResource();
 
-    void insertResource( uint_t pageId );
+    uint_t insertResource( uint_t pageId );
 
     void                   createProxyGeomAS( OptixDeviceContext dc, CUstream stream );
     OptixTraversableHandle createProxyInstanceAS( OptixDeviceContext dc, CUstream stream );
 
-private:
     mutable std::mutex m_proxyDataMutex;  // protects the CPU proxy data structures.
 
     demandLoading::DemandLoader* m_loader;
     std::vector<PageIdRange>     m_pageRanges;
-    const uint_t                 PAGE_CHUNK_SIZE = 16U;
 
     otk::SyncVector<OptixAabb> m_primitiveBounds;
     otk::SyncVector<OptixAabb> m_proxyData;

@@ -117,6 +117,31 @@ MATCHER_P3( hasDeviceInstanceTraversable, n, instanceIndex, expectedTraversable,
     return true;
 }
 
+MATCHER_P2( hasAnyDeviceInstanceId, n, instanceId, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    std::vector<OptixInstance> actualInstances;
+    actualInstances.resize( instances.numInstances );
+    OTK_ERROR_CHECK( cudaMemcpy( actualInstances.data(), reinterpret_cast<const void*>( instances.instances ),
+                                 instances.numInstances * sizeof( OptixInstance ), cudaMemcpyDeviceToHost ) );
+    for( uint_t i = 0; i < instances.numInstances; ++i )
+    {
+        if( instanceId == actualInstances[i].instanceId )
+        {
+            return true;
+        }
+    }
+
+    *result_listener << "input " << n << " with " << instances.numInstances << " instances does not contain id " << instanceId;
+    return false;
+}
+
 static auto isBuildingNumInstances = []( uint_t buildInput, uint_t numInstances ) {
     return AllOf( NotNull(), isInstanceBuildInput( buildInput ), hasNumInstances( buildInput, numInstances ) );
 };
@@ -173,7 +198,14 @@ class TestProxyInstance : public Test
     CUstream m_stream{};
 
     uint_t    m_startPageId{ 1964 };
-    OptixAabb m_proxyBounds{ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
+    OptixAabb m_proxy1Bounds{ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
+    // clang-format off
+    float m_proxy1Transform[12]{
+        2.0f, 0.0f, 0.0f, -1.0f,
+        0.0f, 2.0f, 0.0f, -1.0f,
+        0.0f, 0.0f, 2.0f, -1.0f
+    };
+    // clang-format on
     OptixAabb m_proxy2Bounds{ 10.f, 11.f, 12.f, 14.f, 13.f, 13.f };
 
     OptixDeviceContext     m_fakeDc{ reinterpret_cast<OptixDeviceContext>( 0xd00df00ddeadbeef ) };
@@ -193,7 +225,7 @@ TEST_F( TestProxyInstance, addProxyAllocatesResource )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
 
-    const uint_t pageId = m_instances.add( m_proxyBounds );
+    const uint_t pageId = m_instances.add( m_proxy1Bounds );
 
     ASSERT_EQ( m_startPageId, pageId );
 }
@@ -202,7 +234,7 @@ TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
 
-    const uint_t pageId1 = m_instances.add( m_proxyBounds );
+    const uint_t pageId1 = m_instances.add( m_proxy1Bounds );
     const uint_t pageId2 = m_instances.add( m_proxy2Bounds );
 
     ASSERT_NE( pageId1, pageId2 );
@@ -211,18 +243,11 @@ TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
 TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).Times( 1 );
-    const uint_t pageId = m_instances.add( m_proxyBounds );
+    const uint_t pageId = m_instances.add( m_proxy1Bounds );
     const uint_t numBuildInputs{ 1 };
     auto         isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
-    // clang-format off
-    const float expectedTransform[12]{
-        2.0f, 0.0f, 0.0f, -1.0f,
-        0.0f, 2.0f, 0.0f, -1.0f,
-        0.0f, 0.0f, 2.0f, -1.0f
-    };
-    // clang-format on
     auto isIAS   = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceId( 0, 0U, pageId ),
-                          hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+                          hasDeviceInstanceTransform( 0, 0U, m_proxy1Transform ) );
     auto setSize = []( const OptixAccelBufferSizes& sizes ) {
         return DoAll( SetArgPointee<4>( sizes ), Return( OPTIX_SUCCESS ) );
     };
@@ -245,7 +270,7 @@ TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
 TEST_F( TestProxyInstance, multipleProxiesInstantiatesGASOncePerProxy )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
-    m_instances.add( m_proxyBounds );
+    m_instances.add( m_proxy1Bounds );
     m_instances.add( m_proxy2Bounds );
     auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     // clang-format off
@@ -275,7 +300,7 @@ TEST_F( TestProxyInstance, multipleProxiesInstantiatesGASOncePerProxy )
 TEST_F( TestProxyInstance, proxyInstantiatesCustomPrimitive )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).Times( 1 );
-    m_instances.add( m_proxyBounds );
+    m_instances.add( m_proxy1Bounds );
     auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     auto isIAS = AllOf( isBuildingNumInstances( 0, 1U ), hasDeviceInstanceTraversable( 0, 0U, m_fakeGAS ) );
     configureAccelComputeMemoryUsage( isGAS );
@@ -292,7 +317,7 @@ TEST_F( TestProxyInstance, resourceCallbackSavesPageId )
     void*            context{};
     EXPECT_CALL( m_loader, createResource( _, _, _ ) )
         .WillOnce( DoAll( SaveArg<1>( &resourceCallback ), SaveArg<2>( &context ), Return( m_startPageId ) ) );
-    m_instances.add( m_proxyBounds );
+    m_instances.add( m_proxy1Bounds );
     const std::vector<uint_t> beforePageIds = m_instances.requestedProxyIds();
 
     void*      result;
@@ -312,7 +337,7 @@ TEST_F( TestProxyInstance, resourceCallbackDeduplicatesPageId )
     void*            context{};
     EXPECT_CALL( m_loader, createResource( _, _, _ ) )
         .WillOnce( DoAll( SaveArg<1>( &resourceCallback ), SaveArg<2>( &context ), Return( m_startPageId ) ) );
-    m_instances.add( m_proxyBounds );
+    m_instances.add( m_proxy1Bounds );
     const std::vector<uint_t> beforePageIds = m_instances.requestedProxyIds();
 
     void* pageTableEntry;
@@ -326,17 +351,10 @@ TEST_F( TestProxyInstance, resourceCallbackDeduplicatesPageId )
 TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
-    const uint_t pageId = m_instances.add( m_proxyBounds );
+    const uint_t pageId = m_instances.add( m_proxy1Bounds );
     auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
-    // clang-format off
-    const float expectedTransform[12]{
-        2.0f, 0.0f, 0.0f, -1.0f,
-        0.0f, 2.0f, 0.0f, -1.0f,
-        0.0f, 0.0f, 2.0f, -1.0f
-    };
-    // clang-format on
     auto           isIAS = AllOf( isBuildingNumInstances( 0, 1U ), hasDeviceInstanceId( 0, 0U, pageId ),
-                                  hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+                                  hasDeviceInstanceTransform( 0, 0U, m_proxy1Transform ) );
     ExpectationSet first;
     first += configureAccelComputeMemoryUsage( isGAS );
     first += configureAccelComputeMemoryUsage( isIAS );
@@ -356,20 +374,20 @@ TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
 TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
-    uint_t    id1 = m_instances.add( m_proxyBounds );
+    uint_t    id1 = m_instances.add( m_proxy1Bounds );
     uint_t    id2 = m_instances.add( m_proxy2Bounds );
     OptixAabb bounds3{ -5.0f, -5.0f, -5.0f, -4.0f, -4.0f, -4.0f };
     uint_t    id3   = m_instances.add( bounds3 );
     auto      isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     // clang-format off
-    float expectedTransform[12]{
+    float expectedTransform3[12]{
         1.0f, 0.0f, 0.0f, -5.0f,
         0.0f, 1.0f, 0.0f, -5.0f,
         0.0f, 0.0f, 1.0f, -5.0f
     };
     // clang-format on
     auto isIAS = AllOf( isBuildingNumInstances( 0, 3 ), hasDeviceInstanceId( 0, 0U, id1 ), hasDeviceInstanceId( 0, 1U, id2 ),
-                        hasDeviceInstanceId( 0, 2U, id3 ), hasDeviceInstanceTransform( 0, 2U, expectedTransform ) );
+                        hasDeviceInstanceId( 0, 2U, id3 ), hasDeviceInstanceTransform( 0, 2U, expectedTransform3 ) );
     ExpectationSet first;
     first += configureAccelComputeMemoryUsage( isGAS );
     first += configureAccelComputeMemoryUsage( isIAS );
@@ -377,7 +395,7 @@ TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
     first += configureAccelBuild( isIAS, m_fakeIAS );
     OptixTraversableHandle updatedIAS{ 7777 };
     auto                   isUpdatedIAS = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceId( 0, 0U, id3 ),
-                                                 hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+                                                 hasDeviceInstanceTransform( 0, 0U, expectedTransform3 ) );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
 
@@ -387,4 +405,48 @@ TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
 
     ASSERT_NE( initialHandle, handle );
     ASSERT_NE( m_startPageId, id3 );
+}
+
+TEST_F( TestProxyInstance, removeOutOfOrderPageIdProxies )
+{
+    // Allocate higher ids, then lower ids
+    const uint_t batch1StartId = m_startPageId + 2 * ProxyInstances::PAGE_CHUNK_SIZE;
+    ExpectationSet firstBatch;
+    firstBatch +=
+        EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( batch1StartId ) );
+    EXPECT_CALL( m_loader, createResource( _, _, _ ) ).After( firstBatch ).WillOnce( Return( m_startPageId ) );
+    std::vector<OptixAabb> batch1ProxyBounds;
+    std::vector<uint_t>    batch1ProxyIds;
+    for( uint_t i = 0; i < ProxyInstances::PAGE_CHUNK_SIZE; ++i )
+    {
+        const float     minCoord = 10.0f + static_cast<float>( i );
+        const float     maxCoord = minCoord + 1.0f;
+        const OptixAabb bounds{ minCoord, minCoord, minCoord, maxCoord, maxCoord, maxCoord };
+        batch1ProxyBounds.push_back( bounds );
+        batch1ProxyIds.push_back( m_instances.add( bounds ) );
+        ASSERT_GE( batch1ProxyIds.back(), batch1StartId );
+    }
+    const uint_t lowerInstanceIndex = 0U;
+    const uint_t lowerPageId        = m_instances.add( m_proxy1Bounds );
+    ASSERT_LT( lowerPageId, batch1StartId );
+    auto         isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
+    const uint_t numInitialInstances = ProxyInstances::PAGE_CHUNK_SIZE + 1;
+    auto isIAS = AllOf( isBuildingNumInstances( 0, numInitialInstances ), hasDeviceInstanceId( 0, lowerInstanceIndex, lowerPageId ),
+                        hasDeviceInstanceTransform( 0, lowerInstanceIndex, m_proxy1Transform ) );
+    ExpectationSet first;
+    first += configureAccelComputeMemoryUsage( isGAS );
+    first += configureAccelComputeMemoryUsage( isIAS );
+    first += configureAccelBuild( isGAS, m_fakeGAS );
+    first += configureAccelBuild( isIAS, m_fakeIAS );
+    OptixTraversableHandle updatedIAS{ 7777 };
+    auto                   isUpdatedIAS =
+        AllOf( isBuildingNumInstances( 0, numInitialInstances - 1U ), Not( hasAnyDeviceInstanceId( 0, lowerPageId ) ) );
+    configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
+    OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    m_instances.remove( lowerPageId );
+    OptixTraversableHandle handle = m_instances.createTraversable( m_fakeDc, m_stream );
+
+    ASSERT_NE( initialHandle, handle );
+    ASSERT_EQ( updatedIAS, handle );
 }
