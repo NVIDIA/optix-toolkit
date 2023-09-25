@@ -202,6 +202,34 @@ MATCHER_P2( hasNumInstances, n, num, "" )
     return true;
 }
 
+MATCHER_P3( hasDeviceInstanceId, n, index, id, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    if( index >= instances.numInstances )
+    {
+        *result_listener << "input " << n << " instance index " << index << " exceeds " << instances.numInstances;
+        return false;
+    }
+    std::vector<OptixInstance> actualInstances;
+    actualInstances.resize( instances.numInstances );
+    OTK_ERROR_CHECK( cudaMemcpy( actualInstances.data(), otk::bit_cast<void*>( instances.instances ),
+                                 sizeof( OptixInstance ) * instances.numInstances, cudaMemcpyDeviceToHost ) );
+    if( actualInstances[index].instanceId != id )
+    {
+        *result_listener << "input " << n << " instance " << index << " has different id "
+                         << actualInstances[index].instanceId << " != " << id;
+        return false;
+    }
+
+    return true;
+}
+
 inline std::string compareRanges( const float* begin, const float* end, const float* rhs, const std::function<bool( float, float )>& compare )
 {
     std::string result;

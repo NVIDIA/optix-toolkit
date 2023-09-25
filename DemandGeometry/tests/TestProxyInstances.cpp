@@ -211,7 +211,7 @@ TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
 TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).Times( 1 );
-    m_instances.add( m_proxyBounds );
+    const uint_t pageId = m_instances.add( m_proxyBounds );
     const uint_t numBuildInputs{ 1 };
     auto         isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     // clang-format off
@@ -221,7 +221,8 @@ TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
         0.0f, 0.0f, 2.0f, -1.0f
     };
     // clang-format on
-    auto isIAS   = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+    auto isIAS   = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceId( 0, 0U, pageId ),
+                          hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
     auto setSize = []( const OptixAccelBufferSizes& sizes ) {
         return DoAll( SetArgPointee<4>( sizes ), Return( OPTIX_SUCCESS ) );
     };
@@ -325,7 +326,7 @@ TEST_F( TestProxyInstance, resourceCallbackDeduplicatesPageId )
 TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
 {
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( m_startPageId ) );
-    m_instances.add( m_proxyBounds );
+    const uint_t pageId = m_instances.add( m_proxyBounds );
     auto isGAS = AllOf( NotNull(), isCustomPrimitiveBuildInput( 0 ), hasNumCustomPrimitives( 0, 1U ) );
     // clang-format off
     const float expectedTransform[12]{
@@ -334,14 +335,15 @@ TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
         0.0f, 0.0f, 2.0f, -1.0f
     };
     // clang-format on
-    auto isIAS = AllOf( isBuildingNumInstances( 0, 1U ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+    auto           isIAS = AllOf( isBuildingNumInstances( 0, 1U ), hasDeviceInstanceId( 0, 0U, pageId ),
+                                  hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
     ExpectationSet first;
     first += configureAccelComputeMemoryUsage( isGAS );
     first += configureAccelComputeMemoryUsage( isIAS );
     first += configureAccelBuild( isGAS, m_fakeGAS );
     first += configureAccelBuild( isIAS, m_fakeIAS );
     OptixTraversableHandle updatedIAS{ 7777 };
-    auto                   isUpdatedIAS = isBuildingNumInstances( 0, 0 );
+    auto                   isUpdatedIAS = isBuildingNumInstances( 0, 0U );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     m_instances.createTraversable( m_fakeDc, m_stream );
 
@@ -366,14 +368,16 @@ TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
         0.0f, 0.0f, 1.0f, -5.0f
     };
     // clang-format on
-    auto isIAS = AllOf( isBuildingNumInstances( 0, 3 ), hasDeviceInstanceTransform( 0, 2U, expectedTransform ) );
+    auto isIAS = AllOf( isBuildingNumInstances( 0, 3 ), hasDeviceInstanceId( 0, 0U, id1 ), hasDeviceInstanceId( 0, 1U, id2 ),
+                        hasDeviceInstanceId( 0, 2U, id3 ), hasDeviceInstanceTransform( 0, 2U, expectedTransform ) );
     ExpectationSet first;
     first += configureAccelComputeMemoryUsage( isGAS );
     first += configureAccelComputeMemoryUsage( isIAS );
     first += configureAccelBuild( isGAS, m_fakeGAS );
     first += configureAccelBuild( isIAS, m_fakeIAS );
     OptixTraversableHandle updatedIAS{ 7777 };
-    auto isUpdatedIAS = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
+    auto                   isUpdatedIAS = AllOf( isBuildingNumInstances( 0, 1 ), hasDeviceInstanceId( 0, 0U, id3 ),
+                                                 hasDeviceInstanceTransform( 0, 0U, expectedTransform ) );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
 
