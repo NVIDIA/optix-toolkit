@@ -46,8 +46,8 @@ add_library(OptiXToolkit::DemandGeometry::Mocks ALIAS DemandGeometryMocks)
 otk_add_executable( TestDemandGeometry
   LaunchIntersectAabb.h
   LaunchIntersectAabb.cu
-  test_intersectAabb.cpp
-  test_proxyInstances.cpp
+  TestIntersectAabb.cpp
+  TestProxyInstances.cpp
   TestMatchers.cpp
 )
 target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::DemandGeometry::Mocks OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
