@@ -103,6 +103,9 @@ class SyncVector
     /// Remove the element at the given position
     void erase( iterator pos ) { m_host.erase( pos ); }
 
+    /// Insert the element at the given position
+    void insert( const_iterator pos, const T& value ) { m_host.insert( pos, value ); }
+
     /// Synchronously copy host data to the device.
     ///
     /// Device memory is allocated on the first copy request.
