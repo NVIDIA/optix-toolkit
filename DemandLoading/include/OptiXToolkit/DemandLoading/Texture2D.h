@@ -113,6 +113,7 @@ D_INLINE bool requestCascade( const DeviceContext& context, unsigned int texture
     return true;
 }
 
+
 #if __CUDA_ARCH__ >= 600
 #define SPARSE_TEX_SUPPORT true
 #endif
@@ -240,6 +241,29 @@ D_INLINE bool requestTexFootprint2DGrad( const TextureSampler& sampler,
     else if( fracLevel > 1.0f - MAX_SW_MIPLEVEL_ERROR )
         isResident = requestTexFootprint2DRect( sampler, referenceBits, residenceBits, x, y, dxmax, dymax, finefp->level + 2, true );
     return isResident;
+}
+
+
+/// Request the footprint for a texture sample at coords (x,y) with the specified lod value.
+D_INLINE bool requestTexFootprint2DLod( const TextureSampler& sampler,
+                                        unsigned int*         referenceBits,
+                                        unsigned int*         residenceBits,
+                                        float                 x,
+                                        float                 y,
+                                        float                 lod )
+{
+    // Get the footprint for the fine level, to find out which mip levels are sampled.
+    unsigned int singleMipLevel;
+    unsigned int desc = *reinterpret_cast<const unsigned int*>( &sampler.desc );
+    uint4 fp = optixTexFootprint2DLod( sampler.texture, desc, x, y, lod, FINE_MIP_LEVEL, &singleMipLevel );
+    Texture2DFootprint* finefp = reinterpret_cast<Texture2DFootprint*>( &fp );
+    unsigned int mipLevel = finefp->level;
+
+    // Request footprint for rectangular extent.
+    float dx = exp2f( mipLevel ) / sampler.width;
+    float dy = exp2f( mipLevel ) / sampler.height;
+
+    return requestTexFootprint2DRect( sampler, referenceBits, residenceBits, x, y, dx, dy, mipLevel, singleMipLevel );
 }
 
 #endif  // SPARSE_TEX_SUPPORT
