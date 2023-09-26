@@ -116,10 +116,10 @@ TEST_F( TestTileIndexing, wrapTexCoord )
 
 TEST_F( TestTileIndexing, calculateNumTilesInLevel )
 {
-    EXPECT_EQ( 64u, calculateNumTilesInLevel( 1, 1 ) );
-    EXPECT_EQ( 256u, calculateNumTilesInLevel( 9, 9 ) );
+    EXPECT_EQ( 1u, calculateNumTilesInLevel( 1, 1 ) );
+    EXPECT_EQ( 81u, calculateNumTilesInLevel( 9, 9 ) );
     EXPECT_EQ( 128u, calculateNumTilesInLevel( 16, 8 ) );
-    EXPECT_EQ( 128u, calculateNumTilesInLevel( 4, 16 ) );
+    EXPECT_EQ( 64u, calculateNumTilesInLevel( 4, 16 ) );
 }
 
 TEST_F( TestTileIndexing, unpackTileIndex )
@@ -132,12 +132,12 @@ TEST_F( TestTileIndexing, unpackTileIndex )
     EXPECT_EQ( 0u, x );
     EXPECT_EQ( 0u, y );
 
-    unpackTileIndex( sampler, 201, mipLevel, x, y );
+    unpackTileIndex( sampler, 30, mipLevel, x, y );
     EXPECT_EQ( 0u, mipLevel );
     EXPECT_EQ( 1u, x );
     EXPECT_EQ( 1u, y );
 
-    unpackTileIndex( sampler, 73, mipLevel, x, y );
+    unpackTileIndex( sampler, 4, mipLevel, x, y );
     EXPECT_EQ( 2u, mipLevel );
     EXPECT_EQ( 1u, x );
     EXPECT_EQ( 1u, y );

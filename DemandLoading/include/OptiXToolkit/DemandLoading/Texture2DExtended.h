@@ -35,7 +35,7 @@
 
 namespace demandLoading {
 
-__device__ static __forceinline__ void wrapAndSeparateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
+D_INLINE void wrapAndSeparateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
 {
     newx = wrapTexCoord( x, wrapMode ) * udim;
     xidx = static_cast<unsigned int>( floorf( newx ) );
@@ -47,8 +47,7 @@ __device__ static __forceinline__ void wrapAndSeparateUdimCoord( float x, CUaddr
 /// Fetch from demand-loaded udim texture.  A "udim" texture is an array of texture images that are treated as a single texture
 /// object (with an optional base texture).  This entry point does not combine multiple samples to blend across subtexture boundaries.
 /// Use CU_TR_ADDRESS_MODE_CLAMP when defining all subtextures. Other blending modes will show lines between subtextures.
-template <class TYPE>
-__device__ static __forceinline__ TYPE
+template <class TYPE> D_INLINE TYPE
 tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
 {
     TYPE rval{};
@@ -89,8 +88,7 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
 /// Fetch from demand-loaded udim texture.  A "udim" texture is an array of texture images that are treated as a single texture
 /// object (with an optional base texture).  This entry point will combine multiple samples to blend across subtexture boundaries.
 /// Use CU_TR_ADDRESS_MODE_BORDER when defining all subtextures. Other blending modes will show lines between subtextures.
-template <class TYPE>
-__device__ static __forceinline__ TYPE
+template <class TYPE> D_INLINE TYPE
 tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
 {
     TYPE rval{};
@@ -111,8 +109,8 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         const unsigned int vdim = bsmp->vdim;
 
         // Find the xy extents of the texture gradients
-        float dx = fmax( fabsf( ddx.x ), fabsf( ddy.x ) );
-        float dy = fmax( fabsf( ddx.y ), fabsf( ddy.y ) );
+        float dx = maxf( fabsf( ddx.x ), fabsf( ddy.x ) );
+        float dy = maxf( fabsf( ddx.y ), fabsf( ddy.y ) );
 
         // Clamp large gradients (that are < 1) to prevent the texture footprint from spanning
         // more than half a subtexture, which could cause artifacts at subtexture boundaries.
