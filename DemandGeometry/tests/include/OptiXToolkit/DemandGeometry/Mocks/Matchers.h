@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <OptiXToolkit/Memory/BitCast.h>
+
 #include <optix.h>
 
 #include <gmock/gmock.h>
