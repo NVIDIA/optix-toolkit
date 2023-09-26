@@ -39,7 +39,7 @@ add_library(DemandGeometryMocks STATIC
   MockOptix.cpp
 )
 target_include_directories(DemandGeometryMocks PUBLIC include)
-target_link_libraries(DemandGeometryMocks PUBLIC OptiXToolkit::Memory OptiX::OptiX GTest::gmock CUDA::cuda_driver)
+target_link_libraries(DemandGeometryMocks PUBLIC OptiXToolkit::Error OptiXToolkit::Memory OptiX::OptiX GTest::gmock CUDA::cuda_driver)
 set_target_properties(DemandGeometryMocks PROPERTIES FOLDER DemandLoading/tests)
 add_library(OptiXToolkit::DemandGeometry::Mocks ALIAS DemandGeometryMocks)
 

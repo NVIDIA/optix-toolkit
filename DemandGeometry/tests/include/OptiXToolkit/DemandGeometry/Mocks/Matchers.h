@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 
 #include <optix.h>
