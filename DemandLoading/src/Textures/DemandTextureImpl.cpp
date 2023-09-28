@@ -357,8 +357,7 @@ void DemandTextureImpl::accumulateStatistics( Statistics& stats )
         stats.deviceMemoryUsed += getTextureSizeInBytes( info );
 }
 
-// Tiles can be read concurrently.  The EXRReader currently locks, however, because the OpenEXR 2.x
-// tile reading API is stateful.  That should be fixed in OpenEXR 3.0.
+// Tiles can be read concurrently.
 bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer,
                                   size_t tileBufferSize, CUstream stream ) const
 {
@@ -414,9 +413,6 @@ bool DemandTextureImpl::readMipTail( char* buffer, size_t bufferSize, CUstream s
     return readMipLevels( buffer, bufferSize, getMipTailFirstLevel(), stream );
 }
 
-// Request deduplication will ensure that concurrent calls to readMipTail do not occur.  Note that
-// EXRReader currently locks, since it uses the OpenEXR 2.x tile reading API, which is stateful.  
-// CoreEXRReader uses OpenEXR 3.0, which fixes the issue.
 bool DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const
 {
     OTK_ASSERT( m_isInitialized );

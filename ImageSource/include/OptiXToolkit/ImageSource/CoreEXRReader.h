@@ -41,7 +41,8 @@ using exr_context_t = struct _priv_exr_context_t*;
 
 namespace imageSource {
 
-/// OpenEXR Core image reader.
+/// OpenEXR Core image reader. Uses OpenEXR 3.0. This is preferred because
+/// it allows concurrent reading of tiles in the same EXR file.
 class CoreEXRReader : public ImageSourceBase
 {
   public:

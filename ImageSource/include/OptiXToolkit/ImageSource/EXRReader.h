@@ -50,7 +50,8 @@ namespace OTK_IMF_NAMESPACE
 
 namespace imageSource {
 
-/// OpenEXR image reader.
+/// OpenEXR image reader. Uses the OpenEXR 2.x tile reading API.
+/// CoreEXRReader is preferred, since it allows concurrent tile reads in the same texture.
 class EXRReader : public ImageSourceBase
 {
   public:
