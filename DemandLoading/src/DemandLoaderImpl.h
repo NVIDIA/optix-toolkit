@@ -64,12 +64,6 @@ class DemandTexture;
 class RequestProcessor;
 struct TextureDescriptor;
 
-#if CUDA_VERSION >= 11020
-#define DEVICE_MEMORY_POOL_ALLOCATOR otk::DeviceAsyncAllocator
-#else
-#define DEVICE_MEMORY_POOL_ALLOCATOR otk::DeviceAllocator
-#endif
-
 /// DemandLoader demonstrates how to implement demand-loaded textures using the OptiX paging library.
 class DemandLoaderImpl : public DemandLoader
 {
@@ -201,7 +195,7 @@ class DemandLoaderImpl : public DemandLoader
     SamplerRequestHandler m_samplerRequestHandler;  // Handles requests for texture samplers.
     CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
 
-    otk::MemoryPool<DEVICE_MEMORY_POOL_ALLOCATOR, otk::RingSuballocator> m_deviceTransferPool;
+    otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator> m_deviceTransferPool;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 

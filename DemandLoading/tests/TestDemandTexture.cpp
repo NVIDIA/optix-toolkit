@@ -119,6 +119,10 @@ TEST_F( TestDemandTexture, TestInitNonMipMapped )
 
 TEST_F( TestDemandTexture, TestFillTile )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256);
 
     unsigned int      mipLevel      = 0;
@@ -176,6 +180,10 @@ TEST_F( TestDemandTexture, TestFillTile )
 
 TEST_F( TestDemandTexture, TestReadMipTail )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256); 
 
     // Read the entire mip tail.
@@ -212,6 +220,10 @@ TEST_F( TestDemandTexture, TestReadMipTail )
 
 TEST_F( TestDemandTexture, TestFillMipTail )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256);
 
     // Read the entire mip tail.
@@ -372,6 +384,10 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
 
 TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256, false, true);
 
     // Read and fill the corner tiles, leaving the others non-resident.

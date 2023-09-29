@@ -32,6 +32,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 
 #include <algorithm>
 #include <cmath>
@@ -58,6 +59,11 @@ class TestTextureFill : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
+        CHK( cudaSetDevice( m_deviceIndex ) );
         CHK( cudaFree( nullptr ) );
     }
 
@@ -105,6 +111,9 @@ class TestTextureFill : public testing::Test
                             unsigned int              mapBatchSize = 1 );
 
     void doMapTilesTest( imageSource::ImageSource& imageSource, unsigned int tileBlockWidth, unsigned int tileBlockHeight, bool unmap );
+
+  private:
+    unsigned int m_deviceIndex;
 };
 
 }  // end namespace
@@ -196,6 +205,10 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                                          bool                      batchMode,
                                          unsigned int              mapBatchSize )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     // Get image properties
     imageSource::TextureInfo texInfo;
     imageSource.open( &texInfo );
@@ -399,6 +412,10 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
 void TestTextureFill::doMapTilesTest( imageSource::ImageSource& imageSource, unsigned int tileBlockWidth, unsigned int tileBlockHeight, bool unmap )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     // Get image properties
     imageSource::TextureInfo texInfo;
     imageSource.open( &texInfo );

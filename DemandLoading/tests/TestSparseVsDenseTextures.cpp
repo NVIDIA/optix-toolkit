@@ -9,6 +9,8 @@
 #include <cuda_runtime.h>
 #include <gtest/gtest.h>
 
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+
 class TestSparseVsDenseTextures : public testing::Test
 {
   protected:
@@ -21,6 +23,10 @@ class TestSparseVsDenseTextures : public testing::Test
   public:
     void SetUp() override
     {
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
         OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
@@ -106,6 +112,10 @@ void TestSparseVsDenseTextures::createDenseTexture( int width, int height )
 
 TEST_F( TestSparseVsDenseTextures, denseSparseSparse )
 {
+    // Skip test if device does not support sparse textures
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
     createDenseArray( 8, 8 );
     createDenseTexture( 8, 8 );
 

@@ -191,9 +191,11 @@ void DeferredImageLoadingTest::initDemandLoading()
     m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
     if( m_deviceIndex == demandLoading::MAX_DEVICES )
         throw std::runtime_error( "No devices support demand loading" );
+
     OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
     OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
+
     m_loader = createDemandLoader( options );
 }
 
@@ -432,11 +434,7 @@ static imageSource::TextureInfo stockNonTiledMipMappedImage()
 TEST_F( DeferredImageLoadingTest, deferredTileIsLoadedAgain )
 {
     // Ignore tests for devices that do not support texture footprints
-    CUdevice device;
-    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-    int sparseSupport = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
-    if( !sparseSupport )
+    if( !demandLoading::deviceSupportsSparseTextures( m_deviceIndex ) )
         return;
 
     using namespace testing;

@@ -30,6 +30,10 @@
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
+#if __CUDA_ARCH__ >= 600
+#define SPARSE_TEX_SUPPORT true
+#endif
+
 __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
 {
     unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -40,8 +44,12 @@ __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4*
     float s = x / (float)width;
     float t = y / (float)height;
 
-    bool   isResident = false;
-    float4 pixel      = tex2DLod<float4>( texture, s, t, lod, &isResident );
+    bool   isResident = true;
+#ifdef SPARSE_TEX_SUPPORT
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod, &isResident );
+#else
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod );
+#endif
 
     output[y * width + x] = isResident ? pixel : make_float4( -1.f, -1.f, -1.f, -1.f );
 }
@@ -65,8 +73,12 @@ __global__ static void wrapTestKernel( cudaTextureObject_t texture, float4* outp
     float s = 3.f * x / (float)width - 1;
     float t = 3.f * y / (float)height - 1;
 
-    bool   isResident = false;
-    float4 pixel      = tex2DLod<float4>( texture, s, t, lod, &isResident );
+    bool isResident = true;
+#ifdef SPARSE_TEX_SUPPORT
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod, &isResident );
+#else
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod );
+#endif
 
     output[y * width + x] = isResident ? pixel : make_float4( 1.f, 0.f, 1.f, 0.f );
 }

@@ -30,6 +30,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 
 #include <algorithm>
 #include <cmath>
@@ -38,7 +39,7 @@
 #include <iostream>
 #include <vector>
 
-#define CHK( status ) ASSERT_TRUE( ( status ) == CUDA_SUCCESS )
+#define CHK( status ) ASSERT_TRUE( static_cast<unsigned int>( status ) == CUDA_SUCCESS )
 
 //------------------------------------------------------------------------------
 // Test Fixtures
@@ -54,8 +55,18 @@ class TestTextureInstantiation : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
+        CHK( cudaSetDevice( m_deviceIndex ) );
         cudaFree( nullptr );
     }
+
+    void testMipmapTextures( unsigned int width, unsigned int height, unsigned int numTextures, unsigned int flags );
+
+  private:
+    unsigned int m_deviceIndex = 0;
 };
 
 }  // end namespace
@@ -108,8 +119,12 @@ void mapMipTail( CUmipmappedArray& array, CUmemGenericAllocationHandle& tileHand
     CHK( cuMemMapArrayAsync( &mapInfo, 1, stream ) );
 }
 
-void testMipmapTextures( unsigned int width, unsigned int height, unsigned int numTextures, unsigned int flags )
+void TestTextureInstantiation::testMipmapTextures( unsigned int width, unsigned int height, unsigned int numTextures, unsigned int flags )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     int numLevels = static_cast<int>( 1.f + std::log2( static_cast<float>( std::max( width, height ) ) ) );
 
     std::vector<CUmipmappedArray> mipmapArrays( numTextures );

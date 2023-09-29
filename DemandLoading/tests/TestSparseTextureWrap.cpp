@@ -35,6 +35,7 @@
 #include <OptiXToolkit/Memory/FixedSuballocator.h>
 #include <OptiXToolkit/Memory/HeapSuballocator.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 
 #include "Textures/SparseTexture.h"
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
@@ -127,6 +128,10 @@ class TestSparseTextureWrap : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
         OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
@@ -142,7 +147,7 @@ class TestSparseTextureWrap : public testing::Test
   protected:
     void testLargeSparseTexture( CUstream stream, unsigned int res, unsigned int mipLevel, const char* outFileName );
 
-    const unsigned int m_deviceIndex = 0;
+    unsigned int m_deviceIndex = 0;
     CUstream m_stream{};
     Options m_options{};
     std::unique_ptr<MemoryPool<TextureTileAllocator, HeapSuballocator>> m_tilePool;
@@ -150,6 +155,10 @@ class TestSparseTextureWrap : public testing::Test
 
 TEST_F( TestSparseTextureWrap, Test )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     // Initialize CUDA.
     OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
@@ -306,6 +315,10 @@ void TestSparseTextureWrap::testLargeSparseTexture( CUstream stream, unsigned in
 // This test is too slow for inclusion in the smoke tests.
 TEST_F( TestSparseTextureWrap, DISABLED_largeTextures )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     testLargeSparseTexture( m_stream, 16384, 0, "largeSparse-16k-l0.ppm" );
     testLargeSparseTexture( m_stream, 16384, 2, "largeSparse-16k-l2.ppm" );
     testLargeSparseTexture( m_stream, 8194, 2, "largeSparse-8k-l2.ppm" );

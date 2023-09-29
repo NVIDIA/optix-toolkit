@@ -33,19 +33,25 @@
 
 #include <cuda.h>
 
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+
 using namespace demandLoading;
 using namespace imageSource;
 
 class TestSparseTexture : public testing::Test
 {
   protected:
-    unsigned int      m_deviceIndex = 0;
+    unsigned int      m_deviceIndex;
     TextureDescriptor m_desc;
     TextureInfo       m_info;
 
   public:
     void SetUp() override
     {
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
         OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
@@ -67,6 +73,10 @@ class TestSparseTexture : public testing::Test
 
 TEST_F( TestSparseTexture, TestInit )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     SparseTexture texture;
     EXPECT_FALSE( texture.isInitialized() );
 
