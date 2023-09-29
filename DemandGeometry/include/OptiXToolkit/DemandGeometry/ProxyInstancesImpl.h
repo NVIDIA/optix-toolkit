@@ -50,7 +50,7 @@ __forceinline__ __device__ uint_t& attr( T& val )
 
 extern "C" __global__ void __intersection__electricBoundingBox()
 {
-    const uint_t instanceIdx = optixGetInstanceIndex();
+    const uint_t     instanceIdx = optixGetInstanceIndex();
     const OptixAabb& proxy       = app::getContext().proxies[instanceIdx];
 
     float  tIntersect{};
@@ -66,7 +66,7 @@ extern "C" __global__ void __intersection__electricBoundingBox()
 extern "C" __global__ void __closesthit__electricBoundingBox()
 {
     using namespace otk;
-    
+
     float3 objectNormal = make_float3( __uint_as_float( optixGetAttribute_0() ), __uint_as_float( optixGetAttribute_1() ),
                                        __uint_as_float( optixGetAttribute_2() ) );
     const uint_t pageId = optixGetAttribute_3();
