@@ -109,6 +109,12 @@ class DeviceAsyncAllocator
     {
         // Record current CUDA context.
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+
+#if OTK_USE_CUDA_MEMORY_POOLS
+        CUdevice device;
+        OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
+        OTK_ERROR_CHECK( cuDeviceGetAttribute( &m_usePools, CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED, device ) );
+#endif
     }
 
     void* allocate( size_t numBytes, CUstream stream = 0 )
@@ -118,11 +124,16 @@ class DeviceAsyncAllocator
         if( numBytes == 0 )
             return nullptr;  // cuMemAlloc does not handle this.
         void* result;
+
 #if OTK_USE_CUDA_MEMORY_POOLS
-        OTK_ERROR_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+        if( m_usePools )
+            OTK_ERROR_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+        else
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
 #else
         OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
 #endif
+
         return result;
     }
 
@@ -130,8 +141,12 @@ class DeviceAsyncAllocator
     {
         OTK_ASSERT_CONTEXT_IS( m_context );
         OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+
 #if OTK_USE_CUDA_MEMORY_POOLS
-        OTK_ERROR_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( ptr ), stream ) );
+        if( m_usePools )
+            OTK_ERROR_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( ptr ), stream ) );
+        else
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
 #else
         OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
 #endif
@@ -148,6 +163,7 @@ class DeviceAsyncAllocator
 
   private:
     CUcontext m_context;
+    int m_usePools = 0;
 };
 
 /// Texture tile allocator using cuMemCreate
