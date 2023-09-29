@@ -601,7 +601,7 @@ int main( int argc, char* argv[] )
     const char* outFileName  = "";
     bool        glInterop    = true;
     int         numLaunches  = 256;
-    int         sceneId      = 0;
+    int         sceneId      = 1;
 
     printUsage( argv[0] );
 
