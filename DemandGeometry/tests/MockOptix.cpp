@@ -51,6 +51,7 @@ void initMockOptix( MockOptix& mock )
                                             tempBufferSizeInBytes, outputBuffer, outputBufferSizeInBytes, outputHandle,
                                             emittedProperties, numEmittedProperties );
         };
+#if OPTIX_VERSION < 70700
     g_optixFunctionTable.optixModuleCreateFromPTX =
         []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
             const OptixPipelineCompileOptions* pipelineCompileOptions, const char* PTX, size_t PTXsize, char* logString,
@@ -58,6 +59,15 @@ void initMockOptix( MockOptix& mock )
             return g_mockOptix->moduleCreateFromPTX( context, moduleCompileOptions, pipelineCompileOptions, PTX,
                                                      PTXsize, logString, logStringSize, module );
         };
+#else
+    g_optixFunctionTable.optixModuleCreate =
+        []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
+            const OptixPipelineCompileOptions* pipelineCompileOptions, const char* PTX, size_t PTXsize, char* logString,
+            size_t* logStringSize, OptixModule* module ) {
+            return g_mockOptix->moduleCreate( context, moduleCompileOptions, pipelineCompileOptions, PTX,
+                                                     PTXsize, logString, logStringSize, module );
+        };
+#endif
     g_optixFunctionTable.optixModuleDestroy = []( OptixModule module ) { return g_mockOptix->moduleDestroy( module ); };
     g_optixFunctionTable.optixBuiltinISModuleGet = []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
                                                        const OptixPipelineCompileOptions* pipelineCompileOptions,

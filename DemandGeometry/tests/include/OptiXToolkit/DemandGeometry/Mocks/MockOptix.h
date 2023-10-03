@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <optix.h>
 #include <optix_function_table.h>
 
 #include <gmock/gmock.h>
@@ -57,6 +58,7 @@ class MockOptix
                    OptixTraversableHandle*       outputHandle,
                    const OptixAccelEmitDesc*     emittedProperties,
                    unsigned int                  numEmittedProperties ) );
+ #if OPTIX_VERSION < 70700
     MOCK_METHOD( OptixResult,
                  moduleCreateFromPTX,
                  ( OptixDeviceContext                 context,
@@ -67,6 +69,18 @@ class MockOptix
                    char*                              logString,
                    size_t*                            logStringSize,
                    OptixModule*                       module ) );
+#else
+    MOCK_METHOD( OptixResult,
+                 moduleCreate,
+                 ( OptixDeviceContext                 context,
+                   const OptixModuleCompileOptions*   moduleCompileOptions,
+                   const OptixPipelineCompileOptions* pipelineCompileOptions,
+                   const char*                        PTX,
+                   size_t                             PTXsize,
+                   char*                              logString,
+                   size_t*                            logStringSize,
+                   OptixModule*                       module ) );
+#endif
     MOCK_METHOD( OptixResult, moduleDestroy, ( OptixModule module ) );
     MOCK_METHOD( OptixResult,
                  builtinISModuleGet,
