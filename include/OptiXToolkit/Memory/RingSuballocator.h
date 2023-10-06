@@ -29,6 +29,7 @@
 #pragma once
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
+#include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 #include <algorithm>

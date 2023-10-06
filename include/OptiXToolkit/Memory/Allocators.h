@@ -36,6 +36,7 @@
 
 namespace otk {
 
+const uint64_t DEFAULT_ALLOC_SIZE = 8 * 1024 * 1024;
 const unsigned int HOST_DEVICE = 0xFFFFFFFF;
 
 /// Host allocator using malloc
@@ -210,7 +211,7 @@ class TextureTileAllocator
         size_t              size;
         CUmemAllocationProp prop( makeAllocationProp() );
         OTK_ERROR_CHECK( cuMemGetAllocationGranularity( &size, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED ) );
-        return size ? size : 8 << 20;  // get the recommended size, or 8MB if it returns 0
+        return std::max( size, static_cast<size_t>( DEFAULT_ALLOC_SIZE ) );
     }
 
   private:
