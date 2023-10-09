@@ -362,7 +362,7 @@ class TestDemandLoaderBatches : public TestDemandLoader
         return static_cast<TestDemandLoaderBatches*>( context )->loadResource( stream, pageId, pageTableEntry );
     }
     bool loadResource( CUstream stream, unsigned int pageId, void** pageTableEntry );
-    void testBatch( CUstream stream, bool testAbort );
+    void testBatch( unsigned int deviceIndex, bool testAbort );
 
     std::atomic<int> m_numRequestsProcessed{ 0 };
 };
@@ -397,7 +397,7 @@ bool TestDemandLoaderBatches::loadResource( CUstream /*stream*/, unsigned int pa
     return true;
 }
 
-void TestDemandLoaderBatches::testBatch( CUstream stream, bool testAbort )
+void TestDemandLoaderBatches::testBatch( unsigned int deviceIndex, bool testAbort )
 {
     CUstream stream = m_streams[deviceIndex];
     DemandLoaderImpl* loader = m_loaders[deviceIndex];
@@ -433,7 +433,7 @@ void TestDemandLoaderBatches::testBatch( CUstream stream, bool testAbort )
         // should automatically restart on the next iteration.
         if( testAbort )
         {
-            m_loader->abort();
+            loader->abort();
             cudaDeviceSynchronize();
             currentPage += batchSize;
         }
@@ -465,15 +465,15 @@ TEST_F( TestDemandLoaderBatches, LoopTest )
     {
         DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
         for( int i = 0; i < 4; ++i )
-            testBatch( m_streams[device], /*testAbort=*/false );
+            testBatch( deviceIndex, /*testAbort=*/false );
     }
 }
 
 TEST_F( TestDemandLoaderBatches, TestAbort )
 {
-    for( unsigned int device : m_loader->getDevices() )
+    for( unsigned int deviceIndex = 0; deviceIndex < m_loaders.size(); ++deviceIndex )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( device ) );
-        testBatch( m_streams[device], /*testAbort=*/true );
+        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        testBatch( deviceIndex, /*testAbort=*/true );
     }
 }

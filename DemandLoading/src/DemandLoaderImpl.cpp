@@ -94,8 +94,6 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
         CascadeRequestFilter* requestFilter = new CascadeRequestFilter( cascadeStartPage, cascadeStartPage + numCascadePages, this );
         m_requestProcessor.setRequestFilter( std::shared_ptr<RequestFilter>(requestFilter) );
     }
-
-    m_requestProcessor.start( options.maxThreads );
 }
 
 DemandLoaderImpl::~DemandLoaderImpl()
