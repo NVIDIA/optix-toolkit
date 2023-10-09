@@ -70,7 +70,6 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
     DeviceMemoryManager* m_deviceMemoryManager;
 };
 
-
 namespace {
 
 std::shared_ptr<demandLoading::Options> configure( demandLoading::Options options )
@@ -176,6 +175,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 entryPointId = std::min( textureId, entryPointId );
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
+                tex->setUdimTexture( startTextureId, udim, vdim, false );
 
                 // Record the image reader and texture descriptor.
                 m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
@@ -187,12 +187,12 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
         }
     }
 
-    m_textures[entryPointId]->setUdimTexture( startTextureId, udim, vdim, false );
     if( baseTextureId >= 0 )
     {
         m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, true );
         return *m_textures[baseTextureId];
     }
+
     return *m_textures[entryPointId];
 }
 
@@ -288,6 +288,26 @@ void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
     m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ) );
 }
 
+void DemandLoaderImpl::initUdimTexture( CUstream stream, unsigned int baseTextureId )
+{
+    OTK_CONTEXT_STREAM_CUDA_CHECK( m_cudaContext, stream );
+    m_samplerRequestHandler.loadPage( stream, baseTextureId, true ); // make sure the sampler is reloaded to get udim params.
+    m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( baseTextureId, getOptions().maxTextures ) );
+
+    const DemandTextureImpl* baseTexture = m_textures.at( baseTextureId ).get();
+    const TextureSampler& baseSampler = baseTexture->getSampler();
+
+    for( unsigned int v = 0; v < baseSampler.vdim; ++v )
+    {
+        for( unsigned int u = 0; u < baseSampler.udim; ++u)
+        {
+            unsigned int subTextureId = baseSampler.udimStartPage + v * baseSampler.udim + u;
+            if( subTextureId != baseTextureId )
+                initTexture( stream, subTextureId );
+        }
+    }
+}
+
 unsigned int DemandLoaderImpl::getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
 {
     return m_textures[textureId]->getRequestHandler()->getTextureTilePageId( mipLevel, tileX, tileY );
@@ -312,7 +332,6 @@ bool DemandLoaderImpl::pageResident( unsigned int pageId )
     return pagingSystem->isResident( pageId );
 }
 
-// Returns false if the device doesn't support sparse textures.
 bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
@@ -320,9 +339,7 @@ bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
     return m_pageLoader->pushMappings( stream, context );
 }
 
-// Process page requests.
 Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
-
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
@@ -375,7 +392,7 @@ void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
         textureRequestHandler->unmapTileResource( stream, pageId );
 }
 
-void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, void* pageTableEntry )
+void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, unsigned long long pageTableEntry )
 {
     m_pageLoader->setPageTableEntry( pageId, evictable, pageTableEntry);
 }
@@ -427,7 +444,6 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype 
     return TransferBufferDesc{ memoryType, memoryBlock };
 }
 
- 
 void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream )
 {
     // Free the transfer buffer after the stream clears
@@ -441,7 +457,6 @@ void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuf
     else 
         OTK_ASSERT_MSG( false, "Unknown memory type." );
 }
-
 
 Statistics DemandLoaderImpl::getStatistics() const
 {

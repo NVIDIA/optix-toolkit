@@ -71,7 +71,7 @@ class DemandLoader
                                                     std::vector<TextureDescriptor>&                         textureDescs,
                                                     unsigned int                                            udim,
                                                     unsigned int                                            vdim,
-                                                    int baseTextureId ) = 0;
+                                                    int                                                     baseTextureId ) = 0;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     /// Returns the starting index of the resource in the page table.  The user-supplied callbackContext
@@ -90,6 +90,9 @@ class DemandLoader
     /// Pre-initialize the texture on the device corresponding to the given stream.  The caller must
     /// ensure that the current CUDA context matches the given stream.
     virtual void initTexture( CUstream stream, unsigned int textureId ) = 0;
+
+    /// Pre-initialize all of the subtextures in the udim grid, as well as the base texture.
+    virtual void initUdimTexture( CUstream stream, unsigned int baseTextureId ) = 0;
 
     /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
     virtual unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;

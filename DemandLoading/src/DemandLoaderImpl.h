@@ -77,7 +77,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Create a demand-loaded texture for the given image.  The texture initially has no backing
     /// storage.  The readTile() method is invoked on the image to fill each required tile.  The
     /// ImageSource pointer is retained indefinitely.
-    const DemandTexture& createTexture( std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
+    const DemandTexture& createTexture( std::shared_ptr<imageSource::ImageSource> image,
+                                        const TextureDescriptor&                  textureDesc ) override;
 
     /// Create a demand-loaded UDIM texture for a given set of images.  If a baseTexture is used,
     /// it should be created first by calling createTexture.  The id of the returned texture should be
@@ -87,7 +88,7 @@ class DemandLoaderImpl : public DemandLoader
                                             std::vector<TextureDescriptor>&                         textureDescs,
                                             unsigned int                                            udim,
                                             unsigned int                                            vdim,
-                                            int baseTextureId ) override;
+                                            int                                                     baseTextureId ) override;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
@@ -98,9 +99,11 @@ class DemandLoaderImpl : public DemandLoader
     /// Replace the indicated texture, clearing out the old texture as needed
     void replaceTexture( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
 
-    /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches
-    /// the given stream.
+    /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches the given stream.
     void initTexture( CUstream stream, unsigned int textureId ) override;
+
+    /// Pre-initialize all of the subtextures in the udim grid, as well as the base texture.
+    void initUdimTexture( CUstream stream, unsigned int baseTextureId ) override;
 
     /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
     unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) override;
@@ -175,7 +178,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
 
-    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry );
+    /// Set the value of a page table entry.
+    void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry );
 
     /// Get the CUDA context associated with this demand loader
     virtual CUcontext getCudaContext() { return m_cudaContext; }

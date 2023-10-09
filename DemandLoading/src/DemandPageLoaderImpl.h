@@ -77,7 +77,7 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     unsigned int allocatePages( unsigned int numPages, bool backed ) override;
 
-    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) override;
+    void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
     /// stream.  Returns false if the current device does not support sparse textures.  If

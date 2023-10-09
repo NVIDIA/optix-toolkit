@@ -137,7 +137,7 @@ TEST_F( DemandPageLoaderTest, request_resident_page )
 
     const bool supported = launchAndRequestPage( requestedPage );
     setIsResident( false );
-    m_loader->setPageTableEntry( requestedPage, true, nullptr );
+    m_loader->setPageTableEntry( requestedPage, true, 0ULL );
     launchAndRequestPage( requestedPage );
 
     EXPECT_TRUE( supported );

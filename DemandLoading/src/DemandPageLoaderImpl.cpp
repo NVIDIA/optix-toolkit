@@ -93,10 +93,10 @@ unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool ba
                     m_pageTableManager->reserveUnbackedPages( numPages, nullptr );
 }
 
-void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry )
+void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry )
 {
-    return m_pagingSystem.addMapping( pageId, evictable ? 0U : NON_EVICTABLE_LRU_VAL,
-                                      reinterpret_cast<unsigned long long>( pageTableEntry ) );
+    unsigned int lruVal = evictable ? 0U : NON_EVICTABLE_LRU_VAL;
+    return m_pagingSystem.addMapping( pageId, lruVal, pageTableEntry );
 }
 
 // Returns false if the device doesn't support sparse textures.

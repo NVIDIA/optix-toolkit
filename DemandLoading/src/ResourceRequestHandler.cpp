@@ -50,7 +50,7 @@ void ResourceRequestHandler::fillRequest( CUstream stream, unsigned int pageInde
         // Add a page table mapping from the requested page index to the new page table entry.
         // Page table updates are accumulated in the PagingSystem until launchPrepare is called, which
         // sends them to the device (via PagingSystem::pushMappings).
-        m_loader->setPageTableEntry( pageIndex, false, pageTableEntry );
+        m_loader->setPageTableEntry( pageIndex, false, reinterpret_cast<unsigned long long>( pageTableEntry ) );
     }
 }
 

@@ -78,7 +78,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     // If the texture is 1x1 or null, don't create a sampler.
     if( texture->isDegenerate() && !texture->isUdimEntryPoint() )
     {
-        m_loader->setPageTableEntry( pageId, false, nullptr );
+        m_loader->setPageTableEntry( pageId, false, 0ULL );
         return;
     }
 
@@ -123,7 +123,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     m_loader->getPinnedMemoryPool()->freeAsync( pinnedBlock, stream );
 
     // Push mapping for sampler to update page table.
-    m_loader->setPageTableEntry( pageId, false, devSampler );
+    m_loader->setPageTableEntry( pageId, false, reinterpret_cast<unsigned long long>( devSampler ) );
 }
 
 bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int pageId )

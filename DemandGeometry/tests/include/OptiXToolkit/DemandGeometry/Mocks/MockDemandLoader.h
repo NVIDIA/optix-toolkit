@@ -57,6 +57,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( void, setMaxTextureMemory, ( size_t maxMem ) );
     MOCK_METHOD( const demandLoading::Options&, getOptions, (), ( const ) );
     MOCK_METHOD( void, initTexture, (CUstream, unsigned int), ( override ) );
+    MOCK_METHOD( void, initUdimTexture, (CUstream, unsigned int), ( override ) );
     MOCK_METHOD( unsigned int, getTextureTilePageId, (unsigned int, unsigned int, unsigned int, unsigned int), ( override ) );
     MOCK_METHOD( unsigned int, getMipTailFirstLevel, (unsigned int), ( override ) );
     MOCK_METHOD( void, loadTextureTile, (CUstream, unsigned int, unsigned int, unsigned int, unsigned int), ( override ) );
