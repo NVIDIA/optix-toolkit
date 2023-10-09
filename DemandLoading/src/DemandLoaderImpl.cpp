@@ -227,6 +227,9 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
                 tex->setUdimTexture( startTextureId, udim, vdim, false );
+
+                // Record the image reader and texture descriptor.
+                m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
             else 
             {
@@ -377,8 +380,7 @@ void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
 
 void DemandLoaderImpl::initUdimTexture( CUstream stream, unsigned int baseTextureId )
 {
-    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
-    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+    OTK_CONTEXT_STREAM_CUDA_CHECK( m_cudaContext, stream );
     m_samplerRequestHandler.loadPage( stream, baseTextureId, true ); // make sure the sampler is reloaded to get udim params.
     m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( baseTextureId, getOptions().maxTextures ) );
 
