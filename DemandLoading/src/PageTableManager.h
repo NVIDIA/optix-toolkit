@@ -116,7 +116,7 @@ class PageTableManager
         DEMAND_ASSERT_MSG( least != m_mappings.cend(), 
                            "Trying to replace nonexistent request handler" );
         
-        unsigned int idx = least - m_mappings.begin();
+        size_t idx = least - m_mappings.begin();
         m_mappings[idx] = PageMapping{ least->firstPage, least->lastPage, &m_nullHandler };
     }
 

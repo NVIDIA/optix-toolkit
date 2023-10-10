@@ -257,7 +257,7 @@ void DemandTextureImpl::initSampler()
 
     // Fill in the hasCascade and cascadeLevel values in the sampler
     m_sampler.hasCascade = m_image->hasCascade();
-    m_sampler.cascadeLevel = getCascadeLevel( m_sampler.width, m_sampler.height );
+    m_sampler.cascadeLevel = static_cast<unsigned short>( getCascadeLevel( m_sampler.width, m_sampler.height ) );
 }
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const
