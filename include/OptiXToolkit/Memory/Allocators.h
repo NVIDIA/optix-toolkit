@@ -92,7 +92,7 @@ class DeviceAllocator
     void set( void* ptr, int val, size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         OTK_CONTEXT_CUDA_CHECK( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), val, numBytes ) );
+        OTK_MEMORY_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<char>( val ), numBytes ) );
     }
 
     bool allocationIsHandle() const { return false; }
@@ -138,7 +138,7 @@ class DeviceAsyncAllocator
     void set( void* ptr, int val, size_t numBytes, CUstream stream = 0 )
     {
         OTK_CONTEXT_STREAM_CUDA_CHECK( m_context, stream );
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), val, numBytes, stream ) );
+        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<char>( val ), numBytes, stream ) );
     }
 
     bool allocationIsHandle() const { return false; }
