@@ -144,7 +144,7 @@ void initCameraState()
 {
     float3 camEye = {-6.0f, 0.0f, 0.0f};
     g_camera.setEye( camEye );
-    g_camera.setLookat( make_float3( 0.0f, 0.0f, 0.0f ) );
+    g_camera.setLookAt( make_float3( 0.0f, 0.0f, 0.0f ) );
     g_camera.setUp( make_float3( 0.0f, 0.0f, 1.0f ) );
     g_camera.setFovY( 30.0f );
     g_camera.setAspectRatio( static_cast<float>( g_width ) / static_cast<float>( g_height ) );

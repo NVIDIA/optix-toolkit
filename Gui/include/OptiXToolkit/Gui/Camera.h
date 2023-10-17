@@ -37,22 +37,22 @@ namespace otk {
 class Camera {
 public:
     Camera()
-        : m_eye(make_float3(1.0f)), m_lookat(make_float3(0.0f)), m_up(make_float3(0.0f, 1.0f, 0.0f)), m_fovY(35.0f), m_aspectRatio(1.0f)
+        : m_eye(make_float3(1.0f)), m_lookAt(make_float3(0.0f)), m_up(make_float3(0.0f, 1.0f, 0.0f)), m_fovY(35.0f), m_aspectRatio(1.0f)
     {
     }
 
-    Camera(const float3& eye, const float3& lookat, const float3& up, float fovY, float aspectRatio)
-        : m_eye(eye), m_lookat(lookat), m_up(up), m_fovY(fovY), m_aspectRatio(aspectRatio)
+    Camera(const float3& eye, const float3& lookAt, const float3& up, float fovY, float aspectRatio)
+        : m_eye(eye), m_lookAt(lookAt), m_up(up), m_fovY(fovY), m_aspectRatio(aspectRatio)
     {
     }
 
-    float3 direction() const { return normalize(m_lookat - m_eye); }
-    void setDirection(const float3& dir) { m_lookat = m_eye + length(m_lookat - m_eye) * dir; }
+    float3 direction() const { return normalize(m_lookAt - m_eye); }
+    void setDirection(const float3& dir) { m_lookAt = m_eye + length(m_lookAt - m_eye) * dir; }
 
     const float3& eye() const { return m_eye; }
     void setEye(const float3& val) { m_eye = val; }
-    const float3& lookat() const { return m_lookat; }
-    void setLookat(const float3& val) { m_lookat = val; }
+    const float3& lookAt() const { return m_lookAt; }
+    void setLookAt(const float3& val) { m_lookAt = val; }
     const float3& up() const { return m_up; }
     void setUp(const float3& val) { m_up = val; }
     const float& fovY() const { return m_fovY; }
@@ -65,7 +65,7 @@ public:
 
 private:
     float3 m_eye;
-    float3 m_lookat;
+    float3 m_lookAt;
     float3 m_up;
     float m_fovY;
     float m_aspectRatio;

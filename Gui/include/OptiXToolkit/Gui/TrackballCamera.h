@@ -72,10 +72,10 @@ class TrackballCamera
     void setCameraEye( const float3& val ) { m_camera.setEye( val ); }
 
     /// Returns the camera look at direction.
-    const float3& getCameraLookAt() const { return m_camera.lookat(); }
+    const float3& getCameraLookAt() const { return m_camera.lookAt(); }
     /// Sets the camera look at direction.
     /// @param val  The camera look at direction.
-    void setCameraLookAt( const float3& val ) { m_camera.setLookat( val ); }
+    void setCameraLookAt( const float3& val ) { m_camera.setLookAt( val ); }
 
     /// Returns the camera up direction.
     const float3& getCameraUp() const { return m_camera.up(); }

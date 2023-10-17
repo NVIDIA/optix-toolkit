@@ -496,7 +496,7 @@ void DemandTextureApp::setView( float3 eye, float3 lookAt, float3 up, float fovY
 void DemandTextureApp::panCamera( float3 pan )
 {
     m_camera.setEye( m_camera.eye() + pan );
-    m_camera.setLookat( m_camera.lookat() + pan );
+    m_camera.setLookAt( m_camera.lookAt() + pan );
     m_subframeId = 0;
 }
 
@@ -512,7 +512,7 @@ void DemandTextureApp::rotateCamera( float rot )
     float3 U, V, W;
     m_camera.UVWFrame( U, V, W );
     W = float3{ W.x * cosf(rot) - W.y * sinf(rot), W.x * sinf(rot) + W.y * cosf(rot), W.z };
-    m_camera.setLookat( m_camera.eye() + W );
+    m_camera.setLookAt( m_camera.eye() + W );
     m_subframeId = 0;
 }
 

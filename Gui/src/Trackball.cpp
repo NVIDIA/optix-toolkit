@@ -92,11 +92,11 @@ void Trackball::updateCamera()
     if(m_viewMode == EyeFixed)
     {
         const float3& eye = m_camera->eye();
-        m_camera->setLookat(eye - dirWS * m_cameraEyeLookatDistance);
+        m_camera->setLookAt(eye - dirWS * m_cameraEyeLookatDistance);
     }
     else // LookAtFixed
     {
-        const float3& lookat = m_camera->lookat();
+        const float3& lookat = m_camera->lookAt();
         m_camera->setEye(lookat + dirWS * m_cameraEyeLookatDistance);
     }
 }
@@ -106,7 +106,7 @@ void Trackball::setReferenceFrame(const float3& u, const float3& v, const float3
     m_u = u;
     m_v = v;
     m_w = w;
-    float3 dirWS = -normalize(m_camera->lookat() - m_camera->eye());
+    float3 dirWS = -normalize(m_camera->lookAt() - m_camera->eye());
     float3 dirLocal;
     dirLocal.x = dot(dirWS, u);
     dirLocal.y = dot(dirWS, v);
@@ -119,7 +119,7 @@ void Trackball::zoom(int direction)
 {
     float zoom = (direction > 0) ? 1 / m_zoomMultiplier : m_zoomMultiplier;
     m_cameraEyeLookatDistance *= zoom;
-    const float3& lookat = m_camera->lookat();
+    const float3& lookat = m_camera->lookAt();
     const float3& eye = m_camera->eye();
     m_camera->setEye(lookat + (eye - lookat) * zoom);
 }
@@ -133,20 +133,20 @@ void Trackball::reinitOrientationFromCamera()
     std::swap(m_v, m_w);
     m_latitude = 0.0f;
     m_longitude = 0.0f;
-    m_cameraEyeLookatDistance = length(m_camera->lookat() - m_camera->eye());
+    m_cameraEyeLookatDistance = length(m_camera->lookAt() - m_camera->eye());
 }
 
 void Trackball::moveForward(float speed)
 {
-    float3 dirWS = normalize(m_camera->lookat() - m_camera->eye());
+    float3 dirWS = normalize(m_camera->lookAt() - m_camera->eye());
     m_camera->setEye(m_camera->eye() + dirWS * speed);
-    m_camera->setLookat(m_camera->lookat() + dirWS * speed);
+    m_camera->setLookAt(m_camera->lookAt() + dirWS * speed);
 }
 void Trackball::moveBackward(float speed)
 {
-    float3 dirWS = normalize(m_camera->lookat() - m_camera->eye());
+    float3 dirWS = normalize(m_camera->lookAt() - m_camera->eye());
     m_camera->setEye(m_camera->eye() - dirWS * speed);
-    m_camera->setLookat(m_camera->lookat() - dirWS * speed);
+    m_camera->setLookAt(m_camera->lookAt() - dirWS * speed);
 }
 void Trackball::moveLeft(float speed)
 {
@@ -155,7 +155,7 @@ void Trackball::moveLeft(float speed)
     u = normalize(u);
 
     m_camera->setEye(m_camera->eye() - u * speed);
-    m_camera->setLookat(m_camera->lookat() - u * speed);
+    m_camera->setLookAt(m_camera->lookAt() - u * speed);
 }
 void Trackball::moveRight(float speed)
 {
@@ -164,7 +164,7 @@ void Trackball::moveRight(float speed)
     u = normalize(u);
 
     m_camera->setEye(m_camera->eye() + u * speed);
-    m_camera->setLookat(m_camera->lookat() + u * speed);
+    m_camera->setLookAt(m_camera->lookAt() + u * speed);
 }
 void Trackball::moveUp(float speed)
 {
@@ -173,7 +173,7 @@ void Trackball::moveUp(float speed)
     v = normalize(v);
 
     m_camera->setEye(m_camera->eye() + v * speed);
-    m_camera->setLookat(m_camera->lookat() + v * speed);
+    m_camera->setLookAt(m_camera->lookAt() + v * speed);
 }
 void Trackball::moveDown(float speed)
 {
@@ -182,7 +182,7 @@ void Trackball::moveDown(float speed)
     v = normalize(v);
 
     m_camera->setEye(m_camera->eye() - v * speed);
-    m_camera->setLookat(m_camera->lookat() - v * speed);
+    m_camera->setLookAt(m_camera->lookAt() - v * speed);
 }
 
 void Trackball::rollLeft(float speed)
