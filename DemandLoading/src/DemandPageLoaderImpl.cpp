@@ -87,7 +87,6 @@ void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictabl
     return m_pagingSystem.addMapping( pageId, lruVal, pageTableEntry );
 }
 
-// Returns false if the device doesn't support sparse textures.
 bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
@@ -117,8 +116,6 @@ void DemandPageLoaderImpl::invalidatePages( CUstream stream, DeviceContext& cont
     m_pagesToInvalidate.clear();
 }
 
-
-// Process page requests.
 void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& context, unsigned int id )
 {
     Stopwatch stopwatch;
