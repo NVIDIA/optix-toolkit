@@ -293,7 +293,7 @@ void TexturePaintingApp::replaceTexture( unsigned int newCanvasId )
         {
             cudaSetDevice( state.device_idx );
             demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-            state.demandLoader->replaceTexture( state.stream, m_textureIds[0], m_canvases[m_activeCanvas], texDesc );
+            state.demandLoader->replaceTexture( state.stream, m_textureIds[0], m_canvases[m_activeCanvas], texDesc, false );
         }
     }
 }
