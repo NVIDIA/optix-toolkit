@@ -260,6 +260,20 @@ uint2 SparseTexture::getTileDimensions( unsigned int mipLevel, unsigned int tile
 }
 
 
+void SparseTexture::mapTile( CUstream stream,
+                             unsigned int                 mipLevel,
+                             unsigned int                 tileX,
+                             unsigned int                 tileY,
+                             CUmemGenericAllocationHandle tileHandle,
+                             size_t                       tileOffset ) const
+{
+    OTK_ASSERT( m_isInitialized );
+    const uint2 tileDims{getTileDimensions( mipLevel, tileX, tileY )};
+    const uint2 levelOffset{make_uint2( tileX * getTileWidth(), tileY * getTileHeight() )};
+    m_array->mapTileAsync(stream, mipLevel, levelOffset, tileDims, tileHandle, tileOffset);
+}
+
+
 void SparseTexture::fillTile( CUstream                     stream,
                               unsigned int                 mipLevel,
                               unsigned int                 tileX,
@@ -273,8 +287,7 @@ void SparseTexture::fillTile( CUstream                     stream,
     OTK_ASSERT( m_isInitialized );
 
     const uint2 tileDims{getTileDimensions( mipLevel, tileX, tileY )};
-    const uint2 levelOffset{make_uint2( tileX * getTileWidth(), tileY * getTileHeight() )};
-    m_array->mapTileAsync(stream, mipLevel, levelOffset, tileDims, tileHandle, tileOffset);
+    mapTile( stream, mipLevel, tileX, tileY, tileHandle, tileOffset );
 
     // Get CUDA array for the specified miplevel.
     CUarray mipLevelArray = m_array->getLevel( mipLevel );
@@ -310,6 +323,13 @@ void SparseTexture::unmapTile( CUstream stream, unsigned int mipLevel, unsigned 
     const uint2 levelOffset{make_uint2( tileX * getTileWidth(), tileY * getTileHeight() )};
     m_array->unmapTileAsync( stream, mipLevel, levelOffset, levelExtent );
     m_numUnmappings++;
+}
+
+
+void SparseTexture::mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset ) const
+{
+    DEMAND_ASSERT( m_isInitialized );
+    m_array->mapMipTailAsync(stream, getMipTailSize(), tileHandle, tileOffset);
 }
 
 

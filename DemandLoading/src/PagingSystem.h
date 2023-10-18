@@ -58,7 +58,7 @@ class TicketImpl;
 class PageInvalidatorPredicate
 {
   public:
-    virtual bool operator() (unsigned int pageId, unsigned long long pageVal ) = 0;
+    virtual bool operator() ( unsigned int pageId, unsigned long long pageVal, CUstream stream ) = 0;
     virtual ~PageInvalidatorPredicate() {};
 };
 
@@ -76,9 +76,13 @@ class PagingSystem
     /// Pull requests from device to system memory.
     void pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage );
 
-    // Add a page mapping (thread safe).  The device-side page table (etc.) is not updated until
+    // Add a page mapping (thread safe). The device-side page table (etc.) is not updated until
     /// pushMappings is called.
     void addMapping( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
+
+    /// Add a page mapping (not thread safe). Exposed for PageInvalidatorPredicate callbacks that
+    /// need to map pages.
+    void addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
 
     /// Check whether the specified page is resident (thread safe).
     bool isResident( unsigned int pageId, unsigned long long* entry = nullptr );

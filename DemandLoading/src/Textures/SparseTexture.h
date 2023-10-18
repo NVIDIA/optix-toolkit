@@ -125,6 +125,14 @@ class SparseTexture
     /// Get the CUDA texture object.
     CUtexObject getTextureObject() const { return m_texture; }
 
+    /// Map the given backing storage for the specified tile into the sparse texture.
+    void mapTile( CUstream stream,
+                  unsigned int                 mipLevel,
+                  unsigned int                 tileX,
+                  unsigned int                 tileY,
+                  CUmemGenericAllocationHandle tileHandle,
+                  size_t                       tileOffset ) const;
+
     /// Map the given backing storage for the specified tile into the sparse texture and fill it with the given data.
     void fillTile( CUstream                     stream,
                    unsigned int                 mipLevel,
@@ -138,6 +146,9 @@ class SparseTexture
 
     /// Unmap the backing storage for the specified tile.
     void unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
+
+    /// Map the given backing storage the for mip tail into the sparse texture.
+    void mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset ) const;
 
     /// Map the given backing storage for mip tail into the sparse texture and fill it with the given data.
     void fillMipTail( CUstream                     stream,

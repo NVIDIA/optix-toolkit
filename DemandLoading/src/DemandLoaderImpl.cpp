@@ -60,13 +60,70 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
         : m_deviceMemoryManager( deviceMemoryManager )
     {
     }
-    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal, CUstream /*stream*/ ) override
     {
         m_deviceMemoryManager->freeTileBlock( TileBlockDesc( pageVal ) );
         return true;
     }
     ~TilePoolReturnPredicate() override {}
   private:
+    DeviceMemoryManager* m_deviceMemoryManager;
+};
+
+// Predicate that migrates texture tiles from an old texture to a new larger texture.
+class MigrateTextureTilesPredicate : public PageInvalidatorPredicate
+{
+  public:
+    MigrateTextureTilesPredicate( const TextureSampler& oldSampler,
+                                  DemandTextureImpl* newTexture,
+                                  DemandPageLoaderImpl* demandPageLoader,
+                                  DeviceMemoryManager* deviceMemoryManager )
+        : m_oldSampler{oldSampler}
+        , m_newTexture{newTexture}
+        , m_demandPageLoader{demandPageLoader}
+        , m_deviceMemoryManager{deviceMemoryManager}
+    {
+    }
+    bool operator()( unsigned int pageId, unsigned long long pageVal, CUstream stream ) override
+    {
+        DEMAND_ASSERT_MSG( pageId >= m_oldSampler.startPage && pageId < m_oldSampler.startPage + m_oldSampler.numPages,
+            "pageId outside texture tile range." );
+
+        // FIXME: What if the tiles are non-evictable?
+
+        unsigned int mipLevel;
+        unsigned int tileX;
+        unsigned int tileY;
+        TileBlockDesc tileBlock( pageVal );
+
+        CUmemGenericAllocationHandle tileHandle = m_deviceMemoryManager->getTileBlockHandle( tileBlock );
+        unpackTileIndex( m_oldSampler, pageId - m_oldSampler.startPage, mipLevel, tileX, tileY );
+
+        unsigned int newMipLevel = mipLevel;
+        unsigned int w = m_newTexture->getSampler().width;
+        while( w > m_oldSampler.width )
+        {
+            w = w >> 1;
+            newMipLevel++;
+        }
+
+        if( mipLevel >= m_oldSampler.mipTailFirstLevel )
+            m_newTexture->mapMipTail( stream, tileHandle, tileBlock.offset() );
+        else
+            m_newTexture->mapTile( stream, newMipLevel, tileX, tileY, tileHandle, tileBlock.offset() );
+
+        unsigned int newPageId = pageId - m_oldSampler.startPage + m_newTexture->getSampler().startPage;
+
+        // Call addMappingBody instead of addMapping since mutex already acquired in PagingSystem::invalidatePages
+        m_demandPageLoader->getPagingSystem()->addMappingBody( newPageId, true, pageVal );
+
+        return true;
+    }
+    ~MigrateTextureTilesPredicate() override {}
+  private:
+    TextureSampler m_oldSampler;
+    DemandTextureImpl* m_newTexture;
+    DemandPageLoaderImpl* m_demandPageLoader;
     DeviceMemoryManager* m_deviceMemoryManager;
 };
 
@@ -236,7 +293,7 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
 
     // Enqueue page ranges to invalidate when launchPrepare is called
     DemandTextureImpl* texture = m_textures.at( textureId ).get();
-    if( texture->isOpen() )
+    if( texture->isOpen() && texture->getSampler().desc.isSparseTexture )
     {
         texture->init();
         TextureSampler sampler   = texture->getSampler();
@@ -253,28 +310,61 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
     }
 }
 
-void DemandLoaderImpl::replaceTexture( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc )
+void DemandLoaderImpl::migrateTextureTiles( const TextureSampler& oldSampler, DemandTextureImpl* newTexture )
+{
+    // Mutex acquired in caller
+    if( !newTexture->getSampler().desc.isSparseTexture )
+        return;
+
+    unsigned int startPage = oldSampler.startPage;
+    unsigned int endPage   = oldSampler.startPage + oldSampler.numPages;
+    MigrateTextureTilesPredicate* predicate = new MigrateTextureTilesPredicate( oldSampler, newTexture, m_pageLoader.get(), getDeviceMemoryManager() );
+    m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
+}
+
+void DemandLoaderImpl::replaceTexture( CUstream                                  stream,
+                                       unsigned int                              textureId,
+                                       std::shared_ptr<imageSource::ImageSource> image,
+                                       const TextureDescriptor&                  textureDesc,
+                                       bool                                      migrateTiles )
 {
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
-    unloadTextureTiles( textureId );
+
+    // Unload all the texture tiles if they are not being migrated
+    if( !migrateTiles )
+        unloadTextureTiles( textureId );
+
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Copy the old sampler (for migrating tiles), and replace the texture
+    bool textureOpen = m_textures.at( textureId )->isOpen();
+    TextureSampler oldSampler = ( textureOpen ) ? m_textures.at( textureId )->getSampler() : TextureSampler{};
     m_textures.at( textureId )->setImage( textureDesc, image );
 
-    if( m_textures.at( textureId )->isOpen() )
+    if( textureOpen )
     {
-        m_samplerRequestHandler.loadPage( stream, textureId );
-        m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ) );
+        // Reload the sampler to the GPU
+        m_samplerRequestHandler.loadPage( stream, textureId, true );
 
-        // Take care of any variants
+        // Reload base color if not migrating the tiles
+        if( !migrateTiles )
+            m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ), true );
+
+        // Migrate the texture tiles to the new texture
+        if( migrateTiles )
+            migrateTextureTiles( oldSampler, m_textures.at( textureId ).get() );
+
+        // Take care of texture variants
         DemandTextureImpl* masterTexture = getTexture( textureId );
         const std::vector<unsigned int>& variantIds = masterTexture->getVariantsIds();
         for( unsigned int variantId : variantIds )
         {
             const TextureDescriptor& variantDesc = m_textures.at( variantId )->getDescriptor();
             m_textures.at( variantId )->setImage( variantDesc, image );
-            m_samplerRequestHandler.loadPage( stream, variantId );
-            m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( variantId, getOptions().maxTextures ) );
+            m_samplerRequestHandler.loadPage( stream, variantId, true );
+            if( !migrateTiles )
+                m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( variantId, getOptions().maxTextures ), true );
         }
     }
     m_requestProcessor.recordTexture( image, textureDesc );

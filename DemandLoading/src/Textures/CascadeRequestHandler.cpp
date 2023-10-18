@@ -79,7 +79,7 @@ void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     cascadeImage->setBackingImage( std::shared_ptr<imageSource::ImageSource>(nullptr) );
     unsigned int newCascadeSize = requestCascadeSize;
     std::shared_ptr<imageSource::ImageSource> newCascadeImage( new imageSource::CascadeImage( backingImage, newCascadeSize ) );
-    m_loader->replaceTexture( stream, samplerId, newCascadeImage, texture->getDescriptor() );
+    m_loader->replaceTexture( stream, samplerId, newCascadeImage, texture->getDescriptor(), true );
 
     // Note: updating the page table is not necessary
     //m_loader->setPageTableEntry( pageId, false, 0ULL );

@@ -44,7 +44,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( void, unloadTextureTiles, ( unsigned int textureId ) );
     MOCK_METHOD( void,
                  replaceTexture,
-                 ( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const demandLoading::TextureDescriptor& textureDesc ) );
+                 ( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const demandLoading::TextureDescriptor& textureDesc, bool migrateTiles ) );
     MOCK_METHOD( bool, launchPrepare, ( unsigned int deviceIndex, CUstream stream, demandLoading::DeviceContext& context ) );
     MOCK_METHOD( demandLoading::Ticket,
                  processRequests,

@@ -391,6 +391,17 @@ void DemandTextureImpl::fillTile( CUstream                     stream,
     m_sparseTexture.fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
 }
 
+void DemandTextureImpl::mapTile( CUstream                     stream,
+                                 unsigned int                 mipLevel,
+                                 unsigned int                 tileX,
+                                 unsigned int                 tileY,
+                                 CUmemGenericAllocationHandle tileHandle,
+                                 size_t                       tileOffset ) const
+{
+    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
+    m_sparseTexture.mapTile( stream, mipLevel, tileX, tileY, tileHandle, tileOffset );
+}
+
 // Tiles can be unmapped concurrently.
 void DemandTextureImpl::unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const
 {
@@ -437,6 +448,11 @@ void DemandTextureImpl::fillMipTail( CUstream                     stream,
     OTK_ASSERT( getMipTailFirstLevel() < m_info.numMipLevels );
 
     m_sparseTexture.fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
+}
+
+void DemandTextureImpl::mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset )
+{
+    m_sparseTexture.mapMipTail( stream, tileHandle, tileOffset );
 }
 
 void DemandTextureImpl::unmapMipTail( CUstream stream ) const

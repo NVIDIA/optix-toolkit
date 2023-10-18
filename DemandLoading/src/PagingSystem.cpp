@@ -450,7 +450,7 @@ void PagingSystem::invalidatePages( unsigned int              startId,
         const unsigned int pageId = p->first;
         const unsigned long long pageVal = p->second.entry;
 
-        if( !predicate || (*predicate)( pageId, pageVal ) )
+        if( !predicate || (*predicate)( pageId, pageVal, stream ) )
         {
             OTK_ASSERT_MSG( m_pageMappingsContext->numInvalidatedPages < m_options->maxInvalidatedPages,
                             "Maximum number of invalidated pages exceeded (Options::maxInvalidPages)" );

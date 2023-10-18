@@ -96,8 +96,14 @@ class DemandLoaderImpl : public DemandLoader
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     void unloadTextureTiles( unsigned int textureId ) override;
 
+    void migrateTextureTiles( const TextureSampler& oldSampler, DemandTextureImpl* newTexture );
+
     /// Replace the indicated texture, clearing out the old texture as needed
-    void replaceTexture( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
+    void replaceTexture( CUstream                                  stream,
+                         unsigned int                              textureId,
+                         std::shared_ptr<imageSource::ImageSource> image,
+                         const TextureDescriptor&                  textureDesc,
+                         bool                                      migrateTiles ) override;
 
     /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches the given stream.
     void initTexture( CUstream stream, unsigned int textureId ) override;
@@ -211,6 +217,7 @@ class DemandLoaderImpl : public DemandLoader
     // Create a normal or variant version of a demand texture, based on the imageSource 
     DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
 
+    // Allocate pages for a number of textures (samplers and base colors)
     unsigned int allocateTexturePages( unsigned int numTextures );
 };
 

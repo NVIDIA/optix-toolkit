@@ -85,7 +85,8 @@ class DemandLoader
     virtual void replaceTexture( CUstream                                  stream,
                                  unsigned int                              textureId,
                                  std::shared_ptr<imageSource::ImageSource> image,
-                                 const TextureDescriptor&                  textureDesc ) = 0;
+                                 const TextureDescriptor&                  textureDesc,
+                                 bool                                      migrateTiles ) = 0;
 
     /// Pre-initialize the texture on the device corresponding to the given stream.  The caller must
     /// ensure that the current CUDA context matches the given stream.

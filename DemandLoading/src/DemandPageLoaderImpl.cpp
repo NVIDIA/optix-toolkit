@@ -99,7 +99,6 @@ void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictabl
     return m_pagingSystem.addMapping( pageId, lruVal, pageTableEntry );
 }
 
-// Returns false if the device doesn't support sparse textures.
 bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
@@ -129,15 +128,13 @@ void DemandPageLoaderImpl::invalidatePages( CUstream stream, DeviceContext& cont
     m_pagesToInvalidate.clear();
 }
 
-
-// Process page requests.
 void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& context, unsigned int id )
 {
     Stopwatch stopwatch;
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
-    // request bits copies the requested page ids to host memory (asynchronously).
+    // request bits, and copies the requested page ids to host memory asynchronously.
     unsigned int  startPage = 0;
     unsigned int  endPage   = m_pageTableManager->getEndPage();
     m_pagingSystem.pullRequests( context, stream, id, startPage, endPage);
@@ -158,7 +155,8 @@ void DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int id, con
     m_requestProcessor->addRequests( stream, id, pageIds, numPageIds);
 }
 
-// Predicate that returns pages to a tile pool if the arenaId is high enough
+// Predicate that returns tile pages to a tile pool if the arenaId is high enough, allowing
+// the arenas to be deleted.
 class ResizeTilePoolPredicate : public PageInvalidatorPredicate
 {
   public:
@@ -166,7 +164,7 @@ class ResizeTilePoolPredicate : public PageInvalidatorPredicate
         : m_maxArenas( maxArenas )
     {
     }
-    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal, CUstream /*stream*/ ) override
     {
         TileBlockDesc tileBlock( pageVal );
         // Note: no need to free the tile block in the deviceMemoryManager because the

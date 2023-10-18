@@ -161,6 +161,13 @@ class DemandTextureImpl : public DemandTexture
                    CUmemGenericAllocationHandle handle,
                    size_t                       offset ) const;
 
+    void mapTile( CUstream                     stream,
+                  unsigned int                 mipLevel,
+                  unsigned int                 tileX,
+                  unsigned int                 tileY,
+                  CUmemGenericAllocationHandle tileHandle,
+                  size_t                       tileOffset ) const;
+
     /// Unmap backing storage for a tile
     void unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
 
@@ -183,6 +190,8 @@ class DemandTextureImpl : public DemandTexture
                       size_t                       mipTailSize,
                       CUmemGenericAllocationHandle handle,
                       size_t                       offset ) const;
+
+    void mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset );
 
     /// Unmap backing storage for the mip tail
     void unmapMipTail( CUstream stream ) const;
