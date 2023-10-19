@@ -59,7 +59,7 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, 
 DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager,
                                             RequestProcessor*                 requestProcessor,
                                             std::shared_ptr<Options>          options )
-    : m_options( options )
+    : m_options( configure( options ) )
     , m_deviceMemoryManager( m_options )
     , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, m_options->maxPinnedMemory )
     , m_pageTableManager( std::move( pageTableManager ) )
