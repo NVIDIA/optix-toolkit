@@ -47,7 +47,7 @@ namespace otk {
 class RingSuballocator
 {
   public:
-    RingSuballocator( uint64_t arenaSize = DEFAULT_ALLOC_SIZE )
+    RingSuballocator( uint64_t arenaSize = std::numeric_limits<uint64_t>::max() )
         : m_arenaSize( arenaSize ){};
     ~RingSuballocator() {}
 

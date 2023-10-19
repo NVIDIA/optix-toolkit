@@ -144,16 +144,18 @@ class MemoryPool
         MemoryBlockDesc block = m_suballocator->alloc( size, alignment );
         if( ( block.isBad() ) && ( trackedSize() < m_maxSize ) && m_allocator )
         {
-            m_allocations.push_back( m_allocator->allocate( m_allocationGranularity ) );
+            // Allocate enough memory for the current request at m_allocationGranularity increments.
+            size_t allocSize = m_allocationGranularity * ( ( size + m_allocationGranularity - 1 ) / m_allocationGranularity );
+            m_allocations.push_back( m_allocator->allocate( allocSize ) );
             if( m_allocator->allocationIsHandle() )
             {
                 // If the allocator returns handles, they are not pointers in a linear memory space, so
                 // construct an artificial linear memory space for the suballocator to use.
-                m_suballocator->track( getArenaStartAddress( static_cast<uint64_t>( m_allocations.size() - 1 ) ), m_allocationGranularity );
+                m_suballocator->track( getArenaStartAddress( static_cast<uint64_t>( m_allocations.size() - 1 ) ), allocSize );
             }
             else
             {
-                m_suballocator->track( reinterpret_cast<uint64_t>( m_allocations.back() ), m_allocationGranularity );
+                m_suballocator->track( reinterpret_cast<uint64_t>( m_allocations.back() ), allocSize );
             }
             block = m_suballocator->alloc( size, alignment );
         }
