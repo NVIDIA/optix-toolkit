@@ -63,6 +63,7 @@ if( OTK_USE_VCPKG )
   option( OTK_FETCH_OIIO "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
   if( OTK_FETCH_OIIO )
     set( OTK_DEPEND_OIIO "\"openimageio\"," )
+    set( OTK_USE_OIIO ON )
   endif()
 
   configure_file( vcpkg.json.in ${PROJECT_SOURCE_DIR}/vcpkg.json @ONLY )
