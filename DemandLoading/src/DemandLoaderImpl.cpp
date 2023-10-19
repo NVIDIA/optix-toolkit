@@ -154,7 +154,7 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, m_options ) )
     , m_samplerRequestHandler( this )
     , m_cascadeRequestHandler( this )
-    , m_deviceTransferPool( new otk::DeviceAsyncAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, 64 << 20 )
+    , m_deviceTransferPool( new otk::DeviceAsyncAllocator(), new RingSuballocator(), DEFAULT_ALLOC_SIZE, 64U << 20 )
 {
     // The demand loader is for the current cuda context
     OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
@@ -531,6 +531,7 @@ const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype 
         memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
         memoryBlock = m_deviceTransferPool.alloc( size, alignment );
+
     return TransferBufferDesc{ memoryType, memoryBlock };
 }
 

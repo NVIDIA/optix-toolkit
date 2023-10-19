@@ -59,7 +59,7 @@ class DevicePaging
     DevicePaging( unsigned int deviceIndex, std::shared_ptr<Options> options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
         , m_deviceMemoryManager( options )
-        , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC ), PINNED_ALLOC, MAX_PINNED_MEM )
+        , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator(), PINNED_ALLOC, MAX_PINNED_MEM )
         , m_paging( options, &m_deviceMemoryManager, &m_pinnedMemoryPool, requestProcessor )
     {
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
