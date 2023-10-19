@@ -71,8 +71,8 @@ otk_add_executable( testSelfIntersectionAvoidance
   testSia.h
   testSia.cpp
   testSiaCuda.cu
-  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 set_target_properties(testSelfIntersectionAvoidance PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
