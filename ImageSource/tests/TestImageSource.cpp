@@ -422,34 +422,60 @@ INSTANTIATE_READER_TESTS( ReadPartialTileNonSquare )
 
 #if OTK_USE_OIIO
 
+template <typename T>
+std::array<T, 3> getTexel( unsigned int x, unsigned int y, const std::vector<std::array<T, 4>>& texels, unsigned int width )
+{
+    std::array<T, 4> c = texels[y * width + x];
+    return std::array<T, 3>{c[0], c[1], c[2]};
+}
+
+template <typename T>
+void checkTile( OIIOReader* reader, std::array<T,3> white, std::array<T,3> red )
+{
+    const unsigned int mipLevel = 0;
+    unsigned int       width    = reader->getTileWidth();
+    unsigned int       height   = reader->getTileHeight();
+    width                       = width ? width : 32;
+    height                      = height ? height : 32;
+
+    ASSERT_EQ( 4, reader->getInfo().numChannels );
+    std::vector<std::array<T, 4>> texels( width * height );
+    ASSERT_NO_THROW( reader->readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 1, 1, width, height, nullptr ) );
+
+    // Pattern is red/white checkboard with 16x16 squares
+    EXPECT_EQ( red, getTexel( 0, 0, texels, width ) );
+    EXPECT_EQ( white, getTexel( width - 1, 0, texels, width ) );
+    EXPECT_EQ( white, getTexel( 0, height - 1, texels, width ) );
+    EXPECT_EQ( (red), getTexel( width - 1, height - 1, texels, width ) );
+}
+
 class TestOIIOReaderFileTypes : public testing::TestWithParam<std::string>
 {
-};    
+};
 
 TEST_P(TestOIIOReaderFileTypes, ReadTile)
 {
     std::string filename(GetParam());
-    OIIOReader  floatReader( getSourceDir() + "/Textures/" + filename );
-    TextureInfo floatInfo = {};
-    ASSERT_NO_THROW( floatReader.open( &floatInfo ) );
-
-    const unsigned int mipLevel = 0;
-    unsigned int width    = floatReader.getTileWidth();
-    unsigned int height   = floatReader.getTileHeight();
-    width = width ? width : 32;
-    height = height ? height : 32;
-
-    std::vector<float4> texels( width * height );
-    ASSERT_NO_THROW( floatReader.readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 1, 1, width, height, nullptr ) );
-
-    // Pattern is red/white checkboard with 16x16 squares
-    EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( 0, 0, texels, width ) );
-    EXPECT_EQ( make_float3( 1, 1, 1 ), getTexel( width - 1, 0, texels, width ) );
-    EXPECT_EQ( make_float3( 1, 1, 1 ), getTexel( 0, height - 1, texels, width ) );
-    EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( width - 1, height - 1, texels, width ) );
+    OIIOReader  reader( getSourceDir() + "/Textures/" + filename );
+    TextureInfo info = {};
+    ASSERT_NO_THROW( reader.open( &info ) );
+    if( info.format == CU_AD_FORMAT_UNSIGNED_INT8 )
+    {
+        std::array<uint8_t, 3> white{255, 255, 255};
+        std::array<uint8_t, 3> red{254, 0, 0};
+        checkTile<uint8_t>( &reader, white, red );
+    }
+    else
+    {
+        ASSERT_EQ( CU_AD_FORMAT_FLOAT, info.format );
+        std::array<float, 3> white{1, 1, 1};
+        std::array<float, 3> red{1, 0, 0};
+        checkTile<float>( &reader, white, red );
+    }
 }
 
-INSTANTIATE_TEST_SUITE_P( TestOIIOReaderFileTypesInstance, TestOIIOReaderFileTypes, testing::Values( "TiledMipMappedFloat.tif" ) );
-// TODO: reading jpgs and pngs doesn't seem to work:  "level0.jpg", "level0.png"
+INSTANTIATE_TEST_SUITE_P( TestOIIOReaderFileTypesInstance, TestOIIOReaderFileTypes, testing::Values( "TiledMipMappedFloat.tif", "level0.png", "level0.jpg" ) );
 
 #endif // OTK_USE_OIIO
+
+
