@@ -74,6 +74,8 @@ otk_add_executable( testDemandLoading
   TestTicket.cpp
   TestTileIndexing.cpp
   TestTraceFile.cpp
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 source_group( "CUDA Files" REGULAR_EXPRESSION ".*\.cu" )

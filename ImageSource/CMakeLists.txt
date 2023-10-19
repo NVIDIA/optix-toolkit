@@ -37,7 +37,9 @@ otk_add_library( ImageSource
   src/ImageSource.cpp
   src/Stopwatch.h
   src/TextureInfo.cpp
-  )
+  src/Config.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/Config.h
+)
 set_property(TARGET ImageSource PROPERTY FOLDER DemandLoading)
 
 add_library(OptiXToolkit::ImageSource ALIAS ImageSource)
