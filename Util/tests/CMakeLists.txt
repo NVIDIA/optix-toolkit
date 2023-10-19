@@ -33,6 +33,8 @@ otk_add_executable( testUtil
     TestException.cpp
     TestEXRInputFile.cpp
     FunctionTable.cpp
+    SourceDir.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)
 

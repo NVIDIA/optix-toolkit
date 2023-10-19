@@ -51,6 +51,8 @@ embed_ptx(
 otk_add_executable( demandLoadTexture
   texture.cpp
   textureKernel.h
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 target_link_libraries( demandLoadTexture

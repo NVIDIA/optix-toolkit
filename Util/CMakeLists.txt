@@ -68,6 +68,8 @@ otk_add_library(Util STATIC
   src/EXRInputFile.cpp
   src/Exception.cpp
   src/Logger.cpp
+  src/BinaryDataDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
   )
 
 add_library(OptiXToolkit::Util ALIAS Util)

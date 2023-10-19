@@ -55,6 +55,8 @@ otk_add_executable( ommBakingViewer
   PerDeviceOptixState.h
   Procedural.h
   Util/interval_math.h
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 source_group( "Header Files\\Util" FILES
