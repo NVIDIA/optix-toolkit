@@ -36,6 +36,7 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
@@ -48,23 +49,30 @@
 
 using namespace otk;
 
-namespace demandLoading {
+namespace {
 
-bool DemandPageLoaderImpl::supportsSparseTextures( CUdevice device )
+demandLoading::Options configure( demandLoading::Options options )
 {
-    int sparseSupport = 0;
-    OTK_ERROR_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
+    // If maxTexMemPerDevice is 0, consider it to be unlimited
+    if( options.maxTexMemPerDevice == 0 )
+        options.maxTexMemPerDevice = std::numeric_limits<size_t>::max();
 
-    // Skip devices in TCC mode.  This guards against an "operation not supported" error when
-    // querying the recommended allocation granularity via cuMemGetAllocationGranularity.
-    int inTccMode = 0;
-    OTK_ERROR_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, device ) );
+    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
+    if( options.maxFilledPages < options.maxRequestedPages )
+        options.maxFilledPages = options.maxRequestedPages;
 
-    return sparseSupport && !inTccMode;
+    // Anticipate at least one active stream per device.
+    options.maxActiveStreams = std::max( 1U, options.maxActiveStreams );
+
+    return options;
 }
 
-DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options )
-    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( options->numPages, options->numPageTableEntries ), requestProcessor, options )
+}  // anonymous namespace
+
+namespace demandLoading {
+
+DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
+    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )
 {
 }
 
@@ -80,7 +88,7 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
 {
     CUdevice device;
     OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
-    if( !supportsSparseTextures( device ) )
+    if( !deviceSupportsSparseTextures( device ) )
         m_options->useSparseTextures = false;
 }
 

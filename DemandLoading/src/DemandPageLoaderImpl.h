@@ -70,13 +70,13 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager, RequestProcessor *requestProcessor, std::shared_ptr<Options> options );
 
-    /// Destroy demand loading system.
+    /// Destroy demand page loader.
     ~DemandPageLoaderImpl() override = default;
 
-    static bool supportsSparseTextures( CUdevice device );
-
+    /// Allocate backed or unbacked pages
     unsigned int allocatePages( unsigned int numPages, bool backed ) override;
 
+    /// Set the value of a single page table entry
     void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
