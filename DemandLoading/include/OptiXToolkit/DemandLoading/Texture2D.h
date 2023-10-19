@@ -44,11 +44,8 @@
 #include <cuda.h>
 #endif
 
-#include <cuda_fp16.h>  // to facilitate tex2D<half> in user code
-struct half4
-{
-    half x, y, z, w;
-};
+#include <OptiXToolkit/ImageSource/ImageHelpers.h>
+using namespace imageSource;
 
 #ifndef DOXYGEN_SKIP
 #define FINE_MIP_LEVEL false
@@ -60,51 +57,6 @@ namespace demandLoading {
 #if defined( __CUDACC__ ) || defined( OPTIX_PAGING_BIT_OPS )
 
 #ifndef DOXYGEN_SKIP
-
-__device__ static __forceinline__ unsigned char toUChar( float value)
-{
-    return static_cast<unsigned char>( 255.0f * value );
-}
-__device__ static __forceinline__ unsigned char toUChar( half value )
-{
-    return toUChar( static_cast<float>( value ) );
-}
-__device__ static __forceinline__ unsigned int toUInt( float value )
-{
-    return static_cast<unsigned int>( value );
-}
-__device__ static __forceinline__ unsigned int toUInt( half value )
-{
-    return static_cast<unsigned int>( value );
-}
-
-// clang-format off
-__device__ static __forceinline__ void convertColor( const float4& a, float4& b )           { b = a; }
-__device__ static __forceinline__ void convertColor( const float4& a, float2& b )           { b = float2{ a.x, a.y }; }
-__device__ static __forceinline__ void convertColor( const float4& a, float& b )            { b = a.x; }
-__device__ static __forceinline__ void convertColor( const float4& a, half4& b )            { b = half4{ a.x, a.y, a.z, a.w }; }
-__device__ static __forceinline__ void convertColor( const float4& a, half2& b )            { b = half2{ a.x, a.y }; }
-__device__ static __forceinline__ void convertColor( const float4& a, half& b )             { b = a.x; }
-__device__ static __forceinline__ void convertColor( const float4& a, uchar4& b )           { b = uchar4{ toUChar( a.x ), toUChar( a.y ), toUChar( a.z ), toUChar( a.w ) }; }
-__device__ static __forceinline__ void convertColor( const float4& a, uchar2& b )           { b = uchar2{ toUChar( a.x ), toUChar( a.y ) }; }
-__device__ static __forceinline__ void convertColor( const float4& a, unsigned char& b )    { b = toUChar( a.x ); }
-__device__ static __forceinline__ void convertColor( const float4& a, uint4& b )            { b = uint4{ toUInt( a.x ), toUInt( a.y ), toUInt( a.z ), toUInt( a.w ) }; }
-__device__ static __forceinline__ void convertColor( const float4& a, uint2& b )            { b = uint2{ toUInt( a.x ), toUInt( a.y ) }; }
-__device__ static __forceinline__ void convertColor( const float4& a, unsigned int& b )     { b = toUInt( a.x ); }
-
-__device__ static __forceinline__ void convertColor( const half4& a, float4& b )            { b = float4{ a.x, a.y, a.z, a.w }; }
-__device__ static __forceinline__ void convertColor( const half4& a, float2& b )            { b = float2{ a.x, a.y }; }
-__device__ static __forceinline__ void convertColor( const half4& a, float& b )             { b = a.x; }
-__device__ static __forceinline__ void convertColor( const half4& a, half4& b )             { b = a; }
-__device__ static __forceinline__ void convertColor( const half4& a, half2& b )             { b = half2{ a.x, a.y }; }
-__device__ static __forceinline__ void convertColor( const half4& a, half& b )              { b = a.x; }
-__device__ static __forceinline__ void convertColor( const half4& a, uchar4& b )            { b = uchar4{ toUChar( a.x ), toUChar( a.y ), toUChar( a.z ), toUChar( a.w )}; }
-__device__ static __forceinline__ void convertColor( const half4& a, uchar2& b )            { b = uchar2{ toUChar( a.x ), toUChar( a.y ) }; }
-__device__ static __forceinline__ void convertColor( const half4& a, unsigned char& b )     { b = toUChar( a.x ); }
-__device__ static __forceinline__ void convertColor( const half4& a, uint4& b )             { b = uint4{ toUInt( a.x ), toUInt( a.y ), toUInt( a.z ), toUInt( a.w ) }; }
-__device__ static __forceinline__ void convertColor( const half4& a, uint2& b )             { b = uint2{ toUInt( a.x ), toUInt( a.y ) }; }
-__device__ static __forceinline__ void convertColor( const half4& a, unsigned int& b )      { b = toUInt( a.x ); }
-// clang-format on
 
 /// Compute mip level from the texture gradients.
 D_INLINE float getMipLevel( float2 ddx, float2 ddy, int texWidth, int texHeight, float invAnisotropy )
@@ -328,7 +280,7 @@ getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval
     if( *baseColorResident && baseVal != NO_BASE_COLOR )
     {
         const half4* baseColor = reinterpret_cast<const half4*>( &baseVal );
-        convertColor( *baseColor, rval );
+        convertType( *baseColor, rval );
         return true;
     }
     return false;
@@ -345,7 +297,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     // Check for base color
     Sample rval;
     bool baseColorResident;
-    convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
+    convertType( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
 
     const float minGradSquared = minf( ddx.x * ddx.x + ddx.y * ddx.y, ddy.x * ddy.x + ddy.y * ddy.y );
     if( minGradSquared >= 1.0f )
@@ -421,9 +373,9 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
         reinterpret_cast<const TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
     
     Sample rval;
-    if( !*isResident )
-    {
-        convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
+    convertType( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
+    if( *isResident == false )
+    {        
         return rval;
     }
 

@@ -37,12 +37,14 @@
 
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/ImageSource/ImageHelpers.h>
 
 #include <cuda_fp16.h>
 
 #include <algorithm>
 
 using namespace otk;
+using namespace imageSource;
 
 namespace demandLoading {
 
@@ -187,11 +189,6 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
 
     return satisfied;
 }
-
-struct half4
-{
-    half x, y, z, w;
-};
 
 void SamplerRequestHandler::fillBaseColorRequest( CUstream /*stream*/, DemandTextureImpl* texture, unsigned int pageId )
 {
