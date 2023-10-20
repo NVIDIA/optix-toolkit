@@ -70,7 +70,6 @@ struct Options
 
     // Concurrency
     unsigned int maxThreads = 0;  ///< max threads for processing requests. (0 means std::thread::hardware_concurrency)
-    unsigned int maxActiveStreams = 4;  ///< number of active CUDA streams across all devices.
 
     // Trace file
     std::string traceFile = "";  ///< trace filename (disabled if empty).

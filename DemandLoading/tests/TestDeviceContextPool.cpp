@@ -49,7 +49,6 @@ class TestDeviceContextPool : public testing::Test
         m_options.maxEvictablePages = 31;
         m_options.maxEvictablePages = 17;
         m_options.useLruTable       = true;
-        m_options.maxActiveStreams  = 2;
     }
 
     void SetUp() { cudaFree( nullptr ); }

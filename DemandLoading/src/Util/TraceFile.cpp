@@ -96,7 +96,6 @@ void TraceFileWriter::recordOptions( const Options& options )
     writeOption( "maxTexMemPerDevice", options.maxTexMemPerDevice );
     writeOption( "maxPinnedMemory", options.maxPinnedMemory );
     writeOption( "maxThreads", options.maxThreads );
-    writeOption( "maxActiveStreams", options.maxActiveStreams );
 }
 
 void TraceFileWriter::recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& desc )
@@ -177,7 +176,6 @@ class TraceFileReader
         readOption( "maxTexMemPerDevice", &options.maxTexMemPerDevice );
         readOption( "maxPinnedMemory", &options.maxPinnedMemory );
         readOption( "maxThreads", &options.maxThreads );
-        readOption( "maxActiveStreams", &options.maxActiveStreams );
         return options;
     }
 
