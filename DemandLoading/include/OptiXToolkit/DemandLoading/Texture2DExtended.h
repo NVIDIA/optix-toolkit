@@ -130,6 +130,8 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
         // Add in a fudge factor to the gradient extents to account for the black edge of a texture in border mode.
         // (The fudge factor must be at least half a texel width at the mip level being sampled.)
+        // FIXME: this only works if both subtextures have the same dimensions.  Otherwise, the sample weight on the
+        // border will end up != 1, resulting in a dark border.
         const float subtexProxySize = 64.0f;
         const float mipLevelCorrection = 0.5f * exp2f( getMipLevel( ddx, ddy, 1.0f, 1.0f, 1.0f / 16.0f ) );
         const float magnificationCorrection = 0.5f / static_cast<float>( min( udim, vdim ) * subtexProxySize );
