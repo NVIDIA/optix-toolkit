@@ -46,18 +46,19 @@ if(NOT TARGET OptiX::OptiX)
   endif()  
 endif()
 
-# The SIA test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(embed_ptx OPTIONAL RESULT_VARIABLE EMBED_PTX_FOUND)
-if(NOT EMBED_PTX_FOUND)
-  message(WARNING "embed_ptx.cmake not found.  Skipping ShaderUtil/tests.")
+# The SIA test employs an OptiX kernel, which is compiled from CUDA to OptiXIR.
+include(embed_cuda OPTIONAL RESULT_VARIABLE EMBED_CUDA_FOUND)
+if(NOT EMBED_CUDA_FOUND)
+  message(WARNING "embed_cuda.cmake not found.  Skipping ShaderUtil/tests.")
   return()
 endif()  
 
-embed_ptx(
+embed_cuda(
+  GEN_PTX
   CONST HEADER testSiaKernelsPTX.h
   OUTPUT_TARGET
     testSelfIntersectionAvoidanceKernels
-  PTX_LINK_LIBRARIES
+  CUDA_LINK_LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES
