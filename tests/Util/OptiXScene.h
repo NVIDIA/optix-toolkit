@@ -40,7 +40,7 @@ class OptixOmmScene
         return *this;
     }
 
-    OptixResult build( OptixDeviceContext context, const char* ptxInput, const size_t ptxInputSize, const OptixOmmArray& optixOmm, const cuOmmBaking::BakeInputDesc* ommBuildInput, unsigned int numBuildInputs );
+    OptixResult build( OptixDeviceContext context, const char* optixirInput, const size_t optixirInputSize, const OptixOmmArray& optixOmm, const cuOmmBaking::BakeInputDesc* ommBuildInput, unsigned int numBuildInputs );
 
     OptixResult render( uint32_t width, uint32_t height, RenderOptions options );
 
@@ -55,7 +55,7 @@ class OptixOmmScene
 
     OptixResult buildSBT( const cuOmmBaking::BakeInputDesc* ommBuildInput, unsigned int numBuildInputs );
 
-    OptixResult buildPipeline( const char* ptxInput, const size_t ptxInputSize );
+    OptixResult buildPipeline( const char* optixirInput, const size_t optixirInputSize );
 
     void swap( OptixOmmScene& source ) noexcept
     {

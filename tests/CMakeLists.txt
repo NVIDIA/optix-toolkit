@@ -29,22 +29,22 @@
 include(FetchGtest)
 include(GoogleTest)
 
-# The omm baking test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include(embed_ptx)
-embed_ptx(
-  CONST HEADER testCuOmmBakingKernelsPTX.h
+# The omm baking test employs an OptiX kernel, which is compiled from CUDA to OptiXIR.
+include(embed_cuda)
+embed_cuda(
+  CONST HEADER testCuOmmBakingKernelsIR.h
   OUTPUT_TARGET
     testCuOmmBakingKernels
-  EMBED_PTX_PTX_TARGET
-    testCuOmmBakingKernels_ptx
-  PTX_LINK_LIBRARIES
+  CUDA_TARGET
+    testCuOmmBakingKernels_optixir
+  CUDA_LINK_LIBRARIES
     CuOmmBaking
   SOURCES
     Util/OptiXKernels.cu
     Util/OptiXKernels.h
 )
 
-set_target_properties(testCuOmmBakingKernels testCuOmmBakingKernels_ptx PROPERTIES FOLDER CmOmmBaking/Tests )
+set_target_properties(testCuOmmBakingKernels testCuOmmBakingKernels_optixir PROPERTIES FOLDER CmOmmBaking/tests )
 
 add_definitions( -DTEST_OMM_BAKING_TEXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Textures/" )
 add_definitions( -DTEST_OMM_BAKING_GOLD_DIR="${CMAKE_CURRENT_SOURCE_DIR}/gold/" )

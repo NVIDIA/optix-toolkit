@@ -1,4 +1,4 @@
-#include <testCuOmmBakingKernelsPTX.h>
+#include <testCuOmmBakingKernelsIR.h>
 
 #include <cuda_runtime.h>
 
@@ -87,7 +87,7 @@ uint32_t getIndexFormatSizeInBytes( cuOmmBaking::IndexFormat format )
     }
 }
 
-OptixResult OptixOmmScene::build( OptixDeviceContext context, const char* ptxInput, const size_t ptxInputize, const OptixOmmArray& optixOmm, const cuOmmBaking::BakeInputDesc* ommBuildInput, unsigned int numBuildInputs )
+OptixResult OptixOmmScene::build( OptixDeviceContext context, const char* optixirInput, const size_t optixirInputize, const OptixOmmArray& optixOmm, const cuOmmBaking::BakeInputDesc* ommBuildInput, unsigned int numBuildInputs )
 {
     OPTIX_CHECK( destroy() );
 
@@ -95,7 +95,7 @@ OptixResult OptixOmmScene::build( OptixDeviceContext context, const char* ptxInp
 
     CUDA_SYNC_CHECK();
 
-    if( OptixResult result = buildPipeline( ptxInput, ptxInputize ) )
+    if( OptixResult result = buildPipeline( optixirInput, optixirInputize ) )
     {
         destroy();
         OPTIX_CHECK( result );
@@ -434,7 +434,7 @@ OptixResult OptixOmmScene::buildSBT( const cuOmmBaking::BakeInputDesc* ommBuildI
     return OPTIX_SUCCESS;
 }
 
-OptixResult OptixOmmScene::buildPipeline( const char* ptxInput, const size_t ptxInputSize )
+OptixResult OptixOmmScene::buildPipeline( const char* optixirInput, const size_t optixirInputSize )
 {
     OptixTraversableGraphFlags traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
 
@@ -454,12 +454,12 @@ OptixResult OptixOmmScene::buildPipeline( const char* ptxInput, const size_t ptx
     pipelineCompileOptions.usesPrimitiveTypeFlags           = (unsigned int)OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
     pipelineCompileOptions.allowOpacityMicromaps            = true;
 
-    if( ptxInput )
+    if( optixirInput )
     {
-        OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, ptxInput, ptxInputSize, 0, 0, &m_moduleDC ) );
+        OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, optixirInput, optixirInputSize, 0, 0, &m_moduleDC ) );
     }
 
-    OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_ptx_text(), OptiXKernels_ptx_size, 0, 0, &m_module));
+    OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_optixir_text(), OptiXKernels_optixir_size, 0, 0, &m_module));
 
     // Set up program groups
 
