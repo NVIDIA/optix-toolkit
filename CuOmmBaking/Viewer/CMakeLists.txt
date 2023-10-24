@@ -31,14 +31,15 @@ include(BuildConfig)
 include(FetchGlad)
 include(FetchGlfw)
 
-include(embed_ptx)
-embed_ptx(
+include(embed_cuda)
+embed_cuda(
+  GEN_PTX
   CONST HEADER CuOmmBakingViewerKernelPTX.h
   OUTPUT_TARGET
     ommBakingViewerKernel
   FOLDER
     Examples/CmOmmBaking
-  PTX_LINK_LIBRARIES
+  CUDA_LINK_LIBRARIES
     OptiXToolkit::CuOmmBaking 
     OptiXToolkit::ShaderUtil
   SOURCES
