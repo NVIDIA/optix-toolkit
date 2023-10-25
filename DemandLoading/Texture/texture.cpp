@@ -28,7 +28,7 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include <TextureKernelPTX.h>
+#include <TextureKernelIR.h>
 
 #include "textureKernel.h"
 
@@ -88,7 +88,7 @@ struct PerDeviceSampleState
     OptixDeviceContext          context                  = 0;
     OptixTraversableHandle      gas_handle               = 0;  // Traversable handle for triangle AS
     CUdeviceptr                 d_gas_output_buffer      = 0;  // Triangle AS memory
-    OptixModule                 ptx_module               = 0;
+    OptixModule                 optixir_module               = 0;
     OptixPipelineCompileOptions pipeline_compile_options = {};
     OptixPipeline               pipeline                 = 0;
     OptixProgramGroup           raygen_prog_group        = 0;
@@ -271,7 +271,7 @@ void createModule( PerDeviceSampleState& state )
     size_t sizeof_log = sizeof( log );
 
     OPTIX_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
-                                        textureKernel_ptx_text(), textureKernel_ptx_size, log, &sizeof_log, &state.ptx_module ) );
+                                        textureKernel_optixir_text(), textureKernel_optixir_size, log, &sizeof_log, &state.optixir_module ) );
 }
 
 
@@ -281,7 +281,7 @@ void createProgramGroups( PerDeviceSampleState& state )
 
     OptixProgramGroupDesc raygen_prog_group_desc    = {};  //
     raygen_prog_group_desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    raygen_prog_group_desc.raygen.module            = state.ptx_module;
+    raygen_prog_group_desc.raygen.module            = state.optixir_module;
     raygen_prog_group_desc.raygen.entryFunctionName = "__raygen__rg";
     char   log[2048];
     size_t sizeof_log = sizeof( log );
@@ -291,7 +291,7 @@ void createProgramGroups( PerDeviceSampleState& state )
 
     OptixProgramGroupDesc miss_prog_group_desc  = {};
     miss_prog_group_desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
-    miss_prog_group_desc.miss.module            = state.ptx_module;
+    miss_prog_group_desc.miss.module            = state.optixir_module;
     miss_prog_group_desc.miss.entryFunctionName = "__miss__ms";
     sizeof_log                                  = sizeof( log );
     OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
@@ -300,11 +300,11 @@ void createProgramGroups( PerDeviceSampleState& state )
 
     OptixProgramGroupDesc hitgroup_prog_group_desc        = {};
     hitgroup_prog_group_desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
     hitgroup_prog_group_desc.hitgroup.moduleAH            = nullptr;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = nullptr;
-    hitgroup_prog_group_desc.hitgroup.moduleIS            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleIS            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = "__intersection__is";
     sizeof_log                                            = sizeof( log );
     OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
@@ -393,7 +393,7 @@ void cleanupState( PerDeviceSampleState& state )
     OPTIX_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
     OPTIX_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
     OPTIX_CHECK( optixProgramGroupDestroy( state.hitgroup_prog_group ) );
-    OPTIX_CHECK( optixModuleDestroy( state.ptx_module ) );
+    OPTIX_CHECK( optixModuleDestroy( state.optixir_module ) );
     OPTIX_CHECK( optixDeviceContextDestroy( state.context ) );
 
     CUDA_CHECK( cudaSetDevice( state.device_idx ) );

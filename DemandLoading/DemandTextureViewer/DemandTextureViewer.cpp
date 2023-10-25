@@ -27,7 +27,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandTextureViewerKernelPTX.h>
+#include <DemandTextureViewerKernelIR.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
@@ -253,7 +253,7 @@ int main( int argc, char* argv[] )
     app.setTextureType( textureType );
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( DemandTextureViewer_ptx_text() );
+    app.initOptixPipelines( DemandTextureViewer_optixir_text(), DemandTextureViewer_optixir_size );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 

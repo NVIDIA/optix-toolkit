@@ -29,14 +29,14 @@
 
 #include <assert.h>
 
+#include <TextureVariantViewerIR.h>
+
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
 using namespace demandLoading;
 using namespace demandTextureApp;
-
-extern "C" char TextureVariantViewer_ptx[];  // generated via CMake by embed_ptx.
 
 //------------------------------------------------------------------------------
 // TextureVariantApp
@@ -132,7 +132,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( TextureVariantViewer_ptx );
+    app.initOptixPipelines( TextureVariantViewer_optixir_text(), TextureVariantViewer_optixir_size );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

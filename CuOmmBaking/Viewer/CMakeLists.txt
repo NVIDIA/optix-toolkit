@@ -33,8 +33,7 @@ include(FetchGlfw)
 
 include(embed_cuda)
 embed_cuda(
-  GEN_PTX
-  CONST HEADER CuOmmBakingViewerKernelPTX.h
+  CONST HEADER CuOmmBakingViewerKernelIR.h
   OUTPUT_TARGET
     ommBakingViewerKernel
   FOLDER

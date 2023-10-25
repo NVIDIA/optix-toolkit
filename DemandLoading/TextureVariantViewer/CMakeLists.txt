@@ -30,14 +30,15 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
-include(embed_ptx)
+include(embed_cuda)
 
-embed_ptx(
+embed_cuda(
+  HEADER TextureVariantViewerIR.h
   OUTPUT_TARGET
     TextureVariantViewerKernel
   FOLDER
     Examples/DemandLoading
-  PTX_LINK_LIBRARIES
+  CUDA_LINK_LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

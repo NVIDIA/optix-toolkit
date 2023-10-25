@@ -66,7 +66,7 @@ class DemandTextureApp
     void sceneIsTriangles( bool t ) { m_scene_is_triangles = t; }
     void initDemandLoading();
     virtual void createTexture() = 0;
-    void initOptixPipelines( const char* moduleCode );
+    void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
     void startLaunchLoop();
     void cleanup();
     void printDemandLoadingStats();

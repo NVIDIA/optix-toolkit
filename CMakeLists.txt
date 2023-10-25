@@ -59,9 +59,9 @@ add_subdirectory(tests)
 
 # Skip examples if the libraries they depend upon were not built.
 if(TARGET OptiXToolkit::CuOmmBaking)
-  # add_subdirectory(CuOmmBaking)
+  add_subdirectory(CuOmmBaking)
 endif()
 if(TARGET OptiXToolkit::DemandLoading)
-  # add_subdirectory(DemandLoading)
+  add_subdirectory(DemandLoading)
 endif()
 

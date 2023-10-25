@@ -29,7 +29,7 @@
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
 #include "DemandGeometryViewer.h"
-#include "DemandGeometryViewerKernelPTX.h"
+#include "DemandGeometryViewerKernelIR.h"
 #include "SphereInstances.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
@@ -230,7 +230,7 @@ class Application
     void createContext();
     void initPipelineOpts();
 
-    OptixModule createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* ptx, size_t ptxSize );
+    OptixModule createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* optixir, size_t optixirSize );
 
     void createModules();
     void createProgramGroups();
@@ -396,10 +396,10 @@ void Application::initPipelineOpts()
     m_pipelineOpts.pipelineLaunchParamsVariableName = "g_params";
 }
 
-OptixModule Application::createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* ptx, size_t ptxSize )
+OptixModule Application::createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* optixir, size_t optixirSize )
 {
     OptixModule module;
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, ptx, ptxSize, LOG, &LOG_SIZE, &module ) );
+    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, optixir, optixirSize, LOG, &LOG_SIZE, &module ) );
     return module;
 }
 
@@ -422,7 +422,7 @@ void Application::createModules()
 {
     const OptixModuleCompileOptions compileOptions{getCompileOptions()};
 
-    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_ptx_text(), DemandGeometryViewer_ptx_size );
+    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_optixir_text(), DemandGeometryViewer_optixir_size );
 
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
@@ -735,7 +735,7 @@ void Application::realizeMaterial( uint_t materialId )
     // compile real material module
     {
         const OptixModuleCompileOptions compileOptions{getCompileOptions()};
-        m_realizedMaterialModule = createModuleFromSource( compileOptions, Sphere_ptx_text(), Sphere_ptx_size );
+        m_realizedMaterialModule = createModuleFromSource( compileOptions, Sphere_optixir_text(), Sphere_optixir_size );
     }
 
     // create real material program group

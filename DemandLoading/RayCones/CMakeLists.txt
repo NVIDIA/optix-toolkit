@@ -30,15 +30,15 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
-include(embed_ptx)
+include(embed_cuda)
 
-embed_ptx(
-  CONST HEADER RayConesKernelPTX.h
+embed_cuda(
+  CONST HEADER RayConesKernelIR.h
   OUTPUT_TARGET
     rayConesKernel
   FOLDER
     Examples/DemandLoading
-  PTX_LINK_LIBRARIES
+  CUDA_LINK_LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

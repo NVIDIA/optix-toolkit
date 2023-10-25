@@ -31,7 +31,7 @@
 #include <optix_stack_size.h>
 #include <optix_stubs.h>
 
-#include <CuOmmBakingViewerKernelPTX.h>
+#include <CuOmmBakingViewerKernelIR.h>
 
 #include "CuOmmBakingApp.h"
 #include "LaunchParams.h"
@@ -118,7 +118,7 @@ class OmmBakingViewer : public OmmBakingApp
     {
     }
 
-    void initOptixPipelines( const char* moduleCode );
+    void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
 
   protected:
@@ -440,7 +440,7 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
 // OptiX setup
 //------------------------------------------------------------------------------
 
-void OmmBakingViewer::initOptixPipelines( const char* moduleCode )
+void OmmBakingViewer::initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize )
 {
     OPTIX_CHECK( optixInit() );
 
@@ -455,7 +455,7 @@ void OmmBakingViewer::initOptixPipelines( const char* moduleCode )
         createTexture( i );
     }
 
-    OmmBakingApp::initOptixPipelines( moduleCode, numDevices );
+    OmmBakingApp::initOptixPipelines( moduleCode, moduleCodeSize, numDevices );
 }
 
 void OmmBakingViewer::createSBT( const PerDeviceOptixState& optixState )
@@ -588,7 +588,7 @@ int main( int argc, char* argv[] )
 
     OmmBakingViewer app( "Opacity Micromap Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.setTextureName( textureName );
-    app.initOptixPipelines( CuOmmBakingViewer_ptx_text() );
+    app.initOptixPipelines( CuOmmBakingViewer_optixir_text(), CuOmmBakingViewer_optixir_size );
     app.startLaunchLoop();
     
     return 0;

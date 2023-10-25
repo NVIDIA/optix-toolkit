@@ -27,7 +27,7 @@
 #
 
 include(BuildConfig)
-include(embed_ptx)
+include(embed_cuda)
 
 find_package(OptiX 7.5)
 if(NOT OptiX_FOUND)
@@ -37,11 +37,11 @@ endif()
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
-embed_ptx(
-    CONST HEADER DemandGeometryViewerKernelPTX.h
+embed_cuda(
+    CONST HEADER DemandGeometryViewerKernelIR.h
     OUTPUT_TARGET DemandGeometryViewerKernel
-    PTX_INCLUDE_DIRECTORIES include
-    PTX_LINK_LIBRARIES
+    CUDA_INCLUDE_DIRECTORIES include
+    CUDA_LINK_LIBRARIES
         OptiXToolkit::DemandGeometry
         OptiXToolkit::DemandLoading
         OptiXToolkit::DemandMaterial

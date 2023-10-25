@@ -215,7 +215,7 @@ void DemandTextureApp::createModule( PerDeviceOptixState& state, const char* mod
     char   log[2048];
     size_t sizeof_log = sizeof( log );
     OPTIX_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
-                                        moduleCode, codeSize, log, &sizeof_log, &state.ptx_module ) );
+                                        moduleCode, codeSize, log, &sizeof_log, &state.optixir_module ) );
 }
 
 
@@ -229,7 +229,7 @@ void DemandTextureApp::createProgramGroups( PerDeviceOptixState& state )
 
     OptixProgramGroupDesc raygen_prog_group_desc    = {};  //
     raygen_prog_group_desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    raygen_prog_group_desc.raygen.module            = state.ptx_module;
+    raygen_prog_group_desc.raygen.module            = state.optixir_module;
     raygen_prog_group_desc.raygen.entryFunctionName = "__raygen__rg";
     OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &raygen_prog_group_desc,
                                               1,  // num program groups
@@ -237,7 +237,7 @@ void DemandTextureApp::createProgramGroups( PerDeviceOptixState& state )
 
     OptixProgramGroupDesc miss_prog_group_desc  = {};
     miss_prog_group_desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
-    miss_prog_group_desc.miss.module            = state.ptx_module;
+    miss_prog_group_desc.miss.module            = state.optixir_module;
     miss_prog_group_desc.miss.entryFunctionName = "__miss__ms";
     OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
                                               1,  // num program groups
@@ -245,11 +245,11 @@ void DemandTextureApp::createProgramGroups( PerDeviceOptixState& state )
 
     OptixProgramGroupDesc hitgroup_prog_group_desc        = {};
     hitgroup_prog_group_desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
     hitgroup_prog_group_desc.hitgroup.moduleAH            = nullptr;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = nullptr;
-    hitgroup_prog_group_desc.hitgroup.moduleIS            = m_scene_is_triangles ? nullptr : state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleIS            = m_scene_is_triangles ? nullptr : state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = m_scene_is_triangles ? nullptr : "__intersection__is";
     OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
                                               1,  // num program groups
@@ -338,7 +338,7 @@ void DemandTextureApp::cleanupState( PerDeviceOptixState& state )
     OPTIX_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
     OPTIX_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
     OPTIX_CHECK( optixProgramGroupDestroy( state.hitgroup_prog_group ) );
-    OPTIX_CHECK( optixModuleDestroy( state.ptx_module ) );
+    OPTIX_CHECK( optixModuleDestroy( state.optixir_module ) );
     OPTIX_CHECK( optixDeviceContextDestroy( state.context ) );
 
     CUDA_CHECK( cudaFree( reinterpret_cast<void*>( state.sbt.raygenRecord ) ) );
@@ -349,14 +349,14 @@ void DemandTextureApp::cleanupState( PerDeviceOptixState& state )
 }
 
 
-void DemandTextureApp::initOptixPipelines( const char* moduleCode )
+ void DemandTextureApp::initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize )
 {
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         CUDA_CHECK( cudaSetDevice( state.device_idx ) );
         createContext( state );
         buildAccel( state );
-        createModule( state, moduleCode, ::strlen( moduleCode ) );
+        createModule( state, moduleCode, moduleCodeSize );
         createProgramGroups( state );
         createPipeline( state );
         createSBT( state );

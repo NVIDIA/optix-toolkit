@@ -29,7 +29,7 @@
 
 #include <string>
 
-#include <UdimTextureViewerKernelPTX.h>
+#include <UdimTextureViewerKernelIR.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSource/CascadeImage.h>
@@ -222,7 +222,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
-    app.initOptixPipelines( UdimTextureViewer_ptx_text() );
+    app.initOptixPipelines( UdimTextureViewer_optixir_text(), UdimTextureViewer_optixir_size );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 
