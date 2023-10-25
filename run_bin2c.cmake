@@ -2,7 +2,7 @@
 ## Copyright 2021 Jefferson Amstutz
 ## SPDX-License-Identifier: Apache-2.0
 
-# NOTE: This script is only to be invoked by the EmbedPTX() function.
+# NOTE: This script is only to be invoked by the embed_cuda() function.
 
 set(file_contents "#include <stddef.h>\n\n")
 unset(header_contents)
@@ -54,8 +54,11 @@ foreach(obj ${OBJECTS})
   if(NOT EXISTS ${obj})
     message(FATAL_ERORR "${obj} does not exist.")
     set(file_contents "${file_contents}\n#error ${obj} does not exist.\n")
-  elseif(obj_ext MATCHES ".ptx")
-    set(args --name ${obj_name} ${obj} --padd 0,0)
+  elseif(obj_ext MATCHES ".ptx" OR obj_ext MATCHES ".optixir")
+    set(args --name ${obj_name} ${obj})
+    if(obj_ext MATCHES ".ptx")
+      list(APPEND(args --padd 0,0))
+    endif()
     if(CONST)
         list(APPEND args --const)
     endif()
