@@ -31,7 +31,7 @@
 #include "TestDebugLocation.h"
 
 #include "TestDebugLocationParams.h"
-#include "TestShaderUtilsPTX.h"
+#include "TestShaderUtilsIR.h"
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
@@ -53,6 +53,10 @@
 #include <functional>
 #include <sstream>
 #include <vector>
+
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
 
 void PrintTo( const float3& value, std::ostream* stream )
 {
@@ -103,11 +107,11 @@ class Module
     Module( OptixDeviceContext                 context,
             const OptixModuleCompileOptions*   moduleCompileOptions,
             const OptixPipelineCompileOptions* pipelineCompileOptions,
-            const char*                        PTX,
-            size_t                             PTXsize )
+            const char*                        optixir,
+            size_t                             optixirSize )
     {
-        OTK_ERROR_CHECK_LOG2( optixModuleCreate( context, moduleCompileOptions, pipelineCompileOptions, PTX, PTXsize,
-                                                 LOG, &LOG_SIZE, &m_module ) );
+        OTK_ERROR_CHECK_LOG2( optixModuleCreate( context, moduleCompileOptions, pipelineCompileOptions, optixir,
+                                                 optixirSize, LOG, &LOG_SIZE, &m_module ) );
     }
     Module( const Module& rhs ) = delete;
     Module( Module&& rhs )      = delete;
@@ -307,7 +311,8 @@ void TestDebugLocation::SetUp()
     setLogger( contextOptions, &log );
     context                                                 = Context( nullptr, &contextOptions );
     pipelineCompileOptions.pipelineLaunchParamsVariableName = "g_params";
-    module = Module( context, &moduleCompileOptions, &pipelineCompileOptions, TestDebugLocation_ptx_text(), TestDebugLocation_ptx_size );
+    module = Module( context, &moduleCompileOptions, &pipelineCompileOptions, TestDebugLocation_optixir_text(),
+                     TestDebugLocation_optixir_size );
     otk::ProgramGroupDescBuilder( descs, module )
         .raygen( "__raygen__debugLocationTest" )
         .miss( "__miss__debugLocationTest" )

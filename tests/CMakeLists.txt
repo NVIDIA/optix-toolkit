@@ -98,11 +98,11 @@ endif()
 gtest_discover_tests(testSelfIntersectionAvoidance PROPERTIES LABELS ShaderUtil)
 
 
-embed_ptx(
-  CONST HEADER TestShaderUtilsPTX.h
+embed_cuda(
+  CONST HEADER TestShaderUtilsIR.h
   OUTPUT_TARGET
     TestShaderUtilsKernels
-  PTX_LINK_LIBRARIES
+  CUDA_LINK_LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES
