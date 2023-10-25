@@ -28,11 +28,12 @@
 
 include( FetchGtest )
 include( GoogleTest )
-include( embed_ptx )
+include( embed_cuda )
 
-embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
+embed_cuda( CONST HEADER TestDemandLoadingKernelsPTX.h
+    GEN_PTX
     OUTPUT_TARGET testDemandLoadingKernels
-    PTX_LINK_LIBRARIES
+    CUDA_LINK_LIBRARIES
         DemandLoading
         ShaderUtil
     SOURCES DeferredImageLoadingKernels.cu
@@ -119,13 +120,13 @@ set_target_properties( testDemandLoading
 # Register test cases with CTest.
 gtest_discover_tests(testDemandLoading PROPERTIES LABELS DemandLoading)
 
-# The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include( embed_ptx )
-embed_ptx(
-  CONST HEADER TextureFootprintPTX.h
+# The texture footprint test employs an OptiX kernel, which is compiled from CUDA to OPTIXIR.
+include( embed_cuda )
+embed_cuda(
+  CONST HEADER TextureFootprintIR.h
   OUTPUT_TARGET
     testTextureFootprintKernel
-  PTX_LINK_LIBRARIES
+  CUDA_LINK_LIBRARIES
     DemandLoading
   FOLDER DemandLoading/Tests
   SOURCES

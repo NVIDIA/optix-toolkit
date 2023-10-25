@@ -37,7 +37,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(BuildConfig)
-include(embed_ptx)
+include(embed_cuda)
 include(FetchOpenEXR)
 include(CTest)
 
@@ -55,11 +55,12 @@ find_package(OptiX 7.3 REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
-embed_ptx(CONST RELOCATABLE
+embed_cuda(CONST RELOCATABLE
+    GEN_PTX
     HEADER DemandLoadingKernelsPTX.h
     OUTPUT_TARGET DemandLoadingKernels
     FOLDER DemandLoading
-    PTX_INCLUDE_DIRECTORIES include
+    CUDA_INCLUDE_DIRECTORIES include
     SOURCES src/PagingSystemKernels.cu
 )
 
