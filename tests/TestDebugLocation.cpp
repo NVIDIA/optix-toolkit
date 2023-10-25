@@ -61,6 +61,10 @@ void PrintTo( const float3& value, std::ostream* stream )
 
 using namespace otk::shaderUtil::testing;
 
+#if OPTIX_VERSION < 70700
+#define optixModuleCreate optixModuleCreateFromPTX
+#endif
+
 namespace {
 
 class Context
@@ -102,8 +106,8 @@ class Module
             const char*                        PTX,
             size_t                             PTXsize )
     {
-        OTK_ERROR_CHECK_LOG2( optixModuleCreateFromPTX( context, moduleCompileOptions, pipelineCompileOptions, PTX,
-                                                        PTXsize, LOG, &LOG_SIZE, &m_module ) );
+        OTK_ERROR_CHECK_LOG2( optixModuleCreate( context, moduleCompileOptions, pipelineCompileOptions, PTX, PTXsize,
+                                                 LOG, &LOG_SIZE, &m_module ) );
     }
     Module( const Module& rhs ) = delete;
     Module( Module&& rhs )      = delete;
