@@ -101,13 +101,13 @@ const int NUM_ATTRIBUTE_VALUES = 3;
 
 struct Options
 {
-    std::string outFile;
-    int         width{512};
-    int         height{512};
-    float3      background;
-    int         warmup{};
-    Debug       debug{};
-    bool        useOptixGetSphereData{true};
+    std::string        outFile;
+    int                width{ 512 };
+    int                height{ 512 };
+    float3             background;
+    int                warmup{};
+    otk::DebugLocation debug{};
+    bool               useOptixGetSphereData{ true };
 };
 
 bool hasOption( const std::string& arg, const std::string& flag, std::istringstream& value )
@@ -176,10 +176,10 @@ Options parseArguments( int argc, char* argv[] )
             if( !value || x < 0 || y < 0 )
                 printUsageAndExit( argv[0] );
 
-            Debug& debug        = options.debug;
-            debug.enabled       = true;
-            debug.debugIndexSet = true;
-            debug.debugIndex    = make_uint3( x, y, 0 );
+            otk::DebugLocation& debug = options.debug;
+            debug.enabled             = true;
+            debug.debugIndexSet       = true;
+            debug.debugIndex          = make_uint3( x, y, 0 );
         }
         else
         {
@@ -970,8 +970,8 @@ void Application::key( GLFWwindow* window, int32_t key, int32_t /*scanCode*/, in
         {
             case GLFW_KEY_D:
             {
-                Debug& debug  = m_params[0].debug;
-                debug.enabled = !debug.enabled;
+                otk::DebugLocation& debug = m_params[0].debug;
+                debug.enabled             = !debug.enabled;
                 if( debug.enabled && !debug.debugIndexSet )
                 {
                     debug.debugIndexSet = true;
