@@ -96,9 +96,31 @@ endif()
 # Register test cases with CTest.
 gtest_discover_tests(testSelfIntersectionAvoidance PROPERTIES LABELS ShaderUtil)
 
-add_executable(TestShaderUtil TestOperators.cpp)
+
+embed_ptx(
+  CONST HEADER TestShaderUtilsPTX.h
+  OUTPUT_TARGET
+    TestShaderUtilsKernels
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::ShaderUtil
+    OptiX::OptiX
+  SOURCES
+    TestDebugLocation.cu
+  FOLDER ShaderUtil/tests
+)
+
+add_executable(TestShaderUtil
+    TestDebugLocation.h
+    TestDebugLocation.cpp
+    TestDebugLocationParams.h
+    TestOperators.cpp
+)
 target_link_libraries(TestShaderUtil PUBLIC
+    TestShaderUtilsKernels
     GTest::gtest_main
+    OptiXToolkit::Error
+    OptiXToolkit::Memory
+    OptiXToolkit::OptiXMemory
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
 )

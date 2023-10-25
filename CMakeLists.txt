@@ -54,6 +54,7 @@ target_sources(ShaderUtil
   BASE_DIRS include
   FILES
   include/OptiXToolkit/ShaderUtil/color.h
+  include/OptiXToolkit/ShaderUtil/DebugLocation.h
   include/OptiXToolkit/ShaderUtil/Preprocessor.h
   include/OptiXToolkit/ShaderUtil/vec_math.h
   )
