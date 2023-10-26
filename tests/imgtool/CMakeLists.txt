@@ -27,4 +27,4 @@ otk_add_executable(imgtool
   pngcompare.h
   )
 target_link_libraries(imgtool PUBLIC Stb::Image)
-set_target_properties(imgtool PROPERTIES FOLDER Examples/tests)
+set_target_properties(imgtool PROPERTIES FOLDER Examples/Tests)
