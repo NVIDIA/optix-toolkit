@@ -103,6 +103,7 @@ otk_add_library( DemandLoading
   src/ThreadPoolRequestProcessor.h
   src/Ticket.cpp
   src/TicketImpl.h
+  src/TransferBufferDesc.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/CudaContext.h
@@ -110,7 +111,6 @@ otk_add_library( DemandLoading
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
-  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.cpp
   src/Util/TraceFile.h
@@ -151,29 +151,13 @@ source_group( "Header Files\\Implementation" FILES
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.h
-  src/Memory/AsyncItemPool.h
-  src/Memory/Buffers.h
-  src/Memory/BulkMemory.h
-  src/Memory/BulkPinnedItemPool.h
-  src/Memory/DeviceContextPool.h
   src/Memory/DeviceMemoryManager.h
-  src/Memory/EventPool.h
-  src/Memory/FixedPool.h
-  src/Memory/ItemPool.h
-  src/Memory/PinnedItemPool.h
-  src/Memory/PinnedMemoryManager.h
-  src/Memory/PinnedRequestContextPool.h
-  src/Memory/SamplerPool.h
-  src/Memory/TileArena.h
-  src/Memory/TilePool.h
   src/PageMappingsContext.h
   src/PageTableManager.h
   src/PagingSystem.h
   src/PagingSystemKernels.h
   src/RequestContext.h
-  src/RequestFilter.h
   src/RequestHandler.h
-  src/RequestProcessor.h
   src/RequestQueue.h
   src/ResourceRequestHandler.h
   src/Textures/CascadeRequestHandler.h
@@ -184,15 +168,14 @@ source_group( "Header Files\\Implementation" FILES
   src/Textures/TextureRequestHandler.h
   src/ThreadPoolRequestProcessor.h
   src/TicketImpl.h
+  src/TransferBufferDesc.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/CudaContext.h
-  src/Util/DeviceSet.h
   src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
-  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.h
   )

@@ -40,7 +40,6 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
-#include "Util/PerContextData.h"
 #include "Util/TraceFile.h"
 
 #include <cuda.h>

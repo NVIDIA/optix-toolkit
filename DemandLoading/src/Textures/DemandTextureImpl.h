@@ -31,7 +31,6 @@
 #include "Textures/SparseTexture.h"
 #include "Textures/TextureRequestHandler.h"
 #include "Util/Exception.h"
-#include "Util/PerContextData.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>

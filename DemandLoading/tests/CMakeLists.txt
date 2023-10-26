@@ -62,7 +62,6 @@ otk_add_executable( testDemandLoading
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
-  TestPerContextData.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
   TestSparseTexture.h
