@@ -44,7 +44,7 @@ embed_ptx(
     Util/OptiXKernels.h
 )
 
-set_target_properties(testCuOmmBakingKernels testCuOmmBakingKernels_ptx PROPERTIES FOLDER CmOmmBaking/tests )
+set_target_properties(testCuOmmBakingKernels testCuOmmBakingKernels_ptx PROPERTIES FOLDER CmOmmBaking/Tests )
 
 add_definitions( -DTEST_OMM_BAKING_TEXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Textures/" )
 add_definitions( -DTEST_OMM_BAKING_GOLD_DIR="${CMAKE_CURRENT_SOURCE_DIR}/gold/" )
@@ -71,7 +71,7 @@ otk_add_executable( testCuOmmBaking
 
 set_target_properties(testCuOmmBaking PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER CmOmmBaking/tests 
+  FOLDER CmOmmBaking/Tests 
   )
 
 target_include_directories( testCuOmmBaking PUBLIC
