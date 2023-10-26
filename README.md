@@ -1,4 +1,3 @@
-
 # OptiX Toolkit (OTK)
 
 A set of utilities commonly used in applications utilizing the [OptiX ray tracing API](https://developer.nvidia.com/rtx/ray-tracing/optix).
@@ -27,7 +26,7 @@ git submodule update --init --recursive Memory CMake
 
 - C++ compiler (gcc, Clang, or Visual Studio)
 - git (any modern version with LFS) ([download](https://git-scm.com/downloads))
-- CMake 3.24 or later ([download](https://cmake.org/download/)).  
+- CMake 3.27 or later ([download](https://cmake.org/download/)).  
   - Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 - CUDA 11.1 or later ([download](https://developer.nvidia.com/cuda-downloads))
 - OptiX 7.3 or later ([download](https://developer.nvidia.com/designworks/optix/download))
