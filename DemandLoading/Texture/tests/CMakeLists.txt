@@ -28,4 +28,4 @@
 
 include(ImageTest)
 
-add_image_test(demandLoadTexture basic ALLOWED_PERCENTAGE 0.1)
+add_image_test(demandLoadTexture basic FOLDER Examples/DemandLoading/Tests ALLOWED_PERCENTAGE 0.1)

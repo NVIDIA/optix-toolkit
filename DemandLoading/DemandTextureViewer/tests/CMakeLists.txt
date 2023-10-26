@@ -28,4 +28,4 @@
 
 include(ImageTest)
 
-add_image_test(demandTextureViewer basic ARGS --dim=512x512 --no-gl-interop)
+add_image_test(demandTextureViewer basic FOLDER Examples/DemandLoading/Tests ARGS --dim=512x512 --no-gl-interop)
