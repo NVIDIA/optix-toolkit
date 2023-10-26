@@ -62,7 +62,7 @@ embed_ptx(
     OptiX::OptiX
   SOURCES
     testSiaOptix.cu
-  FOLDER ShaderUtil/tests
+  FOLDER ShaderUtil/Tests
 )
 
 # Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
@@ -76,7 +76,7 @@ otk_add_executable( testSelfIntersectionAvoidance
   )
 set_target_properties(testSelfIntersectionAvoidance PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER ShaderUtil/tests 
+  FOLDER ShaderUtil/Tests 
   )
 target_include_directories( testSelfIntersectionAvoidance PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}/include  # for SourceDir.h
@@ -106,7 +106,7 @@ embed_ptx(
     OptiX::OptiX
   SOURCES
     TestDebugLocation.cu
-  FOLDER ShaderUtil/tests
+  FOLDER ShaderUtil/Tests
 )
 
 add_executable(TestShaderUtil
@@ -124,5 +124,5 @@ target_link_libraries(TestShaderUtil PUBLIC
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
 )
-set_target_properties(TestShaderUtil PROPERTIES FOLDER ShaderUtil/tests)
+set_target_properties(TestShaderUtil PROPERTIES FOLDER ShaderUtil/Tests)
 gtest_discover_tests(TestShaderUtil PROPERTIES LABELS ShaderUtil)
