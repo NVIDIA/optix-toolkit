@@ -53,7 +53,7 @@ endif()
 
 set_target_properties( testMemory PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER Memory/tests
+  FOLDER Memory/Tests
 )
 
 # Register test cases with CTest.
@@ -69,5 +69,5 @@ target_link_libraries(testOptiXMemory
   CUDA::cudart
   GTest::gtest_main
 )
-set_property(TARGET testOptiXMemory PROPERTY FOLDER Memory/tests)
+set_property(TARGET testOptiXMemory PROPERTY FOLDER Memory/Tests)
 gtest_discover_tests(testOptiXMemory PROPERTIES LABELS Memory)
