@@ -36,7 +36,7 @@ embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
         DemandLoading
         ShaderUtil
     SOURCES DeferredImageLoadingKernels.cu
-    FOLDER DemandLoading/tests
+    FOLDER DemandLoading/Tests
 )
 
 otk_add_executable( testDemandLoading
@@ -112,7 +112,7 @@ endif()
 
 set_target_properties( testDemandLoading 
   PROPERTIES CXX_STANDARD 14 # Required by latest gtest
-  FOLDER DemandLoading/tests
+  FOLDER DemandLoading/Tests
 )
 
 
@@ -127,7 +127,7 @@ embed_ptx(
     testTextureFootprintKernel
   PTX_LINK_LIBRARIES
     DemandLoading
-  FOLDER DemandLoading/tests
+  FOLDER DemandLoading/Tests
   SOURCES
     TestTextureFootprint.cu
 )
@@ -148,7 +148,7 @@ target_link_libraries( testTextureFootprint
   GTest::gtest_main
   ${CMAKE_DL_LIBS}
   )
-set_target_properties( testTextureFootprint PROPERTIES FOLDER DemandLoading/tests )
+set_target_properties( testTextureFootprint PROPERTIES FOLDER DemandLoading/Tests )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
@@ -159,7 +159,7 @@ endif()
 
 set_target_properties( testDemandLoading PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER DemandLoading/tests
+  FOLDER DemandLoading/Tests
 )
 
 # Register test cases with CTest.

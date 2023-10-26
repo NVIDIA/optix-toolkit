@@ -40,7 +40,7 @@ include(GoogleTest)
 #)
 #target_include_directories(DemandGeometryMocks PUBLIC include)
 #target_link_libraries(DemandGeometryMocks PUBLIC OptiX::OptiX GTest::gmock)
-#set_target_properties(DemandGeometryMocks PROPERTIES FOLDER DemandLoading/tests)
+#set_target_properties(DemandGeometryMocks PROPERTIES FOLDER DemandLoading/Tests)
 #add_library(OptiXToolkit::DemandGeometry::Mocks ALIAS DemandGeometryMocks)
 #
 #otk_add_executable( TestDemandGeometry
@@ -59,7 +59,7 @@ include(GoogleTest)
 #
 #set_target_properties(TestDemandGeometry PROPERTIES 
 #  CXX_STANDARD 14  # Required by latest gtest
-#  FOLDER DemandLoading/tests
+#  FOLDER DemandLoading/Tests
 #  )
 #
 #gtest_discover_tests(TestDemandGeometry PROPERTIES LABELS DemandLoading)
