@@ -2,42 +2,41 @@
 ## Copyright 2021 Jefferson Amstutz
 ## SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.12)
-
-# NOTE(jda) - CMake 3.17 defines CMAKE_CURRENT_FUNCTION_LIST_DIR, but alas can't
-#             use it yet.
-set(EMBED_CUDA_DIR ${CMAKE_CURRENT_LIST_DIR} CACHE INTERNAL "")
+cmake_minimum_required(VERSION 3.17)
 
 # embed_cuda
 #
-# Compile CUDA sources to OptiXIR (default) or PTX and use bin2c from the CUDA SDK 
-# to create data arrays containing the resulting OptiXIR or PTX output.
+# Compile CUDA sources and use bin2c from the CUDA SDK to create data arrays
+# containing the resulting OptiXIR or PTX output.
 #
 # Keyword arguments:
 # CONST             Pass --const to bin2c to generate constant data arrays.
 # RELOCATABLE       Pass -rdc=true to nvcc to generate relocatable PTX/OptiXIR.
-# GEN_PTX           Generate and embed PTX instead of OptiXIR (default is OptiXIR).
-# GEN_DEBUG         Generate OptiX debug symbols (OptiX IR required). 
+# OPTIXIR           Generate and embed optixir (default)
+# PTX               Generate and embed PTX
+# DEBUG             Generate OptiX debug symbols (OptiX IR required). 
 #
 # Single value arguments:
 # OUTPUT_TARGET     Name of the target that contains the generated C file.
 #                   Required.
-# CUDA_TARGET       Name of the target that compiles CUDA to OptiXIR/PTX.
-#                   Default: ${OUTPUT_TARGET}_optixir or ${OUTPUT_TARGET}_ptx
+# CUDA_TARGET       Name of the target that compiles OptiX program CUDA source files.
+#                   Default: ${OUTPUT_TARGET}Cuda
 # FOLDER            IDE folder property for generated targets, if any.
 # HEADER            Generate a header file with the given name to contain
 #                   declarations for the generated data arrays.
 #
 # Multiple value arguments:
-# CUDA_INCLUDE_DIRECTORIES   List of directories to search when compiling to OptiXIR/PTX
-# CUDA_LINK_LIBRARIES        List of libraries to link against when compiling OptiXIR/PTX.
-# SOURCES                   List of CUDA source files to compile to OptiXIR/PTX.
-# EMBEDDED_SYMBOL_NAMES     List of names for embedded data arrays, one per source file.
+# INCLUDES              List of directories to search when compiling CUDA source files.
+# LIBRARIES             List of libraries to link against when compiling CUDA source files.
+# SOURCES               List of CUDA source files to compile.
+# EMBEDDED_SYMBOL_NAMES List of names for embedded data arrays, one per source file.
 #
 function(embed_cuda)
-  set(noArgs CONST RELOCATABLE GEN_PTX GEN_DEBUG)
+  set(EMBED_CUDA_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR})
+
+  set(noArgs CONST RELOCATABLE OPTIXIR PTX DEBUG)
   set(oneArgs OUTPUT_TARGET CUDA_TARGET FOLDER HEADER)
-  set(multiArgs CUDA_INCLUDE_DIRECTORIES CUDA_LINK_LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
+  set(multiArgs INCLUDES LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
   cmake_parse_arguments(EMBED_CUDA "${noArgs}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
   if(NOT EMBED_CUDA_OUTPUT_TARGET)
@@ -49,7 +48,7 @@ function(embed_cuda)
     list(LENGTH EMBED_CUDA_SOURCES NUM_SOURCES)
     if (NOT ${NUM_SOURCES} EQUAL ${NUM_NAMES})
       message(FATAL_ERROR
-        "embed_CUDA(): the number of names passed as EMBEDDED_SYMBOL_NAMES must \
+        "embed_cuda(): the number of names passed as EMBEDDED_SYMBOL_NAMES must \
         match the number of files in SOURCES."
       )
     endif()
@@ -57,11 +56,7 @@ function(embed_cuda)
     unset(EMBED_CUDA_EMBEDDED_SYMBOL_NAMES)
     foreach(source ${EMBED_CUDA_SOURCES})
       get_filename_component(name ${source} NAME_WE)
-      if(EMBED_CUDA_GEN_PTX)
-        list(APPEND EMBED_CUDA_EMBEDDED_SYMBOL_NAMES ${name}_ptx)
-      else()
-        list(APPEND EMBED_CUDA_EMBEDDED_SYMBOL_NAMES ${name}_optixir)
-      endif()
+      list(APPEND EMBED_CUDA_EMBEDDED_SYMBOL_NAMES ${name}Cuda)
     endforeach()
   endif()
 
@@ -86,37 +81,29 @@ function(embed_cuda)
 
   set(EMBED_CUDA_RUN ${EMBED_CUDA_DIR}/run_bin2c.cmake)
 
-  ## Create PTX/OPTIXIR object target ##
+  ## Create CUDA object target ##
 
   if (NOT EMBED_CUDA_CUDA_TARGET)
-    if(EMBED_CUDA_GEN_PTX)
-      set(CUDA_TARGET ${EMBED_CUDA_OUTPUT_TARGET}_ptx)
-    else()
-      set(CUDA_TARGET ${EMBED_CUDA_OUTPUT_TARGET}_optixir)
-    endif()
+    set(CUDA_TARGET ${EMBED_CUDA_OUTPUT_TARGET}Cuda)
   else()
     set(CUDA_TARGET ${EMBED_CUDA_CUDA_TARGET})
   endif()
 
   add_library(${CUDA_TARGET} OBJECT)
   target_sources(${CUDA_TARGET} PRIVATE ${EMBED_CUDA_SOURCES})
-  target_include_directories(${CUDA_TARGET} PRIVATE ${EMBED_CUDA_CUDA_INCLUDE_DIRECTORIES})
-  target_link_libraries(${CUDA_TARGET} PRIVATE ${EMBED_CUDA_CUDA_LINK_LIBRARIES})
+  target_include_directories(${CUDA_TARGET} PRIVATE ${EMBED_CUDA_INCLUDES})
+  target_link_libraries(${CUDA_TARGET} PRIVATE ${EMBED_CUDA_LIBRARIES})
 
-  if(EMBED_CUDA_GEN_PTX)
-    message(STATUS "embed_cuda - generate PTX: " ${CUDA_TARGET})
+  if(EMBED_CUDA_PTX)
     set_property(TARGET ${CUDA_TARGET} PROPERTY CUDA_PTX_COMPILATION ON)
   else()
-    message(STATUS "embed_cuda - generate OptiX IR: " ${CUDA_TARGET})
     set_property(TARGET ${CUDA_TARGET} PROPERTY CUDA_OPTIX_COMPILATION ON)
   endif()
   
-  set(DEBUG_FLAGS "-lineinfo")
-  if(EMBED_CUDA_GEN_DEBUG)
-    if(EMBED_CUDA_GEN_PTX)
-      message(WARNING "Requested OptiX symbols but GEN_PTX is set, fall back to -lineinfo")
+  if(EMBED_CUDA_DEBUG)
+    if(EMBED_CUDA_PTX)
+      set(DEBUG_FLAGS "-lineinfo")
     else()
-      message(STATUS "Generating debug symbols.")
       set(DEBUG_FLAGS "-G") # lineinfo is assumed with -G, not necessary to set
     endif()
   endif()
@@ -148,8 +135,8 @@ function(embed_cuda)
         "-DHEADER=${EMBED_CUDA_HEADER}"
         -P ${EMBED_CUDA_RUN}
       VERBATIM
-      DEPENDS $<TARGET_OBJECTS:${CUDA_TARGET}> ${CUDA_TARGET}
-      COMMENT "Generating embedded PTX/OPTIXIR file: ${OUTPUT_FILE_NAME}"
+      DEPENDS $<TARGET_OBJECTS:${CUDA_TARGET}> ${CUDA_TARGET} ${EMBED_CUDA_RUN}
+      COMMENT "Generating embedded CUDA file: ${OUTPUT_FILE_NAME}"
     )
   else()
     add_custom_command(
@@ -163,8 +150,8 @@ function(embed_cuda)
         "-DHEADER=${EMBED_CUDA_HEADER}"
         -P ${EMBED_CUDA_RUN}
       VERBATIM
-      DEPENDS $<TARGET_OBJECTS:${CUDA_TARGET}> ${CUDA_TARGET}
-      COMMENT "Generating embedded PTX/OPTIXIR file: ${OUTPUT_FILE_NAME}"
+      DEPENDS $<TARGET_OBJECTS:${CUDA_TARGET}> ${CUDA_TARGET} ${EMBED_CUDA_RUN}
+      COMMENT "Generating embedded CUDA file: ${OUTPUT_FILE_NAME}"
     )
   endif()
 

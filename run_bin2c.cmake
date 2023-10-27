@@ -18,7 +18,7 @@ function(set_size_contents obj_name)
       "#ifdef __cplusplus\nextern \"C\" {\n"
       "#endif\n"
       "\n"
-      "${const_decl}size_t ${obj_name}_size = sizeof(${obj_name})/sizeof(${obj_name}[0]);\n"
+      "${const_decl}size_t ${obj_name}Size = sizeof(${obj_name})/sizeof(${obj_name}[0]);\n"
       "\n"
       "#ifdef __cplusplus\n"
       "}\n"
@@ -34,12 +34,12 @@ function(set_header_decl obj_name)
         "#endif\n"
         "\n"
         "extern ${const_decl}unsigned char ${obj_name}[];\n"
-        "extern ${const_decl}size_t ${obj_name}_size;\n"
+        "extern ${const_decl}size_t ${obj_name}Size;\n"
         "\n"
         "#ifdef __cplusplus\n"
         "}\n"
         "\n"
-        "inline ${const_decl}char* ${obj_name}_text() { return reinterpret_cast<${const_decl}char*>( ${obj_name} ); }\n"
+        "inline ${const_decl}char* ${obj_name}Text() { return reinterpret_cast<${const_decl}char*>( ${obj_name} ); }\n"
         "\n"
         "#endif\n")
     set(header_decl "${text}" PARENT_SCOPE)
@@ -69,6 +69,10 @@ foreach(obj ${OBJECTS})
       OUTPUT_VARIABLE output
       ERROR_VARIABLE error_var
     )
+    if(result)
+      string(REPLACE ";" " " printArgs "${args}")
+      message(FATAL_ERROR "bin2c failed:\nCommand: ${BIN_TO_C_COMMAND} ${printArgs}\nResult: ${result}\nOutput: ${output}\nError: ${error_var}\n")
+    endif()
     set_size_contents(${obj_name})
     set_header_decl(${obj_name})
     set(file_contents "${file_contents}\n${output}\n${size_contents}\n")
@@ -83,7 +87,12 @@ file(WRITE "${OUTPUT}" "${file_contents}")
 if(HEADER)
   get_filename_component(include_guard ${HEADER} NAME_WE)
   string(REGEX REPLACE "[^A-Za-z0-9_]" "_" include_guard "${include_guard}")
-  set(include_guard "PTX_${include_guard}")
+  while(include_guard MATCHES ".*__.*")
+    # Identifiers with double underscores are reserved for the implementation.
+    string(REPLACE "__" "_" include_guard "${include_guard}")
+  endwhile()
+  string(TOUPPER "${include_guard}" include_guard)
+  set(include_guard "CUDA_${include_guard}")
   string(CONCAT header_contents
     "#ifndef ${include_guard}\n"
     "#define ${include_guard}\n"
