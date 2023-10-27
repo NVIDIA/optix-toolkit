@@ -56,11 +56,11 @@ find_package(OptiX 7.3 REQUIRED)
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 embed_cuda(CONST RELOCATABLE
-    GEN_PTX
-    HEADER DemandLoadingKernelsPTX.h
+    PTX
+    HEADER DemandLoadingKernelsCuda.h
     OUTPUT_TARGET DemandLoadingKernels
     FOLDER DemandLoading
-    CUDA_INCLUDE_DIRECTORIES include
+    INCLUDES include
     SOURCES src/PagingSystemKernels.cu
 )
 

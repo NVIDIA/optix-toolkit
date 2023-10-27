@@ -27,7 +27,7 @@
 //
 
 #include "CudaCheck.h"
-#include "DemandLoadingKernelsPTX.h"
+#include "DemandLoadingKernelsCuda.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PagingSystemKernels.h"
 
@@ -61,7 +61,7 @@ class TestPagingSystemKernels : public testing::Test
         // Allocate and initialize device context.
         m_deviceMemoryManager = new DeviceMemoryManager( m_options );
         m_context             = m_deviceMemoryManager->allocateDeviceContext();
-        DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernels_ptx_text() ) );
+        DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
     }
 
     void TearDown() override

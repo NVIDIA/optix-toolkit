@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <TestDemandLoadingKernelsPTX.h>
+#include <TestDemandLoadingKernelsCuda.h>
 
 #include "CudaCheck.h"
 #include "DeferredImageLoadingKernels.h"
@@ -236,8 +236,8 @@ void DeferredImageLoadingTest::createModules()
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
                                             OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
 #endif
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernels_ptx_text(),
-                                         DeferredImageLoadingKernels_ptx_size, LOG, &LOG_SIZE, &m_module ) );
+    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernelsCudaText(),
+                                         DeferredImageLoadingKernelsCudaSize, LOG, &LOG_SIZE, &m_module ) );
 }
 
 void DeferredImageLoadingTest::createProgramGroups()

@@ -28,7 +28,7 @@
 
 #include "CudaCheck.h"
 
-#include <TextureFootprintIR.h>
+#include <TextureFootprintCuda.h>
 
 #include <OptiXToolkit/DemandLoading/Texture2DFootprint.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
@@ -345,7 +345,7 @@ class TextureFootprintFixture
                 pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
                 OPTIX_CHECK( optixModuleCreate( context, &module_compile_options, &pipeline_compile_options,
-                                                TestTextureFootprint_optixir_text(), TestTextureFootprint_optixir_size, log,
+                                                TestTextureFootprintCudaText(), TestTextureFootprintCudaSize, log,
                                                 &sizeof_log, &module ) );
             }
 

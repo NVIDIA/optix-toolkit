@@ -29,7 +29,7 @@
 #include "PagingSystem.h"
 
 #include "DemandLoaderImpl.h"
-#include "DemandLoadingKernelsPTX.h"
+#include "DemandLoadingKernelsCuda.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PageMappingsContext.h"
 #include "PagingSystemKernels.h"
@@ -67,7 +67,7 @@ PagingSystem::PagingSystem( const Options&       options,
     m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
     m_pageMappingsContext->init( m_options );
 
-    DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernels_ptx_text() ) );
+    DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
 }
 
 PagingSystem::~PagingSystem()
