@@ -54,11 +54,11 @@ if(NOT EMBED_CUDA_FOUND)
 endif()  
 
 embed_cuda(
-  GEN_PTX
-  CONST HEADER testSiaKernelsPTX.h
+  PTX
+  CONST HEADER testSiaKernelsCuda.h
   OUTPUT_TARGET
     testSelfIntersectionAvoidanceKernels
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES
@@ -99,10 +99,10 @@ gtest_discover_tests(testSelfIntersectionAvoidance PROPERTIES LABELS ShaderUtil)
 
 
 embed_cuda(
-  CONST HEADER TestShaderUtilsIR.h
+  CONST HEADER TestShaderUtilsCuda.h
   OUTPUT_TARGET
     TestShaderUtilsKernels
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES

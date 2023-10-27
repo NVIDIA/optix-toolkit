@@ -31,7 +31,7 @@
 #include "TestDebugLocation.h"
 
 #include "TestDebugLocationParams.h"
-#include "TestShaderUtilsIR.h"
+#include "TestShaderUtilsCuda.h"
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
@@ -311,8 +311,7 @@ void TestDebugLocation::SetUp()
     setLogger( contextOptions, &log );
     context                                                 = Context( nullptr, &contextOptions );
     pipelineCompileOptions.pipelineLaunchParamsVariableName = "g_params";
-    module = Module( context, &moduleCompileOptions, &pipelineCompileOptions, TestDebugLocation_optixir_text(),
-                     TestDebugLocation_optixir_size );
+    module = Module( context, &moduleCompileOptions, &pipelineCompileOptions, TestDebugLocationCudaText(), TestDebugLocationCudaSize );
     otk::ProgramGroupDescBuilder( descs, module )
         .raygen( "__raygen__debugLocationTest" )
         .miss( "__miss__debugLocationTest" )

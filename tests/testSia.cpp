@@ -43,7 +43,7 @@
 #include <cuda_runtime.h>
 #include "CuBuffer.h"
 
-#include <testSiaKernelsPTX.h>
+#include <testSiaKernelsCuda.h>
 
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
@@ -477,7 +477,7 @@ protected:
         pipelineCompileOptions.usesPrimitiveTypeFlags           = OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
 
         OptixModule ptxModule;
-        OPTIX_THROW( optixModuleCreate( optixContext, &moduleCompileOptions, &pipelineCompileOptions, testSiaOptix_ptx_text(), testSiaOptix_ptx_size, 0, 0, &ptxModule ) );
+        OPTIX_THROW( optixModuleCreate( optixContext, &moduleCompileOptions, &pipelineCompileOptions, testSiaOptixCudaText(), testSiaOptixCudaSize, 0, 0, &ptxModule ) );
 
         OptixProgramGroupOptions programGroupOptions = {};
 
