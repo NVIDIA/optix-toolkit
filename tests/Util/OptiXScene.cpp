@@ -1,4 +1,4 @@
-#include <testCuOmmBakingKernelsIR.h>
+#include <testCuOmmBakingKernelsCuda.h>
 
 #include <cuda_runtime.h>
 
@@ -459,7 +459,7 @@ OptixResult OptixOmmScene::buildPipeline( const char* optixirInput, const size_t
         OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, optixirInput, optixirInputSize, 0, 0, &m_moduleDC ) );
     }
 
-    OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernels_optixir_text(), OptiXKernels_optixir_size, 0, 0, &m_module));
+    OPTIX_CHECK( optixModuleCreate( m_context, &moduleCompileOptions, &pipelineCompileOptions, OptiXKernelsCudaText(), OptiXKernelsCudaSize, 0, 0, &m_module));
 
     // Set up program groups
 

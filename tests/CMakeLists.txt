@@ -32,19 +32,17 @@ include(GoogleTest)
 # The omm baking test employs an OptiX kernel, which is compiled from CUDA to OptiXIR.
 include(embed_cuda)
 embed_cuda(
-  CONST HEADER testCuOmmBakingKernelsIR.h
+  CONST HEADER testCuOmmBakingKernelsCuda.h
   OUTPUT_TARGET
     testCuOmmBakingKernels
-  CUDA_TARGET
-    testCuOmmBakingKernels_optixir
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     CuOmmBaking
   SOURCES
     Util/OptiXKernels.cu
     Util/OptiXKernels.h
+  FOLDER
+    CmOmmBaking/Tests
 )
-
-set_target_properties(testCuOmmBakingKernels testCuOmmBakingKernels_optixir PROPERTIES FOLDER CmOmmBaking/tests )
 
 add_definitions( -DTEST_OMM_BAKING_TEXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Textures/" )
 add_definitions( -DTEST_OMM_BAKING_GOLD_DIR="${CMAKE_CURRENT_SOURCE_DIR}/gold/" )
