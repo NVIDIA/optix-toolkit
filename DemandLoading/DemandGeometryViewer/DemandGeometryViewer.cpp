@@ -29,7 +29,7 @@
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
 #include "DemandGeometryViewer.h"
-#include "DemandGeometryViewerKernelIR.h"
+#include "DemandGeometryViewerKernelCuda.h"
 #include "SphereInstances.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
@@ -422,7 +422,7 @@ void Application::createModules()
 {
     const OptixModuleCompileOptions compileOptions{getCompileOptions()};
 
-    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_optixir_text(), DemandGeometryViewer_optixir_size );
+    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewerCudaText(), DemandGeometryViewerCudaSize );
 
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
@@ -735,7 +735,7 @@ void Application::realizeMaterial( uint_t materialId )
     // compile real material module
     {
         const OptixModuleCompileOptions compileOptions{getCompileOptions()};
-        m_realizedMaterialModule = createModuleFromSource( compileOptions, Sphere_optixir_text(), Sphere_optixir_size );
+        m_realizedMaterialModule = createModuleFromSource( compileOptions, SphereCudaText(), SphereCudaSize );
     }
 
     // create real material program group

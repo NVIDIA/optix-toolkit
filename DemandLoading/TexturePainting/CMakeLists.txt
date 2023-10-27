@@ -33,12 +33,12 @@ include(FetchGlad)
 include(embed_cuda)
 
 embed_cuda(
-  CONST HEADER TexturePaintingKernelIR.h
+  CONST HEADER TexturePaintingKernelCuda.h
   OUTPUT_TARGET
     texturePaintingKernel
   FOLDER
     Examples/DemandLoading
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

@@ -37,12 +37,12 @@ if(NOT TARGET CUDA::cuda_driver)
 endif()
 
 embed_cuda(
-  CONST HEADER UdimTextureViewerKernelIR.h
+  CONST HEADER UdimTextureViewerKernelCuda.h
   OUTPUT_TARGET
     udimTextureViewerKernel
   FOLDER
     Examples/DemandLoading
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

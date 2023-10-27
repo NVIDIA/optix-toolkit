@@ -33,12 +33,12 @@ include(FetchGlad)
 include(embed_cuda)
 
 embed_cuda(
-  HEADER TextureVariantViewerIR.h
+  HEADER TextureVariantViewerCuda.h
   OUTPUT_TARGET
     TextureVariantViewerKernel
   FOLDER
     Examples/DemandLoading
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

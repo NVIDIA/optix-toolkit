@@ -29,7 +29,7 @@
 // This include is needed to avoid a link error
 #include <optix_stubs.h>
 
-#include <RayConesKernelIR.h>
+#include <RayConesKernelCuda.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
@@ -637,7 +637,7 @@ int main( int argc, char* argv[] )
     app.createTexture();
     app.createScene();
     app.resetAccumulator();
-    app.initOptixPipelines( RayCones_optixir_text(), RayCones_optixir_size );
+    app.initOptixPipelines( RayConesCudaText(), RayConesCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

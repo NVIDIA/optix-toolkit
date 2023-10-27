@@ -31,7 +31,7 @@
 #include <optix_stack_size.h>
 #include <optix_stubs.h>
 
-#include <CuOmmBakingViewerKernelIR.h>
+#include <CuOmmBakingViewerKernelCuda.h>
 
 #include "CuOmmBakingApp.h"
 #include "LaunchParams.h"
@@ -588,7 +588,7 @@ int main( int argc, char* argv[] )
 
     OmmBakingViewer app( "Opacity Micromap Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.setTextureName( textureName );
-    app.initOptixPipelines( CuOmmBakingViewer_optixir_text(), CuOmmBakingViewer_optixir_size );
+    app.initOptixPipelines( CuOmmBakingViewerCudaText(), CuOmmBakingViewerCudaSize );
     app.startLaunchLoop();
     
     return 0;

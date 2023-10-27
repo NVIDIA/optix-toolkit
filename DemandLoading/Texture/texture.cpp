@@ -28,7 +28,7 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include <TextureKernelIR.h>
+#include <TextureKernelCuda.h>
 
 #include "textureKernel.h"
 
@@ -271,7 +271,7 @@ void createModule( PerDeviceSampleState& state )
     size_t sizeof_log = sizeof( log );
 
     OPTIX_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
-                                        textureKernel_optixir_text(), textureKernel_optixir_size, log, &sizeof_log, &state.optixir_module ) );
+                                        textureKernelCudaText(), textureKernelCudaSize, log, &sizeof_log, &state.optixir_module ) );
 }
 
 

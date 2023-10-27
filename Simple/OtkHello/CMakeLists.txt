@@ -37,12 +37,12 @@ endif()
 
 embed_cuda(
   GEN_DEBUG
-  CONST HEADER otkHelloKernelIR.h
+  CONST HEADER otkHelloKernelCuda.h
   OUTPUT_TARGET
     otkHelloKernel
   FOLDER
     Examples/Simple
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES

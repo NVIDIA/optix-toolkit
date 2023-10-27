@@ -36,7 +36,7 @@
 // * Swapping images in a live texture
 //------------------------------------------------------------------------------
 
-#include <TexturePaintingKernelIR.h>
+#include <TexturePaintingKernelCuda.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
@@ -337,7 +337,7 @@ int main( int argc, char* argv[] )
     TexturePaintingApp app( "Texture Painting", windowWidth, windowHeight, outFileName, glInterop );
     app.initDemandLoading();
     app.createTexture();
-    app.initOptixPipelines( TexturePainting_optixir_text(), TexturePainting_optixir_size );
+    app.initOptixPipelines( TexturePaintingCudaText(), TexturePaintingCudaSize );
     app.initTexture();
     app.startLaunchLoop();
     app.printDemandLoadingStats();

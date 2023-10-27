@@ -38,10 +38,10 @@ endif()
 find_package( CUDAToolkit 11.1 REQUIRED )
 
 embed_cuda(
-    CONST HEADER DemandGeometryViewerKernelIR.h
+    CONST HEADER DemandGeometryViewerKernelCuda.h
     OUTPUT_TARGET DemandGeometryViewerKernel
-    CUDA_INCLUDE_DIRECTORIES include
-    CUDA_LINK_LIBRARIES
+    INCLUDES include
+    LIBRARIES
         OptiXToolkit::DemandGeometry
         OptiXToolkit::DemandLoading
         OptiXToolkit::DemandMaterial

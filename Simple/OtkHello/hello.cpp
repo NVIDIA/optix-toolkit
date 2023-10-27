@@ -28,7 +28,7 @@
 
 #include "hello.h"
 
-#include <otkHelloKernelIR.h>
+#include <otkHelloKernelCuda.h>
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Window.h>
@@ -142,7 +142,7 @@ int main( int argc, char* argv[] )
             pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
             OPTIX_CHECK_LOG2( optixModuleCreate( context, &module_compile_options, &pipeline_compile_options,
-                                                 draw_solid_color_optixir_text(), draw_solid_color_optixir_size, LOG, &LOG_SIZE, &module ) );
+                                                 draw_solid_colorCudaText(), draw_solid_colorCudaSize, LOG, &LOG_SIZE, &module ) );
         }
 
         //

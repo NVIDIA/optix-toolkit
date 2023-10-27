@@ -33,12 +33,12 @@ include(FetchGlad)
 include(embed_cuda)
 
 embed_cuda(
-  CONST HEADER RayConesKernelIR.h
+  CONST HEADER RayConesKernelCuda.h
   OUTPUT_TARGET
     rayConesKernel
   FOLDER
     Examples/DemandLoading
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

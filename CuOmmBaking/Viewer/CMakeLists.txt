@@ -33,12 +33,12 @@ include(FetchGlfw)
 
 include(embed_cuda)
 embed_cuda(
-  CONST HEADER CuOmmBakingViewerKernelIR.h
+  CONST HEADER CuOmmBakingViewerKernelCuda.h
   OUTPUT_TARGET
     ommBakingViewerKernel
   FOLDER
     Examples/CmOmmBaking
-  CUDA_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::CuOmmBaking 
     OptiXToolkit::ShaderUtil
   SOURCES

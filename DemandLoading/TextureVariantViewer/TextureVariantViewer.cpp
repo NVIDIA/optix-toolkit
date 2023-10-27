@@ -29,7 +29,7 @@
 
 #include <assert.h>
 
-#include <TextureVariantViewerIR.h>
+#include <TextureVariantViewerCuda.h>
 
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
@@ -132,7 +132,7 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( TextureVariantViewer_optixir_text(), TextureVariantViewer_optixir_size );
+    app.initOptixPipelines( TextureVariantViewerCudaText(), TextureVariantViewerCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     
