@@ -110,6 +110,35 @@ class ProgramGroupDescBuilder
         return next();
     }
 
+    /// Build a hit group program group description for intersection, any hit and closest hit programs in separate modules.
+    ///
+    /// @param isModule     The module containing the intersection program.
+    /// @param intersection The entry function name for the intersection program.
+    /// @param ahModule     The module containing the closest hit program.
+    /// @param anyHit       The entry function name for the closest hit program.
+    /// @param chModule     The module containing the closest hit program.
+    /// @param closestHit   The entry function name for the closest hit program.
+    ///
+    ProgramGroupDescBuilder& hitGroupISAHCH( OptixModule isModule,
+                                             const char* intersection,
+                                             OptixModule ahModule,
+                                             const char* anyHit,
+                                             OptixModule chModule,
+                                             const char* closestHit )
+    {
+        checkOverflow();
+        current().kind                      = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+        OptixProgramGroupHitgroup& hitGroup = current().hitgroup;
+
+        hitGroup.moduleIS            = isModule;
+        hitGroup.entryFunctionNameIS = intersection;
+        hitGroup.moduleAH            = ahModule;
+        hitGroup.entryFunctionNameAH = anyHit;
+        hitGroup.moduleCH            = chModule;
+        hitGroup.entryFunctionNameCH = closestHit;
+        return next();
+    }
+
     /// Build a hit group program group description for intersection and closest hit programs in the builder's module.
     ///
     /// @param closestHit The entry function name for the closest hit program.

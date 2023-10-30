@@ -20,6 +20,8 @@
 
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 
+#include <OptiXToolkit/Memory/BitCast.h>
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -140,4 +142,27 @@ TEST_F( TestBuildInputBuilder, ZeroSpheresWithSbtIndicesSetsNullBufferPointers )
     EXPECT_EQ( nullptr, buildInputs[0].sphereArray.vertexBuffers );
     EXPECT_EQ( nullptr, buildInputs[0].sphereArray.radiusBuffers );
 }
-#endif // OPTIX_VERSION >= 70500
+#endif  // OPTIX_VERSION >= 70500
+
+TEST( TestProgramGroupDescBuilder, intersectionAnyHitClosestHit )
+{
+    OptixProgramGroupDesc desc[1];
+    OptixModule           module{ otk::bit_cast<OptixModule>( 9999ULL ) };
+    OptixModule           isModule{ otk::bit_cast<OptixModule>( 1111ULL ) };
+    OptixModule           ahModule{ otk::bit_cast<OptixModule>( 2222ULL ) };
+    OptixModule           chModule{ otk::bit_cast<OptixModule>( 3333ULL ) };
+    const char*           isName{ "__intersect__test" };
+    const char*           ahName{ "__anyhit__test" };
+    const char*           chName{ "__closesthit__test" };
+
+    otk::ProgramGroupDescBuilder( desc, module ).hitGroupISAHCH( isModule, isName, ahModule, ahName, chModule, chName );
+
+    EXPECT_EQ( OPTIX_PROGRAM_GROUP_KIND_HITGROUP, desc[0].kind );
+    const OptixProgramGroupHitgroup& hitGroup = desc[0].hitgroup;
+    EXPECT_EQ( isModule, hitGroup.moduleIS );
+    EXPECT_STREQ( isName, hitGroup.entryFunctionNameIS );
+    EXPECT_EQ( ahModule, hitGroup.moduleAH );
+    EXPECT_STREQ( ahName, hitGroup.entryFunctionNameAH );
+    EXPECT_EQ( chModule, hitGroup.moduleCH );
+    EXPECT_STREQ( chName, hitGroup.entryFunctionNameCH );
+}
