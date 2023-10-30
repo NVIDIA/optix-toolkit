@@ -1363,12 +1363,9 @@ py::tuple moduleCreate(
     pipelineCompileOptions.sync();
 
     pyoptix::Module module;
-    PYOPTIX_CHECK_LOG(
 #if OPTIX_VERSION < 70700
+    PYOPTIX_CHECK_LOG(
         optixModuleCreateFromPTX(
-#else
-        optixModuleCreate(
-#endif
             context.deviceContext,
             &moduleCompileOptions.options,
             &pipelineCompileOptions.options,
@@ -1379,6 +1376,20 @@ py::tuple moduleCreate(
             &module.module
         )
     );
+#else
+    PYOPTIX_CHECK_LOG(
+        optixModuleCreate(
+            context.deviceContext,
+            &moduleCompileOptions.options,
+            &pipelineCompileOptions.options,
+            PTX.c_str(),
+            static_cast<size_t>( PTX.size()+1 ),
+            log_buf,
+            &log_buf_size,
+            &module.module
+        )
+    );
+#endif
     return py::make_tuple( module, py::str(log_buf) );
 }
 
@@ -1704,54 +1715,78 @@ py::bool_ accelCheckRelocationCompatibility(
     )
 {
     int compatible;
-    PYOPTIX_CHECK(
 #if OPTIX_VERSION < 70600 
+    PYOPTIX_CHECK(
         optixAccelCheckRelocationCompatibility(
-#else
-        optixCheckRelocationCompatibility(
-#endif
             context.deviceContext,
             info,
             &compatible
         )
     );
+#else
+    PYOPTIX_CHECK(
+        optixCheckRelocationCompatibility(
+            context.deviceContext,
+            info,
+            &compatible
+        )
+    );
+#endif
     return py::bool_( compatible );
 }
 
-OptixTraversableHandle accelRelocate(
-        pyoptix::DeviceContext          context,
-        uintptr_t                       stream,
-        const RELOCATION_INFO*          info,
 #if OPTIX_VERSION < 70600
-        CUdeviceptr                     instanceTraversableHandles,
-        size_t                          numInstanceTraversableHandles,
-#else
-        const OptixRelocateInput*  relocateInputs,
-        size_t                     numRelocateInputs,
-#endif
+OptixTraversableHandle accelRelocate(
+        pyoptix::DeviceContext     context,
+        uintptr_t                  stream,
+        const RELOCATION_INFO*     info,
+        CUdeviceptr                instanceTraversableHandles,
+        size_t                     numInstanceTraversableHandles,
         CUdeviceptr                targetAccel,
         size_t                     targetAccelSizeInBytes
 
     )
+#else
+OptixTraversableHandle accelRelocate(
+        pyoptix::DeviceContext     context,
+        uintptr_t                  stream,
+        const RELOCATION_INFO*     info,
+        const OptixRelocateInput*  relocateInputs,
+        size_t                     numRelocateInputs,
+        CUdeviceptr                targetAccel,
+        size_t                     targetAccelSizeInBytes
+
+    )
+#endif
 {
     OptixTraversableHandle targetHandle;
+#if OPTIX_VERSION < 70600
     PYOPTIX_CHECK(
         optixAccelRelocate(
             context.deviceContext,
             reinterpret_cast<CUstream>( stream ),
             info,
-#if OPTIX_VERSION < 70600
             instanceTraversableHandles,
             numInstanceTraversableHandles,
-#else
-            relocateInputs,
-            numRelocateInputs,
-#endif
             targetAccel,
             targetAccelSizeInBytes,
             &targetHandle
         )
     );
+#else
+    PYOPTIX_CHECK(
+        optixAccelRelocate(
+            context.deviceContext,
+            reinterpret_cast<CUstream>( stream ),
+            info,
+            relocateInputs,
+            numRelocateInputs,
+            targetAccel,
+            targetAccelSizeInBytes,
+            &targetHandle
+        )
+    );
+#endif
     return targetHandle;
 }
 
