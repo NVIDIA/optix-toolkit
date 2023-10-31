@@ -438,8 +438,8 @@ void Application::createProgramGroups()
     otk::ProgramGroupDescBuilder( descs, m_viewerModule )
         .raygen( "__raygen__pinHoleCamera" )
         .miss( "__miss__backgroundColor" )
-        .hitGroupCHIS( m_viewerModule, m_proxies->getCHFunctionName(), m_viewerModule, m_proxies->getISFunctionName() )
-        .hitGroupCHIS( m_viewerModule, m_materials->getCHFunctionName(), m_sphereModule, nullptr );
+        .hitGroupISCH( m_viewerModule, m_proxies->getISFunctionName(), m_viewerModule, m_proxies->getCHFunctionName() )
+        .hitGroupISCH( m_sphereModule, nullptr, m_viewerModule, m_materials->getCHFunctionName() );
     OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
                                                m_programGroups.data() ) );
 }
@@ -743,7 +743,7 @@ void Application::realizeMaterial( uint_t materialId )
         OptixProgramGroupOptions options{};
         const unsigned int       NUM_PROGRAM_GROUPS = 1;
         OptixProgramGroupDesc    descs[NUM_PROGRAM_GROUPS]{};
-        otk::ProgramGroupDescBuilder( descs, nullptr ).hitGroupCHIS( m_realizedMaterialModule, "__closesthit__sphere", m_sphereModule, nullptr );
+        otk::ProgramGroupDescBuilder( descs, nullptr ).hitGroupISCH( m_sphereModule, nullptr, m_realizedMaterialModule, "__closesthit__sphere" );
         OptixProgramGroup materialGroup{};
         OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_PROGRAM_GROUPS, &options, LOG, &LOG_SIZE, &materialGroup ) );
         m_programGroups.push_back( materialGroup );
