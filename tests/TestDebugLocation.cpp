@@ -315,7 +315,7 @@ void TestDebugLocation::SetUp()
     otk::ProgramGroupDescBuilder( descs, module )
         .raygen( "__raygen__debugLocationTest" )
         .miss( "__miss__debugLocationTest" )
-        .hitGroupCHIS( "__closesthit__debugLocationTest", "__intersection__debugLocationTest" );
+        .hitGroupISCH( "__intersection__debugLocationTest", "__closesthit__debugLocationTest" );
     groups   = ProgramGroups( context, descs, numOf( descs ), &groupOptions );
     pipeline = Pipeline( context, &pipelineCompileOptions, &pipelineLinkOptions, groups, groups.size() );
     output.resize( dimensions.x * dimensions.y );
