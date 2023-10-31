@@ -28,12 +28,10 @@
 
 #include "CudaCheck.h"
 #include "DemandLoaderTestKernels.h"
-#include "ErrorCheck.h"
-
-#include "Util/Exception.h"
 
 #include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -58,21 +56,21 @@ class DemandPageLoaderTest : public Test
   public:
     void SetUp() override
     {
-        ERROR_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
         m_deviceIndex = 0;
         DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        ERROR_CHECK( cuStreamCreate( &m_stream, 0 ) );
-        ERROR_CHECK( cudaMalloc( &m_devIsResident, sizeof( bool ) ) );
-        ERROR_CHECK( cudaMalloc( &m_devPageTableEntry, sizeof( unsigned long long ) ) );
+        OTK_ERROR_CHECK( cuStreamCreate( &m_stream, 0 ) );
+        OTK_ERROR_CHECK( cudaMalloc( &m_devIsResident, sizeof( bool ) ) );
+        OTK_ERROR_CHECK( cudaMalloc( &m_devPageTableEntry, sizeof( unsigned long long ) ) );
         m_loader = createDemandPageLoader( &m_processor, demandLoading::Options{} );
     }
 
     void TearDown() override
     {
         destroyDemandPageLoader( m_loader );
-        ERROR_CHECK( cudaFree( m_devPageTableEntry ) );
-        ERROR_CHECK( cudaFree( m_devIsResident ) );
-        ERROR_CHECK( cuStreamDestroy( m_stream ) );
+        OTK_ERROR_CHECK( cudaFree( m_devPageTableEntry ) );
+        OTK_ERROR_CHECK( cudaFree( m_devIsResident ) );
+        OTK_ERROR_CHECK( cuStreamDestroy( m_stream ) );
     }
 
   protected:
