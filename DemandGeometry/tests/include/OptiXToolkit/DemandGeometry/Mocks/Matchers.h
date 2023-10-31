@@ -304,16 +304,35 @@ MATCHER_P3( hasMissDesc, count, module, entryPoint, "" )
     return result;
 }
 
-MATCHER_P5( hasHitGroupDesc, count, chModule, chEntryPoint, isModule, isEntryPoint, "" )
+MATCHER_P5( hasHitGroupISCHDesc, count, isModule, isEntryPoint, chModule, chEntryPoint, "" )
 {
     OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
     OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
-    hitgroup.moduleCH                   = chModule;
-    hitgroup.entryFunctionNameCH        = chEntryPoint;
-    hitgroup.moduleAH                   = nullptr;
-    hitgroup.entryFunctionNameAH        = nullptr;
     hitgroup.moduleIS                   = isModule;
     hitgroup.entryFunctionNameIS        = isEntryPoint;
+    hitgroup.moduleAH                   = nullptr;
+    hitgroup.entryFunctionNameAH        = nullptr;
+    hitgroup.moduleCH                   = chModule;
+    hitgroup.entryFunctionNameCH        = chEntryPoint;
+    const bool result                   = detail::programGroupDescsContain( arg, count, desc );
+    if( !result )
+    {
+        *result_listener << "hitgroup desc (" << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ", " << isModule
+                         << ", " << detail::nameOrNullPtr( isEntryPoint ) << ") not found in descs[" << count << ']';
+    }
+    return result;
+}
+
+MATCHER_P7( hasHitGroupISAHCHDesc, count, isModule, isEntryPoint, ahModule, ahEntryPoint, chModule, chEntryPoint, "" )
+{
+    OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
+    OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
+    hitgroup.moduleIS                   = isModule;
+    hitgroup.entryFunctionNameIS        = isEntryPoint;
+    hitgroup.moduleAH                   = ahModule;
+    hitgroup.entryFunctionNameAH        = ahEntryPoint;
+    hitgroup.moduleCH                   = chModule;
+    hitgroup.entryFunctionNameCH        = chEntryPoint;
     const bool result                   = detail::programGroupDescsContain( arg, count, desc );
     if( !result )
     {
