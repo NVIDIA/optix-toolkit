@@ -29,6 +29,7 @@
 #define OTK_ERROR_OPTIX_ERROR_CHECK_H
 
 #include <optix.h>
+#include <optix_stubs.h>
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
