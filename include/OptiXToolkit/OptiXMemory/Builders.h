@@ -74,6 +74,13 @@ class ProgramGroupDescBuilder
         current().raygen.entryFunctionName = entryPoint;
         return next();
     }
+    ProgramGroupDescBuilder& raygen( OptixProgramGroupSingleModule entryPoint )
+    {
+        checkOverflow();
+        current().kind   = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+        current().raygen = entryPoint;
+        return next();
+    }
 
     /// Build a miss program group description.
     ///
@@ -87,6 +94,46 @@ class ProgramGroupDescBuilder
         current().miss.entryFunctionName = entryPoint;
         return next();
     }
+    ProgramGroupDescBuilder& miss( OptixProgramGroupSingleModule entryPoint )
+    {
+        checkOverflow();
+        current().kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
+        current().miss = entryPoint;
+        return next();
+    }
+
+    /// Build a hit group program group description for a closest hit program from another module.
+    ///
+    /// @param closestHit The entry function name for the closest hit program.
+    ///
+    ProgramGroupDescBuilder& hitGroupCH( OptixModule module, const char* closestHit )
+    {
+        checkOverflow();
+        current().kind                      = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+        OptixProgramGroupHitgroup& hitGroup = current().hitgroup;
+
+        hitGroup.moduleIS            = nullptr;
+        hitGroup.entryFunctionNameIS = nullptr;
+        hitGroup.moduleAH            = nullptr;
+        hitGroup.entryFunctionNameAH = nullptr;
+        hitGroup.moduleCH            = module;
+        hitGroup.entryFunctionNameCH = closestHit;
+        return next();
+    }
+    ProgramGroupDescBuilder& hitGroupCH( OptixProgramGroupSingleModule entryPoint )
+    {
+        return hitGroupCH( entryPoint.module, entryPoint.entryFunctionName );
+    }
+
+    /// Build a hit group program group description for intersection and closest hit programs in the builder's module.
+    ///
+    /// @param closestHit The entry function name for the closest hit program.
+    /// @param intersection The entry function name for the intersection program.
+    ///
+    ProgramGroupDescBuilder& hitGroupISCH( const char* intersection, const char* closestHit )
+    {
+        return hitGroupISCH( m_module, intersection, m_module, closestHit );
+    }
 
     /// Build a hit group program group description for intersection and closest hit programs in separate modules.
     ///
@@ -95,18 +142,31 @@ class ProgramGroupDescBuilder
     /// @param isModule The module containing the intersection program.
     /// @param intersection The entry function name for the intersection program.
     ///
-    ProgramGroupDescBuilder& hitGroupCHIS( OptixModule chModule, const char* closestHit, OptixModule isModule, const char* intersection )
+    ProgramGroupDescBuilder& hitGroupISCH( OptixModule isModule, const char* intersection, OptixModule chModule, const char* closestHit )
     {
         checkOverflow();
         current().kind                      = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
         OptixProgramGroupHitgroup& hitGroup = current().hitgroup;
 
-        hitGroup.moduleCH            = chModule;
-        hitGroup.entryFunctionNameCH = closestHit;
-        hitGroup.moduleAH            = nullptr;
-        hitGroup.entryFunctionNameAH = nullptr;
         hitGroup.moduleIS            = isModule;
         hitGroup.entryFunctionNameIS = intersection;
+        hitGroup.moduleAH            = nullptr;
+        hitGroup.entryFunctionNameAH = nullptr;
+        hitGroup.moduleCH            = chModule;
+        hitGroup.entryFunctionNameCH = closestHit;
+        return next();
+    }
+    ProgramGroupDescBuilder& hitGroupISCH( OptixProgramGroupSingleModule intersect, OptixProgramGroupSingleModule closestHit )
+    {
+        checkOverflow();
+        current().kind                      = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+        OptixProgramGroupHitgroup& hitGroup = current().hitgroup;
+        hitGroup.moduleIS                   = intersect.module;
+        hitGroup.entryFunctionNameIS        = intersect.entryFunctionName;
+        hitGroup.moduleAH                   = nullptr;
+        hitGroup.entryFunctionNameAH        = nullptr;
+        hitGroup.moduleCH                   = closestHit.module;
+        hitGroup.entryFunctionNameCH        = closestHit.entryFunctionName;
         return next();
     }
 
@@ -138,34 +198,12 @@ class ProgramGroupDescBuilder
         hitGroup.entryFunctionNameCH = closestHit;
         return next();
     }
-
-    /// Build a hit group program group description for intersection and closest hit programs in the builder's module.
-    ///
-    /// @param closestHit The entry function name for the closest hit program.
-    /// @param intersection The entry function name for the intersection program.
-    ///
-    ProgramGroupDescBuilder& hitGroupCHIS( const char* closestHit, const char* intersection )
+    ProgramGroupDescBuilder& hitGroupISAHCH( OptixProgramGroupSingleModule intersect,
+                                             OptixProgramGroupSingleModule anyHit,
+                                             OptixProgramGroupSingleModule closestHit )
     {
-        return hitGroupCHIS( m_module, closestHit, m_module, intersection );
-    }
-
-    /// Build a hit group program group description for a closest hit program from another module.
-    ///
-    /// @param closestHit The entry function name for the closest hit program.
-    ///
-    ProgramGroupDescBuilder& hitGroupCH( OptixModule module, const char* closestHit )
-    {
-        checkOverflow();
-        current().kind                      = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-        OptixProgramGroupHitgroup& hitGroup = current().hitgroup;
-
-        hitGroup.moduleCH            = module;
-        hitGroup.entryFunctionNameCH = closestHit;
-        hitGroup.moduleAH            = nullptr;
-        hitGroup.entryFunctionNameAH = nullptr;
-        hitGroup.moduleIS            = nullptr;
-        hitGroup.entryFunctionNameIS = nullptr;
-        return next();
+        return hitGroupISAHCH( intersect.module, intersect.entryFunctionName, anyHit.module, anyHit.entryFunctionName,
+                               closestHit.module, closestHit.entryFunctionName );
     }
 
   private:
@@ -370,7 +408,7 @@ class BuildInputBuilder
         spheres.primitiveIndexOffset        = 0;
         return next();
     }
-#endif // OPTIX_VERSION >= 70500
+#endif  // OPTIX_VERSION >= 70500
 
   private:
     OptixBuildInput& current() { return m_buildInputs[m_current]; }
