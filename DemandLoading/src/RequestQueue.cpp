@@ -28,7 +28,8 @@
 
 #include "RequestQueue.h"
 #include "TicketImpl.h"
-#include "Util/Exception.h"
+
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <algorithm>
 

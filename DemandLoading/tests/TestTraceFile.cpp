@@ -27,7 +27,7 @@
 //
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "Util/TraceFile.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -50,8 +50,8 @@ class TestTraceFile : public testing::Test
     void SetUp()
     {
         // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( 0 ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 
     unsigned int m_deviceIndex = 0;

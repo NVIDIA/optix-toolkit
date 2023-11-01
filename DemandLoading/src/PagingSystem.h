@@ -27,11 +27,10 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
-
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
-#include <OptiXToolkit/Memory/RingSuballocator.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
+#include <OptiXToolkit/Memory/RingSuballocator.h>
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
@@ -134,8 +133,8 @@ class PagingSystem
     // Synchronization event for pushMappings
     struct FutureEvent
     {
-        FutureEvent() { DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) ); }
-        ~FutureEvent() { DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) ); }
+        FutureEvent() { OTK_ERROR_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) ); }
+        ~FutureEvent() { OTK_ERROR_CHECK_NOTHROW( cuEventDestroy( event ) ); }
         CUresult query() { return recorded ? cuEventQuery( event ) : CUDA_ERROR_NOT_READY; }
 
         CUevent event{};

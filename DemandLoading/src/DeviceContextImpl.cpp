@@ -37,7 +37,7 @@ inline Type* allocItems( MemoryPool<DeviceAllocator, HeapSuballocator>* memPool,
 {
     alignment             = alignment ? alignment : alignof( Type );
     MemoryBlockDesc block = memPool->alloc( numItems * sizeof( Type ), alignment );
-    DEMAND_CUDA_CHECK( cuMemsetD8( static_cast<CUdeviceptr>( block.ptr ), 0, numItems * sizeof( Type ) ) );
+    OTK_ERROR_CHECK( cuMemsetD8( static_cast<CUdeviceptr>( block.ptr ), 0, numItems * sizeof( Type ) ) );
     return reinterpret_cast<Type*>( block.ptr );
 }
 
@@ -58,9 +58,9 @@ void DeviceContextImpl::allocatePerDeviceData( MemoryPool<DeviceAllocator, HeapS
     const unsigned int sizeofLruTableInInts = options.useLruTable ? ( options.numPages + 7 ) / 8 : 0; 
     lruTable = allocItems<unsigned int>( memPool, sizeofLruTableInInts );
 
-    DEMAND_ASSERT( isAligned( pageTable.data, alignof( unsigned long long ) ) );
-    DEMAND_ASSERT( isAligned( residenceBits, BIT_VECTOR_ALIGNMENT ) );
-    DEMAND_ASSERT( isAligned( lruTable, alignof( unsigned int ) ) );
+    OTK_ASSERT( isAligned( pageTable.data, alignof( unsigned long long ) ) );
+    OTK_ASSERT( isAligned( residenceBits, BIT_VECTOR_ALIGNMENT ) );
+    OTK_ASSERT( isAligned( lruTable, alignof( unsigned int ) ) );
 }
 
 void DeviceContextImpl::setPerDeviceData( const DeviceContext& other )
@@ -94,13 +94,13 @@ void DeviceContextImpl::allocatePerStreamData( MemoryPool<DeviceAllocator, HeapS
     invalidatedPages.data     = allocItems<unsigned int>( memPool, options.maxInvalidatedPages );
     invalidatedPages.capacity = options.maxInvalidatedPages;
 
-    DEMAND_ASSERT( isAligned( referenceBits, BIT_VECTOR_ALIGNMENT ) );
-    DEMAND_ASSERT( isAligned( requestedPages.data, alignof( unsigned int ) ) );
-    DEMAND_ASSERT( isAligned( stalePages.data, alignof( StalePage ) ) );
-    DEMAND_ASSERT( isAligned( evictablePages.data, alignof( unsigned int ) ) );
-    DEMAND_ASSERT( isAligned( arrayLengths.data, alignof( unsigned int ) ) );
-    DEMAND_ASSERT( isAligned( filledPages.data, alignof( PageMapping ) ) );
-    DEMAND_ASSERT( isAligned( invalidatedPages.data, alignof( unsigned int ) ) );
+    OTK_ASSERT( isAligned( referenceBits, BIT_VECTOR_ALIGNMENT ) );
+    OTK_ASSERT( isAligned( requestedPages.data, alignof( unsigned int ) ) );
+    OTK_ASSERT( isAligned( stalePages.data, alignof( StalePage ) ) );
+    OTK_ASSERT( isAligned( evictablePages.data, alignof( unsigned int ) ) );
+    OTK_ASSERT( isAligned( arrayLengths.data, alignof( unsigned int ) ) );
+    OTK_ASSERT( isAligned( filledPages.data, alignof( PageMapping ) ) );
+    OTK_ASSERT( isAligned( invalidatedPages.data, alignof( unsigned int ) ) );
 }
 
 }  // namespace demandLoading

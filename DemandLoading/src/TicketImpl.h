@@ -28,9 +28,8 @@
 
 #pragma once
 
-#include "Util/Exception.h"
-
 #include <OptiXToolkit/DemandLoading/Ticket.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -96,7 +95,7 @@ class TicketImpl
         m_isDone.wait( lock, [this] { return m_numTasksRemaining == 0; } );
         if( event )
         {
-            DEMAND_CUDA_CHECK( cuEventRecord( *event, m_stream ) );
+            OTK_ERROR_CHECK( cuEventRecord( *event, m_stream ) );
         }
     }
 
@@ -107,7 +106,7 @@ class TicketImpl
         std::unique_lock<std::mutex> lock( m_mutex );
 
         // Atomically decrement the number of tasks remaining.
-        DEMAND_ASSERT( m_numTasksRemaining > 0 );
+        OTK_ASSERT( m_numTasksRemaining > 0 );
         m_numTasksRemaining -= tasksDone;
 
         // If there are no tasks remaining, notify any threads waiting on the condition variable.

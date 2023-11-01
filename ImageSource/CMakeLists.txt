@@ -33,7 +33,6 @@ otk_add_library( ImageSource
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
   src/EXRReader.cpp
-  src/Exception.h
   src/ImageSource.cpp
   src/Stopwatch.h
   src/TextureInfo.cpp
@@ -59,7 +58,6 @@ target_sources(ImageSource
 )
 
 source_group( "Header Files\\Implementation" FILES
-  src/Exception.h
   src/Stopwatch.h
   )
 
@@ -90,6 +88,7 @@ target_link_libraries( ImageSource
   PUBLIC
   CUDA::cuda_driver
   PRIVATE
+  OptiXToolkit::Error
   OpenEXR_OTK
   )
 

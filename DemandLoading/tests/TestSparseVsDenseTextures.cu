@@ -28,7 +28,7 @@
 
 #include "TestSparseVsDenseTextures.h"
 
-#include "Util/Exception.h"
+#include <cstdio>
 
 __global__ static void sparseVsDenseTextureKernel( CUtexObject texture )
 {

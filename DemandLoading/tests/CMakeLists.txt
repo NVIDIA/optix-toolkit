@@ -42,7 +42,6 @@ embed_cuda( CONST HEADER TestDemandLoadingKernelsCuda.h
 
 otk_add_executable( testDemandLoading
   main.cpp
-  CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu

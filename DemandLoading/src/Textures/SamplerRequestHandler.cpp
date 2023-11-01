@@ -90,7 +90,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     {
         std::stringstream ss;
         ss << "ImageSource::init() failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw Exception(ss.str().c_str());
+        throw std::runtime_error(ss.str().c_str());
     }
 
     // For a dense texture, the whole thing has to be loaded, so load it now
@@ -113,7 +113,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     TextureSampler* devSampler = m_loader->getDeviceMemoryManager()->allocateSampler();
 
     // Copy sampler to device memory.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
+    OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
                                       reinterpret_cast<CUdeviceptr>( pinnedSampler ), sizeof( TextureSampler ), stream ) );
 
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
@@ -152,11 +152,11 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     // Make alternate buffer on device if needed
     if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE && transferBuffer.memoryBlock.size == 0 )
     {
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &dataPtr ), transferBufferSize ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &dataPtr ), transferBufferSize ) );
         bufferSize = transferBufferSize;
     }
 
-    DEMAND_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense texture." );
+    OTK_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense texture." );
 
     // Read the texture data into the buffer (either a single mip level, or all mip levels)
     bool satisfied;
@@ -177,7 +177,7 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     else 
     {
         // fillDenseTexture uses an async copy, so synchronize the stream when using an alternate buffer.
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
+        OTK_ERROR_CHECK( cuStreamSynchronize( stream ) );
 
         // Free device-side alternate buffer if one was made
         if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )

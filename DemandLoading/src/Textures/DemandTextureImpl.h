@@ -30,11 +30,11 @@
 #include "Textures/DenseTexture.h"
 #include "Textures/SparseTexture.h"
 #include "Textures/TextureRequestHandler.h"
-#include "Util/Exception.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <cuda.h>

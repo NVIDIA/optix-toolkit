@@ -87,7 +87,7 @@ void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
     // Get the info for the new image
     imageSource::TextureInfo newInfo;
     newImage->open( &newInfo );
-    DEMAND_ASSERT( newInfo.isValid );
+    OTK_ASSERT( newInfo.isValid );
 
     // If the new image is a different size or format, the texture will need to be re-initialized
     // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
@@ -142,7 +142,7 @@ void DemandTextureImpl::init()
             m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? m_sparseTexture.getMipTailSize() : 0;
 
             // Verify that the tile size agrees with TilePool.
-            DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= TILE_SIZE_IN_BYTES );
+            OTK_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= TILE_SIZE_IN_BYTES );
 
             // Record the dimensions of each miplevel.
             const unsigned int numMipLevels = m_info.numMipLevels;
@@ -262,13 +262,13 @@ void DemandTextureImpl::initSampler()
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_info;
 }
 
 const TextureSampler& DemandTextureImpl::getSampler() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_sampler;
 }
 
@@ -279,32 +279,32 @@ const TextureDescriptor& DemandTextureImpl::getDescriptor() const
 
 uint2 DemandTextureImpl::getMipLevelDims( unsigned int mipLevel ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( mipLevel < m_mipLevelDims.size() );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( mipLevel < m_mipLevelDims.size() );
     return m_mipLevelDims[mipLevel];
 }
 
 unsigned int DemandTextureImpl::getTileWidth() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_tileWidth;
 }
 
 unsigned int DemandTextureImpl::getTileHeight() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_tileHeight;
 }
 
 bool DemandTextureImpl::isMipmapped() const
 {
-    DEMAND_ASSERT( m_info.isValid );
+    OTK_ASSERT( m_info.isValid );
     return getInfo().numMipLevels > getMipTailFirstLevel();
 }
 
 bool DemandTextureImpl::useSparseTexture() const
 {
-    DEMAND_ASSERT( m_info.isValid );
+    OTK_ASSERT( m_info.isValid );
 
     if( !m_loader->getOptions().useSparseTextures || !m_info.isTiled )
         return false;
@@ -315,13 +315,13 @@ bool DemandTextureImpl::useSparseTexture() const
 
 unsigned int DemandTextureImpl::getMipTailFirstLevel() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_mipTailFirstLevel;
 }
 
 CUtexObject DemandTextureImpl::getTextureObject() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     if( useSparseTexture() )
         return m_sparseTexture.getTextureObject();
     return m_denseTexture.getTextureObject();
@@ -361,13 +361,13 @@ void DemandTextureImpl::accumulateStatistics( Statistics& stats )
 bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer,
                                   size_t tileBufferSize, CUstream stream ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
 
     // Resize buffer if necessary.
     const unsigned int bytesPerPixel = imageSource::getBytesPerChannel( getInfo().format ) * getInfo().numChannels;
     const unsigned int bytesPerTile  = getTileWidth() * getTileHeight() * bytesPerPixel;
-    DEMAND_ASSERT_MSG( bytesPerTile <= tileBufferSize, "Maximum tile size exceeded" );
+    OTK_ASSERT_MSG( bytesPerTile <= tileBufferSize, "Maximum tile size exceeded" );
 
     return m_image->readTile( tileBuffer, mipLevel, tileX, tileY, getTileWidth(), getTileHeight(), stream );
 }
@@ -383,8 +383,8 @@ void DemandTextureImpl::fillTile( CUstream                     stream,
                                   CUmemGenericAllocationHandle handle,
                                   size_t                       offset ) const
 {
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
-    DEMAND_ASSERT( tileSize <= TILE_SIZE_IN_BYTES );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( tileSize <= TILE_SIZE_IN_BYTES );
 
     m_sparseTexture.fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
 }
@@ -392,15 +392,15 @@ void DemandTextureImpl::fillTile( CUstream                     stream,
 // Tiles can be unmapped concurrently.
 void DemandTextureImpl::unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const
 {
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
     m_sparseTexture.unmapTile( stream, mipLevel, tileX, tileY );
 }
 
 bool DemandTextureImpl::readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( m_info.numMipLevels == 1 );
-    DEMAND_ASSERT_MSG( m_mipTailSize <= bufferSize, "Provided buffer is too small." );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_info.numMipLevels == 1 );
+    OTK_ASSERT_MSG( m_mipTailSize <= bufferSize, "Provided buffer is too small." );
 
     return m_image->readMipLevel( buffer, 0, getInfo().width, getInfo().height, stream );
 }
@@ -415,12 +415,12 @@ bool DemandTextureImpl::readMipTail( char* buffer, size_t bufferSize, CUstream s
 // CoreEXRReader uses OpenEXR 3.0, which fixes the issue.
 bool DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( startLevel < getInfo().numMipLevels );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( startLevel < getInfo().numMipLevels );
 
     const unsigned int pixelSize = getInfo().numChannels * imageSource::getBytesPerChannel( getInfo().format );
     size_t dataSize = ( m_mipLevelDims[startLevel].x * m_mipLevelDims[startLevel].y * pixelSize * 4 ) / 3;
-    DEMAND_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
+    OTK_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
 
     return m_image->readMipTail( buffer, startLevel, getInfo().numMipLevels, m_mipLevelDims.data(), pixelSize, stream );
 }
@@ -432,7 +432,7 @@ void DemandTextureImpl::fillMipTail( CUstream                     stream,
                                      CUmemGenericAllocationHandle handle,
                                      size_t                       offset ) const
 {
-    DEMAND_ASSERT( getMipTailFirstLevel() < m_info.numMipLevels );
+    OTK_ASSERT( getMipTailFirstLevel() < m_info.numMipLevels );
 
     m_sparseTexture.fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
 }
@@ -460,7 +460,7 @@ void DemandTextureImpl::open()
     if( !m_isOpen )
     {
         m_image->open( &m_info );
-        DEMAND_ASSERT( m_info.isValid );
+        OTK_ASSERT( m_info.isValid );
         m_isOpen = true;
     }
 }
@@ -476,7 +476,7 @@ void DemandTextureImpl::setUdimTexture( unsigned int udimStartPage, unsigned int
 
 size_t DemandTextureImpl::getMipTailSize() 
 { 
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_mipTailSize; 
 }
 

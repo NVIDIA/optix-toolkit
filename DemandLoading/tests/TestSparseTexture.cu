@@ -28,7 +28,7 @@
 
 #include "TestSparseTexture.h"
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
 {
@@ -51,7 +51,7 @@ __host__ void launchSparseTextureKernel( cudaTextureObject_t texture, float4* ou
     dim3 dimBlock( 16, 16 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
     sparseTextureKernel<<<dimGrid, dimBlock>>>( texture, output, width, height, lod );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }
 
 __global__ static void wrapTestKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
@@ -76,5 +76,5 @@ __host__ void launchWrapTestKernel( cudaTextureObject_t texture, float4* output,
     dim3 dimBlock( 16, 16 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
     wrapTestKernel<<<dimGrid, dimBlock>>>( texture, output, width, height, lod );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }

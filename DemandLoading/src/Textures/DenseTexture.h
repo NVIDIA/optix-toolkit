@@ -27,9 +27,8 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
-
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <vector_types.h>

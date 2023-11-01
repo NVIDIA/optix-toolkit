@@ -83,8 +83,8 @@ void DeviceMemoryManager::freeDeviceContext( DeviceContext* context )
 {
     // The pool index is recorded to permit a copied DeviceContext to be returned to the pool.
     // Compare the page table pointer as a sanity check.
-    DEMAND_ASSERT_MSG( context, "Null context in DeviceContextPool::free" );
-    DEMAND_ASSERT_MSG( context->pageTable.data == m_deviceContextPool.at( context->poolIndex )->pageTable.data,
+    OTK_ASSERT_MSG( context, "Null context in DeviceContextPool::free" );
+    OTK_ASSERT_MSG( context->pageTable.data == m_deviceContextPool.at( context->poolIndex )->pageTable.data,
                        "Invalid context in DeviceContextPool::free" );
     m_deviceContextFreeList.push_back( m_deviceContextPool[context->poolIndex] );
 }

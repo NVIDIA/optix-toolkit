@@ -27,8 +27,7 @@
 //
 
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
-
-#include "Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda_runtime.h>
 
@@ -59,7 +58,7 @@ CUarray_format pixelTypeToArrayFormat( const OIIO::TypeDesc& type )
     if( type == OIIO::TypeDesc::FLOAT )
         return CU_AD_FORMAT_FLOAT;
 
-    DEMAND_ASSERT_MSG( false, "Invalid pixel type" );
+    OTK_ASSERT_MSG( false, "Invalid pixel type" );
     return CU_AD_FORMAT_FLOAT;
 }
 
@@ -91,7 +90,7 @@ float toFloat( const char* src, const CUarray_format format )
             return static_cast<float>( *( reinterpret_cast<const float*>( src ) ) );
 
         default:
-            DEMAND_ASSERT_MSG( false, "Invalid CUDA array format" );
+            OTK_ASSERT_MSG( false, "Invalid CUDA array format" );
     }
 
     return 0.f;
@@ -108,7 +107,7 @@ void OIIOReader::open( TextureInfo* info )
         if( !m_input )
         {
             m_input = OIIO::ImageInput::open( m_filename );
-            DEMAND_ASSERT_MSG( m_input, std::string( "Failed to open image file " ) + m_filename + "." );
+            OTK_ASSERT_MSG( m_input, std::string( "Failed to open image file " ) + m_filename + "." );
 
             OIIO::ImageSpec spec = m_input->spec();
 
@@ -172,7 +171,7 @@ void OIIOReader::close()
 void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
 {
     std::lock_guard<std::mutex> guard( m_mutex );
-    DEMAND_ASSERT( m_input.get() );
+    OTK_ASSERT( m_input.get() );
 
     OIIO::ImageSpec spec;
     m_input->seek_subimage( 0, mipLevel, spec );
@@ -182,7 +181,7 @@ void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int
 
 bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream /*stream*/ )
 {
-    DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
     OIIO::ImageSpec spec;
     {
@@ -202,7 +201,7 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
             std::stringstream str;
             str << "Unsupported tile size (" << actualTileWidth << "x" << actualTileHeight << ").  Expected "
                 << tileWidth << "x" << tileHeight << " (or a whole fraction thereof) for this pixel format";
-            throw Exception( str.str().c_str() );
+            throw std::runtime_error( str.str().c_str() );
         }
 
         const unsigned int actualTileX    = tileX * tileWidth / actualTileWidth;
@@ -278,7 +277,7 @@ bool OIIOReader::readMipLevel( char*        dest,
                                unsigned int expectedDepth,
                                CUstream     /*stream*/ )
 {
-    DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
     OIIO::ImageSpec spec;
     unsigned int    bytesPerPixel;
@@ -286,9 +285,9 @@ bool OIIOReader::readMipLevel( char*        dest,
         std::lock_guard<std::mutex> guard( m_mutex );
         m_input->seek_subimage( 0, mipLevel, spec );
 
-        DEMAND_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
-        DEMAND_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
-        DEMAND_ASSERT( spec.depth == static_cast<int>( expectedDepth ) );
+        OTK_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
+        OTK_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
+        OTK_ASSERT( spec.depth == static_cast<int>( expectedDepth ) );
 
         bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
 

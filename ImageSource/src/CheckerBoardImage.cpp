@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
-
-#include "Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <algorithm>
 #include <cmath>
@@ -92,7 +91,7 @@ bool CheckerBoardImage::readTile( char*        dest,
                                   unsigned int tileHeight,
                                   CUstream     /*stream*/ )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const float4 black = make_float4( 0.f, 0.f, 0.f, 0.f );
     const float4 color = m_mipLevelColors[static_cast<int>( mipLevel % m_mipLevelColors.size() )];
@@ -122,7 +121,7 @@ bool CheckerBoardImage::readTile( char*        dest,
 
 bool CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream /*stream*/ )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const float4 black  = make_float4( 0.f, 0.f, 0.f, 0.f );
     const float4 color  = m_mipLevelColors[static_cast<int>( mipLevel % m_mipLevelColors.size() )];

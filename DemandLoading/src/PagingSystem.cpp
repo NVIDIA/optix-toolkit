@@ -55,7 +55,7 @@ PagingSystem::PagingSystem( const Options&       options,
     , m_requestProcessor( requestProcessor )
     , m_pinnedMemoryPool( pinnedMemoryPool )
 {
-    DEMAND_ASSERT( m_options.maxFilledPages >= m_options.maxRequestedPages );
+    OTK_ASSERT( m_options.maxFilledPages >= m_options.maxRequestedPages );
 
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
@@ -67,15 +67,15 @@ PagingSystem::PagingSystem( const Options&       options,
     m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
     m_pageMappingsContext->init( m_options );
 
-    DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
+    OTK_ERROR_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
 }
 
 PagingSystem::~PagingSystem()
 {
-    DEMAND_CUDA_CHECK_NOTHROW( cuModuleUnload( m_pagingKernels ) );
+    OTK_ERROR_CHECK_NOTHROW( cuModuleUnload( m_pagingKernels ) );
     m_pagingKernels = CUmodule{};
     for( RequestContext* requestContext : m_pinnedRequestContextPool )
-        DEMAND_CUDA_CHECK_NOTHROW( cuMemFreeHost( requestContext ) );
+        OTK_ERROR_CHECK_NOTHROW( cuMemFreeHost( requestContext ) );
     m_pinnedRequestContextPool.clear();
 }
 
@@ -123,11 +123,11 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // The array lengths are accumulated across multiple device threads, so they must be initialized to zero.
-    DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ), 0,
+    OTK_ERROR_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ), 0,
                                         context.arrayLengths.capacity * sizeof( unsigned int ), stream ) );
 
-    DEMAND_ASSERT( startPage <= endPage );
-    DEMAND_ASSERT( endPage <= m_options.numPages );
+    OTK_ASSERT( startPage <= endPage );
+    OTK_ASSERT( endPage <= m_options.numPages );
     m_launchNum++;
 
     launchPullRequests( m_pagingKernels, stream, context, m_launchNum, m_lruThreshold, startPage, endPage);
@@ -141,24 +141,24 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     }
     else 
     {
-        DEMAND_CUDA_CHECK( cuMemAllocHost( reinterpret_cast<void**>( &pinnedRequestContext ),
+        OTK_ERROR_CHECK( cuMemAllocHost( reinterpret_cast<void**>( &pinnedRequestContext ),
                                            RequestContext::getAllocationSize( m_options ) ) );
         pinnedRequestContext->init( m_options );
     }
 
     // Copy the requested page list from this device.  The actual length is unknown, so we copy the entire capacity
     // and update the length below.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->requestedPages ),
+    OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->requestedPages ),
                                       reinterpret_cast<CUdeviceptr>( context.requestedPages.data ),
                                       pinnedRequestContext->maxRequestedPages * sizeof( unsigned int ), stream ) );
 
     // Get the stale pages from the device. This may be a subset of the actual stale pages.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->stalePages ),
+    OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->stalePages ),
                                       reinterpret_cast<CUdeviceptr>( context.stalePages.data ),
                                       pinnedRequestContext->maxStalePages * sizeof( StalePage ), stream ) );
 
     // Get the sizes of the requested/stale page lists.
-    DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->arrayLengths ),
+    OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( pinnedRequestContext->arrayLengths ),
                                       reinterpret_cast<CUdeviceptr>( context.arrayLengths.data ),
                                       pinnedRequestContext->numArrayLengths * sizeof( unsigned int ), stream ) );
 
@@ -246,10 +246,10 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
 
     // Zero out the reference bits
     unsigned int referenceBitsSizeInBytes = idivCeil( context.maxNumPages, 8 );
-    DEMAND_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.referenceBits ), 0, referenceBitsSizeInBytes, stream ) );
+    OTK_ERROR_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( context.referenceBits ), 0, referenceBitsSizeInBytes, stream ) );
 
     // Record the event in the stream. pushMappings will be complete when it returns cudaSuccess
-    DEMAND_CUDA_CHECK( cuEventRecord( m_pushMappingsEvent->event, stream ) );
+    OTK_ERROR_CHECK( cuEventRecord( m_pushMappingsEvent->event, stream ) );
     m_pushMappingsEvent->recorded = true;
 
     // Make a new event for the next time pushMappings is called
@@ -337,7 +337,7 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
 void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
 {
     // Mutex acquired in caller
-    DEMAND_ASSERT_MSG( pageId < m_options.numPages, "pageId outside of page table range." );
+    OTK_ASSERT_MSG( pageId < m_options.numPages, "pageId outside of page table range." );
 
     m_pageMappingsContext->filledPages[m_pageMappingsContext->numFilledPages++] = PageMapping{pageId, lruVal, entry};
     m_pageTable[pageId] = HostPageTableEntry{entry, true, false, false};
@@ -381,9 +381,9 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
     if( numFilledPages > 0 )
     {
-        DEMAND_ASSERT_MSG( numFilledPages <= m_options.maxFilledPages,
+        OTK_ASSERT_MSG( numFilledPages <= m_options.maxFilledPages,
                            "Too many filled pages. Increase options.maxFilledPages." );
-        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
+        OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
                                           numFilledPages * sizeof( PageMapping ), stream ) );
         launchPushMappings( m_pagingKernels, stream, context, numFilledPages);
@@ -393,9 +393,9 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     const unsigned int numInvalidatedPages = m_pageMappingsContext->numInvalidatedPages;
     if( numInvalidatedPages > 0 )
     {
-        DEMAND_ASSERT_MSG( numInvalidatedPages <= m_options.maxInvalidatedPages,
+        OTK_ASSERT_MSG( numInvalidatedPages <= m_options.maxInvalidatedPages,
                            "Too many invalidated pages. Increase options.maxInvalidPages." );
-        DEMAND_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
+        OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),
                                           numInvalidatedPages * sizeof( unsigned int ), stream ) );
         launchInvalidatePages( m_pagingKernels, stream, context, numInvalidatedPages);

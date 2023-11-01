@@ -38,7 +38,7 @@ bool sparseTexturesSupported()
 {
     cudaFree(nullptr);
     int numDevices;
-    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+    OTK_ERROR_CHECK( cuDeviceGetCount( &numDevices ) );
     for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
     {
         if( demandLoading::DemandPageLoaderImpl::supportsSparseTextures( deviceIndex ) )

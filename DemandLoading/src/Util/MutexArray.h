@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "Util/Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <condition_variable>
 #include <mutex>
@@ -55,7 +55,7 @@ class MutexArray
     /// Lock the item represented by the specified index.
     void lock( unsigned int index )
     {
-        DEMAND_ASSERT( index < m_excluded.size() );
+        OTK_ASSERT( index < m_excluded.size() );
         std::unique_lock<std::mutex> lock( m_mutex );
         m_condition.wait( lock, [this, index] { return !m_excluded[index]; } );
         m_excluded[index] = true;
@@ -64,10 +64,10 @@ class MutexArray
     /// Unlock the item represented by the specified index.
     void unlock( unsigned int index )
     {
-        DEMAND_ASSERT( index < m_excluded.size() );
+        OTK_ASSERT( index < m_excluded.size() );
         {
             std::unique_lock<std::mutex> lock( m_mutex );
-            DEMAND_ASSERT( m_excluded[index] );
+            OTK_ASSERT( m_excluded[index] );
             m_excluded[index] = false;
         }
         m_condition.notify_all();

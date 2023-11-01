@@ -27,7 +27,7 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -37,9 +37,9 @@ namespace demandLoading {
 class ContextSaver
 {
   public:
-    ContextSaver() { DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) ); }
+    ContextSaver() { OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) ); }
 
-    ~ContextSaver() { DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) ); }
+    ~ContextSaver() { OTK_ERROR_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) ); }
 
   private:
     CUcontext m_context;

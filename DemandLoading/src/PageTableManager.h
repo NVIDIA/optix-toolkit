@@ -29,7 +29,8 @@
 #pragma once
 
 #include "RequestHandler.h"
-#include "Util/Exception.h"
+
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <algorithm>
 #include <limits>
@@ -77,7 +78,7 @@ class PageTableManager
     unsigned int reserveBackedPages( unsigned int numPages, RequestHandler* handler ) 
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        DEMAND_ASSERT_MSG( m_nextBackedPage + numPages <= m_backedPages,
+        OTK_ASSERT_MSG( m_nextBackedPage + numPages <= m_backedPages,
                            "Insufficient backed pages in demand loading page table" );
 
         return insertPageMapping( m_nextBackedPage, numPages, handler );
@@ -87,7 +88,7 @@ class PageTableManager
     unsigned int reserveUnbackedPages( unsigned int numPages, RequestHandler* handler )
     {
         std::unique_lock<std::mutex> lock( m_mutex );
-        DEMAND_ASSERT_MSG( m_nextUnbackedPage + numPages <= m_totalPages, 
+        OTK_ASSERT_MSG( m_nextUnbackedPage + numPages <= m_totalPages, 
                            "Insufficient unbacked pages in demand loading page table" );
 
         return insertPageMapping( m_nextUnbackedPage, numPages, handler );
@@ -113,7 +114,7 @@ class PageTableManager
             std::lower_bound( m_mappings.cbegin(), m_mappings.cend(), pageId,
                               []( const PageMapping& entry, unsigned int id ) { return id > entry.lastPage; } );
 
-        DEMAND_ASSERT_MSG( least != m_mappings.cend(), 
+        OTK_ASSERT_MSG( least != m_mappings.cend(), 
                            "Trying to replace nonexistent request handler" );
         
         size_t idx = least - m_mappings.begin();

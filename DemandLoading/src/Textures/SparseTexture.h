@@ -27,9 +27,9 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
 
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <vector_types.h>
@@ -52,7 +52,7 @@ public:
     CUarray getLevel( unsigned int mipLevel ) const
     {
         CUarray mipLevelArray{};
-        DEMAND_CUDA_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, m_array, mipLevel ) );
+        OTK_ERROR_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, m_array, mipLevel ) );
         return mipLevelArray;
     }
 
@@ -62,7 +62,7 @@ public:
     size_t       getMipTailSize() const { return m_properties.miptailSize; }
     uint2 getMipLevelDims( unsigned int mipLevel ) const
     {
-        DEMAND_ASSERT( mipLevel < m_mipLevelDims.size() );
+        OTK_ASSERT( mipLevel < m_mipLevelDims.size() );
         return m_mipLevelDims[mipLevel];
     }
 

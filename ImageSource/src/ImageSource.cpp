@@ -26,16 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+
 #include "Config.h"  // for OTK_USE_OIIO
 
-#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
-
-#include "Exception.h"
 
 #include <cstddef>  // for size_t
 #include <fstream>
@@ -97,7 +97,7 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
         return std::shared_ptr<ImageSource>( new OIIOReader( path ) );
 #else
         std::string msg= "Image file not supported: ";
-        throw Exception( ( msg + filename ).c_str() );        
+        throw std::runtime_error( msg + filename );        
 #endif
     }
 }

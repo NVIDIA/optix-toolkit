@@ -26,7 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 
 #include <TextureFootprintCuda.h>
 
@@ -65,33 +67,6 @@ typedef SbtRecord<int>        MissSbtRecord;
 typedef SbtRecord<int>        HitGroupSbtRecord;
 
 namespace {  // anonymous
-
-inline void check( OptixResult res, const char* call, const char* file, unsigned int line )
-{
-    if( res != OPTIX_SUCCESS )
-    {
-        std::stringstream s;
-        s << "Optix call in " << file << ", line " << line << " (" << call << ") failed with code " << res;
-        throw std::runtime_error( s.str() );
-    }
-}
-
-#define OPTIX_CHECK( call ) check( call, #call, __FILE__, __LINE__ )
-
-inline void syncCheck( const char* file, unsigned int line )
-{
-    cudaDeviceSynchronize();
-    const cudaError_t error = cudaGetLastError();
-    if( error != cudaSuccess )
-    {
-        std::stringstream s;
-        s << "CUDA sync check in " << file << ": line " << line << " failed with code " << error << ": " << cudaGetErrorString( error );
-        throw std::runtime_error( s.str() );
-    }
-}
-
-#define OPTIX_CHECK( call ) check( call, #call, __FILE__, __LINE__ )
-#define CUDA_SYNC_CHECK() syncCheck( __FILE__, __LINE__ )
 
 //------------------------------------------------------------------------------
 // Helper functions to interpret texture footprints
@@ -221,7 +196,7 @@ class TextureFootprintFixture
         cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc( 32, 32, 32, 32, cudaChannelFormatKindFloat );
         cudaExtent            extent      = make_cudaExtent( width, height, 0 );
         int numLevels = static_cast<int>( 1.f + std::log2( static_cast<float>( std::max( width, height ) ) ) );
-        DEMAND_CUDA_CHECK( cudaMallocMipmappedArray( &m_mipmapArray, &channelDesc, extent, numLevels ) );
+        OTK_ERROR_CHECK( cudaMallocMipmappedArray( &m_mipmapArray, &channelDesc, extent, numLevels ) );
 
         // Fill in each miplevel.
         int levelWidth  = width;
@@ -230,13 +205,13 @@ class TextureFootprintFixture
         {
             // Get the array for this miplevel.
             cudaArray_t miplevelArray;
-            DEMAND_CUDA_CHECK( cudaGetMipmappedArrayLevel( &miplevelArray, m_mipmapArray, level ) );
+            OTK_ERROR_CHECK( cudaGetMipmappedArrayLevel( &miplevelArray, m_mipmapArray, level ) );
 
             // Sanity check the dimensions of the array for this miplevel.
             cudaChannelFormatDesc levelDesc;
             cudaExtent            levelExtent;
             unsigned int          levelFlags;
-            DEMAND_CUDA_CHECK( cudaArrayGetInfo( &levelDesc, &levelExtent, &levelFlags, miplevelArray ) );
+            OTK_ERROR_CHECK( cudaArrayGetInfo( &levelDesc, &levelExtent, &levelFlags, miplevelArray ) );
             ASSERT_EQ( static_cast<size_t>( levelWidth ), levelExtent.width );
             ASSERT_EQ( static_cast<size_t>( levelHeight ), levelExtent.height );
 
@@ -244,7 +219,7 @@ class TextureFootprintFixture
             std::vector<float4> texels( width * height, make_float4( 0.f, 0.f, 0.f, 0.f ) );
             size_t              levelWidthInBytes = levelWidth * sizeof( float4 );
             size_t              pitch             = levelWidthInBytes;
-            DEMAND_CUDA_CHECK( cudaMemcpy2DToArray( miplevelArray, 0, 0, texels.data(), pitch, levelWidthInBytes,
+            OTK_ERROR_CHECK( cudaMemcpy2DToArray( miplevelArray, 0, 0, texels.data(), pitch, levelWidthInBytes,
                                                     levelHeight, cudaMemcpyHostToDevice ) );
 
             levelWidth  = ( levelWidth ) / 2;
@@ -270,13 +245,13 @@ class TextureFootprintFixture
         texDesc.disableTrilinearOptimization = CU_TRSF_DISABLE_TRILINEAR_OPTIMIZATION;
 
         // Create texture object
-        DEMAND_CUDA_CHECK( cudaCreateTextureObject( &m_texture, &resDesc, &texDesc, nullptr /*cudaResourceViewDesc*/ ) );
+        OTK_ERROR_CHECK( cudaCreateTextureObject( &m_texture, &resDesc, &texDesc, nullptr /*cudaResourceViewDesc*/ ) );
     }
 
     void destroyTexture()
     {
-        DEMAND_CUDA_CHECK( cudaDestroyTextureObject( m_texture ) );
-        DEMAND_CUDA_CHECK( cudaFreeMipmappedArray( m_mipmapArray ) );
+        OTK_ERROR_CHECK( cudaDestroyTextureObject( m_texture ) );
+        OTK_ERROR_CHECK( cudaFreeMipmappedArray( m_mipmapArray ) );
     }
 
     static unsigned int getGranularityForTileSize( unsigned int tileWidth, unsigned int tileHeight )
@@ -314,16 +289,16 @@ class TextureFootprintFixture
             CUdevice           device;
             {
                 // Initialize CUDA
-                DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+                OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
                 CUcontext cuCtx = 0;  // zero means take the current context
-                OPTIX_CHECK( optixInit() );
+                OTK_ERROR_CHECK( optixInit() );
                 OptixDeviceContextOptions options = {};
                 options.logCallbackFunction       = &context_log_cb;
                 options.logCallbackLevel          = 4;
-                OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
+                OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
 
-                DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+                OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
             }
 
             //
@@ -344,7 +319,7 @@ class TextureFootprintFixture
                 pipeline_compile_options.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;  // TODO: should be OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
                 pipeline_compile_options.pipelineLaunchParamsVariableName = "params";
 
-                OPTIX_CHECK( optixModuleCreate( context, &module_compile_options, &pipeline_compile_options,
+                OTK_ERROR_CHECK( optixModuleCreate( context, &module_compile_options, &pipeline_compile_options,
                                                 TestTextureFootprintCudaText(), TestTextureFootprintCudaSize, log,
                                                 &sizeof_log, &module ) );
             }
@@ -362,21 +337,21 @@ class TextureFootprintFixture
                 raygen_prog_group_desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
                 raygen_prog_group_desc.raygen.module            = module;
                 raygen_prog_group_desc.raygen.entryFunctionName = entryFunction;
-                OPTIX_CHECK( optixProgramGroupCreate( context, &raygen_prog_group_desc,
+                OTK_ERROR_CHECK( optixProgramGroupCreate( context, &raygen_prog_group_desc,
                                                       1,  // num program groups
                                                       &program_group_options, log, &sizeof_log, &raygen_prog_group ) );
 
                 // Leave miss group's module and entryfunc name null
                 OptixProgramGroupDesc miss_prog_group_desc = {};
                 miss_prog_group_desc.kind                  = OPTIX_PROGRAM_GROUP_KIND_MISS;
-                OPTIX_CHECK( optixProgramGroupCreate( context, &miss_prog_group_desc,
+                OTK_ERROR_CHECK( optixProgramGroupCreate( context, &miss_prog_group_desc,
                                                       1,  // num program groups
                                                       &program_group_options, log, &sizeof_log, &miss_prog_group ) );
 
                 // Leave hit group's module and entryfunc name null
                 OptixProgramGroupDesc hitgroup_prog_group_desc = {};
                 hitgroup_prog_group_desc.kind                  = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-                OPTIX_CHECK( optixProgramGroupCreate( context, &hitgroup_prog_group_desc,
+                OTK_ERROR_CHECK( optixProgramGroupCreate( context, &hitgroup_prog_group_desc,
                                                       1,  // num program groups
                                                       &program_group_options, log, &sizeof_log, &hitgroup_prog_group ) );
             }
@@ -391,7 +366,7 @@ class TextureFootprintFixture
 
                 OptixPipelineLinkOptions pipeline_link_options = {};
                 pipeline_link_options.maxTraceDepth            = max_trace_depth;
-                OPTIX_CHECK( optixPipelineCreate( context, &pipeline_compile_options, &pipeline_link_options,
+                OTK_ERROR_CHECK( optixPipelineCreate( context, &pipeline_compile_options, &pipeline_link_options,
                                                   program_groups, sizeof( program_groups ) / sizeof( program_groups[0] ),
                                                   log, &sizeof_log, &pipeline ) );
 
@@ -399,21 +374,21 @@ class TextureFootprintFixture
                 for( auto& prog_group : program_groups )
                 {
 #if OPTIX_VERSION < 70700
-                    OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
+                    OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
 #else
-                    OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, pipeline ) );
+                    OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, pipeline ) );
 #endif
                 }
 
                 uint32_t direct_callable_stack_size_from_traversal;
                 uint32_t direct_callable_stack_size_from_state;
                 uint32_t continuation_stack_size;
-                OPTIX_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
+                OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
                                                          0,  // maxCCDepth
                                                          0,  // maxDCDEpth
                                                          &direct_callable_stack_size_from_traversal,
                                                          &direct_callable_stack_size_from_state, &continuation_stack_size ) );
-                OPTIX_CHECK( optixPipelineSetStackSize( pipeline, direct_callable_stack_size_from_traversal,
+                OTK_ERROR_CHECK( optixPipelineSetStackSize( pipeline, direct_callable_stack_size_from_traversal,
                                                         direct_callable_stack_size_from_state, continuation_stack_size,
                                                         2  // maxTraversableDepth
                                                         ) );
@@ -426,26 +401,26 @@ class TextureFootprintFixture
             {
                 CUdeviceptr  raygen_record;
                 const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &raygen_record ), raygen_record_size ) );
+                OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &raygen_record ), raygen_record_size ) );
                 RayGenSbtRecord rg_sbt;
-                OPTIX_CHECK( optixSbtRecordPackHeader( raygen_prog_group, &rg_sbt ) );
+                OTK_ERROR_CHECK( optixSbtRecordPackHeader( raygen_prog_group, &rg_sbt ) );
                 rg_sbt.data = {0.462f, 0.725f, 0.f};
-                DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( raygen_record ), &rg_sbt, raygen_record_size,
+                OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( raygen_record ), &rg_sbt, raygen_record_size,
                                                cudaMemcpyHostToDevice ) );
 
                 CUdeviceptr miss_record;
                 size_t      miss_record_size = sizeof( MissSbtRecord );
-                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &miss_record ), miss_record_size ) );
+                OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &miss_record ), miss_record_size ) );
                 RayGenSbtRecord ms_sbt;
-                OPTIX_CHECK( optixSbtRecordPackHeader( miss_prog_group, &ms_sbt ) );
-                DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
+                OTK_ERROR_CHECK( optixSbtRecordPackHeader( miss_prog_group, &ms_sbt ) );
+                OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
 
                 CUdeviceptr hitgroup_record;
                 size_t      hitgroup_record_size = sizeof( HitGroupSbtRecord );
-                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &hitgroup_record ), hitgroup_record_size ) );
+                OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &hitgroup_record ), hitgroup_record_size ) );
                 RayGenSbtRecord hg_sbt;
-                OPTIX_CHECK( optixSbtRecordPackHeader( hitgroup_prog_group, &hg_sbt ) );
-                DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( hitgroup_record ), &hg_sbt,
+                OTK_ERROR_CHECK( optixSbtRecordPackHeader( hitgroup_prog_group, &hg_sbt ) );
+                OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( hitgroup_record ), &hg_sbt,
                                                hitgroup_record_size, cudaMemcpyHostToDevice ) );
 
                 sbt.raygenRecord                = raygen_record;
@@ -463,25 +438,25 @@ class TextureFootprintFixture
 
             // Copy inputs to device
             FootprintInputs* d_inputs;
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_inputs ), inputs.size() * sizeof( FootprintInputs ) ) );
-            DEMAND_CUDA_CHECK( cudaMemcpy( d_inputs, inputs.data(), inputs.size() * sizeof( FootprintInputs ), cudaMemcpyHostToDevice ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_inputs ), inputs.size() * sizeof( FootprintInputs ) ) );
+            OTK_ERROR_CHECK( cudaMemcpy( d_inputs, inputs.data(), inputs.size() * sizeof( FootprintInputs ), cudaMemcpyHostToDevice ) );
 
             // Create output buffer.
             size_t numOutputs = inputs.size();
             uint4* d_outputs;
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_outputs ), 2 * numOutputs * sizeof( uint4 ) ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_outputs ), 2 * numOutputs * sizeof( uint4 ) ) );
 
             // Create usage bits
             unsigned int  referenceBitsSizeInWords = demandLoading::MAX_TILE_LEVELS * MAX_PAGES_PER_MIP_LEVEL / 32;
             unsigned int  referenceBitsSizeInBytes = demandLoading::MAX_TILE_LEVELS * MAX_PAGES_PER_MIP_LEVEL / 8;
             unsigned int* d_referenceBits;
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_referenceBits ), referenceBitsSizeInBytes ) );
-            DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_referenceBits ), 0, referenceBitsSizeInBytes ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_referenceBits ), referenceBitsSizeInBytes ) );
+            OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_referenceBits ), 0, referenceBitsSizeInBytes ) );
 
             unsigned int  residenceBitsSizeInBytes = referenceBitsSizeInBytes;
             unsigned int* d_residenceBits;
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_residenceBits ), residenceBitsSizeInBytes ) );
-            DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_residenceBits ), 0, residenceBitsSizeInBytes ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_residenceBits ), residenceBitsSizeInBytes ) );
+            OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( d_residenceBits ), 0, residenceBitsSizeInBytes ) );
 
             //
             // Launch
@@ -489,7 +464,7 @@ class TextureFootprintFixture
             Params params{};
             {
                 CUstream stream;
-                DEMAND_CUDA_CHECK( cudaStreamCreate( &stream ) );
+                OTK_ERROR_CHECK( cudaStreamCreate( &stream ) );
 
                 params.sampler.texture = m_texture;
                 params.sampler.desc.numMipLevels =
@@ -533,25 +508,25 @@ class TextureFootprintFixture
                 }
 
                 CUdeviceptr d_params;
-                DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_params ), sizeof( Params ) ) );
-                DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_params ), &params, sizeof( params ), cudaMemcpyHostToDevice ) );
+                OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_params ), sizeof( Params ) ) );
+                OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_params ), &params, sizeof( params ), cudaMemcpyHostToDevice ) );
 
-                OPTIX_CHECK( optixLaunch( pipeline, stream, d_params, sizeof( Params ), &sbt,
+                OTK_ERROR_CHECK( optixLaunch( pipeline, stream, d_params, sizeof( Params ), &sbt,
                                           static_cast<unsigned int>( inputs.size() ), 1, 1 ) );
-                CUDA_SYNC_CHECK();
-                DEMAND_CUDA_CHECK( cuMemFree( d_params ) );
+                OTK_CUDA_SYNC_CHECK();
+                OTK_ERROR_CHECK( cuMemFree( d_params ) );
             }
 
             // Copy output to host (returned via result parameter)
             std::vector<uint4> outputs( 2 * numOutputs );
-            DEMAND_CUDA_CHECK( cudaMemcpy( outputs.data(), d_outputs, 2 * numOutputs * sizeof( uint4 ), cudaMemcpyDeviceToHost ) );
+            OTK_ERROR_CHECK( cudaMemcpy( outputs.data(), d_outputs, 2 * numOutputs * sizeof( uint4 ), cudaMemcpyDeviceToHost ) );
 
             // Check results
             checkResults( inputs, outputs, expectedTileCoords );
 
             // Check reference bits
             std::vector<unsigned int> referenceBits( referenceBitsSizeInWords, 0 );
-            DEMAND_CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( referenceBits.data() ), reinterpret_cast<void*>( d_referenceBits ),
+            OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( referenceBits.data() ), reinterpret_cast<void*>( d_referenceBits ),
                                            referenceBitsSizeInBytes, cudaMemcpyDeviceToHost ) );
             checkReferenceBits( expectedTileCoords, referenceBits, params.sampler );
 
@@ -560,22 +535,22 @@ class TextureFootprintFixture
             //
             {
                 destroyTexture();
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_inputs ) ) );
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_outputs ) ) );
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_referenceBits ) ) );
-                DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_residenceBits ) ) );
+                OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_inputs ) ) );
+                OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_outputs ) ) );
+                OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_referenceBits ) ) );
+                OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( d_residenceBits ) ) );
 
-                DEMAND_CUDA_CHECK( cuMemFree( sbt.raygenRecord ) );
-                DEMAND_CUDA_CHECK( cuMemFree( sbt.missRecordBase ) );
-                DEMAND_CUDA_CHECK( cuMemFree( sbt.hitgroupRecordBase ) );
+                OTK_ERROR_CHECK( cuMemFree( sbt.raygenRecord ) );
+                OTK_ERROR_CHECK( cuMemFree( sbt.missRecordBase ) );
+                OTK_ERROR_CHECK( cuMemFree( sbt.hitgroupRecordBase ) );
 
-                OPTIX_CHECK( optixPipelineDestroy( pipeline ) );
-                OPTIX_CHECK( optixProgramGroupDestroy( hitgroup_prog_group ) );
-                OPTIX_CHECK( optixProgramGroupDestroy( miss_prog_group ) );
-                OPTIX_CHECK( optixProgramGroupDestroy( raygen_prog_group ) );
-                OPTIX_CHECK( optixModuleDestroy( module ) );
+                OTK_ERROR_CHECK( optixPipelineDestroy( pipeline ) );
+                OTK_ERROR_CHECK( optixProgramGroupDestroy( hitgroup_prog_group ) );
+                OTK_ERROR_CHECK( optixProgramGroupDestroy( miss_prog_group ) );
+                OTK_ERROR_CHECK( optixProgramGroupDestroy( raygen_prog_group ) );
+                OTK_ERROR_CHECK( optixModuleDestroy( module ) );
 
-                OPTIX_CHECK( optixDeviceContextDestroy( context ) );
+                OTK_ERROR_CHECK( optixDeviceContextDestroy( context ) );
             }
         }
         catch( std::exception& e )

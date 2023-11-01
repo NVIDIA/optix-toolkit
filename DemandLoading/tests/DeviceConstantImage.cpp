@@ -27,7 +27,8 @@
 //
 
 #include "DeviceConstantImage.h"
-#include "Util/Exception.h"
+
+#include <OptiXToolkit/Error/ErrorCheck.h>
 
 using namespace imageSource;
 
@@ -60,7 +61,7 @@ bool DeviceConstantImage::readTile( char*        dest,
                                     unsigned int tileHeight,
                                     CUstream     stream )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     DeviceConstantImageParams params;
     params.num_pixels = tileWidth * tileHeight;
@@ -74,12 +75,12 @@ bool DeviceConstantImage::readTile( char*        dest,
 
 bool DeviceConstantImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const unsigned int levelWidth  = std::max( 1u, m_info.width >> mipLevel );
     const unsigned int levelHeight = std::max( 1u, m_info.height >> mipLevel );
 
-    DEMAND_ASSERT_MSG( levelWidth == width && levelHeight == height,
+    OTK_ASSERT_MSG( levelWidth == width && levelHeight == height,
                        "Mismatch between parameter and calculated mip level size." );
 
     DeviceConstantImageParams params{};
@@ -99,7 +100,7 @@ bool DeviceConstantImage::readMipTail( char* dest,
                                        unsigned int /*pixelSizeInBytes*/,
                                        CUstream stream )
 {
-    DEMAND_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const unsigned int levelWidth  = mipLevelDims[mipTailFirstLevel].x;
     const unsigned int levelHeight = mipLevelDims[mipTailFirstLevel].y;

@@ -42,16 +42,16 @@ class TestContextSaver : public testing::Test
     {
         // Initialize CUDA and create context.
         cuInit( 0 );
-        DEMAND_CUDA_CHECK( cuDeviceGet( &m_device, m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cuCtxCreate( &m_context, 0, m_device ) );
+        OTK_ERROR_CHECK( cuDeviceGet( &m_device, m_deviceIndex ) );
+        OTK_ERROR_CHECK( cuCtxCreate( &m_context, 0, m_device ) );
     }
 
-    void TearDown() override { DEMAND_CUDA_CHECK( cuCtxDestroy( m_context ) ); }
+    void TearDown() override { OTK_ERROR_CHECK( cuCtxDestroy( m_context ) ); }
 
     void expectCurrentContext( CUcontext expected )
     {
         CUcontext current;
-        DEMAND_CUDA_CHECK( cuCtxGetCurrent( &current ) );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &current ) );
         EXPECT_EQ( expected, current );
     }
 
@@ -76,7 +76,7 @@ TEST_F( TestContextSaver, TestSave )
     {
         ContextSaver saver;
         CUcontext newContext;
-        DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+        OTK_ERROR_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
         expectCurrentContext( newContext );
     }
     expectCurrentContext( m_context );
@@ -89,12 +89,12 @@ TEST_F( TestContextSaver, TestNestedSave )
     {
         ContextSaver saver;
         CUcontext    newContext;
-        DEMAND_CUDA_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+        OTK_ERROR_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
 
         {
             ContextSaver saver2;
             CUcontext    nestedContext;
-            DEMAND_CUDA_CHECK( cuCtxCreate( &nestedContext, 0, m_device ) );
+            OTK_ERROR_CHECK( cuCtxCreate( &nestedContext, 0, m_device ) );
             expectCurrentContext( nestedContext );
         }
 

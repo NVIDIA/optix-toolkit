@@ -28,7 +28,7 @@
 
 #include <TestDemandLoadingKernelsCuda.h>
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DeferredImageLoadingKernels.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -238,7 +238,7 @@ void DeferredImageLoadingTest::createModules()
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
                                             OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
 #endif
-    OTK_ERROR_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernelsCudaText(),
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernelsCudaText(),
                                              DeferredImageLoadingKernelsCudaSize, LOG, &LOG_SIZE, &m_module ) );
 }
 
@@ -252,7 +252,7 @@ void DeferredImageLoadingTest::createProgramGroups()
     descs[GROUP_MISS].kind                                         = OPTIX_PROGRAM_GROUP_KIND_MISS;
     descs[GROUP_MISS].miss.module                                  = nullptr;
     descs[GROUP_MISS].miss.entryFunctionName                       = nullptr;
-    OTK_ERROR_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_GROUPS, &options,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( m_context, descs, NUM_GROUPS, &options,
                                                LOG, &LOG_SIZE, m_groups ) );
 }
 
@@ -261,7 +261,7 @@ void DeferredImageLoadingTest::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options;
     options.maxTraceDepth = maxTraceDepth;
-    OTK_ERROR_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
     for( OptixProgramGroup group : m_groups )

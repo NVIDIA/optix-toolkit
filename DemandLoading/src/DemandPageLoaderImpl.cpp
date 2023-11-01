@@ -28,7 +28,6 @@
 
 #include "DemandPageLoaderImpl.h"
 
-#include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
 #include "Util/TraceFile.h"
@@ -38,6 +37,7 @@
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -73,12 +73,12 @@ namespace demandLoading {
 bool DemandPageLoaderImpl::supportsSparseTextures( CUdevice device )
 {
     int sparseSupport = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
+    OTK_ERROR_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
 
     // Skip devices in TCC mode.  This guards against an "operation not supported" error when
     // querying the recommended allocation granularity via cuMemGetAllocationGranularity.
     int inTccMode = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, device ) );
+    OTK_ERROR_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, device ) );
 
     return sparseSupport && !inTccMode;
 }
@@ -99,7 +99,7 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
     , m_pagingSystem( m_options, &m_deviceMemoryManager, &m_pinnedMemoryPool, m_requestProcessor )
 {
     CUdevice device;
-    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+    OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
     if( !supportsSparseTextures( device ) )
         m_options.useSparseTextures = false;
 }
@@ -123,7 +123,7 @@ void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictabl
 bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    OTK_STREAM_CUDA_CHECK( stream );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 
     // Get DeviceContext from pool and copy it to output parameter.
     {

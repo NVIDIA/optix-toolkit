@@ -119,7 +119,7 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     {
         std::stringstream ss;
         ss << "readTile call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 
     if( satisfied )
@@ -178,7 +178,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
     {
         std::stringstream ss;
         ss << "readMipTail call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 
     if( satisfied )

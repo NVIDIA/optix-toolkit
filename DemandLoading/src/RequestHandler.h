@@ -28,8 +28,9 @@
 
 #pragma once
 
-#include <Util/Exception.h>
 #include "Util/MutexArray.h"
+
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -55,7 +56,7 @@ class RequestHandler
         // of the existing range.
         if( m_mutex.get() != nullptr )
         {
-            DEMAND_ASSERT_MSG( startPage >= m_startPage && startPage + numPages <= m_startPage + m_numPages,
+            OTK_ASSERT_MSG( startPage >= m_startPage && startPage + numPages <= m_startPage + m_numPages,
                                "Cannot change request handler page range" );
             return;
         }

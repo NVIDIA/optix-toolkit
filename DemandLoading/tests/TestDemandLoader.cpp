@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoaderImpl.h"
 #include "DemandLoaderTestKernels.h"
 
@@ -56,11 +56,11 @@ class TestDemandLoader : public testing::Test
         for( unsigned int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
             // Initialize CUDA
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
             // Create a stream per device.
-            DEMAND_CUDA_CHECK( cuStreamCreate( &m_streams[deviceIndex], 0 ) );
+            OTK_ERROR_CHECK( cuStreamCreate( &m_streams[deviceIndex], 0 ) );
 
             // Create DemandLoader per device
             m_loaders[deviceIndex] = dynamic_cast<DemandLoaderImpl*>( createDemandLoader( Options() ) );
@@ -81,8 +81,8 @@ class TestDemandLoader : public testing::Test
     {
         for( unsigned int deviceIndex = 0; deviceIndex < static_cast<unsigned int>( m_streams.size() ); ++deviceIndex )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuStreamDestroy( m_streams[deviceIndex] ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cuStreamDestroy( m_streams[deviceIndex] ) );
             destroyDemandLoader( m_loaders[deviceIndex] );
             m_loaders[deviceIndex] = nullptr;
         }
@@ -121,7 +121,7 @@ TEST_F( TestDemandLoader, TestCreateDestroy )
 
 TEST_F( TestDemandLoader, TestCreateTexture )
 {
-    DEMAND_CUDA_CHECK( cudaSetDevice( 0 ) );
+    OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
     m_loaders[0]->createTexture( m_imageSource, m_descriptor );
     // The texture is opaque, so we can't really validate it.
 }
@@ -139,9 +139,9 @@ class TestDemandLoaderResident : public TestDemandLoader
         m_devPageTableEntry.resize( numDevices );
         for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident[deviceIndex] ), sizeof( bool ) ) );
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devPageTableEntry[deviceIndex] ),
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident[deviceIndex] ), sizeof( bool ) ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devPageTableEntry[deviceIndex] ),
                                            sizeof( unsigned long long ) ) );
         }
     }
@@ -151,9 +151,9 @@ class TestDemandLoaderResident : public TestDemandLoader
         size_t numDevices = m_devIsResident.size();
         for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident[deviceIndex] ) ) );
-            DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devPageTableEntry[deviceIndex] ) ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident[deviceIndex] ) ) );
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devPageTableEntry[deviceIndex] ) ) );
         }
         TestDemandLoader::TearDown();
     }
@@ -170,8 +170,8 @@ class TestDemandLoaderResident : public TestDemandLoader
                 launchPageRequester( stream, context, pageId, devIsResident, devPageTableEntry );
             } );
         // Copy isResident result to host.
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
+        OTK_ERROR_CHECK( cuStreamSynchronize( stream ) );
+        OTK_ERROR_CHECK( cudaMemcpy( isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
         return numFilled;
     }
 
@@ -189,7 +189,7 @@ TEST_F( TestDemandLoaderResident, TestSamplerRequest )
         if( ( ( 1U << deviceIndex ) & devices ) == 0 )
             continue;
 
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         const DemandTexture& texture = m_loaders[deviceIndex]->createTexture( m_imageSource, m_descriptor );
         const unsigned int   pageId  = texture.getId();
 
@@ -234,7 +234,7 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     unsigned int startPage = 0; 
     for( unsigned int deviceIndex : devices )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         startPage = m_loaders[deviceIndex]->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
     }
 
@@ -249,7 +249,7 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     {
         bool isResident1{ true };
         bool isResident2{};
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
 
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
@@ -276,7 +276,7 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
     unsigned int startPage = 0;
     for( unsigned int deviceIndex : devices )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         startPage = m_loaders[deviceIndex]->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
     }
     // Must configure mocks before making any method calls.
@@ -294,7 +294,7 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
         bool               isResident1{ true };
         bool               isResident2{ true };
         bool               isResident3{};
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
 
         const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );  // request deferred
         const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );  // request fulfilled
@@ -311,7 +311,7 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
 
 TEST_F( TestDemandLoader, TestTextureVariants )
 {
-    DEMAND_CUDA_CHECK( cudaSetDevice( 0 ) );
+    OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
 
     // Make first texture
     TextureDescriptor  texDesc1 = m_descriptor;
@@ -463,7 +463,7 @@ TEST_F( TestDemandLoaderBatches, LoopTest )
 {
     for( unsigned int deviceIndex = 0; deviceIndex < m_loaders.size(); ++deviceIndex )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         for( int i = 0; i < 4; ++i )
             testBatch( deviceIndex, /*testAbort=*/false );
     }
@@ -473,7 +473,7 @@ TEST_F( TestDemandLoaderBatches, TestAbort )
 {
     for( unsigned int deviceIndex = 0; deviceIndex < m_loaders.size(); ++deviceIndex )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         testBatch( deviceIndex, /*testAbort=*/true );
     }
 }

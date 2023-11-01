@@ -96,7 +96,7 @@ void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, 
     start();
     
     auto it = m_tickets.find( id );
-    DEMAND_ASSERT( it != m_tickets.end() );
+    OTK_ASSERT( it != m_tickets.end() );
     Ticket ticket = it->second;
     // We won't issue this id again, so we can discard it from the map.
     m_tickets.erase( it );
@@ -130,7 +130,7 @@ void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::Ima
 void ThreadPoolRequestProcessor::setTicket( unsigned int id, Ticket ticket )
 {
     std::unique_lock<std::mutex> lock( m_ticketsMutex );
-    DEMAND_ASSERT( m_tickets.find( id ) == m_tickets.end() );
+    OTK_ASSERT( m_tickets.find( id ) == m_tickets.end() );
     m_tickets[id] = ticket;
 }
 
@@ -148,13 +148,13 @@ void ThreadPoolRequestProcessor::worker()
             // Ask the PageTableManager for the request handler associated with the range of pages in
             // which the request occurred.
             RequestHandler* handler = m_pageTableManager->getRequestHandler( request.pageId );
-            DEMAND_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
+            OTK_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
 
             // Use the CUDA context associated with the stream in the ticket.
             std::shared_ptr<TicketImpl>& ticket = TicketImpl::getImpl( request.ticket );
             CUcontext                    context;
-            DEMAND_CUDA_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
-            DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+            OTK_ERROR_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
+            OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
 
             // Process the request.  Page table updates are accumulated in the PagingSystem.
             handler->fillRequest( ticket->getStream(), request.pageId );

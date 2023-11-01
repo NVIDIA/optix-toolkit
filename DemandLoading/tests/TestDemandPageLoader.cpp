@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoaderTestKernels.h"
 
 #include <OptiXToolkit/DemandLoading/DemandPageLoader.h>
@@ -58,7 +58,7 @@ class DemandPageLoaderTest : public Test
     {
         OTK_ERROR_CHECK( cudaFree( nullptr ) );
         m_deviceIndex = 0;
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
         OTK_ERROR_CHECK( cuStreamCreate( &m_stream, 0 ) );
         OTK_ERROR_CHECK( cudaMalloc( &m_devIsResident, sizeof( bool ) ) );
         OTK_ERROR_CHECK( cudaMalloc( &m_devPageTableEntry, sizeof( unsigned long long ) ) );
@@ -76,12 +76,12 @@ class DemandPageLoaderTest : public Test
   protected:
     void setIsResident( bool value )
     {
-        DEMAND_CUDA_CHECK( cudaMemcpy( m_devIsResident, &value, sizeof( value ), cudaMemcpyHostToDevice ) );
+        OTK_ERROR_CHECK( cudaMemcpy( m_devIsResident, &value, sizeof( value ), cudaMemcpyHostToDevice ) );
     }
     bool getIsResident() const
     {
         bool value;
-        DEMAND_CUDA_CHECK( cudaMemcpy( &value, m_devIsResident, sizeof( value ), cudaMemcpyDeviceToHost ) );
+        OTK_ERROR_CHECK( cudaMemcpy( &value, m_devIsResident, sizeof( value ), cudaMemcpyDeviceToHost ) );
         return value;
     }
     bool launchAndRequestPage( unsigned int pageId )

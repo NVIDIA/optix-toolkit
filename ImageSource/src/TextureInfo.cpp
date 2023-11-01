@@ -27,12 +27,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Exception.h"
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 #include <cuda_fp16.h>
 
-#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 namespace imageSource {
 
@@ -59,7 +59,7 @@ unsigned int getBytesPerChannel( const CUarray_format format )
             return sizeof( float );
 
         default:
-            DEMAND_ASSERT_MSG( false, "Invalid CUDA array format" );
+            OTK_ASSERT_MSG( false, "Invalid CUDA array format" );
             return 0;
     }
 }

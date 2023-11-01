@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoadingKernelsCuda.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PagingSystemKernels.h"
@@ -45,8 +45,8 @@ class TestPagingSystemKernels : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
         // Initialize paging system options.
         m_options.numPages            = 1025;
@@ -61,12 +61,12 @@ class TestPagingSystemKernels : public testing::Test
         // Allocate and initialize device context.
         m_deviceMemoryManager = new DeviceMemoryManager( m_options );
         m_context             = m_deviceMemoryManager->allocateDeviceContext();
-        DEMAND_CUDA_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
+        OTK_ERROR_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
     }
 
     void TearDown() override
     {
-        DEMAND_CUDA_CHECK( cuModuleUnload( m_pagingKernels ) );
+        OTK_ERROR_CHECK( cuModuleUnload( m_pagingKernels ) );
         m_pagingKernels = CUmodule{};
         delete m_deviceMemoryManager;
     }
@@ -94,7 +94,7 @@ TEST_F( TestPagingSystemKernels, TestEmptyPullRequests )
 TEST_F( TestPagingSystemKernels, TestInvalidatePages )
 {
     // Set first word to all 1's
-    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0xFF, 4 ) );
+    OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0xFF, 4 ) );
 
     // Invalidate the following this list of pages
     std::vector<unsigned int> invalidatedPages = { 1, 2, 4, 8 };
@@ -105,14 +105,14 @@ TEST_F( TestPagingSystemKernels, TestInvalidatePages )
 
     // Copy list of invalidated pages to device and call invalidate kernel
     CUstream stream{};
-    DEMAND_CUDA_CHECK( cudaMemcpy( getContext().invalidatedPages.data, invalidatedPages.data(),
+    OTK_ERROR_CHECK( cudaMemcpy( getContext().invalidatedPages.data, invalidatedPages.data(),
                                    numInvalidatedPages * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
     launchInvalidatePages( m_pagingKernels, stream, getContext(), numInvalidatedPages);
     cudaDeviceSynchronize();
 
     // Pull the first word of the residence bits back to the host
     unsigned int residenceBits;
-    DEMAND_CUDA_CHECK( cudaMemcpy( &residenceBits, getContext().residenceBits, sizeof( unsigned int ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( &residenceBits, getContext().residenceBits, sizeof( unsigned int ), cudaMemcpyDeviceToHost ) );
     cudaDeviceSynchronize();
 
     EXPECT_EQ( invalidMask, residenceBits );
@@ -121,12 +121,12 @@ TEST_F( TestPagingSystemKernels, TestInvalidatePages )
 TEST_F( TestPagingSystemKernels, TestGetStalePages )
 {
     // Set first word to all 0's (not resident)
-    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0xFF, 4 ) );
+    OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0xFF, 4 ) );
 
     // Set LRU values for the first 16 pages to be the same as the page id.
     // Note that 0xF is the non-evictable value, so it should not show up as a stale page.
     std::vector<unsigned int> lruVals = {0x76543210, 0xFEDCBA98, 0x00000000, 0x00000000};
-    DEMAND_CUDA_CHECK( cudaMemcpy( getContext().lruTable, lruVals.data(), lruVals.size() * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMemcpy( getContext().lruTable, lruVals.data(), lruVals.size() * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
 
     // Launch pullRequests
     CUstream stream{};
@@ -140,9 +140,9 @@ TEST_F( TestPagingSystemKernels, TestGetStalePages )
     // Copy list of stale pages back to host
     std::vector<StalePage> stalePages( getContext().stalePages.capacity, StalePage{0,0,0} );
     unsigned int arrayLengths[3];
-    DEMAND_CUDA_CHECK( cudaMemcpy( arrayLengths, getContext().arrayLengths.data, 3*sizeof(unsigned int), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( arrayLengths, getContext().arrayLengths.data, 3*sizeof(unsigned int), cudaMemcpyDeviceToHost ) );
     stalePages.resize( arrayLengths[STALE_PAGES_LENGTH] );
-    DEMAND_CUDA_CHECK( cudaMemcpy( stalePages.data(), getContext().stalePages.data, stalePages.size() * sizeof( StalePage ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( stalePages.data(), getContext().stalePages.data, stalePages.size() * sizeof( StalePage ), cudaMemcpyDeviceToHost ) );
 
     EXPECT_EQ( 11u, (unsigned int)stalePages.size() );
     for( unsigned int i=0; i<stalePages.size(); ++i )
@@ -155,8 +155,8 @@ TEST_F( TestPagingSystemKernels, TestGetStalePages )
 TEST_F( TestPagingSystemKernels, TestPullRequests )
 {
     // Set some bits as resident, but request all bits in first word
-    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0x0F, 4 ) );
-    DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().referenceBits ), 0xFF, 4 ) );
+    OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().residenceBits ), 0x0F, 4 ) );
+    OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( getContext().referenceBits ), 0xFF, 4 ) );
     std::vector<unsigned int> expectedPages = { 4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31 };
 
     // Launch pullRequests
@@ -171,9 +171,9 @@ TEST_F( TestPagingSystemKernels, TestPullRequests )
     // Copy list of stale pages back to host
     std::vector<unsigned int> requestedPages( getContext().requestedPages.capacity, 0u );
     unsigned int arrayLengths[3];
-    DEMAND_CUDA_CHECK( cudaMemcpy( arrayLengths, getContext().arrayLengths.data, 3*sizeof(unsigned int), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( arrayLengths, getContext().arrayLengths.data, 3*sizeof(unsigned int), cudaMemcpyDeviceToHost ) );
     requestedPages.resize( arrayLengths[PAGE_REQUESTS_LENGTH] );
-    DEMAND_CUDA_CHECK( cudaMemcpy( requestedPages.data(), getContext().requestedPages.data, requestedPages.size() * sizeof( unsigned int ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( requestedPages.data(), getContext().requestedPages.data, requestedPages.size() * sizeof( unsigned int ), cudaMemcpyDeviceToHost ) );
 
     EXPECT_EQ( 16u, (unsigned int)requestedPages.size() );
     for( unsigned int i=0; i<requestedPages.size(); ++i )
@@ -189,14 +189,14 @@ TEST_F( TestPagingSystemKernels, TestPushMappings )
     unsigned int numFilledPages = static_cast<unsigned int>( filledPages.size() );
 
     CUstream stream{};
-    DEMAND_CUDA_CHECK( cudaMemcpy( getContext().filledPages.data, filledPages.data(),
+    OTK_ERROR_CHECK( cudaMemcpy( getContext().filledPages.data, filledPages.data(),
                                    numFilledPages * sizeof( PageMapping ), cudaMemcpyHostToDevice ) );
     launchPushMappings( m_pagingKernels, stream, getContext(), numFilledPages);
     cudaDeviceSynchronize();
 
     // Pull the first word of the residence bits back to the host
     unsigned int residenceBits;
-    DEMAND_CUDA_CHECK( cudaMemcpy( &residenceBits, getContext().residenceBits, sizeof( unsigned int ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( &residenceBits, getContext().residenceBits, sizeof( unsigned int ), cudaMemcpyDeviceToHost ) );
     cudaDeviceSynchronize();
 
     EXPECT_EQ( 2U, residenceBits );
