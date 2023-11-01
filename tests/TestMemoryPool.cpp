@@ -26,8 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/BinnedSuballocator.h>
 #include <OptiXToolkit/Memory/FixedSuballocator.h>
@@ -49,8 +50,8 @@ class TestMemoryPool : public testing::Test
   public:
     void SetUp() override
     {
-        OTK_MEMORY_CUDA_CHECK( cudaSetDevice( 0 ) );
-        OTK_MEMORY_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 };
 
@@ -177,8 +178,8 @@ TEST_F( TestMemoryPool, RingSuballocatorFreeAsync )
 {
     const unsigned int deviceIndex = 0;
     CUstream           stream;
-    OTK_MEMORY_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-    OTK_MEMORY_CUDA_CHECK( cudaStreamCreate( &stream ) );
+    OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+    OTK_ERROR_CHECK( cudaStreamCreate( &stream ) );
 
     uint64_t arenaSize = 1 << 19;
     uint64_t allocSize = 1 << 20;
@@ -197,8 +198,8 @@ TEST_F( TestMemoryPool, AllocFreeAsync )
 {
     const unsigned int deviceIndex = 0;
     CUstream           stream;
-    OTK_MEMORY_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-    OTK_MEMORY_CUDA_CHECK( cudaStreamCreate( &stream ) );
+    OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+    OTK_ERROR_CHECK( cudaStreamCreate( &stream ) );
 
     uint64_t arenaSize = 1 << 19;
     uint64_t allocSize = 1 << 20;
@@ -226,7 +227,7 @@ TEST_F( TestMemoryPool, AllocFreeAsync )
 TEST_F( TestMemoryPool, TextureTile )
 {
     const unsigned int deviceIndex = 0;
-    OTK_MEMORY_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+    OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
     TextureTileAllocator* allocator    = new TextureTileAllocator;
     HeapSuballocator*     suballocator = new HeapSuballocator;
 

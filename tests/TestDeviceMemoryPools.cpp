@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "TestDeviceMemoryPools.h" 
-#include "CudaCheck.h"
+#include "TestDeviceMemoryPools.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/DeviceRingBuffer.h>
 #include <OptiXToolkit/Memory/DeviceFixedPool.h>
 
@@ -48,8 +48,8 @@ class TestDeviceMemoryPools : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
-        OTK_MEMORY_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        OTK_MEMORY_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 
   protected:
@@ -73,7 +73,7 @@ TEST_F( TestDeviceMemoryPools, TestRingBuffer )
     // Create output buffer
     char** devOutput;
     unsigned int outputSize = 1024 * 1024;
-    OTK_MEMORY_CUDA_CHECK( cudaMalloc( &devOutput, outputSize * sizeof(char*) ) );
+    OTK_ERROR_CHECK( cudaMalloc( &devOutput, outputSize * sizeof(char*) ) );
 
     // Create DeviceRingBuffer allocate by thread, and launch test kernel
     DeviceRingBuffer ringBuffer;
@@ -83,7 +83,7 @@ TEST_F( TestDeviceMemoryPools, TestRingBuffer )
 
     // Copy output buffer back to host, and do a range check on the buffer elements
     std::vector<char*> hostOutput( outputSize );
-    OTK_MEMORY_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
     checkRange( hostOutput, ringBuffer.buffer, ringBuffer.buffSize );
     ringBuffer.tearDown();
 
@@ -93,12 +93,12 @@ TEST_F( TestDeviceMemoryPools, TestRingBuffer )
     launchDeviceRingBufferTest( ringBuffer, devOutput, outputSize );
     
     // Copy output buffer back to host, and do a range check on the buffer elements
-    OTK_MEMORY_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
     checkRange( hostOutput, ringBuffer.buffer, ringBuffer.buffSize );
     ringBuffer.tearDown();
 
     // Destroy the device-side output buffer
-    OTK_MEMORY_CUDA_CHECK( cudaFree( reinterpret_cast<char*>( devOutput ) ) );
+    OTK_ERROR_CHECK( cudaFree( reinterpret_cast<char*>( devOutput ) ) );
 }
 
 
@@ -107,7 +107,7 @@ TEST_F( TestDeviceMemoryPools, TestFixedPool )
     // Create output buffer
     char** devOutput;
     unsigned int outputSize = 1024 * 1024;
-    OTK_MEMORY_CUDA_CHECK( cudaMalloc( &devOutput, outputSize * sizeof(char*) ) );
+    OTK_ERROR_CHECK( cudaMalloc( &devOutput, outputSize * sizeof(char*) ) );
 
     // Create DeviceFixedPool allocate by thread, and launch test kernel
     DeviceFixedPool fixedPool;
@@ -117,7 +117,7 @@ TEST_F( TestDeviceMemoryPools, TestFixedPool )
 
     // Copy output buffer back to host, and do a range check on the buffer elements
     std::vector<char*> hostOutput( outputSize );
-    OTK_MEMORY_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
     checkRange( hostOutput, fixedPool.buffer, fixedPool.numItemGroups * fixedPool.itemSize );
     fixedPool.tearDown();
 
@@ -126,10 +126,10 @@ TEST_F( TestDeviceMemoryPools, TestFixedPool )
     fixedPool.clear( 0 );
     launchDeviceFixedPoolTest( fixedPool, devOutput, outputSize );
     // Copy output buffer back to host, and do a range check on the buffer elements
-    OTK_MEMORY_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
     checkRange( hostOutput, fixedPool.buffer, fixedPool.numItemGroups * WARP_SIZE * fixedPool.itemSize );
     fixedPool.tearDown();
 
     // Destroy the device-side output buffer
-    OTK_MEMORY_CUDA_CHECK( cudaFree( reinterpret_cast<char*>( devOutput ) ) );
+    OTK_ERROR_CHECK( cudaFree( reinterpret_cast<char*>( devOutput ) ) );
 }

@@ -26,11 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
-
+#include "TestDeviceMemoryPools.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/DeviceFixedPool.h>
 #include <OptiXToolkit/Memory/DeviceRingBuffer.h>
-#include "TestDeviceMemoryPools.h"
 
 #include <cuda.h>
 
@@ -55,7 +54,7 @@ __host__ void launchDeviceRingBufferTest( const DeviceRingBuffer& ringBuffer, ch
     dim3 dimBlock( 512 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x );
     deviceRingBufferTestKernel<<<dimGrid, dimBlock>>>( ringBuffer, output, width );
-    OTK_MEMORY_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }
 
 __global__ static void deviceFixedPoolTestKernel( DeviceFixedPool fixedPool, char** output, int width )
@@ -76,7 +75,7 @@ __host__ void launchDeviceFixedPoolTest( const DeviceFixedPool& fixedPool, char*
     dim3 dimBlock( 512 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x );
     deviceFixedPoolTestKernel<<<dimGrid, dimBlock>>>( fixedPool, output, width );
-    OTK_MEMORY_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }
 
 

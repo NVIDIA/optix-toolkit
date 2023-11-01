@@ -25,34 +25,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#pragma once
 
-#include <OptiXToolkit/Memory/CudaCheck.h>
+
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+
+#include <gtest/gtest.h>
 
 #include <cuda_runtime.h>
 
-namespace otk {
+using namespace otk;
 
-inline void checkCudaError( cudaError_t error, const char* expr, const char* file, unsigned int line )
+class TestError : public testing::Test
 {
-    if( error != cudaSuccess )
+  public:
+    void SetUp() override
     {
-        std::stringstream ss;
-        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file << ":"
-           << line << ")\n";
-        throw std::runtime_error( ss.str().c_str() );
+        OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
+};
+
+TEST_F( TestError, TestStreamCheck )
+{
+    CUstream stream{};
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 }
 
-// A non-throwing variant for use in destructors.
-inline void checkCudaErrorNoThrow( cudaError_t error, const char* expr, const char* file, unsigned int line ) noexcept
+TEST_F( TestError, TestAssertMsg )
 {
-    if( error != cudaSuccess )
-    {
-        std::cerr << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
-                  << ":" << line << ")\n";
-        std::terminate();
-    }
+    OTK_ASSERT_MSG( true, "" );
 }
 
-} // namespace otk
+TEST_F( TestError, TestCuErrorCheck )
+{
+    OTK_ERROR_CHECK( cuMemFree( CUdeviceptr{} ) );
+}

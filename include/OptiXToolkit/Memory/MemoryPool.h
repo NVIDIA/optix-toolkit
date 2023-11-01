@@ -28,8 +28,8 @@
 
 #pragma once
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
-#include <OptiXToolkit/Memory/CudaCheck.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 #include <cuda.h>
@@ -64,40 +64,40 @@ class MemoryPool
         , m_allocationGranularity( allocationGranularity )
         , m_maxSize( maxSize ? maxSize : std::numeric_limits<uint64_t>::max() )
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
-        OTK_MEMORY_ASSERT( m_context != nullptr );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when the suballocator has a default constructor
     MemoryPool( Allocator* allocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
         : MemoryPool( allocator, new SubAllocator(), allocationGranularity, maxSize )
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
-        OTK_MEMORY_ASSERT( m_context != nullptr );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when the allocator has a default constructor
     MemoryPool( SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
         : MemoryPool( new Allocator(), suballocator, allocationGranularity, maxSize )
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
-        OTK_MEMORY_ASSERT( m_context != nullptr );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when both the allocator and suballocator have default constructors
     MemoryPool( uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
         : MemoryPool( new Allocator(), new SubAllocator(), allocationGranularity, maxSize )
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
-        OTK_MEMORY_ASSERT( m_context != nullptr );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ASSERT( m_context != nullptr );
     }
 
     /// Move constructor
     MemoryPool( MemoryPool&& p )
         : MemoryPool( p.m_allocator, p.m_suballocator, p.m_allocationGranularity, p.m_maxSize )
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
-        OTK_MEMORY_ASSERT( m_context != nullptr );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ASSERT( m_context != nullptr );
         p.m_allocator    = nullptr;
         p.m_suballocator = nullptr;
     }
@@ -105,7 +105,7 @@ class MemoryPool
     /// Destructor
     ~MemoryPool()
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxPushCurrent( m_context ) );
+        OTK_ERROR_CHECK( cuCtxPushCurrent( m_context ) );
 
         std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -120,7 +120,7 @@ class MemoryPool
         m_stagedBlocks.clear();
 
         CUcontext ignored;
-        OTK_MEMORY_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
+        OTK_ERROR_CHECK( cuCtxPopCurrent( &ignored ) );
     }
 
     /// Tell the memory pool to track an address range, bypassing the allocator, which may be null
@@ -129,7 +129,7 @@ class MemoryPool
     /// Allocate a memory block with (at least) the given size and alignment. Returns BAD_ADDR on failure.
     MemoryBlockDesc alloc( uint64_t size = 0, uint64_t alignment = 1, CUstream stream = 0 )
     {
-        OTK_STREAM_CUDA_CHECK( stream );
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( false );
@@ -211,7 +211,7 @@ class MemoryPool
     /// Free block immediately on the specified stream.
     void free( const MemoryBlockDesc& block, CUstream stream = 0 )
     {
-        OTK_STREAM_CUDA_CHECK( stream );
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 
         std::unique_lock<std::mutex> lock( m_mutex );
         if( m_suballocator )
@@ -248,21 +248,21 @@ class MemoryPool
     /// Free block asynchronously, after operations currently in the stream have finished
     void freeAsync( const MemoryBlockDesc& block, CUstream stream )
     {
-        OTK_STREAM_CUDA_CHECK( stream );
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 
         CUcontext context;
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &context ) );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &context ) );
 
         // Create event.
         CUevent event;
-        OTK_MEMORY_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) );
+        OTK_ERROR_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) );
 
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( false );
         m_stagedBlocks.push_back( StagedBlock{context, block, event} );
 
         // Record event.
-        OTK_MEMORY_CUDA_CHECK( cuEventRecord( m_stagedBlocks.back().event, stream ) );
+        OTK_ERROR_CHECK( cuEventRecord( m_stagedBlocks.back().event, stream ) );
     }
 
     /// Async free of a single address slot (not compatible with RingSuballocator)
@@ -358,10 +358,10 @@ class MemoryPool
 
     void freeEvent( const StagedBlock& stagedBlock )
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxPushCurrent( stagedBlock.context ) );
-        OTK_MEMORY_CUDA_CHECK( cuEventDestroy( stagedBlock.event ) );
+        OTK_ERROR_CHECK( cuCtxPushCurrent( stagedBlock.context ) );
+        OTK_ERROR_CHECK( cuEventDestroy( stagedBlock.event ) );
         CUcontext ignored;
-        OTK_MEMORY_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
+        OTK_ERROR_CHECK( cuCtxPopCurrent( &ignored ) );
     }
 
     // Get the spacing between arenas for handle-based allocations

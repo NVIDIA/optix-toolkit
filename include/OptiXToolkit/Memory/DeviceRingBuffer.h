@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <OptiXToolkit/Memory/CudaCheck.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -63,22 +63,22 @@ struct DeviceRingBuffer
     {
         allocByWarp = _allocByWarp;
         buffSize    = _buffSize;
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), buffSize ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextStart ), sizeof( unsigned long long ) ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), buffSize ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextStart ), sizeof( unsigned long long ) ) );
         clear( 0 );
     }
 
     /// Tear down, freeing all the memory
     void tearDown()
     {
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextStart ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextStart ) ) );
     }
 
     /// Clear the allocator
     void clear( CUstream stream = 0 )
     {
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextStart ), 0, sizeof( unsigned long long ), stream ) );
+        OTK_ERROR_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextStart ), 0, sizeof( unsigned long long ), stream ) );
     }
 #endif
 

@@ -59,6 +59,17 @@ set_target_properties( testMemory PROPERTIES
 # Register test cases with CTest.
 gtest_discover_tests(testMemory PROPERTIES LABELS Memory)
 
+otk_add_executable( testError
+  TestError.cpp
+)
+target_link_libraries(testError
+  Error
+  CUDA::cudart
+  GTest::gtest_main
+)
+set_property(TARGET testError PROPERTY FOLDER Memory/Tests)
+gtest_discover_tests(testError PROPERTIES LABELS Memory)
+
 otk_add_executable(testOptiXMemory
   TestBuilders.cpp
   TestSyncRecordHeader.cpp

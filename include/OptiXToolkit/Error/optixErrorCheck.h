@@ -58,14 +58,14 @@ inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, 
     {
         std::stringstream ss;
         ss << "; Log:\n" << log << ( sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "" ) << '\n';
-        reportError( res, call, file, line, ss.str().c_str() );
+        reportError( res, call, file, line, ss.str().c_str(), /*nothrow=*/false );
     }
 }
 
 }  // namespace error
 }  // namespace otk
 
-#define OTK_ERROR_CHECK_LOG2( call )                                                                                   \
+#define OTK_ERROR_CHECK_LOG( call )                                                                                   \
     do                                                                                                                 \
     {                                                                                                                  \
         char LOG[400];                                                                                                 \

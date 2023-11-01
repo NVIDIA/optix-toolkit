@@ -59,17 +59,17 @@ struct DeviceFixedPool
         numItemGroups             = numItems / ws;
         size_t itemGroupsBuffSize = numItemGroups * sizeof( char* );
 
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), static_cast<size_t>( itemSize ) * numItems ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &itemGroups ), itemGroupsBuffSize ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &itemGroupsCopy ), itemGroupsBuffSize ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextItemGroupId ), 2 * sizeof( unsigned int ) ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), static_cast<size_t>( itemSize ) * numItems ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &itemGroups ), itemGroupsBuffSize ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &itemGroupsCopy ), itemGroupsBuffSize ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextItemGroupId ), 2 * sizeof( unsigned int ) ) );
         discardItemGroupId = &nextItemGroupId[1];
 
         std::vector<char*> hostItemGroups( numItemGroups, nullptr );
         for( unsigned int itemGroupId   = 0; itemGroupId < numItemGroups; ++itemGroupId )
             hostItemGroups[itemGroupId] = buffer + ( itemSize * ws * itemGroupId );
 
-        OTK_MEMORY_CUDA_CHECK( cuMemcpy( reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
+        OTK_ERROR_CHECK( cuMemcpy( reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
                                          reinterpret_cast<CUdeviceptr>( hostItemGroups.data() ), itemGroupsBuffSize ) );
         clear( 0 );
     }
@@ -77,18 +77,18 @@ struct DeviceFixedPool
     /// Free all of the buffers allocated for the pool
     void tearDown()
     {
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroups ) ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroupsCopy ) ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextItemGroupId ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroups ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( itemGroupsCopy ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextItemGroupId ) ) );
     }
 
     /// Clear the allocator
     void clear( CUstream stream )
     {
-        OTK_MEMORY_CUDA_CHECK(
+        OTK_ERROR_CHECK(
             cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextItemGroupId ), 0, 2 * sizeof( unsigned int ), stream ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( itemGroups ), reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
+        OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( itemGroups ), reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
                                               numItemGroups * sizeof( char* ), stream ) );
     }
 #endif

@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <OptiXToolkit/Memory/Assert.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 #include <algorithm>
@@ -165,7 +165,7 @@ inline MemoryBlockDesc RingSuballocator::alloc( uint64_t size, uint64_t alignmen
 inline void RingSuballocator::decrementAllocCount( unsigned int arenaId, unsigned int inc )
 {
     AllocCountArena& arena = arenas[arenaId];
-    OTK_MEMORY_ASSERT_MSG( inc <= arena.numAllocs, "Too many free operations in RingSuballocator." );
+    OTK_ASSERT_MSG( inc <= arena.numAllocs, "Too many free operations in RingSuballocator." );
 
     arena.numAllocs -= inc;
     if( arena.numAllocs == 0 )
