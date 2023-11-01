@@ -110,7 +110,7 @@ class Module
             const char*                        optixir,
             size_t                             optixirSize )
     {
-        OTK_ERROR_CHECK_LOG2( optixModuleCreate( context, moduleCompileOptions, pipelineCompileOptions, optixir,
+        OTK_ERROR_CHECK_LOG( optixModuleCreate( context, moduleCompileOptions, pipelineCompileOptions, optixir,
                                                  optixirSize, LOG, &LOG_SIZE, &m_module ) );
     }
     Module( const Module& rhs ) = delete;
@@ -145,7 +145,7 @@ class ProgramGroups
                    const OptixProgramGroupOptions* options )
     {
         m_programGroups.resize( numProgramGroups );
-        OTK_ERROR_CHECK_LOG2( optixProgramGroupCreate( context, programDescriptions, numProgramGroups, options, LOG,
+        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, programDescriptions, numProgramGroups, options, LOG,
                                                        &LOG_SIZE, m_programGroups.data() ) );
     }
     ProgramGroups( const ProgramGroups& rhs ) = delete;
@@ -180,7 +180,7 @@ class Pipeline
               const OptixProgramGroup*           programGroups,
               unsigned int                       numProgramGroups )
     {
-        OTK_ERROR_CHECK_LOG2( optixPipelineCreate( context, pipelineCompileOptions, pipelineLinkOptions, programGroups,
+        OTK_ERROR_CHECK_LOG( optixPipelineCreate( context, pipelineCompileOptions, pipelineLinkOptions, programGroups,
                                                    numProgramGroups, LOG, &LOG_SIZE, &m_pipeline ) );
     }
     Pipeline( const Pipeline& rhs ) = delete;
