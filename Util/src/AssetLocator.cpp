@@ -28,9 +28,9 @@
 
 #include <OptiXToolkit/Util/AssetLocator.h>
 
-#include <OptiXToolkit/Util/Exception.h>
-
 #include "BinaryDataDir.h"
+
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <cstdlib>
 #include <fstream>
@@ -86,7 +86,7 @@ std::string locateAsset( const char* relativeSubDir, const char* relativePath )
             return s;
         }
     }
-    throw Exception( ( std::string{ "Couldn't locate asset " } +relativePath ).c_str() );
+    throw std::runtime_error( ( std::string{ "Couldn't locate asset " } +relativePath ).c_str() );
 }
 
 }  // namespace otk

@@ -32,7 +32,8 @@
 
 #include <OptiXToolkit/Gui/GLCheck.h>
 #include <OptiXToolkit/Gui/Window.h>
-#include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
@@ -76,7 +77,7 @@ public:
     PIXEL_FORMAT*  getHostPointer();
 
 private:
-    void makeCurrent() { CUDA_CHECK( cudaSetDevice( m_device_idx ) ); }
+    void makeCurrent() { OTK_ERROR_CHECK( cudaSetDevice( m_device_idx ) ); }
 
     CUDAOutputBufferType       m_type;
 
@@ -103,7 +104,7 @@ CUDAOutputBuffer<PIXEL_FORMAT>::CUDAOutputBuffer( CUDAOutputBufferType type, int
 #if 0
     if( width < 1 || height < 1 )
     {
-        throw otk::Exception( "CUDAOutputBuffer dimensions must be at least 1 in both x and y." );
+        throw std::runtime_error( "CUDAOutputBuffer dimensions must be at least 1 in both x and y." );
     }
 #else
     ensureMinimumSize( width, height );
@@ -113,11 +114,11 @@ CUDAOutputBuffer<PIXEL_FORMAT>::CUDAOutputBuffer( CUDAOutputBufferType type, int
     if( type == CUDAOutputBufferType::GL_INTEROP )
     {
         int current_device, is_display_device;
-        CUDA_CHECK( cudaGetDevice( &current_device ) );
-        CUDA_CHECK( cudaDeviceGetAttribute( &is_display_device, cudaDevAttrKernelExecTimeout, current_device ) );
+        OTK_ERROR_CHECK( cudaGetDevice( &current_device ) );
+        OTK_ERROR_CHECK( cudaDeviceGetAttribute( &is_display_device, cudaDevAttrKernelExecTimeout, current_device ) );
         if( !is_display_device )
         {
-            throw otk::Exception(
+            throw std::runtime_error(
                     "GL interop is only available on display device, please use display device for optimal "
                     "performance.  Alternatively you can disable GL interop with --no-gl-interop and run with "
                     "degraded performance."
@@ -136,15 +137,15 @@ CUDAOutputBuffer<PIXEL_FORMAT>::~CUDAOutputBuffer()
         makeCurrent();
         if( m_type == CUDAOutputBufferType::CUDA_DEVICE || m_type == CUDAOutputBufferType::CUDA_P2P )
         {
-            CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_device_pixels ) ) );
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_device_pixels ) ) );
         }
         else if( m_type == CUDAOutputBufferType::ZERO_COPY )
         {
-            CUDA_CHECK( cudaFreeHost( reinterpret_cast<void*>( m_host_zcopy_pixels ) ) );
+            OTK_ERROR_CHECK( cudaFreeHost( reinterpret_cast<void*>( m_host_zcopy_pixels ) ) );
         }
         else if( m_type == CUDAOutputBufferType::GL_INTEROP || m_type == CUDAOutputBufferType::CUDA_P2P )
         {
-            CUDA_CHECK( cudaGraphicsUnregisterResource( m_cuda_gfx_resource ) );
+            OTK_ERROR_CHECK( cudaGraphicsUnregisterResource( m_cuda_gfx_resource ) );
         }
 
         if( m_pbo != 0u )
@@ -177,8 +178,8 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::resize( int32_t width, int32_t height )
 
     if( m_type == CUDAOutputBufferType::CUDA_DEVICE || m_type == CUDAOutputBufferType::CUDA_P2P )
     {
-        CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_device_pixels ) ) );
-        CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_device_pixels ), m_width * m_height * sizeof( PIXEL_FORMAT ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_device_pixels ) ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_device_pixels ), m_width * m_height * sizeof( PIXEL_FORMAT ) ) );
     }
 
     if( m_type == CUDAOutputBufferType::GL_INTEROP || m_type == CUDAOutputBufferType::CUDA_P2P )
@@ -189,7 +190,7 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::resize( int32_t width, int32_t height )
         GL_CHECK( glBufferData( GL_ARRAY_BUFFER, sizeof(PIXEL_FORMAT)*m_width*m_height, nullptr, GL_STREAM_DRAW ) );
         GL_CHECK( glBindBuffer( GL_ARRAY_BUFFER, 0u ) );
 
-        CUDA_CHECK( cudaGraphicsGLRegisterBuffer(
+        OTK_ERROR_CHECK( cudaGraphicsGLRegisterBuffer(
                     &m_cuda_gfx_resource,
                     m_pbo,
                     cudaGraphicsMapFlagsWriteDiscard
@@ -198,13 +199,13 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::resize( int32_t width, int32_t height )
 
     if( m_type == CUDAOutputBufferType::ZERO_COPY )
     {
-        CUDA_CHECK( cudaFreeHost( reinterpret_cast<void*>( m_host_zcopy_pixels ) ) );
-        CUDA_CHECK( cudaHostAlloc(
+        OTK_ERROR_CHECK( cudaFreeHost( reinterpret_cast<void*>( m_host_zcopy_pixels ) ) );
+        OTK_ERROR_CHECK( cudaHostAlloc(
                     reinterpret_cast<void**>( &m_host_zcopy_pixels ),
                     m_width*m_height*sizeof(PIXEL_FORMAT),
                     cudaHostAllocPortable | cudaHostAllocMapped
                     ) );
-        CUDA_CHECK( cudaHostGetDevicePointer(
+        OTK_ERROR_CHECK( cudaHostGetDevicePointer(
                     reinterpret_cast<void**>( &m_device_pixels ),
                     reinterpret_cast<void*>( m_host_zcopy_pixels ),
                     0 /*flags*/
@@ -235,8 +236,8 @@ PIXEL_FORMAT* CUDAOutputBuffer<PIXEL_FORMAT>::map()
         makeCurrent();
 
         size_t buffer_size = 0u;
-        CUDA_CHECK( cudaGraphicsMapResources ( 1, &m_cuda_gfx_resource, m_stream ) );
-        CUDA_CHECK( cudaGraphicsResourceGetMappedPointer(
+        OTK_ERROR_CHECK( cudaGraphicsMapResources ( 1, &m_cuda_gfx_resource, m_stream ) );
+        OTK_ERROR_CHECK( cudaGraphicsResourceGetMappedPointer(
                     reinterpret_cast<void**>( &m_device_pixels ),
                     &buffer_size,
                     m_cuda_gfx_resource
@@ -258,15 +259,15 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::unmap()
 
     if( m_type == CUDAOutputBufferType::CUDA_DEVICE || m_type == CUDAOutputBufferType::CUDA_P2P )
     {
-        CUDA_CHECK( cudaStreamSynchronize( m_stream ) );
+        OTK_ERROR_CHECK( cudaStreamSynchronize( m_stream ) );
     }
     else if( m_type == CUDAOutputBufferType::GL_INTEROP  )
     {
-        CUDA_CHECK( cudaGraphicsUnmapResources ( 1, &m_cuda_gfx_resource,  m_stream ) );
+        OTK_ERROR_CHECK( cudaGraphicsUnmapResources ( 1, &m_cuda_gfx_resource,  m_stream ) );
     }
     else // m_type == CUDAOutputBufferType::ZERO_COPY
     {
-        CUDA_CHECK( cudaStreamSynchronize( m_stream ) );
+        OTK_ERROR_CHECK( cudaStreamSynchronize( m_stream ) );
     }
 }
 
@@ -286,7 +287,7 @@ GLuint CUDAOutputBuffer<PIXEL_FORMAT>::getPBO()
             m_host_pixels.resize( m_width*m_height );
 
         makeCurrent();
-        CUDA_CHECK( cudaMemcpy(
+        OTK_ERROR_CHECK( cudaMemcpy(
                     static_cast<void*>( m_host_pixels.data() ),
                     m_device_pixels,
                     buffer_size,
@@ -312,10 +313,10 @@ GLuint CUDAOutputBuffer<PIXEL_FORMAT>::getPBO()
         void* pbo_buff = nullptr;
         size_t dummy_size = 0;
 
-        CUDA_CHECK( cudaGraphicsMapResources( 1, &m_cuda_gfx_resource, m_stream ) );
-        CUDA_CHECK( cudaGraphicsResourceGetMappedPointer( &pbo_buff, &dummy_size, m_cuda_gfx_resource ) );
-        CUDA_CHECK( cudaMemcpy( pbo_buff, m_device_pixels, buffer_size, cudaMemcpyDeviceToDevice ) );
-        CUDA_CHECK( cudaGraphicsUnmapResources( 1, &m_cuda_gfx_resource, m_stream ) );
+        OTK_ERROR_CHECK( cudaGraphicsMapResources( 1, &m_cuda_gfx_resource, m_stream ) );
+        OTK_ERROR_CHECK( cudaGraphicsResourceGetMappedPointer( &pbo_buff, &dummy_size, m_cuda_gfx_resource ) );
+        OTK_ERROR_CHECK( cudaMemcpy( pbo_buff, m_device_pixels, buffer_size, cudaMemcpyDeviceToDevice ) );
+        OTK_ERROR_CHECK( cudaGraphicsUnmapResources( 1, &m_cuda_gfx_resource, m_stream ) );
     }
     else // m_type == CUDAOutputBufferType::ZERO_COPY
     {
@@ -350,7 +351,7 @@ PIXEL_FORMAT* CUDAOutputBuffer<PIXEL_FORMAT>::getHostPointer()
         m_host_pixels.resize( m_width*m_height );
 
         makeCurrent();
-        CUDA_CHECK( cudaMemcpy(
+        OTK_ERROR_CHECK( cudaMemcpy(
                     static_cast<void*>( m_host_pixels.data() ),
                     map(),
                     m_width*m_height*sizeof(PIXEL_FORMAT),

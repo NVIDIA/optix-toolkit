@@ -36,7 +36,7 @@ namespace otk {
 /// Search the locations specified by the environment variable OTK_ASSET_DIR
 /// followed by the build-time configuration value of OTK_BINARY_DATA_DIR.
 ///
-/// otk::Exception is thrown if the asset could not be located.
+/// std::runtime_error is thrown if the asset could not be located.
 ///
 std::string locateAsset( const char* relativeSubDir, const char* relativePath );
 

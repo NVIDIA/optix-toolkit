@@ -28,12 +28,13 @@
 
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Gui/GLCheck.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/Window.h>
 #include <OptiXToolkit/Gui/glfw3.h>
-#include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+
 
 #include <cstdlib>
 #include <cstring>
@@ -65,14 +66,14 @@ static void keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, 
 static void savePPM( const unsigned char* Pix, const char* fname, int wid, int hgt, int chan )
 {
     if( Pix == NULL || wid < 1 || hgt < 1 )
-        throw Exception( "savePPM: Image is ill-formed. Not saving" );
+        throw std::runtime_error( "savePPM: Image is ill-formed. Not saving" );
 
     if( chan != 1 && chan != 3 && chan != 4 )
-        throw Exception( "savePPM: Attempting to save image with channel count != 1, 3, or 4." );
+        throw std::runtime_error( "savePPM: Attempting to save image with channel count != 1, 3, or 4." );
 
     std::ofstream OutFile( fname, std::ios::out | std::ios::binary );
     if( !OutFile.is_open() )
-        throw Exception( "savePPM: Could not open file for" );
+        throw std::runtime_error( "savePPM: Could not open file for" );
 
     bool is_float = false;
     OutFile << 'P';
@@ -95,14 +96,14 @@ size_t pixelFormatSize( BufferImageFormat format )
         case BufferImageFormat::FLOAT4:
             return sizeof( float ) * 4;
         default:
-            throw Exception( "otk::pixelFormatSize: Unrecognized buffer format" );
+            throw std::runtime_error( "otk::pixelFormatSize: Unrecognized buffer format" );
     }
 }
 
 void initGL()
 {
     if( !gladLoadGL() )
-        throw Exception( "Failed to initialize GL" );
+        throw std::runtime_error( "Failed to initialize GL" );
 
     GL_CHECK( glClearColor( 0.212f, 0.271f, 0.31f, 1.0f ) );
     GL_CHECK( glClear( GL_COLOR_BUFFER_BIT ) );
@@ -112,7 +113,7 @@ void initGLFW()
 {
     glfwSetErrorCallback( errorCallback );
     if( !glfwInit() )
-        throw Exception( "Failed to initialize GLFW" );
+        throw std::runtime_error( "Failed to initialize GLFW" );
 
     glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
     glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
@@ -122,7 +123,7 @@ void initGLFW()
 
     GLFWwindow* window = glfwCreateWindow( 64, 64, "", nullptr, nullptr );
     if( !window )
-        throw Exception( "Failed to create GLFW window" );
+        throw std::runtime_error( "Failed to create GLFW window" );
 
     glfwMakeContextCurrent( window );
     glfwSwapInterval( 0 );  // No vsync
@@ -133,7 +134,7 @@ GLFWwindow* initGLFW( const char* window_title, int width, int height )
     GLFWwindow* window = nullptr;
     glfwSetErrorCallback( errorCallback );
     if( !glfwInit() )
-        throw Exception( "Failed to initialize GLFW" );
+        throw std::runtime_error( "Failed to initialize GLFW" );
 
     glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
     glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
@@ -142,7 +143,7 @@ GLFWwindow* initGLFW( const char* window_title, int width, int height )
 
     window = glfwCreateWindow( width, height, window_title, nullptr, nullptr );
     if( !window )
-        throw Exception( "Failed to create GLFW window" );
+        throw std::runtime_error( "Failed to create GLFW window" );
 
     glfwMakeContextCurrent( window );
     glfwSwapInterval( 0 );  // No vsync
@@ -159,7 +160,7 @@ void displayBufferWindow( const char* title, const ImageBuffer& buffer )
     GLFWwindow* window = nullptr;
     glfwSetErrorCallback( errorCallback );
     if( !glfwInit() )
-        throw Exception( "Failed to initialize GLFW" );
+        throw std::runtime_error( "Failed to initialize GLFW" );
     glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
     glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
     glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );  // To make Apple happy -- should not be needed
@@ -167,7 +168,7 @@ void displayBufferWindow( const char* title, const ImageBuffer& buffer )
 
     window = glfwCreateWindow( buffer.width, buffer.height, title, nullptr, nullptr );
     if( !window )
-        throw Exception( "Failed to create GLFW window" );
+        throw std::runtime_error( "Failed to create GLFW window" );
     glfwMakeContextCurrent( window );
     glfwSetKeyCallback( window, keyCallback );
 
@@ -281,7 +282,7 @@ static std::vector<std::uint8_t> getPixels( const ImageBuffer& image, bool disab
 
         default:
         {
-            throw Exception( "otk::saveImage(): Unrecognized image buffer pixel format.\n" );
+            throw std::runtime_error( "otk::saveImage(): Unrecognized image buffer pixel format.\n" );
         }
     }
 
@@ -292,7 +293,7 @@ void saveImage( const char* fname, const ImageBuffer& image, bool disable_srgb_c
 {
     const std::string filename( fname );
     if( filename.length() < 5 )
-        throw Exception( "otk::saveImage(): Failed to determine filename extension" );
+        throw std::runtime_error( "otk::saveImage(): Failed to determine filename extension" );
 
     const std::string ext = filename.substr( filename.find_last_of( '.' ) + 1 );
     if( ext == "PPM" || ext == "ppm" )
@@ -305,12 +306,12 @@ void saveImage( const char* fname, const ImageBuffer& image, bool disable_srgb_c
         const std::vector<std::uint8_t> pix( getPixels( image, disable_srgb_conversion ) );
         if( stbi_write_png( fname, image.width, image.height, 3, pix.data(), 3 * image.width ) == 0 )
         {
-            throw Exception( ( "otk::saveImage(): Failed to write PNG image " + filename ).c_str() );
+            throw std::runtime_error( ( "otk::saveImage(): Failed to write PNG image " + filename ).c_str() );
         }
     }
     else
     {
-        throw Exception( ( "otk::saveImage(): Failed unsupported filetype '" + ext + "'" ).c_str() );
+        throw std::runtime_error( ( "otk::saveImage(): Failed unsupported filetype '" + ext + "'" ).c_str() );
     }
 }
 

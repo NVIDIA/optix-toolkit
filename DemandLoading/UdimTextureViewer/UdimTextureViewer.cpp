@@ -96,7 +96,7 @@ void UdimTextureApp::createTexture()
         // Create a base texture for all devices
         for( PerDeviceOptixState& state : m_perDeviceOptixStates )
         {
-            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+            OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
             const demandLoading::DemandTexture& baseTexture = state.demandLoader->createTexture( baseImageSource, texDesc );
             baseTextureId                                   = baseTexture.getId();
             if( m_textureIds.empty() )
@@ -150,7 +150,7 @@ void UdimTextureApp::createTexture()
     // Create a udim texture for all the devices
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& udimTexture =
             state.demandLoader->createUdimTexture( subImageSources, subTexDescs, m_udim, m_vdim, baseTextureId );
 

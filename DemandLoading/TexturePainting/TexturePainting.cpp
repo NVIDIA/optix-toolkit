@@ -107,7 +107,7 @@ void TexturePaintingApp::createTexture()
 
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         // Create a single texture that will switch between canvases
         m_texture = &state.demandLoader->createTexture( m_canvases[m_activeCanvas], texDesc );
         m_textureIds.push_back( m_texture->getId() );

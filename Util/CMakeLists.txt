@@ -58,7 +58,6 @@ configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)
 
 otk_add_library(Util STATIC
   include/OptiXToolkit/Util/AssetLocator.h
-  include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
   include/OptiXToolkit/Util/Logger.h
@@ -66,7 +65,6 @@ otk_add_library(Util STATIC
   src/AssetLocator.cpp
   src/BinaryDataDir.h.in
   src/EXRInputFile.cpp
-  src/Exception.cpp
   src/Logger.cpp
   src/BinaryDataDir.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h

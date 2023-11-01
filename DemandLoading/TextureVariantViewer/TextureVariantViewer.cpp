@@ -69,7 +69,7 @@ void TextureVariantApp::createTexture()
 
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
 
         // Make first texture with trilinear filtering.
         demandLoading::TextureDescriptor    texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );

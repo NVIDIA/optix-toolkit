@@ -30,7 +30,6 @@ include( FetchGtest )
 include( GoogleTest )
 
 otk_add_executable( testUtil
-    TestException.cpp
     TestEXRInputFile.cpp
     FunctionTable.cpp
     SourceDir.h.in

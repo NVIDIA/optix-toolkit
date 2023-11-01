@@ -37,6 +37,7 @@
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/BufferMapper.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
@@ -50,7 +51,6 @@
 #include <OptiXToolkit/OptiXMemory/Record.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
-#include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include <optix.h>
@@ -399,7 +399,7 @@ void Application::initPipelineOpts()
 OptixModule Application::createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* optixir, size_t optixirSize )
 {
     OptixModule module;
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, optixir, optixirSize, LOG, &LOG_SIZE, &module ) );
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, optixir, optixirSize, LOG, &LOG_SIZE, &module ) );
     return module;
 }
 
@@ -427,7 +427,7 @@ void Application::createModules()
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
     builtinOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
-    OPTIX_CHECK_LOG2( optixBuiltinISModuleGet( m_context, &compileOptions, &m_pipelineOpts, &builtinOptions, &m_sphereModule ) );
+    OTK_ERROR_CHECK_LOG( optixBuiltinISModuleGet( m_context, &compileOptions, &m_pipelineOpts, &builtinOptions, &m_sphereModule ) );
 }
 
 void Application::createProgramGroups()
@@ -440,7 +440,7 @@ void Application::createProgramGroups()
         .miss( "__miss__backgroundColor" )
         .hitGroupISCH( m_viewerModule, m_proxies->getISFunctionName(), m_viewerModule, m_proxies->getCHFunctionName() )
         .hitGroupISCH( m_sphereModule, nullptr, m_viewerModule, m_materials->getCHFunctionName() );
-    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
                                                m_programGroups.data() ) );
 }
 
@@ -457,7 +457,7 @@ void Application::createPipeline()
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 #endif
 #endif
-    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
                                            m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
@@ -742,7 +742,7 @@ void Application::realizeMaterial( uint_t materialId )
         otk::ProgramGroupDescBuilder( descs, nullptr )
             .hitGroupISCH( m_sphereModule, nullptr, m_realizedMaterialModule, "__closesthit__sphere" );
         OptixProgramGroup materialGroup{};
-        OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_PROGRAM_GROUPS, &options, LOG, &LOG_SIZE, &materialGroup ) );
+        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( m_context, descs, NUM_PROGRAM_GROUPS, &options, LOG, &LOG_SIZE, &materialGroup ) );
         m_programGroups.push_back( materialGroup );
     }
 

@@ -173,7 +173,7 @@ void DemandTextureViewer::createTexture()
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
         if( m_textureIds.empty() )
             m_textureIds.push_back( texture.getId() );
