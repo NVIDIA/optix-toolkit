@@ -87,8 +87,14 @@ struct TextureSampler
     unsigned short vdim;
 
     // Cascaded textures
-    unsigned short cascadeLevel;
-    bool hasCascade;
+    unsigned int cascadeLevel  : 4;
+    unsigned int hasCascade    : 1;
+    unsigned int filterMode    : 1;
+    unsigned int mipFilterMode : 1;
+    unsigned int pad           : 25;
+
+    //unsigned short cascadeLevel;
+    //bool hasCascade;
 
 };
 
