@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,16 +26,50 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_subdirectory(DemandGeometryViewer)
-add_subdirectory(DemandPbrtScene)
-add_subdirectory(DemandTextureAppBase)
-add_subdirectory(DemandTextureViewer)
-add_subdirectory(ImageSourceInfo)
-add_subdirectory(ImageSources)
-add_subdirectory(RayCones)
-add_subdirectory(Simple)
-add_subdirectory(StochasticTextureFiltering)
-add_subdirectory(Texture)
-add_subdirectory(TexturePainting)
-add_subdirectory(TextureVariantViewer)
-add_subdirectory(UdimTextureViewer)
+include(GNUInstallDirs)
+include(BuildConfig)
+include(FetchGlfw)
+include(FetchGlad)
+include(embed_ptx)
+
+embed_ptx(
+  CONST HEADER StochasticTextureFilteringKernelPTX.h
+  OUTPUT_TARGET
+    stochasticTextureFilteringKernel
+  FOLDER
+    Examples/DemandLoading
+  PTX_LINK_LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    StochasticTextureFiltering.cu
+)
+
+otk_add_executable( stochasticTextureFiltering
+  Bsdf.h
+  StochasticTextureFiltering.cpp
+  ShapeMaker.cpp 
+  ShapeMaker.h
+  )
+
+target_link_libraries( stochasticTextureFiltering
+  PUBLIC
+  stochasticTextureFilteringKernel
+  OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::Gui
+  OptiXToolkit::ImageSources
+  OptiXToolkit::Util
+  )
+
+set_target_properties( stochasticTextureFiltering PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+
+# Copy shared libraries that the built executable depends on.
+if( $<TARGET_RUNTIME_DLLS:stochasticTextureFiltering> )
+  add_custom_command( TARGET stochasticTextureFiltering POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:stochasticTextureFiltering> $<TARGET_FILE_DIR:stochasticTextureFiltering>
+    COMMAND_EXPAND_LISTS )
+endif()

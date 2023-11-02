@@ -170,10 +170,19 @@ static __forceinline__ __device__ float rnd( unsigned int& prev )
     return static_cast<float>( prev & 0x00FFFFFF ) / 0x01000000;
 }
 
-// transform a point in [0,1) to a tent filter distribution in [-0.5, 1.5)
+// transform a point in [0,1) to a tent filter distribution in [-1, 1)
 static __forceinline__ __device__ float tentFilter( float x )
 {
-    return ( x < 0.5f ) ? -0.5f + sqrtf( x * 2.0f ) : 1.5f - sqrtf( 2.0f - x * 2.0f );
+    return ( x < 0.5f ) ? -1.0f + sqrtf( x * 2.0f ) : 1.0f - sqrtf( 2.0f - x * 2.0f );
+}
+
+// Transform a point in [0,1)^2 to a 2D gaussian with std deviation 1
+static __forceinline__ __device__ float2 boxMuller( float2 u )
+{
+    // might want to clamp u.x, or scale it to limit filter radius
+    float r = sqrtf( -2.0f * logf( u.x ) );
+    float theta = 2.0f * M_PIf * u.y;
+    return float2{r * cosf( theta ), r * sinf( theta )};
 }
 
 //------------------------------------------------------------------------------
@@ -306,6 +315,29 @@ static __forceinline__ __device__ float4 tileDisplayColor( const DeviceContext& 
         x0 = x1 + 5;
     }
     return make_float4( 0.0f );
+}
+
+// For pixel px, compute the color of an overlay showing a magnified view of the accumulation buffer, where the
+// inset is located at inset_loc, and the inset display is located at displayLoc.
+static __forceinline__ __device__ 
+float4 insetColor( float4* accum_buffer, uint2 im_dim, int2 inset_loc, int2 display_loc, int2 display_dim, 
+                   float4 border_color, unsigned int mag_level, uint2 px )
+{
+    if( px.x < display_loc.x || px.y < display_loc.y || px.x > display_loc.x + display_dim.x || px.y > display_loc.y + display_dim.y )
+        return make_float4( 0.0f );
+    if( px.x == display_loc.x || px.y == display_loc.y || px.x == display_loc.x + display_dim.x || px.y == display_loc.y + display_dim.y )
+        return border_color;
+
+    int x = inset_loc.x + ( ( px.x - display_loc.x ) >> mag_level );
+    int y = inset_loc.y + ( ( px.y - display_loc.y ) >> mag_level );
+
+    if( x < 0 || x >= im_dim.x || y < 0 || y >= im_dim.y )
+        return make_float4( 0.0f, 0.0f, 0.0f, 1.0f );
+
+    float4 c = accum_buffer[ y * im_dim.x + x ];
+    if( c.w > 0.0f )
+        c *= ( 1.0f / c.w );
+    return c;
 }
 
 } // namespace demandTextureApp

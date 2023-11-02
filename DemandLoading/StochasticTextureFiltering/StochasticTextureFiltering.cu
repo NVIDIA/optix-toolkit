@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -31,8 +31,10 @@
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
+#include <OptiXToolkit/DemandLoading/Texture2DStochastic.h>
 
-#include "RayConesParams.h"
+#include "Texture2DCubic.h"
+#include "StochasticTextureFilteringParams.h"
 #include "Bsdf.h"
 
 using namespace demandLoading;
@@ -82,9 +84,95 @@ struct RayPayload
 //------------------------------------------------------------------------------
 // Utility functions
 //------------------------------------------------------------------------------
- 
+
+/*
+static __forceinline__ __device__ 
+void jitterAnisotropy( float2& uv, float2& ddx, float2& ddy, float2 xi )
+{
+    float ddxlen = length( ddx ); 
+    float ddylen = length( ddy );
+    if( ddxlen > 16.0f * ddylen )
+    {
+        ddx = ddx * ddylen * 16.0f / ddxlen;
+    }
+}
+*/
+
+// Sample a ColorTex
+static __forceinline__ __device__ 
+float3 sampleSurfaceValue( const DeviceContext context, SurfaceGeometry g, ColorTex tex, bool* is_resident, float2 xi )
+{
+    using namespace otk;
+    if( tex.texid < 0 )
+        return tex.color;
+
+    // Use point filtering (0) or linear filtering (1)
+    const unsigned int textureFilter = static_cast<TextureFilterMode>( params.i[TEXTURE_FILTER_ID] );
+    const float filterWidth = params.f[TEXTURE_FILTER_WIDTH_ID];
+    const float filterStrength = params.f[TEXTURE_FILTER_STRENGTH_ID];
+    int variantOffset = ( textureFilter < tfTRILINEAR ) ? 0 : 1;
+
+    // Point sampling filters
+    if( textureFilter == tfPOINT )
+    {
+        xi = float2{0.0f, 0.0f};
+    }
+    else if( textureFilter == tfBOX_POINT )
+    {
+        xi = filterWidth * ( xi - float2{0.5f, 0.5f} );
+    }
+    else if( textureFilter == tfTENT_POINT )
+    {
+        xi = filterWidth * ( float2{tentFilter( xi.x ), tentFilter( xi.y )} );
+    }
+    else if( textureFilter == tfGAUSSIAN_POINT )
+    {
+        xi = filterWidth * ( 0.5f * boxMuller( xi ) );
+    }
+
+    // Trilinear sampling filters
+    else if( textureFilter == tfTRILINEAR )
+    {
+        xi = float2{0.0f, 0.0f};
+    }
+    else if( textureFilter == tfCUBIC )
+    {
+        float4 t = tex2DCubic<float4>( context, tex.texid + variantOffset, g.uv.x, g.uv.y, is_resident );
+        return tex.color * float3{t.x, t.y, t.z};
+    }
+    else if( textureFilter == tfBOX_LINEAR )
+    {
+        xi = filterWidth * ( xi - float2{0.5f, 0.5f} );
+    }
+    else if( textureFilter == tfTENT_LINEAR )
+    {
+        xi = filterWidth * ( float2{tentFilter( xi.x ), tentFilter( xi.y )} );
+    }
+    else if( textureFilter == tfGAUSSIAN_LINEAR )
+    {
+        xi = filterWidth * ( 0.5f * boxMuller( xi ) );
+    }
+    else if( textureFilter == tfUNSHARP_LINEAR )
+    {
+        xi = filterWidth * ( 0.5f * boxMuller( xi ) );
+        float4 t = tex2DGradUdimStochastic<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident, xi );
+        t = ( 1.0f + filterStrength ) * t - filterStrength * tex2DGradUdimStochastic<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident, xi * 1.5 );
+        return tex.color * float3{t.x, t.y, t.z};
+    }
+
+    float4 t = tex2DGradUdimStochastic<float4>( context, tex.texid + variantOffset, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident, xi );
+
+//jitterAnisotropy( g.uv, g.ddx, g.ddy );
+float ddxlen = length( g.ddx ); 
+float ddylen = length( g.ddy );
+if( ddxlen > 16.0f * ddylen || ddylen > 16.0f * ddxlen )
+    return tex.color * float3{1.0f, 0.8f, 1.0f} * float3{t.x, t.y, t.z};
+
+    return tex.color * float3{t.x, t.y, t.z};
+}
+
 static __forceinline__ __device__
-bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke, float3& Kd, float3& Ks, float3& Kt, float& roughness, float& ior )
+bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke, float3& Kd, float3& Ks, float3& Kt, float& roughness, float& ior, float2 xi )
 {
     if( tex == nullptr )
     {
@@ -97,10 +185,10 @@ bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke,
     else
     {
         bool resident = false;
-        Ke = sampleTexture( params.demand_texture_context, g, tex->emission, &resident );
-        Kd = sampleTexture( params.demand_texture_context, g, tex->diffuse, &resident ); 
-        Ks = sampleTexture( params.demand_texture_context, g, tex->specular, &resident ); 
-        Kt = sampleTexture( params.demand_texture_context, g, tex->transmission, &resident ); 
+        Ke = sampleSurfaceValue( params.demand_texture_context, g, tex->emission, &resident, xi );
+        Kd = sampleSurfaceValue( params.demand_texture_context, g, tex->diffuse, &resident, xi ); 
+        Ks = sampleSurfaceValue( params.demand_texture_context, g, tex->specular, &resident, xi ); 
+        Kt = sampleSurfaceValue( params.demand_texture_context, g, tex->transmission, &resident, xi ); 
         roughness = tex->roughness + MIN_ROUGHNESS;
         ior = tex->ior;
         return resident;
@@ -109,7 +197,17 @@ bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke,
 
 static __forceinline__ __device__ void makeEyeRay( uint2 px, float2 xi, float2 lx, float3& origin, float3& direction )
 {
-    xi = float2{ tentFilter(xi.x) + 0.5f, tentFilter(xi.y) + 0.5f }; 
+    // Jitter the pixel position based on the pixel filter mode
+    const PixelFilterMode pixelFilterMode = (PixelFilterMode)params.i[PIXEL_FILTER_ID];
+    if( pixelFilterMode == pfPIXELCENTER )
+        xi = float2{0.5f, 0.5f};
+    else if( pixelFilterMode == pfBOX )
+        ; //xi = xi;
+    else if( pixelFilterMode == pfGAUSSIAN )
+        xi = 0.5f * boxMuller( xi ) + float2{0.5f, 0.5f};
+    else // pixel center
+        xi = float2{tentFilter( xi.x ) + 0.5f, tentFilter( xi.y ) + 0.5f};
+
     if( params.projection == ORTHOGRAPHIC )
         makeEyeRayOrthographic( params.camera, params.image_dim, float2{px.x + xi.x, px.y + xi.y}, origin, direction );
     else if( params.projection == PINHOLE )
@@ -200,8 +298,8 @@ extern "C" __global__ void __raygen__rg()
         return;
     }
 
-    const int minDepth   = params.i[MIN_RAY_DEPTH_ID];
-    const int maxDepth   = params.i[MAX_RAY_DEPTH_ID];
+    const int minDepth   = 0;
+    const int maxDepth   = 2;
     const int subframeId = params.i[SUBFRAME_ID];
 
     unsigned int rseed = srand( px.x, px.y, subframeId );
@@ -230,9 +328,10 @@ extern "C" __global__ void __raygen__rg()
 
         float3 Ke, Kd, Ks, Kt;
         float roughness, ior;
-        bool success = getSurfaceValues( payload.geom, payload.tex, Ke, Kd, Ks, Kt, roughness, ior );
+        bool success = getSurfaceValues( payload.geom, payload.tex, Ke, Kd, Ks, Kt, roughness, ior, float2{rnd(rseed), rnd(rseed)} );
         //if( rayDepth > 3 ) payload.rayCone1.setDiffuse(); // clamp cone angle for deeper paths
         //if( rayDepth > 3 ) payload.rayCone2.setDiffuse(); // clamp cone angle for deeper paths
+
         radiance += weight * Ke;
         if( payload.geom.flipped && ior != 0.0f )
             ior = 1.0f / ior;
@@ -251,13 +350,10 @@ extern "C" __global__ void __raygen__rg()
             break;
 
         // Update the ray cone
-        if( params.i[UPDATE_RAY_CONES_ID] )
-        {
-            bool isTransmission = dot( R, payload.geom.N ) < 0.0f;
-            float fs = bsdf.x + bsdf.y + bsdf.z;
-            rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone1 );
-            rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone2 );
-        }
+        bool isTransmission = dot( R, payload.geom.N ) < 0.0f;
+        float fs = bsdf.x + bsdf.y + bsdf.z;
+        rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone1 );
+        rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone2 );
 
         weight = weight * bsdf * (1.0f / prob);
         rayDepth++;
@@ -272,10 +368,18 @@ extern "C" __global__ void __raygen__rg()
         accum_color += params.accum_buffer[image_idx];
     params.accum_buffer[image_idx] = accum_color;
 
-    // Blend result of ray trace with tile display and put in result buffer
+    // Blend result of ray trace with inset display and put in result buffer
     accum_color *= ( 1.0f / accum_color.w );
-    float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
+
+    const int magLevel = 2;
+    const int2 insetDisplayDim = int2{128, 128};
+    int2 insetLoc = int2{params.i[MOUSEX_ID] - (insetDisplayDim.x >> (magLevel+1)), (int)params.image_dim.y - params.i[MOUSEY_ID] - (insetDisplayDim.x >> (magLevel+1))};
+    int2 insetDisplayLoc = int2{(int)params.image_dim.x - insetDisplayDim.x - 5, (int)params.image_dim.y - insetDisplayDim.y - 5};
+    float4 tcolor = insetColor( params.accum_buffer, params.image_dim, insetLoc, insetDisplayLoc, insetDisplayDim, float4{1,0,0,1}, magLevel, px );
+
+    //float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
     float4 color  = ( 1.0f - tcolor.w ) * accum_color + tcolor.w * tcolor;
+
     params.result_buffer[image_idx] = make_color( color );
 }
 

@@ -26,30 +26,35 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cuda_runtime.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
-#include <vector>
-using namespace otk;
+const int SUBFRAME_ID  = 0;
+const int PIXEL_FILTER_ID = 1;
+const int TEXTURE_FILTER_ID = 2;
+const int MOUSEX_ID = 3;
+const int MOUSEY_ID = 4;
 
-struct Vert
+const int MIP_SCALE_ID = 0;
+const int TEXTURE_FILTER_WIDTH_ID = 1;
+const int TEXTURE_FILTER_STRENGTH_ID = 2;
+
+enum FilteModes
 {
-    float3 p; // position
-    float3 n; // normal
-    float2 t; // tex coord
+    POINT = 0,
+    EWA,
+    EWA_JITTER,
+    BICUBIC,
+    STOCHASTIC_EWA,
+    EXTENDED_ANISOTROPY
 };
 
-class ShapeMaker
-{
-  public:
-    static void makeAxisPlane( float3 minCorner, float3 maxCorner, std::vector<Vert>& shape );
-    static void makeCircle( float3 center, float radius, int numSegments, std::vector<Vert>& shape );
-    static void makeSphere( float3 center, float radius, int numSegments, std::vector<Vert>& shape, float beginAngle=0.0f, float endAngle=M_PIf );
-    static void makeCylinder( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
-    static void makeCone( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
-    static void makeTorus( float3 center, float radius1, float radius2, int numSegments, std::vector<Vert>& shape );
-    static void makeVase( float3 basePoint, float radius1, float radius2, float height, int numSegments, std::vector<Vert>& shape );
+// clang-format off
+enum        PixelFilterMode                   {pfBOX=0, pfTENT, pfGAUSSIAN, pfPIXELCENTER, pfSIZE};
+const char* PIXEL_FILTER_MODE_NAMES[pfSIZE] = {"Box",   "Tent", "Gaussian", "Pixel Center"};
 
-    static void spinZaxis( std::vector<Vert>& silhouette, int numSegments, float3 translation, std::vector<Vert>& shape );
-    static Vert rotateSilhouettePoint( const Vert& p, float angle );
-};
+enum TextureFilterMode {
+    tfPOINT=0, tfBOX_POINT, tfTENT_POINT, tfGAUSSIAN_POINT,
+    tfTRILINEAR, tfCUBIC, tfBOX_LINEAR, tfTENT_LINEAR, tfGAUSSIAN_LINEAR, tfUNSHARP_LINEAR, tfSIZE};
 
+const char* TEXTURE_FILTER_MODE_NAMES[tfSIZE] = {
+    "Point", "Box Point", "Tent Point", "Gaussian Point",
+    "Trilinear", "Cubic", "Box Linear", "Tent Linear", "Gaussian Linear", "Unsharp Mask Linear"};
+// clang-format on
