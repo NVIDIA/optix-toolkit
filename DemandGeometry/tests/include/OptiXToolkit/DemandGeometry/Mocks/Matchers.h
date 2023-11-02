@@ -119,6 +119,9 @@ MATCHER_P( isInstanceBuildInput, n, "" )
                          << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " is of type OPTIX_BUILD_INPUT_TYPE_INSTANCES ("
+                     << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
     return true;
 }
 
@@ -130,6 +133,9 @@ MATCHER_P( isTriangleBuildInput, n, "" )
                          << ", expected OPTIX_BUILD_INPUT_TYPE_TRIANGLES (" << OPTIX_BUILD_INPUT_TYPE_TRIANGLES << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " is of type OPTIX_BUILD_INPUT_TYPE_TRIANGLES ("
+                     << OPTIX_BUILD_INPUT_TYPE_TRIANGLES << ')';
     return true;
 }
 
@@ -141,6 +147,8 @@ MATCHER( isBuildOperation, "" )
                          << OPTIX_BUILD_OPERATION_BUILD << ')';
         return false;
     }
+
+    *result_listener << "build operation is OPTIX_BUILD_OPERATION_BUILD (" << OPTIX_BUILD_OPERATION_BUILD << ')';
     return true;
 }
 
@@ -152,6 +160,9 @@ MATCHER( buildAllowsUpdate, "" )
                          << ") not set in value " << arg->buildFlags;
         return false;
     }
+
+    *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_UPDATE (" << OPTIX_BUILD_FLAG_ALLOW_UPDATE
+                     << ") set in value " << arg->buildFlags;
     return true;
 }
 
@@ -163,6 +174,8 @@ MATCHER( buildAllowsRandomVertexAccess, "" )
                          << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ") not set in value " << arg->buildFlags;
         return false;
     }
+    *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS ("
+                     << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ") set in value " << arg->buildFlags;
     return true;
 }
 
@@ -174,6 +187,9 @@ MATCHER_P( isCustomPrimitiveBuildInput, n, "" )
                          << OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " is of type OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES ("
+                     << OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES << ')';
     return true;
 }
 
@@ -184,6 +200,8 @@ MATCHER_P( isZeroInstances, n, "" )
         *result_listener << "input " << n << " has non-zero numInstances (" << arg[n].instanceArray.numInstances << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " has zero numInstances";
     return true;
 }
 
@@ -202,6 +220,7 @@ MATCHER_P2( hasNumInstances, n, num, "" )
         return false;
     }
 
+    *result_listener << "input " << n << " has " << instances.numInstances << " instances";
     return true;
 }
 
@@ -230,6 +249,7 @@ MATCHER_P3( hasDeviceInstanceId, n, index, id, "" )
         return false;
     }
 
+    *result_listener << "input " << n << " instance " << index << " has id " << actualInstances[index].instanceId;
     return true;
 }
 
@@ -288,6 +308,11 @@ MATCHER_P3( hasRayGenDesc, count, module, entryPoint, "" )
         *result_listener << "raygen group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
                          << ") not found in descs[" << count << ']';
     }
+    else
+    {
+        *result_listener << "raygen group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
+                         << ") found in descs[" << count << ']';
+    }
     return result;
 }
 
@@ -300,6 +325,11 @@ MATCHER_P3( hasMissDesc, count, module, entryPoint, "" )
     {
         *result_listener << "miss group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
                          << ") not found in descs[" << count << ']';
+    }
+    else
+    {
+        *result_listener << "miss group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
+                         << ") found in descs[" << count << ']';
     }
     return result;
 }
@@ -317,8 +347,13 @@ MATCHER_P5( hasHitGroupISCHDesc, count, isModule, isEntryPoint, chModule, chEntr
     const bool result                   = detail::programGroupDescsContain( arg, count, desc );
     if( !result )
     {
-        *result_listener << "hitgroup desc (" << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ", " << isModule
-                         << ", " << detail::nameOrNullPtr( isEntryPoint ) << ") not found in descs[" << count << ']';
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), CH(" << chModule
+                         << ", " << detail::nameOrNullPtr( chEntryPoint ) << ")) not found in descs[" << count << ']';
+    }
+    else
+    {
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), CH("
+                         << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ")) found in descs[" << count << ']';
     }
     return result;
 }
@@ -336,8 +371,15 @@ MATCHER_P7( hasHitGroupISAHCHDesc, count, isModule, isEntryPoint, ahModule, ahEn
     const bool result                   = detail::programGroupDescsContain( arg, count, desc );
     if( !result )
     {
-        *result_listener << "hitgroup desc (" << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ", " << isModule
-                         << ", " << detail::nameOrNullPtr( isEntryPoint ) << ") not found in descs[" << count << ']';
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), AH("
+                         << ahModule << ", " << detail::nameOrNullPtr( ahEntryPoint ) << "), CH(" << chModule << ", "
+                         << detail::nameOrNullPtr( chEntryPoint ) << ")) not found in descs[" << count << ']';
+    }
+    else
+    {
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), AH("
+                         << ahModule << ", " << detail::nameOrNullPtr( ahEntryPoint ) << "), CH(" << chModule << ", "
+                         << detail::nameOrNullPtr( chEntryPoint ) << ")) found in descs[" << count << ']';
     }
     return result;
 }
