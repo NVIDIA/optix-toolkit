@@ -58,7 +58,7 @@ inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, 
     {
         std::stringstream ss;
         ss << "; Log:\n" << log << ( sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "" ) << '\n';
-        reportError( res, call, file, line, ss.str().c_str(), /*nothrow=*/false );
+        throw std::runtime_error( makeErrorString( res, call, file, line, ss.str().c_str() ) );
     }
 }
 

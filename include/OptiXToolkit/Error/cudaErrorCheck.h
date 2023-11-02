@@ -56,7 +56,7 @@ inline std::string getErrorMessage( cudaError_t value )
 inline void syncCheck( const char* file, unsigned int line )
 {
     cudaDeviceSynchronize();
-    checkError( cudaGetLastError(), "otk::error::syncCheck()", file, line, /*extra=*/nullptr, /*nothrow=*/false );
+    checkError( cudaGetLastError(), "otk::error::syncCheck()", file, line, /*extra=*/nullptr );
 }
 
 }  // namespace error
