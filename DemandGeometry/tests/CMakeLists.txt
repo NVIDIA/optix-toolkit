@@ -38,6 +38,10 @@ add_library(DemandGeometryMocks STATIC
   include/OptiXToolkit/DemandGeometry/Mocks/MockOptix.h
   MockOptix.cpp
 )
+if(MSVC)
+  # error C1128: number of sections exceeded object file format limit: compile with /bigobj
+  target_compile_options(DemandGeometryMocks PUBLIC $<$<COMPILE_LANGUAGE:CXX>:/bigobj>)
+endif()
 target_include_directories(DemandGeometryMocks PUBLIC include)
 target_link_libraries(DemandGeometryMocks PUBLIC OptiXToolkit::Error OptiXToolkit::Memory OptiX::OptiX GTest::gmock CUDA::cuda_driver)
 set_target_properties(DemandGeometryMocks PROPERTIES FOLDER DemandLoading/Tests)
@@ -50,12 +54,11 @@ otk_add_executable( TestDemandGeometry
   TestProxyInstances.cpp
   TestMatchers.cpp
 )
-target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::DemandGeometry::Mocks OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
-
 if(MSVC)
   # Disable unused formal parameter warning in gmock.
   target_compile_options(TestDemandGeometry PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/wd4100>)
 endif()
+target_link_libraries( TestDemandGeometry PRIVATE OptiXToolkit::DemandGeometry::Mocks OptiXToolkit::Error OptiXToolkit::ShaderUtil OptiXToolkit::DemandGeometry GTest::gmock_main )
 
 set_target_properties(TestDemandGeometry PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
