@@ -266,7 +266,7 @@ void DeferredImageLoadingTest::createPipeline()
     OptixStackSizes stackSizes{};
     for( OptixProgramGroup group : m_groups )
     {
-#if OTK_ERROR_VERSION < 70700
+#if OPTIX_VERSION < 70700
         OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
 #else
         OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, m_pipeline ) );
