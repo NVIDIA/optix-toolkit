@@ -34,7 +34,7 @@
 
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
-OTK_DEVICE const static float INV_MAX_ANISOTROPY = 1.0f/16.0f;
+OTK_DEVICE const static float INV_MAX_ANISOTROPY = 1.0f / 64.0f;
 OTK_DEVICE const static float MAX_CONE_ANGLE = 0.25f;
 
 struct RayCone
