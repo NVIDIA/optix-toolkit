@@ -57,8 +57,8 @@ TEST( TestCompareOptixProgramGroupSingleModule, defaultConstructedAreEqual )
 TEST( TestCompareOptixProgramGroupSingleModule, sameModuleNullNamesAreEqual )
 {
     const OptixModule                   fakeModule{ otk::bit_cast<OptixModule>( 1111ULL ) };
-    const OptixProgramGroupSingleModule one = { fakeModule };
-    const OptixProgramGroupSingleModule two = { fakeModule };
+    const OptixProgramGroupSingleModule one{ fakeModule, nullptr };
+    const OptixProgramGroupSingleModule two{ fakeModule, nullptr };
 
     EXPECT_EQ( one, two );
     EXPECT_EQ( two, one );
@@ -70,8 +70,8 @@ TEST( TestCompareOptixProgramGroupSingleModule, differentModuleNullNamesAreNotEq
 {
     const OptixModule                   fakeModule1{ otk::bit_cast<OptixModule>( 1111ULL ) };
     const OptixModule                   fakeModule2{ otk::bit_cast<OptixModule>( 2222ULL ) };
-    const OptixProgramGroupSingleModule one = { fakeModule1 };
-    const OptixProgramGroupSingleModule two = { fakeModule2 };
+    const OptixProgramGroupSingleModule one{ fakeModule1, nullptr };
+    const OptixProgramGroupSingleModule two{ fakeModule2, nullptr };
 
     EXPECT_FALSE( one == two );
     EXPECT_FALSE( two == one );
@@ -134,13 +134,13 @@ TEST( TestCompareOptixProgramGroupHitgroup, equalToItself )
     const char* const               ahName{ "__anyhit__test" };
     const char* const               isName{ "__intersection__test" };
     const OptixProgramGroupHitgroup one{};
-    const OptixProgramGroupHitgroup two   = { fakeModuleCH };
-    const OptixProgramGroupHitgroup three = { fakeModuleCH, chName };
-    const OptixProgramGroupHitgroup four  = { fakeModuleCH, nullptr, fakeModuleAH };
-    const OptixProgramGroupHitgroup five  = { fakeModuleCH, chName, fakeModuleAH };
-    const OptixProgramGroupHitgroup six   = { fakeModuleCH, chName, fakeModuleAH, ahName };
-    const OptixProgramGroupHitgroup seven = { fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS };
-    const OptixProgramGroupHitgroup eight = { fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS, isName };
+    OptixProgramGroupHitgroup       two{ fakeModuleCH, nullptr, OptixModule{}, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup three{ fakeModuleCH, chName, OptixModule{}, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup four{ fakeModuleCH, nullptr, fakeModuleAH, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup five{ fakeModuleCH, chName, fakeModuleAH, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup six{ fakeModuleCH, chName, fakeModuleAH, ahName, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup seven{ fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS, nullptr };
+    const OptixProgramGroupHitgroup eight{ fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS, isName };
 
     EXPECT_EQ( one, one );
     EXPECT_EQ( two, two );
@@ -168,13 +168,13 @@ TEST( TestCompareOptixProgramGroupHitgroup, sameModuleDifferentNamesNullAreNotEq
     const char* const               chName{ "__closesthit__test" };
     const char* const               ahName{ "__anyhit__test" };
     const char* const               isName{ "__intersection__test" };
-    const OptixProgramGroupHitgroup one   = { fakeModuleCH };
-    const OptixProgramGroupHitgroup two   = { fakeModuleCH, chName };
-    const OptixProgramGroupHitgroup three = { fakeModuleCH, nullptr, fakeModuleAH };
-    const OptixProgramGroupHitgroup four  = { fakeModuleCH, chName, fakeModuleAH };
-    const OptixProgramGroupHitgroup five  = { fakeModuleCH, chName, fakeModuleAH, ahName };
-    const OptixProgramGroupHitgroup six   = { fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS };
-    const OptixProgramGroupHitgroup seven = { fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS, isName };
+    const OptixProgramGroupHitgroup one{ fakeModuleCH, nullptr, OptixModule{}, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup two{ fakeModuleCH, chName, OptixModule{}, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup three{ fakeModuleCH, nullptr, fakeModuleAH, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup four{ fakeModuleCH, chName, fakeModuleAH, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup five{ fakeModuleCH, chName, fakeModuleAH, ahName, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup six{ fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS, nullptr };
+    const OptixProgramGroupHitgroup seven{ fakeModuleCH, chName, fakeModuleAH, ahName, fakeModuleIS, isName };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -205,14 +205,14 @@ TEST( TestCompareOptixProgramGroupHitgroup, sameModuleSameNameDifferentNamePoint
     const char* const               ahName2{ "__anyhit__test" };
     const char* const               isName1{ "__intersection__test" };
     const char* const               isName2{ "__intersection__test" };
-    const OptixProgramGroupHitgroup one   = { fakeModuleCH, chName1 };
-    const OptixProgramGroupHitgroup two   = { fakeModuleCH, chName2 };
-    const OptixProgramGroupHitgroup three = { fakeModuleCH, chName1, fakeModuleAH };
-    const OptixProgramGroupHitgroup four  = { fakeModuleCH, chName2, fakeModuleAH };
-    const OptixProgramGroupHitgroup five  = { fakeModuleCH, chName1, fakeModuleAH, ahName1 };
-    const OptixProgramGroupHitgroup six   = { fakeModuleCH, chName2, fakeModuleAH, ahName2 };
-    const OptixProgramGroupHitgroup seven = { fakeModuleCH, chName1, fakeModuleAH, ahName1, fakeModuleIS, isName1 };
-    const OptixProgramGroupHitgroup eight = { fakeModuleCH, chName2, fakeModuleAH, ahName2, fakeModuleIS, isName2 };
+    const OptixProgramGroupHitgroup one{ fakeModuleCH, chName1, OptixModule{}, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup two{ fakeModuleCH, chName2, OptixModule{}, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup three{ fakeModuleCH, chName1, fakeModuleAH, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup four{ fakeModuleCH, chName2, fakeModuleAH, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup five{ fakeModuleCH, chName1, fakeModuleAH, ahName1, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup six{ fakeModuleCH, chName2, fakeModuleAH, ahName2, OptixModule{}, nullptr };
+    const OptixProgramGroupHitgroup seven{ fakeModuleCH, chName1, fakeModuleAH, ahName1, fakeModuleIS, isName1 };
+    const OptixProgramGroupHitgroup eight{ fakeModuleCH, chName2, fakeModuleAH, ahName2, fakeModuleIS, isName2 };
 
     EXPECT_NE( chName1, chName2 );
     EXPECT_NE( ahName1, ahName2 );
@@ -242,10 +242,10 @@ TEST( TestCompareOptixProgramGroupCallables, equalToItself )
     const char* const                nameDC{ "__directcallable__test" };
     const char* const                nameCC{ "__continuationcallable__test" };
     const OptixProgramGroupCallables one{};
-    const OptixProgramGroupCallables two   = { fakeModuleDC };
-    const OptixProgramGroupCallables three = { fakeModuleDC, nameDC };
-    const OptixProgramGroupCallables four  = { fakeModuleDC, nameDC, fakeModuleCC };
-    const OptixProgramGroupCallables five  = { fakeModuleDC, nameDC, fakeModuleCC, nameCC };
+    const OptixProgramGroupCallables two{ fakeModuleDC, nullptr, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables three{ fakeModuleDC, nameDC, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables four{ fakeModuleDC, nameDC, fakeModuleCC, nullptr };
+    const OptixProgramGroupCallables five{ fakeModuleDC, nameDC, fakeModuleCC, nameCC };
 
     EXPECT_EQ( one, one );
     EXPECT_EQ( two, two );
@@ -267,10 +267,10 @@ TEST( TestCompareOptixProgramGroupCallables, sameModuleSameNameDifferentNamePoin
     const char* const                nameDC2{ "__directcallable__test" };
     const char* const                nameCC1{ "__continuationcallable__test" };
     const char* const                nameCC2{ "__continuationcallable__test" };
-    const OptixProgramGroupCallables one   = { fakeModuleDC, nameDC1 };
-    const OptixProgramGroupCallables two   = { fakeModuleDC, nameDC2 };
-    const OptixProgramGroupCallables three = { fakeModuleDC, nameDC1, fakeModuleCC, nameCC1 };
-    const OptixProgramGroupCallables four  = { fakeModuleDC, nameDC2, fakeModuleCC, nameCC2 };
+    const OptixProgramGroupCallables one{ fakeModuleDC, nameDC1, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables two{ fakeModuleDC, nameDC2, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables three{ fakeModuleDC, nameDC1, fakeModuleCC, nameCC1 };
+    const OptixProgramGroupCallables four{ fakeModuleDC, nameDC2, fakeModuleCC, nameCC2 };
 
     EXPECT_NE( nameDC1, nameDC2 );
     EXPECT_STREQ( nameDC1, nameDC2 );
@@ -294,10 +294,10 @@ TEST( TestCompareOptixProgramGroupCallables, sameModuleDifferentNamesAreNotEqual
     const char* const                nameDC2{ "__directcallable__test2" };
     const char* const                nameCC1{ "__continuationcallable__test1" };
     const char* const                nameCC2{ "__continuationcallable__test2" };
-    const OptixProgramGroupCallables one   = { fakeModuleDC, nameDC1 };
-    const OptixProgramGroupCallables two   = { fakeModuleDC, nameDC2 };
-    const OptixProgramGroupCallables three = { fakeModuleDC, nameDC1, fakeModuleCC, nameCC1 };
-    const OptixProgramGroupCallables four  = { fakeModuleDC, nameDC2, fakeModuleCC, nameCC2 };
+    const OptixProgramGroupCallables one{ fakeModuleDC, nameDC1, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables two{ fakeModuleDC, nameDC2, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables three{ fakeModuleDC, nameDC1, fakeModuleCC, nameCC1 };
+    const OptixProgramGroupCallables four{ fakeModuleDC, nameDC2, fakeModuleCC, nameCC2 };
 
     EXPECT_NE( std::string{ nameDC1 }, nameDC2 );
     EXPECT_NE( std::string{ nameCC1 }, nameCC2 );
@@ -319,12 +319,12 @@ TEST( TestCompareOptixProgramGroupCallables, differentModuleSameNamesAreNotEqual
     const OptixModule                fakeModuleCC2{ otk::bit_cast<OptixModule>( 4444ULL ) };
     const char* const                nameDC{ "__directcallable__test1" };
     const char* const                nameCC{ "__continuationcallable__test1" };
-    const OptixProgramGroupCallables one   = { fakeModuleDC1, nameDC };
-    const OptixProgramGroupCallables two   = { fakeModuleDC2, nameDC };
-    const OptixProgramGroupCallables three = { fakeModuleDC1, nameDC, fakeModuleCC1, nameCC };
-    const OptixProgramGroupCallables four  = { fakeModuleDC2, nameDC, fakeModuleCC1, nameCC };
-    const OptixProgramGroupCallables five  = { fakeModuleDC1, nameDC, fakeModuleCC2, nameCC };
-    const OptixProgramGroupCallables six   = { fakeModuleDC2, nameDC, fakeModuleCC2, nameCC };
+    const OptixProgramGroupCallables one{ fakeModuleDC1, nameDC, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables two{ fakeModuleDC2, nameDC, OptixModule{}, nullptr };
+    const OptixProgramGroupCallables three{ fakeModuleDC1, nameDC, fakeModuleCC1, nameCC };
+    const OptixProgramGroupCallables four{ fakeModuleDC2, nameDC, fakeModuleCC1, nameCC };
+    const OptixProgramGroupCallables five{ fakeModuleDC1, nameDC, fakeModuleCC2, nameCC };
+    const OptixProgramGroupCallables six{ fakeModuleDC2, nameDC, fakeModuleCC2, nameCC };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -413,14 +413,14 @@ TEST( TestCompareOptixProgramGroupDesc, equalToItself )
     const char* const           nameAH{ "__anyhit__test" };
     const char* const           nameIS{ "__intersection__test" };
     const OptixProgramGroupDesc one{};
-    const OptixProgramGroupDesc two   = { OPTIX_PROGRAM_GROUP_KIND_RAYGEN };
-    const OptixProgramGroupDesc three = { OPTIX_PROGRAM_GROUP_KIND_MISS, 10U };
+    const OptixProgramGroupDesc two{ OPTIX_PROGRAM_GROUP_KIND_RAYGEN };
+    const OptixProgramGroupDesc three{ OPTIX_PROGRAM_GROUP_KIND_MISS, 10U };
     const OptixProgramGroupDesc four{ rayGenDesc( { fakeModuleRG, nameRG } ) };
     const OptixProgramGroupDesc five{ missDesc( { fakeModuleMS, nameMS } ) };
     const OptixProgramGroupDesc six{ exceptDesc( { fakeModuleEX, nameEX } ) };
-    const OptixProgramGroupDesc seven{ callDesc( { fakeModuleCL, nameCL, OptixModule{}, nullptr } ) };
-    const OptixProgramGroupDesc eight{ hitDesc( { fakeModuleCH, nameCH, OptixModule{}, nullptr, OptixModule{}, nullptr } ) };
-    const OptixProgramGroupDesc nine{ hitDesc( { fakeModuleCH, nameCH, fakeModuleAH, nameAH, OptixModule{}, nullptr } ) };
+    const OptixProgramGroupDesc seven{ callDesc( { fakeModuleCL, nameCL } ) };
+    const OptixProgramGroupDesc eight{ hitDesc( { fakeModuleCH, nameCH } ) };
+    const OptixProgramGroupDesc nine{ hitDesc( { fakeModuleCH, nameCH, fakeModuleAH, nameAH } ) };
     const OptixProgramGroupDesc ten{ hitDesc( { fakeModuleCH, nameCH, fakeModuleAH, nameAH, fakeModuleIS, nameIS } ) };
 
     EXPECT_EQ( one, one );
@@ -447,8 +447,10 @@ TEST( TestCompareOptixProgramGroupDesc, equalToItself )
 
 TEST( TestCompareOptixProgramGroupDesc, differentDescKindsAreNotEqual )
 {
-    const OptixProgramGroupDesc one = { OPTIX_PROGRAM_GROUP_KIND_RAYGEN };
-    const OptixProgramGroupDesc two = { OPTIX_PROGRAM_GROUP_KIND_MISS };
+    OptixProgramGroupDesc one{};
+    one.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    OptixProgramGroupDesc two{};
+    two.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -458,8 +460,11 @@ TEST( TestCompareOptixProgramGroupDesc, differentDescKindsAreNotEqual )
 
 TEST( TestCompareOptixProgramGroupDesc, differentFlagsAreNotEqual )
 {
-    const OptixProgramGroupDesc one = { OPTIX_PROGRAM_GROUP_KIND_RAYGEN };
-    const OptixProgramGroupDesc two = { OPTIX_PROGRAM_GROUP_KIND_RAYGEN, 10U };
+    OptixProgramGroupDesc one{};
+    one.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    OptixProgramGroupDesc two{};
+    two.kind  = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    two.flags = 10U;
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -470,12 +475,18 @@ TEST( TestCompareOptixProgramGroupDesc, differentFlagsAreNotEqual )
 TEST( TestCompareOptixInstance, equalToItself )
 {
     const OptixInstance one{};
-    const OptixInstance two   = { { 1.0f } };
-    const OptixInstance three = { { 1.0f }, 10U };
-    const OptixInstance four  = { { 1.0f }, 10U, 10U };
-    const OptixInstance five  = { { 1.0f }, 10U, 10U, 10U };
-    const OptixInstance six   = { { 1.0f }, 10U, 10U, 10U, 10U };
-    const OptixInstance seven = { { 1.0f }, 10U, 10U, 10U, 10U, OptixTraversableHandle{ 10U } };
+    OptixInstance       two{};
+    two.transform[0] = 1.0f;
+    OptixInstance three{ two };
+    two.instanceId = 10U;
+    OptixInstance four{ three };
+    three.sbtOffset = 10U;
+    OptixInstance five{ four };
+    four.visibilityMask = 10U;
+    OptixInstance six{ five };
+    six.flags = 10U;
+    OptixInstance seven{ six };
+    seven.traversableHandle = OptixTraversableHandle{ 10U };
 
     EXPECT_EQ( one, one );
     EXPECT_EQ( two, two );
@@ -515,8 +526,10 @@ TEST( TestCompareOptixInstance, differentTransformsAreNotEqual )
 
 TEST( TestCompareOptixInstance, differentInstanceIdsAreNotEqual )
 {
-    const OptixInstance one = { {}, 10U };
-    const OptixInstance two = { {}, 11U };
+    OptixInstance one{};
+    one.instanceId = 10U;
+    OptixInstance two{};
+    two.instanceId = 11U;
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -526,8 +539,10 @@ TEST( TestCompareOptixInstance, differentInstanceIdsAreNotEqual )
 
 TEST( TestCompareOptixInstance, differentSbtOffsetsAreNotEqual )
 {
-    const OptixInstance one = { {}, 0U, 10U };
-    const OptixInstance two = { {}, 0U, 11U };
+    OptixInstance one{};
+    one.sbtOffset = 10U;
+    OptixInstance two{};
+    two.sbtOffset = 11U;
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -537,8 +552,10 @@ TEST( TestCompareOptixInstance, differentSbtOffsetsAreNotEqual )
 
 TEST( TestCompareOptixInstance, differentVisibilityMasksAreNotEqual )
 {
-    const OptixInstance one = { {}, 0U, 0U, 10U };
-    const OptixInstance two = { {}, 0U, 0U, 11U };
+    OptixInstance one{};
+    one.visibilityMask = 10U;
+    OptixInstance two{};
+    two.visibilityMask = 11U;
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -548,8 +565,10 @@ TEST( TestCompareOptixInstance, differentVisibilityMasksAreNotEqual )
 
 TEST( TestCompareOptixInstance, differentFlagsAreNotEqual )
 {
-    const OptixInstance one = { {}, 0U, 0U, 0U, 10U };
-    const OptixInstance two = { {}, 0U, 0U, 0U, 11U };
+    OptixInstance one{};
+    one.flags = 10U;
+    OptixInstance two{};
+    two.flags = 11U;
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -559,8 +578,10 @@ TEST( TestCompareOptixInstance, differentFlagsAreNotEqual )
 
 TEST( TestCompareOptixInstance, differentTraversablesAreNotEqual )
 {
-    const OptixInstance one = { {}, 0U, 0U, 0U, 0U, OptixTraversableHandle{ 10U } };
-    const OptixInstance two = { {}, 0U, 0U, 0U, 0U, OptixTraversableHandle{ 11U } };
+    OptixInstance one{};
+    one.traversableHandle = OptixTraversableHandle{ 10U };
+    OptixInstance two{};
+    two.traversableHandle = OptixTraversableHandle{ 11U };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -570,10 +591,16 @@ TEST( TestCompareOptixInstance, differentTraversablesAreNotEqual )
 
 TEST( TestCompareOptixInstance, differentPaddingAreEqual )
 {
-    const OptixInstance one   = { {}, 0U, 0U, 0U, 0U, OptixTraversableHandle{ 10U }, 1U };
-    const OptixInstance two   = { {}, 0U, 0U, 0U, 0U, OptixTraversableHandle{ 10U }, 2U };
-    const OptixInstance three = { {}, 0U, 0U, 0U, 0U, OptixTraversableHandle{ 10U }, 1U, 2U };
-    const OptixInstance four  = { {}, 0U, 0U, 0U, 0U, OptixTraversableHandle{ 10U }, 1U, 2U };
+    OptixInstance one{};
+    one.pad[0] = 1U;
+    OptixInstance two{};
+    two.pad[0] = 2U;
+    OptixInstance three{};
+    three.pad[0] = 1U;
+    three.pad[1] = 1U;
+    OptixInstance four{};
+    four.pad[0] = 1U;
+    four.pad[1] = 2U;
 
     EXPECT_EQ( one, two );
     EXPECT_EQ( one, three );
@@ -604,15 +631,23 @@ TEST( TestCompareOptixInstance, differentPaddingAreEqual )
 TEST( TestCompareOptixPipelineCompileOptions, isEqualToItself )
 {
     const OptixPipelineCompileOptions one{};
-    const OptixPipelineCompileOptions two   = { 1 };
-    const OptixPipelineCompileOptions three = { 1, 1U };
-    const OptixPipelineCompileOptions four  = { 1, 1U, 1 };
-    const OptixPipelineCompileOptions five  = { 1, 1U, 1, 1 };
-    const OptixPipelineCompileOptions six   = { 1, 1U, 1, 1, 1U };
-    const OptixPipelineCompileOptions seven = { 1, 1U, 1, 1, 1U, "params" };
-    const OptixPipelineCompileOptions eight = { 1, 1U, 1, 1, 1U, "params", 1U };
+    OptixPipelineCompileOptions       two{};
+    two.usesMotionBlur = 1;
+    OptixPipelineCompileOptions three{ two };
+    three.traversableGraphFlags = 1U;
+    OptixPipelineCompileOptions four{ three };
+    four.numPayloadValues = 1;
+    OptixPipelineCompileOptions five{ four };
+    five.numAttributeValues = 1;
+    OptixPipelineCompileOptions six{ five };
+    six.exceptionFlags = 1U;
+    OptixPipelineCompileOptions seven{ six };
+    seven.pipelineLaunchParamsVariableName = "params";
+    OptixPipelineCompileOptions eight{ seven };
+    eight.usesPrimitiveTypeFlags = 1U;
 #if OPTIX_VERSION >= 70600
-    const OptixPipelineCompileOptions nine = { 1, 1U, 1, 1, 1U, "params", 1U, 1 };
+    OptixPipelineCompileOptions nine{ eight };
+    nine.allowOpacityMicromaps = 1;
 #endif
 
     EXPECT_EQ( one, one );
@@ -630,8 +665,10 @@ TEST( TestCompareOptixPipelineCompileOptions, isEqualToItself )
 
 TEST( TestCompareOptixPipelineCompileOptions, sameParamNameDifferentNamePointersAreEqual )
 {
-    const OptixPipelineCompileOptions one = { 1, 1U, 1, 1, 1U, "params" };
-    const OptixPipelineCompileOptions two = { 1, 1U, 1, 1, 1U, "params" };
+    OptixPipelineCompileOptions one{};
+    one.pipelineLaunchParamsVariableName = "params";
+    OptixPipelineCompileOptions two{};
+    two.pipelineLaunchParamsVariableName = "params";
 
     EXPECT_NE( one.pipelineLaunchParamsVariableName, two.pipelineLaunchParamsVariableName );
     EXPECT_STREQ( one.pipelineLaunchParamsVariableName, two.pipelineLaunchParamsVariableName );
@@ -643,9 +680,11 @@ TEST( TestCompareOptixPipelineCompileOptions, sameParamNameDifferentNamePointers
 
 TEST( TestCompareOptixPipelineCompileOptions, differentMotionBlurAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0 };
-    const OptixPipelineCompileOptions two = { 1 };
+    OptixPipelineCompileOptions one{};
+    OptixPipelineCompileOptions two{};
+    two.usesMotionBlur = 1;
 
+    EXPECT_NE( one.usesMotionBlur, two.usesMotionBlur );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -654,9 +693,12 @@ TEST( TestCompareOptixPipelineCompileOptions, differentMotionBlurAreNotEqual )
 
 TEST( TestCompareOptixPipelineCompileOptions, differentTraversableFlagsAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 1U };
-    const OptixPipelineCompileOptions two = { 0, 2U };
+    OptixPipelineCompileOptions one{};
+    one.traversableGraphFlags = 1U;
+    OptixPipelineCompileOptions two{};
+    two.traversableGraphFlags = 2U;
 
+    EXPECT_NE( one.traversableGraphFlags, two.traversableGraphFlags );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -665,9 +707,12 @@ TEST( TestCompareOptixPipelineCompileOptions, differentTraversableFlagsAreNotEqu
 
 TEST( TestCompareOptixPipelineCompileOptions, differentNumPayloadValuesAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 0U, 1 };
-    const OptixPipelineCompileOptions two = { 0, 0U, 2 };
+    OptixPipelineCompileOptions one{};
+    one.numPayloadValues = 1;
+    OptixPipelineCompileOptions two{};
+    two.numPayloadValues = 2;
 
+    EXPECT_NE( one.numPayloadValues, two.numPayloadValues );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -676,9 +721,12 @@ TEST( TestCompareOptixPipelineCompileOptions, differentNumPayloadValuesAreNotEqu
 
 TEST( TestCompareOptixPipelineCompileOptions, differentNumAttributeValuesAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 0U, 0, 1 };
-    const OptixPipelineCompileOptions two = { 0, 0U, 0, 2 };
+    OptixPipelineCompileOptions one{};
+    one.numAttributeValues = 1;
+    OptixPipelineCompileOptions two{};
+    two.numAttributeValues = 2;
 
+    EXPECT_NE( one.numAttributeValues, two.numAttributeValues );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -687,9 +735,12 @@ TEST( TestCompareOptixPipelineCompileOptions, differentNumAttributeValuesAreNotE
 
 TEST( TestCompareOptixPipelineCompileOptions, differentExceptionFlagsAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 0U, 0, 0, 1U };
-    const OptixPipelineCompileOptions two = { 0, 0U, 0, 0, 2U };
+    OptixPipelineCompileOptions one{};
+    one.exceptionFlags = 1U;
+    OptixPipelineCompileOptions two{};
+    two.exceptionFlags = 2U;
 
+    EXPECT_NE( one.exceptionFlags, two.exceptionFlags );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -698,9 +749,13 @@ TEST( TestCompareOptixPipelineCompileOptions, differentExceptionFlagsAreNotEqual
 
 TEST( TestCompareOptixPipelineCompileOptions, differentParamNamesAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 0U, 0, 0, 0U, "param1" };
-    const OptixPipelineCompileOptions two = { 0, 0U, 0, 0, 0U, "param2" };
+    OptixPipelineCompileOptions one{};
+    one.pipelineLaunchParamsVariableName = "param1";
+    OptixPipelineCompileOptions two{};
+    two.pipelineLaunchParamsVariableName = "param2";
 
+    EXPECT_NE( one.pipelineLaunchParamsVariableName, two.pipelineLaunchParamsVariableName );
+    EXPECT_STRNE( one.pipelineLaunchParamsVariableName, two.pipelineLaunchParamsVariableName );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -709,9 +764,12 @@ TEST( TestCompareOptixPipelineCompileOptions, differentParamNamesAreNotEqual )
 
 TEST( TestCompareOptixPipelineCompileOptions, differentPrimitiveTypeFlagsAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 0U, 0, 0, 0U, "param", 1U };
-    const OptixPipelineCompileOptions two = { 0, 0U, 0, 0, 0U, "param", 2U };
+    OptixPipelineCompileOptions one{};
+    one.usesPrimitiveTypeFlags = 1U;
+    OptixPipelineCompileOptions two{};
+    two.usesPrimitiveTypeFlags = 2U;
 
+    EXPECT_NE( one.usesPrimitiveTypeFlags, two.usesPrimitiveTypeFlags );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
@@ -721,9 +779,11 @@ TEST( TestCompareOptixPipelineCompileOptions, differentPrimitiveTypeFlagsAreNotE
 #if OPTIX_VERSION >= 70600
 TEST( TestCompareOptixPipelineCompileOptions, differentOpacityMicromapsAreNotEqual )
 {
-    const OptixPipelineCompileOptions one = { 0, 0U, 0, 0, 0U, "param", 0U, 0 };
-    const OptixPipelineCompileOptions two = { 0, 0U, 0, 0, 0U, "param", 0U, 1 };
+    OptixPipelineCompileOptions one{};
+    OptixPipelineCompileOptions two{};
+    two.allowOpacityMicromaps = 1;
 
+    EXPECT_NE( one.allowOpacityMicromaps, two.allowOpacityMicromaps );
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
     EXPECT_FALSE( one == two );
