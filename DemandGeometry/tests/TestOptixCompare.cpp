@@ -413,14 +413,17 @@ TEST( TestCompareOptixProgramGroupDesc, equalToItself )
     const char* const           nameAH{ "__anyhit__test" };
     const char* const           nameIS{ "__intersection__test" };
     const OptixProgramGroupDesc one{};
-    const OptixProgramGroupDesc two{ OPTIX_PROGRAM_GROUP_KIND_RAYGEN };
-    const OptixProgramGroupDesc three{ OPTIX_PROGRAM_GROUP_KIND_MISS, 10U };
+    OptixProgramGroupDesc       two{};
+    two.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    OptixProgramGroupDesc three{};
+    three.kind  = OPTIX_PROGRAM_GROUP_KIND_MISS;
+    three.flags = 10U;
     const OptixProgramGroupDesc four{ rayGenDesc( { fakeModuleRG, nameRG } ) };
     const OptixProgramGroupDesc five{ missDesc( { fakeModuleMS, nameMS } ) };
     const OptixProgramGroupDesc six{ exceptDesc( { fakeModuleEX, nameEX } ) };
-    const OptixProgramGroupDesc seven{ callDesc( { fakeModuleCL, nameCL } ) };
-    const OptixProgramGroupDesc eight{ hitDesc( { fakeModuleCH, nameCH } ) };
-    const OptixProgramGroupDesc nine{ hitDesc( { fakeModuleCH, nameCH, fakeModuleAH, nameAH } ) };
+    const OptixProgramGroupDesc seven{ callDesc( { fakeModuleCL, nameCL, OptixModule{}, nullptr } ) };
+    const OptixProgramGroupDesc eight{ hitDesc( { fakeModuleCH, nameCH, OptixModule{}, nullptr, OptixModule{}, nullptr } ) };
+    const OptixProgramGroupDesc nine{ hitDesc( { fakeModuleCH, nameCH, fakeModuleAH, nameAH, OptixModule{}, nullptr } ) };
     const OptixProgramGroupDesc ten{ hitDesc( { fakeModuleCH, nameCH, fakeModuleAH, nameAH, fakeModuleIS, nameIS } ) };
 
     EXPECT_EQ( one, one );
