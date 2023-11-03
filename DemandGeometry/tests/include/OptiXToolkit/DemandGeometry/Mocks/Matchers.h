@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 
@@ -31,82 +32,6 @@
 #include <cmath>
 #include <functional>
 #include <string>
-
-namespace otk {
-namespace testing {
-namespace detail {
-
-inline bool stringsBothNullOrSame( const char* lhs, const char* rhs )
-{
-    return ( lhs == nullptr && rhs == nullptr ) || ( lhs != nullptr && rhs != nullptr && std::string{ lhs } == rhs );
-}
-
-}  // namespace detail
-}  // namespace testing
-}  // namespace otk
-
-inline bool operator==( const OptixProgramGroupSingleModule& lhs, const OptixProgramGroupSingleModule& rhs )
-{
-    return lhs.module == rhs.module && otk::testing::detail::stringsBothNullOrSame( lhs.entryFunctionName, rhs.entryFunctionName );
-}
-
-inline bool operator!=( const OptixProgramGroupSingleModule& lhs, const OptixProgramGroupSingleModule& rhs )
-{
-    return !( lhs == rhs );
-}
-
-inline bool operator==( const OptixProgramGroupHitgroup& lhs, const OptixProgramGroupHitgroup& rhs )
-{
-    using namespace otk::testing::detail;
-    return lhs.moduleCH == rhs.moduleCH && stringsBothNullOrSame( lhs.entryFunctionNameCH, rhs.entryFunctionNameCH )
-           && lhs.moduleAH == rhs.moduleAH && stringsBothNullOrSame( lhs.entryFunctionNameAH, rhs.entryFunctionNameAH )
-           && lhs.moduleIS == rhs.moduleIS && stringsBothNullOrSame( lhs.entryFunctionNameIS, rhs.entryFunctionNameIS );
-}
-
-inline bool operator!=( const OptixProgramGroupHitgroup& lhs, const OptixProgramGroupHitgroup& rhs )
-{
-    return !( lhs == rhs );
-}
-
-inline bool operator==( const OptixProgramGroupCallables& lhs, const OptixProgramGroupCallables& rhs )
-{
-    using namespace otk::testing::detail;
-    return lhs.moduleDC == rhs.moduleDC && stringsBothNullOrSame( lhs.entryFunctionNameDC, rhs.entryFunctionNameDC )
-           && lhs.moduleCC == rhs.moduleCC && stringsBothNullOrSame( lhs.entryFunctionNameCC, rhs.entryFunctionNameCC );
-}
-
-inline bool operator!=( const OptixProgramGroupCallables& lhs, const OptixProgramGroupCallables& rhs )
-{
-    return !( lhs == rhs );
-}
-
-inline bool operator==( const OptixProgramGroupDesc& lhs, const OptixProgramGroupDesc& rhs )
-{
-    if( lhs.kind != rhs.kind || lhs.flags != rhs.flags )
-        return false;
-
-    switch( lhs.kind )
-    {
-        case OPTIX_PROGRAM_GROUP_KIND_RAYGEN:
-            return lhs.raygen == rhs.raygen;
-        case OPTIX_PROGRAM_GROUP_KIND_MISS:
-            return lhs.miss == rhs.miss;
-        case OPTIX_PROGRAM_GROUP_KIND_EXCEPTION:
-            return lhs.exception == rhs.exception;
-        case OPTIX_PROGRAM_GROUP_KIND_HITGROUP:
-            return lhs.hitgroup == rhs.hitgroup;
-        case OPTIX_PROGRAM_GROUP_KIND_CALLABLES:
-            return lhs.callables == rhs.callables;
-    }
-
-    // No kind and no flags are equal, regardless of union contents.
-    return lhs.kind == 0 && lhs.flags == 0;
-}
-
-inline bool operator!=( const OptixProgramGroupDesc& lhs, const OptixProgramGroupDesc& rhs )
-{
-    return !( lhs == rhs );
-}
 
 namespace otk {
 namespace testing {
