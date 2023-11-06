@@ -64,8 +64,8 @@ TEST( TestCompareOptixAabb, equalToItself )
 
 TEST( TestCompareOptixAabb, differentMinX )
 {
-    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
-    const OptixAabb two{+1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb one{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    const OptixAabb two{ +1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -75,8 +75,8 @@ TEST( TestCompareOptixAabb, differentMinX )
 
 TEST( TestCompareOptixAabb, differentMinY )
 {
-    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
-    const OptixAabb two{-1.0f, +2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb one{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    const OptixAabb two{ -1.0f, +2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -86,8 +86,8 @@ TEST( TestCompareOptixAabb, differentMinY )
 
 TEST( TestCompareOptixAabb, differentMinZ )
 {
-    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
-    const OptixAabb two{-1.0f, -2.0f, +3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb one{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    const OptixAabb two{ -1.0f, -2.0f, +3.0f, 4.0f, 5.0f, 6.0f };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -97,8 +97,8 @@ TEST( TestCompareOptixAabb, differentMinZ )
 
 TEST( TestCompareOptixAabb, differentMaxX )
 {
-    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
-    const OptixAabb two{-1.0f, -2.0f, -3.0f, 5.0f, 5.0f, 6.0f};
+    const OptixAabb one{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    const OptixAabb two{ -1.0f, -2.0f, -3.0f, 5.0f, 5.0f, 6.0f };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -108,8 +108,8 @@ TEST( TestCompareOptixAabb, differentMaxX )
 
 TEST( TestCompareOptixAabb, differentMaxY )
 {
-    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
-    const OptixAabb two{-1.0f, -2.0f, -3.0f, 4.0f, 6.0f, 6.0f};
+    const OptixAabb one{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    const OptixAabb two{ -1.0f, -2.0f, -3.0f, 4.0f, 6.0f, 6.0f };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -119,8 +119,8 @@ TEST( TestCompareOptixAabb, differentMaxY )
 
 TEST( TestCompareOptixAabb, differentMaxZ )
 {
-    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
-    const OptixAabb two{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 7.0f};
+    const OptixAabb one{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    const OptixAabb two{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 7.0f };
 
     EXPECT_NE( one, two );
     EXPECT_NE( two, one );
@@ -182,8 +182,8 @@ TEST( TestCompareOptixProgramGroupSingleModule, differentModuleNullNamesAreNotEq
 TEST( TestCompareOptixProgramGroupSingleModule, sameModuleSameNamesAreEqual )
 {
     const OptixModule                   fakeModule{ otk::bit_cast<OptixModule>( 1111ULL ) };
-    const char* const                   name1 = "__intersection__test";
-    const char* const                   name2 = "__intersection__test";
+    char                                name1[] = "__intersection__test";
+    char                                name2[] = "__intersection__test";
     const OptixProgramGroupSingleModule one{ fakeModule, name1 };
     const OptixProgramGroupSingleModule two{ fakeModule, name2 };
 
@@ -199,8 +199,8 @@ TEST( TestCompareOptixProgramGroupSingleModule, differentModuleSameNamesAreNotEq
 {
     const OptixModule                   fakeModule1{ otk::bit_cast<OptixModule>( 1111ULL ) };
     const OptixModule                   fakeModule2{ otk::bit_cast<OptixModule>( 2222ULL ) };
-    const char* const                   name1 = "__intersection__test";
-    const char* const                   name2 = "__intersection__test";
+    char                                name1[] = "__intersection__test";
+    char                                name2[] = "__intersection__test";
     const OptixProgramGroupSingleModule one{ fakeModule1, name1 };
     const OptixProgramGroupSingleModule two{ fakeModule2, name2 };
 
@@ -299,12 +299,12 @@ TEST( TestCompareOptixProgramGroupHitgroup, sameModuleSameNameDifferentNamePoint
     const OptixModule               fakeModuleCH{ otk::bit_cast<OptixModule>( 1111ULL ) };
     const OptixModule               fakeModuleAH{ otk::bit_cast<OptixModule>( 2222ULL ) };
     const OptixModule               fakeModuleIS{ otk::bit_cast<OptixModule>( 3333ULL ) };
-    const char* const               chName1{ "__closesthit__test" };
-    const char* const               chName2{ "__closesthit__test" };
-    const char* const               ahName1{ "__anyhit__test" };
-    const char* const               ahName2{ "__anyhit__test" };
-    const char* const               isName1{ "__intersection__test" };
-    const char* const               isName2{ "__intersection__test" };
+    char                            chName1[] = "__closesthit__test";
+    char                            chName2[] = "__closesthit__test";
+    char                            ahName1[] = "__anyhit__test";
+    char                            ahName2[] = "__anyhit__test";
+    char                            isName1[] = "__intersection__test";
+    char                            isName2[] = "__intersection__test";
     const OptixProgramGroupHitgroup one{ fakeModuleCH, chName1, OptixModule{}, nullptr, OptixModule{}, nullptr };
     const OptixProgramGroupHitgroup two{ fakeModuleCH, chName2, OptixModule{}, nullptr, OptixModule{}, nullptr };
     const OptixProgramGroupHitgroup three{ fakeModuleCH, chName1, fakeModuleAH, nullptr, OptixModule{}, nullptr };
@@ -339,8 +339,8 @@ TEST( TestCompareOptixProgramGroupCallables, equalToItself )
 {
     const OptixModule                fakeModuleDC{ otk::bit_cast<OptixModule>( 1111ULL ) };
     const OptixModule                fakeModuleCC{ otk::bit_cast<OptixModule>( 2222ULL ) };
-    const char* const                nameDC{ "__directcallable__test" };
-    const char* const                nameCC{ "__continuationcallable__test" };
+    const char* const                nameDC{ "__direct_callable__test" };
+    const char* const                nameCC{ "__continuation_callable__test" };
     const OptixProgramGroupCallables one{};
     const OptixProgramGroupCallables two{ fakeModuleDC, nullptr, OptixModule{}, nullptr };
     const OptixProgramGroupCallables three{ fakeModuleDC, nameDC, OptixModule{}, nullptr };
@@ -363,10 +363,10 @@ TEST( TestCompareOptixProgramGroupCallables, sameModuleSameNameDifferentNamePoin
 {
     const OptixModule                fakeModuleDC{ otk::bit_cast<OptixModule>( 1111ULL ) };
     const OptixModule                fakeModuleCC{ otk::bit_cast<OptixModule>( 2222ULL ) };
-    const char* const                nameDC1{ "__directcallable__test" };
-    const char* const                nameDC2{ "__directcallable__test" };
-    const char* const                nameCC1{ "__continuationcallable__test" };
-    const char* const                nameCC2{ "__continuationcallable__test" };
+    char                             nameDC1[] = "__direct_callable__test";
+    char                             nameDC2[] = "__direct_callable__test";
+    char                             nameCC1[] = "__continuation_callable__test";
+    char                             nameCC2[] = "__continuation_callable__test";
     const OptixProgramGroupCallables one{ fakeModuleDC, nameDC1, OptixModule{}, nullptr };
     const OptixProgramGroupCallables two{ fakeModuleDC, nameDC2, OptixModule{}, nullptr };
     const OptixProgramGroupCallables three{ fakeModuleDC, nameDC1, fakeModuleCC, nameCC1 };
@@ -390,10 +390,10 @@ TEST( TestCompareOptixProgramGroupCallables, sameModuleDifferentNamesAreNotEqual
 {
     const OptixModule                fakeModuleDC{ otk::bit_cast<OptixModule>( 1111ULL ) };
     const OptixModule                fakeModuleCC{ otk::bit_cast<OptixModule>( 2222ULL ) };
-    const char* const                nameDC1{ "__directcallable__test1" };
-    const char* const                nameDC2{ "__directcallable__test2" };
-    const char* const                nameCC1{ "__continuationcallable__test1" };
-    const char* const                nameCC2{ "__continuationcallable__test2" };
+    char                             nameDC1[] = "__direct_callable__test1";
+    char                             nameDC2[] = "__direct_callable__test2";
+    char                             nameCC1[] = "__continuation_callable__test1";
+    char                             nameCC2[] = "__continuation_callable__test2";
     const OptixProgramGroupCallables one{ fakeModuleDC, nameDC1, OptixModule{}, nullptr };
     const OptixProgramGroupCallables two{ fakeModuleDC, nameDC2, OptixModule{}, nullptr };
     const OptixProgramGroupCallables three{ fakeModuleDC, nameDC1, fakeModuleCC, nameCC1 };
@@ -417,8 +417,8 @@ TEST( TestCompareOptixProgramGroupCallables, differentModuleSameNamesAreNotEqual
     const OptixModule                fakeModuleDC2{ otk::bit_cast<OptixModule>( 2222ULL ) };
     const OptixModule                fakeModuleCC1{ otk::bit_cast<OptixModule>( 3333ULL ) };
     const OptixModule                fakeModuleCC2{ otk::bit_cast<OptixModule>( 4444ULL ) };
-    const char* const                nameDC{ "__directcallable__test1" };
-    const char* const                nameCC{ "__continuationcallable__test1" };
+    const char* const                nameDC{ "__direct_callable__test1" };
+    const char* const                nameCC{ "__continuation_callable__test1" };
     const OptixProgramGroupCallables one{ fakeModuleDC1, nameDC, OptixModule{}, nullptr };
     const OptixProgramGroupCallables two{ fakeModuleDC2, nameDC, OptixModule{}, nullptr };
     const OptixProgramGroupCallables three{ fakeModuleDC1, nameDC, fakeModuleCC1, nameCC };
