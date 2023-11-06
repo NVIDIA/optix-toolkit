@@ -22,8 +22,13 @@
 
 #include <optix.h>
 
+#include <iomanip>
 #include <iostream>
 #include <string>
+
+/// Comparison operators and stream insertion operators for OptiX structures.  This enables
+/// gtest matchers to compare the values of structures and output their values when they don't
+/// match.
 
 namespace otk {
 namespace testing {
@@ -34,9 +39,44 @@ inline bool stringsBothNullOrSame( const char* lhs, const char* rhs )
     return ( lhs == nullptr && rhs == nullptr ) || ( lhs != nullptr && rhs != nullptr && std::string{ lhs } == rhs );
 }
 
+inline void stringOrNullPtr( std::ostream& str, const char* value )
+{
+    str << (value != nullptr ? value : "nullptr");
+}
+
+inline void flags( std::ostream& str, unsigned int value )
+{
+    const char fill = str.fill();
+    str << value << " (0x" << std::hex << std::setfill( '0' ) << std::setw( sizeof( unsigned int ) * 2 ) << value
+        << std::dec << std::setw( 0 ) << std::setfill( fill ) << ")";
+}
+
 }  // namespace detail
 }  // namespace testing
 }  // namespace otk
+
+// To satisfy argument-dependent lookup, the comparison operators have to be in the global scope,
+// where OptiX structures are declared.
+
+inline bool operator==( const OptixAabb& lhs, const OptixAabb& rhs )
+{
+    // clang-format off
+    return
+        lhs.minX == rhs.minX && lhs.minY == rhs.minY && lhs.minZ == rhs.minZ &&
+        lhs.maxX == rhs.maxX && lhs.maxY == rhs.maxY && lhs.maxZ == rhs.maxZ;
+    // clang-format on
+}
+
+inline bool operator!=( const OptixAabb& lhs, const OptixAabb& rhs )
+{
+    return !( lhs == rhs );
+}
+
+inline std::ostream& operator<<( std::ostream& str, const OptixAabb& val )
+{
+    return str << "{ min(" << val.minX << ", " << val.minY << ", " << val.minZ << "), max(" << val.maxX << ", "
+               << val.maxY << ", " << val.maxZ << ") }";
+}
 
 inline bool operator==( const OptixProgramGroupSingleModule& lhs, const OptixProgramGroupSingleModule& rhs )
 {
@@ -137,15 +177,15 @@ inline bool operator==( const OptixPipelineCompileOptions& lhs, const OptixPipel
 {
     // clang-format off
     return
-        lhs.usesMotionBlur == rhs.usesMotionBlur &&
-        lhs.traversableGraphFlags == rhs.traversableGraphFlags &&
-        lhs.numPayloadValues == rhs.numPayloadValues &&
-        lhs.numAttributeValues == rhs.numAttributeValues &&
-        lhs.exceptionFlags == rhs.exceptionFlags &&
+        lhs.usesMotionBlur          == rhs.usesMotionBlur &&
+        lhs.traversableGraphFlags   == rhs.traversableGraphFlags &&
+        lhs.numPayloadValues        == rhs.numPayloadValues &&
+        lhs.numAttributeValues      == rhs.numAttributeValues &&
+        lhs.exceptionFlags          == rhs.exceptionFlags &&
         otk::testing::detail::stringsBothNullOrSame( lhs.pipelineLaunchParamsVariableName, rhs.pipelineLaunchParamsVariableName ) &&
-        lhs.usesPrimitiveTypeFlags == rhs.usesPrimitiveTypeFlags &&
+        lhs.usesPrimitiveTypeFlags  == rhs.usesPrimitiveTypeFlags &&
 #if OPTIX_VERSION >= 70600
-        lhs.allowOpacityMicromaps == rhs.allowOpacityMicromaps;
+        lhs.allowOpacityMicromaps   == rhs.allowOpacityMicromaps;
 #else
         true;
 #endif
@@ -155,6 +195,22 @@ inline bool operator==( const OptixPipelineCompileOptions& lhs, const OptixPipel
 inline bool operator!=( const OptixPipelineCompileOptions& lhs, const OptixPipelineCompileOptions& rhs )
 {
     return !( lhs == rhs );
+}
+
+inline std::ostream& operator<<( std::ostream& str, const OptixPipelineCompileOptions& value )
+{
+    str << "PipelineCompileOptions{ " << value.usesMotionBlur << ", ";
+    otk::testing::detail::flags( str, value.traversableGraphFlags );
+    str << ", " << value.numPayloadValues << ", " << value.numAttributeValues << ", ";
+    otk::testing::detail::flags( str, value.exceptionFlags );
+    str << ", ";
+    otk::testing::detail::stringOrNullPtr( str, value.pipelineLaunchParamsVariableName );
+    str << ", ";
+    otk::testing::detail::flags( str, value.usesPrimitiveTypeFlags );
+#if OPTIX_VERSION >= 70600
+    str << ", " << value.allowOpacityMicromaps;
+#endif
+    return str << " }";
 }
 
 inline const char* toString( OptixProgramGroupKind kind )
@@ -175,7 +231,67 @@ inline const char* toString( OptixProgramGroupKind kind )
     return "";
 }
 
+namespace otk {
+namespace testing {
+namespace detail {
+
+inline std::ostream& entryPoint( std::ostream& str, const char* prefix, OptixModule module, const char* entryFunctionName )
+{
+    str << prefix << "{ " << module << ", ";
+    stringOrNullPtr( str, entryFunctionName );
+    return str << " }";
+}
+
+}  // namespace detail
+}  // namespace testing
+}  // namespace otk
+
+inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupSingleModule& val )
+{
+    otk::testing::detail::entryPoint( str, "SingleModule", val.module, val.entryFunctionName );
+    return str;
+}
+
+inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupHitgroup& val )
+{
+    str << "HitGroup{ ";
+    otk::testing::detail::entryPoint( str, "IS", val.moduleIS, val.entryFunctionNameIS );
+    str << ", ";
+    otk::testing::detail::entryPoint( str, "AH", val.moduleAH, val.entryFunctionNameAH );
+    str << ", ";
+    otk::testing::detail::entryPoint( str, "CH", val.moduleCH, val.entryFunctionNameCH );
+    return str << " }";
+}
+
+inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupCallables& val )
+{
+    str << "Callables{ ";
+    otk::testing::detail::entryPoint( str, "DC", val.moduleDC, val.entryFunctionNameDC );
+    str << ", ";
+    otk::testing::detail::entryPoint( str, "CC", val.moduleCC, val.entryFunctionNameCC );
+    return str << " }";
+}
+
 inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupDesc& val )
 {
-    return str << "ProgramGroup{ " << toString( val.kind ) << " (" << val.kind << ") }";
+    str << "ProgramGroup{ " << toString( val.kind ) << " (" << val.kind << "), ";
+    switch( val.kind )
+    {
+        case OPTIX_PROGRAM_GROUP_KIND_RAYGEN:
+            str << val.raygen;
+            break;
+        case OPTIX_PROGRAM_GROUP_KIND_MISS:
+            str << val.miss;
+            break;
+        case OPTIX_PROGRAM_GROUP_KIND_EXCEPTION:
+            str << val.exception;
+            break;
+        case OPTIX_PROGRAM_GROUP_KIND_HITGROUP:
+            str << val.hitgroup;
+            break;
+        case OPTIX_PROGRAM_GROUP_KIND_CALLABLES:
+            str << val.callables;
+            break;
+    }
+    return str << " }";
 }

@@ -24,9 +24,109 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
+
 // Use EXPECT_FALSE( a == b ), etc., instead of EXPECT_NE( a, b ) to explicitly
 // exercise the comparison operator== instead of operator!=.
 // For the TRUE case, the google macro will do what we want.
+
+TEST( TestCompareOptixAabb, equalToItself )
+{
+    const OptixAabb one{};
+    OptixAabb       two{};
+    two.minX = -1.0f;
+    OptixAabb three{ two };
+    three.minY = -1.0f;
+    OptixAabb four{ three };
+    four.minZ = -1.0f;
+    OptixAabb five{ four };
+    five.maxX = 1.0f;
+    OptixAabb six{ five };
+    six.maxY = 1.0f;
+    OptixAabb seven{ six };
+    seven.maxZ = 1.0f;
+
+    EXPECT_EQ( one, one );
+    EXPECT_EQ( two, two );
+    EXPECT_EQ( three, three );
+    EXPECT_EQ( four, four );
+    EXPECT_EQ( five, five );
+    EXPECT_EQ( six, six );
+    EXPECT_EQ( seven, seven );
+    EXPECT_FALSE( one != one );
+    EXPECT_FALSE( two != two );
+    EXPECT_FALSE( three != three );
+    EXPECT_FALSE( four != four );
+    EXPECT_FALSE( five != five );
+    EXPECT_FALSE( six != six );
+    EXPECT_FALSE( seven != seven );
+}
+
+TEST( TestCompareOptixAabb, differentMinX )
+{
+    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb two{+1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+
+    EXPECT_NE( one, two );
+    EXPECT_NE( two, one );
+    EXPECT_FALSE( one == two );
+    EXPECT_FALSE( two == one );
+}
+
+TEST( TestCompareOptixAabb, differentMinY )
+{
+    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb two{-1.0f, +2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+
+    EXPECT_NE( one, two );
+    EXPECT_NE( two, one );
+    EXPECT_FALSE( one == two );
+    EXPECT_FALSE( two == one );
+}
+
+TEST( TestCompareOptixAabb, differentMinZ )
+{
+    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb two{-1.0f, -2.0f, +3.0f, 4.0f, 5.0f, 6.0f};
+
+    EXPECT_NE( one, two );
+    EXPECT_NE( two, one );
+    EXPECT_FALSE( one == two );
+    EXPECT_FALSE( two == one );
+}
+
+TEST( TestCompareOptixAabb, differentMaxX )
+{
+    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb two{-1.0f, -2.0f, -3.0f, 5.0f, 5.0f, 6.0f};
+
+    EXPECT_NE( one, two );
+    EXPECT_NE( two, one );
+    EXPECT_FALSE( one == two );
+    EXPECT_FALSE( two == one );
+}
+
+TEST( TestCompareOptixAabb, differentMaxY )
+{
+    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb two{-1.0f, -2.0f, -3.0f, 4.0f, 6.0f, 6.0f};
+
+    EXPECT_NE( one, two );
+    EXPECT_NE( two, one );
+    EXPECT_FALSE( one == two );
+    EXPECT_FALSE( two == one );
+}
+
+TEST( TestCompareOptixAabb, differentMaxZ )
+{
+    const OptixAabb one{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f};
+    const OptixAabb two{-1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 7.0f};
+
+    EXPECT_NE( one, two );
+    EXPECT_NE( two, one );
+    EXPECT_FALSE( one == two );
+    EXPECT_FALSE( two == one );
+}
 
 TEST( TestCompareOptixProgramGroupSingleModule, equalToItself )
 {
@@ -793,3 +893,154 @@ TEST( TestCompareOptixPipelineCompileOptions, differentOpacityMicromapsAreNotEqu
     EXPECT_FALSE( two == one );
 }
 #endif
+
+TEST( TestOutputOptixAabb, defaultConstructed )
+{
+    std::ostringstream str;
+    OptixAabb          value{};
+
+    str << value;
+
+    EXPECT_EQ( "{ min(0, 0, 0), max(0, 0, 0) }", str.str() );
+}
+
+TEST( TestOutputOptixAabb, hasValues )
+{
+    std::ostringstream str;
+    OptixAabb          value{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+
+    str << value;
+
+    EXPECT_EQ( "{ min(-1, -2, -3), max(4, 5, 6) }", str.str() );
+}
+
+TEST( TestOutputOptixInstance, defaultConstructed )
+{
+    std::ostringstream str;
+    OptixInstance      value{};
+
+    str << value;
+
+    EXPECT_EQ( "Instance{ [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], 0, 0, 0, 0, 0 }", str.str() );
+}
+
+TEST( TestOutputOptixPipelineCompileOptions, defaultConstructed )
+{
+    std::ostringstream          str;
+    OptixPipelineCompileOptions value{};
+
+    str << value;
+
+#if OPTIX_VERSION >= 70600
+    EXPECT_EQ( "PipelineCompileOptions{ 0, 0 (0x00000000), 0, 0, 0 (0x00000000), nullptr, 0 (0x00000000), 0 }", str.str() );
+#else
+    EXPECT_EQ( "PipelineCompileOptions{ 0, 0 (0x00000000), 0, 0, 0 (0x00000000), nullptr, 0 (0x00000000) }", str.str() );
+#endif
+}
+
+TEST( TestOutputOptixPipelineCompileOptions, hasValues )
+{
+    std::ostringstream          str;
+    OptixPipelineCompileOptions value;
+    value.usesMotionBlur                   = 1;
+    value.traversableGraphFlags            = 0xf00dU;
+    value.numPayloadValues                 = 2;
+    value.numAttributeValues               = 3;
+    value.exceptionFlags                   = 0xbaadU;
+    value.pipelineLaunchParamsVariableName = "variable_name";
+    value.usesPrimitiveTypeFlags           = 0xf337U;
+#if OPTIX_VERSION >= 70600
+    value.allowOpacityMicromaps = 4;
+#endif
+
+    str << value;
+
+#if OPTIX_VERSION >= 70600
+    EXPECT_EQ(
+        "PipelineCompileOptions{ 1, 61453 (0x0000f00d), 2, 3, 47789 (0x0000baad), variable_name, 62263 (0x0000f337), 4 "
+        "}",
+        str.str() );
+#else
+    EXPECT_EQ(
+        "PipelineCompileOptions{ 1, 61453 (0x0000f00d), 2, 3, 47789 (0x0000baad), variable_name, 62263 (0x0000f337) }", str.str() );
+#endif
+}
+
+TEST( TestOutputOptixProgramGroupCallables, defaultConstructed )
+{
+    std::ostringstream         str;
+    OptixProgramGroupCallables value{};
+
+    str << value;
+
+    EXPECT_EQ( "Callables{ DC{ 0000000000000000, nullptr }, CC{ 0000000000000000, nullptr } }", str.str() );
+}
+
+TEST( TestOutputOptixProgramGroupCallables, hasValues )
+{
+    std::ostringstream         str;
+    OptixProgramGroupCallables value;
+    value.moduleDC            = otk::bit_cast<OptixModule>( 0x1111deadbeefULL );
+    value.entryFunctionNameDC = "__direct_callable__fn";
+    value.moduleCC            = otk::bit_cast<OptixModule>( 0x2222deadbeefULL );
+    value.entryFunctionNameCC = "__continuation_callable__fn";
+
+    str << value;
+
+    EXPECT_EQ(
+        "Callables{ DC{ 00001111DEADBEEF, __direct_callable__fn }, CC{ 00002222DEADBEEF, __continuation_callable__fn } "
+        "}",
+        str.str() );
+}
+TEST( TestOutputOptixProgramGroupHitgroup, defaultConstructed )
+{
+    std::ostringstream        str;
+    OptixProgramGroupHitgroup value{};
+
+    str << value;
+
+    EXPECT_EQ(
+        "HitGroup{ IS{ 0000000000000000, nullptr }, AH{ 0000000000000000, nullptr }, CH{ 0000000000000000, nullptr } }",
+        str.str() );
+}
+
+TEST( TestOutputOptixProgramGroupHitgroup, hasValues )
+{
+    std::ostringstream        str;
+    OptixProgramGroupHitgroup value;
+    value.moduleIS            = otk::bit_cast<OptixModule>( 0x1111deadbeefULL );
+    value.entryFunctionNameIS = "__intersection__mesh";
+    value.moduleAH            = otk::bit_cast<OptixModule>( 0x2222deadbeefULL );
+    value.entryFunctionNameAH = "__anyhit__mesh";
+    value.moduleCH            = otk::bit_cast<OptixModule>( 0x3333deadbeefULL );
+    value.entryFunctionNameCH = "__closesthit__mesh";
+
+    str << value;
+
+    EXPECT_EQ(
+        "HitGroup{ IS{ 00001111DEADBEEF, __intersection__mesh }, AH{ 00002222DEADBEEF, __anyhit__mesh }, "
+        "CH{ 00003333DEADBEEF, __closesthit__mesh } }",
+        str.str() );
+}
+
+TEST( TestOutputOptixProgramGroupSingleModule, defaultConstructed )
+{
+    std::ostringstream            str;
+    OptixProgramGroupSingleModule value{};
+
+    str << value;
+
+    EXPECT_EQ( "SingleModule{ 0000000000000000, nullptr }", str.str() );
+}
+
+TEST( TestOutputOptixProgramGroupSingleModule, hasValues )
+{
+    std::ostringstream            str;
+    OptixProgramGroupSingleModule value;
+    value.module            = otk::bit_cast<OptixModule>( 0xdeadbeefULL );
+    value.entryFunctionName = "__raygen__parallel";
+
+    str << value;
+
+    EXPECT_EQ( "SingleModule{ 00000000DEADBEEF, __raygen__parallel }", str.str() );
+}
