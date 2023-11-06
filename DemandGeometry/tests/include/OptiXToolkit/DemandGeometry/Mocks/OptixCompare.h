@@ -42,7 +42,7 @@ inline bool stringsBothNullOrSame( const char* lhs, const char* rhs )
 
 inline void stringOrNullPtr( std::ostream& str, const char* value )
 {
-    str << (value != nullptr ? value : "nullptr");
+    str << ( value != nullptr ? value : "nullptr" );
 }
 
 inline void flags( std::ostream& str, unsigned int value )
@@ -233,7 +233,7 @@ inline const char* toString( OptixProgramGroupKind kind )
 }
 
 // Printing out what amounts to a void* is platform specific.  One some platforms you
-// get uppercase hex digits on some platforms you get lowercase hex digits.  Fo OptixModule
+// get uppercase hex digits on some platforms you get lowercase hex digits.  For OptixModule
 // define a stream insertion operator that converts the opaque pointer to an unsigned long long
 // and prints that as a hexadecimal value.
 inline std::ostream& operator<<( std::ostream& str, OptixModule value )
