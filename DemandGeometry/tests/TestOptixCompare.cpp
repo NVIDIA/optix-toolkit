@@ -769,9 +769,11 @@ TEST( TestCompareOptixPipelineCompileOptions, isEqualToItself )
 TEST( TestCompareOptixPipelineCompileOptions, sameParamNameDifferentNamePointersAreEqual )
 {
     OptixPipelineCompileOptions one{};
-    one.pipelineLaunchParamsVariableName = "params";
+    char                        name1[]  = "params";
+    one.pipelineLaunchParamsVariableName = name1;
     OptixPipelineCompileOptions two{};
-    two.pipelineLaunchParamsVariableName = "params";
+    char                        name2[]  = "params";
+    two.pipelineLaunchParamsVariableName = name2;
 
     EXPECT_NE( one.pipelineLaunchParamsVariableName, two.pipelineLaunchParamsVariableName );
     EXPECT_STREQ( one.pipelineLaunchParamsVariableName, two.pipelineLaunchParamsVariableName );
