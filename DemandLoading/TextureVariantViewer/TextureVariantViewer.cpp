@@ -83,9 +83,6 @@ void TextureVariantApp::createTexture()
         const demandLoading::DemandTexture& texture2 = state.demandLoader->createTexture( imageSource, texDesc2 );
         if( m_textureIds.size() == 1 )
             m_textureIds.push_back( texture2.getId() );
-
-        // The OptiX closest hit program assumes the textures are consecutive.
-        assert( texture2.getId() == texture1.getId() + PAGES_PER_TEXTURE ); 
     }
 }
 
