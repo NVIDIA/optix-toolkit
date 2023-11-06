@@ -104,6 +104,6 @@ __host__ void launchDeviceFixedPoolInterleavedTest( const DeviceFixedPool& fixed
     dim3 dimBlock( 512 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x );
     deviceFixedPoolInterleavedTestKernel<<<dimGrid, dimBlock>>>( fixedPool, output, width );
-    OTK_MEMORY_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }
 

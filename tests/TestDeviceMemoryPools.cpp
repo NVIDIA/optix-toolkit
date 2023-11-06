@@ -140,7 +140,7 @@ TEST_F( TestDeviceMemoryPools, TestInterleavedAccess )
     // Create output buffer
     char** devOutput;
     unsigned int outputSize = 65536;
-    OTK_MEMORY_CUDA_CHECK( cudaMalloc( &devOutput, outputSize * sizeof(char*) ) );
+    OTK_ERROR_CHECK( cudaMalloc( &devOutput, outputSize * sizeof(char*) ) );
 
     // Create DeviceFixedPool allocate by thread, and launch test kernel
     DeviceFixedPool fixedPool;
@@ -150,13 +150,13 @@ TEST_F( TestDeviceMemoryPools, TestInterleavedAccess )
 
     // Copy output buffer back to host, and do a range check on the buffer elements
     std::vector<char*> hostOutput( outputSize );
-    OTK_MEMORY_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput,  outputSize * sizeof(char*), cudaMemcpyDeviceToHost ) );
     checkRange( hostOutput, fixedPool.buffer, fixedPool.numItemGroups * WARP_SIZE * fixedPool.itemSize );
 
     // Copy fixed pool memory back, and check it
     int numBytes = fixedPool.numItemGroups * WARP_SIZE * fixedPool.itemSize;
     std::vector<int> hostPoolCopy( numBytes / sizeof(int) );
-    OTK_MEMORY_CUDA_CHECK( cudaMemcpy( hostPoolCopy.data(), fixedPool.buffer, numBytes, cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostPoolCopy.data(), fixedPool.buffer, numBytes, cudaMemcpyDeviceToHost ) );
     for( unsigned int i=0; i < numBytes / sizeof(int); ++i )
     {
         EXPECT_EQ( hostPoolCopy[i], ( i / WARP_SIZE ) % 8 );
@@ -164,5 +164,5 @@ TEST_F( TestDeviceMemoryPools, TestInterleavedAccess )
     fixedPool.tearDown();
 
     // Destroy the device-side output buffer
-    OTK_MEMORY_CUDA_CHECK( cudaFree( reinterpret_cast<char*>( devOutput ) ) );
+    OTK_ERROR_CHECK( cudaFree( reinterpret_cast<char*>( devOutput ) ) );
 }
