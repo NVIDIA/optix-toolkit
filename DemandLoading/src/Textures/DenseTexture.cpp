@@ -112,6 +112,8 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
     OTK_ASSERT( m_isInitialized );
     OTK_ASSERT( width == m_info.width );
     OTK_ASSERT( height == m_info.height );
+    (void)width; // silence unused variable warning
+    (void)height;
 
     // Fill each level.
     size_t             offset    = 0;

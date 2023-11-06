@@ -81,8 +81,10 @@ bool DeviceConstantImage::readMipLevel( char* dest, unsigned int mipLevel, unsig
     const unsigned int levelHeight = std::max( 1u, m_info.height >> mipLevel );
 
     OTK_ASSERT_MSG( levelWidth == width && levelHeight == height,
-                       "Mismatch between parameter and calculated mip level size." );
-
+                    "Mismatch between parameter and calculated mip level size." );
+    (void)width;  // silence unused variable warning
+    (void)height;
+    
     DeviceConstantImageParams params{};
     params.num_pixels    = levelWidth * levelHeight;
     params.color         = m_mipColors[mipLevel % m_mipColors.size()];

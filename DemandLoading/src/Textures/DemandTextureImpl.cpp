@@ -368,6 +368,8 @@ bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, uns
     const unsigned int bytesPerPixel = imageSource::getBytesPerChannel( getInfo().format ) * getInfo().numChannels;
     const unsigned int bytesPerTile  = getTileWidth() * getTileHeight() * bytesPerPixel;
     OTK_ASSERT_MSG( bytesPerTile <= tileBufferSize, "Maximum tile size exceeded" );
+    (void)bytesPerTile;  // silence unused variable warning
+    (void)tileBufferSize;
 
     return m_image->readTile( tileBuffer, mipLevel, tileX, tileY, getTileWidth(), getTileHeight(), stream );
 }
@@ -401,6 +403,7 @@ bool DemandTextureImpl::readNonMipMappedData( char* buffer, size_t bufferSize, C
     OTK_ASSERT( m_isInitialized );
     OTK_ASSERT( m_info.numMipLevels == 1 );
     OTK_ASSERT_MSG( m_mipTailSize <= bufferSize, "Provided buffer is too small." );
+    (void)bufferSize;  // silence unused variable warning.
 
     return m_image->readMipLevel( buffer, 0, getInfo().width, getInfo().height, stream );
 }
@@ -421,6 +424,8 @@ bool DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned
     const unsigned int pixelSize = getInfo().numChannels * imageSource::getBytesPerChannel( getInfo().format );
     size_t dataSize = ( m_mipLevelDims[startLevel].x * m_mipLevelDims[startLevel].y * pixelSize * 4 ) / 3;
     OTK_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
+    (void)dataSize;  // silence unused variable warning
+    (void)bufferSize;
 
     return m_image->readMipTail( buffer, startLevel, getInfo().numMipLevels, m_mipLevelDims.data(), pixelSize, stream );
 }

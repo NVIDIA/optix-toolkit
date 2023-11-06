@@ -322,6 +322,7 @@ void SparseTexture::fillMipTail( CUstream                     stream,
 {
     OTK_ASSERT( m_isInitialized );
     OTK_ASSERT( mipTailSize >= getMipTailSize() );
+    (void)mipTailSize;  // silence unused variable warning.
 
     m_array->mapMipTailAsync(stream, getMipTailSize(), tileHandle, tileOffset);
 

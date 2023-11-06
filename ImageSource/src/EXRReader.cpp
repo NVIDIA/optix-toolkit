@@ -319,6 +319,8 @@ bool EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int ex
         // Get window offset and dimensions.
         const int width  = dw.max.x - dw.min.x + 1;
         const int height = dw.max.y - dw.min.y + 1;
+        (void)expectedWidth;   // silence unused variable warning
+        (void)expectedHeight;  // silence unused variable warning
         OTK_ASSERT( width  == static_cast<int>( expectedWidth ) );
         OTK_ASSERT( height == static_cast<int>( expectedHeight ) );
         OTK_ASSERT( mipLevel == 0 );
