@@ -86,7 +86,7 @@ class MigrateTextureTilesPredicate : public PageInvalidatorPredicate
     }
     bool operator()( unsigned int pageId, unsigned long long pageVal, CUstream stream ) override
     {
-        DEMAND_ASSERT_MSG( pageId >= m_oldSampler.startPage && pageId < m_oldSampler.startPage + m_oldSampler.numPages,
+        OTK_ASSERT_MSG( pageId >= m_oldSampler.startPage && pageId < m_oldSampler.startPage + m_oldSampler.numPages,
             "pageId outside texture tile range." );
 
         // FIXME: What if the tiles are non-evictable?
@@ -380,7 +380,8 @@ void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
 
 void DemandLoaderImpl::initUdimTexture( CUstream stream, unsigned int baseTextureId )
 {
-    OTK_CONTEXT_STREAM_CUDA_CHECK( m_cudaContext, stream );
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     m_samplerRequestHandler.loadPage( stream, baseTextureId, true ); // make sure the sampler is reloaded to get udim params.
     m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( baseTextureId, getOptions().maxTextures ) );
 
@@ -597,7 +598,7 @@ unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
 {
     // Allocate pages for numTextures. Note: pages for all textures were reserved in the constructor of DemandLoaderImpl.
     unsigned int textureId = static_cast<unsigned int>( m_textures.size() );
-    DEMAND_ASSERT_MSG( textureId + numTextures - 1 < getOptions().maxTextures, "Too many textures defined.\n" );
+    OTK_ASSERT_MSG( textureId + numTextures - 1 < getOptions().maxTextures, "Too many textures defined.\n" );
     return textureId;
 }
 

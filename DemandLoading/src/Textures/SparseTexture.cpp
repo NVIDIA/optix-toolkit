@@ -328,7 +328,7 @@ void SparseTexture::unmapTile( CUstream stream, unsigned int mipLevel, unsigned 
 
 void SparseTexture::mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     m_array->mapMipTailAsync(stream, getMipTailSize(), tileHandle, tileOffset);
 }
 

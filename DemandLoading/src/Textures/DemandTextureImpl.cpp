@@ -398,7 +398,7 @@ void DemandTextureImpl::mapTile( CUstream                     stream,
                                  CUmemGenericAllocationHandle tileHandle,
                                  size_t                       tileOffset ) const
 {
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
     m_sparseTexture.mapTile( stream, mipLevel, tileX, tileY, tileHandle, tileOffset );
 }
 

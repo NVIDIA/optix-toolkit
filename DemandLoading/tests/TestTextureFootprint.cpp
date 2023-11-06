@@ -292,9 +292,9 @@ class TextureFootprintFixture
                 OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
                 // Ignore tests for devices that do not support texture footprints
-                DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
+                OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
                 int sparseSupport = 0;
-                DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
+                OTK_ERROR_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, device ) );
                 if( !sparseSupport )
                     return 0;
 
