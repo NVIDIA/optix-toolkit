@@ -599,6 +599,7 @@ unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
     // Allocate pages for numTextures. Note: pages for all textures were reserved in the constructor of DemandLoaderImpl.
     unsigned int textureId = static_cast<unsigned int>( m_textures.size() );
     OTK_ASSERT_MSG( textureId + numTextures - 1 < getOptions().maxTextures, "Too many textures defined.\n" );
+    (void)numTextures;  // silence unused variable warning
     return textureId;
 }
 
