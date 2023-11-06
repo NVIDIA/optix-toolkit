@@ -973,7 +973,7 @@ TEST( TestOutputOptixProgramGroupCallables, defaultConstructed )
 
     str << value;
 
-    EXPECT_EQ( "Callables{ DC{ 0000000000000000, nullptr }, CC{ 0000000000000000, nullptr } }", str.str() );
+    EXPECT_EQ( "Callables{ DC{ 0x0000000000000000, nullptr }, CC{ 0x0000000000000000, nullptr } }", str.str() );
 }
 
 TEST( TestOutputOptixProgramGroupCallables, hasValues )
@@ -988,7 +988,8 @@ TEST( TestOutputOptixProgramGroupCallables, hasValues )
     str << value;
 
     EXPECT_EQ(
-        "Callables{ DC{ 00001111DEADBEEF, __direct_callable__fn }, CC{ 00002222DEADBEEF, __continuation_callable__fn } "
+        "Callables{ DC{ 0x00001111deadbeef, __direct_callable__fn }, CC{ 0x00002222deadbeef, "
+        "__continuation_callable__fn } "
         "}",
         str.str() );
 }
@@ -1000,7 +1001,8 @@ TEST( TestOutputOptixProgramGroupHitgroup, defaultConstructed )
     str << value;
 
     EXPECT_EQ(
-        "HitGroup{ IS{ 0000000000000000, nullptr }, AH{ 0000000000000000, nullptr }, CH{ 0000000000000000, nullptr } }",
+        "HitGroup{ IS{ 0x0000000000000000, nullptr }, AH{ 0x0000000000000000, nullptr }, CH{ 0x0000000000000000, "
+        "nullptr } }",
         str.str() );
 }
 
@@ -1018,8 +1020,8 @@ TEST( TestOutputOptixProgramGroupHitgroup, hasValues )
     str << value;
 
     EXPECT_EQ(
-        "HitGroup{ IS{ 00001111DEADBEEF, __intersection__mesh }, AH{ 00002222DEADBEEF, __anyhit__mesh }, "
-        "CH{ 00003333DEADBEEF, __closesthit__mesh } }",
+        "HitGroup{ IS{ 0x00001111deadbeef, __intersection__mesh }, AH{ 0x00002222deadbeef, __anyhit__mesh }, "
+        "CH{ 0x00003333deadbeef, __closesthit__mesh } }",
         str.str() );
 }
 
@@ -1030,7 +1032,7 @@ TEST( TestOutputOptixProgramGroupSingleModule, defaultConstructed )
 
     str << value;
 
-    EXPECT_EQ( "SingleModule{ 0000000000000000, nullptr }", str.str() );
+    EXPECT_EQ( "SingleModule{ 0x0000000000000000, nullptr }", str.str() );
 }
 
 TEST( TestOutputOptixProgramGroupSingleModule, hasValues )
@@ -1042,5 +1044,5 @@ TEST( TestOutputOptixProgramGroupSingleModule, hasValues )
 
     str << value;
 
-    EXPECT_EQ( "SingleModule{ 00000000DEADBEEF, __raygen__parallel }", str.str() );
+    EXPECT_EQ( "SingleModule{ 0x00000000deadbeef, __raygen__parallel }", str.str() );
 }

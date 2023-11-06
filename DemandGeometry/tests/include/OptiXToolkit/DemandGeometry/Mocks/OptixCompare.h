@@ -22,6 +22,7 @@
 
 #include <optix.h>
 
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -47,8 +48,8 @@ inline void stringOrNullPtr( std::ostream& str, const char* value )
 inline void flags( std::ostream& str, unsigned int value )
 {
     const char fill = str.fill();
-    str << value << " (0x" << std::hex << std::setfill( '0' ) << std::setw( sizeof( unsigned int ) * 2 ) << value
-        << std::dec << std::setw( 0 ) << std::setfill( fill ) << ")";
+    str << value << " (0x" << std::hex << std::nouppercase << std::setfill( '0' )
+        << std::setw( sizeof( unsigned int ) * 2 ) << value << std::dec << std::setw( 0 ) << std::setfill( fill ) << ")";
 }
 
 }  // namespace detail
@@ -231,13 +232,28 @@ inline const char* toString( OptixProgramGroupKind kind )
     return "";
 }
 
+// Printing out what amounts to a void* is platform specific.  One some platforms you
+// get uppercase hex digits on some platforms you get lowercase hex digits.  Fo OptixModule
+// define a stream insertion operator that converts the opaque pointer to an unsigned long long
+// and prints that as a hexadecimal value.
+inline std::ostream& operator<<( std::ostream& str, OptixModule value )
+{
+    static_assert( sizeof( OptixModule ) == sizeof( unsigned long long ),
+                   "OptixModule is not the same size as unsigned long long" );
+    unsigned long long val{};
+    std::memcpy( &val, &value, sizeof( unsigned long long ) );
+    char fill = str.fill();
+    return str << "0x" << std::nouppercase << std::setw( sizeof( unsigned long long ) * 2 ) << std::setfill( '0' )
+               << std::hex << val << std::setfill( fill );
+}
+
 namespace otk {
 namespace testing {
 namespace detail {
 
-inline std::ostream& entryPoint( std::ostream& str, const char* prefix, OptixModule module, const char* entryFunctionName )
+inline std::ostream& entryPoint( std::ostream& str, const char* prefix, OptixModule mod, const char* entryFunctionName )
 {
-    str << prefix << "{ " << module << ", ";
+    str << prefix << "{ " << mod << ", ";
     stringOrNullPtr( str, entryFunctionName );
     return str << " }";
 }
@@ -248,28 +264,22 @@ inline std::ostream& entryPoint( std::ostream& str, const char* prefix, OptixMod
 
 inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupSingleModule& val )
 {
-    otk::testing::detail::entryPoint( str, "SingleModule", val.module, val.entryFunctionName );
-    return str;
+    return otk::testing::detail::entryPoint( str, "SingleModule", val.module, val.entryFunctionName );
 }
 
 inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupHitgroup& val )
 {
     str << "HitGroup{ ";
-    otk::testing::detail::entryPoint( str, "IS", val.moduleIS, val.entryFunctionNameIS );
-    str << ", ";
-    otk::testing::detail::entryPoint( str, "AH", val.moduleAH, val.entryFunctionNameAH );
-    str << ", ";
-    otk::testing::detail::entryPoint( str, "CH", val.moduleCH, val.entryFunctionNameCH );
-    return str << " }";
+    otk::testing::detail::entryPoint( str, "IS", val.moduleIS, val.entryFunctionNameIS ) << ", ";
+    otk::testing::detail::entryPoint( str, "AH", val.moduleAH, val.entryFunctionNameAH ) << ", ";
+    return otk::testing::detail::entryPoint( str, "CH", val.moduleCH, val.entryFunctionNameCH ) << " }";
 }
 
 inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupCallables& val )
 {
     str << "Callables{ ";
-    otk::testing::detail::entryPoint( str, "DC", val.moduleDC, val.entryFunctionNameDC );
-    str << ", ";
-    otk::testing::detail::entryPoint( str, "CC", val.moduleCC, val.entryFunctionNameCC );
-    return str << " }";
+    otk::testing::detail::entryPoint( str, "DC", val.moduleDC, val.entryFunctionNameDC ) << ", ";
+    return otk::testing::detail::entryPoint( str, "CC", val.moduleCC, val.entryFunctionNameCC ) << " }";
 }
 
 inline std::ostream& operator<<( std::ostream& str, const OptixProgramGroupDesc& val )
