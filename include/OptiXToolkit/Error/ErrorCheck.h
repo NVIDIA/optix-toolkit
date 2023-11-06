@@ -168,8 +168,8 @@ void checkErrorNoThrow( T result, const char* expr, const char* file, unsigned i
 #define OTK_ASSERT( expr ) OTK_ERROR_CHECK( !static_cast<bool>( expr ) )
 #define OTK_ASSERT_MSG( expr, msg ) OTK_ERROR_CHECK_MSG( !static_cast<bool>( expr ), msg )
 #else
-#define OTK_ASSERT( expr )
-#define OTK_ASSERT_MSG( expr, msg )
+#define OTK_ASSERT( expr ) {}
+#define OTK_ASSERT_MSG( expr, msg ) {}
 #endif
 
 #endif
