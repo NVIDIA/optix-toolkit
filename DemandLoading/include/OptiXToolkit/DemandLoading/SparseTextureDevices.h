@@ -27,20 +27,9 @@
 //
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <cuda_runtime.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
-#define CUDA_CHK( call )                                                                                               \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        if( call )                                                                                                     \
-        {                                                                                                              \
-            std::stringstream ss;                                                                                      \
-            ss << __FILE__ << " (" << __LINE__ << "): " << #call;                                                      \
-            throw std::runtime_error( ss.str().c_str() );                                                              \
-        }                                                                                                              \
-    } while( 0 )
+#include <cuda.h>
 
 namespace demandLoading {
 
@@ -50,7 +39,7 @@ const unsigned int MAX_DEVICES = 32;
 inline unsigned int getCudaDeviceCount()
 {
     int numDevices;
-    CUDA_CHK( cuDeviceGetCount( &numDevices ) );
+    OTK_ERROR_CHECK( cuDeviceGetCount( &numDevices ) );
     return static_cast<unsigned int>( numDevices );
 }
 
@@ -64,12 +53,12 @@ inline unsigned int getCudaDevices()
 inline bool deviceSupportsSparseTextures( unsigned int deviceIndex )
 {
     int sparseSupport = 0;
-    CUDA_CHK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, deviceIndex ) );
+    OTK_ERROR_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, deviceIndex ) );
 
     // Skip devices in TCC mode.  This guards against an "operation not supported" error when
     // querying the recommended allocation granularity via cuMemGetAllocationGranularity.
     int inTccMode = 0;
-    CUDA_CHK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, deviceIndex ) );
+    OTK_ERROR_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, deviceIndex ) );
 
     return sparseSupport && !inTccMode;
 }
