@@ -181,14 +181,14 @@ class TestDemandLoaderResident : public TestDemandLoader
 
 TEST_F( TestDemandLoaderResident, TestSamplerRequest )
 {
-    unsigned int numDevices = getCudaDeviceCount();
-    unsigned int devices = getSparseTextureDevices();
+    // TODO: this fails with multiple GPUs under both Windows and Linux.
+    //for( unsigned int deviceIndex : getSparseTextureDevices() )
+    const std::vector<unsigned int> devices = getSparseTextureDevices();
+    if( devices.empty() )
+        return;
 
-    for( unsigned int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+    const unsigned int deviceIndex = devices[0];
     {
-        if( ( ( 1U << deviceIndex ) & devices ) == 0 )
-            continue;
-
         OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         const DemandTexture& texture = m_loaders[deviceIndex]->createTexture( m_imageSource, m_descriptor );
         const unsigned int   pageId  = texture.getId();
@@ -206,9 +206,6 @@ TEST_F( TestDemandLoaderResident, TestSamplerRequest )
         EXPECT_FALSE( isResident1 );
         EXPECT_EQ( 0, numFilled2 );
         EXPECT_TRUE( isResident2 );
-
-        // TODO: this fails with multiple GPUs under both Windows and Linux.
-        break;
     }
 }
 

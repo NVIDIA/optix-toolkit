@@ -31,6 +31,9 @@
 
 #include <cuda.h>
 
+#include <numeric>
+#include <vector>
+
 namespace demandLoading {
 
 const unsigned int MAX_DEVICES = 32;
@@ -43,10 +46,13 @@ inline unsigned int getCudaDeviceCount()
     return static_cast<unsigned int>( numDevices );
 }
 
-/// Get bitmap of all CUDA devices
-inline unsigned int getCudaDevices()
+/// Get vector of all CUDA device indices
+inline std::vector<unsigned int> getCudaDevices()
 {
-    return ( 1U << getCudaDeviceCount() ) - 1;
+    std::vector<unsigned int> devices;
+    devices.resize( getCudaDeviceCount() );
+    std::iota( devices.begin(), devices.end(), 0 );
+    return devices;
 }
 
 /// Deteremine if a CUDA device supports sparse textures
@@ -63,7 +69,8 @@ inline bool deviceSupportsSparseTextures( unsigned int deviceIndex )
     return sparseSupport && !inTccMode;
 }
 
-/// Get index of the first CUDA device that supports sparse textures.
+/// Returns the index of the first CUDA device that supports sparse textures
+/// or MAX_DEVICES if no devices support sparse textures.
 inline unsigned int getFirstSparseTextureDevice()
 {
     unsigned int numDevices = getCudaDeviceCount();
@@ -76,16 +83,16 @@ inline unsigned int getFirstSparseTextureDevice()
 }
 
 /// Get bitmap of CUDA devices that support sparse textures
-inline unsigned int getSparseTextureDevices()
+inline std::vector<unsigned int> getSparseTextureDevices()
 {
-    unsigned int numDevices = getCudaDeviceCount();
-    unsigned int devices = 0;
+    unsigned int              numDevices = getCudaDeviceCount();
+    std::vector<unsigned int> devices;
     for( unsigned int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
     {
         if( deviceSupportsSparseTextures( deviceIndex ) )
-            devices |= ( 1U << deviceIndex );
+            devices.push_back( deviceIndex );
     }
     return devices;
 }
 
-} // namespace demandLoading
+}  // namespace demandLoading

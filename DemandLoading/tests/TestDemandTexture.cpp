@@ -45,6 +45,7 @@
 #include <cuda.h>
 
 #include <memory>
+#include <stdexcept>
 
 using namespace demandLoading;
 using namespace imageSource;
@@ -67,6 +68,8 @@ class TestDemandTexture : public testing::Test
 
         // Use the first capable device.
         m_deviceIndex = getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            throw std::runtime_error( "No devices support demand loading" );
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,

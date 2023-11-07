@@ -49,6 +49,7 @@
 
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #if OPTIX_VERSION < 70700
@@ -187,6 +188,8 @@ void DeferredImageLoadingTest::initDemandLoading()
 #endif
 
     m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        throw std::runtime_error( "No devices support demand loading" );
     OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
     OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );

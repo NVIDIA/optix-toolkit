@@ -148,7 +148,7 @@ DemandLoader* createDemandLoader( const Options& options );
 void destroyDemandLoader( DemandLoader* manager );
 
 /// Get a bitmap of devices to use for demand loading
-inline unsigned int getDemandLoadDevices( bool sparseOnly )
+inline std::vector<unsigned int> getDemandLoadDevices( bool sparseOnly )
 {
     return sparseOnly ? getSparseTextureDevices() : getCudaDevices();
 }
