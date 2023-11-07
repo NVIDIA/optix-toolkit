@@ -150,8 +150,7 @@ void destroyDemandLoader( DemandLoader* manager );
 /// Get a bitmap of devices to use for demand loading
 inline unsigned int getDemandLoadDevices( bool sparseOnly )
 {
-    unsigned int devices = ( sparseOnly ) ? getSparseTextureDevices() : getCudaDevices();
-    return ( devices ) ? devices : getCudaDevices();
+    return sparseOnly ? getSparseTextureDevices() : getCudaDevices();
 }
 
 }  // namespace demandLoading
