@@ -26,16 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <iostream>
-#include <iomanip>
+#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 
-#include <cuda_runtime.h>
-
-#include <optix.h>
-#include <optix_function_table_definition.h>
-#include <optix_stack_size.h>
-#include <optix_stubs.h>
-
+#include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
+#include <OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
@@ -46,20 +44,20 @@
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
 
-#include <OptiXToolkit/DemandLoading/DemandLoader.h>
-#include <OptiXToolkit/DemandLoading/DemandTexture.h>
-#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
-#include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <optix.h>
+#include <optix_function_table_definition.h>
+#include <optix_stack_size.h>
+#include <optix_stubs.h>
 
-#include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
-#include <OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <cuda_runtime.h>
+
+#include <cmath>
+#include <iomanip>
+#include <iostream>
 
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
-
-#include <cmath>
 
 #ifndef M_PI
 constexpr float M_PI = 3.14159265358979323846f;
@@ -77,17 +75,13 @@ DemandTextureApp::DemandTextureApp( const char* appName, unsigned int width, uns
     , m_outputFileName( outFileName )
 {
     // Initialize CUDA and OptiX, create per device optix states
-    OTK_ERROR_CHECK( cudaFree( 0 ) );
-    unsigned int devices = getDemandLoadDevices( m_useSparseTextures );
-    for( unsigned int deviceIndex = 0; deviceIndex < MAX_DEVICES; ++deviceIndex )
+    OTK_ERROR_CHECK( cudaFree( nullptr ) );
+    for( unsigned int deviceIndex : getDemandLoadDevices( m_useSparseTextures ) )
     {
-        if( devices & ( 1U << deviceIndex ) )
-        {
-            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
-            OTK_ERROR_CHECK( cudaFree( 0 ) );
-            m_perDeviceOptixStates.emplace_back();
-            m_perDeviceOptixStates.back().device_idx = deviceIndex;
-        }
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
+        m_perDeviceOptixStates.emplace_back();
+        m_perDeviceOptixStates.back().device_idx = static_cast<int>( deviceIndex );
     }
     OTK_ERROR_CHECK( optixInit() );
 

@@ -365,8 +365,8 @@ void Application::createContext()
 
     // Using a single device
     m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
-    if( m_deviceIndex >= demandLoading::MAX_DEVICES )
-        m_deviceIndex = 0;
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        throw std::runtime_error( "No devices support demand loading" );
 
     OptixDeviceContextOptions options{};
     otk::util::setLogger( options );

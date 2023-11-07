@@ -171,15 +171,11 @@ void createContext( PerDeviceSampleState& state )
 
 void createContexts( std::vector<PerDeviceSampleState>& states )
 {
-    unsigned int devices = getDemandLoadDevices( true );
-    for( unsigned int device_index = 0; device_index < MAX_DEVICES; ++device_index )
+    for( unsigned int deviceIndex : getDemandLoadDevices( true ) )
     {
-        if( ( 1U << device_index ) & devices )
-        {
-            states.emplace_back();
-            states.back().device_idx = device_index;
-            createContext( states.back() );
-        }
+        states.emplace_back();
+        states.back().device_idx = static_cast<int32_t>( deviceIndex );
+        createContext( states.back() );
     }
 }
 
