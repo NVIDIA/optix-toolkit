@@ -133,6 +133,11 @@ addOptionalSubdirectory(Memory)
 addOptionalSubdirectory(DemandLoading)
 addOptionalSubdirectory(ShaderUtil)
 
+option( OTK_BUILD_PYOPTIX "Enable build of PyOptiX libraries by CMake system." OFF)
+if( OTK_BUILD_PYOPTIX )
+  addOptionalSubdirectory(PyOptiX)
+endif()
+
 if( OTK_BUILD_EXAMPLES )
    addOptionalSubdirectory(examples)
 endif()
