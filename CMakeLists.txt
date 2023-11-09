@@ -28,6 +28,11 @@
 
 find_package(Python REQUIRED)
 
+# temporary guard while awaiting 8.0 fixes
+if(OPTIX_VERSION VERSION_GREATER 7.7)
+    return()
+endif()
+
 file(COPY optix examples requirements.txt test DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_custom_command(OUTPUT "venv"
@@ -41,3 +46,4 @@ add_custom_target(PyOptiX ALL
                   ${Python_EXECUTABLE} setup.py build 
                   WORKING_DIRECTORY optix
                   DEPENDS "venv")
+
