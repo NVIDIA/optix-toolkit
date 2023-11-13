@@ -398,7 +398,7 @@ getBaseColor( const DeviceContext& context, unsigned int textureId, TYPE& rval, 
 
 #endif  // ndef DOXYGEN_SKIP
 
-/// Fetch from a demand-loaded texture with the specified identifer, obtained via DemandLoader::createTexture.
+/// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
 template <class TYPE>
@@ -458,7 +458,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
+        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy ); // non-predicated texture fetch
 
     // Debug Code: This checks consistency between residency result from requestTexFootprint2DGrad and predicated tex2DGrad
     /*
@@ -479,7 +479,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 }
 
 
-/// Fetch from a demand-loaded texture with the specified identifer, obtained via DemandLoader::createTexture.
+/// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
 template <class TYPE>
@@ -523,7 +523,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
+        rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-predicated texture fetch
 
 #ifdef REQUEST_CASCADE
     float2 ddx  = make_float2( exp2Lod / sampler->width, 0.0f );
@@ -535,7 +535,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 }
 
 
-/// Fetch from a demand-loaded texture with the specified identifer, obtained via DemandLoader::createTexture.
+/// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
 template <class TYPE>
