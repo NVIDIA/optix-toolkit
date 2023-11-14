@@ -56,7 +56,10 @@ namespace testing {
 class MockOptix
 {
   public:
-    MOCK_METHOD( const char*, getErrorName, ( OptixResult result ) );
+    MockOptix();
+    virtual ~MockOptix();
+
+    MOCK_METHOD(const char*, getErrorName, ( OptixResult result ));
     MOCK_METHOD( const char*, getErrorString, ( OptixResult result ) );
     MOCK_METHOD( OptixResult,
                  deviceContextCreate,
