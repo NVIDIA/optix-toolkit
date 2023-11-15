@@ -382,9 +382,9 @@ __device__ static __forceinline__ bool requestTexFootprint2DLod( const TextureSa
 }
 
 
-template <class TYPE> 
+template <class Sample> 
 __device__ static __forceinline__ bool
-getBaseColor( const DeviceContext& context, unsigned int textureId, TYPE& rval, bool* baseColorResident )
+getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval, bool* baseColorResident )
 {
     const unsigned long long baseVal = pagingMapOrRequest( context, textureId + BASE_COLOR_OFFSET, baseColorResident );
     const half4* baseColor = reinterpret_cast<const half4*>( &baseVal );
@@ -401,19 +401,19 @@ getBaseColor( const DeviceContext& context, unsigned int textureId, TYPE& rval, 
 /// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
-template <class TYPE>
-__device__ static __forceinline__ TYPE
+template <class Sample>
+__device__ static __forceinline__ Sample
 tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
 {
     // Check for base color
-    TYPE rval;
+    Sample rval;
     bool baseColorResident;
     convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
 
     const float minGradSquared = minf( ddx.x * ddx.x + ddx.y * ddx.y, ddy.x * ddy.x + ddy.y * ddy.y );
     if( minGradSquared >= 1.0f )
     {
-        *isResident = getBaseColor<TYPE>( context, textureId, rval, &baseColorResident );
+        *isResident = getBaseColor<Sample>( context, textureId, rval, &baseColorResident );
         if( *isResident || !baseColorResident )
             return rval;
     }
@@ -424,7 +424,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     if( !sampler )
     {
         if( *isResident )
-            *isResident = getBaseColor<TYPE>( context, textureId, rval, &baseColorResident );
+            *isResident = getBaseColor<Sample>( context, textureId, rval, &baseColorResident );
 #ifdef REQUEST_CASCADE
         *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
 #endif
@@ -450,7 +450,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = !sampler->desc.isSparseTexture;
     if( context.requestIfResident == false )
-        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy, isResident );
+        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
     if( *isResident == false && sampler->desc.isSparseTexture)
@@ -458,14 +458,14 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy ); // non-predicated texture fetch
+        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy ); // non-predicated texture fetch
 
     // Debug Code: This checks consistency between residency result from requestTexFootprint2DGrad and predicated tex2DGrad
     /*
     if( *isResident && context.requestIfResident )
     {
         bool texResident;
-        rval = ::tex2DGrad<TYPE>( sampler->texture, x, y, ddx, ddy, &texResident );
+        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy, &texResident );
         if( !texResident )
             printf("ERROR: Mipmap mismatch between tex2DGrad and requestTexFootprint2DGrad!\n");
     }
@@ -482,15 +482,15 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 /// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
-template <class TYPE>
-__device__ static __forceinline__ TYPE
+template <class Sample>
+__device__ static __forceinline__ Sample
 tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y, float lod, bool* isResident )
 {
     // Check whether the texture sampler is resident.  The samplers occupy the first N entries of the page table.
     const TextureSampler* sampler =
         reinterpret_cast<const TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
     
-    TYPE rval;
+    Sample rval;
     convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
     if( *isResident == false )
         return rval;
@@ -506,7 +506,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     if( !sampler || exp2Lod >= max( sampler->width, sampler->height ) )
     {
         bool baseColorResident;
-        if( getBaseColor<TYPE>( context, textureId, rval, &baseColorResident ) )
+        if( getBaseColor<Sample>( context, textureId, rval, &baseColorResident ) )
             return rval;
         *isResident = false;
         return rval;
@@ -515,7 +515,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = false;
     if( context.requestIfResident == false )
-        rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod, isResident );
+        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
     if( *isResident == false && sampler->desc.isSparseTexture )
@@ -523,7 +523,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
     if( *isResident && context.requestIfResident )
-        rval = ::tex2DLod<TYPE>( sampler->texture, x, y, lod ); // non-predicated texture fetch
+        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod ); // non-predicated texture fetch
 
 #ifdef REQUEST_CASCADE
     float2 ddx  = make_float2( exp2Lod / sampler->width, 0.0f );
@@ -538,11 +538,11 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 /// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
-template <class TYPE>
-__device__ static __forceinline__ TYPE
+template <class Sample>
+__device__ static __forceinline__ Sample
 tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, bool* isResident )
 {
-    return tex2DLod<TYPE>( context, textureId, x, y, 0.0f, isResident );
+    return tex2DLod<Sample>( context, textureId, x, y, 0.0f, isResident );
 }
 
 
