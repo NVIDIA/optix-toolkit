@@ -62,15 +62,15 @@ namespace demandLoading {
 #ifndef DOXYGEN_SKIP
 
 // clang-format off
-__device__ static __forceinline__ void convertColor( const float4& a, float4& b ) { b = a; }
-__device__ static __forceinline__ void convertColor( const float4& a, float2& b ) { b = float2{a.x, a.y}; }
-__device__ static __forceinline__ void convertColor( const float4& a, float& b ) { b = a.x; }
+__device__ static __forceinline__ void convertColor( const float4& a, float4& b )       { b = a; }
+__device__ static __forceinline__ void convertColor( const float4& a, float2& b )       { b = float2{a.x, a.y}; }
+__device__ static __forceinline__ void convertColor( const float4& a, float& b )        { b = a.x; }
 __device__ static __forceinline__ void convertColor( const float4& a, unsigned int& b ) { b = static_cast<unsigned int>( a.x ); }
 
-__device__ static __forceinline__ void convertColor( const half4& a, float4& b ) { b = float4{a.x, a.y, a.z, a.w}; }
-__device__ static __forceinline__ void convertColor( const half4& a, float2& b ) { b = float2{a.x, a.y}; }
-__device__ static __forceinline__ void convertColor( const half4& a, float& b ) { b = static_cast<float>( a.x ); }
-__device__ static __forceinline__ void convertColor( const half4& a, unsigned int& b ) { b = static_cast<unsigned int>( a.x ); }
+__device__ static __forceinline__ void convertColor( const half4& a, float4& b )        { b = float4{a.x, a.y, a.z, a.w}; }
+__device__ static __forceinline__ void convertColor( const half4& a, float2& b )        { b = float2{a.x, a.y}; }
+__device__ static __forceinline__ void convertColor( const half4& a, float& b )         { b = static_cast<float>( a.x ); }
+__device__ static __forceinline__ void convertColor( const half4& a, unsigned int& b )  { b = static_cast<unsigned int>( a.x ); }
 // clang-format on
 
 __device__ static __forceinline__ unsigned int isNonPowerOfTwo( unsigned int x )
