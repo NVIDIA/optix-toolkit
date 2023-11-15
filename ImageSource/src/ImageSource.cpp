@@ -39,15 +39,17 @@
 
 #include <cstddef>  // for size_t
 #include <fstream>
+#include <memory>
+#include <string>
 
-namespace { // anonymous
+namespace {
 
-bool fileExists( const char* path )
+bool fileExists( const std::string& path )
 {
-    return static_cast<bool>( std::ifstream( path ) );
+    return std::ifstream( path ).good();
 }
 
-}  // anonymous namespace
+}  // namespace
 
 
 namespace imageSource {
@@ -77,30 +79,26 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     // Special cases
     if( filename == "checkerboard" )
     {
-        return std::shared_ptr<ImageSource>( new CheckerBoardImage( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true ) );
+        return std::make_shared<CheckerBoardImage>( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true );
     }
 
     // Construct ImageSource based on filename extension.
-    size_t      dot       = filename.find_last_of( "." );
-    std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
+    const size_t      dot       = filename.find_last_of( '.' );
+    const std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
 
     // Attempt relative path first, then absolute path.
-    std::string path = fileExists( filename.c_str() ) ? filename : directory + '/' + filename;
+    const std::string path = fileExists( filename ) ? filename : directory + '/' + filename;
 
     if( extension == ".exr" )
     {
-        return std::shared_ptr<ImageSource>( new CoreEXRReader( path ) );
+        return std::make_shared<CoreEXRReader>( path );
     }
-    else
-    {
-#if OTK_USE_OIIO        
-        return std::shared_ptr<ImageSource>( new OIIOReader( path ) );
-#else
-        std::string msg= "Image file not supported: ";
-        throw std::runtime_error( msg + filename );        
-#endif
-    }
-}
 
+#if OTK_USE_OIIO
+    return std::make_shared<OIIOReader>( path );
+#else
+    throw std::runtime_error( "Image file not supported: " + filename );
+#endif
+}
 
 }  // namespace imageSource
