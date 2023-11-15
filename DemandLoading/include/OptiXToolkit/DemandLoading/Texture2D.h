@@ -449,11 +449,11 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = !sampler->desc.isSparseTexture;
-    if( context.requestIfResident == false )
+    if( !context.requestIfResident )
         rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
-    if( *isResident == false && sampler->desc.isSparseTexture)
+    if( !*isResident && sampler->desc.isSparseTexture)
         *isResident = requestTexFootprint2DGrad( *sampler, context.referenceBits, context.residenceBits, x, y, ddx.x, ddx.y, ddy.x, ddy.y );
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
@@ -491,7 +491,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
         reinterpret_cast<const TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
     
     Sample rval;
-    if( *isResident == false )
+    if( !*isResident )
     {
         convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
         return rval;
@@ -516,11 +516,11 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
 
     // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = false;
-    if( context.requestIfResident == false )
+    if( !context.requestIfResident )
         rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
-    if( *isResident == false && sampler->desc.isSparseTexture )
+    if( !*isResident && sampler->desc.isSparseTexture )
         *isResident = requestTexFootprint2DLod( *sampler, context.referenceBits, context.residenceBits, x, y, lod );
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
