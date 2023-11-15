@@ -31,9 +31,11 @@
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/ImageSources.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
+#include <memory>
 #include <stdexcept>
 
 using namespace demandTextureApp;
@@ -42,6 +44,8 @@ using namespace demandTextureApp;
 // DemandTextureViewer
 // Shows basic use of OptiX demand textures.
 //------------------------------------------------------------------------------
+
+using ImageSourcePtr = std::shared_ptr<imageSource::ImageSource>;
 
 class DemandTextureViewer : public DemandTextureApp
 {
@@ -59,10 +63,10 @@ class DemandTextureViewer : public DemandTextureApp
     {
     }
 
-    void setTextureType( TextureType textureType ) { m_textureType = textureType; }
-    void setTextureName( const std::string& textureName ) { m_textureName = textureName; }
-    imageSource::ImageSource* createImageSource();
-    void createTexture() override;
+    void           setTextureType( TextureType textureType ) { m_textureType = textureType; }
+    void           setTextureName( const std::string& textureName ) { m_textureName = textureName; }
+    ImageSourcePtr createImageSource();
+    void           createTexture() override;
 
   private:
     TextureType m_textureType{};
@@ -135,30 +139,40 @@ static std::string toString( DemandTextureViewer::TextureType textureType )
     return "unknown";
 }
 
-imageSource::ImageSource* DemandTextureViewer::createImageSource()
+inline bool endsWith( const std::string& text, const std::string& suffix )
+{
+    return text.length() >= suffix.length() && text.substr( text.length() - suffix.length() ) == suffix;
+}
+
+ImageSourcePtr DemandTextureViewer::createImageSource()
 {
     if( m_textureType == TEXTURE_NONE )
         m_textureType = TEXTURE_CHECKERBOARD;
 
-    imageSource::ImageSource* img{};
+    ImageSourcePtr img;
     if( m_textureType == TEXTURE_FILE )
     {
-        img = createExrImage( m_textureName.c_str() );
-        if( !img && !m_textureName.empty() )
-            std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
-        m_textureType = TEXTURE_CHECKERBOARD;
+        if( endsWith( m_textureName, ".exr" ) )
+            img.reset( createExrImage( m_textureName.c_str() ) );
+        else
+            img = imageSources::createImageSource( m_textureName, {} );
+        if( !img || m_textureName.empty() )
+        {
+            std::cout << "ERROR: Could not find image '" << m_textureName << "'. Substituting procedural image.\n";
+            m_textureType = TEXTURE_CHECKERBOARD;
+        }
     }
     if( m_textureType == TEXTURE_CHECKERBOARD )
     {
-        img = new imageSources::MultiCheckerImage<float4>( 8192, 8192, 16, true );
+        img = std::make_shared<imageSources::MultiCheckerImage<float4>>( 8192, 8192, 16, true );
     }
     else if( m_textureType == TEXTURE_MANDELBROT )
     {
         const int MAX_ITER = 256;
         m_colorMap         = createColorMap( imageSources::MAX_MANDELBROT_COLORS );
-        img = new imageSources::DeviceMandelbrotImage( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
+        img = std::make_shared<imageSources::DeviceMandelbrotImage>( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
     }
-    if( img == nullptr )
+    if( !img )
     {
         throw std::runtime_error( "Could not create requested texture " + toString( m_textureType )
                                   + ( m_textureName.empty() ? std::string{} : " (" + m_textureName + ")" ) );
@@ -168,7 +182,7 @@ imageSource::ImageSource* DemandTextureViewer::createImageSource()
 
 void DemandTextureViewer::createTexture()
 {
-    std::shared_ptr<imageSource::ImageSource> imageSource( createImageSource() );
+    ImageSourcePtr imageSource( createImageSource() );
 
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
