@@ -491,9 +491,11 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
         reinterpret_cast<const TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) );
     
     Sample rval;
-    convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
     if( *isResident == false )
+    {
+        convertColor( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
         return rval;
+    }
 
     // Prevent footprint from exceeding min tile width for non-mipmapped textures
     if( sampler && sampler->desc.numMipLevels == 1 )
