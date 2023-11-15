@@ -138,7 +138,7 @@ void OIIOReader::open( TextureInfo* info )
         }
     }
 
-    if( m_readBaseColor && m_baseColorWasRead == false && m_info.numMipLevels > 1 )
+    if( m_readBaseColor && !m_baseColorWasRead && m_info.numMipLevels > 1 )
     {
         std::vector<char> tmp( getBytesPerChannel( m_info.format ) * m_info.numChannels, 0 );
         readMipLevel( tmp.data(), m_info.numMipLevels - 1, 1, 1, 0 );
@@ -195,8 +195,8 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
         const unsigned int actualTileWidth  = spec.tile_width;
         const unsigned int actualTileHeight = spec.tile_height;
 
-        if( !( actualTileWidth <= tileWidth && tileWidth % actualTileWidth == 0 )
-            || !( actualTileHeight <= tileHeight && tileHeight % actualTileHeight == 0 ) )
+        if( actualTileWidth > tileWidth || tileWidth % actualTileWidth != 0
+            || actualTileHeight > tileHeight || tileHeight % actualTileHeight != 0 )
         {
             std::stringstream str;
             str << "Unsupported tile size (" << actualTileWidth << "x" << actualTileHeight << ").  Expected "
