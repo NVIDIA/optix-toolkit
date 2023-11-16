@@ -28,11 +28,13 @@
 //
 
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
+
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 #include <cuda_fp16.h>
 
+#include <cstdint>
 
 namespace imageSource {
 
@@ -42,15 +44,15 @@ unsigned int getBytesPerChannel( const CUarray_format format )
     {
         case CU_AD_FORMAT_SIGNED_INT8:
         case CU_AD_FORMAT_UNSIGNED_INT8:
-            return 1;
+            return sizeof( std::int8_t );
 
         case CU_AD_FORMAT_SIGNED_INT16:
         case CU_AD_FORMAT_UNSIGNED_INT16:
-            return 2;
+            return sizeof( std::int16_t );
 
         case CU_AD_FORMAT_SIGNED_INT32:
         case CU_AD_FORMAT_UNSIGNED_INT32:
-            return 4;
+            return sizeof( std::int32_t );
 
         case CU_AD_FORMAT_HALF:
             return sizeof( half );
@@ -70,17 +72,6 @@ size_t getTextureSizeInBytes( const TextureInfo& info )
     if( info.numMipLevels > 1 )
         texSize = texSize * 4ULL / 3ULL;
     return texSize;
-}
-
-bool operator==( const TextureInfo& ainfo, const TextureInfo& binfo )
-{
-    return ainfo.width == binfo.width                   //
-           && ainfo.height == binfo.height              //
-           && ainfo.format == binfo.format              //
-           && ainfo.numChannels == binfo.numChannels    //
-           && ainfo.numMipLevels == binfo.numMipLevels  //
-           && ainfo.isValid == binfo.isValid            //
-           && ainfo.isTiled == binfo.isTiled;
 }
 
 }  // namespace imageSource
