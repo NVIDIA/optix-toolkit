@@ -105,22 +105,28 @@ class MemoryPool
     /// Destructor
     ~MemoryPool()
     {
-        OTK_MEMORY_CUDA_CHECK( cuCtxPushCurrent( m_context ) );
+        OTK_MEMORY_CUDA_CHECK_NOTHROW( cuCtxPushCurrent( m_context ) );
 
         std::unique_lock<std::mutex> lock( m_mutex );
 
-        for( void* ptr : m_allocations )
-            m_allocator->free( ptr );
-        delete m_suballocator;
-        delete m_allocator;
+        try
+        {
+            for( void* ptr : m_allocations )
+                m_allocator->free( ptr );
+            delete m_suballocator;
+            delete m_allocator;
 
-        // Destroy events in staged blocks.
-        for( StagedBlock stagedBlock : m_stagedBlocks )
-            freeEvent( stagedBlock );
-        m_stagedBlocks.clear();
+            // Destroy events in staged blocks.
+            for( StagedBlock stagedBlock : m_stagedBlocks )
+                freeEvent( stagedBlock );
+            m_stagedBlocks.clear();
+        }
+        catch(...)
+        {
+        }
 
         CUcontext ignored;
-        OTK_MEMORY_CUDA_CHECK( cuCtxPopCurrent( &ignored ) );
+        OTK_MEMORY_CUDA_CHECK_NOTHROW( cuCtxPopCurrent( &ignored ) );
     }
 
     /// Tell the memory pool to track an address range, bypassing the allocator, which may be null
