@@ -259,7 +259,7 @@ void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int num
 
 void RayConesApp::createTexture()
 {
-    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName.c_str() ) );
+    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName ) );
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )

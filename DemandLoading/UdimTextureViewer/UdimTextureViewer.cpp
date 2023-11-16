@@ -85,7 +85,7 @@ void UdimTextureApp::createTexture()
     {
         std::shared_ptr<imageSource::ImageSource> baseImageSource;
         if( m_textureName != "mandelbrot" && m_textureName != "checker" )
-            baseImageSource.reset( createExrImage( ( m_textureName + ".exr" ).c_str() ) );
+            baseImageSource.reset( createExrImage( m_textureName + ".exr" ) );
         if( !baseImageSource && m_textureName == "checker" )
             baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
         if( !baseImageSource )
@@ -118,7 +118,7 @@ void UdimTextureApp::createTexture()
             {
                 int         udimNum      = 10000 + v * 100 + u;
                 std::string subImageName = m_textureName + std::to_string( udimNum ) + ".exr";
-                subImage                 = createExrImage( subImageName.c_str() );
+                subImage                 = createExrImage( subImageName );
             }
             if( !subImage && m_texWidth == 0 ) // mixing different image sizes
             {

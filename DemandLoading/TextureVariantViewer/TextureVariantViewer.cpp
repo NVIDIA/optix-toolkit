@@ -59,7 +59,7 @@ class TextureVariantApp : public DemandTextureApp
 
 void TextureVariantApp::createTexture()
 {
-    imageSource::ImageSource* img =  createExrImage( m_textureName.c_str() );
+    imageSource::ImageSource* img = createExrImage( m_textureName );
     if( !img && ( !m_textureName.empty() ) )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !img )

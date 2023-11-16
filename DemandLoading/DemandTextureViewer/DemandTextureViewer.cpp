@@ -153,7 +153,7 @@ ImageSourcePtr DemandTextureViewer::createImageSource()
     if( m_textureType == TEXTURE_FILE )
     {
         if( endsWith( m_textureName, ".exr" ) )
-            img.reset( createExrImage( m_textureName.c_str() ) );
+            img.reset( createExrImage( m_textureName ) );
         else
             img = imageSources::createImageSource( m_textureName, {} );
         if( !img || m_textureName.empty() )
