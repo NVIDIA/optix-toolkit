@@ -62,8 +62,8 @@ void checkRange( std::vector<char*>& addresses, char* ptrBase, unsigned long lon
     {
         unsigned long long pInt = reinterpret_cast<unsigned long long>( addresses[i] );
         unsigned long long baseInt = reinterpret_cast<unsigned long long>( ptrBase );
-        EXPECT_TRUE( pInt == 0 || pInt >= baseInt );
-        EXPECT_TRUE( pInt == 0 || pInt < baseInt + size );
+        ASSERT_TRUE( pInt == 0 || pInt >= baseInt );
+        ASSERT_TRUE( pInt == 0 || pInt < baseInt + size );
     }
 }
 
@@ -159,7 +159,7 @@ TEST_F( TestDeviceMemoryPools, TestInterleavedAccess )
     OTK_ERROR_CHECK( cudaMemcpy( hostPoolCopy.data(), fixedPool.buffer, numBytes, cudaMemcpyDeviceToHost ) );
     for( unsigned int i=0; i < numBytes / sizeof(int); ++i )
     {
-        EXPECT_EQ( hostPoolCopy[i], ( i / WARP_SIZE ) % 8 );
+        EXPECT_EQ( hostPoolCopy[i], static_cast<int>( ( i / WARP_SIZE ) % 8 ) );
     }
     fixedPool.tearDown();
 

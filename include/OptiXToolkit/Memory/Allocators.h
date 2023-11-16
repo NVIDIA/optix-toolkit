@@ -32,6 +32,7 @@
 
 #include <cuda.h>
 
+#include <algorithm>
 #include <cstring>
 
 namespace otk {
