@@ -143,7 +143,7 @@ void OIIOReader::open( TextureInfo* info )
         std::vector<char> tmp( getBytesPerChannel( m_info.format ) * m_info.numChannels, 0 );
         readMipLevel( tmp.data(), m_info.numMipLevels - 1, 1, 1, 0 );
 
-        float out[4];
+        float out[4]{};
 
         for( unsigned int i = 0; i < m_info.numChannels; ++i )
             out[i] = toFloat( tmp.data() + getBytesPerChannel( m_info.format ) * i, m_info.format );
