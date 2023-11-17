@@ -38,13 +38,13 @@ class CascadeImage : public ImageSourceBase
   public:
     /// Create a CascadeImage for the given backing image such that width and height
     /// are greater than minDim if possible.
-    CascadeImage( std::shared_ptr<imageSource::ImageSource> backingImage, unsigned int minDim );
+    CascadeImage( std::shared_ptr<ImageSource> backingImage, unsigned int minDim );
 
     /// The destructor is virtual.
-    ~CascadeImage() override {}
+    ~CascadeImage() override = default;
 
     /// The open method simply initializes the given image info struct.
-    void open( imageSource::TextureInfo* info ) override;
+    void open( TextureInfo* info ) override;
 
     /// The close operation is a no-op.
     void close() override {}
@@ -53,31 +53,25 @@ class CascadeImage : public ImageSourceBase
     bool isOpen() const override { return m_isOpen; }
 
     /// Get the image info.  Valid only after calling open().
-    const imageSource::TextureInfo& getInfo() const override { return m_info; }
+    const TextureInfo& getInfo() const override { return m_info; }
 
     /// Return the mode in which the image fills part of itself
-    virtual CUmemorytype getFillType() const override { return m_backingImage->getFillType(); }
+    CUmemorytype getFillType() const override { return m_backingImage->getFillType(); }
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    bool readTile( char*        dest,
-                   unsigned int mipLevel,
-                   unsigned int tileX,
-                   unsigned int tileY,
-                   unsigned int tileWidth,
-                   unsigned int tileHeight,
-                   CUstream     stream = 0 ) override
+    bool readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream ) override
     {
-        if( !m_backingImage ) 
-          return false;
+        if( !m_backingImage )
+            return false;
         return m_backingImage->readTile( dest, mipLevel + m_backingMipLevel, tileX, tileY, tileWidth, tileHeight, stream );
     }
 
     /// Read the specified mipLevel. Throws an exception on error.
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) override
     {
-        if( !m_backingImage ) 
+        if( !m_backingImage )
             return false;
         return m_backingImage->readMipLevel( dest, mipLevel + m_backingMipLevel, expectedWidth, expectedHeight, stream );
     }
@@ -91,26 +85,26 @@ class CascadeImage : public ImageSourceBase
                       CUstream     stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
-    bool readBaseColor( float4& dest ) override 
+    bool readBaseColor( float4& dest ) override
     {
-        return ( m_backingImage ) ? m_backingImage->readBaseColor( dest ) : false;
+        return m_backingImage ? m_backingImage->readBaseColor( dest ) : false;
     }
 
     // Get the backing image
-    std::shared_ptr<imageSource::ImageSource> getBackingImage() { return m_backingImage; }
+    std::shared_ptr<ImageSource> getBackingImage() { return m_backingImage; }
 
     // Set the backing image
-    void setBackingImage( std::shared_ptr<imageSource::ImageSource> image ) { m_backingImage = image; }
+    void setBackingImage( std::shared_ptr<ImageSource> image ) { m_backingImage = image; }
 
     // Return whether the image has a cascade
-    bool hasCascade() override { return m_info.width < m_backingImage->getInfo().width; }
+    bool hasCascade() const override { return m_info.width < m_backingImage->getInfo().width; }
 
   private:
-    std::shared_ptr<imageSource::ImageSource> m_backingImage;
-    unsigned int                              m_backingMipLevel;
-    imageSource::TextureInfo                  m_info;
-    unsigned int                              m_minDim;
-    bool                                      m_isOpen;
+    std::shared_ptr<ImageSource> m_backingImage;
+    unsigned int                 m_backingMipLevel;
+    TextureInfo                  m_info;
+    unsigned int                 m_minDim;
+    bool                         m_isOpen;
 };
 
-}  // namespace clipmap
+}  // namespace imageSource

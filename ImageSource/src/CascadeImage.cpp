@@ -33,7 +33,7 @@
 
 namespace imageSource {
 
-CascadeImage::CascadeImage( std::shared_ptr<imageSource::ImageSource> backingImage, unsigned int minDim )
+CascadeImage::CascadeImage( std::shared_ptr<ImageSource> backingImage, unsigned int minDim )
     : m_backingImage( backingImage )
     , m_minDim( minDim )
 {
@@ -42,11 +42,11 @@ CascadeImage::CascadeImage( std::shared_ptr<imageSource::ImageSource> backingIma
     m_isOpen = false;
 }
 
-void CascadeImage::open( imageSource::TextureInfo* info )
+void CascadeImage::open( TextureInfo* info )
 {
     if( !isOpen() )
     {
-        imageSource::TextureInfo backingInfo;
+        TextureInfo backingInfo;
         m_backingImage->open( &backingInfo );
 
         unsigned int width  = backingInfo.width;
@@ -86,7 +86,7 @@ bool CascadeImage::readMipTail( char*        dest,
 
     // Get mip level dimensions for the backing image
     unsigned int backingMipTailFirstLevel = mipTailFirstLevel + m_backingMipLevel;
-    const imageSource::TextureInfo& backingInfo = m_backingImage->getInfo();
+    const TextureInfo& backingInfo = m_backingImage->getInfo();
     std::vector<uint2> backingMipLevelDims( backingInfo.numMipLevels );
 
     for( unsigned int mip = 0; mip < backingMipLevelDims.size(); ++mip )

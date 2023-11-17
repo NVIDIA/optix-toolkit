@@ -106,6 +106,7 @@ class MockImageSource : public imageSource::ImageSource
     MOCK_METHOD( unsigned long long, getNumTilesRead, (), ( const override ) );
     MOCK_METHOD( unsigned long long, getNumBytesRead, (), ( const override ) );
     MOCK_METHOD( double, getTotalReadTime, (), ( const override ) );
+    MOCK_METHOD( bool, hasCascade, (), ( const override ) );
 };
 
 class DeferredImageLoadingTest : public testing::Test
@@ -436,6 +437,7 @@ TEST_F( DeferredImageLoadingTest, deferredTileIsLoadedAgain )
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockTiledImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
     EXPECT_CALL( *image, readTile( _, _, _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();
 
@@ -453,6 +455,7 @@ TEST_F( DeferredImageLoadingTest, deferredMipLevelIsLoadedAgain )
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockNonTiledImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
     EXPECT_CALL( *image, readMipLevel( _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();
 
@@ -470,6 +473,7 @@ TEST_F( DeferredImageLoadingTest, deferredMipTailIsLoadedAgain )
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockNonTiledMipMappedImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
     EXPECT_CALL( *image, readMipTail( _, _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();
 
