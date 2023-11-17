@@ -449,33 +449,33 @@ void checkTile( OIIOReader* reader, std::array<T,3> white, std::array<T,3> red )
     EXPECT_EQ( (red), getTexel( width - 1, height - 1, texels, width ) );
 }
 
-class TestOIIOReaderFileTypes : public testing::TestWithParam<std::string>
+class TestReaderFileTypes : public testing::TestWithParam<std::string>
 {
 };
 
-TEST_P(TestOIIOReaderFileTypes, ReadTile)
+TEST_P( TestReaderFileTypes, ReadTile )
 {
-    std::string filename(GetParam());
+    std::string filename( GetParam() );
     OIIOReader  reader( getSourceDir() + "/Textures/" + filename );
     TextureInfo info = {};
     ASSERT_NO_THROW( reader.open( &info ) );
     if( info.format == CU_AD_FORMAT_UNSIGNED_INT8 )
     {
-        std::array<uint8_t, 3> white{255, 255, 255};
-        std::array<uint8_t, 3> red{254, 0, 0};
+        std::array<uint8_t, 3> white{ 255, 255, 255 };
+        std::array<uint8_t, 3> red{ 254, 0, 0 };
         checkTile<uint8_t>( &reader, white, red );
     }
     else
     {
         ASSERT_EQ( CU_AD_FORMAT_FLOAT, info.format );
-        std::array<float, 3> white{1, 1, 1};
-        std::array<float, 3> red{1, 0, 0};
+        std::array<float, 3> white{ 1, 1, 1 };
+        std::array<float, 3> red{ 1, 0, 0 };
         checkTile<float>( &reader, white, red );
     }
 }
 
-INSTANTIATE_TEST_SUITE_P( TestOIIOReaderFileTypesInstance, TestOIIOReaderFileTypes, testing::Values( "TiledMipMappedFloat.tif", "level0.png", "level0.jpg" ) );
+INSTANTIATE_TEST_SUITE_P( OIIO,
+                          TestReaderFileTypes,
+                          testing::Values( "TiledMipMappedFloat.tif", "level0.png", "level0.jpg" ) );
 
-#endif // OTK_USE_OIIO
-
-
+#endif  // OTK_USE_OIIO
