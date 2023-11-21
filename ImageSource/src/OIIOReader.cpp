@@ -288,6 +288,9 @@ bool OIIOReader::readMipLevel( char*        dest,
         OTK_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
         OTK_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
         OTK_ASSERT( spec.depth == static_cast<int>( expectedDepth ) );
+        (void)expectedWidth;  // silence unused variable warning.
+        (void)expectedHeight;
+        (void)expectedDepth;
 
         bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
 
