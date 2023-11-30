@@ -36,12 +36,49 @@
 
 namespace SelfIntersectionAvoidance {
 
+// Encapsulate the custom transform. This is needed so a custom transform in gmem is not forced into lmem before access. The offsetting code assumes the transform data lives in gmem.
+template <typename T>
+class Transform
+{
+  public:
+    OTK_INLINE __device__ Transform( const T* __restrict transform )
+        : m_transform( transform ){};
+
+    OTK_INLINE __device__ OptixTransformType getTransformTypeFromHandle() const
+    {
+        return m_transform->getTransformTypeFromHandle();
+    };
+    OTK_INLINE __device__ const OptixMatrixMotionTransform* getMatrixMotionTransformFromHandle() const
+    {
+        return m_transform->getMatrixMotionTransformFromHandle();
+    };
+    OTK_INLINE __device__ const OptixSRTMotionTransform* getSRTMotionTransformFromHandle() const
+    {
+        return m_transform->getSRTMotionTransformFromHandle();
+    };
+    OTK_INLINE __device__ const OptixStaticTransform* getStaticTransformFromHandle() const
+    {
+        return m_transform->getStaticTransformFromHandle();
+    };
+    OTK_INLINE __device__ Matrix3x4 getInstanceTransformFromHandle() const
+    {
+        return m_transform->getInstanceTransformFromHandle();
+    };
+    OTK_INLINE __device__ Matrix3x4 getInstanceInverseTransformFromHandle() const
+    {
+        return m_transform->getInstanceInverseTransformFromHandle();
+    };
+
+  private:
+    const T* __restrict m_transform;
+};
+
 // List of generic transforms
 template<typename T>
 class TransformList
 {
   public:
-    typedef T value_t;
+    typedef Transform<T> value_t;
 
     OTK_INLINE __device__ TransformList( int size, const T* transforms )
         : m_size( size )
@@ -49,7 +86,7 @@ class TransformList
 
     OTK_INLINE __device__ unsigned int getTransformListSize() const { return m_size; }
 
-    OTK_INLINE __device__ T getTransform( unsigned int index ) const { return m_transforms[index]; }
+    OTK_INLINE __device__ value_t getTransform( unsigned int index ) const { return value_t( m_transforms + index ); }
 
   private:
     unsigned int m_size;
