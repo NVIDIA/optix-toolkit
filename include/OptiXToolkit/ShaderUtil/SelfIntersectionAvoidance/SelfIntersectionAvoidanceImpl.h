@@ -155,7 +155,7 @@ OTK_INLINE __device__ float3 getTrianglePointAndError( float3&       outError,
     const float oy = __fadd_rn( v0.y, __fmaf_rn( bary.x, e1.y, __fmul_rn( bary.y, e2.y ) ) );
     const float oz = __fadd_rn( v0.z, __fmaf_rn( bary.x, e1.z, __fmul_rn( bary.y, e2.z ) ) );
 
-    constexpr float c0 = 1.7881396630060073e-07f;
+    constexpr float c0 = 5.9604648328104529e-08f;
     constexpr float c1 = 1.1920930376163769e-07f;
 
     const float eps_x = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.x ), fabsf( e2.x ) ), fabsf( __fsub_ru( e1.x, e2.x ) ) ) );
