@@ -155,12 +155,12 @@ OTK_INLINE __device__ float3 getTrianglePointAndError( float3&       outError,
     const float oy = __fadd_rn( v0.y, __fmaf_rn( bary.x, e1.y, __fmul_rn( bary.y, e2.y ) ) );
     const float oz = __fadd_rn( v0.z, __fmaf_rn( bary.x, e1.z, __fmul_rn( bary.y, e2.z ) ) );
 
-    constexpr float c0 = 5.9604644775390625E-8f;
-    constexpr float c1 = 1.788139769587360206060111522674560546875E-7f;
+    constexpr float c0 = 1.7881396630060073e-07f;
+    constexpr float c1 = 1.1920930376163769e-07f;
 
-    const float eps_x = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.x ), fabsf( e2.x ) ), fabsf( __fsub_ru( fabsf( e1.x ), fabsf( e2.x ) ) ) ) );
-    const float eps_y = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.y ), fabsf( e2.y ) ), fabsf( __fsub_ru( fabsf( e1.y ), fabsf( e2.y ) ) ) ) );
-    const float eps_z = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.z ), fabsf( e2.z ) ), fabsf( __fsub_ru( fabsf( e1.z ), fabsf( e2.z ) ) ) ) ) ;
+    const float eps_x = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.x ), fabsf( e2.x ) ), fabsf( __fsub_ru( e1.x, e2.x ) ) ) );
+    const float eps_y = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.y ), fabsf( e2.y ) ), fabsf( __fsub_ru( e1.y, e2.y ) ) ) );
+    const float eps_z = __fmul_ru( c1, __fadd_ru( __fadd_ru( fabsf( e1.z ), fabsf( e2.z ) ), fabsf( __fsub_ru( e1.z, e2.z ) ) ) );
 
     // reconstruction + triangle intersection epsilon...
     const float eps = fmaxf( fmaxf( eps_x, eps_y ), eps_z );
