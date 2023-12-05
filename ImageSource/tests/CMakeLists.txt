@@ -35,6 +35,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 otk_add_executable( testImageSource
   TestCheckerBoardImage.cpp
   TestImageSource.cpp
+  TestRateLimitedImageSource.cpp
   SourceDir.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
 )
