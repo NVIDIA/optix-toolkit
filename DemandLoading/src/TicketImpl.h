@@ -101,13 +101,13 @@ class TicketImpl
 
     /// Decrement the number of tasks remaining, notifying any waiting threads
     /// when all the tasks are done.
-    void notify( unsigned int tasksDone = 1 )
+    void notify()
     {
         std::unique_lock<std::mutex> lock( m_mutex );
 
         // Atomically decrement the number of tasks remaining.
         OTK_ASSERT( m_numTasksRemaining > 0 );
-        m_numTasksRemaining -= tasksDone;
+        --m_numTasksRemaining;
 
         // If there are no tasks remaining, notify any threads waiting on the condition variable.
         // It's not necessary to acquire the mutex.  Redundant notifications are OK.
