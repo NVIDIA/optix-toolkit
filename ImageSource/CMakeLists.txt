@@ -37,6 +37,7 @@ otk_add_library( ImageSource
   src/RateLimitedImageSource.cpp
   src/Stopwatch.h
   src/TextureInfo.cpp
+  src/TiledImageSource.cpp
   src/Config.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/Config.h
 )
@@ -57,6 +58,7 @@ target_sources(ImageSource
   include/OptiXToolkit/ImageSource/ImageSource.h
   include/OptiXToolkit/ImageSource/RateLimitedImageSource.h
   include/OptiXToolkit/ImageSource/TextureInfo.h
+  include/OptiXToolkit/ImageSource/TiledImageSource.h
   include/OptiXToolkit/ImageSource/WrappedImageSource.h
 )
 
