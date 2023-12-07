@@ -30,6 +30,7 @@
 #include <DemandTextureViewerKernelCuda.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/ImageSource/TiledImageSource.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
 #include <OptiXToolkit/ImageSources/ImageSources.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
@@ -155,7 +156,15 @@ ImageSourcePtr DemandTextureViewer::createImageSource()
         if( endsWith( m_textureName, ".exr" ) )
             img.reset( createExrImage( m_textureName ) );
         else
+        {
             img = imageSources::createImageSource( m_textureName, {} );
+            imageSource::TextureInfo info{};
+            img->open( &info );
+            if( !info.isTiled )
+            {
+                img = std::make_shared<imageSource::TiledImageSource>( img );
+            }
+        }
         if( !img || m_textureName.empty() )
         {
             std::cout << "ERROR: Could not find image '" << m_textureName << "'. Substituting procedural image.\n";
