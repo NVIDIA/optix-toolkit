@@ -46,7 +46,7 @@ class RateLimitedImageSource : public WrappedImageSource
   public:
     /// The time limit is specified in microseconds.  (Since it must be atomic, we can't easily use
     /// std::chrono::duration.)
-    using Microseconds = int64_t;
+    using Microseconds = std::int64_t;
 
     /// Rate limit the given ImageSource by ceasing operations whenever the given duration (in
     /// microseconds) is less or equal to zero.  After each non-trivial operation, the duration is
