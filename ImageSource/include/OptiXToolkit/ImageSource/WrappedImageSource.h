@@ -31,6 +31,7 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <memory>
+#include <utility>
 
 namespace imageSource {
 
@@ -41,9 +42,8 @@ class WrappedImageSource : public ImageSource
 {
   public:
     /// Wrap the given ImageSource, delegating method calls to it.
-    WrappedImageSource( std::shared_ptr<ImageSource> imageSource )
-        : m_imageSource( imageSource )
-
+    explicit WrappedImageSource( std::shared_ptr<ImageSource> imageSource )
+        : m_imageSource( std::move( imageSource ) )
     {
     }
 
