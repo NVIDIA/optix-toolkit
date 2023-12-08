@@ -73,6 +73,7 @@ bool TiledImageSource::readTile( char*        dest,
                                  unsigned int tileHeight,
                                  CUstream     stream )
 {
+    const char* mipLevelBuffer;
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
 
@@ -86,8 +87,8 @@ bool TiledImageSource::readTile( char*        dest,
 
         if( m_mipLevels[mipLevel] == nullptr )
         {
-            size_t levelSize = static_cast<size_t>(getBytesPerChannel( m_tiledInfo.format ) )
-                               * m_tiledInfo.numChannels * m_tiledInfo.width * m_tiledInfo.height;
+            size_t levelSize = static_cast<size_t>( getBytesPerChannel( m_tiledInfo.format ) ) * m_tiledInfo.numChannels
+                               * m_tiledInfo.width * m_tiledInfo.height;
             char*        ptr            = m_buffer.data();
             unsigned int mipLevelWidth  = m_tiledInfo.width;
             unsigned int mipLevelHeight = m_tiledInfo.height;
@@ -106,13 +107,14 @@ bool TiledImageSource::readTile( char*        dest,
         }
 
         ++m_numTilesRead;
+        mipLevelBuffer = m_mipLevels[mipLevel];
     }
 
-    OTK_ASSERT_MSG( m_mipLevels[mipLevel] != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
-    const size_t pixelSizeInBytes = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
+    OTK_ASSERT_MSG( mipLevelBuffer != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
+    const size_t pixelSizeInBytes      = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
     const size_t imageRowStrideInBytes = m_tiledInfo.width * pixelSizeInBytes;
     const size_t tileRowStrideInBytes  = tileWidth * pixelSizeInBytes;
-    const char*  source = m_mipLevels[mipLevel] + tileY * imageRowStrideInBytes + tileX * pixelSizeInBytes;
+    const char*  source                = mipLevelBuffer + tileY * imageRowStrideInBytes + tileX * pixelSizeInBytes;
     for( unsigned int i = 0; i < tileHeight; ++i )
     {
         std::copy_n( source, tileRowStrideInBytes, dest );
@@ -147,4 +149,4 @@ unsigned long long TiledImageSource::getNumTilesRead() const
     return m_numTilesRead;
 }
 
-}  // namespace demandPbrtScene
+}  // namespace imageSource
