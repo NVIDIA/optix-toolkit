@@ -35,21 +35,21 @@
 void TestCommon::SetUp()
 {
     // Initialize CUDA runtime
-    CUDA_THROW( cudaFree( 0 ) );
+    OTK_ERROR_CHECK( cudaFree( 0 ) );
 
     // Create optix context
 
     OptixDeviceContextOptions optixOptions = {};
 
-    OPTIX_THROW( optixInit() );
+    OTK_ERROR_CHECK( optixInit() );
 
     CUcontext cuCtx = nullptr;  // zero means take the current context
-    OPTIX_THROW( optixDeviceContextCreate( cuCtx, &optixOptions, &optixContext ) );
+    OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &optixOptions, &optixContext ) );
 }
 
 void TestCommon::TearDown()
 {
-    OPTIX_THROW( optixDeviceContextDestroy( optixContext ) );
+    OTK_ERROR_CHECK( optixDeviceContextDestroy( optixContext ) );
 }
 
 cuOmmBaking::Result TestCommon::saveImageToFile( std::string imageNamePrefix, const std::vector<uchar3>& image, uint32_t width, uint32_t height )

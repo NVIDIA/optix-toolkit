@@ -98,7 +98,7 @@ namespace {  // anonymous
         void SetUp() override
         {
             // Initialize CUDA runtime
-            CUDA_THROW( cudaFree( 0 ) );
+            OTK_ERROR_CHECK( cudaFree( 0 ) );
         }
 
         void TearDown() override

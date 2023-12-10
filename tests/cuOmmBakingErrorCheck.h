@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -25,34 +25,59 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-
 #pragma once
 
-#include <cuda_runtime.h>
-
-#include "cuOmmBakingErrorCheck.h"
-#include "Util/Image.h"
-#include "Util/OptiXOmmArray.h"
-
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
-#include <OptiXToolkit/Error/optixErrorCheck.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 
-#include <gtest/gtest.h>
+#include <sstream>
 
-class TestCommon : public testing::Test
+namespace otk {
+namespace error {
+
+/// Specialization for CuOmmBaking error names.
+template <>
+inline std::string getErrorName( cuOmmBaking::Result value )
 {
-  protected:
-    OptixDeviceContext    optixContext = {};
+    switch (value)
+    {
+    case cuOmmBaking::Result::SUCCESS:
+        return "SUCCESS";
+    case cuOmmBaking::Result::ERROR_CUDA:
+        return "ERROR_CUDA";
+    case cuOmmBaking::Result::ERROR_INTERNAL:
+        return "ERROR_INTERNAL";
+    case cuOmmBaking::Result::ERROR_INVALID_VALUE:
+        return "ERROR_INVALID_VALUE";
+    case cuOmmBaking::Result::ERROR_MISALIGNED_ADDRESS:
+        return "ERROR_MISALIGNED_ADDRESS";
+    default:
+        break;
+    }
+    return "UNKNOWN";
+}
 
-    void SetUp() override;
+/// Specialization for CuOmmBaking error messages.
+template <>
+inline std::string getErrorMessage( cuOmmBaking::Result value )
+{
+    switch (value)
+    {
+    case cuOmmBaking::Result::SUCCESS:
+        return "success";
+    case cuOmmBaking::Result::ERROR_CUDA:
+        return "CUDA error";
+    case cuOmmBaking::Result::ERROR_INTERNAL:
+        return "internal error";
+    case cuOmmBaking::Result::ERROR_INVALID_VALUE:
+        return "invalid value";
+    case cuOmmBaking::Result::ERROR_MISALIGNED_ADDRESS:
+        return "misaligned address";
+    default:
+        break;
+    }
+    return "unknown error";
+}
 
-    void TearDown() override;
-
-    cuOmmBaking::Result saveImageToFile( std::string imageNamePrefix, const std::vector<uchar3>& image, uint32_t width, uint32_t height );
-
-    void compareImage();
-
-private:
-    std::string m_imageNamePrefix;
-};
+}  // namespace error
+}  // namespace otk

@@ -247,7 +247,7 @@ protected:
         d_preTransform.upload( h_preTransform.data() );
 
         // Create the optix omm array
-        OMM_CHECK( ommArray.create( optixContext, opt.options, bakeInputs.data(), (uint32_t)bakeInputs .size() ) );
+        OTK_ERROR_CHECK( ommArray.create( optixContext, opt.options, bakeInputs.data(), (uint32_t)bakeInputs .size() ) );
 
         // Overwrite texture inputs with their cuda equivalents as the optix renderer can't render state inputs directly.
         for( size_t i = 0; i < opt.meshes.size(); ++i )
@@ -293,7 +293,7 @@ protected:
 
         const std::vector<uchar3>& image = scene.getImage();
 
-        OMM_CHECK( saveImageToFile( imageNamePrefix, image, width, height ) );
+        OTK_ERROR_CHECK( saveImageToFile( imageNamePrefix, image, width, height ) );
 
         scene.destroy();
 
@@ -302,9 +302,9 @@ protected:
 
     cuOmmBaking::Result runTest( const TestOptions& opt, const std::string& imageNamePrefix )
     {
-        OMM_CHECK( buildOmm( opt ) );
+        OTK_ERROR_CHECK( buildOmm( opt ) );
 
-        OMM_CHECK( renderOmm( opt, imageNamePrefix ) );
+        OTK_ERROR_CHECK( renderOmm( opt, imageNamePrefix ) );
 
         return cuOmmBaking::Result::SUCCESS;
     }
