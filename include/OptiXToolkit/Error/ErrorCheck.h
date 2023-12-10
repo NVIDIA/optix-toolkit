@@ -100,7 +100,7 @@ template <typename T>
 std::string makeErrorString( T error, const char* expr, const char* file, unsigned int line, const char* extra )
 {
     std::string message{ file };
-    message += '(' + std::to_string( line ) + "): " + expr + " failed with error " + std::to_string( error );
+    message += '(' + std::to_string( line ) + "): " + expr + " failed with error " + std::to_string( static_cast<int>( error ) );
     const std::string errorName{ getErrorName( error ) };
     if( !errorName.empty() )
         message += " (" + errorName + ')';
