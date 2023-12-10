@@ -33,6 +33,8 @@
 
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 
+#include <stdint.h>
+
 #define VISIBILITY_MASK_OMM_ENABLED  1
 #define VISIBILITY_MASK_OMM_DISABLED 2
 

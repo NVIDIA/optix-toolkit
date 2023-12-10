@@ -29,6 +29,8 @@
 #pragma once
 
 #include <cuda.h>
+#include <cuda_runtime.h>
+
 #include <optix.h>
 
 #include <cstdint>
