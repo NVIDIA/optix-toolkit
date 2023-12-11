@@ -159,7 +159,7 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
     const unsigned int tileHeight{ 64 };
     std::vector<char>  dest;
     dest.resize( tileWidth * tileHeight * 4 );
-    EXPECT_TRUE( m_tiledImage->readTile( dest.data(), mipLevel, tileX, tileY, tileWidth, tileHeight, stream ) );
+    ASSERT_TRUE( m_tiledImage->readTile( dest.data(), mipLevel, tileX, tileY, tileWidth, tileHeight, stream ) );
 
     for( unsigned int y = 0; y < 64; ++y )
     {
