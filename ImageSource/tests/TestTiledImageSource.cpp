@@ -80,9 +80,9 @@ TEST_F( TestTiledImageSource, closeResetsInfo )
 {
     EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     EXPECT_CALL( *m_baseImage, close() );
-
     imageSource::TextureInfo info{};
     m_tiledImage->open( &info );
+
     m_tiledImage->close();
     const imageSource::TextureInfo closedInfo = m_tiledImage->getInfo();
 
@@ -149,10 +149,10 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
     };
     EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), mipLevel, mipLevelWidth, mipLevelHeight, stream ) )
         .WillOnce( DoAll( fillMipLevel, Return( true ) ) );
-
     imageSource::TextureInfo info{};
     m_tiledImage->open( &info );
     ASSERT_TRUE( info.isValid );
+
     const unsigned int tileX{ 0 };
     const unsigned int tileY{ 0 };
     const unsigned int tileWidth{ 64 };
@@ -192,8 +192,8 @@ TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
         EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), i, size, size, stream ) ).WillOnce( Return( true ) );
         size *= 2;
     }
-
     m_tiledImage->open( nullptr );
+
     std::vector<char> dest;
     dest.resize( getTextureSizeInBytes( baseMipInfo ) );
     EXPECT_TRUE( m_tiledImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(),
