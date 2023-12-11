@@ -36,7 +36,7 @@
 
 #include <gmock/gmock.h>
 
-#include <ostream>
+#include <algorithm>
 
 using namespace testing;
 
@@ -142,10 +142,8 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
             for( unsigned int x = 0; x < expectedWidth; ++x )
             {
                 const char val = static_cast<char>( ( x + y ) % 256 );
-                for( unsigned int c = 0; c < pixelSizeInBytes; ++c )
-                {
-                    *dest++ = val;
-                }
+                std::fill( &dest[0], &dest[pixelSizeInBytes], val );
+                dest += pixelSizeInBytes;
             }
         }
     };
