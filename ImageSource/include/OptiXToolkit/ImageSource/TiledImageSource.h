@@ -68,13 +68,11 @@ class TiledImageSource : public WrappedImageSource
     unsigned long long getNumTilesRead() const override;
 
   private:
-    mutable std::mutex        m_dataMutex;
-    TextureInfo               m_tiledInfo{};
-    unsigned long long        m_numTilesRead{};
-    std::vector<char>         m_buffer;
-    std::vector<char*>        m_mipLevels;
-    std::vector<unsigned int> m_mipLevelWidthsInSamples;
-    std::vector<unsigned int> m_mipLevelHeightsInSamples;
+    mutable std::mutex m_dataMutex;
+    TextureInfo        m_tiledInfo{};
+    unsigned long long m_numTilesRead{};
+    std::vector<char>  m_buffer;
+    std::vector<char*> m_mipLevels;
 };
 
 /// A simple convenience function to reliably get a tiled image source.

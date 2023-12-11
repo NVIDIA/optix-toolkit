@@ -81,8 +81,6 @@ bool TiledImageSource::readTile( char*        dest,
         {
             m_buffer.resize( getTextureSizeInBytes( m_tiledInfo ) );
             m_mipLevels.resize( m_tiledInfo.numMipLevels );
-            m_mipLevelWidthsInSamples.resize( m_tiledInfo.numMipLevels );
-            m_mipLevelHeightsInSamples.resize( m_tiledInfo.numMipLevels );
         }
 
         if( m_mipLevels[mipLevel] == nullptr )
@@ -99,9 +97,7 @@ bool TiledImageSource::readTile( char*        dest,
                 mipLevelWidth /= 2;
                 mipLevelHeight /= 2;
             }
-            m_mipLevels[mipLevel]                = ptr;
-            m_mipLevelWidthsInSamples[mipLevel]  = mipLevelWidth;
-            m_mipLevelHeightsInSamples[mipLevel] = mipLevelHeight;
+            m_mipLevels[mipLevel] = ptr;
             if( !WrappedImageSource::readMipLevel( m_mipLevels[mipLevel], mipLevel, mipLevelWidth, mipLevelHeight, stream ) )
                 return false;
         }
