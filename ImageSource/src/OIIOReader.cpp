@@ -252,7 +252,10 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
         }
     }
 
-    m_numTilesRead += 1;
+    {
+        std::lock_guard<std::mutex> guard( m_mutex );
+        ++m_numTilesRead;
+    }
     return true;
 }
 
