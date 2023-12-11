@@ -35,6 +35,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 otk_add_executable( testImageSource
   TestCheckerBoardImage.cpp
   TestImageSource.cpp
+  TestMipMapImageSource.cpp
   TestRateLimitedImageSource.cpp
   TestTiledImageSource.cpp
   SourceDir.h.in
