@@ -124,7 +124,7 @@ struct TestOIIOReader : public testing::Test
 {
 };
 
-// Macro to instantiate the test cases for all Reader typs
+// Macro to instantiate the test cases for all Reader types
 #if OTK_USE_OIIO
 #define INSTANTIATE_READER_TESTS( TEST_NAME )                                                                          \
     TEST_F( TestEXRReader, TEST_NAME ) { run##TEST_NAME<EXRReader>(); }                                                \
@@ -196,7 +196,7 @@ void runReadFineTileFloat()
     std::vector<float4> texels( width * height );
     ASSERT_NO_THROW( floatReader.readTile( reinterpret_cast<char*>( texels.data() ), mipLevel, 1, 1, width, height, nullptr ) );
 
-    // Pattern is red/white checkboard with 16x16 squares
+    // Pattern is red/white checkerboard with 16x16 squares
     EXPECT_EQ( make_float3( 1, 0, 0 ), getTexel( 0, 0, texels, width ) );
     EXPECT_EQ( make_float3( 1, 1, 1 ), getTexel( width - 1, 0, texels, width ) );
     EXPECT_EQ( make_float3( 1, 1, 1 ), getTexel( 0, height - 1, texels, width ) );
