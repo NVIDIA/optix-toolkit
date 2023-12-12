@@ -48,26 +48,6 @@
 
 using namespace otk;
 
-namespace {
-
-demandLoading::Options configure( demandLoading::Options options )
-{
-    // If maxTexMemPerDevice is 0, consider it to be unlimited
-    if( options.maxTexMemPerDevice == 0 )
-        options.maxTexMemPerDevice = 0xfffffffffffffffful;
-
-    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
-    if( options.maxFilledPages < options.maxRequestedPages )
-        options.maxFilledPages = options.maxRequestedPages;
-
-    // Anticipate at least one active stream per device.
-    options.maxActiveStreams = std::max( 1U, options.maxActiveStreams );
-
-    return options;
-}
-
-}  // anonymous namespace
-
 namespace demandLoading {
 
 bool DemandPageLoaderImpl::supportsSparseTextures( CUdevice device )
@@ -83,17 +63,17 @@ bool DemandPageLoaderImpl::supportsSparseTextures( CUdevice device )
     return sparseSupport && !inTccMode;
 }
 
-DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
-    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )
+DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options )
+    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( options->numPages, options->numPageTableEntries ), requestProcessor, options )
 {
 }
 
 DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager,
                                             RequestProcessor*                 requestProcessor,
-                                            const Options&                    options )
-    : m_options( configure( options ) )
-    , m_deviceMemoryManager( options )
-    , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, options.maxPinnedMemory )
+                                            std::shared_ptr<Options>          options )
+    : m_options( options )
+    , m_deviceMemoryManager( m_options )
+    , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, m_options->maxPinnedMemory )
     , m_pageTableManager( std::move( pageTableManager ) )
     , m_requestProcessor( requestProcessor )
     , m_pagingSystem( m_options, &m_deviceMemoryManager, &m_pinnedMemoryPool, m_requestProcessor )
@@ -101,7 +81,7 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pa
     CUdevice device;
     OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
     if( !supportsSparseTextures( device ) )
-        m_options.useSparseTextures = false;
+        m_options->useSparseTextures = false;
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
@@ -132,7 +112,7 @@ bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context
         context = *m_deviceMemoryManager.allocateDeviceContext();
         invalidatePages( stream, context );
     }
-    context.requestIfResident = m_options.evictionActive;
+    context.requestIfResident = m_options->evictionActive;
 
     m_pagingSystem.pushMappings( context, stream );
     return true;
@@ -202,8 +182,8 @@ void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     
-    unsigned int tilesStartPage = m_options.numPageTableEntries;
-    unsigned int tilesEndPage   = m_options.numPages;
+    unsigned int tilesStartPage = m_options->numPageTableEntries;
+    unsigned int tilesEndPage   = m_options->numPages;
     size_t       maxArenas      = maxMem / m_deviceMemoryManager.getTilePoolArenaSize();
 
     // Resize, deleting tile arenas as needed
@@ -213,7 +193,7 @@ void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
     ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
     m_pagesToInvalidate.push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
 
-    m_options.maxTexMemPerDevice = maxMem;
+    m_options->maxTexMemPerDevice = maxMem;
 }
 
 void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate )
@@ -224,7 +204,7 @@ void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    return new DemandPageLoaderImpl( requestProcessor, options );
+    return new DemandPageLoaderImpl( requestProcessor, std::shared_ptr<Options>( new Options( options ) ) );
 }
 
 void destroyDemandPageLoader( DemandPageLoader* manager )

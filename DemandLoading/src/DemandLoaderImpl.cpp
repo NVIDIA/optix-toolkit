@@ -71,10 +71,31 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
 };
 
 
+namespace {
+
+std::shared_ptr<demandLoading::Options> configure( demandLoading::Options options )
+{
+    // If maxTexMemPerDevice is 0, consider it to be unlimited
+    if( options.maxTexMemPerDevice == 0 )
+        options.maxTexMemPerDevice = 0xfffffffffffffffful;
+
+    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
+    if( options.maxFilledPages < options.maxRequestedPages )
+        options.maxFilledPages = options.maxRequestedPages;
+
+    // Anticipate at least one active stream per device.
+    options.maxActiveStreams = std::max( 1U, options.maxActiveStreams );
+
+    return std::shared_ptr<Options>( new Options( options ) );
+}
+
+}  // anonymous namespace
+
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
-    : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages, options.numPageTableEntries ) )
+    : m_options( configure( options ) )
+    , m_pageTableManager( std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries ) )
     , m_requestProcessor( m_pageTableManager, options )
-    , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
+    , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, m_options ) )
     , m_samplerRequestHandler( this )
     , m_cascadeRequestHandler( this )
     , m_deviceTransferPool( new DEVICE_MEMORY_POOL_ALLOCATOR(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, 64 << 20 )
@@ -83,12 +104,12 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
 
     // Reserve pages in the sampler request handler for all possible textures.
-    m_samplerRequestHandler.setPageRange( 0, options.numPageTableEntries );
+    m_samplerRequestHandler.setPageRange( 0, m_options->numPageTableEntries );
 
     // Reserve pages for the cascade request handler if supported
-    if( options.useCascadingTextureSizes )
-    {
-        unsigned int maxTextures = options.numPageTableEntries / PAGES_PER_TEXTURE;
+    if( m_options->useCascadingTextureSizes )
+    { 
+       unsigned int maxTextures = m_options->numPageTableEntries / PAGES_PER_TEXTURE;
         unsigned int numCascadePages = NUM_CASCADES * maxTextures;
         unsigned int cascadeStartPage = m_pageTableManager->reserveUnbackedPages( numCascadePages, &m_cascadeRequestHandler );
         CascadeRequestFilter* requestFilter = new CascadeRequestFilter( cascadeStartPage, cascadeStartPage + numCascadePages, this );
@@ -442,11 +463,6 @@ Statistics DemandLoaderImpl::getStatistics() const
         }
     }
     return stats;
-}
-
-const Options& DemandLoaderImpl::getOptions() const
-{
-    return m_pageLoader->getOptions();
 }
 
 void DemandLoaderImpl::enableEviction( bool evictionActive )

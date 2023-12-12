@@ -42,12 +42,14 @@
 #include <OptiXToolkit/DemandLoading/Statistics.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
+#include <memory>
+
 namespace demandLoading {
 
 class DeviceMemoryManager
 {
   public:
-    DeviceMemoryManager( const Options& options );
+    DeviceMemoryManager( std::shared_ptr<Options> options );
     ~DeviceMemoryManager();
 
     /// Allocate a DeviceContext for this device.
@@ -75,7 +77,7 @@ class DeviceMemoryManager
     { 
         if( m_tilePool.trackedSize() < m_tilePool.maxSize() )
             return false;
-        return m_tilePool.currentFreeSpace() < ( m_options.maxStagedPages * otk::TILE_SIZE_IN_BYTES );
+        return m_tilePool.currentFreeSpace() < ( m_options->maxStagedPages * otk::TILE_SIZE_IN_BYTES );
     }
     /// Returns the arena size for m_tilePool.
     size_t getTilePoolArenaSize() const { return static_cast<size_t>( m_tilePool.allocationGranularity() ); }
@@ -89,7 +91,7 @@ class DeviceMemoryManager
     }
 
   private:
-    Options      m_options;
+    std::shared_ptr<Options> m_options;
 
     otk::MemoryPool<otk::DeviceAllocator, otk::FixedSuballocator>     m_samplerPool;
     otk::MemoryPool<otk::DeviceAllocator, otk::HeapSuballocator>      m_deviceContextMemory;

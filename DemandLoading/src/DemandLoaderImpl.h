@@ -149,7 +149,7 @@ class DemandLoaderImpl : public DemandLoader
     Statistics getStatistics() const override;
 
     /// Get the demand loading configuration options.
-    const Options& getOptions() const override;
+    const Options& getOptions() const override { return *m_options; }
 
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
@@ -187,8 +187,9 @@ class DemandLoaderImpl : public DemandLoader
     virtual CUcontext getCudaContext() { return m_cudaContext; }
 
   private:
-    CUcontext m_cudaContext;  // The demand loader is for this context
-    mutable std::mutex m_mutex;
+    mutable std::mutex       m_mutex;
+    std::shared_ptr<Options> m_options;
+    CUcontext                m_cudaContext;  // The demand loader is for this context
 
     std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.

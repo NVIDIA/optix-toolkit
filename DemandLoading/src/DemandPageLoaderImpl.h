@@ -66,9 +66,9 @@ class DemandPageLoaderImpl : public DemandPageLoader
 {
   public:
     /// Construct demand loading sytem.
-    DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options );
+    DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options );
 
-    DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager, RequestProcessor *requestProcessor, const Options& options );
+    DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager, RequestProcessor *requestProcessor, std::shared_ptr<Options> options );
 
     /// Destroy demand loading system.
     ~DemandPageLoaderImpl() override = default;
@@ -97,11 +97,13 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// the given stream.
     void replayRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
 
+#if 0    
     /// Get the demand loading configuration options.
-    const Options& getOptions() const { return m_options; }
-
+    const Options& getOptions() const { return *m_options; }
+#endif
+    
     /// Turn on or off eviction
-    void enableEviction( bool evictionActive ) override { m_options.evictionActive = evictionActive; }
+    void enableEviction( bool evictionActive ) override { m_options->evictionActive = evictionActive; }
 
     /// Get the DeviceMemoryManager for the current CUDA context.
     DeviceMemoryManager* getDeviceMemoryManager() { return &m_deviceMemoryManager; }
@@ -118,9 +120,9 @@ class DemandPageLoaderImpl : public DemandPageLoader
     double getTotalProcessingTime() const { return m_totalProcessingTime; }
 
   private:
-    mutable std::mutex  m_mutex;
-    Options             m_options;
-    DeviceMemoryManager m_deviceMemoryManager;
+    mutable std::mutex       m_mutex;
+    std::shared_ptr<Options> m_options;
+    DeviceMemoryManager      m_deviceMemoryManager;
 
     otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator> m_pinnedMemoryPool;
 

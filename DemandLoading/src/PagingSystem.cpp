@@ -46,16 +46,16 @@ using namespace otk;
 
 namespace demandLoading {
 
-PagingSystem::PagingSystem( const Options&       options,
-                            DeviceMemoryManager* deviceMemoryManager,
+PagingSystem::PagingSystem( std::shared_ptr<Options> options,
+                            DeviceMemoryManager*     deviceMemoryManager,
                             MemoryPool<PinnedAllocator, RingSuballocator>* pinnedMemoryPool,
-                            RequestProcessor*    requestProcessor )
+                            RequestProcessor* requestProcessor )
     : m_options( options )
     , m_deviceMemoryManager( deviceMemoryManager )
     , m_requestProcessor( requestProcessor )
     , m_pinnedMemoryPool( pinnedMemoryPool )
 {
-    OTK_ASSERT( m_options.maxFilledPages >= m_options.maxRequestedPages );
+    OTK_ASSERT( m_options->maxFilledPages >= m_options->maxRequestedPages );
 
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
@@ -63,9 +63,9 @@ PagingSystem::PagingSystem( const Options&       options,
     // Allocate a pageMappingsContext in pinned memory (see pushMappings). It's not necessary
     // to free it in the destructor, since it's pool allocated.
     m_pageMappingsContextBlock =
-        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( m_options ), alignof( PageMappingsContext ) );
+        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( *m_options ), alignof( PageMappingsContext ) );
     m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
-    m_pageMappingsContext->init( m_options );
+    m_pageMappingsContext->init( *m_options );
 
     OTK_ERROR_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
 }
@@ -127,7 +127,7 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
                                         context.arrayLengths.capacity * sizeof( unsigned int ), stream ) );
 
     OTK_ASSERT( startPage <= endPage );
-    OTK_ASSERT( endPage <= m_options.numPages );
+    OTK_ASSERT( endPage <= m_options->numPages );
     m_launchNum++;
 
     launchPullRequests( m_pagingKernels, stream, context, m_launchNum, m_lruThreshold, startPage, endPage);
@@ -142,8 +142,8 @@ void PagingSystem::pullRequests( const DeviceContext& context, CUstream stream, 
     else 
     {
         OTK_ERROR_CHECK( cuMemAllocHost( reinterpret_cast<void**>( &pinnedRequestContext ),
-                                           RequestContext::getAllocationSize( m_options ) ) );
-        pinnedRequestContext->init( m_options );
+                                           RequestContext::getAllocationSize( *m_options ) ) );
+        pinnedRequestContext->init( *m_options );
     }
 
     // Copy the requested page list from this device.  The actual length is unknown, so we copy the entire capacity
@@ -208,7 +208,7 @@ void PagingSystem::processRequests( const DeviceContext& context, RequestContext
             std::shuffle(pinnedRequestContext->stalePages, pinnedRequestContext->stalePages + numStalePages, m_rng);
         }
 
-        if( m_evictionActive && getNumStagedPages() < m_options.maxStagedPages )
+        if( m_evictionActive && getNumStagedPages() < m_options->maxStagedPages )
         {
             m_stagedPages.emplace_back( StagedPageList{m_pushMappingsEvent, std::deque<PageMapping>()} );
             stageStalePages( pinnedRequestContext, m_stagedPages.back().mappings );
@@ -260,9 +260,9 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
 
     // Allocate a new PageMappingsContext for the next pushMappings cycle.
     m_pageMappingsContextBlock =
-        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( m_options ), alignof( PageMappingsContext ) );
+        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( *m_options ), alignof( PageMappingsContext ) );
     m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
-    m_pageMappingsContext->init( m_options );
+    m_pageMappingsContext->init( *m_options );
 
     return numFilledPages;
 }
@@ -278,7 +278,7 @@ void PagingSystem::stageStalePages( RequestContext* requestContext, std::deque<P
     for( int i = static_cast<int>( numStalePages - 1 ); i >= 0; --i )
     {
         StalePage sp = requestContext->stalePages[i];
-        if( numStaged >= m_options.maxStagedPages || m_pageMappingsContext->numInvalidatedPages >= m_options.maxInvalidatedPages - 1 )
+        if( numStaged >= m_options->maxStagedPages || m_pageMappingsContext->numInvalidatedPages >= m_options->maxInvalidatedPages - 1 )
             break;
 
         const auto& p = m_pageTable.find( sp.pageId );
@@ -337,7 +337,7 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
 void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
 {
     // Mutex acquired in caller
-    OTK_ASSERT_MSG( pageId < m_options.numPages, "pageId outside of page table range." );
+    OTK_ASSERT_MSG( pageId < m_options->numPages, "pageId outside of page table range." );
 
     m_pageMappingsContext->filledPages[m_pageMappingsContext->numFilledPages++] = PageMapping{pageId, lruVal, entry};
     m_pageTable[pageId] = HostPageTableEntry{entry, true, false, false};
@@ -381,8 +381,8 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     const unsigned int numFilledPages = m_pageMappingsContext->numFilledPages;
     if( numFilledPages > 0 )
     {
-        OTK_ASSERT_MSG( numFilledPages <= m_options.maxFilledPages,
-                           "Too many filled pages. Increase options.maxFilledPages." );
+        OTK_ASSERT_MSG( numFilledPages <= m_options->maxFilledPages,
+                        "Too many filled pages. Increase options.maxFilledPages." );
         OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
                                           numFilledPages * sizeof( PageMapping ), stream ) );
@@ -393,7 +393,7 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     const unsigned int numInvalidatedPages = m_pageMappingsContext->numInvalidatedPages;
     if( numInvalidatedPages > 0 )
     {
-        OTK_ASSERT_MSG( numInvalidatedPages <= m_options.maxInvalidatedPages,
+        OTK_ASSERT_MSG( numInvalidatedPages <= m_options->maxInvalidatedPages,
                            "Too many invalidated pages. Increase options.maxInvalidPages." );
         OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.invalidatedPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->invalidatedPages ),

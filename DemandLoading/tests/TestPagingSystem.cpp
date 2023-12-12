@@ -56,7 +56,7 @@ class DevicePaging
     CUstream                                      m_stream{};
     std::unique_ptr<bool[]>                       m_pagesResident;
 
-    DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
+    DevicePaging( unsigned int deviceIndex, std::shared_ptr<Options> options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
         , m_deviceMemoryManager( options )
         , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC ), PINNED_ALLOC, MAX_PINNED_MEM )
@@ -125,18 +125,19 @@ class TestPagingSystem : public testing::Test
     void SetUp() override
     {
         // Initialize paging system options.
-        m_options.numPages            = 1025;
-        m_options.numPageTableEntries = 128;
-        m_options.maxRequestedPages   = 63;
-        m_options.maxFilledPages      = 65;
-        m_options.maxStalePages       = 33;
-        m_options.maxEvictablePages   = 31;
-        m_options.maxEvictablePages   = 17;
-        m_options.useLruTable         = true;
-        m_options.maxActiveStreams    = 4;
+        m_options.reset( new Options );
+        m_options->numPages            = 1025;
+        m_options->numPageTableEntries = 128;
+        m_options->maxRequestedPages   = 63;
+        m_options->maxFilledPages      = 65;
+        m_options->maxStalePages       = 33;
+        m_options->maxEvictablePages   = 31;
+        m_options->maxEvictablePages   = 17;
+        m_options->useLruTable         = true;
+        m_options->maxActiveStreams    = 4;
 
-        m_pageTableManager = std::make_shared<PageTableManager>( m_options.numPages, m_options.numPageTableEntries );
-        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, m_options ) );
+        m_pageTableManager = std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries );
+        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, *m_options ) );
 
         // Create per-device PagingSystem, etc.
         int numDevices;
@@ -155,7 +156,7 @@ class TestPagingSystem : public testing::Test
     }
 
   protected:
-    Options                                    m_options;
+    std::shared_ptr<Options>                   m_options;
     std::shared_ptr<PageTableManager>          m_pageTableManager;
     std::unique_ptr<RequestProcessor>          m_requestProcessor;
     std::vector<std::unique_ptr<DevicePaging>> m_devices;
@@ -208,7 +209,7 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
 
         // Page table entries are allocated only for texture samplers, not tiles,
         // so page ids >= Options::numPageTableEntries are mapped to zero.
-        const unsigned int pageId = m_options.numPageTableEntries + 1;
+        const unsigned int pageId = m_options->numPageTableEntries + 1;
         // Map a page id that has no corresponding page table entry.
         device->m_paging.addMapping( pageId, 0 /*lruValue*/, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
@@ -222,3 +223,4 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
         EXPECT_TRUE( device->m_pagesResident[0] ) << "page " << pageId << " was not resident.";
     }
 }
+

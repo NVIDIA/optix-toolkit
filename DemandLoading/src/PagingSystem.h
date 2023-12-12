@@ -66,8 +66,8 @@ class PagingSystem
 {
   public:
     /// Create paging system, allocating device memory based on the given options.
-    PagingSystem( const Options&       options,
-                  DeviceMemoryManager* deviceMemoryManager,
+    PagingSystem( std::shared_ptr<Options> options,
+                  DeviceMemoryManager*     deviceMemoryManager,
                   otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator>* pinnedMemoryPool,
                   RequestProcessor* requestProcessor );
 
@@ -111,9 +111,9 @@ class PagingSystem
         bool               inStagedList;  // All pages that are in the staged list, whether restored or not.
     };
 
-    Options              m_options{};
-    DeviceMemoryManager* m_deviceMemoryManager{};
-    RequestProcessor*    m_requestProcessor{};
+    std::shared_ptr<Options> m_options{};
+    DeviceMemoryManager*     m_deviceMemoryManager{};
+    RequestProcessor*        m_requestProcessor{};
 
     otk::MemoryBlockDesc m_pageMappingsContextBlock;
     PageMappingsContext* m_pageMappingsContext; 

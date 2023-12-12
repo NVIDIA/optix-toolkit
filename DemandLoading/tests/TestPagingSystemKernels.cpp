@@ -49,14 +49,15 @@ class TestPagingSystemKernels : public testing::Test
         OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
         // Initialize paging system options.
-        m_options.numPages            = 1025;
-        m_options.numPageTableEntries = 1025;
-        m_options.maxRequestedPages   = 65;
-        m_options.maxFilledPages      = 63;
-        m_options.maxStalePages       = 33;
-        m_options.maxEvictablePages   = 31;
-        m_options.maxStagedPages      = 31;
-        m_options.useLruTable         = true;
+        m_options.reset( new Options );
+        m_options->numPages            = 1025;
+        m_options->numPageTableEntries = 1025;
+        m_options->maxRequestedPages   = 65;
+        m_options->maxFilledPages      = 63;
+        m_options->maxStalePages       = 33;
+        m_options->maxEvictablePages   = 31;
+        m_options->maxStagedPages      = 31;
+        m_options->useLruTable         = true;
 
         // Allocate and initialize device context.
         m_deviceMemoryManager = new DeviceMemoryManager( m_options );
@@ -78,7 +79,7 @@ class TestPagingSystemKernels : public testing::Test
 
   private:
     const unsigned int   m_deviceIndex{};
-    Options              m_options{};
+    std::shared_ptr<Options> m_options{};
     DeviceMemoryManager* m_deviceMemoryManager{};
     DeviceContext*       m_context{};
 };

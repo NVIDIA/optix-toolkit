@@ -35,14 +35,14 @@ namespace demandLoading {
 
 static const unsigned int SAMPLER_POOL_ALLOC_SIZE = 65536;
 
-DeviceMemoryManager::DeviceMemoryManager( const Options& options )
+DeviceMemoryManager::DeviceMemoryManager( std::shared_ptr<Options> options )
     : m_options( options )
     , m_samplerPool( new DeviceAllocator(), new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ), SAMPLER_POOL_ALLOC_SIZE )
     , m_deviceContextMemory( new DeviceAllocator(), nullptr )
     , m_tilePool( new TextureTileAllocator(),
                   new HeapSuballocator(),
                   TextureTileAllocator::getRecommendedAllocationSize(),
-                  m_options.maxTexMemPerDevice )
+                  m_options->maxTexMemPerDevice )
 {
 }
 
@@ -71,10 +71,10 @@ DeviceContext* DeviceMemoryManager::allocateDeviceContext()
     if( m_deviceContextPool.size() > 1 )
         context->setPerDeviceData( *m_deviceContextPool[0] );
     else
-        context->allocatePerDeviceData( &m_deviceContextMemory, m_options );
+        context->allocatePerDeviceData( &m_deviceContextMemory, *m_options );
 
     // Each context gets its own copy of per stream data.
-    context->allocatePerStreamData( &m_deviceContextMemory, m_options );
+    context->allocatePerStreamData( &m_deviceContextMemory, *m_options );
 
     return context;
 }
