@@ -76,6 +76,20 @@ struct PageMappingsContext
         numInvalidatedPages = 0;
         maxInvalidatedPages = options.maxInvalidatedPages;
     }
+
+    // Copy given PageMappingsContext.
+    void copy( const PageMappingsContext& other )
+    {
+        OTK_ASSERT( numFilledPages == 0 );
+        OTK_ASSERT( maxFilledPages >= other.numFilledPages );
+        std::copy( filledPages, filledPages + other.numFilledPages, other.filledPages );
+        numFilledPages = other.numFilledPages;
+
+        OTK_ASSERT( numInvalidatedPages == 0 );
+        OTK_ASSERT( maxInvalidatedPages >= other.numInvalidatedPages );
+        std::copy( invalidatedPages, invalidatedPages + other.numInvalidatedPages, other.invalidatedPages );
+        numInvalidatedPages = other.numInvalidatedPages;
+    }        
 };
 
 }  // namespace demandLoading

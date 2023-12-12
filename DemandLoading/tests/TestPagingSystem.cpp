@@ -224,3 +224,19 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
     }
 }
 
+TEST_F( TestPagingSystem, TestPageMappingOverflow )
+{
+    for( auto& device : m_devices )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
+        // Page table entries are allocated only for texture samplers, not tiles,
+        // so page ids >= Options::numPageTableEntries are mapped to zero.
+        for( unsigned pageId = 0; pageId < m_options->numPageTableEntries; ++pageId )
+        {
+            // Map a page id.
+            device->m_paging.addMapping( pageId, 0 /*lruValue*/, 42ULL );
+        }
+        EXPECT_EQ( m_options->numPageTableEntries, device->pushMappings() );
+    }
+}

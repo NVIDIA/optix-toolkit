@@ -173,6 +173,9 @@ class PagingSystem
     // Get the number of staged pages (ready to be freed for reuse)
     size_t getNumStagedPages();
 
+    // Allocate a PageMappingsContext in pinned memory.
+    void initPageMappingsContext();
+
     // Add mapping function without mutex
     void addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
 

@@ -60,12 +60,7 @@ PagingSystem::PagingSystem( std::shared_ptr<Options> options,
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
     m_pushMappingsEvent = std::make_shared<FutureEvent>();
 
-    // Allocate a pageMappingsContext in pinned memory (see pushMappings). It's not necessary
-    // to free it in the destructor, since it's pool allocated.
-    m_pageMappingsContextBlock =
-        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( *m_options ), alignof( PageMappingsContext ) );
-    m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
-    m_pageMappingsContext->init( *m_options );
+    initPageMappingsContext();
 
     OTK_ERROR_CHECK( cuModuleLoadData( &m_pagingKernels, PagingSystemKernelsCudaText() ) );
 }
@@ -259,11 +254,8 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
     m_pinnedMemoryPool->freeAsync( m_pageMappingsContextBlock, stream);
 
     // Allocate a new PageMappingsContext for the next pushMappings cycle.
-    m_pageMappingsContextBlock =
-        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( *m_options ), alignof( PageMappingsContext ) );
-    m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
-    m_pageMappingsContext->init( *m_options );
-
+    initPageMappingsContext();
+    
     return numFilledPages;
 }
 
@@ -334,10 +326,33 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
     return false;
 }
 
+void PagingSystem::initPageMappingsContext()
+{    
+    // Allocate a PageMappingsContext in pinned memory (see pushMappings). It's not necessary
+    // to free it in the destructor, since it's pool allocated.
+    m_pageMappingsContextBlock =
+        m_pinnedMemoryPool->alloc( PageMappingsContext::getAllocationSize( *m_options ), alignof( PageMappingsContext ) );
+    m_pageMappingsContext = reinterpret_cast<PageMappingsContext*>( m_pageMappingsContextBlock.ptr );
+    m_pageMappingsContext->init( *m_options );
+}
+
 void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
 {
     // Mutex acquired in caller
     OTK_ASSERT_MSG( pageId < m_options->numPages, "pageId outside of page table range." );
+
+    // Resize PageMappingContext if necessary.
+    if( m_pageMappingsContext->numFilledPages >= m_options->maxFilledPages )
+    {
+        // Allocate larger context.
+        otk::MemoryBlockDesc oldContext = m_pageMappingsContextBlock;
+        m_options->maxFilledPages *= 2;
+        initPageMappingsContext();
+
+        // Copy old context and free it.
+        m_pageMappingsContext->copy( *reinterpret_cast<PageMappingsContext*>( oldContext.ptr ) );
+        m_pinnedMemoryPool->free( oldContext );
+    }
 
     m_pageMappingsContext->filledPages[m_pageMappingsContext->numFilledPages++] = PageMapping{pageId, lruVal, entry};
     m_pageTable[pageId] = HostPageTableEntry{entry, true, false, false};
@@ -383,6 +398,8 @@ void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, C
     {
         OTK_ASSERT_MSG( numFilledPages <= m_options->maxFilledPages,
                         "Too many filled pages. Increase options.maxFilledPages." );
+        OTK_ASSERT_MSG( m_pageMappingsContext->numFilledPages <= context.filledPages.capacity,
+                        "Filled pages exceed DeviceContext capacity" );
         OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( context.filledPages.data ),
                                           reinterpret_cast<CUdeviceptr>( m_pageMappingsContext->filledPages ),
                                           numFilledPages * sizeof( PageMapping ), stream ) );
@@ -422,6 +439,8 @@ void PagingSystem::invalidatePages( unsigned int              startId,
 
         if( !predicate || (*predicate)( pageId, pageVal ) )
         {
+            OTK_ASSERT_MSG( m_pageMappingsContext->numInvalidatedPages < m_options->maxInvalidatedPages,
+                            "Maximum number of invalidated pages exceeded (Options::maxInvalidPages)" );
             m_pageMappingsContext->invalidatedPages[m_pageMappingsContext->numInvalidatedPages++] = pageId;
             if( p->second.inStagedList )
             {
