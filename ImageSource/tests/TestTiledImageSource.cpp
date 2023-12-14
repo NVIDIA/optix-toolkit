@@ -55,6 +55,7 @@ class TestTiledImageSource : public Test
     otk::testing::MockImageSourcePtr m_baseImage{ std::make_shared<otk::testing::MockImageSource>() };
     imageSource::TextureInfo         m_baseInfo{};
     TiledImageSourcePtr              m_tiledImage;
+    CUstream                         m_stream{ otk::bit_cast<CUstream>( 0xdeadbeefULL ) };
 };
 
 void TestTiledImageSource::SetUp()
@@ -130,7 +131,6 @@ TEST_F( TestTiledImageSource, getInfoWithoutOpenIsInvalid )
 TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
 {
     EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    const CUstream     stream{ otk::bit_cast<CUstream>( 0xdeadbeefULL ) };
     const unsigned int mipLevel{ 0 };
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
@@ -147,7 +147,7 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
             }
         }
     };
-    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), mipLevel, mipLevelWidth, mipLevelHeight, stream ) )
+    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), mipLevel, mipLevelWidth, mipLevelHeight, m_stream ) )
         .WillOnce( DoAll( fillMipLevel, Return( true ) ) );
     imageSource::TextureInfo info{};
     m_tiledImage->open( &info );
@@ -159,7 +159,7 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
     const unsigned int tileHeight{ 64 };
     std::vector<char>  dest;
     dest.resize( tileWidth * tileHeight * 4 );
-    ASSERT_TRUE( m_tiledImage->readTile( dest.data(), mipLevel, tileX, tileY, tileWidth, tileHeight, stream ) );
+    ASSERT_TRUE( m_tiledImage->readTile( dest.data(), mipLevel, tileX, tileY, tileWidth, tileHeight, m_stream ) );
 
     for( unsigned int y = 0; y < 64; ++y )
     {
@@ -182,14 +182,13 @@ TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
     EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( baseMipInfo ) );
     const unsigned int mipTailFirstLevel{ 0 };
     const unsigned int numMipLevels{ 5 };
-    const CUstream     stream{};
     std::vector<uint2> mipLevelDims;
     unsigned int       size = 1;
     const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( baseMipInfo.format ) * baseMipInfo.numChannels };
     for( unsigned int i = 0; i < numMipLevels; ++i )
     {
         mipLevelDims.push_back( make_uint2( size, size ) );
-        EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), i, size, size, stream ) ).WillOnce( Return( true ) );
+        EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), i, size, size, m_stream ) ).WillOnce( Return( true ) );
         size *= 2;
     }
     m_tiledImage->open( nullptr );
@@ -197,7 +196,7 @@ TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
     std::vector<char> dest;
     dest.resize( getTextureSizeInBytes( baseMipInfo ) );
     EXPECT_TRUE( m_tiledImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(),
-                                            pixelSizeInBytes, stream ) );
+                                            pixelSizeInBytes, m_stream ) );
 }
 
 TEST_F( TestTiledImageSource, tracksTileReadCount )
@@ -211,9 +210,83 @@ TEST_F( TestTiledImageSource, tracksTileReadCount )
     const unsigned int tileHeight{ 64 };
     std::vector<char>  dest;
     dest.resize( tileWidth * tileHeight * 4 );
-    CUstream stream{};
-    m_tiledImage->readTile( dest.data(), 0, tileX, tileY, tileWidth, tileHeight, stream );
-    m_tiledImage->readTile( dest.data(), 0, tileX + tileX, tileY, tileWidth, tileHeight, stream );
+    m_tiledImage->readTile( dest.data(), 0, tileX, tileY, tileWidth, tileHeight, m_stream );
+    m_tiledImage->readTile( dest.data(), 0, tileX + tileX, tileY, tileWidth, tileHeight, m_stream );
 
     EXPECT_EQ( 2ULL, m_tiledImage->getNumTilesRead() );
+}
+
+namespace {
+
+class TestTiledImageSourcePassThrough : public TestTiledImageSource
+{
+  public:
+    ~TestTiledImageSourcePassThrough() override = default;
+
+  protected:
+    void SetUp() override
+    {
+        TestTiledImageSource::SetUp();
+        m_baseInfo.isTiled = true;
+    }
+};
+
+}  // namespace
+
+TEST_F( TestTiledImageSourcePassThrough, open )
+{
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+
+    m_tiledImage->open( nullptr );
+}
+
+TEST_F( TestTiledImageSourcePassThrough, close )
+{
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    EXPECT_CALL( *m_baseImage, close() );
+    m_tiledImage->open( nullptr );
+
+    m_tiledImage->close();
+}
+
+TEST_F( TestTiledImageSourcePassThrough, getInfo )
+{
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    EXPECT_CALL( *m_baseImage, getInfo() ).WillOnce( ReturnRef( m_baseInfo ) );
+    m_tiledImage->open( nullptr );
+
+    const imageSource::TextureInfo info = m_tiledImage->getInfo();
+
+    EXPECT_TRUE( info.isValid );
+    EXPECT_TRUE( info.isTiled );
+}
+
+TEST_F( TestTiledImageSourcePassThrough, readTile )
+{
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    EXPECT_CALL( *m_baseImage, readTile( NotNull(), 1, 2, 3, 16, 16, m_stream ) ).WillOnce( Return( true ) );
+    m_tiledImage->open( nullptr );
+
+    char buffer{};
+    EXPECT_TRUE( m_tiledImage->readTile( &buffer, 1, 2, 3, 16, 16, m_stream ) );
+}
+
+TEST_F( TestTiledImageSourcePassThrough, readMipTail )
+{
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    char        buffer{};
+    const uint2 dims{};
+    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).WillOnce( Return( true ) );
+    m_tiledImage->open( nullptr );
+
+    EXPECT_TRUE( m_tiledImage->readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) );
+}
+
+TEST_F( TestTiledImageSourcePassThrough, getNumTilesRead )
+{
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    EXPECT_CALL( *m_baseImage, getNumTilesRead() ).WillOnce( Return( 13 ) );
+    m_tiledImage->open( nullptr );
+
+    EXPECT_EQ( 13, m_tiledImage->getNumTilesRead() );
 }

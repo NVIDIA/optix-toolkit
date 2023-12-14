@@ -46,6 +46,7 @@ void TiledImageSource::open( TextureInfo* info )
 {
     std::unique_lock<std::mutex> lock( m_dataMutex );
     WrappedImageSource::open( &m_tiledInfo );
+    m_baseIsTiled       = m_tiledInfo.isTiled;
     m_tiledInfo.isTiled = true;
     if( info != nullptr )
     {
@@ -62,6 +63,10 @@ void TiledImageSource::close()
 const TextureInfo& TiledImageSource::getInfo() const
 {
     std::unique_lock<std::mutex> lock( m_dataMutex );
+    if( m_baseIsTiled )
+    {
+        return WrappedImageSource::getInfo();
+    }
     return m_tiledInfo;
 }
 
@@ -73,6 +78,14 @@ bool TiledImageSource::readTile( char*        dest,
                                  unsigned int tileHeight,
                                  CUstream     stream )
 {
+    {
+        std::unique_lock<std::mutex> lock( m_dataMutex );
+        if( m_baseIsTiled )
+        {
+            return WrappedImageSource::readTile( dest, mipLevel, tileX, tileY, tileWidth, tileHeight, stream );
+        }
+    }
+
     const char* mipLevelBuffer;
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
@@ -128,6 +141,14 @@ bool TiledImageSource::readMipTail( char*        dest,
                                     unsigned int pixelSizeInBytes,
                                     CUstream     stream )
 {
+    {
+        std::unique_lock<std::mutex> lock( m_dataMutex );
+        if( m_baseIsTiled )
+        {
+            return WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, pixelSizeInBytes, stream );
+        }
+    }
+
     size_t offset = 0;
     for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
     {
@@ -142,6 +163,10 @@ bool TiledImageSource::readMipTail( char*        dest,
 unsigned long long TiledImageSource::getNumTilesRead() const
 {
     std::unique_lock<std::mutex> lock( m_dataMutex );
+    if( m_baseIsTiled )
+    {
+        return WrappedImageSource::getNumTilesRead();
+    }
     return m_numTilesRead;
 }
 

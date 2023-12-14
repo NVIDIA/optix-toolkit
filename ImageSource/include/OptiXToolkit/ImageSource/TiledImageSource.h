@@ -69,6 +69,7 @@ class TiledImageSource : public WrappedImageSource
 
   private:
     mutable std::mutex m_dataMutex;
+    bool               m_baseIsTiled{};
     TextureInfo        m_tiledInfo{};
     unsigned long long m_numTilesRead{};
     std::vector<char>  m_buffer;
