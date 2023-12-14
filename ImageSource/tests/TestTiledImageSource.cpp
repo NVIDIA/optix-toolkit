@@ -228,6 +228,8 @@ class TestTiledImageSourcePassThrough : public TestTiledImageSource
     {
         TestTiledImageSource::SetUp();
         m_baseInfo.isTiled = true;
+        EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+        m_tiledImage->open( nullptr );
     }
 };
 
@@ -235,25 +237,18 @@ class TestTiledImageSourcePassThrough : public TestTiledImageSource
 
 TEST_F( TestTiledImageSourcePassThrough, open )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-
-    m_tiledImage->open( nullptr );
 }
 
 TEST_F( TestTiledImageSourcePassThrough, close )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     EXPECT_CALL( *m_baseImage, close() );
-    m_tiledImage->open( nullptr );
 
     m_tiledImage->close();
 }
 
 TEST_F( TestTiledImageSourcePassThrough, getInfo )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     EXPECT_CALL( *m_baseImage, getInfo() ).WillOnce( ReturnRef( m_baseInfo ) );
-    m_tiledImage->open( nullptr );
 
     const imageSource::TextureInfo info = m_tiledImage->getInfo();
 
@@ -263,9 +258,7 @@ TEST_F( TestTiledImageSourcePassThrough, getInfo )
 
 TEST_F( TestTiledImageSourcePassThrough, readTile )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     EXPECT_CALL( *m_baseImage, readTile( NotNull(), 1, 2, 3, 16, 16, m_stream ) ).WillOnce( Return( true ) );
-    m_tiledImage->open( nullptr );
 
     char buffer{};
     EXPECT_TRUE( m_tiledImage->readTile( &buffer, 1, 2, 3, 16, 16, m_stream ) );
@@ -273,20 +266,16 @@ TEST_F( TestTiledImageSourcePassThrough, readTile )
 
 TEST_F( TestTiledImageSourcePassThrough, readMipTail )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     char        buffer{};
     const uint2 dims{};
     EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).WillOnce( Return( true ) );
-    m_tiledImage->open( nullptr );
 
     EXPECT_TRUE( m_tiledImage->readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) );
 }
 
 TEST_F( TestTiledImageSourcePassThrough, getNumTilesRead )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     EXPECT_CALL( *m_baseImage, getNumTilesRead() ).WillOnce( Return( 13 ) );
-    m_tiledImage->open( nullptr );
 
     EXPECT_EQ( 13, m_tiledImage->getNumTilesRead() );
 }
