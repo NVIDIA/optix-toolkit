@@ -30,6 +30,7 @@
 #include <DemandTextureViewerKernelCuda.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/ImageSource/MipMapImageSource.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
 #include <OptiXToolkit/ImageSources/ImageSources.h>
@@ -59,8 +60,10 @@ class DemandTextureViewer : public DemandTextureApp
         TEXTURE_MANDELBROT
     };
 
-    DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
+    DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop, bool tile, bool mipmap )
         : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
+        , m_tile( tile )
+        , m_mipmap( mipmap )
     {
     }
 
@@ -70,9 +73,11 @@ class DemandTextureViewer : public DemandTextureApp
     void           createTexture() override;
 
   private:
-    TextureType m_textureType{};
-    std::string m_textureName;
+    TextureType         m_textureType{};
+    std::string         m_textureName;
     std::vector<float4> m_colorMap;
+    bool                m_tile{};
+    bool                m_mipmap{};
 };
 
 float4 hsva( float hue, float saturation, float value, float /*alpha*/ )
@@ -153,16 +158,19 @@ ImageSourcePtr DemandTextureViewer::createImageSource()
     ImageSourcePtr img;
     if( m_textureType == TEXTURE_FILE )
     {
+        // Assume EXR images are tiled and mipmapped.
         if( endsWith( m_textureName, ".exr" ) )
             img.reset( createExrImage( m_textureName ) );
         else
         {
-            img = imageSources::createImageSource( m_textureName, {} );
-            imageSource::TextureInfo info{};
-            img->open( &info );
-            if( !info.isTiled )
+            img = imageSources::createImageSource( m_textureName );
+            if( m_mipmap )
             {
-                img = std::make_shared<imageSource::TiledImageSource>( img );
+                img = createMipMapImageSource( img );
+            }
+            if( m_tile )
+            {
+                img = createTiledImageSource( img );
             }
         }
         if( !img || m_textureName.empty() )
@@ -218,6 +226,8 @@ void printUsage( const char* program )
         "   --mandelbrot                    Use procedural Mandelbrot texture.\n"
         "   --dim=<width>x<height>          Specify rendering dimensions.\n"
         "   --file <outputfile>             Render to output file and exit.\n"
+        "   --tile                          Make image tileable\n"
+        "   --mipmap                        Make image mipmapped\n"
         "   --no-gl-interop                 Disable OpenGL interop.\n";
     // clang-format on
 
@@ -231,6 +241,8 @@ int main( int argc, char* argv[] )
     std::string                      textureName;
     std::string                      outFileName;
     bool                             glInterop = true;
+    bool                             tile{ false };
+    bool                             mipmap{ false };
     DemandTextureViewer::TextureType textureType{DemandTextureViewer::TEXTURE_NONE};
 
     for( int i = 1; i < argc; ++i )
@@ -253,6 +265,10 @@ int main( int argc, char* argv[] )
             otk::parseDimensions( arg.substr( 6 ).c_str(), windowWidth, windowHeight );
         else if( arg == "--no-gl-interop" )
             glInterop = false;
+        else if( arg == "--tile" )
+            tile = true;
+        else if( arg == "--mipmap" )
+            mipmap = true;
         else
             printUsage( argv[0] );
     }
@@ -271,7 +287,7 @@ int main( int argc, char* argv[] )
         "\n";
     // clang-format on
 
-    DemandTextureViewer app( "Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
+    DemandTextureViewer app( "Texture Viewer", windowWidth, windowHeight, outFileName, glInterop, tile, mipmap );
     app.initDemandLoading();
     app.setTextureType( textureType );
     app.setTextureName( textureName );
