@@ -281,6 +281,7 @@ bool OIIOReader::readMipLevel( char*        dest,
                                CUstream     /*stream*/ )
 {
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read missing mip level" );
 
     OIIO::ImageSpec spec;
     unsigned int    bytesPerPixel;
