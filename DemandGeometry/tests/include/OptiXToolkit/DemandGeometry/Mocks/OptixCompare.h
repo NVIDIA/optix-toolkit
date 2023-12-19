@@ -145,7 +145,7 @@ inline bool operator!=( const OptixProgramGroupDesc& lhs, const OptixProgramGrou
 inline bool operator==( const OptixInstance& lhs, const OptixInstance& rhs )
 {
     // clang-format off
-    return std::equal( std::begin( lhs.transform ), std::end( lhs.transform ), std::begin( rhs.transform ), std::end( rhs.transform ) )
+    return std::equal( std::begin( lhs.transform ), std::end( lhs.transform ), std::begin( rhs.transform ) )
         && lhs.instanceId        == rhs.instanceId
         && lhs.sbtOffset         == rhs.sbtOffset
         && lhs.visibilityMask    == rhs.visibilityMask
