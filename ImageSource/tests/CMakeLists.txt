@@ -43,6 +43,7 @@ otk_add_executable( testImageSource
 
 target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
 target_link_libraries( testImageSource PUBLIC
+    ImageSource
     DemandLoading
     OpenEXR::OpenEXR # for half
     GTest::gmock_main )
