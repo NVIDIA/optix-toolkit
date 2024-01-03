@@ -217,26 +217,28 @@ TEST_F( TestMipMapImageSource, readMipLevelOneSourcesDataFromMipLevelZero )
 
 TEST_F( TestMipMapImageSource, readMipTailReadsMipLevelZero )
 {
-    imageSource::TextureInfo baseMipInfo{ m_baseInfo };
-    baseMipInfo.width        = 16;
-    baseMipInfo.height       = 16;
-    baseMipInfo.numMipLevels = 5;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( baseMipInfo ) );
+    imageSource::TextureInfo baseInfo{ m_baseInfo };
+    baseInfo.width        = 16;
+    baseInfo.height       = 16;
+    baseInfo.numMipLevels = 1;
+    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( baseInfo ) );
     const unsigned int mipTailFirstLevel{ 0 };
     const unsigned int numMipLevels{ 5 };
     std::vector<uint2> mipLevelDims;
-    unsigned int       size = 1;
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( baseMipInfo.format ) * baseMipInfo.numChannels };
+    unsigned int       size = 16;
+    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( baseInfo.format ) * baseInfo.numChannels };
     for( unsigned int i = 0; i < numMipLevels; ++i )
     {
         mipLevelDims.push_back( make_uint2( size, size ) );
-        size *= 2;
+        size /= 2;
     }
-    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, baseMipInfo.width, baseMipInfo.height, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, baseInfo.width, baseInfo.height, m_stream ) ).WillOnce( Return( true ) );
 
     m_mipMapImage->open( nullptr );
     std::vector<char> dest;
-    dest.resize( getTextureSizeInBytes( baseMipInfo ) );
+    imageSource::TextureInfo mippedInfo{ baseInfo };
+    mippedInfo.numMipLevels = numMipLevels;
+    dest.resize( getTextureSizeInBytes( mippedInfo ) );
     EXPECT_TRUE( m_mipMapImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(),
                                              pixelSizeInBytes, m_stream ) );
 }
