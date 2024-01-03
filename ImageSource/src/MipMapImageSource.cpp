@@ -30,6 +30,8 @@
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
+#include <algorithm>
+
 namespace imageSource {
 
 void MipMapImageSource::open( TextureInfo* info )
