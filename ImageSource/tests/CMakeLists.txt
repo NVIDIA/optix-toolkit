@@ -33,6 +33,7 @@ include( GoogleTest )
 configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 otk_add_executable( testImageSource
+  MockImageSource.h
   TestCheckerBoardImage.cpp
   TestImageSource.cpp
   TestMipMapImageSource.cpp
