@@ -123,7 +123,7 @@ bool TiledImageSource::readTile( char*        dest,
     const size_t pixelSizeInBytes      = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
     const size_t imageRowStrideInBytes = m_tiledInfo.width * pixelSizeInBytes;
     const size_t tileRowStrideInBytes  = tileWidth * pixelSizeInBytes;
-    const char*  source                = mipLevelBuffer + tileY * imageRowStrideInBytes + tileX * pixelSizeInBytes;
+    const char* source = mipLevelBuffer + tileY * tileHeight * imageRowStrideInBytes + tileX * tileWidth * pixelSizeInBytes;
     for( unsigned int i = 0; i < tileHeight; ++i )
     {
         std::copy_n( source, tileRowStrideInBytes, dest );
