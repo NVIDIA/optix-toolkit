@@ -80,14 +80,7 @@ void CanvasImage::open( TextureInfo* info )
         *info = m_info;
 }
 
-bool CanvasImage::readTile(  //
-    char*        dest,
-    unsigned int mipLevel,
-    unsigned int tileX,
-    unsigned int tileY,
-    unsigned int tileWidth,
-    unsigned int tileHeight,
-    CUstream     /*stream*/ )
+bool CanvasImage::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
     if( mipLevel >= m_info.numMipLevels )
     {
@@ -97,18 +90,18 @@ bool CanvasImage::readTile(  //
         throw std::runtime_error( ss.str().c_str() );
     }
 
-    const unsigned int srcStartX  = tileX * tileWidth;
-    const unsigned int srcStartY  = tileY * tileHeight;
+    const unsigned int srcStartX  = tile.x * tile.width;
+    const unsigned int srcStartY  = tile.y * tile.height;
     float4*            destPixels = reinterpret_cast<float4*>( dest );
 
     unsigned int levelWidth  = std::max( m_info.width >> mipLevel, 1u );
     unsigned int levelHeight = std::max( m_info.height >> mipLevel, 1u );
-    unsigned int copyWidth   = std::min( tileWidth, levelWidth - srcStartX );
-    unsigned int copyHeight  = std::min( tileHeight, levelHeight - srcStartY );
+    unsigned int copyWidth   = std::min( tile.width, levelWidth - srcStartX );
+    unsigned int copyHeight  = std::min( tile.height, levelHeight - srcStartY );
 
     for( unsigned int destY = 0; destY < copyHeight; ++destY )
     {
-        float4* destRow = destPixels + tileWidth * destY;
+        float4* destRow = destPixels + tile.width * destY;
         float4* srcRow  = getPixel( srcStartX, srcStartY + destY );
         memcpy( destRow, srcRow, copyWidth * sizeof( float4 ) );
     }
