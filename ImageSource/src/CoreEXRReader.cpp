@@ -311,13 +311,7 @@ void CoreEXRReader::readScanlineData( char* dest )
     }
 }
 
-bool CoreEXRReader::readTile( char*        dest,
-                              unsigned int mipLevel,
-                              unsigned int tileX,
-                              unsigned int tileY,
-                              unsigned int destTileWidth,
-                              unsigned int destTileHeight,
-                              CUstream     /*stream*/ )
+bool CoreEXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
     OTK_ASSERT_MSG( !m_isScanline, "Attempting to read tiled data from scanline image." );
@@ -329,21 +323,21 @@ bool CoreEXRReader::readTile( char*        dest,
     const int sourceTileHeight = m_tileHeights[mipLevel];
 
     // We require that the requested tile size is an integer multiple of the EXR tile size.
-    if( !( sourceTileWidth <= static_cast<int>( destTileWidth ) && destTileWidth % sourceTileWidth == 0 )
-        || !( sourceTileHeight <= static_cast<int>( destTileHeight ) && destTileHeight % sourceTileHeight == 0 ) )
+    if( !( sourceTileWidth <= static_cast<int>( tile.width ) && tile.width % sourceTileWidth == 0 )
+        || !( sourceTileHeight <= static_cast<int>( tile.height ) && tile.height % sourceTileHeight == 0 ) )
     {
         std::stringstream str;
         str << "Unsupported EXR tile size (" << sourceTileWidth << "x" << sourceTileHeight << ").  Expected "
-            << destTileWidth << "x" << destTileHeight << " (or a whole fraction thereof) for this pixel format";
+            << tile.width << "x" << tile.height << " (or a whole fraction thereof) for this pixel format";
         throw std::runtime_error( str.str() );
     }
 
-    const int actualTileX    = tileX * ( destTileWidth / sourceTileWidth );
-    const int actualTileY    = tileY * ( destTileHeight / sourceTileHeight );
-    const int numTilesX      = destTileWidth / sourceTileWidth;
-    const int numTilesY      = destTileHeight / sourceTileHeight;
+    const int actualTileX    = tile.x * ( tile.width / sourceTileWidth );
+    const int actualTileY    = tile.y * ( tile.height / sourceTileHeight );
+    const int numTilesX      = tile.width / sourceTileWidth;
+    const int numTilesY      = tile.height / sourceTileHeight;
     const int bytesPerPixel  = getBytesPerChannel( m_info.format ) * m_info.numChannels;
-    const int rowPitch       = destTileWidth * bytesPerPixel;
+    const int rowPitch       = tile.width * bytesPerPixel;
     const int sourceTileSize = sourceTileWidth * sourceTileHeight * bytesPerPixel;
 
     for( int j = 0; j < numTilesY; ++j )

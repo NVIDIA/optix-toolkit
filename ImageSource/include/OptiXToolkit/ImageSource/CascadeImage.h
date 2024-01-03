@@ -61,11 +61,9 @@ class CascadeImage : public ImageSourceBase
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    bool readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream ) override
+    bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) override
     {
-        if( !m_backingImage )
-            return false;
-        return m_backingImage->readTile( dest, mipLevel + m_backingMipLevel, tileX, tileY, tileWidth, tileHeight, stream );
+        return m_backingImage ? m_backingImage->readTile( dest, mipLevel + m_backingMipLevel, tile, stream) : false;
     }
 
     /// Read the specified mipLevel. Throws an exception on error.

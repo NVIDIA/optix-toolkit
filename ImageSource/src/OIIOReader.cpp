@@ -179,7 +179,7 @@ void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int
                         getBytesPerChannel( m_info.format ) * m_info.numChannels, rowPitch );
 }
 
-bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream /*stream*/ )
+bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
@@ -195,26 +195,26 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
         const unsigned int actualTileWidth  = spec.tile_width;
         const unsigned int actualTileHeight = spec.tile_height;
 
-        if( actualTileWidth > tileWidth || tileWidth % actualTileWidth != 0
-            || actualTileHeight > tileHeight || tileHeight % actualTileHeight != 0 )
+        if( actualTileWidth > tile.width || tile.width % actualTileWidth != 0
+            || actualTileHeight > tile.height || tile.height % actualTileHeight != 0 )
         {
             std::stringstream str;
             str << "Unsupported tile size (" << actualTileWidth << "x" << actualTileHeight << ").  Expected "
-                << tileWidth << "x" << tileHeight << " (or a whole fraction thereof) for this pixel format";
+                << tile.width << "x" << tile.height << " (or a whole fraction thereof) for this pixel format";
             throw std::runtime_error( str.str().c_str() );
         }
 
-        const unsigned int actualTileX    = tileX * tileWidth / actualTileWidth;
-        const unsigned int actualTileY    = tileY * tileHeight / actualTileHeight;
+        const unsigned int actualTileX    = tile.x * tile.width / actualTileWidth;
+        const unsigned int actualTileY    = tile.y * tile.height / actualTileHeight;
         const unsigned int bytesPerPixel  = getBytesPerChannel( m_info.format ) * m_info.numChannels;
-        const unsigned int rowPitch       = tileWidth * bytesPerPixel;
+        const unsigned int rowPitch       = tile.width * bytesPerPixel;
         const size_t       actualTileSize = actualTileWidth * actualTileHeight * bytesPerPixel;
 
         // Don't request non-existent tiles on the edge of the texture
         unsigned int levelWidthInSourceTiles  = ( m_levelWidths[mipLevel] + actualTileWidth - 1 ) / actualTileWidth;
         unsigned int levelHeightInSourceTiles = ( m_levelHeights[mipLevel] + actualTileHeight - 1 ) / actualTileHeight;
-        const unsigned int numTilesX = std::min( tileWidth / actualTileWidth, levelWidthInSourceTiles - actualTileX );
-        const unsigned int numTilesY = std::min( tileHeight / actualTileHeight, levelHeightInSourceTiles - actualTileY );
+        const unsigned int numTilesX = std::min( tile.width / actualTileWidth, levelWidthInSourceTiles - actualTileX );
+        const unsigned int numTilesY = std::min( tile.height / actualTileHeight, levelHeightInSourceTiles - actualTileY );
 
         for( unsigned int j = 0; j < numTilesY; ++j )
         {
@@ -227,10 +227,10 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
     }
     else  // Scanline image
     {
-        const unsigned int start_x = tileX * tileWidth;
-        const unsigned int end_x   = std::min<int>( spec.width, start_x + tileWidth );
-        const unsigned int start_y = tileY * tileHeight;
-        const unsigned int end_y   = std::min<int>( spec.height, start_y + tileHeight );
+        const unsigned int start_x = tile.x * tile.width;
+        const unsigned int end_x   = std::min<int>( spec.width, start_x + tile.width );
+        const unsigned int start_y = tile.y * tile.height;
+        const unsigned int end_y   = std::min<int>( spec.height, start_y + tile.height );
 
         const unsigned int bytesPerPixel    = getBytesPerChannel( m_info.format ) * m_info.numChannels;
         const unsigned int file_pixel_bytes = spec.pixel_bytes();

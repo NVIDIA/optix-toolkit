@@ -62,7 +62,7 @@ class RateLimitedImageSource : public WrappedImageSource
 
     /// Delegate to the wrapped ImageSource and update the time remaining, unless there is no time
     /// remaining, in which case nothing is done and false is returned.
-    bool readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream ) override;
+    bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) override;
 
     /// Delegate to the wrapped ImageSource and update the time remaining, unless there is no time
     /// remaining, in which case nothing is done and false is returned.

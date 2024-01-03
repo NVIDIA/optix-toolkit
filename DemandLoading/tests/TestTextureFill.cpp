@@ -296,7 +296,8 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                 // Read the image tile into the tile buffer
                 char* tempTileBuff = &tempTileBuffs[tileSize*(x/tileWidth)];
                 if( readImage )
-                    imageSource.readTile( tempTileBuff, 0, x / tileWidth, y / tileHeight, tileWidth, tileHeight, streams[streamId] );
+                    imageSource.readTile( tempTileBuff, 0, { x / tileWidth, y / tileHeight, tileWidth, tileHeight },
+                                          streams[streamId] );
             }
 
             for( unsigned int x = 0; x < texInfo.width; x += tileWidth )
@@ -369,7 +370,8 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
                 // Read the image tile into the tile buffer
                 if( readImage )
-                    imageSource.readTile( tempTileBuff, 0, x / tileWidth, y / tileHeight, tileWidth, tileHeight, streams[streamId] );
+                    imageSource.readTile( tempTileBuff, 0, { x / tileWidth, y / tileHeight, tileWidth, tileHeight },
+                                          streams[streamId] );
                 
                 // Copy tile data from tile buffer to sparse texture
                 if( transferTexture )

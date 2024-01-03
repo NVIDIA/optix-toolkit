@@ -163,7 +163,7 @@ TEST_F( TestMipMapImageSource, readTileMipLevelZeroSourcesDataFromReadMipLevelZe
     const unsigned int tileHeight{ 64 };
     std::vector<char>  dest;
     dest.resize( tileWidth * tileHeight * 4 );
-    ASSERT_TRUE( m_mipMapImage->readTile( dest.data(), 0, tileX, tileY, tileWidth, tileHeight, m_stream ) );
+    ASSERT_TRUE( m_mipMapImage->readTile( dest.data(), 0, { tileX, tileY, tileWidth, tileHeight }, m_stream ) );
 
     for( unsigned int y = 0; y < 64; ++y )
     {
@@ -194,7 +194,7 @@ TEST_F( TestMipMapImageSource, readTileMipLevelOneSourcesDataFromMipLevelZero )
     const unsigned int tileHeight{ 64 };
     std::vector<char>  dest;
     dest.resize( tileWidth * tileHeight * pixelSizeInBytes );
-    ASSERT_TRUE( m_mipMapImage->readTile( dest.data(), 1, tileX, tileY, tileWidth, tileHeight, m_stream ) );
+    ASSERT_TRUE( m_mipMapImage->readTile( dest.data(), 1, { tileX, tileY, tileWidth, tileHeight }, m_stream ) );
 }
 
 TEST_F( TestMipMapImageSource, readMipLevelOneSourcesDataFromMipLevelZero )
@@ -254,8 +254,8 @@ TEST_F( TestMipMapImageSource, tracksTileReadCount )
     const unsigned int tileHeight{ 64 };
     std::vector<char>  dest;
     dest.resize( tileWidth * tileHeight * 4 );
-    m_mipMapImage->readTile( dest.data(), 0, tileX, tileY, tileWidth, tileHeight, m_stream );
-    m_mipMapImage->readTile( dest.data(), 0, tileX + tileX, tileY, tileWidth, tileHeight, m_stream );
+    m_mipMapImage->readTile( dest.data(), 0, { tileX, tileY, tileWidth, tileHeight }, m_stream );
+    m_mipMapImage->readTile( dest.data(), 0, { tileX + tileX, tileY, tileWidth, tileHeight }, m_stream );
 
     EXPECT_EQ( 2ULL, m_mipMapImage->getNumTilesRead() );
 }
@@ -303,9 +303,9 @@ TEST_F( TestMipMapImageSourcePassThrough, getInfo )
 TEST_F( TestMipMapImageSourcePassThrough, readTile )
 {
     char buffer{};
-    EXPECT_CALL( *m_baseImage, readTile( &buffer, 1, 2, 3, 16, 16, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readTile( &buffer, 1, imageSource::Tile{ 2, 3, 16, 16 }, m_stream ) ).WillOnce( Return( true ) );
 
-    EXPECT_TRUE( m_mipMapImage->readTile( &buffer, 1, 2, 3, 16, 16, m_stream ) );
+    EXPECT_TRUE( m_mipMapImage->readTile( &buffer, 1, { 2, 3, 16, 16 }, m_stream ) );
 }
 
 TEST_F( TestMipMapImageSourcePassThrough, readMipLevel )

@@ -70,19 +70,13 @@ const TextureInfo& TiledImageSource::getInfo() const
     return m_tiledInfo;
 }
 
-bool TiledImageSource::readTile( char*        dest,
-                                 unsigned int mipLevel,
-                                 unsigned int tileX,
-                                 unsigned int tileY,
-                                 unsigned int tileWidth,
-                                 unsigned int tileHeight,
-                                 CUstream     stream )
+bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream )
 {
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
         if( m_baseIsTiled )
         {
-            return WrappedImageSource::readTile( dest, mipLevel, tileX, tileY, tileWidth, tileHeight, stream );
+            return WrappedImageSource::readTile( dest, mipLevel, tile, stream);
         }
     }
 
@@ -120,11 +114,12 @@ bool TiledImageSource::readTile( char*        dest,
     }
 
     OTK_ASSERT_MSG( mipLevelBuffer != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
-    const size_t pixelSizeInBytes      = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
-    const size_t imageRowStrideInBytes = m_tiledInfo.width * pixelSizeInBytes;
-    const size_t tileRowStrideInBytes  = tileWidth * pixelSizeInBytes;
-    const char* source = mipLevelBuffer + tileY * tileHeight * imageRowStrideInBytes + tileX * tileWidth * pixelSizeInBytes;
-    for( unsigned int i = 0; i < tileHeight; ++i )
+    const size_t        pixelSizeInBytes      = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
+    const size_t        imageRowStrideInBytes = m_tiledInfo.width * pixelSizeInBytes;
+    const size_t        tileRowStrideInBytes  = tile.width * pixelSizeInBytes;
+    const PixelPosition start                 = pixelPosition( tile );
+    const char*         source = mipLevelBuffer + start.y * imageRowStrideInBytes + start.x * pixelSizeInBytes;
+    for( unsigned int i = 0; i < tile.height; ++i )
     {
         std::copy_n( source, tileRowStrideInBytes, dest );
         dest += tileRowStrideInBytes;

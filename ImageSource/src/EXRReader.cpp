@@ -251,7 +251,7 @@ void EXRReader::readScanlineData( char* dest )
     m_inputFile->readPixels( dw.min.y, dw.max.y );
 }
 
-bool EXRReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream /*stream*/ )
+bool EXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
@@ -263,21 +263,21 @@ bool EXRReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX,
     // We require that the requested tile size is an integer multiple of the EXR tile size.
     const unsigned int actualTileWidth  = m_tiledInputFile->tileXSize();
     const unsigned int actualTileHeight = m_tiledInputFile->tileYSize();
-    if( !( actualTileWidth <= tileWidth && tileWidth % actualTileWidth == 0 )
-        || !( actualTileHeight <= tileHeight && tileHeight % actualTileHeight == 0 ) )
+    if( !( actualTileWidth <= tile.width && tile.width % actualTileWidth == 0 )
+        || !( actualTileHeight <= tile.height && tile.height % actualTileHeight == 0 ) )
     {
         std::stringstream str;
         str << "Unsupported EXR tile size (" << actualTileWidth << "x" << actualTileHeight << ").  Expected "
-            << tileWidth << "x" << tileHeight << " (or a whole fraction thereof) for this pixel format";
+            << tile.width << "x" << tile.height << " (or a whole fraction thereof) for this pixel format";
         throw std::runtime_error( str.str().c_str() );
     }
                 
-    const unsigned int actualTileX    = tileX * tileWidth / actualTileWidth;
-    const unsigned int actualTileY    = tileY * tileHeight / actualTileHeight;
-    unsigned int       numTilesX      = tileWidth / actualTileWidth;
-    unsigned int       numTilesY      = tileHeight / actualTileHeight;
+    const unsigned int actualTileX    = tile.x * tile.width / actualTileWidth;
+    const unsigned int actualTileY    = tile.y * tile.height / actualTileHeight;
+    unsigned int       numTilesX      = tile.width / actualTileWidth;
+    unsigned int       numTilesY      = tile.height / actualTileHeight;
     const unsigned int bytesPerPixel  = getBytesPerChannel( m_info.format ) * m_info.numChannels;
-    const unsigned int rowPitch       = tileWidth * bytesPerPixel;
+    const unsigned int rowPitch       = tile.width * bytesPerPixel;
     const size_t       actualTileSize = actualTileWidth * actualTileHeight * bytesPerPixel;
 
     // Don't request non-existent tiles on the edge of the texture

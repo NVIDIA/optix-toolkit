@@ -137,13 +137,13 @@ const char* MipMapImageSource::getMipLevelBuffer( unsigned int mipLevel, CUstrea
     return m_mipLevels[mipLevel];
 }
 
-bool MipMapImageSource::readTile( char* dest, unsigned mipLevel, unsigned tileX, unsigned tileY, unsigned tileWidth, unsigned tileHeight, CUstream stream )
+bool MipMapImageSource::readTile( char* dest, unsigned mipLevel, const Tile& tile, CUstream stream )
 {
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
         if( m_mipMappedBase )
         {
-            return WrappedImageSource::readTile( dest, mipLevel, tileX, tileY, tileWidth, tileHeight, stream );
+            return WrappedImageSource::readTile( dest, mipLevel, tile, stream);
         }
     }
 
@@ -166,10 +166,11 @@ bool MipMapImageSource::readTile( char* dest, unsigned mipLevel, unsigned tileX,
             level--;
         } while( level > 0 );
     }
-    const size_t mipLevelRowStrideInBytes{ mipLevelWidth * m_pixelStrideInBytes };
-    const size_t tileRowStrideInBytes{ tileWidth * m_pixelStrideInBytes };
-    const char* source{ &mipLevelBuffer[tileY * tileHeight * mipLevelRowStrideInBytes + tileX * tileWidth * m_pixelStrideInBytes] };
-    for( unsigned int i = 0; i < tileHeight; ++i )
+    const size_t        mipLevelRowStrideInBytes{ mipLevelWidth * m_pixelStrideInBytes };
+    const size_t        tileRowStrideInBytes{ tile.width * m_pixelStrideInBytes };
+    const PixelPosition start = pixelPosition( tile );
+    const char*         source{ &mipLevelBuffer[start.y * mipLevelRowStrideInBytes + start.x * m_pixelStrideInBytes] };
+    for( unsigned int i = 0; i < tile.height; ++i )
     {
         std::copy_n( source, tileRowStrideInBytes, dest );
         dest += tileRowStrideInBytes;

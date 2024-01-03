@@ -81,13 +81,7 @@ class EXRReader : public ImageSourceBase
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    bool readTile( char*        dest,
-                   unsigned int mipLevel,
-                   unsigned int tileX,
-                   unsigned int tileY,
-                   unsigned int tileWidth,
-                   unsigned int tileHeight,
-                   CUstream     stream ) override;
+    bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) override;
 
     /// Read the specified mipLevel.  Throws an exception on error.
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) override;

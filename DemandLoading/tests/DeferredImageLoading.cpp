@@ -90,10 +90,7 @@ class MockImageSource : public imageSource::ImageSource
     MOCK_METHOD( bool, isOpen, (), ( const override ) );
     MOCK_METHOD( const imageSource::TextureInfo&, getInfo, (), ( const override ) );
     MOCK_METHOD( CUmemorytype, getFillType, (), ( const override ) );
-    MOCK_METHOD( bool,
-                 readTile,
-                 ( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream ),
-                 ( override ) );
+    MOCK_METHOD( bool, readTile, ( char* dest, unsigned int mipLevel, const imageSource::Tile& tile, CUstream stream ), ( override ) );
     MOCK_METHOD( bool,
                  readMipLevel,
                  ( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ),
@@ -442,7 +439,7 @@ TEST_F( DeferredImageLoadingTest, deferredTileIsLoadedAgain )
     const demandLoading::DemandTexture& texture = m_loader->createTexture( image, pointSampledTexture() );
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockTiledImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
-    EXPECT_CALL( *image, readTile( _, _, _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, readTile( _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
     EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();

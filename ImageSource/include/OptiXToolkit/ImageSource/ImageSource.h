@@ -42,6 +42,25 @@ namespace imageSource {
 
 struct TextureInfo;
 
+struct PixelPosition
+{
+    unsigned int x;
+    unsigned int y;
+};
+
+struct Tile
+{
+    unsigned int x;
+    unsigned int y;
+    unsigned int width;
+    unsigned int height;
+};
+
+inline PixelPosition pixelPosition( const Tile& tile )
+{
+    return { tile.x * tile.width, tile.y * tile.height };
+}
+
 /// Interface for a mipmapped image.
 ///
 /// Any method may be called from multiple threads; the implementation must be threadsafe.
@@ -73,13 +92,7 @@ class ImageSource
     /// the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
     /// Returns true if the request was satisfied and data was copied into dest.
-    virtual bool readTile( char*        dest,
-                           unsigned int mipLevel,
-                           unsigned int tileX,
-                           unsigned int tileY,
-                           unsigned int tileWidth,
-                           unsigned int tileHeight,
-                           CUstream     stream ) = 0;
+    virtual bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) = 0;
 
     /// Read the specified mipLevel. Throws an exception on error.
     /// Returns true if the request was satisfied and data was copied into dest.

@@ -153,13 +153,10 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
     m_tiledImage->open( &info );
     ASSERT_TRUE( info.isValid );
 
-    const unsigned int tileX{ 0 };
-    const unsigned int tileY{ 0 };
-    const unsigned int tileWidth{ 64 };
-    const unsigned int tileHeight{ 64 };
-    std::vector<char>  dest;
-    dest.resize( tileWidth * tileHeight * 4 );
-    ASSERT_TRUE( m_tiledImage->readTile( dest.data(), mipLevel, tileX, tileY, tileWidth, tileHeight, m_stream ) );
+    const imageSource::Tile tile{ 0, 0, 64, 64 };
+    std::vector<char>       dest;
+    dest.resize( tile.width * tile.height * 4 );
+    ASSERT_TRUE( m_tiledImage->readTile( dest.data(), mipLevel, tile, m_stream ) );
 
     for( unsigned int y = 0; y < 64; ++y )
     {
@@ -167,7 +164,7 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
         {
             for( unsigned int c = 0; c < pixelSizeInBytes; ++c )
             {
-                EXPECT_EQ( static_cast<char>( ( x + y ) % 256 ), dest[y * tileWidth * pixelSizeInBytes + x * pixelSizeInBytes + c] );
+                EXPECT_EQ( static_cast<char>( ( x + y ) % 256 ), dest[y * tile.width * pixelSizeInBytes + x * pixelSizeInBytes + c] );
             }
         }
     }
@@ -204,14 +201,12 @@ TEST_F( TestTiledImageSource, tracksTileReadCount )
     EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, m_baseInfo.width, m_baseInfo.height, _ ) ).WillOnce( Return( true ) );
     m_tiledImage->open( nullptr );
-    const unsigned int tileX{ 0 };
-    const unsigned int tileY{ 0 };
-    const unsigned int tileWidth{ 64 };
-    const unsigned int tileHeight{ 64 };
-    std::vector<char>  dest;
-    dest.resize( tileWidth * tileHeight * 4 );
-    m_tiledImage->readTile( dest.data(), 0, tileX, tileY, tileWidth, tileHeight, m_stream );
-    m_tiledImage->readTile( dest.data(), 0, tileX + tileX, tileY, tileWidth, tileHeight, m_stream );
+    const imageSource::Tile tile{ 0, 0, 64, 64 };
+    const imageSource::Tile tile2{ 1, 0, 64, 64 };
+    std::vector<char>       dest;
+    dest.resize( tile.width * tile.height * 4 );
+    m_tiledImage->readTile( dest.data(), 0, tile, m_stream );
+    m_tiledImage->readTile( dest.data(), 0, tile2, m_stream );
 
     EXPECT_EQ( 2ULL, m_tiledImage->getNumTilesRead() );
 }
@@ -258,10 +253,10 @@ TEST_F( TestTiledImageSourcePassThrough, getInfo )
 
 TEST_F( TestTiledImageSourcePassThrough, readTile )
 {
-    EXPECT_CALL( *m_baseImage, readTile( NotNull(), 1, 2, 3, 16, 16, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readTile( NotNull(), 1, imageSource::Tile{ 2, 3, 16, 16 }, m_stream ) ).WillOnce( Return( true ) );
 
     char buffer{};
-    EXPECT_TRUE( m_tiledImage->readTile( &buffer, 1, 2, 3, 16, 16, m_stream ) );
+    EXPECT_TRUE( m_tiledImage->readTile( &buffer, 1, { 2, 3, 16, 16 }, m_stream ) );
 }
 
 TEST_F( TestTiledImageSourcePassThrough, readMipTail )

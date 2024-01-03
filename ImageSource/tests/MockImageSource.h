@@ -99,6 +99,26 @@ inline std::ostream& operator<<( std::ostream& str, CUmemorytype val )
 
 namespace imageSource {
 
+inline bool operator==( const Tile& lhs, const Tile& rhs )
+{
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width && lhs.height == rhs.height;
+}
+
+inline bool operator!=( const Tile& lhs, const Tile& rhs )
+{
+    return !( lhs == rhs );
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Tile& val )
+{
+    return str << "Tile{" << val.x << ',' << val.y << ' ' << val.width << 'x' << val.height << '}';
+}
+
+inline void PrintTo( const Tile& val, std::ostream* str )
+{
+    *str << val;
+}
+
 inline std::ostream& operator<<( std::ostream& str, const TextureInfo& val )
 {
     return str << "TextureInfo{ " << val.width << ", " << val.height << ", " << val.format << ", " << val.numChannels << ", "
@@ -125,7 +145,7 @@ class MockImageSource : public ::testing::StrictMock<imageSource::ImageSource>
     MOCK_METHOD( bool, isOpen, (), ( const, override ) );
     MOCK_METHOD( const imageSource::TextureInfo&, getInfo, (), ( const, override ) );
     MOCK_METHOD( CUmemorytype, getFillType, (), ( const, override ) );
-    MOCK_METHOD( bool, readTile, ( char*, unsigned, unsigned, unsigned, unsigned, unsigned, CUstream ), ( override ) );
+    MOCK_METHOD( bool, readTile, ( char*, unsigned, const imageSource::Tile&, CUstream ), ( override ) );
     MOCK_METHOD( bool, readMipLevel, ( char*, unsigned, unsigned, unsigned, CUstream ), ( override ) );
     MOCK_METHOD( bool, readMipTail, ( char*, unsigned, unsigned, const uint2*, unsigned, CUstream ), ( override ) );
     MOCK_METHOD( bool, readBaseColor, (float4&), ( override ) );

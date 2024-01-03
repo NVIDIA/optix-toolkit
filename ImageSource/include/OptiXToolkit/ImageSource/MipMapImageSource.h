@@ -51,13 +51,7 @@ class MipMapImageSource : public WrappedImageSource
 
     const TextureInfo& getInfo() const override;
 
-    bool readTile( char*        dest,
-                   unsigned int mipLevel,
-                   unsigned int tileX,
-                   unsigned int tileY,
-                   unsigned int tileWidth,
-                   unsigned int tileHeight,
-                   CUstream     stream ) override;
+    bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) override;
 
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ) override;
 

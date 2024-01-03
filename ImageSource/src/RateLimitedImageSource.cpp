@@ -63,19 +63,13 @@ void RateLimitedImageSource::open( TextureInfo* info )
 
 /// Delegates to the wrapped ImageSource and decrements the time remaining, unless the
 /// time limit has been exceeded, in which case nothing is done and false is returned.
-bool RateLimitedImageSource::readTile( char*        dest,
-                                       unsigned int mipLevel,
-                                       unsigned int tileX,
-                                       unsigned int tileY,
-                                       unsigned int tileWidth,
-                                       unsigned int tileHeight,
-                                       CUstream     stream )
+bool RateLimitedImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream )
 {
     if( m_duration->load() <= Microseconds( 0 ) )
         return false;
 
     Timer timer;
-    bool  result = WrappedImageSource::readTile( dest, mipLevel, tileX, tileY, tileWidth, tileHeight, stream );
+    bool  result = WrappedImageSource::readTile( dest, mipLevel, tile, stream);
     *m_duration -= timer.elapsed();
     return result;
 }

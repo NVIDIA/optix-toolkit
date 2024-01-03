@@ -53,18 +53,12 @@ void DeviceConstantImage::open( TextureInfo* info )
         *info = m_info;
 }
 
-bool DeviceConstantImage::readTile( char*        dest,
-                                    unsigned int mipLevel,
-                                    unsigned int /*tileX*/,
-                                    unsigned int /*tileY*/,
-                                    unsigned int tileWidth,
-                                    unsigned int tileHeight,
-                                    CUstream     stream )
+bool DeviceConstantImage::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream )
 {
     OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     DeviceConstantImageParams params;
-    params.num_pixels = tileWidth * tileHeight;
+    params.num_pixels = tile.width * tile.height;
     params.color = m_mipColors[ mipLevel % m_mipColors.size() ];
     params.output_buffer = reinterpret_cast<float4*>( dest );
 

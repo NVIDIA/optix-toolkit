@@ -66,9 +66,9 @@ class WrappedImageSource : public ImageSource
     CUmemorytype getFillType() const override { return m_imageSource->getFillType(); }
 
     /// Delegates to the wrapped ImageSource.
-    bool readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream ) override
+    bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) override
     {
-        return m_imageSource->readTile( dest, mipLevel, tileX, tileY, tileWidth, tileHeight, stream );
+        return m_imageSource->readTile( dest, mipLevel, tile, stream);
     }
 
     /// Delegates to the wrapped ImageSource.

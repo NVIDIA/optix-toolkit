@@ -371,7 +371,7 @@ bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, uns
     (void)bytesPerTile;  // silence unused variable warning
     (void)tileBufferSize;
 
-    return m_image->readTile( tileBuffer, mipLevel, tileX, tileY, getTileWidth(), getTileHeight(), stream );
+    return m_image->readTile( tileBuffer, mipLevel, { tileX, tileY, getTileWidth(), getTileHeight() }, stream );
 }
 
 // Tiles can be filled concurrently.

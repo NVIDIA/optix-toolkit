@@ -59,10 +59,10 @@ TEST(TestRateLimitedImageSource, TestReadTile)
 
     // When the time remaining is zero, readTile() should exit early and return false.
     *timeRemaining = 0; // microseconds
-    EXPECT_FALSE( imageSource->readTile( data, mipLevel, 1, 1, width, height, nullptr ) );
+    EXPECT_FALSE( imageSource->readTile( data, mipLevel, { 1, 1, width, height }, nullptr ) );
 
     // When the time remaining is positive, readTile() should proceed and return true.
     *timeRemaining = 1; // microseconds
-    EXPECT_TRUE( imageSource->readTile( data, mipLevel, 1, 1, width, height, nullptr ) );
+    EXPECT_TRUE( imageSource->readTile( data, mipLevel, { 1, 1, width, height }, nullptr ) );
 }
 
