@@ -126,4 +126,9 @@ target_link_libraries(TestShaderUtil PUBLIC
     OptiX::OptiX
 )
 set_target_properties(TestShaderUtil PROPERTIES FOLDER ShaderUtil/Tests)
+if( $<TARGET_RUNTIME_DLLS:TestShaderUtil> )
+  add_custom_command( TARGET TestShaderUtil POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:TestShaderUtil> $<TARGET_FILE_DIR:TestShaderUtil>
+    COMMAND_EXPAND_LISTS )
+endif()
 gtest_discover_tests(TestShaderUtil PROPERTIES LABELS ShaderUtil)
