@@ -26,6 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+include( FetchGtest )
+include( GoogleTest )
+include( embed_cuda )
+
 if(NOT TARGET GTest::gtest)
     find_package( GTest QUIET )
     if(NOT GTEST_FOUND)
