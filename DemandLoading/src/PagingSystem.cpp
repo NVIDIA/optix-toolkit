@@ -339,6 +339,7 @@ void PagingSystem::initPageMappingsContext()
 void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry )
 {
     // Mutex acquired in caller
+    OTK_ASSERT_MSG( pageId < m_options->numPages, "pageId outside of page table range." );
 
     // Resize PageMappingContext if necessary.
     if( m_pageMappingsContext->numFilledPages >= m_options->maxFilledPages )
@@ -353,22 +354,8 @@ void PagingSystem::addMappingBody( unsigned int pageId, unsigned int lruVal, uns
         m_pinnedMemoryPool->free( oldContext );
     }
 
-    OTK_ASSERT_MSG( pageId < m_options.numPages, "pageId outside of page table range." );
-    OTK_ASSERT_MSG( m_pageMappingsContext->numFilledPages < m_pageMappingsContext->maxFilledPages, "page mappings full." );
     m_pageMappingsContext->filledPages[m_pageMappingsContext->numFilledPages++] = PageMapping{pageId, lruVal, entry};
     m_pageTable[pageId] = HostPageTableEntry{entry, true, false, false};
-
-    // If the buffer for page mappings is about to overflow, push the mappings to clear it.
-    // This should not happen very often.  Usually, the mappings will be pushed from pushMappings.
-    // The calling function must make sure that the current cuda context is the one used by this paging system.
-    if( m_pageMappingsContext->numFilledPages >= m_pageMappingsContext->maxFilledPages )
-    {
-        CUstream stream{0};
-        DeviceContext context = *m_deviceMemoryManager->allocateDeviceContext();
-        pushMappingsAndInvalidations( context, stream );
-        cuStreamSynchronize( stream );
-        m_deviceMemoryManager->freeDeviceContext( &context );
-    }
 }
 
 bool PagingSystem::restoreMapping( unsigned int pageId )

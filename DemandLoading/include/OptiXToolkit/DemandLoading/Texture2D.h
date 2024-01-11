@@ -271,9 +271,9 @@ D_INLINE bool requestTexFootprint2DLod( const TextureSampler& sampler,
 #endif  // ndef DOXYGEN_SKIP
 
 
-template <class Sample> 
 /// Fetch the base color of a texture stored in the demand loader page table as a half4
-template <class TYPE> D_INLINE bool 
+template <class Sample> 
+D_INLINE bool 
 getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval, bool* baseColorResident )
 {
     const unsigned long long baseVal = pagingMapOrRequest( context, textureId + context.maxTextures, baseColorResident );
@@ -432,7 +432,5 @@ tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, b
 {
     return tex2DLod<Sample>( context, textureId, x, y, 0.0f, isResident );
 }
-
-#endif // defined( __CUDACC__ ) || defined( OPTIX_PAGING_BIT_OPS )
 
 }  // namespace demandLoading

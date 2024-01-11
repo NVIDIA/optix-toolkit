@@ -29,6 +29,13 @@
 
 #include <cuda_fp16.h>
 
+struct half4
+{
+    half x, y, z, w;
+};
+
+using uchar = unsigned char;
+
 namespace imageSource {
 
 #if defined( __CUDACC__ ) || defined( OPTIX_PAGING_BIT_OPS )
@@ -37,23 +44,6 @@ namespace imageSource {
 #define INLINE inline
 #endif
 
-using ubyte = unsigned char;
-
-struct ubyte4
-{
-    ubyte x, y, z, w;
-};
-
-struct ubyte2 
-{
-    ubyte x, y;
-};
-
-struct half4
-{
-    half x, y, z, w;
-};
-
 // clang-format off
 INLINE unsigned int getNumChannels( float4& /*x*/ ) { return 4; }
 INLINE unsigned int getNumChannels( float2& /*x*/ ) { return 2; }
@@ -61,9 +51,9 @@ INLINE unsigned int getNumChannels( float&  /*x*/ ) { return 1; }
 INLINE unsigned int getNumChannels( half4&  /*x*/ ) { return 4; }
 INLINE unsigned int getNumChannels( half2&  /*x*/ ) { return 2; }
 INLINE unsigned int getNumChannels( half&   /*x*/ ) { return 1; }
-INLINE unsigned int getNumChannels( ubyte4& /*x*/ ) { return 4; }
-INLINE unsigned int getNumChannels( ubyte2& /*x*/ ) { return 2; }
-INLINE unsigned int getNumChannels( ubyte&  /*x*/ ) { return 1; }
+INLINE unsigned int getNumChannels( uchar4& /*x*/ ) { return 4; }
+INLINE unsigned int getNumChannels( uchar2& /*x*/ ) { return 2; }
+INLINE unsigned int getNumChannels( uchar&  /*x*/ ) { return 1; }
 INLINE unsigned int getNumChannels( unsigned int& /*x*/ ) { return 1; }
 
 INLINE CUarray_format_enum getFormat( float4& /*x*/ ) { return CU_AD_FORMAT_FLOAT; }
@@ -72,9 +62,9 @@ INLINE CUarray_format_enum getFormat( float&  /*x*/ ) { return CU_AD_FORMAT_FLOA
 INLINE CUarray_format_enum getFormat( half4&  /*x*/ ) { return CU_AD_FORMAT_HALF; }
 INLINE CUarray_format_enum getFormat( half2&  /*x*/ ) { return CU_AD_FORMAT_HALF; }
 INLINE CUarray_format_enum getFormat( half&   /*x*/ ) { return CU_AD_FORMAT_HALF; }
-INLINE CUarray_format_enum getFormat( ubyte4& /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
-INLINE CUarray_format_enum getFormat( ubyte2& /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
-INLINE CUarray_format_enum getFormat( ubyte&  /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
+INLINE CUarray_format_enum getFormat( uchar4& /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
+INLINE CUarray_format_enum getFormat( uchar2& /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
+INLINE CUarray_format_enum getFormat( uchar&  /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT8; }
 INLINE CUarray_format_enum getFormat( unsigned int& /*x*/ ) { return CU_AD_FORMAT_UNSIGNED_INT32; }
 
 INLINE unsigned char toUChar( float value)

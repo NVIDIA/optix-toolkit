@@ -139,9 +139,6 @@ std::shared_ptr<demandLoading::Options> configure( demandLoading::Options option
     if( options.maxFilledPages < options.maxRequestedPages )
         options.maxFilledPages = options.maxRequestedPages;
 
-    // Anticipate at least one active stream per device.
-    options.maxActiveStreams = std::max( 1U, options.maxActiveStreams );
-
     return std::shared_ptr<Options>( new Options( options ) );
 }
 

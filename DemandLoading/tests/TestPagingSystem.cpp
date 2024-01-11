@@ -125,6 +125,7 @@ class TestPagingSystem : public testing::Test
     void SetUp() override
     {
         // Initialize paging system options.
+        m_options.reset( new Options );
         m_options->numPages            = 1025;
         m_options->numPageTableEntries = 128;
         m_options->maxRequestedPages   = 63;
@@ -134,8 +135,8 @@ class TestPagingSystem : public testing::Test
         m_options->maxEvictablePages   = 17;
         m_options->useLruTable         = true;
 
-        m_pageTableManager = std::make_shared<PageTableManager>( m_options.numPages, m_options.numPageTableEntries );
-        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, m_options ) );
+        m_pageTableManager = std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries );
+        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, *m_options ) );
 
         // Create per-device PagingSystem, etc.
         int numDevices;

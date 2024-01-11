@@ -180,9 +180,6 @@ class PagingSystem
     // Allocate a PageMappingsContext in pinned memory.
     void initPageMappingsContext();
 
-    // Add mapping function without mutex
-    void addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
-
     // Restore the mapping for a staged page if possible
     bool restoreMapping( unsigned int pageId );
 

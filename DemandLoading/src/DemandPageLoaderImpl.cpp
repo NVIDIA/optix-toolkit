@@ -49,27 +49,11 @@
 
 using namespace otk;
 
-namespace {
-
-demandLoading::Options configure( demandLoading::Options options )
-{
-    // If maxTexMemPerDevice is 0, consider it to be unlimited
-    if( options.maxTexMemPerDevice == 0 )
-        options.maxTexMemPerDevice = std::numeric_limits<size_t>::max();
-
-    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
-    if( options.maxFilledPages < options.maxRequestedPages )
-        options.maxFilledPages = options.maxRequestedPages;
-
-    return options;
-}
-
-}  // anonymous namespace
-
 namespace demandLoading {
 
-DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
-    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )
+
+DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options )
+    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( options->numPages, options->numPageTableEntries ), requestProcessor, options )
 {
 }
 
@@ -104,6 +88,7 @@ void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictabl
     return m_pagingSystem.addMapping( pageId, lruVal, pageTableEntry );
 }
 
+// Returns false if the device doesn't support sparse textures.
 bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
@@ -133,6 +118,8 @@ void DemandPageLoaderImpl::invalidatePages( CUstream stream, DeviceContext& cont
     m_pagesToInvalidate.clear();
 }
 
+
+// Process page requests.
 void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& context, unsigned int id )
 {
     Stopwatch stopwatch;
