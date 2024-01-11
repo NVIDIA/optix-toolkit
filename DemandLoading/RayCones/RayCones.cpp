@@ -263,7 +263,7 @@ void RayConesApp::createTexture()
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<ubyte4>( 16384, 16384, 64, true ) );
+        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 64, true ) );
     
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
 
