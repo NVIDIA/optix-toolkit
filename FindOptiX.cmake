@@ -32,7 +32,27 @@ endif()
 
 find_package(CUDAToolkit REQUIRED)
 
-file(GLOB OPTIX_SDK_DIR "$ENV{ProgramData}/NVIDIA Corporation/OptiX SDK 7.6.*")
+if(NOT OptiX_FIND_VERSION)
+  set(OptiX_FIND_VERSION "*")
+endif()
+
+if(CMAKE_HOST_WIN32)
+    # This is the default OptiX SDK install location on Windows.
+    file(GLOB OPTIX_SDK_DIR "$ENV{ProgramData}/NVIDIA Corporation/OptiX SDK ${OptiX_FIND_VERSION}*")
+else()
+    # On linux, there is no default install location for the SDK, but it does have a default subdir name.
+    foreach(dir "/opt" "/usr/local" "$ENV{HOME}" "$ENV{HOME}/Downloads")
+        file(GLOB OPTIX_SDK_DIR "${dir}/NVIDIA-OptiX-SDK-${OptiX_FIND_VERSION}*")
+        if(OPTIX_SDK_DIR)
+            break()
+        endif()
+    endforeach()
+endif()
+list(LENGTH OPTIX_SDK_DIR len)
+if(${len} GREATER 0)
+    list(GET OPTIX_SDK_DIR 0 OPTIX_SDK_DIR)
+endif()
+
 find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR} ${OPTIX_SDK_DIR} REQUIRED)
 
 file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
