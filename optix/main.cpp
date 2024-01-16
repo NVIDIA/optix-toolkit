@@ -2679,24 +2679,27 @@ PYBIND11_MODULE( optix, m )
     py::enum_<OptixProgramGroupFlags>(m, "ProgramGroupFlags", py::arithmetic())
         .value( "PROGRAM_GROUP_FLAGS_NONE", OPTIX_PROGRAM_GROUP_FLAGS_NONE )
         .export_values();
+
 py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         .value( "EXCEPTION_CODE_STACK_OVERFLOW", OPTIX_EXCEPTION_CODE_STACK_OVERFLOW )
         .value( "EXCEPTION_CODE_TRACE_DEPTH_EXCEEDED", OPTIX_EXCEPTION_CODE_TRACE_DEPTH_EXCEEDED )
+#if OPTIX_VERSION < 80000
         .value( "EXCEPTION_CODE_TRAVERSAL_DEPTH_EXCEEDED", OPTIX_EXCEPTION_CODE_TRAVERSAL_DEPTH_EXCEEDED )
         .value( "EXCEPTION_CODE_TRAVERSAL_INVALID_TRAVERSABLE", OPTIX_EXCEPTION_CODE_TRAVERSAL_INVALID_TRAVERSABLE )
         .value( "EXCEPTION_CODE_TRAVERSAL_INVALID_MISS_SBT", OPTIX_EXCEPTION_CODE_TRAVERSAL_INVALID_MISS_SBT )
         .value( "EXCEPTION_CODE_TRAVERSAL_INVALID_HIT_SBT", OPTIX_EXCEPTION_CODE_TRAVERSAL_INVALID_HIT_SBT )
-#if OPTIX_VERSION >= 70100
+#    if OPTIX_VERSION >= 70100
         .value( "EXCEPTION_CODE_UNSUPPORTED_PRIMITIVE_TYPE", OPTIX_EXCEPTION_CODE_UNSUPPORTED_PRIMITIVE_TYPE )
         .value( "EXCEPTION_CODE_INVALID_RAY", OPTIX_EXCEPTION_CODE_INVALID_RAY )
         .value( "EXCEPTION_CODE_CALLABLE_PARAMETER_MISMATCH", OPTIX_EXCEPTION_CODE_CALLABLE_PARAMETER_MISMATCH )
         .value( "EXCEPTION_CODE_BUILTIN_IS_MISMATCH", OPTIX_EXCEPTION_CODE_BUILTIN_IS_MISMATCH )
         .value( "EXCEPTION_CODE_UNSUPPORTED_SINGLE_LEVEL_GAS", OPTIX_EXCEPTION_CODE_UNSUPPORTED_SINGLE_LEVEL_GAS )
-#endif
-#if OPTIX_VERSION >= 70200
+#    endif
+#    if OPTIX_VERSION >= 70200
         .value( "EXCEPTION_CODE_CALLABLE_INVALID_SBT", OPTIX_EXCEPTION_CODE_CALLABLE_INVALID_SBT )
         .value( "EXCEPTION_CODE_CALLABLE_NO_DC_SBT_RECORD", OPTIX_EXCEPTION_CODE_CALLABLE_NO_DC_SBT_RECORD )
         .value( "EXCEPTION_CODE_CALLABLE_NO_CC_SBT_RECORD", OPTIX_EXCEPTION_CODE_CALLABLE_NO_CC_SBT_RECORD )
+#    endif
 #endif
         .export_values();
 
@@ -2705,7 +2708,9 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         .value( "EXCEPTION_FLAG_STACK_OVERFLOW", OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW )
         .value( "EXCEPTION_FLAG_TRACE_DEPTH", OPTIX_EXCEPTION_FLAG_TRACE_DEPTH )
         .value( "EXCEPTION_FLAG_USER", OPTIX_EXCEPTION_FLAG_USER )
+#if OPTIX_VERSION < 80000
         .value( "EXCEPTION_FLAG_DEBUG", OPTIX_EXCEPTION_FLAG_DEBUG )
+#endif
         .export_values();
 
     py::enum_<OptixQueryFunctionTableOptions>(m, "QueryFunctionTableOptions", py::arithmetic())
@@ -3468,6 +3473,9 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         .def( py::init([]() { return std::unique_ptr<OptixDenoiserOptions>(new OptixDenoiserOptions{} ); } ) )
         .def_readwrite( "guideAlbedo", &OptixDenoiserOptions::guideAlbedo )
         .def_readwrite( "guideNormal", &OptixDenoiserOptions::guideNormal )
+#    if OPTIX_VERSION >= 80000 
+        .def_readwrite( "denoiseAlpha", &OptixDenoiserOptions::denoiseAlpha )
+#    endif
         ;
 
     py::class_<OptixDenoiserLayer>( m, "DenoiserLayer" )
@@ -3493,7 +3501,9 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
 
     py::class_<OptixDenoiserParams>(m, "DenoiserParams")
         .def( py::init([]() { return std::unique_ptr<OptixDenoiserParams>(new OptixDenoiserParams{} ); } ) )
+#if OPTIX_VERSION < 80000 
         .def_readwrite( "denoiseAlpha", &OptixDenoiserParams::denoiseAlpha )
+#endif
         .def_readwrite( "hdrIntensity", &OptixDenoiserParams::hdrIntensity )
         .def_readwrite( "blendFactor", &OptixDenoiserParams::blendFactor )
         IF_OPTIX72(

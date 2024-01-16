@@ -8,7 +8,7 @@ Python bindings for OptiX 7.
 ### Dependencies
 
 #### OptiX SDK
-Install any [OptiX 7.x SDK](https://developer.nvidia.com/optix/downloads/7.3.0/linux64). 
+Install any [OptiX SDK](https://developer.nvidia.com/designworks/optix/download) version 7.6 or newer.
 
 #### Build system requirements:
 * [cmake](https://cmake.org/)
