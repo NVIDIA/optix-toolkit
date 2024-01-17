@@ -30,6 +30,11 @@ if(TARGET imgui)
   return()
 endif()
 
+if(OTK_USE_VCPKG)
+    find_package(imgui CONFIG REQUIRED)
+    return()
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(imgui
