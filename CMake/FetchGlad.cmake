@@ -30,6 +30,11 @@ if( TARGET glad::glad )
     return()
 endif()
 
+if(OTK_USE_VCPKG)
+    find_package(glad CONFIG REQUIRED)
+    return()
+endif()
+
 function(glad_folders)
   foreach(_target glad glad-generate-files)
     if(TARGET ${_target})
