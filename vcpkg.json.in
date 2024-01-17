@@ -7,7 +7,14 @@
     @OTK_DEPEND_OIIO@
     "glad",
     "glfw3",
-    "gtest"
+    "gtest",
+    {
+        "name": "imgui",
+        "features": [
+            "glfw-binding",
+            "opengl3-binding"
+        ]
+    }
   ]
 }
 
