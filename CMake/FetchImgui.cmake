@@ -61,9 +61,10 @@ add_library( imgui STATIC
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
 )
-
 target_include_directories( imgui PUBLIC ${imgui_SOURCE_DIR} )
 target_include_directories( imgui INTERFACE ${imgui_SOURCE_DIR}/backends )
 target_compile_definitions( imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD )
 target_link_libraries( imgui PUBLIC glfw glad::glad ${OPENGL_gl_LIBRARY} ${CMAKE_DL_LIBS})
 set_target_properties( imgui PROPERTIES FOLDER ThirdParty )
+
+add_library(imgui::imgui ALIAS imgui)

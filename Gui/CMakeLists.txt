@@ -60,7 +60,7 @@ target_link_libraries(Gui
   PUBLIC
     OptiXToolkit::ShaderUtil
     OptiXToolkit::Util
-    imgui
+    imgui::imgui
     glfw
     glad::glad
     Stb::Image

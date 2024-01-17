@@ -57,7 +57,7 @@ target_link_libraries(DemandTextureAppBase
   OptiXToolkit::ImageSources
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
-  imgui
+  imgui::imgui
   CUDA::cudart
   )
 
