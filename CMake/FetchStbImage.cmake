@@ -26,6 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+if(TARGET Stb::Image)
+    return()
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(stb_image 
@@ -39,3 +43,21 @@ FetchContent_Declare(stb_image_write
   DOWNLOAD_NO_EXTRACT TRUE
   )
 FetchContent_MakeAvailable(stb_image_write)
+
+# stb image library
+add_library(StbImage STATIC
+    ${CMAKE_CURRENT_LIST_DIR}/stb.cpp
+    ${stb_image_SOURCE_DIR}/stb_image.h
+    ${stb_image_write_SOURCE_DIR}/stb_image_write.h
+)
+target_include_directories(StbImage
+    PUBLIC
+        ${stb_image_SOURCE_DIR}
+        ${stb_image_write_SOURCE_DIR}
+)
+if(NOT MSVC)
+  target_compile_options(StbImage PRIVATE -Wno-missing-field-initializers)
+endif()
+set_target_properties(StbImage PROPERTIES FOLDER ThirdParty)
+
+add_library(Stb::Image ALIAS StbImage)

@@ -35,25 +35,6 @@ include(CTest)
 include(FetchOpenEXR)
 include(FetchStbImage)
 
-# stub image library
-add_library(StbImage STATIC
-    src/stb.cpp
-    ${stb_image_SOURCE_DIR}/stb_image.h
-    ${stb_image_write_SOURCE_DIR}/stb_image_write.h
-)
-target_include_directories(StbImage
-    PUBLIC
-        ${stb_image_SOURCE_DIR}
-        ${stb_image_write_SOURCE_DIR}
-)
-if(NOT MSVC)
-  target_compile_options(StbImage PRIVATE -Wno-missing-field-initializers)
-endif()
-set_target_properties(StbImage PROPERTIES FOLDER ThirdParty)
-if(NOT TARGET Stb::Image)
-  add_library(Stb::Image ALIAS StbImage)
-endif()
-
 configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)
 
 otk_add_library(Util STATIC
