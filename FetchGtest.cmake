@@ -30,6 +30,11 @@ if(TARGET GTest::gtest)
   return()
 endif()
 
+if(OTK_USE_VCPKG)
+    find_package(GTest CONFIG REQUIRED)
+    return()
+endif()
+
 function(gtest_folders)
   foreach(_target GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
     get_target_property(_alias ${_target} ALIASED_TARGET)
