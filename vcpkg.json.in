@@ -14,7 +14,8 @@
             "glfw-binding",
             "opengl3-binding"
         ]
-    }
+    },
+    "stb"
   ]
 }
 
