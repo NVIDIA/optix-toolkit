@@ -26,35 +26,46 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# (Stb is the library author's initials)
 if(TARGET Stb::Image)
     return()
 endif()
 
-include(FetchContent)
+if(OTK_USE_VCPKG)
+    find_package(Stb REQUIRED)
+else()
+    include(FetchContent)
 
-FetchContent_Declare(stb_image 
-  URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
-  DOWNLOAD_NO_EXTRACT TRUE
-  )
-FetchContent_MakeAvailable(stb_image)
+    # Instead of fetching isolated files from master (which can shift implementations),
+    # get the whole repository at the same commit as the vcpkg recipe for consistency.
+    FetchContent_Declare(
+        Stb
+        GIT_REPOSITORY  https://github.com/nothings/stb.git
+        GIT_TAG         5736b15f7ea0ffb08dd38af21067c314d6a3aae9 # committed on 2023-04-11
+        GIT_SHALLOW     OFF         # we need a deep clone to get this hash.
+        CONFIGURE_COMMAND   ""      # No configure step
+        BUILD_COMMAND       ""      # No build step
+    )
+    FetchContent_MakeAvailable(Stb)
+    if(NOT stb_SOURCE_DIR)
+        message(FATAL_ERROR "Could not locate stb source")
+    endif()
 
-FetchContent_Declare(stb_image_write
-  URL https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h
-  DOWNLOAD_NO_EXTRACT TRUE
-  )
-FetchContent_MakeAvailable(stb_image_write)
+    set(Stb_INCLUDE_DIR "${stb_SOURCE_DIR}")
+endif()
 
-# stb image library
+# StbImage static library
+#
+# Build the implementation once so that every target linking against this
+# header-only library only needs declarations and need not recompile the
+# implementation.
+#
 add_library(StbImage STATIC
     ${CMAKE_CURRENT_LIST_DIR}/stb.cpp
-    ${stb_image_SOURCE_DIR}/stb_image.h
-    ${stb_image_write_SOURCE_DIR}/stb_image_write.h
+    ${Stb_INCLUDE_DIR}/stb_image.h
+    ${Stb_INCLUDE_DIR}/stb_image_write.h
 )
-target_include_directories(StbImage
-    PUBLIC
-        ${stb_image_SOURCE_DIR}
-        ${stb_image_write_SOURCE_DIR}
-)
+target_include_directories(StbImage PUBLIC ${Stb_INCLUDE_DIR})
 if(NOT MSVC)
   target_compile_options(StbImage PRIVATE -Wno-missing-field-initializers)
 endif()
