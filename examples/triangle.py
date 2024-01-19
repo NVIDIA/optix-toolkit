@@ -215,7 +215,7 @@ def create_module( ctx, pipeline_options, triangle_ptx ):
         debugLevel       = optix.COMPILE_DEBUG_LEVEL_DEFAULT
     )
 
-    module, log = ctx.moduleCreateFromPTX(
+    module, log = ctx.moduleCreate(
             module_options,
             pipeline_options,
             triangle_ptx
@@ -252,7 +252,7 @@ def create_program_groups( ctx, module ):
         )
     print( "\tProgramGroup hitgroup create log: <<<{}>>>".format( log ) )
 
-    return [ raygen_prog_group, miss_prog_group, hitgroup_prog_group ]
+    return [ raygen_prog_group[0], miss_prog_group[0], hitgroup_prog_group[0] ]
 
 
 def create_pipeline( ctx, program_groups, pipeline_compile_options ):
@@ -261,7 +261,6 @@ def create_pipeline( ctx, program_groups, pipeline_compile_options ):
     max_trace_depth  = 1
     pipeline_link_options               = optix.PipelineLinkOptions() 
     pipeline_link_options.maxTraceDepth = max_trace_depth
-    pipeline_link_options.debugLevel    = optix.COMPILE_DEBUG_LEVEL_FULL
 
     log = ""
     pipeline = ctx.pipelineCreate(
@@ -272,7 +271,10 @@ def create_pipeline( ctx, program_groups, pipeline_compile_options ):
 
     stack_sizes = optix.StackSizes()
     for prog_group in program_groups:
-        optix.util.accumulateStackSizes( prog_group, stack_sizes )
+        if optix_version_gte( (7,7) ):
+            optix.util.accumulateStackSizes( prog_group, stack_sizes, pipeline )
+        else: 
+            optix.util.accumulateStackSizes( prog_group, stack_sizes )
 
     (dc_stack_size_from_trav, dc_stack_size_from_state, cc_stack_size) = \
         optix.util.computeStackSizes( 

@@ -1344,15 +1344,12 @@ void pipelineSetStackSize(
     );
 }
 
-#if OPTIX_VERSION < 70700
-py::tuple moduleCreateFromPTX(
-#else
+
 py::tuple moduleCreate(
-#endif
-       const pyoptix::DeviceContext&          context,
-             pyoptix::ModuleCompileOptions&   moduleCompileOptions,
-             pyoptix::PipelineCompileOptions& pipelineCompileOptions,
-       const std::string&                     PTX
+   const pyoptix::DeviceContext&          context,
+         pyoptix::ModuleCompileOptions&   moduleCompileOptions,
+         pyoptix::PipelineCompileOptions& pipelineCompileOptions,
+   const std::string&                     PTX
        )
 {
     size_t log_buf_size = LOG_BUFFER_MAX_SIZE;
@@ -1392,6 +1389,10 @@ py::tuple moduleCreate(
 #endif
     return py::make_tuple( module, py::str(log_buf) );
 }
+
+
+
+
 
 void moduleDestroy(
        pyoptix::Module module
@@ -2109,6 +2110,7 @@ void accumulateStackSizes(
                                        IF_OPTIX77( COMMA pipeline.pipeline )
           )
     );
+    
 }
 
 py::tuple computeStackSizes(
@@ -2736,10 +2738,9 @@ py::enum_<OptixExceptionCodes>(m, "ExceptionCodes", py::arithmetic())
         .def( "getCacheDatabaseSizes", &pyoptix::deviceContextGetCacheDatabaseSizes )
         .def( "pipelineCreate", &pyoptix::pipelineCreate )
 #if OPTIX_VERSION < 70700
-        .def( "moduleCreateFromPTX", &pyoptix::moduleCreateFromPTX )
-#else
-        .def( "moduleCreate", &pyoptix::moduleCreate )
+        .def( "moduleCreateFromPTX", &pyoptix::moduleCreate )
 #endif
+        .def( "moduleCreate", &pyoptix::moduleCreate )
         IF_OPTIX71(
         .def( "builtinISModuleGet", &pyoptix::builtinISModuleGet )
         )

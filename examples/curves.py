@@ -261,7 +261,7 @@ def create_module():
     curves_cu = os.path.join(os.path.dirname(__file__), 'curves.cu' )
     curves_ptx = compile_cuda( curves_cu )
 
-    shading_module, log = device_context.moduleCreateFromPTX(
+    shading_module, log = device_context.moduleCreate(
         module_compile_options,
         pipeline_compile_options,
         curves_ptx
@@ -285,7 +285,7 @@ def create_program_groups():
     raygen_prog_group_desc.raygenModule             = shading_module
     raygen_prog_group_desc.raygenEntryFunctionName  = "__raygen__rg"
 
-    raygen_prog_group, log = device_context.programGroupCreate(
+    raygen_prog_groups, log = device_context.programGroupCreate(
         [ raygen_prog_group_desc ]
         )
     print( "\tProgramGroup raygen create log: <<<{}>>>".format( log ) )
@@ -293,7 +293,7 @@ def create_program_groups():
     miss_prog_group_desc                        = optix.ProgramGroupDesc()
     miss_prog_group_desc.missModule             = shading_module
     miss_prog_group_desc.missEntryFunctionName  = "__miss__ms"
-    miss_prog_group, log = device_context.programGroupCreate(
+    miss_prog_groups, log = device_context.programGroupCreate(
             [ miss_prog_group_desc ]
             )
     print( "\tProgramGroup miss create log: <<<{}>>>".format( log ) )
@@ -303,12 +303,12 @@ def create_program_groups():
     hitgroup_prog_group_desc.hitgroupEntryFunctionNameCH = "__closesthit__ch"
     hitgroup_prog_group_desc.hitgroupModuleIS            = geometry_module
     hitgroup_prog_group_desc.hitgroupEntryFunctionNameIS = "" # supplied by built-in module
-    hitgroup_prog_group, log = device_context.programGroupCreate(
+    hitgroup_prog_groups, log = device_context.programGroupCreate(
             [ hitgroup_prog_group_desc ]
             )
     print( "\tProgramGroup hitgroup create log: <<<{}>>>".format( log ) )
 
-    return [ raygen_prog_group, miss_prog_group, hitgroup_prog_group ]
+    return [ raygen_prog_groups[0], miss_prog_groups[0], hitgroup_prog_groups[0] ]
 program_groups = create_program_groups()
 
 
@@ -318,7 +318,6 @@ def create_pipeline():
     max_trace_depth = 1
     pipeline_link_options               = optix.PipelineLinkOptions()
     pipeline_link_options.maxTraceDepth = max_trace_depth
-    pipeline_link_options.debugLevel    = optix.COMPILE_DEBUG_LEVEL_FULL
 
     log = ""
     pipeline = device_context.pipelineCreate(
@@ -330,7 +329,10 @@ def create_pipeline():
 
     stack_sizes = optix.StackSizes()
     for prog_group in program_groups:
-        optix.util.accumulateStackSizes( prog_group, stack_sizes )
+        if optix_version_gte( (7,7) ):
+            optix.util.accumulateStackSizes( prog_group, stack_sizes, pipeline )
+        else: 
+            optix.util.accumulateStackSizes( prog_group, stack_sizes )
 
     ( dc_stack_size_from_trav, dc_stack_size_from_state, cc_stack_size ) = \
         optix.util.computeStackSizes(

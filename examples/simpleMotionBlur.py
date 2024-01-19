@@ -468,7 +468,7 @@ def create_module( state ):
     simple_motion_blur_cu = os.path.join(os.path.dirname(__file__), 'simpleMotionBlur.cu')
     simple_motion_blur_ptx = compile_cuda( simple_motion_blur_cu )
 
-    state.ptx_module, log = state.context.moduleCreateFromPTX(
+    state.ptx_module, log = state.context.moduleCreate(
         module_compile_options,
         state.pipeline_compile_options,
         simple_motion_blur_ptx
@@ -482,34 +482,39 @@ def create_program_groups( state ):
         raygenModule            = state.ptx_module,
         raygenEntryFunctionName = "__raygen__rg"
     )
-    state.raygen_prog_group, log = state.context.programGroupCreate(
+    
+    raygen_prog_groups, log = state.context.programGroupCreate(
         [ raygen_program_group_desc ]
     )
+    state.raygen_prog_group = raygen_prog_groups[0]
     print( "\tProgramGroup raygen create log: <<<{}>>>".format( log ) )
 
     miss_prog_group_desc = optix.ProgramGroupDesc(
         missModule             = state.ptx_module,
         missEntryFunctionName  = "__miss__camera"
     )
-    state.miss_group, log = state.context.programGroupCreate(
+    miss_groups, log = state.context.programGroupCreate(
         [ miss_prog_group_desc ]
     )
+    state.miss_group = miss_groups[0]
     print( "\tProgramGroup miss create log: <<<{}>>>".format( log ) )
 
     hitgroup_prog_group_desc = optix.ProgramGroupDesc(
         hitgroupModuleCH            = state.ptx_module,
         hitgroupEntryFunctionNameCH = "__closesthit__camera",
     )
-    state.tri_hit_group, log = state.context.programGroupCreate(
+    tri_hit_groups, log = state.context.programGroupCreate(
         [ hitgroup_prog_group_desc ]
     )
+    state.tri_hit_group = tri_hit_groups[0]
     print( "\tProgramGroup triangle hit create log: <<<{}>>>".format( log ) )
         
     hitgroup_prog_group_desc.hitgroupModuleIS            = state.ptx_module
     hitgroup_prog_group_desc.hitgroupEntryFunctionNameIS = "__intersection__sphere"
-    state.sphere_hit_group, log = state.context.programGroupCreate(
+    sphere_hit_groups, log = state.context.programGroupCreate(
         [ hitgroup_prog_group_desc ]
     )
+    state.sphere_hit_group = sphere_hit_groups[0]
     print( "\tProgramGroup sphere hit create log: <<<{}>>>".format( log ) )
 
 
@@ -524,7 +529,6 @@ def create_pipeline( state ):
 
     pipeline_link_options = optix.PipelineLinkOptions(
         maxTraceDepth = 2,
-        debugLevel = optix.COMPILE_DEBUG_LEVEL_FULL
     )
 
     log = ""
@@ -537,7 +541,10 @@ def create_pipeline( state ):
 
     stack_sizes = optix.StackSizes()
     for prog_group in program_groups:
-        optix.util.accumulateStackSizes( prog_group, stack_sizes )
+        if optix_version_gte( (7,7) ):
+            optix.util.accumulateStackSizes( prog_group, stack_sizes, state.pipeline )
+        else: 
+            optix.util.accumulateStackSizes( prog_group, stack_sizes )
 
     ( dc_stack_size_from_trav, dc_stack_size_from_state, cc_stack_size ) = \
         optix.util.computeStackSizes(

@@ -229,7 +229,7 @@ def create_module( ctx, pipeline_options, sphere_ptx ):
         debugLevel       = optix.COMPILE_DEBUG_LEVEL_DEFAULT
         )
 
-    module, log = ctx.moduleCreateFromPTX(
+    module, log = ctx.moduleCreate(
         module_options,
         pipeline_options,
         sphere_ptx
@@ -244,7 +244,7 @@ def create_program_groups( ctx, module ):
     raygen_program_desc                         = optix.ProgramGroupDesc()
     raygen_program_desc.raygenModule            = module
     raygen_program_desc.raygenEntryFunctionName = "__raygen__rg"
-    raygen_prog_group, log = ctx.programGroupCreate(
+    raygen_prog_groups, log = ctx.programGroupCreate(
         [ raygen_program_desc ]
         )
     print( "\tProgramGroup raygen create log: <<<{}>>>".format( log ) )
@@ -252,7 +252,7 @@ def create_program_groups( ctx, module ):
     miss_prog_group_desc                        = optix.ProgramGroupDesc()
     miss_prog_group_desc.missModule             = module
     miss_prog_group_desc.missEntryFunctionName  = "__miss__ms"
-    miss_prog_group, log = ctx.programGroupCreate(
+    miss_prog_groups, log = ctx.programGroupCreate(
         [ miss_prog_group_desc ]
         )
     print( "\tProgramGroup mis create log: <<<{}>>>".format( log ) )
@@ -262,12 +262,12 @@ def create_program_groups( ctx, module ):
     hitgroup_prog_group_desc.hitgroupEntryFunctionNameCH = "__closesthit__ch"
     hitgroup_prog_group_desc.hitgroupModuleIS            = module
     hitgroup_prog_group_desc.hitgroupEntryFunctionNameIS = "__intersection__sphere"
-    hitgroup_prog_group, log = ctx.programGroupCreate(
+    hitgroup_prog_groups, log = ctx.programGroupCreate(
         [ hitgroup_prog_group_desc ]
         )
     print( "\tProgramGroup hitgroup create log: <<<{}>>>".format( log ) )
 
-    return [ raygen_prog_group, miss_prog_group, hitgroup_prog_group ]
+    return [ raygen_prog_groups[0], miss_prog_groups[0], hitgroup_prog_groups[0] ]
 
 
 def create_pipeline( ctx, program_groups, pipeline_compile_options ):
@@ -276,7 +276,6 @@ def create_pipeline( ctx, program_groups, pipeline_compile_options ):
     max_trace_depth = 1
     pipeline_link_options                   = optix.PipelineLinkOptions()
     pipeline_link_options.maxTraceDepth     = max_trace_depth
-    pipeline_link_options.debugLevel        = optix.COMPILE_DEBUG_LEVEL_FULL
 
     log = ""
     pipeline = ctx.pipelineCreate(
@@ -287,7 +286,10 @@ def create_pipeline( ctx, program_groups, pipeline_compile_options ):
 
     stack_sizes = optix.StackSizes()
     for prog_group in program_groups:
-        optix.util.accumulateStackSizes( prog_group, stack_sizes )
+        if optix_version_gte( (7,7) ):
+            optix.util.accumulateStackSizes( prog_group, stack_sizes, pipeline )
+        else: 
+            optix.util.accumulateStackSizes( prog_group, stack_sizes )
 
     ( dc_stack_size_from_trav, dc_stack_size_from_state, cc_stack_size ) = \
         optix.util.computeStackSizes(

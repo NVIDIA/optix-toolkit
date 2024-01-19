@@ -57,7 +57,7 @@ class CMakeBuild(build_ext):
             build_args += ['--', '-j2']
 
         if "PYOPTIX_CMAKE_ARGS" in os.environ:
-            cmake_args += [ os.environ[ 'PYOPTIX_CMAKE_ARGS' ] ]
+            cmake_args += os.environ[ 'PYOPTIX_CMAKE_ARGS' ].split()
 
         # the following is only needed for 7.0 compiles, because the optix device header of that
         # first version included stddef.h.

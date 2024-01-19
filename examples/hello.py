@@ -181,7 +181,7 @@ def create_module( ctx, pipeline_options, hello_ptx ):
             debugLevel       = optix.COMPILE_DEBUG_LEVEL_DEFAULT
         )
 
-    module, log = ctx.moduleCreateFromPTX(
+    module, log = ctx.moduleCreate(
             module_options,
             pipeline_options,
             hello_ptx
@@ -202,47 +202,45 @@ def create_program_groups( ctx, module ):
     if optix_version_gte( (7,4) ):
         #  ProgramGroupOptions introduced in OptiX 7.4
         program_group_options = optix.ProgramGroupOptions() 
-        raygen_prog_group, log = ctx.programGroupCreate(
+        raygen_prog_groups, log = ctx.programGroupCreate(
                 [ raygen_prog_group_desc ],
                 program_group_options,
                 )
     else:
-        raygen_prog_group, log = ctx.programGroupCreate(
+        raygen_prog_groups, log = ctx.programGroupCreate(
                 [ raygen_prog_group_desc ]
                 )
     print( "\tProgramGroup raygen create log: <<<{}>>>".format( log ) )
 
     miss_prog_group_desc  = optix.ProgramGroupDesc( missEntryFunctionName = "")
     program_group_options = optix.ProgramGroupOptions() 
-    miss_prog_group, log = ctx.programGroupCreate(
+    miss_prog_groups, log = ctx.programGroupCreate(
             [ miss_prog_group_desc ]
             # Even in 7.4+, the OptixProgramGroupOptions param is optional
             )
     print( "\tProgramGroup miss create log: <<<{}>>>".format( log ) )
 
-    return ( raygen_prog_group, miss_prog_group )
+    return ( raygen_prog_groups[0], miss_prog_groups[0] )
 
 
 def create_pipeline( ctx, raygen_prog_group, pipeline_compile_options ):
     print( "Creating pipeline ... " )
-    max_trace_depth  = 0
-    program_groups = [ raygen_prog_group ]
-
     pipeline_link_options               = optix.PipelineLinkOptions() 
-    pipeline_link_options.maxTraceDepth = max_trace_depth
-    pipeline_link_options.debugLevel    = optix.COMPILE_DEBUG_LEVEL_FULL
-
+    pipeline_link_options.maxTraceDepth = 0
+ 
     log = ""
     pipeline = ctx.pipelineCreate(
             pipeline_compile_options,
             pipeline_link_options,
-            program_groups,
+            [raygen_prog_group],
             log
             )
 
     stack_sizes = optix.StackSizes()
-    for prog_group in program_groups:
-        optix.util.accumulateStackSizes( prog_group, stack_sizes )
+    if optix_version_gte( (7,7) ):
+        optix.util.accumulateStackSizes( raygen_prog_group, stack_sizes, pipeline )
+    else:
+        optix.util.accumulateStackSizes( raygen_prog_group, stack_sizes )
 
     (dc_stack_size_from_trav, dc_stack_size_from_state, cc_stack_size) = \
         optix.util.computeStackSizes( 
@@ -354,6 +352,7 @@ def launch( pipeline, sbt ):
 
 
 def main():
+    print( "PyOptiX: OptiX SDK {}".format(optix.version()))
     ctx              = create_ctx()
 
     hello_cu = os.path.join(os.path.dirname(__file__), 'hello.cu')
