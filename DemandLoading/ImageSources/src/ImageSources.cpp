@@ -26,9 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ImageSources/ImageSources.h>
-#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSources/DeviceConstantImage.h>
+#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/ImageSources.h>
+
+#include <memory>
 
 namespace imageSources {
 
@@ -36,19 +39,29 @@ std::shared_ptr<imageSource::ImageSource> createImageSource( const std::string& 
 {
     if( filename == "mandelbrot" )
     {
-        std::vector<float4> colors = {{1.0f, 1.0f, 1.0f, 0.0f},
-                                      {0.0f, 0.0f, 1.0f, 0.0f},
-                                      {0.0f, 0.5f, 0.0f, 0.0f},
-                                      {1.0f, 0.0f, .0f, 0.0f},
-                                      {1.0f, 1.0f, 0.0f, 0.0f}};
-        return std::shared_ptr<imageSource::ImageSource>( new DeviceMandelbrotImage( 2048, 2048, /*xmin=*/-2.0, /*ymin=*/-2.0,
-                                                                        /*xmax=*/2.0, /*ymax=*/2.0,
-                                                                        /*iterations=*/512, colors ) );
+        std::vector<float4> colors = { { 1.0f, 1.0f, 1.0f, 0.0f },
+                                       { 0.0f, 0.0f, 1.0f, 0.0f },
+                                       { 0.0f, 0.5f, 0.0f, 0.0f },
+                                       { 1.0f, 0.0f, .0f, 0.0f },
+                                       { 1.0f, 1.0f, 0.0f, 0.0f } };
+        return std::make_shared<DeviceMandelbrotImage>( 2048, 2048, /*xmin=*/-2.0, /*ymin=*/-2.0,
+                                                        /*xmax=*/2.0, /*ymax=*/2.0,
+                                                        /*iterations=*/512, colors );
     }
-    else
+    if( filename == "constant" )
     {
-        return imageSource::createImageSource( filename, directory );
-    }        
+        // 2K, 1K, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1 = 13 colors
+        std::vector<float4> mipColors = {
+            { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f },
+            { 1.0f, 0.0f, .0f, 0.0f },  { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f },
+            { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f }, { 1.0f, 0.0f, .0f, 0.0f },
+            { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f },
+            { 0.0f, 0.5f, 0.0f, 0.0f },
+        };
+        return std::make_shared<DeviceConstantImage>( 2048, 2048, mipColors );
+    }
+
+    return imageSource::createImageSource( filename, directory );
 }
 
 }  // namespace imageSources
