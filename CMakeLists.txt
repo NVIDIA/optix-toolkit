@@ -52,10 +52,11 @@ else()
   option( OTK_USE_VCPKG "Use vcpkg for third party libraries" OFF )
 endif()
 
+option(OTK_USE_VCPKG_OPENEXR "Use vcpkg to obtain OpenEXR" ${OTK_USE_VCPKG} )
+
  # Configure vcpkg manifest file, possibly adding OpenEXR and OpenImageIO.
 if( OTK_USE_VCPKG )
-  # Don't include OpenEXR if the user has explicitly configured its location.
-  if( NOT OpenEXR_DIR )
+  if( OTK_USE_VCPKG_OPENEXR )
     set( OTK_DEPEND_IMATH "\"imath\"," )
     set( OTK_DEPEND_OPENEXR "\"openexr\"," )
   endif()
