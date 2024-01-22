@@ -30,6 +30,7 @@
 #include <OptiXToolkit/ImageSources/DeviceConstantImage.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
 #include <OptiXToolkit/ImageSources/ImageSources.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
 #include <memory>
 
@@ -59,6 +60,10 @@ std::shared_ptr<imageSource::ImageSource> createImageSource( const std::string& 
             { 0.0f, 0.5f, 0.0f, 0.0f },
         };
         return std::make_shared<DeviceConstantImage>( 2048, 2048, mipColors );
+    }
+    if( filename == "multichecker" )
+    {
+        return std::make_shared<MultiCheckerImage<float4>>( 2048, 2048, 16, true );
     }
 
     return imageSource::createImageSource( filename, directory );
