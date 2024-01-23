@@ -26,6 +26,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# image_test_get_resource_dir
+#
+# Get the image test resource directory location for a particular target.
+#
+function(image_test_get_resource_dir var target)
+    set(${var} "${CMAKE_BINARY_DIR}/tests/resources/${target}" PARENT_SCOPE)
+endfunction()
+
 # add_image_test <target> <name>
 #
 # Adds an image comparison test named <target>-<name>.  The test
@@ -50,7 +58,7 @@
 # DIFF_THRESHOLD arg        The difference threshold above which pixels are considered different.  The default is 1.
 # ALLOWED_PERCENTAGE arg    The percentage of pixels required for the images to be considered different.  The default is 3.
 # DISABLED                  Mark the test as DISABLED with CTest
-# RESOURCES arg0...argN     List of additional resource files to be copied to ${CMAKE_BINARY_DIR}/tests/resources/${target_name}
+# RESOURCES arg0...argN     List of additional resource files to be copied to target's resource directory.
 #
 function(add_image_test target name)
     cmake_parse_arguments(IMGTEST "DISABLED" "DIFF_THRESHOLD;ALLOWED_PERCENTAGE;FOLDER" "RESOURCES;ARGS" ${ARGN})
@@ -115,8 +123,8 @@ function(add_image_test target name)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${gold_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${gold_name}" "${gold_dir}"
     )
+    image_test_get_resource_dir(resource_dir ${target})
     foreach(resource ${IMGTEST_RESOURCES})
-        set(resource_dir "${CMAKE_BINARY_DIR}/tests/resources/${target}")
         set_property(TARGET ${resource_target} APPEND PROPERTY SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${resource}")
         add_custom_command(
             OUTPUT "${resource_dir}/${resource}"
