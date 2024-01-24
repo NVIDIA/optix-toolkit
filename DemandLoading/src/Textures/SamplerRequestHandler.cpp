@@ -67,7 +67,22 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 
     // Get the texture and make sure it is open.
     unsigned int samplerId = pageIdToSamplerId( pageId, m_loader->getOptions().maxTextures );
-    DemandTextureImpl* texture = m_loader->getTexture( samplerId );
+    auto getTextureForSamplerId = [this]( unsigned int samplerId ) {
+        try
+        {
+            return m_loader->getTexture( samplerId );
+        }
+        catch( const std::exception& bang )
+        {
+            throw std::runtime_error( "Couldn't get texture for sampler id " + std::to_string( samplerId ) + " ("
+                                      + bang.what() + ')' );
+        }
+        catch( ... )
+        {
+            throw;
+        }
+    };
+    DemandTextureImpl* texture = getTextureForSamplerId( samplerId );
     texture->open();
 
     // Load base color if the page is for a base color
