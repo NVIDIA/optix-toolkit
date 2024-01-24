@@ -72,7 +72,7 @@ struct Options
     unsigned int maxThreads = 0;  ///< max threads for processing requests. (0 means std::thread::hardware_concurrency)
 
     // Trace file
-    std::string traceFile = "";  ///< trace filename (disabled if empty).
+    std::string traceFile;  ///< trace filename (disabled if empty).
 };
 // clang-format on
 
