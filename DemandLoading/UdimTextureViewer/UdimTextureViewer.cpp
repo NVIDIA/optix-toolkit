@@ -29,11 +29,13 @@
 
 #include <string>
 
-#include <UdimTextureViewerKernelPTX.h>
+#include <UdimTextureViewerKernelCuda.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/ImageSource/CascadeImage.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 using namespace demandTextureApp;
 
@@ -54,8 +56,8 @@ class UdimTextureApp : public DemandTextureApp
 
   private:
     std::string m_textureName;
-    int         m_texWidth     = 1024;
-    int         m_texHeight    = 1024;
+    int         m_texWidth     = 8192;
+    int         m_texHeight    = 8192;
     int         m_udim         = 10;
     int         m_vdim         = 10;
     bool        m_useBaseImage = false;
@@ -81,18 +83,25 @@ void UdimTextureApp::createTexture()
     int baseTextureId = -1;
     if( m_useBaseImage )
     {
-        imageSource::ImageSource* baseImage = nullptr;
-        if( m_textureName != "mandelbrot " )
-            baseImage = createExrImage( ( m_textureName + ".exr" ).c_str() );
-        if( !baseImage )
-            baseImage = new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors );
-        std::unique_ptr<imageSource::ImageSource> baseImageSource( baseImage );
+        std::shared_ptr<imageSource::ImageSource> baseImageSource;
+        if( m_textureName != "mandelbrot" && m_textureName != "checker" )
+            baseImageSource.reset( createExrImage( m_textureName + ".exr" ) );
+        if( !baseImageSource && m_textureName == "checker" )
+            baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
+        if( !baseImageSource )
+            baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors ) );
 
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-        const demandLoading::DemandTexture& baseTexture = m_demandLoader->createTexture( std::move( baseImageSource ), texDesc );
-        baseTextureId                                   = baseTexture.getId();
-        if( baseTextureId >= 0 )
-            m_textureIds.push_back( baseTextureId );
+
+        // Create a base texture for all devices
+        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        {
+            OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+            const demandLoading::DemandTexture& baseTexture = state.demandLoader->createTexture( baseImageSource, texDesc );
+            baseTextureId                                   = baseTexture.getId();
+            if( m_textureIds.empty() )
+                m_textureIds.push_back( baseTextureId );
+        }
     }
     if( m_udim == 0 ) // just a regular texture
         return;
@@ -105,11 +114,11 @@ void UdimTextureApp::createTexture()
         for( int u = 0; u < m_udim; ++u )
         {
             imageSource::ImageSource* subImage = nullptr;
-            if( m_textureName != "mandelbrot" ) // loading exr images
+            if( m_textureName != "mandelbrot" && m_textureName != "checker" ) // loading exr images
             {
                 int         udimNum      = 10000 + v * 100 + u;
                 std::string subImageName = m_textureName + std::to_string( udimNum ) + ".exr";
-                subImage                 = createExrImage( subImageName.c_str() );
+                subImage                 = createExrImage( subImageName );
             }
             if( !subImage && m_texWidth == 0 ) // mixing different image sizes
             {
@@ -117,6 +126,10 @@ void UdimTextureApp::createTexture()
                 int w         = std::max( 4 << u, ( 4 << v ) / maxAspect );
                 int h         = std::max( 4 << v, ( 4 << u ) / maxAspect );
                 subImage      = new imageSources::MultiCheckerImage<float4>( w, h, 4, true );
+            }
+            if( !subImage && m_textureName == "checker" )
+            {
+                subImage = new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
             }
             if( !subImage ) // many images of the same size
             {
@@ -133,11 +146,17 @@ void UdimTextureApp::createTexture()
             subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, CU_TR_FILTER_MODE_LINEAR ) );
         }
     }
-    const demandLoading::DemandTexture& udimTexture =
-        m_demandLoader->createUdimTexture( subImageSources, subTexDescs, m_udim, m_vdim, baseTextureId );
 
-    if( m_textureIds.empty() )
-        m_textureIds.push_back( udimTexture.getId() );
+    // Create a udim texture for all the devices
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+        const demandLoading::DemandTexture& udimTexture =
+            state.demandLoader->createUdimTexture( subImageSources, subTexDescs, m_udim, m_vdim, baseTextureId );
+
+        if( m_textureIds.empty() )
+            m_textureIds.push_back( udimTexture.getId() );
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -147,8 +166,8 @@ void UdimTextureApp::createTexture()
 void printUsage( const char* argv0 )
 {
     std::cerr << "\nUsage: " << argv0 << " [options]\n\n";
-    std::cout << "Options:  --texture <mandelbrot|texturefile.exr>, --dim=<width>x<height>, --file <outputfile.ppm>\n";
-    std::cout << "          --no-gl-interop, --texdim=<width>x<height>, --udim=<udim>x<vdim>, --base-image\n";
+    std::cout << "Options:  --texture <mandelbrot|checker|texturefile.exr>, --dim=<width>x<height>, --file <outputfile.ppm>\n";
+    std::cout << "          --no-gl-interop, --texdim=<width>x<height>, --udim=<udim>x<vdim>, --base-image, --cascade, --dense\n";
     std::cout << "Keyboard: <ESC>:exit, WASD:pan, QE:zoom, C:recenter\n";
     std::cout << "Mouse:    <LMB>:pan, <RMB>:zoom\n" << std::endl;
     exit(0);
@@ -167,6 +186,8 @@ int main( int argc, char* argv[] )
     int udim = 10;
     int vdim = 10;
     bool useBaseImage = false;
+    bool useSparseTextures = true;
+    bool cascadingTextureSizes = false;
 
     for( int i = 1; i < argc; ++i )
     {
@@ -187,15 +208,21 @@ int main( int argc, char* argv[] )
             glInterop = false;
         else if( arg == "--base-image" )
             useBaseImage = true;
+        else if( arg == "--dense" )
+            useSparseTextures = false;
+        else if( arg == "--cascade" )
+            cascadingTextureSizes = true;
         else
             printUsage( argv[0] );
     }
 
     UdimTextureApp app( "UDIM Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
+    app.useSparseTextures( useSparseTextures );
+    app.useCascadingTextureSizes( cascadingTextureSizes );
     app.initDemandLoading();
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
-    app.initOptixPipelines( UdimTextureViewer_ptx_text() );
+    app.initOptixPipelines( UdimTextureViewerCudaText(), UdimTextureViewerCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 

@@ -29,6 +29,7 @@
 #include <cuda_runtime.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <vector>
+using namespace otk;
 
 struct Vert
 {

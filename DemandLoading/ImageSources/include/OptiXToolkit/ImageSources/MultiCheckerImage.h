@@ -66,13 +66,7 @@ class MultiCheckerImage : public imageSource::ImageSourceBase
 
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
-    bool readTile( char*        dest,
-                   unsigned int mipLevel,
-                   unsigned int tileX,
-                   unsigned int tileY,
-                   unsigned int tileWidth,
-                   unsigned int tileHeight,
-                   CUstream     stream ) override;
+    bool readTile( char* dest, unsigned int mipLevel, const imageSource::Tile& tile, CUstream stream ) override;
 
     /// Read the specified mipLevel.  Returns true for success.
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream ) override;
@@ -138,13 +132,7 @@ inline bool MultiCheckerImage<TYPE>::isOddChecker( float x, float y, unsigned in
 }
 
 template <class TYPE>
-bool MultiCheckerImage<TYPE>::readTile( char*        dest,
-                                        unsigned int mipLevel,
-                                        unsigned int tileX,
-                                        unsigned int tileY,
-                                        unsigned int tileWidth,
-                                        unsigned int tileHeight,
-                                        CUstream     /*stream*/ )
+bool MultiCheckerImage<TYPE>::readTile( char* dest, unsigned int mipLevel, const imageSource::Tile& tile, CUstream /*stream*/ )
 {
     if( mipLevel >= m_info.numMipLevels )                                                                                               
     {                                                                           
@@ -161,17 +149,16 @@ bool MultiCheckerImage<TYPE>::readTile( char*        dest,
     unsigned int levelHeight    = std::max( 1u, m_info.height >> mipLevel );
     unsigned int squaresPerSide = std::min( levelWidth, m_squaresPerSide );
 
-    const unsigned int startX   = tileX * tileWidth;
-    const unsigned int startY   = tileY * tileHeight;
-    const unsigned int rowPitch = tileWidth * m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
+    const imageSource::PixelPosition start = pixelPosition( tile );
+    const unsigned int rowPitch = tile.width * m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
 
-    for( unsigned int destY = 0; destY < tileHeight; ++destY )
+    for( unsigned int destY = 0; destY < tile.height; ++destY )
     {
         TYPE* row = reinterpret_cast<TYPE*>( dest + destY * rowPitch );
-        for( unsigned int destX = 0; destX < tileWidth; ++destX )
+        for( unsigned int destX = 0; destX < tile.width; ++destX )
         {
-            float tx   = static_cast<float>( destX + startX ) / static_cast<float>( levelWidth );
-            float ty   = static_cast<float>( destY + startY ) / static_cast<float>( levelHeight );
+            float tx   = static_cast<float>( destX + start.x ) / static_cast<float>( levelWidth );
+            float ty   = static_cast<float>( destY + start.y ) / static_cast<float>( levelHeight );
             bool  odd  = isOddChecker( tx, ty, squaresPerSide );
             row[destX] = odd ? black : color;
         }

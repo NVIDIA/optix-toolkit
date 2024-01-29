@@ -59,18 +59,21 @@ class DemandTextureApp
 {
   public:
     DemandTextureApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
-    virtual ~DemandTextureApp();
+    virtual ~DemandTextureApp() {}
 
     // Public functions to initialize the app and start rendering
     void setNumLaunches( int numLaunches ) { m_minLaunches = numLaunches; }
     void sceneIsTriangles( bool t ) { m_scene_is_triangles = t; }
     void initDemandLoading();
     virtual void createTexture() = 0;
-    void initOptixPipelines( const char* moduleCode );
+    void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
     void startLaunchLoop();
+    void cleanup();
     void printDemandLoadingStats();
     void resetAccumulator();
     void setMipScale( float scale ) { m_mipScale = scale; }
+    void useSparseTextures( bool useSparseTextures ) { m_useSparseTextures = useSparseTextures; }
+    void useCascadingTextureSizes( bool useCascade ) { m_useCascadingTextureSizes = useCascade; }
 
     // GLFW callbacks
     virtual void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
@@ -92,7 +95,7 @@ class DemandTextureApp
 
     // Demand loading and texturing system
     demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, CUfilter_mode filterMode );
-    imageSource::ImageSource* createExrImage( const char* filePath );
+    imageSource::ImageSource*        createExrImage( const std::string& filePath );
     
     // OptiX launches
     virtual void initView();
@@ -122,12 +125,13 @@ class DemandTextureApp
     bool m_scene_is_triangles = false;
 
     // Demand loading and textures
-    std::shared_ptr<demandLoading::DemandLoader> m_demandLoader;
-    std::vector<unsigned int>                    m_textureIds;
-    int                                          m_launchCycles = 0;
-    int                                          m_subframeId = 0;
-    int                                          m_numFilledRequests = 0;
-    int                                          m_minLaunches = 2;
+    std::vector<unsigned int> m_textureIds;
+    int                       m_launchCycles = 0;
+    int                       m_subframeId = 0;
+    int                       m_numFilledRequests = 0;
+    int                       m_minLaunches = 2;
+    bool                      m_useSparseTextures = true;
+    bool                      m_useCascadingTextureSizes = false;
 
     // Camera and view
     otk::Camera m_camera;

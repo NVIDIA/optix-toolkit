@@ -29,7 +29,7 @@
 include(ImageTest)
 
 # Render proxy geometry
-add_image_test(DemandGeometryViewer frame0 ARGS --bg=1,0,1 --warmup=0)
+add_image_test(DemandGeometryViewer frame0 FOLDER Examples/DemandLoading/Tests ARGS --bg=1,0,1 --warmup=0)
 
 # Render realized geometry with proxy material
 add_image_test(DemandGeometryViewer frame1 ARGS --bg=1,0,1 --warmup=1)

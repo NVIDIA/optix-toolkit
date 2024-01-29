@@ -27,27 +27,27 @@
 #
 
 include(BuildConfig)
-include(embed_ptx)
+include(embed_cuda)
 
 find_package(OptiX 7.5)
-if(NOT OptiX_FOUND)
+if(NOT OptiX_FOUND OR OPTIX_VERSION VERSION_LESS 7.5)
   message(WARNING "Cannot build DemandGeometryViewer: it requires OptiX 7.5 or later")
   return()
 endif()
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
-embed_ptx(
-    CONST HEADER DemandGeometryViewerKernelPTX.h
+embed_cuda(
+    CONST HEADER DemandGeometryViewerKernelCuda.h
     OUTPUT_TARGET DemandGeometryViewerKernel
-    PTX_INCLUDE_DIRECTORIES include
-    PTX_LINK_LIBRARIES
+    INCLUDES include
+    LIBRARIES
         OptiXToolkit::DemandGeometry
         OptiXToolkit::DemandLoading
+        OptiXToolkit::DemandMaterial
         OptiXToolkit::ShaderUtil
     SOURCES
         DemandGeometryViewer.cu
-        DemandMaterial.cu
         Sphere.cu
     FOLDER Examples/DemandLoading
 )
@@ -55,17 +55,16 @@ embed_ptx(
 otk_add_executable( DemandGeometryViewer
     DemandGeometryViewer.h
     DemandGeometryViewer.cpp
-    DemandMaterial.h
-    DemandMaterial.cpp
     SphereInstances.h
     SphereInstances.cpp
 )
 target_link_libraries( DemandGeometryViewer PUBLIC
     DemandGeometryViewerKernel
-    DemandGeometry
-    ShaderUtil
-    Gui
-    Util
+    OptiXToolkit::DemandGeometry
+    OptiXToolkit::DemandMaterial
+    OptiXToolkit::ShaderUtil
+    OptiXToolkit::Gui
+    OptiXToolkit::Util
     OptiXToolkit::Error
     CUDA::cudart
 )

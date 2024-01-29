@@ -35,30 +35,10 @@ include(CTest)
 include(FetchOpenEXR)
 include(FetchStbImage)
 
-# stub image library
-add_library(StbImage STATIC
-    src/stb.cpp
-    ${stb_image_SOURCE_DIR}/stb_image.h
-    ${stb_image_write_SOURCE_DIR}/stb_image_write.h
-)
-target_include_directories(StbImage
-    PUBLIC
-        ${stb_image_SOURCE_DIR}
-        ${stb_image_write_SOURCE_DIR}
-)
-if(NOT MSVC)
-  target_compile_options(StbImage PRIVATE -Wno-missing-field-initializers)
-endif()
-set_target_properties(StbImage PROPERTIES FOLDER ThirdParty)
-if(NOT TARGET Stb::Image)
-  add_library(Stb::Image ALIAS StbImage)
-endif()
-
 configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)
 
 otk_add_library(Util STATIC
   include/OptiXToolkit/Util/AssetLocator.h
-  include/OptiXToolkit/Util/Exception.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
   include/OptiXToolkit/Util/Logger.h
@@ -66,8 +46,9 @@ otk_add_library(Util STATIC
   src/AssetLocator.cpp
   src/BinaryDataDir.h.in
   src/EXRInputFile.cpp
-  src/Exception.cpp
   src/Logger.cpp
+  src/BinaryDataDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
   )
 
 add_library(OptiXToolkit::Util ALIAS Util)

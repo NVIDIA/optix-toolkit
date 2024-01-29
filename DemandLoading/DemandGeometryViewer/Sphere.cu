@@ -101,50 +101,26 @@ static __device__ void phongShade( float3 const& p_Kd,
     setRayPayload( result );
 }
 
-static __forceinline__ __device__ bool outsideWindow( uint_t lhs, uint_t rhs, uint_t width )
+static __forceinline__ __device__ bool sphereDebugInfo( const float4& q, const float3& worldNormal )
 {
-    const uint_t bigger  = max( lhs, rhs );
-    const uint_t smaller = min( lhs, rhs );
-    return bigger - smaller > width;
-}
-
-static __forceinline__ __device__ bool inDebugWindow( const uint3& launchIndex, const uint3& debugIndex, uint_t width )
-{
-    return !( outsideWindow( launchIndex.x, debugIndex.x, width ) || outsideWindow( launchIndex.y, debugIndex.y, width )
-              || outsideWindow( launchIndex.z, debugIndex.z, width ) );
-}
-
-static __forceinline__ __device__ bool debugInfo( const Debug& debug, const float4& q, const float3& worldNormal )
-{
-    if( debug.enabled && debug.debugIndexSet )
-    {
-        const uint3 launchIndex = optixGetLaunchIndex();
-        if( debug.debugIndex == launchIndex )
-        {
+    return otk::debugInfoDump(
+        g_params.debug,
+        [&]( const uint3& launchIndex ) {
             const uint_t                 primIdx     = optixGetPrimitiveIndex();
             const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
             const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
             const PhongMaterial&         mat         = getSbtData<HitGroupData>()->material;
+            // clang-format off
             printf(
-                "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g], D: "
-                "[%g,%g,%g]\n",
-                launchIndex.x, launchIndex.y, launchIndex.z, primIdx, sbtGASIndex, gas, q.x, q.y, q.z, q.w,
-                worldNormal.x, worldNormal.y, worldNormal.z, mat.Kd.x, mat.Kd.y, mat.Kd.z );
-            setRayPayload( 1.0f, 0.0f, 0.0f );
-            return true;
-        }
-        if( inDebugWindow( launchIndex, debug.debugIndex, 2 ) )
-        {
-            setRayPayload( 0.0f, 0.0f, 0.0f );
-            return true;
-        }
-        if( inDebugWindow( launchIndex, debug.debugIndex, 4 ) )
-        {
-            setRayPayload( 1.0f, 1.0f, 1.0f );
-            return true;
-        }
-    }
-    return false;
+                "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g], D: [%g,%g,%g]\n",
+                launchIndex.x, launchIndex.y, launchIndex.z,
+                primIdx, sbtGASIndex, gas,
+                q.x, q.y, q.z, q.w,
+                worldNormal.x, worldNormal.y, worldNormal.z,
+                mat.Kd.x, mat.Kd.y, mat.Kd.z );
+            // clang-format on
+        },
+        setRayPayload );
 }
 
 extern "C" __global__ void __closesthit__sphere()
@@ -176,7 +152,7 @@ extern "C" __global__ void __closesthit__sphere()
     const float3 objectNormal = ( objectRayPos - make_float3( q ) ) / q.w;
     const float3 worldNormal  = normalize( optixTransformNormalFromObjectToWorldSpace( objectNormal ) ) * 0.5f + 0.5f;
 
-    if( debugInfo( g_params.debug, q, worldNormal ) )
+    if( sphereDebugInfo( q, worldNormal ) )
         return;
 
     const PhongMaterial& mat = getSbtData<HitGroupData>()->material;

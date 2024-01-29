@@ -30,19 +30,19 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlfw)
 include(FetchGlad)
-include(embed_ptx)
+include(embed_cuda)
 
 if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.1 REQUIRED )
 endif()
 
-embed_ptx(
-  CONST HEADER DemandTextureViewerKernelPTX.h
+embed_cuda(
+  CONST HEADER DemandTextureViewerKernelCuda.h
   OUTPUT_TARGET
     demandTextureViewerKernel
   FOLDER
     Examples/DemandLoading
-  PTX_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil

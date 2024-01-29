@@ -35,11 +35,12 @@
 #include <optix_stack_size.h>
 #include <optix_stubs.h>
 
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/GLDisplay.h>
 #include <OptiXToolkit/Gui/glfw3.h>
-#include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include "PerDeviceOptixState.h"
@@ -77,7 +78,7 @@ void CudaTexture::create( otk::EXRInputFile* imageFile )
     imageFile->read( data.data(), data.size() );
 
     CuPitchedBuffer<char> d_data;
-    CUDA_CHECK( d_data.allocAndUpload( bytesPerPixel * imageFile->getWidth(), imageFile->getHeight(), data.data() ) );
+    OTK_ERROR_CHECK( d_data.allocAndUpload( bytesPerPixel * imageFile->getWidth(), imageFile->getHeight(), data.data() ) );
 
     struct cudaResourceDesc resDesc;
     memset( &resDesc, 0, sizeof( resDesc ) );
@@ -97,7 +98,7 @@ void CudaTexture::create( otk::EXRInputFile* imageFile )
     texDesc.filterMode = cudaFilterModeLinear;
 
     cudaTextureObject_t texObj;
-    CUDA_CHECK( cudaCreateTextureObject( &texObj, &resDesc, &texDesc, NULL ) );
+    OTK_ERROR_CHECK( cudaCreateTextureObject( &texObj, &resDesc, &texDesc, NULL ) );
 
     std::swap( m_texObj, texObj );
     std::swap( m_data, d_data );
@@ -116,8 +117,8 @@ OmmBakingApp::OmmBakingApp( const char* appName, unsigned int width, unsigned in
     // Create display window for interactive mode
     if( isInteractive() )
     {
-        CUDA_CHECK( cudaSetDevice( 0 ) );
-        CUDA_CHECK( cudaFree( 0 ) );
+        OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( 0 ) );
         m_window = otk::initGLFW( appName, width, height );
         otk::initGL();
         m_glDisplay.reset( new otk::GLDisplay( otk::BufferImageFormat::UNSIGNED_BYTE4 ) );
@@ -142,15 +143,15 @@ OmmBakingApp::~OmmBakingApp()
 void OmmBakingApp::createContext( PerDeviceOptixState& state )
 {
     // Initialize CUDA on this device
-    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-    CUDA_CHECK( cudaFree( 0 ) );
+    OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+    OTK_ERROR_CHECK( cudaFree( 0 ) );
 
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
     otk::util::setLogger( options );
-    OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &state.context ) );
+    OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &state.context ) );
 
-    CUDA_CHECK( cudaStreamCreate( &state.stream ) );
+    OTK_ERROR_CHECK( cudaStreamCreate( &state.stream ) );
 }
 
 
@@ -173,8 +174,8 @@ void OmmBakingApp::createModule( PerDeviceOptixState& state, const char* moduleC
 
     char   log[2048];
     size_t sizeof_log = sizeof( log );
-    OPTIX_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
-                                        moduleCode, codeSize, log, &sizeof_log, &state.ptx_module ) );
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
+                                        moduleCode, codeSize, log, &sizeof_log, &state.optixir_module ) );
 }
 
 
@@ -188,29 +189,29 @@ void OmmBakingApp::createProgramGroups( PerDeviceOptixState& state )
 
     OptixProgramGroupDesc raygen_prog_group_desc    = {};  //
     raygen_prog_group_desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    raygen_prog_group_desc.raygen.module            = state.ptx_module;
+    raygen_prog_group_desc.raygen.module            = state.optixir_module;
     raygen_prog_group_desc.raygen.entryFunctionName = "__raygen__rg";
-    OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &raygen_prog_group_desc,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &raygen_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.raygen_prog_group ) );
 
     OptixProgramGroupDesc miss_prog_group_desc  = {};
     miss_prog_group_desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
-    miss_prog_group_desc.miss.module            = state.ptx_module;
+    miss_prog_group_desc.miss.module            = state.optixir_module;
     miss_prog_group_desc.miss.entryFunctionName = "__miss__ms";
-    OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.miss_prog_group ) );
 
     OptixProgramGroupDesc hitgroup_prog_group_desc        = {};
     hitgroup_prog_group_desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
-    hitgroup_prog_group_desc.hitgroup.moduleAH            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleAH            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = "__anyhit__ah";
     hitgroup_prog_group_desc.hitgroup.moduleIS            = nullptr;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = nullptr;
-    OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.hitgroup_prog_group ) );
 }
@@ -226,7 +227,7 @@ void OmmBakingApp::createPipeline( PerDeviceOptixState& state )
 
     OptixPipelineLinkOptions pipeline_link_options = {};
     pipeline_link_options.maxTraceDepth            = max_trace_depth;
-    OPTIX_CHECK_LOG( optixPipelineCreate( state.context, &state.pipeline_compile_options, &pipeline_link_options,
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( state.context, &state.pipeline_compile_options, &pipeline_link_options,
                                           program_groups, sizeof( program_groups ) / sizeof( program_groups[0] ), log,
                                           &sizeof_log, &state.pipeline ) );
 
@@ -234,21 +235,21 @@ void OmmBakingApp::createPipeline( PerDeviceOptixState& state )
     for( auto& prog_group : program_groups )
     {
 #if OPTIX_VERSION < 70700
-        OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
 #else
-        OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, state.pipeline ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, state.pipeline ) );
 #endif
     }
 
     uint32_t direct_callable_stack_size_from_traversal;
     uint32_t direct_callable_stack_size_from_state;
     uint32_t continuation_stack_size;
-    OPTIX_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
+    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
                                              0,  // maxCCDepth
                                              0,  // maxDCDEpth
                                              &direct_callable_stack_size_from_traversal,
                                              &direct_callable_stack_size_from_state, &continuation_stack_size ) );
-    OPTIX_CHECK( optixPipelineSetStackSize( state.pipeline, direct_callable_stack_size_from_traversal,
+    OTK_ERROR_CHECK( optixPipelineSetStackSize( state.pipeline, direct_callable_stack_size_from_traversal,
                                             direct_callable_stack_size_from_state, continuation_stack_size,
                                             1  // maxTraversableDepth
                                             ) );
@@ -256,16 +257,16 @@ void OmmBakingApp::createPipeline( PerDeviceOptixState& state )
 
 void OmmBakingApp::cleanupState( PerDeviceOptixState& state )
 {
-    OPTIX_CHECK( optixPipelineDestroy( state.pipeline ) );
-    OPTIX_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
-    OPTIX_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
-    OPTIX_CHECK( optixProgramGroupDestroy( state.hitgroup_prog_group ) );
-    OPTIX_CHECK( optixModuleDestroy( state.ptx_module ) );
-    OPTIX_CHECK( optixDeviceContextDestroy( state.context ) );
+    OTK_ERROR_CHECK( optixPipelineDestroy( state.pipeline ) );
+    OTK_ERROR_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
+    OTK_ERROR_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
+    OTK_ERROR_CHECK( optixProgramGroupDestroy( state.hitgroup_prog_group ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( state.optixir_module ) );
+    OTK_ERROR_CHECK( optixDeviceContextDestroy( state.context ) );
 }
 
 
-void OmmBakingApp::initOptixPipelines( const char* moduleCode, int numDevices )
+void OmmBakingApp::initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize, int numDevices )
 {
     bool glInterop = m_glInterop && isInteractive() && ( m_perDeviceOptixStates.size() == 1 );
     otk::CUDAOutputBufferType outputBufferType =
@@ -273,7 +274,6 @@ void OmmBakingApp::initOptixPipelines( const char* moduleCode, int numDevices )
     m_outputBuffer.reset( new otk::CUDAOutputBuffer<uchar4>( outputBufferType, m_windowWidth, m_windowHeight ) );
 
     m_perDeviceOptixStates.resize( numDevices );
-    size_t codeSize = ::strlen( moduleCode );
 
     for( unsigned int i = 0; i < m_perDeviceOptixStates.size(); ++i )
     {
@@ -281,7 +281,7 @@ void OmmBakingApp::initOptixPipelines( const char* moduleCode, int numDevices )
         state.device_idx           = i;
         createContext( state );
         buildAccel( state );
-        createModule( state, moduleCode, codeSize );
+        createModule( state, moduleCode, moduleCodeSize );
         createProgramGroups( state );
         createPipeline( state );
         createSBT( state );
@@ -309,7 +309,7 @@ void OmmBakingApp::performLaunches( )
 
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
 
         // Map the output buffer to get a valid device pointer for the launch output.
         uchar4* result_buffer = m_outputBuffer->map();

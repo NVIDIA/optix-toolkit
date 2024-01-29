@@ -30,6 +30,11 @@ if( TARGET glfw )
     return()
 endif()
 
+if(OTK_USE_VCPKG)
+    find_package(glfw3 CONFIG REQUIRED)
+    return()
+endif()
+
 function(glfw_folders)
   foreach(_target glfw update_mappings)
     if(TARGET ${_target})

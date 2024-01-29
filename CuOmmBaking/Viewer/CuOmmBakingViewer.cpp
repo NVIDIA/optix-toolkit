@@ -31,13 +31,15 @@
 #include <optix_stack_size.h>
 #include <optix_stubs.h>
 
-#include <CuOmmBakingViewerKernelPTX.h>
+#include <CuOmmBakingViewerKernelCuda.h>
 
 #include "CuOmmBakingApp.h"
 #include "LaunchParams.h"
 using namespace ommBakingApp;
 
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 
 #include <sstream>
 
@@ -55,7 +57,7 @@ void bakingCheck( cuOmmBaking::Result res, const char* call, const char* file, u
     {
         std::stringstream ss;
         ss << "CuOmmBaking call '" << call << "' failed: " << file << ':' << line << ")\n";
-        throw otk::Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 }
 
@@ -118,7 +120,7 @@ class OmmBakingViewer : public OmmBakingApp
     {
     }
 
-    void initOptixPipelines( const char* moduleCode );
+    void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
 
   protected:
@@ -219,13 +221,13 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
     // Upload geometry data
 
     CuBuffer<uint3> d_geoIndices;
-    CUDA_CHECK( d_geoIndices.allocAndUpload( g_indices ) );
+    OTK_ERROR_CHECK( d_geoIndices.allocAndUpload( g_indices ) );
 
     CuBuffer<float3> d_vertices;
-    CUDA_CHECK( d_vertices.allocAndUpload( g_vertices ) );
+    OTK_ERROR_CHECK( d_vertices.allocAndUpload( g_vertices ) );
 
     CuBuffer<float2> d_texCoords;
-    CUDA_CHECK( d_texCoords.allocAndUpload( g_texCoords ) );
+    OTK_ERROR_CHECK( d_texCoords.allocAndUpload( g_texCoords ) );
 
     // Bake the Opacity Micromap data
 
@@ -318,9 +320,9 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
             h_usageCounts.resize( inputBuffers.numMicromapUsageCounts );
             h_histogramEntries.resize( buffers.numMicromapHistogramEntries );
 
-            CUDA_CHECK( d_postBakeInfo.download( &h_postBuildInfo ) );
-            CUDA_CHECK( d_histogramEntries.download( h_histogramEntries ) );
-            CUDA_CHECK( d_usageCounts.download( h_usageCounts ) );
+            OTK_ERROR_CHECK( d_postBakeInfo.download( &h_postBuildInfo ) );
+            OTK_ERROR_CHECK( d_histogramEntries.download( h_histogramEntries ) );
+            OTK_ERROR_CHECK( d_usageCounts.download( h_usageCounts ) );
 
         }
 
@@ -335,11 +337,11 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
             ommArrayInput.micromapHistogramEntries = h_histogramEntries.data();
             ommArrayInput.numMicromapHistogramEntries = ( uint32_t )h_histogramEntries.size();
             ommArrayInput.perMicromapDescStrideInBytes = sizeof( OptixOpacityMicromapDesc );
-            OPTIX_CHECK( optixOpacityMicromapArrayComputeMemoryUsage( optixState.context, &ommArrayInput, &ommArraySizes ) );
+            OTK_ERROR_CHECK( optixOpacityMicromapArrayComputeMemoryUsage( optixState.context, &ommArrayInput, &ommArraySizes ) );
 
             CuBuffer<> temp;
-            CUDA_CHECK( temp.alloc( ommArraySizes.tempSizeInBytes ) );
-            CUDA_CHECK( d_ommArray.alloc( ommArraySizes.outputSizeInBytes ) );
+            OTK_ERROR_CHECK( temp.alloc( ommArraySizes.tempSizeInBytes ) );
+            OTK_ERROR_CHECK( d_ommArray.alloc( ommArraySizes.outputSizeInBytes ) );
 
             ommArrayBuffers.outputSizeInBytes = d_ommArray.byteSize();
             ommArrayBuffers.output = d_ommArray.get();
@@ -349,7 +351,7 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
             ommArrayInput.perMicromapDescBuffer = buffers.perMicromapDescBuffer;
             ommArrayInput.inputBuffer = buffers.outputBuffer;
 
-            OPTIX_CHECK( optixOpacityMicromapArrayBuild( optixState.context, 0, &ommArrayInput, &ommArrayBuffers ) );
+            OTK_ERROR_CHECK( optixOpacityMicromapArrayBuild( optixState.context, 0, &ommArrayInput, &ommArrayBuffers ) );
         }
     }
 
@@ -389,25 +391,25 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
     accelOptions.operation = OPTIX_BUILD_OPERATION_BUILD;
 
     OptixAccelBufferSizes gasBufferSizes = {};
-    OPTIX_CHECK( optixAccelComputeMemoryUsage( optixState.context, &accelOptions, &buildInput, 1, &gasBufferSizes ) );
+    OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( optixState.context, &accelOptions, &buildInput, 1, &gasBufferSizes ) );
 
     CuBuffer<> d_temp;
     CuBuffer<> d_gas;
 
     size_t compactedSizeOffset = ( gasBufferSizes.tempSizeInBytes + sizeof( size_t ) - 1 ) & ( ~( sizeof( size_t ) - 1 ) );
 
-    CUDA_CHECK( d_gas.alloc( gasBufferSizes.outputSizeInBytes ) );
-    CUDA_CHECK( d_temp.alloc( compactedSizeOffset + sizeof( size_t ) ) );
+    OTK_ERROR_CHECK( d_gas.alloc( gasBufferSizes.outputSizeInBytes ) );
+    OTK_ERROR_CHECK( d_temp.alloc( compactedSizeOffset + sizeof( size_t ) ) );
 
     OptixAccelEmitDesc emitProperty = {};
     emitProperty.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
     emitProperty.result = d_temp.get(compactedSizeOffset);
 
     OptixTraversableHandle handle = {};
-    OPTIX_CHECK( optixAccelBuild( optixState.context, 0, &accelOptions, &buildInput, 1, d_temp.get(), d_temp.byteSize(), d_gas.get(), d_gas.byteSize(), &handle, &emitProperty, 1));
+    OTK_ERROR_CHECK( optixAccelBuild( optixState.context, 0, &accelOptions, &buildInput, 1, d_temp.get(), d_temp.byteSize(), d_gas.get(), d_gas.byteSize(), &handle, &emitProperty, 1));
 
     size_t compacted_gas_size;
-    CUDA_CHECK( cudaMemcpy( &compacted_gas_size, ( void* )emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( &compacted_gas_size, ( void* )emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
 
     // Free input buffers to the GAS build
     d_temp.free();
@@ -418,10 +420,10 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
     if( compacted_gas_size < gasBufferSizes.outputSizeInBytes )
     {
         CuBuffer<> d_compactedGas;
-        CUDA_CHECK( d_compactedGas.alloc( compacted_gas_size ) );
+        OTK_ERROR_CHECK( d_compactedGas.alloc( compacted_gas_size ) );
 
         // use handle as input and output
-        OPTIX_CHECK( optixAccelCompact( optixState.context, 0, handle, d_compactedGas.get(),
+        OTK_ERROR_CHECK( optixAccelCompact( optixState.context, 0, handle, d_compactedGas.get(),
             d_compactedGas.byteSize(), &handle));
 
         std::swap( d_gas, d_compactedGas );
@@ -440,22 +442,22 @@ void OmmBakingViewer::buildAccel( const PerDeviceOptixState& optixState )
 // OptiX setup
 //------------------------------------------------------------------------------
 
-void OmmBakingViewer::initOptixPipelines( const char* moduleCode )
+void OmmBakingViewer::initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize )
 {
-    OPTIX_CHECK( optixInit() );
+    OTK_ERROR_CHECK( optixInit() );
 
     int numDevices;
-    CUDA_CHECK( cudaGetDeviceCount( &numDevices ) );
+    OTK_ERROR_CHECK( cudaGetDeviceCount( &numDevices ) );
     m_state.resize( numDevices );
 
     for( int i = 0; i < numDevices; ++i )
     {
-        CUDA_CHECK( cudaSetDevice( i ) );
-        CUDA_CHECK( cudaFree( 0 ) );
+        OTK_ERROR_CHECK( cudaSetDevice( i ) );
+        OTK_ERROR_CHECK( cudaFree( 0 ) );
         createTexture( i );
     }
 
-    OmmBakingApp::initOptixPipelines( moduleCode, numDevices );
+    OmmBakingApp::initOptixPipelines( moduleCode, moduleCodeSize, numDevices );
 }
 
 void OmmBakingViewer::createSBT( const PerDeviceOptixState& optixState )
@@ -467,19 +469,19 @@ void OmmBakingViewer::createSBT( const PerDeviceOptixState& optixState )
     CuBuffer<HitGroupSbtRecord> d_hitGroupSbtRecords;
 
     RayGenSbtRecord rg_sbt = {};
-    OPTIX_CHECK( optixSbtRecordPackHeader( optixState.raygen_prog_group, &rg_sbt ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( optixState.raygen_prog_group, &rg_sbt ) );
     d_rayGenSbtRecord.allocAndUpload( 1, &rg_sbt );
 
     MissSbtRecord ms_sbt;
     ms_sbt.data.background_color = m_backgroundColor;
-    OPTIX_CHECK( optixSbtRecordPackHeader( optixState.miss_prog_group, &ms_sbt ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( optixState.miss_prog_group, &ms_sbt ) );
     d_missSbtRecord.allocAndUpload( 1, &ms_sbt );
 
     HitGroupSbtRecord hg_sbt;
     hg_sbt.data.texture_id = state.texture.get();
     hg_sbt.data.indices = ( const uint3* )state.d_geoIndices.get();
     hg_sbt.data.texCoords = ( const float2* )state.d_texCoords.get();
-    OPTIX_CHECK( optixSbtRecordPackHeader( optixState.hitgroup_prog_group, &hg_sbt ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( optixState.hitgroup_prog_group, &hg_sbt ) );
     d_hitGroupSbtRecords.allocAndUpload( 1, &hg_sbt );
 
     std::swap( state.d_rayGenSbtRecord, d_rayGenSbtRecord );
@@ -516,12 +518,12 @@ void OmmBakingViewer::performLaunch( const PerDeviceOptixState& optixState, ucha
     state.params.visualize_omm = m_visualizeUnknowns;
 
     // Make sure a device-side copy of the params has been allocated
-    CUDA_CHECK( state.d_params.allocIfRequired( 1 ) );
-    CUDA_CHECK( state.d_params.upload( &state.params ) );
+    OTK_ERROR_CHECK( state.d_params.allocIfRequired( 1 ) );
+    OTK_ERROR_CHECK( state.d_params.upload( &state.params ) );
 
     // Peform the OptiX launch, with each device doing a part of the work
     unsigned int launchHeight = ( state.params.image_height + numDevices - 1 ) / numDevices;
-    OPTIX_CHECK( optixLaunch( optixState.pipeline,  // OptiX pipeline
+    OTK_ERROR_CHECK( optixLaunch( optixState.pipeline,  // OptiX pipeline
         optixState.stream,           // Stream for launch
         state.d_params.get(),       // Launch params
         sizeof( Params ),           // Param size in bytes
@@ -588,7 +590,7 @@ int main( int argc, char* argv[] )
 
     OmmBakingViewer app( "Opacity Micromap Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.setTextureName( textureName );
-    app.initOptixPipelines( CuOmmBakingViewer_ptx_text() );
+    app.initOptixPipelines( CuOmmBakingViewerCudaText(), CuOmmBakingViewerCudaSize );
     app.startLaunchLoop();
     
     return 0;

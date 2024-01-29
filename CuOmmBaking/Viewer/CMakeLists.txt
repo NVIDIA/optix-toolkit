@@ -31,14 +31,14 @@ include(BuildConfig)
 include(FetchGlad)
 include(FetchGlfw)
 
-include(embed_ptx)
-embed_ptx(
-  CONST HEADER CuOmmBakingViewerKernelPTX.h
+include(embed_cuda)
+embed_cuda(
+  CONST HEADER CuOmmBakingViewerKernelCuda.h
   OUTPUT_TARGET
     ommBakingViewerKernel
   FOLDER
     Examples/CmOmmBaking
-  PTX_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::CuOmmBaking 
     OptiXToolkit::ShaderUtil
   SOURCES
@@ -55,6 +55,8 @@ otk_add_executable( ommBakingViewer
   PerDeviceOptixState.h
   Procedural.h
   Util/interval_math.h
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 source_group( "Header Files\\Util" FILES

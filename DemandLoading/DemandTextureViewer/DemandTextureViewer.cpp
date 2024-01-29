@@ -27,13 +27,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <DemandTextureViewerKernelPTX.h>
+#include <DemandTextureViewerKernelCuda.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/ImageSource/MipMapImageSource.h>
+#include <OptiXToolkit/ImageSource/TiledImageSource.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSources/ImageSources.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
+#include <memory>
 #include <stdexcept>
 
 using namespace demandTextureApp;
@@ -42,6 +46,8 @@ using namespace demandTextureApp;
 // DemandTextureViewer
 // Shows basic use of OptiX demand textures.
 //------------------------------------------------------------------------------
+
+using ImageSourcePtr = std::shared_ptr<imageSource::ImageSource>;
 
 class DemandTextureViewer : public DemandTextureApp
 {
@@ -54,20 +60,24 @@ class DemandTextureViewer : public DemandTextureApp
         TEXTURE_MANDELBROT
     };
 
-    DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
+    DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop, bool tile, bool mipmap )
         : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
+        , m_tile( tile )
+        , m_mipmap( mipmap )
     {
     }
 
-    void setTextureType( TextureType textureType ) { m_textureType = textureType; }
-    void setTextureName( const std::string& textureName ) { m_textureName = textureName; }
-    imageSource::ImageSource* createImageSource();
-    void createTexture() override;
+    void           setTextureType( TextureType textureType ) { m_textureType = textureType; }
+    void           setTextureName( const std::string& textureName ) { m_textureName = textureName; }
+    ImageSourcePtr createImageSource();
+    void           createTexture() override;
 
   private:
-    TextureType m_textureType{};
-    std::string m_textureName;
+    TextureType         m_textureType{};
+    std::string         m_textureName;
     std::vector<float4> m_colorMap;
+    bool                m_tile{};
+    bool                m_mipmap{};
 };
 
 float4 hsva( float hue, float saturation, float value, float /*alpha*/ )
@@ -135,30 +145,51 @@ static std::string toString( DemandTextureViewer::TextureType textureType )
     return "unknown";
 }
 
-imageSource::ImageSource* DemandTextureViewer::createImageSource()
+inline bool endsWith( const std::string& text, const std::string& suffix )
+{
+    return text.length() >= suffix.length() && text.substr( text.length() - suffix.length() ) == suffix;
+}
+
+ImageSourcePtr DemandTextureViewer::createImageSource()
 {
     if( m_textureType == TEXTURE_NONE )
         m_textureType = TEXTURE_CHECKERBOARD;
 
-    imageSource::ImageSource* img{};
+    ImageSourcePtr img;
     if( m_textureType == TEXTURE_FILE )
     {
-        img = createExrImage( m_textureName.c_str() );
-        if( !img && !m_textureName.empty() )
-            std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
-        m_textureType = TEXTURE_CHECKERBOARD;
+        // Assume EXR images are tiled and mipmapped.
+        if( endsWith( m_textureName, ".exr" ) )
+            img.reset( createExrImage( m_textureName ) );
+        else
+        {
+            img = imageSources::createImageSource( m_textureName );
+            if( m_mipmap )
+            {
+                img = createMipMapImageSource( img );
+            }
+            if( m_tile )
+            {
+                img = createTiledImageSource( img );
+            }
+        }
+        if( !img || m_textureName.empty() )
+        {
+            std::cout << "ERROR: Could not find image '" << m_textureName << "'. Substituting procedural image.\n";
+            m_textureType = TEXTURE_CHECKERBOARD;
+        }
     }
     if( m_textureType == TEXTURE_CHECKERBOARD )
     {
-        img = new imageSources::MultiCheckerImage<float4>( 8192, 8192, 16, true );
+        img = std::make_shared<imageSources::MultiCheckerImage<float4>>( 8192, 8192, 16, true );
     }
     else if( m_textureType == TEXTURE_MANDELBROT )
     {
         const int MAX_ITER = 256;
         m_colorMap         = createColorMap( imageSources::MAX_MANDELBROT_COLORS );
-        img = new imageSources::DeviceMandelbrotImage( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
+        img = std::make_shared<imageSources::DeviceMandelbrotImage>( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
     }
-    if( img == nullptr )
+    if( !img )
     {
         throw std::runtime_error( "Could not create requested texture " + toString( m_textureType )
                                   + ( m_textureName.empty() ? std::string{} : " (" + m_textureName + ")" ) );
@@ -168,11 +199,16 @@ imageSource::ImageSource* DemandTextureViewer::createImageSource()
 
 void DemandTextureViewer::createTexture()
 {
-    std::unique_ptr<imageSource::ImageSource> imageSource( createImageSource() );
+    ImageSourcePtr imageSource( createImageSource() );
 
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-    const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( std::move( imageSource ), texDesc );
-    m_textureIds.push_back( texture.getId() );
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+        const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
+        if( m_textureIds.empty() )
+            m_textureIds.push_back( texture.getId() );
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -190,6 +226,8 @@ void printUsage( const char* program )
         "   --mandelbrot                    Use procedural Mandelbrot texture.\n"
         "   --dim=<width>x<height>          Specify rendering dimensions.\n"
         "   --file <outputfile>             Render to output file and exit.\n"
+        "   --tile                          Make image tileable\n"
+        "   --mipmap                        Make image mipmapped\n"
         "   --no-gl-interop                 Disable OpenGL interop.\n";
     // clang-format on
 
@@ -203,6 +241,8 @@ int main( int argc, char* argv[] )
     std::string                      textureName;
     std::string                      outFileName;
     bool                             glInterop = true;
+    bool                             tile{ false };
+    bool                             mipmap{ false };
     DemandTextureViewer::TextureType textureType{DemandTextureViewer::TEXTURE_NONE};
 
     for( int i = 1; i < argc; ++i )
@@ -225,6 +265,10 @@ int main( int argc, char* argv[] )
             otk::parseDimensions( arg.substr( 6 ).c_str(), windowWidth, windowHeight );
         else if( arg == "--no-gl-interop" )
             glInterop = false;
+        else if( arg == "--tile" )
+            tile = true;
+        else if( arg == "--mipmap" )
+            mipmap = true;
         else
             printUsage( argv[0] );
     }
@@ -243,12 +287,12 @@ int main( int argc, char* argv[] )
         "\n";
     // clang-format on
 
-    DemandTextureViewer app( "Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
+    DemandTextureViewer app( "Texture Viewer", windowWidth, windowHeight, outFileName, glInterop, tile, mipmap );
     app.initDemandLoading();
     app.setTextureType( textureType );
     app.setTextureName( textureName );
     app.createTexture();
-    app.initOptixPipelines( DemandTextureViewer_ptx_text() );
+    app.initOptixPipelines( DemandTextureViewerCudaText(), DemandTextureViewerCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 

@@ -28,8 +28,8 @@
 
 #include <OptiXToolkit/Gui/GLDisplay.h>
 
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Gui/GLCheck.h>
-#include <OptiXToolkit/Util/Exception.h>
 
 #include <iostream>
 
@@ -128,7 +128,7 @@ GLuint createGLProgram(
 GLint getGLUniformLocation( GLuint program, const std::string& name )
 {
 	GLint loc = glGetUniformLocation( program, name.c_str() );
-    OTK_ASSERT_MSG( loc != -1, "Failed to get uniform loc for '" + name + "'" );
+    OTK_ASSERT_MSG( loc != -1, ( "Failed to get uniform loc for '" + name + "'" ).c_str() );
     return loc;
 }
 
@@ -255,7 +255,7 @@ void GLDisplay::display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA32F, screen_res_x, screen_res_y, 0, GL_RGBA, GL_FLOAT,         nullptr );
 
     else
-        throw Exception( "Unknown buffer format" );
+        throw std::runtime_error( "Unknown buffer format" );
 
     GL_CHECK( glBindBuffer( GL_PIXEL_UNPACK_BUFFER, 0 ) );
     GL_CHECK( glUniform1i( m_render_tex_uniform_loc , 0 ) );

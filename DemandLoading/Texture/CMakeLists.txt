@@ -29,19 +29,19 @@
 include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlad)
-include(embed_ptx)
+include(embed_cuda)
 
 if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.1 REQUIRED )
 endif()
 
-embed_ptx(
-  CONST HEADER TextureKernelPTX.h
+embed_cuda(
+  CONST HEADER TextureKernelCuda.h
   OUTPUT_TARGET
     demandLoadTextureKernel
   FOLDER
     Examples/DemandLoading
-  PTX_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::DemandLoading 
     OptiXToolkit::ShaderUtil
   SOURCES
@@ -51,6 +51,8 @@ embed_ptx(
 otk_add_executable( demandLoadTexture
   texture.cpp
   textureKernel.h
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 target_link_libraries( demandLoadTexture

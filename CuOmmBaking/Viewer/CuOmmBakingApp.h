@@ -108,7 +108,7 @@ class OmmBakingApp
 
   protected:
 
-    void initOptixPipelines( const char* moduleCode, int numDevices );
+    void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize, int numDevices );
 
     // OptiX setup
     virtual void createContext( PerDeviceOptixState& state );

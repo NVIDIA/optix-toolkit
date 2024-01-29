@@ -28,7 +28,7 @@
 
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
-#include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <iostream>
 #include <sstream>
@@ -65,7 +65,7 @@ void glCheck( const char* call, const char* file, unsigned int line )
         std::stringstream ss;
         ss << "GL error " << getGLErrorString( err ) << " at " << file << "(" << line << "): " << call << '\n';
         std::cerr << ss.str() << std::endl;
-        throw Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 }
 
@@ -77,7 +77,7 @@ void glCheckErrors( const char* file, unsigned int line )
         std::stringstream ss;
         ss << "GL error " << getGLErrorString( err ) << " at " << file << "(" << line << ")";
         std::cerr << ss.str() << std::endl;
-        throw Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 }
 
@@ -93,7 +93,7 @@ void checkGLError()
             err = glGetError();
         } while( err != GL_NO_ERROR );
 
-        throw Exception( oss.str().c_str() );
+        throw std::runtime_error( oss.str().c_str() );
     }
 }
 

@@ -26,19 +26,22 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <RayConesKernelPTX.h>
-
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
-
-#include <OptiXToolkit/ShaderUtil/ray_cone.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
+// This include is needed to avoid a link error
+#include <optix_stubs.h>
 
 #include "ShapeMaker.h"
 #include "RayConesParams.h"
+#include "RayConesKernelCuda.h"
+
+#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <optix_stubs.h>
 
+using namespace otk;
 using namespace demandTextureApp;
 using namespace imageSource;
 using namespace otk;  // for vec_math operators
@@ -108,15 +111,15 @@ void RayConesApp::buildAccel( PerDeviceOptixState& state )
     // Copy vertex data to device
     void* d_vertices = nullptr;
     const size_t vertices_size_bytes = m_vertices.size() * sizeof( float4 );
-    CUDA_CHECK( cudaMalloc( &d_vertices, vertices_size_bytes ) );
-    CUDA_CHECK( cudaMemcpy( d_vertices, m_vertices.data(), vertices_size_bytes, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_vertices, vertices_size_bytes ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_vertices, m_vertices.data(), vertices_size_bytes, cudaMemcpyHostToDevice ) );
     state.d_vertices = reinterpret_cast<CUdeviceptr>( d_vertices );
 
     // Copy material indices to device
     void* d_material_indices = nullptr;
     const size_t material_indices_size_bytes = m_material_indices.size() * sizeof( uint32_t );
-    CUDA_CHECK( cudaMalloc( &d_material_indices, material_indices_size_bytes ) );
-    CUDA_CHECK( cudaMemcpy( d_material_indices, m_material_indices.data(), material_indices_size_bytes, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_material_indices, material_indices_size_bytes ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_material_indices, m_material_indices.data(), material_indices_size_bytes, cudaMemcpyHostToDevice ) );
 
     // Make triangle input flags (one per sbt record).  Here, we are just disabling the anyHit programs
     std::vector<uint32_t> triangle_input_flags( m_materials.size(), OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT );
@@ -142,16 +145,16 @@ void RayConesApp::buildAccel( PerDeviceOptixState& state )
     // Compute memory usage for accel build
     OptixAccelBufferSizes gas_buffer_sizes;
     const unsigned int num_build_inputs = 1;
-    OPTIX_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &triangle_input, num_build_inputs, &gas_buffer_sizes ) );
+    OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &triangle_input, num_build_inputs, &gas_buffer_sizes ) );
 
     // Allocate temporary buffer needed for accel build
     void* d_temp_buffer = nullptr;
-    CUDA_CHECK( cudaMalloc( &d_temp_buffer, gas_buffer_sizes.tempSizeInBytes ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_temp_buffer, gas_buffer_sizes.tempSizeInBytes ) );
 
     // Allocate output buffer for (non-compacted) accel build result, and also compactedSize property.
     void* d_buffer_temp_output_gas_and_compacted_size = nullptr;
     size_t      compactedSizeOffset = roundUp<size_t>( gas_buffer_sizes.outputSizeInBytes, 8ull );
-    CUDA_CHECK( cudaMalloc( &d_buffer_temp_output_gas_and_compacted_size, compactedSizeOffset + 8 ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_buffer_temp_output_gas_and_compacted_size, compactedSizeOffset + 8 ) );
 
     // Set up the accel build to return the compacted size, so compaction can be run after the build
     OptixAccelEmitDesc emitProperty = {};
@@ -159,7 +162,7 @@ void RayConesApp::buildAccel( PerDeviceOptixState& state )
     emitProperty.result             = ( CUdeviceptr )( (char*)d_buffer_temp_output_gas_and_compacted_size + compactedSizeOffset );
 
     // Finally perform the accel build
-    OPTIX_CHECK( optixAccelBuild(
+    OTK_ERROR_CHECK( optixAccelBuild(
                 state.context,
                 CUstream{0},
                 &accel_options,
@@ -175,20 +178,20 @@ void RayConesApp::buildAccel( PerDeviceOptixState& state )
                 ) );
 
     // Delete temporary buffers used for the accel build
-    CUDA_CHECK( cudaFree( d_temp_buffer ) );
-    CUDA_CHECK( cudaFree( d_material_indices ) );
+    OTK_ERROR_CHECK( cudaFree( d_temp_buffer ) );
+    OTK_ERROR_CHECK( cudaFree( d_material_indices ) );
 
     // Copy the size of the compacted GAS accel back from the device
     size_t compacted_gas_size;
-    CUDA_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost ) );
 
     // If compaction reduces the size of the accel, copy to a new buffer and delete the old one
     if( compacted_gas_size < gas_buffer_sizes.outputSizeInBytes )
     {
-        CUDA_CHECK( cudaMalloc( reinterpret_cast<void**>( &state.d_gas_output_buffer ), compacted_gas_size ) );
+        OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &state.d_gas_output_buffer ), compacted_gas_size ) );
         // use handle as input and output
-        OPTIX_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer, compacted_gas_size, &state.gas_handle ) );
-        CUDA_CHECK( cudaFree( (void*)d_buffer_temp_output_gas_and_compacted_size ) );
+        OTK_ERROR_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer, compacted_gas_size, &state.gas_handle ) );
+        OTK_ERROR_CHECK( cudaFree( (void*)d_buffer_temp_output_gas_and_compacted_size ) );
     }
     else
     {
@@ -202,29 +205,29 @@ void  RayConesApp::createSBT( PerDeviceOptixState& state )
     // Raygen record 
     void*  d_raygen_record = nullptr;
     const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-    CUDA_CHECK( cudaMalloc( &d_raygen_record, raygen_record_size ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_raygen_record, raygen_record_size ) );
     RayGenSbtRecord raygen_record = {};
-    OPTIX_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &raygen_record ) );
-    CUDA_CHECK( cudaMemcpy( d_raygen_record, &raygen_record, raygen_record_size, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &raygen_record ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_raygen_record, &raygen_record, raygen_record_size, cudaMemcpyHostToDevice ) );
 
     // Miss record
     void* d_miss_record = nullptr;
     const size_t miss_record_size = sizeof( MissSbtRecord );
-    CUDA_CHECK( cudaMalloc( &d_miss_record, miss_record_size ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_miss_record, miss_record_size ) );
     MissSbtRecord miss_record;
-    OPTIX_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &miss_record ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &miss_record ) );
     miss_record.data.background_color = m_backgroundColor;
-    CUDA_CHECK( cudaMemcpy( d_miss_record, &miss_record, miss_record_size, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_miss_record, &miss_record, miss_record_size, cudaMemcpyHostToDevice ) );
 
     // Hitgroup records (one for each material)
     const unsigned int MAT_COUNT = static_cast<unsigned int>( m_materials.size() );
     void* d_hitgroup_records = nullptr;
     const size_t hitgroup_record_size = sizeof( TriangleHitGroupSbtRecord );
-    CUDA_CHECK( cudaMalloc( &d_hitgroup_records, hitgroup_record_size * MAT_COUNT ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_hitgroup_records, hitgroup_record_size * MAT_COUNT ) );
     std::vector<TriangleHitGroupSbtRecord> hitgroup_records( MAT_COUNT );
     for( unsigned int mat_idx = 0; mat_idx < MAT_COUNT; ++mat_idx )
     {
-        OPTIX_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hitgroup_records[mat_idx] ) );
+        OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hitgroup_records[mat_idx] ) );
         TriangleHitGroupData* hg_data = &hitgroup_records[mat_idx].data;
         // Copy material definition, and then fill in device-specific values for vertices, normals, tex_coords
         *hg_data = m_materials[mat_idx];
@@ -232,7 +235,7 @@ void  RayConesApp::createSBT( PerDeviceOptixState& state )
         hg_data->normals = state.d_normals;
         hg_data->tex_coords = state.d_tex_coords;
     }
-    CUDA_CHECK( cudaMemcpy( d_hitgroup_records, &hitgroup_records[0], hitgroup_record_size * MAT_COUNT, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_hitgroup_records, &hitgroup_records[0], hitgroup_record_size * MAT_COUNT, cudaMemcpyHostToDevice ) );
 
     // Set up SBT
     state.sbt.raygenRecord                = reinterpret_cast<CUdeviceptr>( d_raygen_record );
@@ -256,16 +259,21 @@ void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int num
 
 void RayConesApp::createTexture()
 {
-    ImageSource* img = createExrImage( m_textureName.c_str() );
-    if( !img && !m_textureName.empty() )
+    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName ) );
+    if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
-    if( !img )
-        img = new imageSources::MultiCheckerImage<ubyte4>( 16384, 16384, 64, true );
-    std::unique_ptr<ImageSource> imageSource( img );
-
+    if( !imageSource )
+        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 64, true ) );
+    
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
-    const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( std::move( imageSource ), texDesc );
-    m_textureIds.push_back( texture.getId() );
+
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+        const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
+        if( m_textureIds.empty() )
+            m_textureIds.push_back( texture.getId() );
+    }
 }
 
 void RayConesApp::createScene()
@@ -449,19 +457,19 @@ void RayConesApp::copyGeometryToDevice()
 {
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
-        CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         
         // m_vertices copied in buildAccel
         // m_material_indices copied in createSBT
         // m_materials copied in createSBT
 
         // m_normals
-        CUDA_CHECK( cudaMalloc( &state.d_normals, m_normals.size() * sizeof(float3) ) );
-        CUDA_CHECK( cudaMemcpy( state.d_normals, m_normals.data(),  m_normals.size() * sizeof(float3), cudaMemcpyHostToDevice ) );
+        OTK_ERROR_CHECK( cudaMalloc( &state.d_normals, m_normals.size() * sizeof(float3) ) );
+        OTK_ERROR_CHECK( cudaMemcpy( state.d_normals, m_normals.data(),  m_normals.size() * sizeof(float3), cudaMemcpyHostToDevice ) );
 
         // m_tex_coords
-        CUDA_CHECK( cudaMalloc( &state.d_tex_coords, m_tex_coords.size() * sizeof(float2) ) );
-        CUDA_CHECK( cudaMemcpy( state.d_tex_coords, m_tex_coords.data(),  m_tex_coords.size() * sizeof(float2), cudaMemcpyHostToDevice ) );
+        OTK_ERROR_CHECK( cudaMalloc( &state.d_tex_coords, m_tex_coords.size() * sizeof(float2) ) );
+        OTK_ERROR_CHECK( cudaMemcpy( state.d_tex_coords, m_tex_coords.data(),  m_tex_coords.size() * sizeof(float2), cudaMemcpyHostToDevice ) );
     }
 }
 
@@ -513,7 +521,11 @@ void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scanco
     } else if( key == GLFW_KEY_MINUS ) {
         m_mipScale *= 2.0f;
     } else if( key == GLFW_KEY_X ) {
-        m_demandLoader->unloadTextureTiles( 0 );
+        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        {
+            OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+            state.demandLoader->unloadTextureTiles( m_textureIds[0] );
+        }
     } else if( key == GLFW_KEY_U ) {
         m_updateRayCones = static_cast<int>( !m_updateRayCones );
     } else if( key == GLFW_KEY_P && m_projection == Projection::PINHOLE ) {
@@ -576,6 +588,7 @@ void printUsage( const char* argv0 )
     std::cout << "          C:              reset view\n";
     std::cout << "          +,-:            change mip bias\n";
     std::cout << "          P:              toggle thin lens camera\n";
+    std::cout << "          U:              toggle distance-based vs. ray cones\n";
     std::cout << "          I,O:            change lens width\n";
     std::cout << "          X:              unload all texture tiles\n\n";
 }
@@ -588,7 +601,7 @@ int main( int argc, char* argv[] )
     const char* outFileName  = "";
     bool        glInterop    = true;
     int         numLaunches  = 256;
-    int         sceneId      = 0;
+    int         sceneId      = 1;
 
     printUsage( argv[0] );
 
@@ -623,7 +636,7 @@ int main( int argc, char* argv[] )
     app.createTexture();
     app.createScene();
     app.resetAccumulator();
-    app.initOptixPipelines( RayCones_ptx_text() );
+    app.initOptixPipelines( RayConesCudaText(), RayConesCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

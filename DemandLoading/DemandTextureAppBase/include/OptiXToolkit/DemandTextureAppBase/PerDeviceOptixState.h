@@ -27,6 +27,11 @@
 //
 #pragma once
 
+namespace demandLoading
+{
+    class DemandLoader;
+}
+
 namespace demandTextureApp
 {
 
@@ -41,7 +46,7 @@ struct PerDeviceOptixState
     float3*                     d_normals                = 0;   // normals
     float2*                     d_tex_coords             = 0;   // texture coordinates
     
-    OptixModule                 ptx_module               = 0;   // OptiX module stores device code from a file
+    OptixModule                 optixir_module           = 0;   // OptiX module stores device code from a file
     OptixPipelineCompileOptions pipeline_compile_options = {};  // Determines how to compile a pipeline
     OptixPipeline               pipeline                 = 0;   // One or more modules linked together for device side programs of the app
 
@@ -53,7 +58,9 @@ struct PerDeviceOptixState
     Params                      params                   = {};  // Host-side copy of parameters for OptiX launch
     Params*                     d_params                 = nullptr;  // Device-side copy of params
     CUstream                    stream                   = 0;   // Cuda stream where OptiX launches will occur
-    demandLoading::Ticket       ticket;                         // Ticket to track demand load requests for an OptiX launch
+
+    std::shared_ptr<demandLoading::DemandLoader> demandLoader;  // Manages demand load requests
+    demandLoading::Ticket       ticket;                         // Tracks demand load requests for last OptiX launch
 };
 
 // Shader binding table records

@@ -28,13 +28,14 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include <TextureKernelPTX.h>
+#include <TextureKernelCuda.h>
 
 #include "textureKernel.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/Window.h>
@@ -88,7 +89,7 @@ struct PerDeviceSampleState
     OptixDeviceContext          context                  = 0;
     OptixTraversableHandle      gas_handle               = 0;  // Traversable handle for triangle AS
     CUdeviceptr                 d_gas_output_buffer      = 0;  // Triangle AS memory
-    OptixModule                 ptx_module               = 0;
+    OptixModule                 optixir_module               = 0;
     OptixPipelineCompileOptions pipeline_compile_options = {};
     OptixPipeline               pipeline                 = 0;
     OptixProgramGroup           raygen_prog_group        = 0;
@@ -100,6 +101,7 @@ struct PerDeviceSampleState
     CUstream                    stream                   = 0;
 
     // Only valid on the host
+    std::shared_ptr<DemandLoader> demandLoader;
     demandLoading::Ticket ticket;
 };
 
@@ -138,54 +140,42 @@ void printUsageAndExit( const char* argv0 )
     exit( 1 );
 }
 
+
 void initCameraState()
 {
     float3 camEye = {-6.0f, 0.0f, 0.0f};
     g_camera.setEye( camEye );
-    g_camera.setLookat( make_float3( 0.0f, 0.0f, 0.0f ) );
+    g_camera.setLookAt( make_float3( 0.0f, 0.0f, 0.0f ) );
     g_camera.setUp( make_float3( 0.0f, 0.0f, 1.0f ) );
     g_camera.setFovY( 30.0f );
     g_camera.setAspectRatio( static_cast<float>( g_width ) / static_cast<float>( g_height ) );
 }
 
 
-unsigned int getNumDevices()
-{
-    int numDevices;
-    CUDA_CHECK( cudaGetDeviceCount( &numDevices ) );
-    return static_cast<unsigned int>( numDevices );
-}
-
 void createContext( PerDeviceSampleState& state )
 {
     // Initialize CUDA on this device
-    CUDA_CHECK( cudaFree( nullptr ) );
+    OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+    OTK_ERROR_CHECK( cudaFree( nullptr ) );
+    OTK_ERROR_CHECK( cudaStreamCreate( &state.stream ) );
 
     OptixDeviceContext        context;
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
     otk::util::setLogger( options );
-    OPTIX_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
+    OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &context ) );
 
     state.context = context;
-
-    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-    CUDA_CHECK( cudaStreamCreate( &state.stream ) );
 }
 
 
 void createContexts( std::vector<PerDeviceSampleState>& states )
 {
-    OPTIX_CHECK( optixInit() );
-
-    unsigned int numDevices = getNumDevices();
-    states.resize( numDevices );
-
-    for( unsigned int i = 0; i < numDevices; ++i )
+    for( unsigned int deviceIndex : getDemandLoadDevices( true ) )
     {
-        states[i].device_idx = i;
-        CUDA_CHECK( cudaSetDevice( i ) );
-        createContext( states[i] );
+        states.emplace_back();
+        states.back().device_idx = static_cast<int32_t>( deviceIndex );
+        createContext( states.back() );
     }
 }
 
@@ -199,8 +189,8 @@ void buildAccel( PerDeviceSampleState& state )
     // AABB build input
     OptixAabb   aabb = {-1.5f, -1.5f, -1.5f, 1.5f, 1.5f, 1.5f};
     CUdeviceptr d_aabb_buffer;
-    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_aabb_buffer ), sizeof( OptixAabb ) ) );
-    CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_aabb_buffer ), &aabb, sizeof( OptixAabb ), cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_aabb_buffer ), sizeof( OptixAabb ) ) );
+    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_aabb_buffer ), &aabb, sizeof( OptixAabb ), cudaMemcpyHostToDevice ) );
 
     OptixBuildInput aabb_input = {};
 
@@ -213,20 +203,20 @@ void buildAccel( PerDeviceSampleState& state )
     aabb_input.customPrimitiveArray.numSbtRecords = 1;
 
     OptixAccelBufferSizes gas_buffer_sizes;
-    OPTIX_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &aabb_input, 1, &gas_buffer_sizes ) );
+    OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &aabb_input, 1, &gas_buffer_sizes ) );
     CUdeviceptr d_temp_buffer_gas;
-    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_temp_buffer_gas ), gas_buffer_sizes.tempSizeInBytes ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_temp_buffer_gas ), gas_buffer_sizes.tempSizeInBytes ) );
 
     // non-compacted output
     CUdeviceptr d_buffer_temp_output_gas_and_compacted_size;
     size_t      compactedSizeOffset = roundUp<size_t>( gas_buffer_sizes.outputSizeInBytes, 8ull );
-    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_buffer_temp_output_gas_and_compacted_size ), compactedSizeOffset + 8 ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &d_buffer_temp_output_gas_and_compacted_size ), compactedSizeOffset + 8 ) );
 
     OptixAccelEmitDesc emitProperty = {};
     emitProperty.type               = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
     emitProperty.result = ( CUdeviceptr )( (char*)d_buffer_temp_output_gas_and_compacted_size + compactedSizeOffset );
 
-    OPTIX_CHECK( optixAccelBuild( state.context,
+    OTK_ERROR_CHECK( optixAccelBuild( state.context,
                                   0,  // CUDA stream
                                   &accel_options, &aabb_input,
                                   1,  // num build inputs
@@ -236,21 +226,21 @@ void buildAccel( PerDeviceSampleState& state )
                                   1               // num emitted properties
                                   ) );
 
-    CUDA_CHECK( cuMemFree( d_temp_buffer_gas ) );
-    CUDA_CHECK( cuMemFree( d_aabb_buffer ) );
+    OTK_ERROR_CHECK( cuMemFree( d_temp_buffer_gas ) );
+    OTK_ERROR_CHECK( cuMemFree( d_aabb_buffer ) );
 
     size_t compacted_gas_size;
-    CUDA_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
 
     if( compacted_gas_size < gas_buffer_sizes.outputSizeInBytes )
     {
-        CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &state.d_gas_output_buffer ), compacted_gas_size ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &state.d_gas_output_buffer ), compacted_gas_size ) );
 
         // use handle as input and output
-        OPTIX_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer,
+        OTK_ERROR_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer,
                                         compacted_gas_size, &state.gas_handle ) );
 
-        CUDA_CHECK( cuMemFree( d_buffer_temp_output_gas_and_compacted_size ) );
+        OTK_ERROR_CHECK( cuMemFree( d_buffer_temp_output_gas_and_compacted_size ) );
     }
     else
     {
@@ -277,8 +267,8 @@ void createModule( PerDeviceSampleState& state )
     char   log[2048];
     size_t sizeof_log = sizeof( log );
 
-    OPTIX_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
-                                        textureKernel_ptx_text(), textureKernel_ptx_size, log, &sizeof_log, &state.ptx_module ) );
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( state.context, &module_compile_options, &state.pipeline_compile_options,
+                                        textureKernelCudaText(), textureKernelCudaSize, log, &sizeof_log, &state.optixir_module ) );
 }
 
 
@@ -288,33 +278,33 @@ void createProgramGroups( PerDeviceSampleState& state )
 
     OptixProgramGroupDesc raygen_prog_group_desc    = {};  //
     raygen_prog_group_desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    raygen_prog_group_desc.raygen.module            = state.ptx_module;
+    raygen_prog_group_desc.raygen.module            = state.optixir_module;
     raygen_prog_group_desc.raygen.entryFunctionName = "__raygen__rg";
     char   log[2048];
     size_t sizeof_log = sizeof( log );
-    OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &raygen_prog_group_desc,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &raygen_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.raygen_prog_group ) );
 
     OptixProgramGroupDesc miss_prog_group_desc  = {};
     miss_prog_group_desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
-    miss_prog_group_desc.miss.module            = state.ptx_module;
+    miss_prog_group_desc.miss.module            = state.optixir_module;
     miss_prog_group_desc.miss.entryFunctionName = "__miss__ms";
     sizeof_log                                  = sizeof( log );
-    OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.miss_prog_group ) );
 
     OptixProgramGroupDesc hitgroup_prog_group_desc        = {};
     hitgroup_prog_group_desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
     hitgroup_prog_group_desc.hitgroup.moduleAH            = nullptr;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = nullptr;
-    hitgroup_prog_group_desc.hitgroup.moduleIS            = state.ptx_module;
+    hitgroup_prog_group_desc.hitgroup.moduleIS            = state.optixir_module;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = "__intersection__is";
     sizeof_log                                            = sizeof( log );
-    OPTIX_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.hitgroup_prog_group ) );
 }
@@ -329,7 +319,7 @@ void createPipeline( PerDeviceSampleState& state )
     pipeline_link_options.maxTraceDepth            = max_trace_depth;
     char   log[2048];
     size_t sizeof_log = sizeof( log );
-    OPTIX_CHECK_LOG( optixPipelineCreate( state.context, &state.pipeline_compile_options, &pipeline_link_options,
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( state.context, &state.pipeline_compile_options, &pipeline_link_options,
                                           program_groups, sizeof( program_groups ) / sizeof( program_groups[0] ), log,
                                           &sizeof_log, &state.pipeline ) );
 
@@ -337,21 +327,21 @@ void createPipeline( PerDeviceSampleState& state )
     for( auto& prog_group : program_groups )
     {
 #if OPTIX_VERSION < 70700
-        OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes ) );
 #else
-        OPTIX_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, state.pipeline ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( prog_group, &stack_sizes, state.pipeline ) );
 #endif
     }
 
     uint32_t direct_callable_stack_size_from_traversal;
     uint32_t direct_callable_stack_size_from_state;
     uint32_t continuation_stack_size;
-    OPTIX_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
+    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
                                              0,  // maxCCDepth
                                              0,  // maxDCDEpth
                                              &direct_callable_stack_size_from_traversal,
                                              &direct_callable_stack_size_from_state, &continuation_stack_size ) );
-    OPTIX_CHECK( optixPipelineSetStackSize( state.pipeline, direct_callable_stack_size_from_traversal,
+    OTK_ERROR_CHECK( optixPipelineSetStackSize( state.pipeline, direct_callable_stack_size_from_traversal,
                                             direct_callable_stack_size_from_state, continuation_stack_size,
                                             1  // maxTraversableDepth
                                             ) );
@@ -362,27 +352,27 @@ void createSBT( PerDeviceSampleState& state, const DemandTexture& texture, float
 {
     CUdeviceptr  raygen_record;
     const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &raygen_record ), raygen_record_size ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &raygen_record ), raygen_record_size ) );
     RayGenSbtRecord rg_sbt = {};
-    OPTIX_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &rg_sbt ) );
-    CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( raygen_record ), &rg_sbt, raygen_record_size, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &rg_sbt ) );
+    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( raygen_record ), &rg_sbt, raygen_record_size, cudaMemcpyHostToDevice ) );
 
     CUdeviceptr miss_record;
     size_t      miss_record_size = sizeof( MissSbtRecord );
-    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &miss_record ), miss_record_size ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &miss_record ), miss_record_size ) );
     MissSbtRecord ms_sbt;
     ms_sbt.data = {0.05f, 0.05f, 0.3f};
-    OPTIX_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &ms_sbt ) );
-    CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &ms_sbt ) );
+    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
 
     // The demand-loaded texture id is passed to the closest hit program via the hitgroup record.
     CUdeviceptr hitgroup_record;
     size_t      hitgroup_record_size = sizeof( HitGroupSbtRecord );
-    CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &hitgroup_record ), hitgroup_record_size ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &hitgroup_record ), hitgroup_record_size ) );
     HitGroupSbtRecord hg_sbt;
     hg_sbt.data = {1.5f /*radius*/, texture.getId(), texture_scale, texture_lod};
-    OPTIX_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hg_sbt ) );
-    CUDA_CHECK( cudaMemcpy( reinterpret_cast<void*>( hitgroup_record ), &hg_sbt, hitgroup_record_size, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hg_sbt ) );
+    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( hitgroup_record ), &hg_sbt, hitgroup_record_size, cudaMemcpyHostToDevice ) );
 
     state.sbt.raygenRecord                = raygen_record;
     state.sbt.missRecordBase              = miss_record;
@@ -393,23 +383,24 @@ void createSBT( PerDeviceSampleState& state, const DemandTexture& texture, float
     state.sbt.hitgroupRecordCount         = 1;
 }
 
+
 void cleanupState( PerDeviceSampleState& state )
 {
-    OPTIX_CHECK( optixPipelineDestroy( state.pipeline ) );
-    OPTIX_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
-    OPTIX_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
-    OPTIX_CHECK( optixProgramGroupDestroy( state.hitgroup_prog_group ) );
-    OPTIX_CHECK( optixModuleDestroy( state.ptx_module ) );
-    OPTIX_CHECK( optixDeviceContextDestroy( state.context ) );
+    OTK_ERROR_CHECK( optixPipelineDestroy( state.pipeline ) );
+    OTK_ERROR_CHECK( optixProgramGroupDestroy( state.raygen_prog_group ) );
+    OTK_ERROR_CHECK( optixProgramGroupDestroy( state.miss_prog_group ) );
+    OTK_ERROR_CHECK( optixProgramGroupDestroy( state.hitgroup_prog_group ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( state.optixir_module ) );
+    OTK_ERROR_CHECK( optixDeviceContextDestroy( state.context ) );
 
-    CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-    CUDA_CHECK( cudaStreamDestroy( state.stream ) );
+    OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+    OTK_ERROR_CHECK( cudaStreamDestroy( state.stream ) );
 
-    CUDA_CHECK( cuMemFree( state.sbt.raygenRecord ) );
-    CUDA_CHECK( cuMemFree( state.sbt.missRecordBase ) );
-    CUDA_CHECK( cuMemFree( state.sbt.hitgroupRecordBase ) );
-    CUDA_CHECK( cuMemFree( state.d_gas_output_buffer ) );
-    CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.d_params ) ) );
+    OTK_ERROR_CHECK( cuMemFree( state.sbt.raygenRecord ) );
+    OTK_ERROR_CHECK( cuMemFree( state.sbt.missRecordBase ) );
+    OTK_ERROR_CHECK( cuMemFree( state.sbt.hitgroupRecordBase ) );
+    OTK_ERROR_CHECK( cuMemFree( state.d_gas_output_buffer ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( state.d_params ) ) );
 }
 
 
@@ -441,12 +432,12 @@ void initLaunchParams( PerDeviceSampleState& state, unsigned int numDevices )
     g_camera.UVWFrame( state.params.U, state.params.V, state.params.W );
 
     if( state.d_params == nullptr )
-        CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &state.d_params ), sizeof( Params ) ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &state.d_params ), sizeof( Params ) ) );
 }
 
 
 // Returns number of requests processed (over all streams and devices).
-unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std::vector<PerDeviceSampleState>& states, DemandLoader& demandLoader )
+unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std::vector<PerDeviceSampleState>& states )
 {
     auto startTime = std::chrono::steady_clock::now();
 
@@ -473,16 +464,15 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
             state.params.bucket_width  = g_bucketSize;
             state.params.bucket_height = g_bucketSize;
 
-            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
-            demandLoader.launchPrepare( state.stream,
-                                        state.params.demandTextureContext );
+            OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+            state.demandLoader->launchPrepare( state.stream, state.params.demandTextureContext );
 
             initLaunchParams( state, static_cast<unsigned int>( states.size() ) );
 
             // Perform the rendering launches
-            CUDA_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( state.d_params ),
+            OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( state.d_params ),
                                        reinterpret_cast<CUdeviceptr>( &state.params ), sizeof( Params ), state.stream ) );
-            OPTIX_CHECK( optixLaunch( state.pipeline,
+            OTK_ERROR_CHECK( optixLaunch( state.pipeline,
                                       state.stream,
                                       reinterpret_cast<CUdeviceptr>( state.d_params ),
                                       sizeof( Params ),
@@ -493,7 +483,7 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
                                       ) );
 
             // Initiate asynchronous request processing for the previous launch
-            state.ticket = demandLoader.processRequests( state.stream, state.params.demandTextureContext );
+            state.ticket = state.demandLoader->processRequests( state.stream, state.params.demandTextureContext );
         }
 
         // Wait for any outstanding requests
@@ -504,7 +494,6 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
             numRequestsProcessed += state.ticket.numTasksTotal();
         }
     }
-
     output_buffer.unmap();
 
     ++g_totalLaunches;
@@ -512,6 +501,7 @@ unsigned int performLaunches( otk::CUDAOutputBuffer<uchar4>& output_buffer, std:
 
     return numRequestsProcessed;
 }
+
 
 int main( int argc, char* argv[] )
 {
@@ -585,27 +575,30 @@ int main( int argc, char* argv[] )
     {
         initCameraState();
 
+        // Initialize OptiX
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( optixInit() );
+
         std::vector<PerDeviceSampleState> states;
         createContexts( states );
-
-        // Initialize DemandLoader and create a demand-loaded texture.
-        // The texture id is passed to the closest hit shader via a hit group record in the SBT.
-        // The texture sampler array (indexed by texture id) is passed as a launch parameter.
-        demandLoading::Options options{};
-        options.maxThreads = g_numThreads;  // maximum threads to use when processing page requests
-        std::shared_ptr<DemandLoader> demandLoader( createDemandLoader( options ), destroyDemandLoader );
 
         std::string                  directory( getSourceDir() + "/Textures/" );
         std::shared_ptr<ImageSource> imageSource = imageSources::createImageSource( textureFile, directory );
 
-        // Create a demand-loaded texture
+        // Set up OptiX per-device states and demand loaders
+        // The texture id is passed to the closest hit shader via a hit group record in the SBT.
+        // The texture sampler array (indexed by texture id) is passed as a launch parameter.
+        demandLoading::Options options{};
+        options.maxThreads = g_numThreads;  // maximum threads to use when processing page requests
         TextureDescriptor    texDesc = makeTextureDescription();
-        const DemandTexture& texture = demandLoader->createTexture( imageSource, texDesc );
 
         // Set up OptiX per-device states
         for( PerDeviceSampleState& state : states )
         {
-            CUDA_CHECK( cudaSetDevice( state.device_idx ) );
+            OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+            state.demandLoader.reset( createDemandLoader( options ), destroyDemandLoader );
+            const DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
+
             buildAccel( state );
             createModule( state );
             createProgramGroups( state );
@@ -616,14 +609,13 @@ int main( int argc, char* argv[] )
         // Create the output buffer to hold the rendered image
         otk::CUDAOutputBuffer<uchar4> outputBuffer( otk::CUDAOutputBufferType::ZERO_COPY, g_width, g_height );
 
-        unsigned int numFilled   = 0;
-        const int    maxLaunches = 1024;
-
         // Perform launches (launch until there are no more requests to fill), up to
         // the maximum number of launches.
+        unsigned int numFilled   = 0;
+        const int    maxLaunches = 1024;
         do
         {
-            numFilled = performLaunches( outputBuffer, states, *demandLoader );
+            numFilled = performLaunches( outputBuffer, states );
             g_totalRequests += numFilled;
         } while( numFilled > 0 && g_totalLaunches < maxLaunches );
 

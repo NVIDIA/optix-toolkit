@@ -80,14 +80,7 @@ void CanvasImage::open( TextureInfo* info )
         *info = m_info;
 }
 
-bool CanvasImage::readTile(  //
-    char*        dest,
-    unsigned int mipLevel,
-    unsigned int tileX,
-    unsigned int tileY,
-    unsigned int tileWidth,
-    unsigned int tileHeight,
-    CUstream     /*stream*/ )
+bool CanvasImage::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
     if( mipLevel >= m_info.numMipLevels )
     {
@@ -97,15 +90,20 @@ bool CanvasImage::readTile(  //
         throw std::runtime_error( ss.str().c_str() );
     }
 
-    const unsigned int srcStartX  = tileX * tileWidth;
-    const unsigned int srcStartY  = tileY * tileHeight;
+    const unsigned int srcStartX  = tile.x * tile.width;
+    const unsigned int srcStartY  = tile.y * tile.height;
     float4*            destPixels = reinterpret_cast<float4*>( dest );
 
-    for( unsigned int destY = 0; destY < tileHeight; ++destY )
+    unsigned int levelWidth  = std::max( m_info.width >> mipLevel, 1u );
+    unsigned int levelHeight = std::max( m_info.height >> mipLevel, 1u );
+    unsigned int copyWidth   = std::min( tile.width, levelWidth - srcStartX );
+    unsigned int copyHeight  = std::min( tile.height, levelHeight - srcStartY );
+
+    for( unsigned int destY = 0; destY < copyHeight; ++destY )
     {
-        float4* destRow = destPixels + tileWidth * destY;
+        float4* destRow = destPixels + tile.width * destY;
         float4* srcRow  = getPixel( srcStartX, srcStartY + destY );
-        memcpy( destRow, srcRow, tileWidth * sizeof( float4 ) );
+        memcpy( destRow, srcRow, copyWidth * sizeof( float4 ) );
     }
 
     return true;
@@ -151,8 +149,8 @@ void CanvasImage::drawBrush( CanvasBrush& brush, int xcenter, int ycenter )
 
     int tileX0 = clamp( xstart / m_tileWidth, 0, m_info.width / m_tileWidth );
     int tileY0 = clamp( ystart / m_tileHeight, 0, m_info.height / m_tileHeight );
-    int tileX1 = clamp( ( xstart + brush.m_width ) / m_tileWidth, 0, m_info.width / m_tileWidth - 1 );
-    int tileY1 = clamp( ( ystart + brush.m_height ) / m_tileHeight, 0, m_info.height / m_tileHeight - 1 );
+    int tileX1 = clamp( ( xstart + brush.m_width ) / m_tileWidth, 0, ( m_info.width + m_tileWidth - 1 ) / m_tileWidth - 1 );
+    int tileY1 = clamp( ( ystart + brush.m_height ) / m_tileHeight, 0, ( m_info.height + m_tileHeight - 1 ) / m_tileHeight - 1 );
     setDirtyTilesRegion( tileX0, tileY0, tileX1, tileY1 );
 }
 

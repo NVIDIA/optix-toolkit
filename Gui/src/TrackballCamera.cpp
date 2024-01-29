@@ -52,7 +52,7 @@ void TrackballCamera::initCamera()
     const float  fovY   = 45.0f / dollyCamera;
 
     m_camera.setEye( eye );
-    m_camera.setLookat( lookAt );
+    m_camera.setLookAt( lookAt );
     m_camera.setUp( up );
     m_camera.setFovY( fovY );
 }

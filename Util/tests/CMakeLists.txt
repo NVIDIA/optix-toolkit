@@ -30,9 +30,10 @@ include( FetchGtest )
 include( GoogleTest )
 
 otk_add_executable( testUtil
-    TestException.cpp
     TestEXRInputFile.cpp
     FunctionTable.cpp
+    SourceDir.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 set_target_properties(testUtil PROPERTIES FOLDER Examples/Tests)
 
@@ -47,7 +48,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 
 set_target_properties(testUtil PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER Examples/tests 
+  FOLDER Examples/Tests 
 )
 
 target_link_libraries( testUtil

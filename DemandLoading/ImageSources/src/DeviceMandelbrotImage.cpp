@@ -27,7 +27,7 @@
 //
 
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
-#include <OptiXToolkit/Util/Exception.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 namespace imageSources {
 
@@ -75,34 +75,28 @@ void DeviceMandelbrotImage::open( imageSource::TextureInfo* info )
         *info = m_info;
 }
 
-bool DeviceMandelbrotImage::readTile( char*        dest,
-                                      unsigned int mipLevel,
-                                      unsigned int tileX,
-                                      unsigned int tileY,
-                                      unsigned int tileWidth,
-                                      unsigned int tileHeight,
-                                      CUstream     stream )
+bool DeviceMandelbrotImage::readTile( char* dest, unsigned int mipLevel, const imageSource::Tile& tile, CUstream stream )
 {
     OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const unsigned int levelWidth  = std::max( 1u, m_params.width >> mipLevel );
     const unsigned int levelHeight = std::max( 1u, m_params.height >> mipLevel );
 
-    OTK_ASSERT_MSG( levelWidth > tileX * tileWidth && levelHeight > tileY * tileHeight,
-                       "Requesting tile outside image bounds." );
+    const imageSource::PixelPosition start = pixelPosition( tile );
+    OTK_ASSERT_MSG( levelWidth > start.x && levelHeight > start.y, "Requesting tile outside image bounds." );
 
     MandelbrotParams params = m_params;
 
-    params.width          = tileWidth;
-    params.height         = tileHeight;
-    params.clip_width     = std::min( levelWidth - ( tileX * tileWidth ), tileWidth );
-    params.clip_height    = std::min( levelHeight - ( tileY * tileHeight ), tileHeight );
+    params.width          = tile.width;
+    params.height         = tile.height;
+    params.clip_width     = std::min( levelWidth - start.x, tile.width );
+    params.clip_height    = std::min( levelHeight - start.y, tile.height );
     params.all_mip_levels = false;
 
-    params.xmin = m_params.xmin + ( m_params.xmax - m_params.xmin ) * ( tileX * tileWidth ) / levelWidth;
-    params.ymin = m_params.ymin + ( m_params.ymax - m_params.ymin ) * ( tileY * tileHeight ) / levelHeight;
-    params.xmax = m_params.xmin + ( m_params.xmax - m_params.xmin ) * ( tileX * tileWidth + params.clip_width ) / levelWidth;
-    params.ymax = m_params.ymin + ( m_params.ymax - m_params.ymin ) * ( tileY * tileHeight + params.clip_height ) / levelHeight;
+    params.xmin = m_params.xmin + ( m_params.xmax - m_params.xmin ) * start.x / levelWidth;
+    params.ymin = m_params.ymin + ( m_params.ymax - m_params.ymin ) * start.y / levelHeight;
+    params.xmax = m_params.xmin + ( m_params.xmax - m_params.xmin ) * ( start.x + params.clip_width ) / levelWidth;
+    params.ymax = m_params.ymin + ( m_params.ymax - m_params.ymin ) * ( start.y + params.clip_height ) / levelHeight;
 
     params.output_buffer = reinterpret_cast<float4*>( dest );
 

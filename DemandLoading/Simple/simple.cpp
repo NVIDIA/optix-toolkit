@@ -83,18 +83,18 @@ int main()
     // Initialize CUDA.
     check( cudaFree( nullptr ) );
 
+    // Create a stream to be used for asynchronous operations
+    unsigned int deviceIndex = 0;
+    check( cudaSetDevice( deviceIndex ) );
+    cudaStream_t stream;
+    check( cudaStreamCreate( &stream ) );
+
     // Create DemandLoader
     DemandLoader* loader = createDemandLoader( Options() );
 
     // Create a resource, using the given callback to handle page requests.
     const unsigned int numPages  = 128;
     unsigned int       startPage = loader->createResource( numPages, loadResourceCallback, nullptr );
-
-    // Create a stream on the first supported device, which is used for asynchronous operations.
-    unsigned int deviceIndex = loader->getDevices().at( 0 );
-    check( cudaSetDevice( deviceIndex ) );
-    cudaStream_t stream;
-    check( cudaStreamCreate( &stream ) );
 
     // Process all the pages of the resource in batches.
     const unsigned int batchSize   = 32;

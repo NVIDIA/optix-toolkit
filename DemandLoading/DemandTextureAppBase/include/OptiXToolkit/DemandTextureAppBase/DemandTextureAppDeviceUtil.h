@@ -38,6 +38,7 @@
 
 #include <cstdint>
 
+using namespace otk;
 using namespace demandLoading;
 struct RayPayload;
 
@@ -277,9 +278,9 @@ static __forceinline__ __device__ float4 tileDisplayColor( const DeviceContext& 
     // Get the texture sampler
     bool resident;
     unsigned long long samplerPage = pagingMapOrRequest( context, texture_id, &resident );
-    if( samplerPage == 0 )
-        return make_float4( 0.0f );
     demandLoading::TextureSampler* info = reinterpret_cast<demandLoading::TextureSampler*>( samplerPage );
+    if( samplerPage == 0 || !info->desc.isSparseTexture )
+        return make_float4( 0.0f );
 
     // For each mip level, check to see if px is inside its display rectangle
     int lastLevel = min( info->desc.numMipLevels - 1, info->mipTailFirstLevel );

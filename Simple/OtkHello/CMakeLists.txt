@@ -29,19 +29,20 @@
 include(GNUInstallDirs)
 include(BuildConfig)
 include(FetchGlad)
-include(embed_ptx)
+include(embed_cuda)
 
 if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.0 REQUIRED )
 endif()
 
-embed_ptx(
-  CONST HEADER otkHelloKernelPTX.h
+embed_cuda(
+  GEN_DEBUG
+  CONST HEADER otkHelloKernelCuda.h
   OUTPUT_TARGET
     otkHelloKernel
   FOLDER
     Examples/Simple
-  PTX_LINK_LIBRARIES
+  LIBRARIES
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES

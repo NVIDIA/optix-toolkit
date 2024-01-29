@@ -32,6 +32,8 @@ include(BuildConfig)
 otk_add_executable( ommBakingSimple
   simple.cpp
   simple.cu
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 target_link_libraries( ommBakingSimple

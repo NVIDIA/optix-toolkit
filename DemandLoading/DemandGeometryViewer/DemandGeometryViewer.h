@@ -28,6 +28,7 @@
 #pragma once
 
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
+#include <OptiXToolkit/ShaderUtil/DebugLocation.h>
 
 #include <optix_types.h>
 
@@ -76,13 +77,6 @@ struct BasicLight
     float3 color;
 };
 
-struct Debug
-{
-    bool  enabled;
-    bool  debugIndexSet;
-    uint3 debugIndex;
-};
-
 struct GetSphereData
 {
     bool          useOptixGetSphereData;
@@ -106,7 +100,7 @@ struct Params
     float3                       demandMaterialColor;
     const uint_t*                sphereIds;
     GetSphereData                getSphereData;
-    Debug                        debug;
+    otk::DebugLocation           debug;
 };
 
 }  // namespace demandGeometryViewer

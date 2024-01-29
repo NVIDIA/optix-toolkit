@@ -29,13 +29,14 @@
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
 #include "DemandGeometryViewer.h"
-#include "DemandGeometryViewerKernelPTX.h"
-#include "DemandMaterial.h"
+#include "DemandGeometryViewerKernelCuda.h"
 #include "SphereInstances.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/BufferMapper.h>
@@ -50,7 +51,6 @@
 #include <OptiXToolkit/OptiXMemory/Record.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
-#include <OptiXToolkit/Util/Exception.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include <optix.h>
@@ -73,8 +73,6 @@
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
 
-using namespace otk;  // for vec_math operators
-
 namespace demandGeometryViewer {
 
 using RayGenSbtRecord   = otk::Record<CameraData>;
@@ -84,6 +82,18 @@ using OutputBuffer      = otk::CUDAOutputBuffer<uchar4>;
 
 const int NUM_PAYLOAD_VALUES   = 4;
 const int NUM_ATTRIBUTE_VALUES = 3;
+
+static const char *getKeyHelp()
+{
+    // clang-format off
+    return
+        "Interactive keys (case insensitive):\n"
+        "         D                           Toggle debug mode\n"
+        "         G                           Resolve one proxy geometry\n"
+        "         M                           Resolve one proxy material\n"
+        "         Q or ESC                    Quit\n";
+    // clang-format on
+}
 
 [[noreturn]] void printUsageAndExit( const char* argv0 )
 {
@@ -96,20 +106,27 @@ const int NUM_ATTRIBUTE_VALUES = 3;
         "         --warmup=<num>              Specify number of warmup frames before writing to file\n"
         "         --bg=<r>,<g>,<b>            Specify the background color as 3 floating-point values in [0,1]\n"
         "         --optixGetSphereData=yes/no Use optixGetSphereData or application data access\n"
-        "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n";
+        "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n"
+        "         --oneshot-geometry          Enable one-shot proxy geometry resolution by keystroke\n"
+        "         --oneshot-material          Enable one-shot proxy material resolution by keystroke\n"
+        "\n"
+        << getKeyHelp()
+        ;
     // clang-format on
     exit( 1 );
 }
 
 struct Options
 {
-    std::string outFile;
-    int         width{512};
-    int         height{512};
-    float3      background;
-    int         warmup{};
-    Debug       debug{};
-    bool        useOptixGetSphereData{true};
+    std::string        outFile;
+    int                width{ 512 };
+    int                height{ 512 };
+    float3             background;
+    int                warmup{};
+    otk::DebugLocation debug{};
+    bool               useOptixGetSphereData{ true };
+    bool               oneShotGeometry{};
+    bool               oneShotMaterial{};
 };
 
 bool hasOption( const std::string& arg, const std::string& flag, std::istringstream& value )
@@ -169,19 +186,27 @@ Options parseArguments( int argc, char* argv[] )
         }
         else if( hasOption( arg, "--debug=", value ) )
         {
-            int  x{-1};
+            int  x{ -1 };
             char separator{};
-            int  y{-1};
+            int  y{ -1 };
             value >> x;
             value >> separator;
             value >> y;
             if( !value || x < 0 || y < 0 )
                 printUsageAndExit( argv[0] );
 
-            Debug& debug        = options.debug;
-            debug.enabled       = true;
-            debug.debugIndexSet = true;
-            debug.debugIndex    = make_uint3( x, y, 0 );
+            otk::DebugLocation& debug = options.debug;
+            debug.enabled             = true;
+            debug.debugIndexSet       = true;
+            debug.debugIndex          = make_uint3( x, y, 0 );
+        }
+        else if( arg == "--oneshot-geometry" )
+        {
+            options.oneShotGeometry = true;
+        }
+        else if( arg == "--oneshot-material" )
+        {
+            options.oneShotMaterial = true;
         }
         else
         {
@@ -232,7 +257,7 @@ class Application
     void createContext();
     void initPipelineOpts();
 
-    OptixModule createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* ptx, size_t ptxSize );
+    OptixModule createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* optixir, size_t optixirSize );
 
     void createModules();
     void createProgramGroups();
@@ -287,10 +312,11 @@ class Application
     CUstream                    m_stream{};
     OptixPipelineCompileOptions m_pipelineOpts{};
     OptixModule                 m_viewerModule{};
-    OptixModule                 m_proxyMaterialModule{};
     OptixModule                 m_realizedMaterialModule{};
     OptixModule                 m_sphereModule{};
     bool                        m_updateNeeded{};
+    bool                        m_resolveOneGeometry{};
+    bool                        m_resolveOneMaterial{};
 
     enum
     {
@@ -310,9 +336,9 @@ class Application
     std::vector<OptixProgramGroup> m_programGroups;
     OptixPipeline                  m_pipeline{};
 
-    otk::SyncRecord<CameraData>   m_rayGenRecord{1};
-    otk::SyncRecord<MissData>     m_missRecords{1};
-    otk::SyncRecord<HitGroupData> m_hitGroupRecords{NUM_STATIC_PROGRAM_GROUPS};
+    otk::SyncRecord<CameraData>   m_rayGenRecord{ 1 };
+    otk::SyncRecord<MissData>     m_missRecords{ 1 };
+    otk::SyncRecord<HitGroupData> m_hitGroupRecords{ NUM_STATIC_PROGRAM_GROUPS };
     OptixShaderBindingTable       m_sbt{};
 
     DemandLoaderPtr                                 m_loader;
@@ -329,17 +355,18 @@ class Application
     OptixTraversableHandle         m_topLevelTraversable{};
 
 
-    otk::SyncVector<Params> m_params{1};
+    otk::SyncVector<Params> m_params{ 1 };
 
     demandLoading::Ticket m_ticket;
 
     GLFWwindow*          m_window{};
     otk::TrackballCamera m_trackballCamera;
 
-    std::vector<SceneProxy>         m_sceneProxies;
-    std::vector<ScenePrimitive>     m_scenePrimitives;
-    std::unique_ptr<DemandMaterial> m_materials;
-    otk::SyncVector<uint_t>         m_materialIds;
+    std::vector<SceneProxy>     m_sceneProxies;
+    std::vector<ScenePrimitive> m_scenePrimitives;
+
+    std::shared_ptr<demandMaterial::MaterialLoader> m_materials;
+    otk::SyncVector<uint_t>                         m_materialIds;
 };
 
 Application::Application( Options&& cliOptions )
@@ -363,32 +390,28 @@ void Application::initialize()
 void Application::createContext()
 {
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
-
-    m_loader.reset( createDemandLoader( demandLoading::Options{} ) );
-
-    std::vector<uint_t> devices = m_loader->getDevices();
-    if( devices.empty() )
-    {
-        throw std::runtime_error( "No devices support demand loading." );
-    }
-    m_deviceIndex = devices[0];
-    OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
-    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
-
     OTK_ERROR_CHECK( optixInit() );
+
+    // Using a single device
+    m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        throw std::runtime_error( "No devices support demand loading" );
+
     OptixDeviceContextOptions options{};
     otk::util::setLogger( options );
 #ifndef NDEBUG
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
 #endif
-    OTK_ERROR_CHECK( optixDeviceContextCreate( m_cudaContext, &options, &m_context ) );
 
+    OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+    OTK_ERROR_CHECK( cudaFree( nullptr ) );
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
+    OTK_ERROR_CHECK( optixDeviceContextCreate( m_cudaContext, &options, &m_context ) );
     OTK_ERROR_CHECK( cudaStreamCreate( &m_stream ) );
 
-    OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
-
+    m_loader.reset( createDemandLoader( demandLoading::Options{} ) );
     m_proxies.reset( new demandGeometry::ProxyInstances( m_loader.get() ) );
-    m_materials.reset( new DemandMaterial( m_loader.get() ) );
+    m_materials = demandMaterial::createMaterialLoader( m_loader.get() );
 }
 
 void Application::initPipelineOpts()
@@ -402,10 +425,10 @@ void Application::initPipelineOpts()
     m_pipelineOpts.pipelineLaunchParamsVariableName = "g_params";
 }
 
-OptixModule Application::createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* ptx, size_t ptxSize )
+OptixModule Application::createModuleFromSource( const OptixModuleCompileOptions& compileOptions, const char* optixir, size_t optixirSize )
 {
     OptixModule module;
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, ptx, ptxSize, LOG, &LOG_SIZE, &module ) );
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, optixir, optixirSize, LOG, &LOG_SIZE, &module ) );
     return module;
 }
 
@@ -414,9 +437,9 @@ static OptixModuleCompileOptions getCompileOptions()
     OptixModuleCompileOptions compileOptions{};
     compileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
 #ifdef NDEBUG
-    bool debugInfo{false};
+    bool debugInfo{ false };
 #else
-    bool debugInfo{true};
+    bool debugInfo{ true };
 #endif
     compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 : OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
@@ -426,15 +449,14 @@ static OptixModuleCompileOptions getCompileOptions()
 
 void Application::createModules()
 {
-    const OptixModuleCompileOptions compileOptions{getCompileOptions()};
+    const OptixModuleCompileOptions compileOptions{ getCompileOptions() };
 
-    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewer_ptx_text(), DemandGeometryViewer_ptx_size );
-    m_proxyMaterialModule = createModuleFromSource( compileOptions, DemandMaterial_ptx_text(), DemandMaterial_ptx_size );
+    m_viewerModule = createModuleFromSource( compileOptions, DemandGeometryViewerCudaText(), DemandGeometryViewerCudaSize );
 
     OptixBuiltinISOptions builtinOptions{};
     builtinOptions.usesMotionBlur      = false;
     builtinOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
-    OPTIX_CHECK_LOG2( optixBuiltinISModuleGet( m_context, &compileOptions, &m_pipelineOpts, &builtinOptions, &m_sphereModule ) );
+    OTK_ERROR_CHECK_LOG( optixBuiltinISModuleGet( m_context, &compileOptions, &m_pipelineOpts, &builtinOptions, &m_sphereModule ) );
 }
 
 void Application::createProgramGroups()
@@ -445,9 +467,9 @@ void Application::createProgramGroups()
     otk::ProgramGroupDescBuilder( descs, m_viewerModule )
         .raygen( "__raygen__pinHoleCamera" )
         .miss( "__miss__backgroundColor" )
-        .hitGroupCHIS( m_viewerModule, m_proxies->getCHFunctionName(), m_viewerModule, m_proxies->getISFunctionName() )
-        .hitGroupCHIS( m_proxyMaterialModule, "__closesthit__proxyMaterial", m_sphereModule, nullptr );
-    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
+        .hitGroupISCH( m_viewerModule, m_proxies->getISFunctionName(), m_viewerModule, m_proxies->getCHFunctionName() )
+        .hitGroupISCH( m_sphereModule, nullptr, m_viewerModule, m_materials->getCHFunctionName() );
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( m_context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
                                                m_programGroups.data() ) );
 }
 
@@ -456,15 +478,15 @@ void Application::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options{};
     options.maxTraceDepth = maxTraceDepth;
-    
+
 #if OPTIX_VERSION < 70700
 #ifdef NDEBUG
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
 #else
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 #endif
-#endif    
-    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
+#endif
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
                                            m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
@@ -490,24 +512,24 @@ void Application::addProxy( uint_t level, float3 center, float radius )
 {
     const float3    min = center - radius * make_float3( 1.0f, 1.0f, 1.0f );
     const float3    max = center + radius * make_float3( 1.0f, 1.0f, 1.0f );
-    const OptixAabb bounds{min.x, min.y, min.z, max.x, max.y, max.z};
+    const OptixAabb bounds{ min.x, min.y, min.z, max.x, max.y, max.z };
     const uint_t    pageId = m_proxies->add( bounds );
-    m_sceneProxies.push_back( {level, pageId, center, radius} );
+    m_sceneProxies.push_back( { level, pageId, center, radius } );
 }
 
 void Application::createPrimitives()
 {
-    addProxy( 0, {0.0f, 0.0f, 0.0f}, 1.0f );
+    addProxy( 0, { 0.0f, 0.0f, 0.0f }, 1.0f );
     m_proxies->copyToDeviceAsync( m_stream );
     m_params[0].demandGeomContext = m_proxies->getContext();
 
     const float3 proxyFaceColors[6] = {
-        {1.0f, 0.0f, 0.0f},  // +x
-        {0.5f, 0.0f, 0.0f},  // -x
-        {0.0f, 1.0f, 0.0f},  // +y
-        {0.0f, 0.5f, 0.0f},  // -y
-        {0.0f, 0.0f, 1.0f},  // +z
-        {0.0f, 0.0f, 0.5f}   // -z
+        { 1.0f, 0.0f, 0.0f },  // +x
+        { 0.5f, 0.0f, 0.0f },  // -x
+        { 0.0f, 1.0f, 0.0f },  // +y
+        { 0.0f, 0.5f, 0.0f },  // -y
+        { 0.0f, 0.0f, 1.0f },  // +z
+        { 0.0f, 0.0f, 0.5f }   // -z
     };
     std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( m_params[0].proxyFaceColors ) );
 }
@@ -559,12 +581,10 @@ void Application::createTopLevelTraversable()
     OptixBuildInput inputs[NUM_BUILD_INPUTS]{};
     otk::BuildInputBuilder( inputs ).instanceArray( m_topLevelInstances, 2U );
 
-    const OptixAccelBuildOptions options = {
-        OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
-        OPTIX_BUILD_OPERATION_BUILD,    // operation
-        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}
-    };
-    OptixAccelBufferSizes sizes{};
+    const OptixAccelBuildOptions options = { OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
+                                             OPTIX_BUILD_OPERATION_BUILD,    // operation
+                                             OptixMotionOptions{ /*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f } };
+    OptixAccelBufferSizes        sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( m_context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );
 
     m_devTopLevelInstanceTempBuffer.resize( sizes.tempSizeInBytes );
@@ -585,12 +605,10 @@ void Application::updateTopLevelTraversable()
     OptixBuildInput inputs[NUM_BUILD_INPUTS]{};
     otk::BuildInputBuilder( inputs ).instanceArray( m_topLevelInstances, static_cast<uint_t>( m_topLevelInstances.size() ) );
 
-    const OptixAccelBuildOptions options = {
-        OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
-        OPTIX_BUILD_OPERATION_UPDATE,   // operation
-        OptixMotionOptions{/*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f}        
-    };
-    OptixAccelBufferSizes sizes{};
+    const OptixAccelBuildOptions options = { OPTIX_BUILD_FLAG_ALLOW_UPDATE,  // buildFlags
+                                             OPTIX_BUILD_OPERATION_UPDATE,   // operation
+                                             OptixMotionOptions{ /*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f } };
+    OptixAccelBufferSizes        sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( m_context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );
 
     m_devTopLevelInstanceTempBuffer.resize( sizes.tempUpdateSizeInBytes );
@@ -665,21 +683,21 @@ void Application::setParamSphereData()
 
 void Application::initLaunchParams()
 {
-    BasicLight lights[]{{
-                            make_float3( 4.0f, 2.0f, -3.0f ),  // pos
-                            make_float3( 0.5f, 0.5f, 0.5f )    // color
-                        },
-                        {
-                            make_float3( 1.0f, 4.0f, 4.0f ),  // pos
-                            make_float3( 0.5f, 0.5f, 0.5f )   // color
-                        },
-                        {
-                            make_float3( -3.0f, 5.0f, -1.0f ),  // pos
-                            make_float3( 0.5f, 0.5f, 0.5f )     // color
-                        }};
+    BasicLight lights[]{ {
+                             make_float3( 4.0f, 2.0f, -3.0f ),  // pos
+                             make_float3( 0.5f, 0.5f, 0.5f )    // color
+                         },
+                         {
+                             make_float3( 1.0f, 4.0f, 4.0f ),  // pos
+                             make_float3( 0.5f, 0.5f, 0.5f )   // color
+                         },
+                         {
+                             make_float3( -3.0f, 5.0f, -1.0f ),  // pos
+                             make_float3( 0.5f, 0.5f, 0.5f )     // color
+                         } };
     // normalize the light directions to start
     for( BasicLight& light : lights )
-        light.pos  = normalize( light.pos );
+        light.pos = otk::normalize( light.pos );
     Params& params = m_params[0];
     std::copy( std::begin( lights ), std::end( lights ), std::begin( params.lights ) );
     params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
@@ -712,7 +730,7 @@ void Application::createGeometry( uint_t proxyId )
     }
 
     m_proxies->remove( proxyId );
-    m_scenePrimitives.push_back( {pos->level, pos->center, pos->radius, static_cast<int>( m_scenePrimitives.size() )} );
+    m_scenePrimitives.push_back( { pos->level, pos->center, pos->radius, static_cast<int>( m_scenePrimitives.size() ) } );
     m_materialIds.push_back( m_materials->add() );
     m_spheres.add( pos->center, pos->radius, m_materialIds.back(), HITGROUP_INDEX_PROXY_MATERIAL );
     m_updateNeeded = true;
@@ -720,10 +738,10 @@ void Application::createGeometry( uint_t proxyId )
 
 static PhongMaterial red()
 {
-    const float3 Ka       = {0.0f, 0.0f, 0.0f};
-    const float3 Kd       = {1.0f, 0.0f, 0.0f};  // red
-    const float3 Ks       = {0.5f * 1.0f, 0.5f * 0.0f, 0.5f * 0.0f};
-    const float3 Kr       = {0.5f, 0.5f, 0.5f};
+    const float3 Ka       = { 0.0f, 0.0f, 0.0f };
+    const float3 Kd       = { 1.0f, 0.0f, 0.0f };  // red
+    const float3 Ks       = { 0.5f * 1.0f, 0.5f * 0.0f, 0.5f * 0.0f };
+    const float3 Kr       = { 0.5f, 0.5f, 0.5f };
     const float  phongExp = 128.0f;
     return {
         Ka, Kd, Ks, Kr, phongExp,
@@ -741,8 +759,8 @@ void Application::realizeMaterial( uint_t materialId )
 
     // compile real material module
     {
-        const OptixModuleCompileOptions compileOptions{getCompileOptions()};
-        m_realizedMaterialModule = createModuleFromSource( compileOptions, Sphere_ptx_text(), Sphere_ptx_size );
+        const OptixModuleCompileOptions compileOptions{ getCompileOptions() };
+        m_realizedMaterialModule = createModuleFromSource( compileOptions, SphereCudaText(), SphereCudaSize );
     }
 
     // create real material program group
@@ -750,9 +768,10 @@ void Application::realizeMaterial( uint_t materialId )
         OptixProgramGroupOptions options{};
         const unsigned int       NUM_PROGRAM_GROUPS = 1;
         OptixProgramGroupDesc    descs[NUM_PROGRAM_GROUPS]{};
-        otk::ProgramGroupDescBuilder( descs, nullptr ).hitGroupCHIS( m_realizedMaterialModule, "__closesthit__sphere", m_sphereModule, nullptr );
+        otk::ProgramGroupDescBuilder( descs, nullptr )
+            .hitGroupISCH( m_sphereModule, nullptr, m_realizedMaterialModule, "__closesthit__sphere" );
         OptixProgramGroup materialGroup{};
-        OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_PROGRAM_GROUPS, &options, LOG, &LOG_SIZE, &materialGroup ) );
+        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( m_context, descs, NUM_PROGRAM_GROUPS, &options, LOG, &LOG_SIZE, &materialGroup ) );
         m_programGroups.push_back( materialGroup );
     }
 
@@ -793,13 +812,14 @@ void Application::run()
 
 void Application::runInteractive()
 {
+    std::cout << '\n' << getKeyHelp() << '\n';
     m_window = otk::initGLFW( "DemandGeometry", m_options.width, m_options.height );
     otk::initGL();
     m_trackballCamera.trackWindow( m_window );
     m_trackballCamera.setKeyHandler( &Application::keyCallback, this );
 
     {
-        OutputBuffer output{otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height};
+        OutputBuffer output{ otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height };
         output.setStream( m_stream );
         otk::GLDisplay display;
         do
@@ -851,7 +871,7 @@ void Application::displayOutput( OutputBuffer& output, const otk::GLDisplay& dis
 
 void Application::runToFile()
 {
-    OutputBuffer output{otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height};
+    OutputBuffer output{ otk::CUDAOutputBufferType::CUDA_DEVICE, m_options.width, m_options.height };
     output.setStream( m_stream );
 
     for( int i = 0; i < m_options.warmup; ++i )
@@ -897,14 +917,32 @@ void Application::updateScene()
     m_ticket.wait();
 
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
-    for( const uint_t proxyId : m_proxies->requestedProxyIds() )
+    if( !m_options.oneShotGeometry || m_resolveOneGeometry )
     {
-        createGeometry( proxyId );
+        for( const uint_t proxyId : m_proxies->requestedProxyIds() )
+        {
+            createGeometry( proxyId );
+
+            if( m_resolveOneGeometry )
+            {
+                m_resolveOneGeometry = false;
+                break;
+            }
+        }
     }
     OTK_CUDA_SYNC_CHECK();
-    for( const uint_t materialId : m_materials->requestedMaterialIds() )
+    if( !m_options.oneShotMaterial || m_resolveOneMaterial )
     {
-        realizeMaterial( materialId );
+        for( const uint_t materialId : m_materials->requestedMaterialIds() )
+        {
+            realizeMaterial( materialId );
+
+            if( m_resolveOneMaterial )
+            {
+                m_resolveOneMaterial = false;
+                break;
+            }
+        }
     }
 
     if( m_updateNeeded )
@@ -947,7 +985,6 @@ void Application::cleanupContext()
 void Application::cleanupModule()
 {
     OTK_ERROR_CHECK( optixModuleDestroy( m_viewerModule ) );
-    OTK_ERROR_CHECK( optixModuleDestroy( m_proxyMaterialModule ) );
     if( m_realizedMaterialModule )
         OTK_ERROR_CHECK( optixModuleDestroy( m_realizedMaterialModule ) );
 }
@@ -976,10 +1013,9 @@ void Application::key( GLFWwindow* window, int32_t key, int32_t /*scanCode*/, in
     if( action == GLFW_PRESS )
         switch( key )
         {
-            case GLFW_KEY_D:
-            {
-                Debug& debug  = m_params[0].debug;
-                debug.enabled = !debug.enabled;
+            case GLFW_KEY_D: {
+                otk::DebugLocation& debug = m_params[0].debug;
+                debug.enabled             = !debug.enabled;
                 if( debug.enabled && !debug.debugIndexSet )
                 {
                     debug.debugIndexSet = true;
@@ -987,6 +1023,21 @@ void Application::key( GLFWwindow* window, int32_t key, int32_t /*scanCode*/, in
                 }
                 break;
             }
+
+            case GLFW_KEY_G:
+                if( m_options.oneShotGeometry )
+                {
+                    m_resolveOneGeometry = true;
+                }
+                break;
+
+            case GLFW_KEY_M:
+                if( m_options.oneShotMaterial )
+                {
+                    m_resolveOneMaterial = true;
+                }
+                break;
+
             case GLFW_KEY_Q:
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose( window, 1 );
