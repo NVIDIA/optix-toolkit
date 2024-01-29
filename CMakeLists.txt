@@ -36,8 +36,9 @@
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 # We rely on CMake 3.24 for its integration of FetchContent and find_package.
+# We rely on CMake 3.27 for proper CUDA compilation to optixir.
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.27 FATAL_ERROR)
 include(Policies)
 
 #########################################################
@@ -51,10 +52,11 @@ else()
   option( OTK_USE_VCPKG "Use vcpkg for third party libraries" OFF )
 endif()
 
+option(OTK_USE_VCPKG_OPENEXR "Use vcpkg to obtain OpenEXR" ${OTK_USE_VCPKG} )
+
  # Configure vcpkg manifest file, possibly adding OpenEXR and OpenImageIO.
 if( OTK_USE_VCPKG )
-  # Don't include OpenEXR if the user has explicitly configured its location.
-  if( NOT OpenEXR_DIR )
+  if( OTK_USE_VCPKG_OPENEXR )
     set( OTK_DEPEND_IMATH "\"imath\"," )
     set( OTK_DEPEND_OPENEXR "\"openexr\"," )
   endif()
@@ -63,6 +65,7 @@ if( OTK_USE_VCPKG )
   option( OTK_FETCH_OIIO "Fetch OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
   if( OTK_FETCH_OIIO )
     set( OTK_DEPEND_OIIO "\"openimageio\"," )
+    set( OTK_USE_OIIO ON )
   endif()
 
   configure_file( vcpkg.json.in ${PROJECT_SOURCE_DIR}/vcpkg.json @ONLY )
@@ -115,9 +118,11 @@ find_package(OptiX)
 if(PROJECT_IS_TOP_LEVEL)
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON)
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
+  option( OTK_BUILD_PYOPTIX "Enable build of PyOptiX libraries" ON)
 else()
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" OFF)
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" OFF)
+  option( OTK_BUILD_PYOPTIX "Enable build of PyOptiX libraries" OFF)
 endif()
 
 function(addOptionalSubdirectory dir)
@@ -130,6 +135,10 @@ addOptionalSubdirectory(OmmBaking)
 addOptionalSubdirectory(Memory)
 addOptionalSubdirectory(DemandLoading)
 addOptionalSubdirectory(ShaderUtil)
+
+if( UNIX AND OTK_BUILD_PYOPTIX )
+  addOptionalSubdirectory(PyOptiX)
+endif()
 
 if( OTK_BUILD_EXAMPLES )
    addOptionalSubdirectory(examples)

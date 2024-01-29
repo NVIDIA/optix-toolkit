@@ -1,27 +1,21 @@
 [submodule "DemandLoading"]
 	path = DemandLoading
 	url = https://github.com/NVIDIA/otk-demand-loading.git 
-	branch = master
 [submodule "examples"]
 	path = examples
 	url = https://github.com/NVIDIA/otk-examples.git 
-	branch = master
 [submodule "OmmBaking"]
 	path = OmmBaking
 	url = https://github.com/NVIDIA/otk-omm-baking.git 
-	branch = master
 [submodule "ShaderUtil"]
 	path = ShaderUtil
 	url = https://github.com/NVIDIA/otk-shader-util.git 
-	branch = master
 [submodule "PyOptiX"]
 	path = PyOptiX
 	url = https://github.com/NVIDIA/otk-pyoptix.git 
-	branch = master
 [submodule "CMake"]
 	path = CMake
 	url = https://github.com/NVIDIA/otk-cmake.git 
-	branch = master
 [submodule "Memory"]
 	path = Memory
 	url = https://github.com/NVIDIA/otk-memory.git

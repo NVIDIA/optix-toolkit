@@ -1,13 +1,21 @@
 {
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "optix-toolkit",
-  "description" : "a clean reconfiguration is required if this file is modified",
+  "description": "a clean reconfiguration is required if this file is modified",
   "dependencies": [
     @OTK_DEPEND_IMATH@
     @OTK_DEPEND_OPENEXR@
     @OTK_DEPEND_OIIO@
     "glad",
     "glfw3",
-    "gtest"
+    "gtest",
+    {
+      "name": "imgui",
+      "features": [
+        "glfw-binding",
+        "opengl3-binding"
+      ]
+    },
+    "stb"
   ]
 }
-
