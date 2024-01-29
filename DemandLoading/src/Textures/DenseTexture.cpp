@@ -28,8 +28,8 @@
 
 #include "Textures/DenseTexture.h"
 #include "Util/ContextSaver.h"
-#include "Util/Exception.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <vector_functions.h> // from CUDA toolkit
@@ -41,13 +41,12 @@ namespace demandLoading {
 
 void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<CUmipmappedArray> masterArray )
 {
-    // Redundant initialization can occur because requests from multiple streams are not yet
-    // deduplicated.
-    if( m_isInitialized )
+    // Redundant initialization can occur since requests from multiple streams are not deduplicated.
+    if( m_isInitialized && info == m_info )
         return;
 
     // Record the current CUDA context.
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
 
     m_info = info;
 
@@ -62,15 +61,15 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     if( m_array.get() == nullptr )
     {
         CUmipmappedArray* array = new CUmipmappedArray();
-        DEMAND_CUDA_CHECK( cuMipmappedArrayCreate( array, &ad, m_info.numMipLevels ) );
+        OTK_ERROR_CHECK( cuMipmappedArrayCreate( array, &ad, m_info.numMipLevels ) );
 
         // Reset m_array with a deleter for the mipmapped array
         m_array.reset( array, [this]( CUmipmappedArray* array ) {
-            DEMAND_CUDA_CHECK_NOTHROW( cuCtxPushCurrent( m_context ) );
-            DEMAND_CUDA_CHECK_NOTHROW( cuMipmappedArrayDestroy( *array ) );
+            OTK_ERROR_CHECK_NOTHROW( cuCtxPushCurrent( m_context ) );
+            OTK_ERROR_CHECK_NOTHROW( cuMipmappedArrayDestroy( *array ) );
             delete array;
             CUcontext ignored;
-            DEMAND_CUDA_CHECK_NOTHROW( cuCtxPopCurrent( &ignored ) );
+            OTK_ERROR_CHECK_NOTHROW( cuCtxPopCurrent( &ignored ) );
         } );
     }
 
@@ -89,7 +88,7 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     CUDA_RESOURCE_DESC rd{};
     rd.resType                    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
     rd.res.mipmap.hMipmappedArray = *m_array;
-    DEMAND_CUDA_CHECK( cuTexObjectCreate( &m_texture, &rd, &td, nullptr ) );
+    OTK_ERROR_CHECK( cuTexObjectCreate( &m_texture, &rd, &td, nullptr ) );
 
     m_isInitialized = true;
 }
@@ -97,22 +96,24 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
 uint2 DenseTexture::getMipLevelDims( unsigned int mipLevel ) const
 {
     // Get CUDA array for the specified level from the mipmapped array.
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
     CUarray mipLevelArray; 
-    DEMAND_CUDA_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, *m_array, mipLevel ) );
+    OTK_ERROR_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, *m_array, mipLevel ) );
 
     // Get the array descriptor.
     CUDA_ARRAY_DESCRIPTOR desc;
-    DEMAND_CUDA_CHECK( cuArrayGetDescriptor( &desc, mipLevelArray ) );
+    OTK_ERROR_CHECK( cuArrayGetDescriptor( &desc, mipLevelArray ) );
 
     return make_uint2( static_cast<unsigned int>( desc.Width ), static_cast<unsigned int>( desc.Height ) );
 }
 
 void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( width == m_info.width );
-    DEMAND_ASSERT( height == m_info.height );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( width == m_info.width );
+    OTK_ASSERT( height == m_info.height );
+    (void)width; // silence unused variable warning
+    (void)height;
 
     // Fill each level.
     size_t             offset    = 0;
@@ -121,7 +122,7 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
     for( unsigned int mipLevel = 0; mipLevel < m_info.numMipLevels; ++mipLevel )
     {
         CUarray mipLevelArray{};
-        DEMAND_CUDA_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, *m_array, mipLevel ) );
+        OTK_ERROR_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, *m_array, mipLevel ) );
 
         uint2 levelDims = getMipLevelDims( mipLevel );
 
@@ -137,9 +138,9 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
         copyArgs.Height       = levelDims.y;
 
         if( bufferPinned )
-            DEMAND_CUDA_CHECK( cuMemcpy2DAsync( &copyArgs, stream ) );
+            OTK_ERROR_CHECK( cuMemcpy2DAsync( &copyArgs, stream ) );
         else 
-            DEMAND_CUDA_CHECK( cuMemcpy2D( &copyArgs ) );
+            OTK_ERROR_CHECK( cuMemcpy2D( &copyArgs ) );
 
         offset += levelDims.x * levelDims.y * pixelSize;
         m_numBytesFilled += copyArgs.WidthInBytes * copyArgs.Height;
@@ -153,8 +154,8 @@ DenseTexture::~DenseTexture()
         // m_array destroyed by shared_ptr deleter
         m_array.reset();
         ContextSaver contextSaver;
-        DEMAND_CUDA_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
-        DEMAND_CUDA_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
+        OTK_ERROR_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
+        OTK_ERROR_CHECK_NOTHROW( cuTexObjectDestroy( m_texture ) );
     }
 }
 

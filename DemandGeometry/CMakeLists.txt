@@ -27,6 +27,7 @@
 #
 
 include(BuildConfig)
+find_package( CUDAToolkit 11.1 REQUIRED )
 
 otk_add_library( DemandGeometry STATIC
     include/OptiXToolkit/DemandGeometry/DemandGeometry.h
@@ -35,6 +36,7 @@ otk_add_library( DemandGeometry STATIC
     include/OptiXToolkit/DemandGeometry/ProxyInstances.h
     include/OptiXToolkit/DemandGeometry/ProxyInstancesImpl.h
     src/ProxyInstances.cpp
+    README.md
 )
 target_include_directories( DemandGeometry PUBLIC include )
 target_link_libraries( DemandGeometry PUBLIC DemandLoading OptiXToolkit::Error CUDA::cuda_driver )

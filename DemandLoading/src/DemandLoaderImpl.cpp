@@ -28,17 +28,19 @@
 
 #include "DemandLoaderImpl.h"
 
+#include "CascadeRequestFilter.h"
 #include "DemandPageLoaderImpl.h"
-#include "Util/CudaContext.h"
 #include "Util/ContextSaver.h"
-#include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
 #include "TicketImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/ImageSource/CascadeImage.h>
 
 #include <cuda.h>
 
@@ -58,7 +60,7 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
         : m_deviceMemoryManager( deviceMemoryManager )
     {
     }
-    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal, CUstream /*stream*/ ) override
     {
         m_deviceMemoryManager->freeTileBlock( TileBlockDesc( pageVal ) );
         return true;
@@ -68,34 +70,106 @@ class TilePoolReturnPredicate : public PageInvalidatorPredicate
     DeviceMemoryManager* m_deviceMemoryManager;
 };
 
-// Predicate that returns TextureSamplers to texture sampler pool
-class TextureSamplerReturnPredicate : public PageInvalidatorPredicate
+// Predicate that migrates texture tiles from an old texture to a new larger texture.
+class MigrateTextureTilesPredicate : public PageInvalidatorPredicate
 {
   public:
-    TextureSamplerReturnPredicate( DeviceMemoryManager* deviceMemoryManager )
-        : m_deviceMemoryManager( deviceMemoryManager )
+    MigrateTextureTilesPredicate( const TextureSampler& oldSampler,
+                                  DemandTextureImpl* newTexture,
+                                  DemandPageLoaderImpl* demandPageLoader,
+                                  DeviceMemoryManager* deviceMemoryManager )
+        : m_oldSampler{oldSampler}
+        , m_newTexture{newTexture}
+        , m_demandPageLoader{demandPageLoader}
+        , m_deviceMemoryManager{deviceMemoryManager}
     {
     }
-    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
+    bool operator()( unsigned int pageId, unsigned long long pageVal, CUstream stream ) override
     {
-        m_deviceMemoryManager->freeSampler( reinterpret_cast<TextureSampler*>( pageVal ) );
+        OTK_ASSERT_MSG( pageId >= m_oldSampler.startPage && pageId < m_oldSampler.startPage + m_oldSampler.numPages,
+            "pageId outside texture tile range." );
+
+        // FIXME: What if the tiles are non-evictable?
+
+        unsigned int mipLevel;
+        unsigned int tileX;
+        unsigned int tileY;
+        TileBlockDesc tileBlock( pageVal );
+
+        CUmemGenericAllocationHandle tileHandle = m_deviceMemoryManager->getTileBlockHandle( tileBlock );
+        unpackTileIndex( m_oldSampler, pageId - m_oldSampler.startPage, mipLevel, tileX, tileY );
+
+        unsigned int newMipLevel = mipLevel;
+        unsigned int w = m_newTexture->getSampler().width;
+        while( w > m_oldSampler.width )
+        {
+            w = w >> 1;
+            newMipLevel++;
+        }
+
+        if( mipLevel >= m_oldSampler.mipTailFirstLevel )
+            m_newTexture->mapMipTail( stream, tileHandle, tileBlock.offset() );
+        else
+            m_newTexture->mapTile( stream, newMipLevel, tileX, tileY, tileHandle, tileBlock.offset() );
+
+        unsigned int newPageId = pageId - m_oldSampler.startPage + m_newTexture->getSampler().startPage;
+
+        // Call addMappingBody instead of addMapping since mutex already acquired in PagingSystem::invalidatePages
+        m_demandPageLoader->getPagingSystem()->addMappingBody( newPageId, true, pageVal );
+
         return true;
     }
-    ~TextureSamplerReturnPredicate() override {}
+    ~MigrateTextureTilesPredicate() override {}
   private:
+    TextureSampler m_oldSampler;
+    DemandTextureImpl* m_newTexture;
+    DemandPageLoaderImpl* m_demandPageLoader;
     DeviceMemoryManager* m_deviceMemoryManager;
 };
 
-DemandLoaderImpl::DemandLoaderImpl( const Options& options )
-    : m_pageTableManager( std::make_shared<PageTableManager>( options.numPages, options.numPageTableEntries ) )
-    , m_requestProcessor( m_pageTableManager, options )
-    , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, options ) )
-    , m_samplerRequestHandler( this )
-{
-    // Reserve bits in the sampler request handler for all possible textures.
-    m_samplerRequestHandler.setPageRange( 0, options.numPageTableEntries );
+namespace {
 
-    m_requestProcessor.start( options.maxThreads );
+std::shared_ptr<demandLoading::Options> configure( demandLoading::Options options )
+{
+    // If maxTexMemPerDevice is 0, consider it to be unlimited
+    if( options.maxTexMemPerDevice == 0 )
+        options.maxTexMemPerDevice = 0xfffffffffffffffful;
+
+    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
+    if( options.maxFilledPages < options.maxRequestedPages )
+        options.maxFilledPages = options.maxRequestedPages;
+
+    return std::shared_ptr<Options>( new Options( options ) );
+}
+
+}  // anonymous namespace
+
+DemandLoaderImpl::DemandLoaderImpl( const Options& options )
+    : m_options( configure( options ) )
+    , m_pageTableManager( std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries ) )
+    , m_requestProcessor( m_pageTableManager, options )
+    , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, m_options ) )
+    , m_samplerRequestHandler( this )
+    , m_cascadeRequestHandler( this )
+    , m_deviceTransferPool( new otk::DeviceAsyncAllocator(), new RingSuballocator(), DEFAULT_ALLOC_SIZE, options.maxPinnedMemory )
+{
+    // The demand loader is for the current cuda context
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
+
+    // Reserve pages in the sampler request handler for all possible textures.
+    m_samplerRequestHandler.setPageRange( 0, m_options->numPageTableEntries );
+
+    unsigned int samplerStartPage = m_pageTableManager->reserveBackedPages( options.maxTextures * NUM_PAGES_PER_TEXTURE, &m_samplerRequestHandler );
+    m_samplerRequestHandler.setPageRange( samplerStartPage, options.maxTextures * NUM_PAGES_PER_TEXTURE );
+
+    // Reserve pages for the cascade request handler if supported
+    if( options.useCascadingTextureSizes )
+    {
+        unsigned int numCascadePages = NUM_CASCADES * options.maxTextures;
+        unsigned int cascadeStartPage = m_pageTableManager->reserveUnbackedPages( numCascadePages, &m_cascadeRequestHandler );
+        CascadeRequestFilter* requestFilter = new CascadeRequestFilter( cascadeStartPage, cascadeStartPage + numCascadePages, this );
+        m_requestProcessor.setRequestFilter( std::shared_ptr<RequestFilter>( requestFilter ) );
+    }
 }
 
 DemandLoaderImpl::~DemandLoaderImpl()
@@ -109,6 +183,7 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
                                                       const TextureDescriptor&                  textureDesc )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Add new texture to the end of the list of textures.  The texture holds a pointer to the
@@ -133,10 +208,11 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                                                           int                             baseTextureId )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Allocate demand loader pages for the udim grid
-    DEMAND_ASSERT_MSG( udim * vdim > 0, "Udim and vdim must both be positive." );
+    OTK_ASSERT_MSG( udim * vdim > 0, "Udim and vdim must both be positive." );
     unsigned int startTextureId = allocateTexturePages( udim * vdim );
 
     // Fill the textures in
@@ -146,14 +222,15 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
         for( unsigned int u=0; u<udim; ++u )
         {
             unsigned int imageIndex = v*udim + u;
-            unsigned int textureId = startTextureId + imageIndex * PAGES_PER_TEXTURE;
+            unsigned int textureId = startTextureId + imageIndex;
             if(imageIndex < imageSources.size() && imageSources[imageIndex].get() != nullptr )
             {
                 // Create the texture and put it in the list of textures
                 entryPointId = std::min( textureId, entryPointId );
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
-                
+                tex->setUdimTexture( startTextureId, udim, vdim, false );
+
                 // Record the image reader and texture descriptor.
                 m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
@@ -164,12 +241,12 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
         }
     }
 
-    m_textures[entryPointId]->setUdimTexture( startTextureId, udim, vdim, false );
     if( baseTextureId >= 0 )
     {
         m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, true );
         return *m_textures[baseTextureId];
     }
+
     return *m_textures[entryPointId];
 }
 
@@ -178,15 +255,21 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
                                                            std::shared_ptr<imageSource::ImageSource>& imageSource )
 {
     auto imageIt = m_imageToTextureId.find( imageSource.get() );
-    if( imageIt == m_imageToTextureId.end() )
+    if( imageIt == m_imageToTextureId.end() ) // image was not found. Make a new texture.
     {
-        // image was not found. Make a new texture.
+        if( getOptions().useCascadingTextureSizes )
+        {
+            imageSource::CascadeImage* cascadeImg = new imageSource::CascadeImage( imageSource, CASCADE_BASE );
+            std::shared_ptr<imageSource::ImageSource> cascadeImage( cascadeImg );
+            m_imageToTextureId[imageSource.get()] = textureId;
+            return new DemandTextureImpl( textureId, textureDesc, cascadeImage, this );
+        }
+
         m_imageToTextureId[imageSource.get()] = textureId;
         return new DemandTextureImpl( textureId, textureDesc, imageSource, this );
     }
-    else
+    else // image was found. Make a variant texture.
     {
-        // image was found. Make a variant texture.
         DemandTextureImpl* masterTexture = m_textures[imageIt->second].get();
         return new DemandTextureImpl( textureId, masterTexture, textureDesc, this );
     }
@@ -194,6 +277,7 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
 
 unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )
 {
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, callbackContext, this ) );
     const unsigned int startPage = m_pageTableManager->reserveBackedPages( numPages, m_resourceRequestHandlers.back().get() );
     return startPage;
@@ -201,11 +285,12 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 
 void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
 {
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Enqueue page ranges to invalidate when launchPrepare is called
     DemandTextureImpl* texture = m_textures.at( textureId ).get();
-    if( texture->isOpen() )
+    if( texture->isOpen() && texture->getSampler().desc.isSparseTexture )
     {
         texture->init();
         TextureSampler sampler   = texture->getSampler();
@@ -217,33 +302,98 @@ void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
         m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
 
         // Unload base color
-        unsigned int baseColorId = textureId + BASE_COLOR_OFFSET;
+        unsigned int baseColorId = samplerIdToBaseColorId( textureId, getOptions().maxTextures );
         m_pageLoader->invalidatePageRange( baseColorId, baseColorId + 1, nullptr );
     }
 }
 
-void DemandLoaderImpl::replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc )
+void DemandLoaderImpl::migrateTextureTiles( const TextureSampler& oldSampler, DemandTextureImpl* newTexture )
 {
-    unloadTextureTiles( textureId );
+    // Mutex acquired in caller
+    if( !newTexture->getSampler().desc.isSparseTexture )
+        return;
+
+    unsigned int startPage = oldSampler.startPage;
+    unsigned int endPage   = oldSampler.startPage + oldSampler.numPages;
+    MigrateTextureTilesPredicate* predicate = new MigrateTextureTilesPredicate( oldSampler, newTexture, m_pageLoader.get(), getDeviceMemoryManager() );
+    m_pageLoader->invalidatePageRange( startPage, endPage, predicate );
+}
+
+void DemandLoaderImpl::replaceTexture( CUstream                                  stream,
+                                       unsigned int                              textureId,
+                                       std::shared_ptr<imageSource::ImageSource> image,
+                                       const TextureDescriptor&                  textureDesc,
+                                       bool                                      migrateTiles )
+{
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+
+    // Unload all the texture tiles if they are not being migrated
+    if( !migrateTiles )
+        unloadTextureTiles( textureId );
+
     std::unique_lock<std::mutex> lock( m_mutex );
-    bool samplerNeedsReset = m_textures.at( textureId )->setImage( textureDesc, image );
 
-    // Invalidate the texture sampler 
-    if( samplerNeedsReset )
+    // Copy the old sampler (for migrating tiles), and replace the texture
+    bool textureOpen = m_textures.at( textureId )->isOpen();
+    TextureSampler oldSampler = ( textureOpen ) ? m_textures.at( textureId )->getSampler() : TextureSampler{};
+    m_textures.at( textureId )->setImage( textureDesc, image );
+
+    if( textureOpen )
     {
-        TextureSamplerReturnPredicate* predicate = new TextureSamplerReturnPredicate( getDeviceMemoryManager() );
-        m_pageLoader->invalidatePageRange( textureId, textureId + 1, predicate );
-    }
+        // Reload the sampler to the GPU
+        m_samplerRequestHandler.loadPage( stream, textureId, true );
 
-    // Record the image reader and texture descriptor.
+        // Reload base color if not migrating the tiles
+        if( !migrateTiles )
+            m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ), true );
+
+        // Migrate the texture tiles to the new texture
+        if( migrateTiles )
+            migrateTextureTiles( oldSampler, m_textures.at( textureId ).get() );
+
+        // Take care of texture variants
+        DemandTextureImpl* masterTexture = getTexture( textureId );
+        const std::vector<unsigned int>& variantIds = masterTexture->getVariantsIds();
+        for( unsigned int variantId : variantIds )
+        {
+            const TextureDescriptor& variantDesc = m_textures.at( variantId )->getDescriptor();
+            m_textures.at( variantId )->setImage( variantDesc, image );
+            m_samplerRequestHandler.loadPage( stream, variantId, true );
+            if( !migrateTiles )
+                m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( variantId, getOptions().maxTextures ), true );
+        }
+    }
     m_requestProcessor.recordTexture( image, textureDesc );
 }
 
 void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
 {
-    checkCudaContext( stream );
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     m_samplerRequestHandler.fillRequest( stream, textureId );
-    m_samplerRequestHandler.fillRequest( stream, textureId + BASE_COLOR_OFFSET );
+    m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ) );
+}
+
+void DemandLoaderImpl::initUdimTexture( CUstream stream, unsigned int baseTextureId )
+{
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+    m_samplerRequestHandler.loadPage( stream, baseTextureId, true ); // make sure the sampler is reloaded to get udim params.
+    m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( baseTextureId, getOptions().maxTextures ) );
+
+    const DemandTextureImpl* baseTexture = m_textures.at( baseTextureId ).get();
+    const TextureSampler& baseSampler = baseTexture->getSampler();
+
+    for( unsigned int v = 0; v < baseSampler.vdim; ++v )
+    {
+        for( unsigned int u = 0; u < baseSampler.udim; ++u)
+        {
+            unsigned int subTextureId = baseSampler.udimStartPage + v * baseSampler.udim + u;
+            if( subTextureId != baseTextureId )
+                initTexture( stream, subTextureId );
+        }
+    }
 }
 
 unsigned int DemandLoaderImpl::getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
@@ -258,7 +408,8 @@ unsigned int DemandLoaderImpl::getMipTailFirstLevel( unsigned int textureId )
 
 void DemandLoaderImpl::loadTextureTile( CUstream stream, unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
 {
-    checkCudaContext( stream );
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     unsigned int pageId = m_textures[textureId]->getRequestHandler()->getTextureTilePageId( mipLevel, tileX, tileY );
     m_textures[textureId]->getRequestHandler()->loadPage( stream, pageId, true );
 }
@@ -269,17 +420,18 @@ bool DemandLoaderImpl::pageResident( unsigned int pageId )
     return pagingSystem->isResident( pageId );
 }
 
-// Returns false if the device doesn't support sparse textures.
 bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
 {
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     return m_pageLoader->pushMappings( stream, context );
 }
 
-// Process page requests.
 Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
-
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Create a Ticket that the caller can use to track request processing.
@@ -295,6 +447,8 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
 Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Create a Ticket that the caller can use to track request processing.
@@ -315,12 +469,18 @@ void DemandLoaderImpl::abort()
 void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 {
     // Ask the PageTableManager for the RequestHandler associated with the given page index.
-    TextureRequestHandler* handler = dynamic_cast<TextureRequestHandler*>( m_pageTableManager->getRequestHandler( pageId ) );
-    DEMAND_ASSERT_MSG( handler != nullptr, "Page request does not correspond to a known resource" );
-    handler->unmapTileResource( stream, pageId );
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+    RequestHandler* handler = m_pageTableManager->getRequestHandler( pageId );
+    OTK_ASSERT_MSG( handler, "Page request does not correspond to a known resource." );
+
+    // Make sure that the handler is a TextureRequestHandler instead of a null request handler
+    TextureRequestHandler* textureRequestHandler = dynamic_cast<TextureRequestHandler*>( handler );
+    if( textureRequestHandler ) 
+        textureRequestHandler->unmapTileResource( stream, pageId );
 }
 
-void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, void* pageTableEntry )
+void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, unsigned long long pageTableEntry )
 {
     m_pageLoader->setPageTableEntry( pageId, evictable, pageTableEntry);
 }
@@ -330,30 +490,6 @@ PagingSystem* DemandLoaderImpl::getPagingSystem() const
     return m_pageLoader->getPagingSystem();
 }
 
-
-#if CUDA_VERSION >= 11020
-MemoryPool<DeviceAsyncAllocator, RingSuballocator>* DemandLoaderImpl::getDeviceTransferPool()
-{
-    std::unique_lock<std::mutex> lock( m_deviceTransferPoolsMutex );
-    return m_deviceTransferPools.findOrCreate( []() {
-        DeviceAsyncAllocator* allocator = new DeviceAsyncAllocator();
-        return std::unique_ptr<MemoryPool<DeviceAsyncAllocator, RingSuballocator>>(
-            new MemoryPool<DeviceAsyncAllocator, RingSuballocator>( allocator, nullptr, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
-    } );
-}
-#else
-MemoryPool<DeviceAllocator, RingSuballocator>* DemandLoaderImpl::getDeviceTransferPool()
-{
-    std::unique_lock<std::mutex> lock( m_deviceTransferPoolsMutex );
-    return m_deviceTransferPools.findOrCreate( []() {
-        DeviceAllocator*  allocator    = new DeviceAllocator();
-        RingSuballocator* suballocator = new RingSuballocator( 4 << 20 );
-        return std::unique_ptr<MemoryPool<DeviceAllocator, RingSuballocator>>(
-            new MemoryPool<DeviceAllocator, RingSuballocator>( allocator, suballocator, 8 * ( 1 << 20 ), 64 * ( 1 << 20 ) ) );
-    } );
-}
-#endif
-
 PageTableManager* DemandLoaderImpl::getPageTableManager()
 {
     return m_pageTableManager.get();
@@ -361,6 +497,8 @@ PageTableManager* DemandLoaderImpl::getPageTableManager()
 
 void DemandLoaderImpl::freeStagedTiles( CUstream stream )
 {
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     std::unique_lock<std::mutex> lock( m_mutex );
 
     PagingSystem* pagingSystem = getPagingSystem();
@@ -383,64 +521,54 @@ void DemandLoaderImpl::freeStagedTiles( CUstream stream )
 
 const TransferBufferDesc DemandLoaderImpl::allocateTransferBuffer( CUmemorytype memoryType, size_t size, CUstream /*stream*/ )
 {
-    std::unique_lock<std::mutex> lock( m_mutex );
     const unsigned int alignment = 4096;
-    
+
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     MemoryBlockDesc memoryBlock{};
     if( memoryType == CU_MEMORYTYPE_HOST )
         memoryBlock = m_pageLoader->getPinnedMemoryPool()->alloc( size, alignment );
     else if( memoryType == CU_MEMORYTYPE_DEVICE )
-        memoryBlock = getDeviceTransferPool()->alloc( size, alignment );
+        memoryBlock = m_deviceTransferPool.alloc( size, alignment );
+
     return TransferBufferDesc{ memoryType, memoryBlock };
 }
 
- 
 void DemandLoaderImpl::freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream )
 {
     // Free the transfer buffer after the stream clears
 
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     if( transferBuffer.memoryType == CU_MEMORYTYPE_HOST )
         m_pageLoader->getPinnedMemoryPool()->freeAsync( transferBuffer.memoryBlock, stream );
     else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
-        getDeviceTransferPool()->freeAsync( transferBuffer.memoryBlock, stream );
+        m_deviceTransferPool.freeAsync( transferBuffer.memoryBlock, stream );
     else 
-        DEMAND_ASSERT_MSG( false, "Unknown memory type." );
+        OTK_ASSERT_MSG( false, "Unknown memory type." );
 }
-
 
 Statistics DemandLoaderImpl::getStatistics() const
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    Statistics                   stats{};
-    stats.requestProcessingTime = m_pageLoader->getTotalProcessingTime();
-    stats.numTextures           = m_textures.size();
 
-    // Multiple textures might share the same ImageSource, so we create a set as we go to avoid
-    // duplicate counting.
+    Statistics stats{};
+    stats.numTextures           = m_textures.size();
+    stats.requestProcessingTime = m_pageLoader->getTotalProcessingTime();
+    stats.deviceMemoryUsed      = getDeviceMemoryManager()->getTotalDeviceMemory();
+
+    // Multiple textures can share the same ImageSource. Use a set to avoid duplicate counting.
     std::set<imageSource::ImageSource*> images;
     for( auto texIt = m_textures.begin(); texIt != m_textures.end(); ++texIt )
     {
-        // Skip null textures
         DemandTextureImpl* tex = texIt->second.get();
-        if( tex == nullptr ) 
-            continue; 
-
-        tex->accumulateStatistics( stats, images );
+        // If the texture has a new image, add its stats
+        if( tex && ( images.find( tex->getImage().get() ) == images.end() ) ) 
+        {
+            tex->accumulateStatistics( stats );
+            images.insert( tex->getImage().get() );
+        }
     }
-
-    m_pageLoader->accumulateStatistics( stats );
-
     return stats;
-}
-
-const Options& DemandLoaderImpl::getOptions() const
-{
-    return m_pageLoader->getOptions();
-}
-
-std::vector<unsigned> DemandLoaderImpl::getDevices() const
-{
-    return m_pageLoader->getDevices();
 }
 
 void DemandLoaderImpl::enableEviction( bool evictionActive )
@@ -465,14 +593,10 @@ void DemandLoaderImpl::setMaxTextureMemory( size_t maxMem )
 
 unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
 {
-    // Allocate enough pages per texture, aligned to PAGES_PER_TEXTURE
-    unsigned int textureId = m_pageTableManager->reserveBackedPages( PAGES_PER_TEXTURE * numTextures, &m_samplerRequestHandler );
-    if( textureId % PAGES_PER_TEXTURE != 0 )
-    {
-        unsigned int alignmentPages = PAGES_PER_TEXTURE - (textureId % PAGES_PER_TEXTURE);
-        m_pageTableManager->reserveBackedPages( alignmentPages, &m_samplerRequestHandler );
-        textureId = textureId + alignmentPages;
-    }
+    // Allocate pages for numTextures. Note: pages for all textures were reserved in the constructor of DemandLoaderImpl.
+    unsigned int textureId = static_cast<unsigned int>( m_textures.size() );
+    OTK_ASSERT_MSG( textureId + numTextures - 1 < getOptions().maxTextures, "Too many textures defined.\n" );
+    (void)numTextures;  // silence unused variable warning
     return textureId;
 }
 
@@ -481,7 +605,7 @@ DemandLoader* createDemandLoader( const Options& options )
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
     // Initialize CUDA if necessary
-    DEMAND_CUDA_CHECK( cuInit( 0 ) );
+    OTK_ERROR_CHECK( cuInit( 0 ) );
 
     ContextSaver contextSaver;
     return new DemandLoaderImpl( options );

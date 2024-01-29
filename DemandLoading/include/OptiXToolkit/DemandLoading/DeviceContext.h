@@ -59,6 +59,7 @@ struct DeviceContext
 {
     DeviceArray<unsigned long long> pageTable;
     unsigned int                    maxNumPages;  // the actual capacity of the page table is smaller
+    unsigned int                    maxTextures;
     unsigned int*                   referenceBits;
     unsigned int*                   residenceBits;
     unsigned int*                   lruTable;

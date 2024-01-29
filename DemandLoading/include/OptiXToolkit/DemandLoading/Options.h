@@ -48,8 +48,12 @@ struct Options
     // Demand loading
     unsigned int maxRequestedPages = 8192;  ///< max requests to pull from device in processRequests
     unsigned int maxFilledPages    = 8192;  ///< num slots to push mappings back to device in processRequests
-    bool         useSparseTextures = true;  ///< whether to use sparse or dense textures
-    bool         useSmallTextureOptimization = false;  ///< whether to use dense textures for very small textures
+
+    // Demand load textures
+    unsigned int maxTextures         = 256 * 1024;  ///< The maximum demand load textures that can be defined
+    bool useSparseTextures           = true;   ///< whether to use sparse or dense textures
+    bool useSmallTextureOptimization = false;  ///< whether to use dense textures for very small textures
+    bool useCascadingTextureSizes    = false;  ///< whether to use cascading texture sizes
 
     // Memory limits
     size_t maxTexMemPerDevice = 0;  ///< texture to allocate per device (in MB) before starting eviction (0 is unlimited)
@@ -60,16 +64,15 @@ struct Options
     unsigned int maxEvictablePages   = 0;     ///< not used
     unsigned int maxInvalidatedPages = 8192;  ///< max slots to push invalidated pages back to device in processRequests
     unsigned int maxStagedPages      = 8192;  ///< num staged pages (pages flagged as non-resident, ready to be evicted) to maintain.
-    unsigned int maxRequestQueueSize = 32768; ///< max size for host-side request queue (filled over multiple processRequests cycles)
+    unsigned int maxRequestQueueSize = 8192;  ///< max size for host-side request queue (filled over multiple processRequests cycles)
     bool useLruTable                 = true;  ///< Whether to use LRU table, or randomized eviction
     bool evictionActive              = true;  ///< whether eviction is active. (turning it off speeds up texture ops)
 
     // Concurrency
     unsigned int maxThreads = 0;  ///< max threads for processing requests. (0 means std::thread::hardware_concurrency)
-    unsigned int maxActiveStreams = 4;  ///< number of active CUDA streams across all devices.
 
     // Trace file
-    std::string traceFile = "";  ///< trace filename (disabled if empty).
+    std::string traceFile;  ///< trace filename (disabled if empty).
 };
 // clang-format on
 

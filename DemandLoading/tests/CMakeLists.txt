@@ -28,27 +28,26 @@
 
 include( FetchGtest )
 include( GoogleTest )
-include( embed_ptx )
+include( embed_cuda )
 
-embed_ptx( CONST HEADER TestDemandLoadingKernelsPTX.h
+embed_cuda( CONST HEADER TestDemandLoadingKernelsCuda.h
+    PTX
     OUTPUT_TARGET testDemandLoadingKernels
-    PTX_LINK_LIBRARIES
+    LIBRARIES
         DemandLoading
         ShaderUtil
     SOURCES DeferredImageLoadingKernels.cu
-    FOLDER DemandLoading/tests
+    FOLDER DemandLoading/Tests
 )
 
 otk_add_executable( testDemandLoading
   main.cpp
-  CudaCheck.h
   DeferredImageLoading.cpp
   DeferredImageLoadingKernels.h
   DemandLoaderTestKernels.cu
   DemandLoaderTestKernels.h
   DeviceConstantImage.cpp
   DeviceConstantImageKernels.cu
-  ErrorCheck.h
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
   TestContextSaver.cpp
@@ -61,7 +60,6 @@ otk_add_executable( testDemandLoading
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
-  TestPerContextData.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
   TestSparseTexture.h
@@ -74,6 +72,8 @@ otk_add_executable( testDemandLoading
   TestTicket.cpp
   TestTileIndexing.cpp
   TestTraceFile.cpp
+  SourceDir.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
 
 source_group( "CUDA Files" REGULAR_EXPRESSION ".*\.cu" )
@@ -94,6 +94,7 @@ target_link_libraries( testDemandLoading
   CUDA::cudart
   OpenEXR::OpenEXR # for half
   GTest::gmock
+  ${CMAKE_DL_LIBS}
   )
 
 if( OTK_USE_CUDA_MEMORY_POOLS )
@@ -109,22 +110,22 @@ endif()
 
 set_target_properties( testDemandLoading 
   PROPERTIES CXX_STANDARD 14 # Required by latest gtest
-  FOLDER DemandLoading/tests
+  FOLDER DemandLoading/Tests
 )
 
 
 # Register test cases with CTest.
 gtest_discover_tests(testDemandLoading PROPERTIES LABELS DemandLoading)
 
-# The texture footprint test employs an OptiX kernel, which is compiled from CUDA to PTX.
-include( embed_ptx )
-embed_ptx(
-  CONST HEADER TextureFootprintPTX.h
+# The texture footprint test employs an OptiX kernel, which is compiled from CUDA to OPTIXIR.
+include( embed_cuda )
+embed_cuda(
+  CONST HEADER TextureFootprintCuda.h
   OUTPUT_TARGET
     testTextureFootprintKernel
-  PTX_LINK_LIBRARIES
+  LIBRARIES
     DemandLoading
-  FOLDER DemandLoading/tests
+  FOLDER DemandLoading/Tests
   SOURCES
     TestTextureFootprint.cu
 )
@@ -143,8 +144,9 @@ target_link_libraries( testTextureFootprint
   DemandLoading
   CUDA::cudart
   GTest::gtest_main
+  ${CMAKE_DL_LIBS}
   )
-set_target_properties( testTextureFootprint PROPERTIES FOLDER DemandLoading/tests )
+set_target_properties( testTextureFootprint PROPERTIES FOLDER DemandLoading/Tests )
 
 # Copy shared libraries that the built executable depends on.
 if( $<TARGET_RUNTIME_DLLS:testTextureFootprint> )
@@ -155,7 +157,7 @@ endif()
 
 set_target_properties( testDemandLoading PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER DemandLoading/tests
+  FOLDER DemandLoading/Tests
 )
 
 # Register test cases with CTest.

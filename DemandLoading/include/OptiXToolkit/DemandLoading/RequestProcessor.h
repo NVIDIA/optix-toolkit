@@ -29,6 +29,7 @@
 #pragma once
 
 #include <OptiXToolkit/DemandLoading/Ticket.h>
+#include <OptiXToolkit/DemandLoading/RequestFilter.h>
 
 #include <cuda.h>
 

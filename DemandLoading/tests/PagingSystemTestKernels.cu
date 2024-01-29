@@ -27,7 +27,7 @@
 //
 
 #include "PagingSystemTestKernels.h"
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <OptiXToolkit/DemandLoading/Paging.h>
 
@@ -56,6 +56,6 @@ __host__ void launchPageRequester( CUstream             stream,
     unsigned int threadsPerBlock = 32;
     unsigned int numBlocks       = ( numPages + threadsPerBlock - 1 ) / threadsPerBlock;
     pageRequester<<<numBlocks, threadsPerBlock, 0U, stream>>>( context, numPages, pageIds, outputPages, pagesResident );
-    DEMAND_CUDA_CHECK( cudaStreamSynchronize( stream ) );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaStreamSynchronize( stream ) );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }

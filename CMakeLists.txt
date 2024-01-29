@@ -60,4 +60,5 @@ option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 add_subdirectory(DemandGeometry)
 add_subdirectory(DemandLoading)
+add_subdirectory(DemandMaterial)
 add_subdirectory(ImageSource)

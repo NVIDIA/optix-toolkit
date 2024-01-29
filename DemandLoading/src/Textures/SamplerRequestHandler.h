@@ -47,6 +47,9 @@ class SamplerRequestHandler : public RequestHandler
     /// Fill a request for the specified page using the given stream.  
     void fillRequest( CUstream stream, unsigned int pageId ) override;
 
+    /// Load or reload a page on the given stream
+    void loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident = true );
+
   private:
     bool fillDenseTexture( CUstream stream, unsigned int pageId );
     void fillBaseColorRequest( CUstream stream, DemandTextureImpl* texture, unsigned int pageId );

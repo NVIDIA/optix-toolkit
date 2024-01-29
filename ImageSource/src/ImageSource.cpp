@@ -26,18 +26,31 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+
 #include "Config.h"  // for OTK_USE_OIIO
 
-#include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
 
-#include "Exception.h"
-
 #include <cstddef>  // for size_t
+#include <fstream>
+#include <memory>
+#include <string>
+
+namespace {
+
+bool fileExists( const std::string& path )
+{
+    return std::ifstream( path ).good();
+}
+
+}  // namespace
+
 
 namespace imageSource {
 
@@ -66,28 +79,26 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     // Special cases
     if( filename == "checkerboard" )
     {
-        return std::shared_ptr<ImageSource>( new CheckerBoardImage( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true ) );
+        return std::make_shared<CheckerBoardImage>( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true );
     }
 
     // Construct ImageSource based on filename extension.
-    size_t      dot       = filename.find_last_of( "." );
-    std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
-    std::string path = directory + '/' + filename;
+    const size_t      dot       = filename.find_last_of( '.' );
+    const std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
+
+    // Attempt relative path first, then absolute path.
+    const std::string path = fileExists( filename ) ? filename : directory + '/' + filename;
 
     if( extension == ".exr" )
     {
-        return std::shared_ptr<ImageSource>( new CoreEXRReader( path ) );
+        return std::make_shared<CoreEXRReader>( path );
     }
-    else
-    {
-#if OTK_USE_OIIO        
-        return std::shared_ptr<ImageSource>( new OIIOReader( path ) );
-#else
-        std::string msg= "Image file not supported: ";
-        throw Exception( ( msg + filename ).c_str() );        
-#endif
-    }
-}
 
+#if OTK_USE_OIIO
+    return std::make_shared<OIIOReader>( path );
+#else
+    throw std::runtime_error( "Image file not supported: " + filename );
+#endif
+}
 
 }  // namespace imageSource

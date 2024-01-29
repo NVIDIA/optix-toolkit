@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <OptiXToolkit/Memory/PinnedItemPool.h>
 
@@ -46,21 +46,21 @@ class TestPinnedItemPool : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
         m_pool.reset( new PinnedItemPool<int>( m_maxItems ) );
 
         // Create streams.
-        DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );
-        DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream2, 0U ) );
+        OTK_ERROR_CHECK( cuStreamCreate( &m_stream, 0U ) );
+        OTK_ERROR_CHECK( cuStreamCreate( &m_stream2, 0U ) );
     }
 
     void TearDown() override
     {
         m_pool.reset( nullptr );
-        DEMAND_CUDA_CHECK( cuStreamDestroy( m_stream ) );
-        DEMAND_CUDA_CHECK( cuStreamDestroy( m_stream2 ) );
+        OTK_ERROR_CHECK( cuStreamDestroy( m_stream ) );
+        OTK_ERROR_CHECK( cuStreamDestroy( m_stream2 ) );
     }
 
   protected:
@@ -116,8 +116,8 @@ TEST_F( TestPinnedItemPool, TestWaitMultiThreaded )
     std::atomic<bool> finished( false );
     std::thread       waiter( [this, &finished] {
         // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
         int* item = m_pool->allocate();
         m_pool->free( item, m_stream2 );

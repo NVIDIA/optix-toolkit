@@ -28,7 +28,11 @@
 
 #include "TestSparseTexture.h"
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+
+#if __CUDA_ARCH__ >= 600
+#define SPARSE_TEX_SUPPORT true
+#endif
 
 __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
 {
@@ -40,8 +44,12 @@ __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4*
     float s = x / (float)width;
     float t = y / (float)height;
 
-    bool   isResident = false;
-    float4 pixel      = tex2DLod<float4>( texture, s, t, lod, &isResident );
+    bool   isResident = true;
+#ifdef SPARSE_TEX_SUPPORT
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod, &isResident );
+#else
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod );
+#endif
 
     output[y * width + x] = isResident ? pixel : make_float4( -1.f, -1.f, -1.f, -1.f );
 }
@@ -51,7 +59,7 @@ __host__ void launchSparseTextureKernel( cudaTextureObject_t texture, float4* ou
     dim3 dimBlock( 16, 16 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
     sparseTextureKernel<<<dimGrid, dimBlock>>>( texture, output, width, height, lod );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }
 
 __global__ static void wrapTestKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
@@ -65,8 +73,12 @@ __global__ static void wrapTestKernel( cudaTextureObject_t texture, float4* outp
     float s = 3.f * x / (float)width - 1;
     float t = 3.f * y / (float)height - 1;
 
-    bool   isResident = false;
-    float4 pixel      = tex2DLod<float4>( texture, s, t, lod, &isResident );
+    bool isResident = true;
+#ifdef SPARSE_TEX_SUPPORT
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod, &isResident );
+#else
+    float4 pixel = tex2DLod<float4>( texture, s, t, lod );
+#endif
 
     output[y * width + x] = isResident ? pixel : make_float4( 1.f, 0.f, 1.f, 0.f );
 }
@@ -76,5 +88,5 @@ __host__ void launchWrapTestKernel( cudaTextureObject_t texture, float4* output,
     dim3 dimBlock( 16, 16 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
     wrapTestKernel<<<dimGrid, dimBlock>>>( texture, output, width, height, lod );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }

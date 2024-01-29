@@ -40,7 +40,6 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
-#include "Util/PerContextData.h"
 #include "Util/TraceFile.h"
 
 #include <cuda.h>
@@ -67,18 +66,18 @@ class DemandPageLoaderImpl : public DemandPageLoader
 {
   public:
     /// Construct demand loading sytem.
-    DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options );
+    DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options );
 
-    DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager, RequestProcessor *requestProcessor, const Options& options );
+    DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager, RequestProcessor *requestProcessor, std::shared_ptr<Options> options );
 
-    /// Destroy demand loading system.
+    /// Destroy demand page loader.
     ~DemandPageLoaderImpl() override = default;
 
-    static bool supportsSparseTextures( unsigned int deviceIndex );
-
+    /// Allocate backed or unbacked pages
     unsigned int allocatePages( unsigned int numPages, bool backed ) override;
 
-    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) override;
+    /// Set the value of a single page table entry
+    void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) override;
 
     /// Prepare for launch.  The caller must ensure that the current CUDA context matches the given
     /// stream.  Returns false if the current device does not support sparse textures.  If
@@ -98,24 +97,21 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// the given stream.
     void replayRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
 
+#if 0    
     /// Get the demand loading configuration options.
-    const Options& getOptions() const { return m_options; }
-
-    unsigned int getNumDevices() const { return m_numDevices; }
-
-    /// Get indices of the devices that can be employed by the DemandLoader.
-    std::vector<unsigned int> getDevices() const override { return m_devices; }
-
+    const Options& getOptions() const { return *m_options; }
+#endif
+    
     /// Turn on or off eviction
-    void enableEviction( bool evictionActive ) override { m_options.evictionActive = evictionActive; }
+    void enableEviction( bool evictionActive ) override { m_options->evictionActive = evictionActive; }
 
     /// Get the DeviceMemoryManager for the current CUDA context.
-    DeviceMemoryManager* getDeviceMemoryManager() const;
+    DeviceMemoryManager* getDeviceMemoryManager() { return &m_deviceMemoryManager; }
 
     otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator> *getPinnedMemoryPool() { return &m_pinnedMemoryPool; }
 
     /// Get the PagingSystem for the current CUDA context.
-    PagingSystem* getPagingSystem() const;
+    PagingSystem* getPagingSystem() { return &m_pagingSystem; };
 
     void setMaxTextureMemory( size_t maxMem );
 
@@ -123,20 +119,12 @@ class DemandPageLoaderImpl : public DemandPageLoader
 
     double getTotalProcessingTime() const { return m_totalProcessingTime; }
 
-    /// Accumulate statistics into the given struct.
-    void accumulateStatistics( Statistics& stats ) const;
-
   private:
-    mutable std::mutex        m_mutex;
-    Options                   m_options;
-    unsigned int              m_numDevices;
-    std::vector<unsigned int> m_devices;  // Indices of supported devices.
+    mutable std::mutex       m_mutex;
+    std::shared_ptr<Options> m_options;
+    DeviceMemoryManager      m_deviceMemoryManager;
 
-    mutable PerContextData<DeviceMemoryManager> m_deviceMemoryManagers;  // Manages device memory (one per CUDA context)
-    mutable PerContextData<PagingSystem>        m_pagingSystems;  // Manages device interaction (one per CUDA context)
-
-    mutable std::mutex m_deviceMemoryManagersMutex;
-    mutable std::mutex m_pagingSystemsMutex;
+    otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator> m_pinnedMemoryPool;
 
     struct InvalidationRange
     {
@@ -144,22 +132,20 @@ class DemandPageLoaderImpl : public DemandPageLoader
         unsigned int endPage;
         PageInvalidatorPredicate* predicate;
     };
-    PerContextData<std::vector<InvalidationRange>> m_pagesToInvalidate;
-    std::mutex m_pagesToInvalidateMutex;
+    std::vector<InvalidationRange> m_pagesToInvalidate;
 
     std::shared_ptr<PageTableManager> m_pageTableManager;  // Allocates ranges of virtual pages.
     RequestProcessor*   m_requestProcessor;  // Processes page requests.
 
-    mutable otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator> m_pinnedMemoryPool;
-
-    double m_totalProcessingTime{};
+    PagingSystem m_pagingSystem;
 
     std::vector<std::unique_ptr<RequestHandler>> m_requestHandlers;
 
+    double m_totalProcessingTime{};
+
+
     // Invalidate the pages for current device in m_pagesToInvalidate
     void invalidatePages( CUstream stream, DeviceContext& context );
-
-    std::vector<InvalidationRange>* getPagesToInvalidate();
 };
 
 }  // namespace demandLoading

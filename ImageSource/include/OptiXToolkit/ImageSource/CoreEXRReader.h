@@ -41,7 +41,8 @@ using exr_context_t = struct _priv_exr_context_t*;
 
 namespace imageSource {
 
-/// OpenEXR Core image reader.
+/// OpenEXR Core image reader. Uses OpenEXR 3.0. This is preferred because
+/// it allows concurrent reading of tiles in the same EXR file.
 class CoreEXRReader : public ImageSourceBase
 {
   public:
@@ -71,13 +72,7 @@ class CoreEXRReader : public ImageSourceBase
     /// Read the specified tile or mip level, returning the data in dest.  dest must be large enough
     /// to hold the tile.  Pixels outside the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
-    bool readTile( char*        dest,
-                   unsigned int mipLevel,
-                   unsigned int tileX,
-                   unsigned int tileY,
-                   unsigned int tileWidth,
-                   unsigned int tileHeight,
-                   CUstream     stream ) override;
+    bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) override;
 
     /// Read the specified mipLevel. Throws an exception on error.
     bool readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight,

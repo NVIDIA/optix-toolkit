@@ -26,22 +26,24 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include "DemandPageLoaderImpl.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#include <cuda_runtime.h>
 
 // Check whether sparse textures are supported on at least one device.
 bool sparseTexturesSupported()
 {
     cudaFree(nullptr);
     int numDevices;
-    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
+    OTK_ERROR_CHECK( cuDeviceGetCount( &numDevices ) );
     for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
     {
-        if( demandLoading::DemandPageLoaderImpl::supportsSparseTextures( deviceIndex ) )
+        if( demandLoading::deviceSupportsSparseTextures( deviceIndex ) )
             return true;
     }
     return false;

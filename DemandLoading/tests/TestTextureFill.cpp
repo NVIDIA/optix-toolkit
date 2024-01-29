@@ -32,6 +32,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 
 #include <algorithm>
 #include <cmath>
@@ -58,6 +59,11 @@ class TestTextureFill : public testing::Test
     void SetUp() override
     {
         // Initialize CUDA.
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
+        CHK( cudaSetDevice( m_deviceIndex ) );
         CHK( cudaFree( nullptr ) );
     }
 
@@ -105,6 +111,9 @@ class TestTextureFill : public testing::Test
                             unsigned int              mapBatchSize = 1 );
 
     void doMapTilesTest( imageSource::ImageSource& imageSource, unsigned int tileBlockWidth, unsigned int tileBlockHeight, bool unmap );
+
+  private:
+    unsigned int m_deviceIndex;
 };
 
 }  // end namespace
@@ -196,6 +205,10 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                                          bool                      batchMode,
                                          unsigned int              mapBatchSize )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     // Get image properties
     imageSource::TextureInfo texInfo;
     imageSource.open( &texInfo );
@@ -283,7 +296,8 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
                 // Read the image tile into the tile buffer
                 char* tempTileBuff = &tempTileBuffs[tileSize*(x/tileWidth)];
                 if( readImage )
-                    imageSource.readTile( tempTileBuff, 0, x / tileWidth, y / tileHeight, tileWidth, tileHeight, streams[streamId] );
+                    imageSource.readTile( tempTileBuff, 0, { x / tileWidth, y / tileHeight, tileWidth, tileHeight },
+                                          streams[streamId] );
             }
 
             for( unsigned int x = 0; x < texInfo.width; x += tileWidth )
@@ -356,7 +370,8 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
                 // Read the image tile into the tile buffer
                 if( readImage )
-                    imageSource.readTile( tempTileBuff, 0, x / tileWidth, y / tileHeight, tileWidth, tileHeight, streams[streamId] );
+                    imageSource.readTile( tempTileBuff, 0, { x / tileWidth, y / tileHeight, tileWidth, tileHeight },
+                                          streams[streamId] );
                 
                 // Copy tile data from tile buffer to sparse texture
                 if( transferTexture )
@@ -399,6 +414,10 @@ void TestTextureFill::doTextureFillTest( int                       numStreams,
 
 void TestTextureFill::doMapTilesTest( imageSource::ImageSource& imageSource, unsigned int tileBlockWidth, unsigned int tileBlockHeight, bool unmap )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     // Get image properties
     imageSource::TextureInfo texInfo;
     imageSource.open( &texInfo );

@@ -26,10 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoaderImpl.h"
 #include "DemandLoaderTestKernels.h"
 
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gmock/gmock.h>
@@ -49,25 +50,24 @@ class TestDemandLoader : public testing::Test
     void SetUp() override
     {
         // Create one stream per device.
-        int numDevices;
-        cudaGetDeviceCount( &numDevices );
+        unsigned int numDevices = getCudaDeviceCount();
         m_streams.resize( numDevices );
-        for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+        m_loaders.resize( numDevices );
+        for( unsigned int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
             // Initialize CUDA
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
             // Create a stream per device.
-            DEMAND_CUDA_CHECK( cuStreamCreate( &m_streams[deviceIndex], 0 ) );
+            OTK_ERROR_CHECK( cuStreamCreate( &m_streams[deviceIndex], 0 ) );
+
+            // Create DemandLoader per device
+            m_loaders[deviceIndex] = dynamic_cast<DemandLoaderImpl*>( createDemandLoader( Options() ) );
         }
 
-        // Create DemandLoader
-        m_loader = dynamic_cast<DemandLoaderImpl*>( createDemandLoader( Options() ) );
-
         // Create ImageSource
-        m_imageSource =
-            std::unique_ptr<ImageSource>( new CheckerBoardImage( 2048, 2048, 32 /*squaresPerSide*/, true /*useMipmaps*/ ) );
+        m_imageSource.reset( new CheckerBoardImage( 2048, 2048, 32 /*squaresPerSide*/, true /*useMipmaps*/ ) );
 
         // Create TextureDescriptor
         m_descriptor.addressMode[0]   = CU_TR_ADDRESS_MODE_WRAP;
@@ -81,19 +81,19 @@ class TestDemandLoader : public testing::Test
     {
         for( unsigned int deviceIndex = 0; deviceIndex < static_cast<unsigned int>( m_streams.size() ); ++deviceIndex )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuStreamDestroy( m_streams[deviceIndex] ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cuStreamDestroy( m_streams[deviceIndex] ) );
+            destroyDemandLoader( m_loaders[deviceIndex] );
+            m_loaders[deviceIndex] = nullptr;
         }
-        destroyDemandLoader( m_loader );
-        m_loader = nullptr;
     }
 
 
-    int launchKernel( CUstream stream, const std::function<void( const DeviceContext& )>& launchFunction )
+    int launchKernel( DemandLoaderImpl* loader, CUstream stream, const std::function<void( const DeviceContext& )>& launchFunction )
     {
         // Prepare for launch, obtaining host-side DeviceContext.
         DeviceContext context;
-        bool          ok = m_loader->launchPrepare( stream, context );
+        bool          ok = loader->launchPrepare( stream, context );
         EXPECT_TRUE( ok );
 
         // Call the given function to launch the kernel.  The device context will be copied to
@@ -101,17 +101,17 @@ class TestDemandLoader : public testing::Test
         launchFunction( context );
 
         // Process requests.
-        Ticket ticket = m_loader->processRequests( stream, context );
+        Ticket ticket = loader->processRequests( stream, context );
         ticket.wait();
 
         return ticket.numTasksTotal();
     }
 
   protected:
-    std::vector<CUstream>        m_streams;
-    DemandLoaderImpl*            m_loader{};
-    std::shared_ptr<ImageSource> m_imageSource;
-    TextureDescriptor            m_descriptor{};
+    std::vector<CUstream>          m_streams;
+    std::vector<DemandLoaderImpl*> m_loaders;
+    std::shared_ptr<ImageSource>   m_imageSource;
+    TextureDescriptor              m_descriptor{};
 };
 
 TEST_F( TestDemandLoader, TestCreateDestroy )
@@ -121,7 +121,8 @@ TEST_F( TestDemandLoader, TestCreateDestroy )
 
 TEST_F( TestDemandLoader, TestCreateTexture )
 {
-    m_loader->createTexture( m_imageSource, m_descriptor );
+    OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+    m_loaders[0]->createTexture( m_imageSource, m_descriptor );
     // The texture is opaque, so we can't really validate it.
 }
 
@@ -138,9 +139,9 @@ class TestDemandLoaderResident : public TestDemandLoader
         m_devPageTableEntry.resize( numDevices );
         for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident[deviceIndex] ), sizeof( bool ) ) );
-            DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devPageTableEntry[deviceIndex] ),
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devIsResident[deviceIndex] ), sizeof( bool ) ) );
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devPageTableEntry[deviceIndex] ),
                                            sizeof( unsigned long long ) ) );
         }
     }
@@ -150,9 +151,9 @@ class TestDemandLoaderResident : public TestDemandLoader
         size_t numDevices = m_devIsResident.size();
         for( size_t deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident[deviceIndex] ) ) );
-            DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devPageTableEntry[deviceIndex] ) ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devIsResident[deviceIndex] ) ) );
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devPageTableEntry[deviceIndex] ) ) );
         }
         TestDemandLoader::TearDown();
     }
@@ -160,16 +161,17 @@ class TestDemandLoaderResident : public TestDemandLoader
   protected:
     int launchKernelAndSynchronize( unsigned int deviceIndex, unsigned int pageId, bool* isResident )
     {
+        DemandLoaderImpl*   loader            = m_loaders[deviceIndex];
         CUstream            stream            = m_streams[deviceIndex];
         bool*               devIsResident     = m_devIsResident[deviceIndex];
         unsigned long long* devPageTableEntry = m_devPageTableEntry[deviceIndex];
         const int           numFilled =
-            launchKernel( stream, [stream, pageId, devIsResident, devPageTableEntry]( const DeviceContext& context ) {
+            launchKernel( loader, stream, [stream, pageId, devIsResident, devPageTableEntry]( const DeviceContext& context ) {
                 launchPageRequester( stream, context, pageId, devIsResident, devPageTableEntry );
             } );
         // Copy isResident result to host.
-        DEMAND_CUDA_CHECK( cuStreamSynchronize( stream ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
+        OTK_ERROR_CHECK( cuStreamSynchronize( stream ) );
+        OTK_ERROR_CHECK( cudaMemcpy( isResident, devIsResident, sizeof( bool ), cudaMemcpyDeviceToHost ) );
         return numFilled;
     }
 
@@ -179,16 +181,20 @@ class TestDemandLoaderResident : public TestDemandLoader
 
 TEST_F( TestDemandLoaderResident, TestSamplerRequest )
 {
-    const DemandTexture& texture = m_loader->createTexture( m_imageSource, m_descriptor );
-    const unsigned int   pageId  = texture.getId();
-
     // TODO: this fails with multiple GPUs under both Windows and Linux.
-    // for( unsigned int deviceIndex : m_loader->getDevices() )
-    for( unsigned int deviceIndex = 0; deviceIndex < 1; ++deviceIndex )
+    //for( unsigned int deviceIndex : getSparseTextureDevices() )
+    const std::vector<unsigned int> devices = getSparseTextureDevices();
+    if( devices.empty() )
+        return;
+
+    const unsigned int deviceIndex = devices[0];
     {
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+        const DemandTexture& texture = m_loaders[deviceIndex]->createTexture( m_imageSource, m_descriptor );
+        const unsigned int   pageId  = texture.getId();
+
         bool isResident1{ true };
         bool isResident2{};
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
 
         // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
         // The helper function processes any requests.
@@ -222,7 +228,13 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     using namespace testing;
     const unsigned int             numPages = 256;
     StrictMock<MockResourceLoader> resLoader;
-    const unsigned int startPage = m_loader->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
+    unsigned int startPage = 0; 
+    for( unsigned int deviceIndex : devices )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+        startPage = m_loaders[deviceIndex]->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
+    }
+
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
@@ -234,7 +246,7 @@ TEST_F( TestDemandLoaderResident, TestResourceRequest )
     {
         bool isResident1{ true };
         bool isResident2{};
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
 
         // Launch the kernel, which requests a page and returns a boolean indicating whether it's
         // resident.  The helper function processes any requests.
@@ -257,8 +269,13 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
     const unsigned int devices[] = { 0 };
     using namespace testing;
     StrictMock<MockResourceLoader> resLoader;
-    const unsigned int             numPages = 256;
-    const unsigned int startPage = m_loader->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
+    const unsigned int numPages = 256;
+    unsigned int startPage = 0;
+    for( unsigned int deviceIndex : devices )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+        startPage = m_loaders[deviceIndex]->createResource( numPages, StrictMock<MockResourceLoader>::callback, &resLoader );
+    }
     // Must configure mocks before making any method calls.
     for( unsigned int deviceIndex : devices )
     {
@@ -274,7 +291,7 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
         bool               isResident1{ true };
         bool               isResident2{ true };
         bool               isResident3{};
-        DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
 
         const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );  // request deferred
         const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );  // request fulfilled
@@ -291,9 +308,11 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
 
 TEST_F( TestDemandLoader, TestTextureVariants )
 {
+    OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+
     // Make first texture
     TextureDescriptor  texDesc1 = m_descriptor;
-    DemandTextureImpl* texture1 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc1 ).getId() );
+    DemandTextureImpl* texture1 = m_loaders[0]->getTexture( m_loaders[0]->createTexture( m_imageSource, texDesc1 ).getId() );
     texture1->open();
     texture1->init();
 
@@ -303,7 +322,7 @@ TEST_F( TestDemandLoader, TestTextureVariants )
     texDesc2.addressMode[1]     = CU_TR_ADDRESS_MODE_CLAMP;
     texDesc2.filterMode         = CU_TR_FILTER_MODE_POINT;
     texDesc2.mipmapFilterMode   = CU_TR_FILTER_MODE_POINT;
-    DemandTextureImpl* texture2 = m_loader->getTexture( m_loader->createTexture( m_imageSource, texDesc2 ).getId() );
+    DemandTextureImpl* texture2 = m_loaders[0]->getTexture( m_loaders[0]->createTexture( m_imageSource, texDesc2 ).getId() );
     texture2->open();
     texture2->init();
 
@@ -340,7 +359,7 @@ class TestDemandLoaderBatches : public TestDemandLoader
         return static_cast<TestDemandLoaderBatches*>( context )->loadResource( stream, pageId, pageTableEntry );
     }
     bool loadResource( CUstream stream, unsigned int pageId, void** pageTableEntry );
-    void testBatch( CUstream stream );
+    void testBatch( unsigned int deviceIndex, bool testAbort );
 
     std::atomic<int> m_numRequestsProcessed{ 0 };
 };
@@ -375,11 +394,14 @@ bool TestDemandLoaderBatches::loadResource( CUstream /*stream*/, unsigned int pa
     return true;
 }
 
-void TestDemandLoaderBatches::testBatch( CUstream stream )
+void TestDemandLoaderBatches::testBatch( unsigned int deviceIndex, bool testAbort )
 {
+    DemandLoaderImpl* loader = m_loaders[deviceIndex];
+    CUstream stream = m_streams[deviceIndex];
+
     // Create a resource, using the given callback to handle page requests.
     const unsigned int numPages  = 128;
-    unsigned int       startPage = m_loader->createResource( numPages, loadResourceCallback, this );
+    unsigned int       startPage = loader->createResource( numPages, loadResourceCallback, this );
 
     // Process all the pages of the resource in batches.
     const unsigned int batchSize   = 32;
@@ -394,7 +416,7 @@ void TestDemandLoaderBatches::testBatch( CUstream stream )
     {
         // Prepare for launch, obtaining DeviceContext.
         DeviceContext context;
-        m_loader->launchPrepare( stream, context );
+        loader->launchPrepare( stream, context );
 
         // Launch the kernel.
         launchPageBatchRequester( stream, context, currentPage, currentPage + batchSize,
@@ -402,19 +424,30 @@ void TestDemandLoaderBatches::testBatch( CUstream stream )
         ++numLaunches;
 
         // Initiate request processing, which returns a Ticket.
-        Ticket ticket = m_loader->processRequests( stream, context );
+        Ticket ticket = loader->processRequests( stream, context );
+
+        // Test abort functionality, which halts request processing.  The request processor
+        // should automatically restart on the next iteration.
+        if( testAbort )
+        {
+            loader->abort();
+            cudaDeviceSynchronize();
+            currentPage += batchSize;
+        }
 
         cudaDeviceSynchronize();
 
         // Wait for any page requests to be processed.
         ticket.wait();
 
-        // Advance the loop counter only when there were no page requests.
         if( ticket.numTasksTotal() == 0 )
         {
+            // Validate page table entries.
             pageTableEntries.resize( batchSize );
             cudaMemcpy( pageTableEntries.data(), devPageTableEntries, batchSize * sizeof( PageTableEntry ), cudaMemcpyDeviceToHost );
             validatePageTableEntries( pageTableEntries, currentPage, startPage + numPages, batchSize, numLaunches );
+
+            // Advance the loop counter only when there were no page requests.
             currentPage += batchSize;
         }
     }
@@ -425,10 +458,19 @@ void TestDemandLoaderBatches::testBatch( CUstream stream )
 
 TEST_F( TestDemandLoaderBatches, LoopTest )
 {
-    for( unsigned int device : m_loader->getDevices() )
+    for( unsigned int deviceIndex = 0; deviceIndex < m_loaders.size(); ++deviceIndex )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( device ) );
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
         for( int i = 0; i < 4; ++i )
-            testBatch( m_streams[device] );
+            testBatch( deviceIndex, /*testAbort=*/false );
+    }
+}
+
+TEST_F( TestDemandLoaderBatches, TestAbort )
+{
+    for( unsigned int deviceIndex = 0; deviceIndex < m_loaders.size(); ++deviceIndex )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+        testBatch( deviceIndex, /*testAbort=*/true );
     }
 }

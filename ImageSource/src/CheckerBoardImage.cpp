@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
-
-#include "Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <algorithm>
 #include <cmath>
@@ -84,15 +83,9 @@ inline bool CheckerBoardImage::isOddChecker( float x, float y, unsigned int squa
     return ( ( cx + cy ) & 1 ) != 0;
 }
 
-bool CheckerBoardImage::readTile( char*        dest,
-                                  unsigned int mipLevel,
-                                  unsigned int tileX,
-                                  unsigned int tileY,
-                                  unsigned int tileWidth,
-                                  unsigned int tileHeight,
-                                  CUstream     /*stream*/ )
+bool CheckerBoardImage::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const float4 black = make_float4( 0.f, 0.f, 0.f, 0.f );
     const float4 color = m_mipLevelColors[static_cast<int>( mipLevel % m_mipLevelColors.size() )];
@@ -101,17 +94,16 @@ bool CheckerBoardImage::readTile( char*        dest,
     unsigned int levelHeight    = std::max( 1u, m_info.height >> mipLevel );
     unsigned int squaresPerSide = std::min( levelWidth, m_squaresPerSide );
 
-    const unsigned int startX   = tileX * tileWidth;
-    const unsigned int startY   = tileY * tileHeight;
-    const unsigned int rowPitch = tileWidth * m_info.numChannels * getBytesPerChannel( m_info.format );
+    const PixelPosition start    = pixelPosition( tile );
+    const unsigned int  rowPitch = tile.width * m_info.numChannels * getBytesPerChannel( m_info.format );
 
-    for( unsigned int destY = 0; destY < tileHeight; ++destY )
+    for( unsigned int destY = 0; destY < tile.height; ++destY )
     {
         float4* row = reinterpret_cast<float4*>( dest + destY * rowPitch );
-        for( unsigned int destX = 0; destX < tileWidth; ++destX )
+        for( unsigned int destX = 0; destX < tile.width; ++destX )
         {
-            float tx   = static_cast<float>( destX + startX ) / static_cast<float>( levelWidth );
-            float ty   = static_cast<float>( destY + startY ) / static_cast<float>( levelHeight );
+            float tx   = static_cast<float>( destX + start.x ) / static_cast<float>( levelWidth );
+            float ty   = static_cast<float>( destY + start.y ) / static_cast<float>( levelHeight );
             bool  odd  = isOddChecker( tx, ty, squaresPerSide );
             row[destX] = odd ? black : color;
         }
@@ -122,7 +114,7 @@ bool CheckerBoardImage::readTile( char*        dest,
 
 bool CheckerBoardImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream /*stream*/ )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const float4 black  = make_float4( 0.f, 0.f, 0.f, 0.f );
     const float4 color  = m_mipLevelColors[static_cast<int>( mipLevel % m_mipLevelColors.size() )];

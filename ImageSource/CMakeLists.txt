@@ -29,14 +29,19 @@
 include(BuildConfig)
 
 otk_add_library( ImageSource
+  src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
   src/CoreEXRReader.cpp
   src/EXRReader.cpp
-  src/Exception.h
   src/ImageSource.cpp
+  src/MipMapImageSource.cpp
+  src/RateLimitedImageSource.cpp
   src/Stopwatch.h
   src/TextureInfo.cpp
-  )
+  src/TiledImageSource.cpp
+  src/Config.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/Config.h
+)
 set_property(TARGET ImageSource PROPERTY FOLDER DemandLoading)
 
 add_library(OptiXToolkit::ImageSource ALIAS ImageSource)
@@ -46,16 +51,20 @@ target_sources(ImageSource
   FILE_SET HEADERS 
   BASE_DIRS include
   FILES
+  include/OptiXToolkit/ImageSource/CascadeImage.h
   include/OptiXToolkit/ImageSource/CheckerBoardImage.h
   include/OptiXToolkit/ImageSource/CoreEXRReader.h
   include/OptiXToolkit/ImageSource/EXRReader.h
   include/OptiXToolkit/ImageSource/ImageHelpers.h
   include/OptiXToolkit/ImageSource/ImageSource.h
+  include/OptiXToolkit/ImageSource/MipMapImageSource.h
+  include/OptiXToolkit/ImageSource/RateLimitedImageSource.h
   include/OptiXToolkit/ImageSource/TextureInfo.h
+  include/OptiXToolkit/ImageSource/TiledImageSource.h
+  include/OptiXToolkit/ImageSource/WrappedImageSource.h
 )
 
 source_group( "Header Files\\Implementation" FILES
-  src/Exception.h
   src/Stopwatch.h
   )
 
@@ -86,13 +95,14 @@ target_link_libraries( ImageSource
   PUBLIC
   CUDA::cuda_driver
   PRIVATE
+  OptiXToolkit::Error
   OpenEXR_OTK
   )
 
 find_package(OpenImageIO QUIET)
 if(OpenImageIO_FOUND)
   set(Boost_NO_WARN_NEW_VERSIONS ON)
-  find_package(Boost COMPONENTS system filesystem REQUIRED)
+  find_package(Boost COMPONENTS system filesystem thread REQUIRED)
   target_sources(ImageSource PRIVATE 
     src/OIIOReader.cpp 
     include/OptiXToolkit/ImageSource/OIIOReader.h

@@ -20,6 +20,10 @@
 
 #pragma once
 
+#include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Memory/BitCast.h>
+
 #include <optix.h>
 
 #include <gmock/gmock.h>
@@ -28,82 +32,6 @@
 #include <cmath>
 #include <functional>
 #include <string>
-
-namespace otk {
-namespace testing {
-namespace detail {
-
-inline bool stringsBothNullOrSame( const char* lhs, const char* rhs )
-{
-    return ( lhs == nullptr && rhs == nullptr ) || ( lhs != nullptr && rhs != nullptr && std::string{ lhs } == rhs );
-}
-
-}  // namespace detail
-}  // namespace testing
-}  // namespace otk
-
-inline bool operator==( const OptixProgramGroupSingleModule& lhs, const OptixProgramGroupSingleModule& rhs )
-{
-    return lhs.module == rhs.module && otk::testing::detail::stringsBothNullOrSame( lhs.entryFunctionName, rhs.entryFunctionName );
-}
-
-inline bool operator!=( const OptixProgramGroupSingleModule& lhs, const OptixProgramGroupSingleModule& rhs )
-{
-    return !( lhs == rhs );
-}
-
-inline bool operator==( const OptixProgramGroupHitgroup& lhs, const OptixProgramGroupHitgroup& rhs )
-{
-    using namespace otk::testing::detail;
-    return lhs.moduleCH == rhs.moduleCH && stringsBothNullOrSame( lhs.entryFunctionNameCH, rhs.entryFunctionNameCH )
-           && lhs.moduleAH == rhs.moduleAH && stringsBothNullOrSame( lhs.entryFunctionNameAH, rhs.entryFunctionNameAH )
-           && lhs.moduleIS == rhs.moduleIS && stringsBothNullOrSame( lhs.entryFunctionNameIS, rhs.entryFunctionNameIS );
-}
-
-inline bool operator!=( const OptixProgramGroupHitgroup& lhs, const OptixProgramGroupHitgroup& rhs )
-{
-    return !( lhs == rhs );
-}
-
-inline bool operator==( const OptixProgramGroupCallables& lhs, const OptixProgramGroupCallables& rhs )
-{
-    using namespace otk::testing::detail;
-    return lhs.moduleDC == rhs.moduleDC && stringsBothNullOrSame( lhs.entryFunctionNameDC, rhs.entryFunctionNameDC )
-           && lhs.moduleCC == rhs.moduleCC && stringsBothNullOrSame( lhs.entryFunctionNameCC, rhs.entryFunctionNameCC );
-}
-
-inline bool operator!=( const OptixProgramGroupCallables& lhs, const OptixProgramGroupCallables& rhs )
-{
-    return !( lhs == rhs );
-}
-
-inline bool operator==( const OptixProgramGroupDesc& lhs, const OptixProgramGroupDesc& rhs )
-{
-    if( lhs.kind != rhs.kind || lhs.flags != rhs.flags )
-        return false;
-
-    switch( lhs.kind )
-    {
-        case OPTIX_PROGRAM_GROUP_KIND_RAYGEN:
-            return lhs.raygen == rhs.raygen;
-        case OPTIX_PROGRAM_GROUP_KIND_MISS:
-            return lhs.miss == rhs.miss;
-        case OPTIX_PROGRAM_GROUP_KIND_EXCEPTION:
-            return lhs.exception == rhs.exception;
-        case OPTIX_PROGRAM_GROUP_KIND_HITGROUP:
-            return lhs.hitgroup == rhs.hitgroup;
-        case OPTIX_PROGRAM_GROUP_KIND_CALLABLES:
-            return lhs.callables == rhs.callables;
-    }
-
-    // No kind and no flags are equal, regardless of union contents.
-    return lhs.kind == 0 && lhs.flags == 0;
-}
-
-inline bool operator!=( const OptixProgramGroupDesc& lhs, const OptixProgramGroupDesc& rhs )
-{
-    return !( lhs == rhs );
-}
 
 namespace otk {
 namespace testing {
@@ -116,6 +44,9 @@ MATCHER_P( isInstanceBuildInput, n, "" )
                          << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " is of type OPTIX_BUILD_INPUT_TYPE_INSTANCES ("
+                     << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
     return true;
 }
 
@@ -127,6 +58,9 @@ MATCHER_P( isTriangleBuildInput, n, "" )
                          << ", expected OPTIX_BUILD_INPUT_TYPE_TRIANGLES (" << OPTIX_BUILD_INPUT_TYPE_TRIANGLES << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " is of type OPTIX_BUILD_INPUT_TYPE_TRIANGLES ("
+                     << OPTIX_BUILD_INPUT_TYPE_TRIANGLES << ')';
     return true;
 }
 
@@ -138,6 +72,8 @@ MATCHER( isBuildOperation, "" )
                          << OPTIX_BUILD_OPERATION_BUILD << ')';
         return false;
     }
+
+    *result_listener << "build operation is OPTIX_BUILD_OPERATION_BUILD (" << OPTIX_BUILD_OPERATION_BUILD << ')';
     return true;
 }
 
@@ -149,6 +85,9 @@ MATCHER( buildAllowsUpdate, "" )
                          << ") not set in value " << arg->buildFlags;
         return false;
     }
+
+    *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_UPDATE (" << OPTIX_BUILD_FLAG_ALLOW_UPDATE
+                     << ") set in value " << arg->buildFlags;
     return true;
 }
 
@@ -160,6 +99,8 @@ MATCHER( buildAllowsRandomVertexAccess, "" )
                          << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ") not set in value " << arg->buildFlags;
         return false;
     }
+    *result_listener << "build flag OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS ("
+                     << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ") set in value " << arg->buildFlags;
     return true;
 }
 
@@ -171,6 +112,9 @@ MATCHER_P( isCustomPrimitiveBuildInput, n, "" )
                          << OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " is of type OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES ("
+                     << OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES << ')';
     return true;
 }
 
@@ -181,6 +125,56 @@ MATCHER_P( isZeroInstances, n, "" )
         *result_listener << "input " << n << " has non-zero numInstances (" << arg[n].instanceArray.numInstances << ')';
         return false;
     }
+
+    *result_listener << "input " << n << " has zero numInstances";
+    return true;
+}
+
+MATCHER_P2( hasNumInstances, n, num, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    if( num != instances.numInstances )
+    {
+        *result_listener << "input " << n << " has " << instances.numInstances << " instances, expected " << num;
+        return false;
+    }
+
+    *result_listener << "input " << n << " has " << instances.numInstances << " instances";
+    return true;
+}
+
+MATCHER_P3( hasDeviceInstanceId, n, index, id, "" )
+{
+    if( arg[n].type != OPTIX_BUILD_INPUT_TYPE_INSTANCES )
+    {
+        *result_listener << "input " << n << " is of type " << arg[n].type
+                         << ", expected OPTIX_BUILD_INPUT_TYPE_INSTANCES (" << OPTIX_BUILD_INPUT_TYPE_INSTANCES << ')';
+        return false;
+    }
+    const OptixBuildInputInstanceArray& instances = arg[n].instanceArray;
+    if( index >= instances.numInstances )
+    {
+        *result_listener << "input " << n << " instance index " << index << " exceeds " << instances.numInstances;
+        return false;
+    }
+    std::vector<OptixInstance> actualInstances;
+    actualInstances.resize( instances.numInstances );
+    OTK_ERROR_CHECK( cudaMemcpy( actualInstances.data(), otk::bit_cast<void*>( instances.instances ),
+                                 sizeof( OptixInstance ) * instances.numInstances, cudaMemcpyDeviceToHost ) );
+    if( actualInstances[index].instanceId != id )
+    {
+        *result_listener << "input " << n << " instance " << index << " has different id "
+                         << actualInstances[index].instanceId << " != " << id;
+        return false;
+    }
+
+    *result_listener << "input " << n << " instance " << index << " has id " << actualInstances[index].instanceId;
     return true;
 }
 
@@ -239,6 +233,11 @@ MATCHER_P3( hasRayGenDesc, count, module, entryPoint, "" )
         *result_listener << "raygen group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
                          << ") not found in descs[" << count << ']';
     }
+    else
+    {
+        *result_listener << "raygen group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
+                         << ") found in descs[" << count << ']';
+    }
     return result;
 }
 
@@ -252,24 +251,60 @@ MATCHER_P3( hasMissDesc, count, module, entryPoint, "" )
         *result_listener << "miss group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
                          << ") not found in descs[" << count << ']';
     }
+    else
+    {
+        *result_listener << "miss group desc (" << module << ", " << detail::nameOrNullPtr( entryPoint )
+                         << ") found in descs[" << count << ']';
+    }
     return result;
 }
 
-MATCHER_P5( hasHitGroupDesc, count, chModule, chEntryPoint, isModule, isEntryPoint, "" )
+MATCHER_P5( hasHitGroupISCHDesc, count, isModule, isEntryPoint, chModule, chEntryPoint, "" )
 {
     OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
     OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
-    hitgroup.moduleCH                   = chModule;
-    hitgroup.entryFunctionNameCH        = chEntryPoint;
-    hitgroup.moduleAH                   = nullptr;
-    hitgroup.entryFunctionNameAH        = nullptr;
     hitgroup.moduleIS                   = isModule;
     hitgroup.entryFunctionNameIS        = isEntryPoint;
+    hitgroup.moduleAH                   = nullptr;
+    hitgroup.entryFunctionNameAH        = nullptr;
+    hitgroup.moduleCH                   = chModule;
+    hitgroup.entryFunctionNameCH        = chEntryPoint;
     const bool result                   = detail::programGroupDescsContain( arg, count, desc );
     if( !result )
     {
-        *result_listener << "hitgroup desc (" << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ", " << isModule
-                         << ", " << detail::nameOrNullPtr( isEntryPoint ) << ") not found in descs[" << count << ']';
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), CH(" << chModule
+                         << ", " << detail::nameOrNullPtr( chEntryPoint ) << ")) not found in descs[" << count << ']';
+    }
+    else
+    {
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), CH("
+                         << chModule << ", " << detail::nameOrNullPtr( chEntryPoint ) << ")) found in descs[" << count << ']';
+    }
+    return result;
+}
+
+MATCHER_P7( hasHitGroupISAHCHDesc, count, isModule, isEntryPoint, ahModule, ahEntryPoint, chModule, chEntryPoint, "" )
+{
+    OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
+    OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
+    hitgroup.moduleIS                   = isModule;
+    hitgroup.entryFunctionNameIS        = isEntryPoint;
+    hitgroup.moduleAH                   = ahModule;
+    hitgroup.entryFunctionNameAH        = ahEntryPoint;
+    hitgroup.moduleCH                   = chModule;
+    hitgroup.entryFunctionNameCH        = chEntryPoint;
+    const bool result                   = detail::programGroupDescsContain( arg, count, desc );
+    if( !result )
+    {
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), AH("
+                         << ahModule << ", " << detail::nameOrNullPtr( ahEntryPoint ) << "), CH(" << chModule << ", "
+                         << detail::nameOrNullPtr( chEntryPoint ) << ")) not found in descs[" << count << ']';
+    }
+    else
+    {
+        *result_listener << "hitgroup desc (IS(" << isModule << ", " << detail::nameOrNullPtr( isEntryPoint ) << "), AH("
+                         << ahModule << ", " << detail::nameOrNullPtr( ahEntryPoint ) << "), CH(" << chModule << ", "
+                         << detail::nameOrNullPtr( chEntryPoint ) << ")) found in descs[" << count << ']';
     }
     return result;
 }

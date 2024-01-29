@@ -69,43 +69,45 @@ DemandTextureImpl::DemandTextureImpl( unsigned int id, DemandTextureImpl* master
     , m_loader( loader )
     , m_sampler{}
 {
+    masterTexture->addVariantId( id );
 }
 
-bool DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage )
+void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
-    // If the original image was not opened, just replace it
+    // If the original image was not opened, avoid opening the new image
     if( !m_image->isOpen() )
     {
         m_descriptor = descriptor;
         m_image = newImage;
-        return false;
+        return;
     }
 
-    // If the two images are the same size and format, replace the image and use the existing textures
+    // Get the info for the new image
     imageSource::TextureInfo newInfo;
     newImage->open( &newInfo );
-    DEMAND_ASSERT( m_info.isValid );
-    if( ( descriptor == m_descriptor ) && ( newInfo == m_info ) )
+    OTK_ASSERT( newInfo.isValid );
+
+    // If the new image is a different size or format, the texture will need to be re-initialized
+    // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
+    // There is also the possibility that these stale pages will be requested in the future, so that
+    // problem must also be fixed.
+    if( !( descriptor == m_descriptor ) || !( newInfo == m_info ) )
     {
-        m_descriptor = descriptor;
-        m_image      = newImage;
-        return false;
+        m_isInitialized = false;
+        // Reset the sampler so the texture will be reinitialized, keeping only the udim info
+        TextureSampler newSampler = {};
+        newSampler.udimStartPage = m_sampler.udimStartPage;
+        newSampler.udim = m_sampler.udim;
+        newSampler.vdim = m_sampler.vdim;
+        newSampler.desc.isUdimBaseTexture = m_sampler.desc.isUdimBaseTexture;
+        m_sampler = newSampler;
     }
 
-    // If there is a size or format mismatch, create new textures
-    // FIXME: This leaks pages in the virtual address space, but currently there is no way to reclaim them.
     m_info       = newInfo;
     m_descriptor = descriptor;
     m_image      = newImage;
-
-    m_sampler       = {};
-    m_isInitialized = false;
-
-    // Return true, the sampler needs to be replaced on the devices.  The cuda arrays and cuda textures 
-    // will be updated when the sparse/dense textures for each device are re-initialized.
-    return true; 
 }
 
 unsigned int DemandTextureImpl::getId() const
@@ -117,58 +119,52 @@ void DemandTextureImpl::init()
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
 
-    if( m_masterTexture && !getSparseTexture().isInitialized() )
-        m_masterTexture->init();
-
-    // Initialize the sparse or dense texture for the current CUDA context.
+    // Initialize the sparse or dense texture.
     if( useSparseTexture() )
     {
-        // Per-device initialization.
-        
         // Get the master array (backing store) if there is master texture
         std::shared_ptr<SparseArray> masterArray( nullptr );
+        if( m_masterTexture && !m_masterTexture->m_sparseTexture.isInitialized() )
+            m_masterTexture->init();
         if( m_masterTexture )
-            masterArray = m_masterTexture->getSparseTexture().getSparseArray();
+            masterArray = m_masterTexture->m_sparseTexture.getSparseArray();
 
-        SparseTexture& sparseTexture = getSparseTexture();
-        sparseTexture.init( m_descriptor, m_info, masterArray );
+        m_sparseTexture.init( m_descriptor, m_info, masterArray );
 
         // Device-independent initialization.
         if( !m_isInitialized )
         {
             m_isInitialized = true;
 
-            // Retain various properties for subsequent use.  (They're the same on all devices.)
-            m_tileWidth         = sparseTexture.getTileWidth();
-            m_tileHeight        = sparseTexture.getTileHeight();
-            m_mipTailFirstLevel = sparseTexture.getMipTailFirstLevel();
-            m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? sparseTexture.getMipTailSize() : 0;
+            // Retain various properties for subsequent use.
+            m_tileWidth         = m_sparseTexture.getTileWidth();
+            m_tileHeight        = m_sparseTexture.getTileHeight();
+            m_mipTailFirstLevel = m_sparseTexture.getMipTailFirstLevel();
+            m_mipTailSize       = m_mipTailFirstLevel < m_info.numMipLevels ? m_sparseTexture.getMipTailSize() : 0;
 
             // Verify that the tile size agrees with TilePool.
-            DEMAND_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= TILE_SIZE_IN_BYTES );
+            OTK_ASSERT( m_tileWidth * m_tileHeight * imageSource::getBytesPerChannel( m_info.format ) <= TILE_SIZE_IN_BYTES );
 
             // Record the dimensions of each miplevel.
             const unsigned int numMipLevels = m_info.numMipLevels;
             m_mipLevelDims.resize( numMipLevels );
             for( unsigned int i = 0; i < numMipLevels; ++i )
             {
-                m_mipLevelDims[i] = sparseTexture.getMipLevelDims( i );
+                m_mipLevelDims[i] = m_sparseTexture.getMipLevelDims( i );
             }
-
             initSampler();
         }
     }
     else // dense texture
     {
-        // Per-device initialization.
-
         // Get the master array (backing store) if there is master texture
         std::shared_ptr<CUmipmappedArray> masterArray( nullptr );
+        if( m_masterTexture && !m_masterTexture->m_denseTexture.isInitialized() )
+            m_masterTexture->init();
         if( m_masterTexture )
-            masterArray = m_masterTexture->getDenseTexture().getDenseArray();
+            masterArray = m_masterTexture->m_denseTexture.getDenseArray();
 
-        DenseTexture& denseTexture = getDenseTexture();
-        denseTexture.init( m_descriptor, m_info, masterArray );
+        m_denseTexture.init( m_descriptor, m_info, masterArray );
 
         // Device-independent initialization.
         if( !m_isInitialized )
@@ -186,11 +182,12 @@ void DemandTextureImpl::init()
             m_mipLevelDims.resize( numMipLevels );
             for( unsigned int i = 0; i < numMipLevels; ++i )
             {
-                m_mipLevelDims[i] = denseTexture.getMipLevelDims( i );
+
+                m_mipLevelDims[i] = m_denseTexture.getMipLevelDims( i );
+
                 m_mipTailSize += m_mipLevelDims[i].x * m_mipLevelDims[i].y * m_info.numChannels
                                  * imageSource::getBytesPerChannel( m_info.format );
             }
-
             initSampler();
         }
     }
@@ -198,9 +195,7 @@ void DemandTextureImpl::init()
 
 void DemandTextureImpl::initSampler()
 {
-    // Construct the canonical sampler for this texture, excluding the CUDA texture object, which
-    // differs for each device (see getTextureObject).
-    
+    // Construct the canonical sampler for this texture, excluding the CUDA texture object
     // Note: m_sampler zeroed out in constructor, so that the udim fields can be initialized before calling initSampler.
 
     // Descriptions
@@ -247,6 +242,9 @@ void DemandTextureImpl::initSampler()
         }
         else
         {
+            // If the texture is being resized, remove the existing request handler
+            if( m_requestHandler != nullptr )
+                m_loader->getPageTableManager()->removeRequestHandler( m_requestHandler->getStartPage() );
             m_requestHandler.reset( new TextureRequestHandler( this, m_loader ) );
             m_sampler.startPage = m_loader->getPageTableManager()->reserveUnbackedPages( m_sampler.numPages, m_requestHandler.get() );
         }
@@ -257,17 +255,21 @@ void DemandTextureImpl::initSampler()
         m_sampler.numPages = 0;
         m_sampler.startPage = m_id;
     }
+
+    // Fill in the hasCascade and cascadeLevel values in the sampler
+    m_sampler.hasCascade = m_image->hasCascade();
+    m_sampler.cascadeLevel = static_cast<unsigned short>( getCascadeLevel( m_sampler.width, m_sampler.height ) );
 }
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_info;
 }
 
 const TextureSampler& DemandTextureImpl::getSampler() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_sampler;
 }
 
@@ -278,32 +280,32 @@ const TextureDescriptor& DemandTextureImpl::getDescriptor() const
 
 uint2 DemandTextureImpl::getMipLevelDims( unsigned int mipLevel ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( mipLevel < m_mipLevelDims.size() );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( mipLevel < m_mipLevelDims.size() );
     return m_mipLevelDims[mipLevel];
 }
 
 unsigned int DemandTextureImpl::getTileWidth() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_tileWidth;
 }
 
 unsigned int DemandTextureImpl::getTileHeight() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_tileHeight;
 }
 
 bool DemandTextureImpl::isMipmapped() const
 {
-    DEMAND_ASSERT( m_info.isValid );
+    OTK_ASSERT( m_info.isValid );
     return getInfo().numMipLevels > getMipTailFirstLevel();
 }
 
 bool DemandTextureImpl::useSparseTexture() const
 {
-    DEMAND_ASSERT( m_info.isValid );
+    OTK_ASSERT( m_info.isValid );
 
     if( !m_loader->getOptions().useSparseTextures || !m_info.isTiled )
         return false;
@@ -314,19 +316,16 @@ bool DemandTextureImpl::useSparseTexture() const
 
 unsigned int DemandTextureImpl::getMipTailFirstLevel() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_mipTailFirstLevel;
 }
 
 CUtexObject DemandTextureImpl::getTextureObject() const
 {
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     if( useSparseTexture() )
-    {
-        return getSparseTexture().getTextureObject();
-    }
-
-    return getDenseTexture().getTextureObject();
+        return m_sparseTexture.getTextureObject();
+    return m_denseTexture.getTextureObject();
 }
 
 unsigned int DemandTextureImpl::getNumTilesInLevel( unsigned int mipLevel ) const
@@ -340,62 +339,39 @@ unsigned int DemandTextureImpl::getNumTilesInLevel( unsigned int mipLevel ) cons
     return calculateNumTilesInLevel( levelWidthInTiles, levelHeightInTiles );
 }
 
-void DemandTextureImpl::accumulateStatistics( Statistics& stats, std::set<imageSource::ImageSource*>& images )
+void DemandTextureImpl::accumulateStatistics( Statistics& stats )
 {
-    // This image has already been accounted for in the statistics.
-    if( images.find( m_image.get() ) != images.end() )
-        return;
-
-    // Get the size of the texture, and number of bytes read
-    images.insert( m_image.get() );
     stats.numTilesRead += m_image->getNumTilesRead();
     stats.numBytesRead += m_image->getNumBytesRead();
     stats.readTime += m_image->getTotalReadTime();
 
-    // Calculate size (total number of bytes) in virtual texture
     const imageSource::TextureInfo &info = m_image->getInfo();
-    if( info.isValid )  // texture initialized
-    {
+    if( info.isValid )
         stats.virtualTextureBytes += getTextureSizeInBytes( info );
-    }
 
-    // Get the number of bytes filled (transferred) per device
-    m_sparseTextures.for_each( [&stats]( SparseTexture& texture ) {
-        CUdevice device;
-        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-        unsigned int deviceIndex = static_cast<unsigned int>( device );
-        stats.perDevice[deviceIndex].bytesTransferred += texture.getNumBytesFilled();
-        stats.perDevice[deviceIndex].numEvictions += texture.getNumUnmappings();
-    } );
+    stats.bytesTransferredToDevice += m_sparseTexture.getNumBytesFilled();
+    stats.numEvictions += m_sparseTexture.getNumUnmappings();
 
-    m_denseTextures.for_each( [&stats, this]( DenseTexture& texture ) {
-        CUdevice device;
-        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-        unsigned int deviceIndex = static_cast<unsigned int>( device );
-        stats.perDevice[deviceIndex].bytesTransferred += texture.getNumBytesFilled();
-        // Count memory used per device for dense texture data
-        if( texture.isInitialized() && texture.getTextureObject() != 0 )
-        {
-            imageSource::TextureInfo info = m_image->getInfo();
-            stats.perDevice[deviceIndex].memoryUsed += getTextureSizeInBytes( info );
-        }
-    } );
+    stats.bytesTransferredToDevice += m_denseTexture.getNumBytesFilled();
+    if( m_denseTexture.isInitialized() && m_denseTexture.getTextureObject() != 0 )
+        stats.deviceMemoryUsed += getTextureSizeInBytes( info );
 }
 
-// Tiles can be read concurrently.  The EXRReader currently locks, however, because the OpenEXR 2.x
-// tile reading API is stateful.  That should be fixed in OpenEXR 3.0.
+// Tiles can be read concurrently.
 bool DemandTextureImpl::readTile( unsigned int mipLevel, unsigned int tileX, unsigned int tileY, char* tileBuffer,
                                   size_t tileBufferSize, CUstream stream ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
 
     // Resize buffer if necessary.
     const unsigned int bytesPerPixel = imageSource::getBytesPerChannel( getInfo().format ) * getInfo().numChannels;
     const unsigned int bytesPerTile  = getTileWidth() * getTileHeight() * bytesPerPixel;
-    DEMAND_ASSERT_MSG( bytesPerTile <= tileBufferSize, "Maximum tile size exceeded" );
+    OTK_ASSERT_MSG( bytesPerTile <= tileBufferSize, "Maximum tile size exceeded" );
+    (void)bytesPerTile;  // silence unused variable warning
+    (void)tileBufferSize;
 
-    return m_image->readTile( tileBuffer, mipLevel, tileX, tileY, getTileWidth(), getTileHeight(), stream );
+    return m_image->readTile( tileBuffer, mipLevel, { tileX, tileY, getTileWidth(), getTileHeight() }, stream );
 }
 
 // Tiles can be filled concurrently.
@@ -409,24 +385,36 @@ void DemandTextureImpl::fillTile( CUstream                     stream,
                                   CUmemGenericAllocationHandle handle,
                                   size_t                       offset ) const
 {
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
-    DEMAND_ASSERT( tileSize <= TILE_SIZE_IN_BYTES );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
+    OTK_ASSERT( tileSize <= TILE_SIZE_IN_BYTES );
 
-    getSparseTexture().fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
+    m_sparseTexture.fillTile( stream, mipLevel, tileX, tileY, tileData, tileDataType, tileSize, handle, offset );
+}
+
+void DemandTextureImpl::mapTile( CUstream                     stream,
+                                 unsigned int                 mipLevel,
+                                 unsigned int                 tileX,
+                                 unsigned int                 tileY,
+                                 CUmemGenericAllocationHandle tileHandle,
+                                 size_t                       tileOffset ) const
+{
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
+    m_sparseTexture.mapTile( stream, mipLevel, tileX, tileY, tileHandle, tileOffset );
 }
 
 // Tiles can be unmapped concurrently.
 void DemandTextureImpl::unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const
 {
-    DEMAND_ASSERT( mipLevel < m_info.numMipLevels );
-    getSparseTexture().unmapTile( stream, mipLevel, tileX, tileY );
+    OTK_ASSERT( mipLevel < m_info.numMipLevels );
+    m_sparseTexture.unmapTile( stream, mipLevel, tileX, tileY );
 }
 
 bool DemandTextureImpl::readNonMipMappedData( char* buffer, size_t bufferSize, CUstream stream ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( m_info.numMipLevels == 1 );
-    DEMAND_ASSERT_MSG( m_mipTailSize <= bufferSize, "Provided buffer is too small." );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_info.numMipLevels == 1 );
+    OTK_ASSERT_MSG( m_mipTailSize <= bufferSize, "Provided buffer is too small." );
+    (void)bufferSize;  // silence unused variable warning.
 
     return m_image->readMipLevel( buffer, 0, getInfo().width, getInfo().height, stream );
 }
@@ -436,18 +424,16 @@ bool DemandTextureImpl::readMipTail( char* buffer, size_t bufferSize, CUstream s
     return readMipLevels( buffer, bufferSize, getMipTailFirstLevel(), stream );
 }
 
-// Request deduplication will ensure that concurrent calls to readMipTail do not occur.  Note that
-// EXRReader currently locks, since it uses the OpenEXR 2.x tile reading API, which is stateful.  
-// CoreEXRReader uses OpenEXR 3.0, which fixes the issue.
 bool DemandTextureImpl::readMipLevels( char* buffer, size_t bufferSize, unsigned int startLevel, CUstream stream ) const
 {
-    DEMAND_ASSERT( m_isInitialized );
-    DEMAND_ASSERT( startLevel < getInfo().numMipLevels );
+    OTK_ASSERT( m_isInitialized );
+    OTK_ASSERT( startLevel < getInfo().numMipLevels );
 
     const unsigned int pixelSize = getInfo().numChannels * imageSource::getBytesPerChannel( getInfo().format );
     size_t dataSize = ( m_mipLevelDims[startLevel].x * m_mipLevelDims[startLevel].y * pixelSize * 4 ) / 3;
-
-    DEMAND_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
+    OTK_ASSERT_MSG( dataSize <= bufferSize, "Provided buffer is too small." );
+    (void)dataSize;  // silence unused variable warning
+    (void)bufferSize;
 
     return m_image->readMipTail( buffer, startLevel, getInfo().numMipLevels, m_mipLevelDims.data(), pixelSize, stream );
 }
@@ -459,20 +445,25 @@ void DemandTextureImpl::fillMipTail( CUstream                     stream,
                                      CUmemGenericAllocationHandle handle,
                                      size_t                       offset ) const
 {
-    DEMAND_ASSERT( getMipTailFirstLevel() < m_info.numMipLevels );
+    OTK_ASSERT( getMipTailFirstLevel() < m_info.numMipLevels );
 
-    getSparseTexture().fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
+    m_sparseTexture.fillMipTail( stream, mipTailData, mipTailDataType, mipTailSize, handle, offset );
+}
+
+void DemandTextureImpl::mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset )
+{
+    m_sparseTexture.mapMipTail( stream, tileHandle, tileOffset );
 }
 
 void DemandTextureImpl::unmapMipTail( CUstream stream ) const
 {
-    getSparseTexture().unmapMipTail( stream );
+    m_sparseTexture.unmapMipTail( stream );
 }
 
-// Fill the dense texture on the given device.
+// Fill the dense texture on the given stream.
 void DemandTextureImpl::fillDenseTexture( CUstream stream, const char* textureData, unsigned int width, unsigned int height, bool bufferPinned )
 {
-    getDenseTexture().fillTexture( stream, textureData, width, height, bufferPinned );
+    m_denseTexture.fillTexture( stream, textureData, width, height, bufferPinned );
 }
 
 // Lazily open the associated image source.
@@ -487,7 +478,7 @@ void DemandTextureImpl::open()
     if( !m_isOpen )
     {
         m_image->open( &m_info );
-        DEMAND_ASSERT( m_info.isValid );
+        OTK_ASSERT( m_info.isValid );
         m_isOpen = true;
     }
 }
@@ -503,23 +494,8 @@ void DemandTextureImpl::setUdimTexture( unsigned int udimStartPage, unsigned int
 
 size_t DemandTextureImpl::getMipTailSize() 
 { 
-    DEMAND_ASSERT( m_isInitialized );
+    OTK_ASSERT( m_isInitialized );
     return m_mipTailSize; 
 }
-
-// Get the sparse texture for the current CUDA context, creating it if necessary.
-SparseTexture& DemandTextureImpl::getSparseTexture()
-{
-    std::unique_lock<std::mutex> lock( m_sparseTexturesMutex );
-    return *m_sparseTextures.findOrCreate( []() { return std::unique_ptr<SparseTexture>( new SparseTexture ); } );
-}
-
-// Get the dense texture for the current CUDA context, creating it if necessary.
-DenseTexture& DemandTextureImpl::getDenseTexture()
-{
-    std::unique_lock<std::mutex> lock( m_denseTexturesMutex );
-    return *m_denseTextures.findOrCreate( []() { return std::unique_ptr<DenseTexture>( new DenseTexture ); } );
-}
-
 
 }  // namespace demandLoading

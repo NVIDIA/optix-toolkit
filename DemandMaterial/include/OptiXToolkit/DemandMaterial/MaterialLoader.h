@@ -25,33 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#pragma once
+#ifndef OTK_DEMAND_MATERIAL_MATERIAL_LOADER_H
+#define OTK_DEMAND_MATERIAL_MATERIAL_LOADER_H
 
-#include "Util/Exception.h"
-#include <cuda_runtime.h>
+#include <memory>
+#include <vector>
 
 namespace demandLoading {
+class DemandLoader;
+}  // namespace demandLoading
 
-inline void checkCudaError( cudaError_t error, const char* expr, const char* file, unsigned int line )
+namespace demandMaterial {
+
+using uint_t = unsigned int;
+
+class MaterialLoader
 {
-    if( error != cudaSuccess )
-    {
-        std::stringstream ss;
-        ss << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file << ":"
-           << line << ")\n";
-        throw Exception( ss.str().c_str() );
-    }
-}
+  public:
+    virtual ~MaterialLoader() = default;
 
-// A non-throwing variant for use in destructors.
-inline void checkCudaErrorNoThrow( cudaError_t error, const char* expr, const char* file, unsigned int line ) noexcept
-{
-    if( error != cudaSuccess )
-    {
-        std::cerr << "CUDA call (" << expr << " ) failed with error: '" << cudaGetErrorString( error ) << "' (" << file
-                  << ":" << line << ")\n";
-        std::terminate();
-    }
-}
+    virtual const char* getCHFunctionName() const = 0;
 
-} // namespace demandLoading
+    virtual uint_t add()               = 0;
+    virtual void   remove( uint_t id ) = 0;
+
+    virtual std::vector<uint_t> requestedMaterialIds() const = 0;
+};
+
+std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* demandLoader );
+
+}  // namespace demandMaterial
+
+#endif

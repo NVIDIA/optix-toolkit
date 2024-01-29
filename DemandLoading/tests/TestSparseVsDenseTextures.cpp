@@ -1,8 +1,6 @@
 
 #include "TestSparseVsDenseTextures.h"
-#include "CudaCheck.h"
-
-#include "Util/Exception.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <algorithm>
 #include <math.h>
@@ -10,6 +8,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <gtest/gtest.h>
+
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 
 class TestSparseVsDenseTextures : public testing::Test
 {
@@ -23,8 +23,12 @@ class TestSparseVsDenseTextures : public testing::Test
   public:
     void SetUp() override
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 
     void createSparseArray( int width, int height );
@@ -52,7 +56,7 @@ void TestSparseVsDenseTextures::createSparseArray( int width, int height )
     ad.Format      = CU_AD_FORMAT_FLOAT;
     ad.NumChannels = 4;
     ad.Flags       = CUDA_ARRAY3D_SPARSE;
-    DEMAND_CUDA_CHECK( cuMipmappedArrayCreate( &m_sparseArray, &ad, getNumMipLevels( width, height ) ) );
+    OTK_ERROR_CHECK( cuMipmappedArrayCreate( &m_sparseArray, &ad, getNumMipLevels( width, height ) ) );
 }
 
 void TestSparseVsDenseTextures::createSparseTexture( int width, int height )
@@ -72,7 +76,7 @@ void TestSparseVsDenseTextures::createSparseTexture( int width, int height )
     CUDA_RESOURCE_DESC rd{};
     rd.resType                    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
     rd.res.mipmap.hMipmappedArray = m_sparseArray;
-    DEMAND_CUDA_CHECK( cuTexObjectCreate( &m_sparseTexture, &rd, &td, nullptr ) );
+    OTK_ERROR_CHECK( cuTexObjectCreate( &m_sparseTexture, &rd, &td, nullptr ) );
 }
 
 void TestSparseVsDenseTextures::createDenseArray( int width, int height )
@@ -83,7 +87,7 @@ void TestSparseVsDenseTextures::createDenseArray( int width, int height )
     ad.Format      = CU_AD_FORMAT_FLOAT;
     ad.NumChannels = 4;
 
-    DEMAND_CUDA_CHECK( cuMipmappedArrayCreate( &m_denseArray, &ad, getNumMipLevels( width, height ) ) );
+    OTK_ERROR_CHECK( cuMipmappedArrayCreate( &m_denseArray, &ad, getNumMipLevels( width, height ) ) );
 }
 
 void TestSparseVsDenseTextures::createDenseTexture( int width, int height )
@@ -103,11 +107,15 @@ void TestSparseVsDenseTextures::createDenseTexture( int width, int height )
     CUDA_RESOURCE_DESC rd{};
     rd.resType                    = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
     rd.res.mipmap.hMipmappedArray = m_denseArray;
-    DEMAND_CUDA_CHECK( cuTexObjectCreate( &m_denseTexture, &rd, &td, nullptr ) );
+    OTK_ERROR_CHECK( cuTexObjectCreate( &m_denseTexture, &rd, &td, nullptr ) );
 }
 
 TEST_F( TestSparseVsDenseTextures, denseSparseSparse )
 {
+    // Skip test if device does not support sparse textures
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            return;
+
     createDenseArray( 8, 8 );
     createDenseTexture( 8, 8 );
 

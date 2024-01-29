@@ -62,7 +62,7 @@ class DemandPageLoader
     virtual unsigned int allocatePages( unsigned int numPages, bool backed ) = 0;
 
     /// Set the page table entry for the given page.  Sets the associated page as resident.
-    virtual void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry ) = 0;
+    virtual void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) = 0;
 
     /// Prepare for launch by pushing mapped pages to the device.  The caller must ensure that the
     /// current CUDA context matches the given stream.  Returns false if the specified device does
@@ -76,9 +76,6 @@ class DemandPageLoader
     /// The given DeviceContext must reside in host memory.  The given stream is used to launch a
     /// kernel to obtain requested page ids and asynchronously copy them to host memory.
     virtual void pullRequests( CUstream stream, const DeviceContext& deviceContext, unsigned int id ) = 0;
-
-    /// Get indices of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
-    virtual std::vector<unsigned int> getDevices() const = 0;
 
     /// Turn on or off eviction
     virtual void enableEviction( bool evictionActive ) = 0;

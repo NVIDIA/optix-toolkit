@@ -27,7 +27,7 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -37,8 +37,8 @@ namespace demandLoading {
 inline void checkCudaContext( CUcontext expected )
 {
     CUcontext current;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &current ) );
-    DEMAND_ASSERT( current == expected );
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &current ) );
+    OTK_ASSERT( current == expected );
 }
 
 /// Verify that the current CUDA context matches the context associated with the given stream.
@@ -47,7 +47,7 @@ inline void checkCudaContext( CUstream stream )
     if( stream )
     {
         CUcontext context;
-        DEMAND_CUDA_CHECK( cuStreamGetCtx( stream, &context ) );
+        OTK_ERROR_CHECK( cuStreamGetCtx( stream, &context ) );
         checkCudaContext( context );
     }
 }

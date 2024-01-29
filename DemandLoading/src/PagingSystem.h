@@ -27,11 +27,10 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
-
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
-#include <OptiXToolkit/Memory/RingSuballocator.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
+#include <OptiXToolkit/Memory/RingSuballocator.h>
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
@@ -59,7 +58,7 @@ class TicketImpl;
 class PageInvalidatorPredicate
 {
   public:
-    virtual bool operator() (unsigned int pageId, unsigned long long pageVal ) = 0;
+    virtual bool operator() ( unsigned int pageId, unsigned long long pageVal, CUstream stream ) = 0;
     virtual ~PageInvalidatorPredicate() {};
 };
 
@@ -67,8 +66,8 @@ class PagingSystem
 {
   public:
     /// Create paging system, allocating device memory based on the given options.
-    PagingSystem( const Options&       options,
-                  DeviceMemoryManager* deviceMemoryManager,
+    PagingSystem( std::shared_ptr<Options> options,
+                  DeviceMemoryManager*     deviceMemoryManager,
                   otk::MemoryPool<otk::PinnedAllocator, otk::RingSuballocator>* pinnedMemoryPool,
                   RequestProcessor* requestProcessor );
 
@@ -77,9 +76,13 @@ class PagingSystem
     /// Pull requests from device to system memory.
     void pullRequests( const DeviceContext& context, CUstream stream, unsigned int id, unsigned int startPage, unsigned int endPage );
 
-    // Add a page mapping (thread safe).  The device-side page table (etc.) is not updated until
+    // Add a page mapping (thread safe). The device-side page table (etc.) is not updated until
     /// pushMappings is called.
     void addMapping( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
+
+    /// Add a page mapping (not thread safe). Exposed for PageInvalidatorPredicate callbacks that
+    /// need to map pages.
+    void addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
 
     /// Check whether the specified page is resident (thread safe).
     bool isResident( unsigned int pageId, unsigned long long* entry = nullptr );
@@ -112,9 +115,9 @@ class PagingSystem
         bool               inStagedList;  // All pages that are in the staged list, whether restored or not.
     };
 
-    Options              m_options{};
-    DeviceMemoryManager* m_deviceMemoryManager{};
-    RequestProcessor*    m_requestProcessor{};
+    std::shared_ptr<Options> m_options{};
+    DeviceMemoryManager*     m_deviceMemoryManager{};
+    RequestProcessor*        m_requestProcessor{};
 
     otk::MemoryBlockDesc m_pageMappingsContextBlock;
     PageMappingsContext* m_pageMappingsContext; 
@@ -134,8 +137,8 @@ class PagingSystem
     // Synchronization event for pushMappings
     struct FutureEvent
     {
-        FutureEvent() { DEMAND_CUDA_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) ); }
-        ~FutureEvent() { DEMAND_CUDA_CHECK_NOTHROW( cuEventDestroy( event ) ); }
+        FutureEvent() { OTK_ERROR_CHECK( cuEventCreate( &event, CU_EVENT_DEFAULT ) ); }
+        ~FutureEvent() { OTK_ERROR_CHECK_NOTHROW( cuEventDestroy( event ) ); }
         CUresult query() { return recorded ? cuEventQuery( event ) : CUDA_ERROR_NOT_READY; }
 
         CUevent event{};
@@ -174,8 +177,8 @@ class PagingSystem
     // Get the number of staged pages (ready to be freed for reuse)
     size_t getNumStagedPages();
 
-    // Add mapping function without mutex
-    void addMappingBody( unsigned int pageId, unsigned int lruVal, unsigned long long entry );
+    // Allocate a PageMappingsContext in pinned memory.
+    void initPageMappingsContext();
 
     // Restore the mapping for a staged page if possible
     bool restoreMapping( unsigned int pageId );

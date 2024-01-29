@@ -55,28 +55,42 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options );
     ~ThreadPoolRequestProcessor() override = default;
 
-    /// Start processing requests using the specified number of threads.  Options supplies
-    /// the number of specified threads (if zero, std::thread::hardware_concurrency is used),
-    /// the trace file and the size of the request queue.
-    void start( unsigned int maxThreads );
-
     /// Stop processing requests, terminating threads.
     void stop();
 
     /// Add a batch of page requests to the request queue.
     void addRequests( CUstream stream, unsigned id, const unsigned int* pageIds, unsigned int numPageIds ) override;
 
+    /// Add a request filter to preprocess batches of requests
+    void setRequestFilter( std::shared_ptr<RequestFilter> requestFilter ) { m_requestFilter = requestFilter; }
+
+    /// Record a texture creation for later playback
     void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
 
+    /// Set the ticket that will track requests with the given ticket id
     void setTicket( unsigned int id, Ticket ticket );
 
 private:
     std::shared_ptr<PageTableManager> m_pageTableManager;
     std::unique_ptr<RequestQueue>     m_requests;
     std::vector<std::thread>          m_threads;
-    std::unique_ptr<TraceFileWriter>  m_traceFile{};
     std::map<unsigned int, Ticket>    m_tickets;
     std::mutex                        m_ticketsMutex;
+    Options                           m_options;
+    bool                              m_started = false;
+    std::shared_ptr<RequestFilter>    m_requestFilter;
+
+    /// Start processing requests.
+    void start();
+
+    static std::mutex s_traceFileMutex;
+    static std::unique_ptr<TraceFileWriter> s_traceFile;
+    static void initTraceFile( const Options& options )
+    {
+        std::unique_lock<std::mutex> lock( s_traceFileMutex );
+        if( !s_traceFile )
+            s_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
+    }
 
     // Per-thread worker function.
     void worker();

@@ -37,7 +37,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(BuildConfig)
-include(embed_ptx)
+include(embed_cuda)
 include(FetchOpenEXR)
 include(CTest)
 
@@ -55,15 +55,18 @@ find_package(OptiX 7.3 REQUIRED)
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
-embed_ptx(CONST RELOCATABLE
-    HEADER DemandLoadingKernelsPTX.h
+embed_cuda(CONST RELOCATABLE
+    PTX
+    HEADER DemandLoadingKernelsCuda.h
     OUTPUT_TARGET DemandLoadingKernels
     FOLDER DemandLoading
-    PTX_INCLUDE_DIRECTORIES include
+    INCLUDES include
     SOURCES src/PagingSystemKernels.cu
 )
 
 otk_add_library( DemandLoading
+  src/CascadeRequestFilter.cpp
+  src/CascadeRequestFilter.h
   src/DemandLoaderImpl.cpp
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.cpp
@@ -84,6 +87,8 @@ otk_add_library( DemandLoading
   src/RequestQueue.h
   src/ResourceRequestHandler.cpp
   src/ResourceRequestHandler.h
+  src/Textures/CascadeRequestHandler.cpp
+  src/Textures/CascadeRequestHandler.h
   src/Textures/DemandTextureImpl.cpp
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.cpp
@@ -98,14 +103,13 @@ otk_add_library( DemandLoading
   src/ThreadPoolRequestProcessor.h
   src/Ticket.cpp
   src/TicketImpl.h
+  src/TransferBufferDesc.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/CudaContext.h
-  src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
-  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.cpp
   src/Util/TraceFile.h
@@ -128,6 +132,7 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/LRU.h
   include/OptiXToolkit/DemandLoading/Options.h
   include/OptiXToolkit/DemandLoading/Paging.h
+  include/OptiXToolkit/DemandLoading/RequestFilter.h
   include/OptiXToolkit/DemandLoading/RequestProcessor.h
   include/OptiXToolkit/DemandLoading/Resource.h
   include/OptiXToolkit/DemandLoading/Statistics.h
@@ -141,34 +146,20 @@ target_sources(DemandLoading
 )
 
 source_group( "Header Files\\Implementation" FILES
+  src/CascadeRequestFilter.h
   src/DemandLoaderImpl.h
   src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.h
-  src/Memory/AsyncItemPool.h
-  src/Memory/Buffers.h
-  src/Memory/BulkMemory.h
-  src/Memory/BulkPinnedItemPool.h
-  src/Memory/DeviceContextPool.h
   src/Memory/DeviceMemoryManager.h
-  src/Memory/EventPool.h
-  src/Memory/FixedPool.h
-  src/Memory/ItemPool.h
-  src/Memory/PinnedItemPool.h
-  src/Memory/PinnedMemoryManager.h
-  src/Memory/PinnedRequestContextPool.h
-  src/Memory/SamplerPool.h
-  src/Memory/TileArena.h
-  src/Memory/TilePool.h
   src/PageMappingsContext.h
   src/PageTableManager.h
   src/PagingSystem.h
   src/PagingSystemKernels.h
   src/RequestContext.h
   src/RequestHandler.h
-  src/RequestProcessor.h
   src/RequestQueue.h
   src/ResourceRequestHandler.h
-  src/Textures/BaseColorRequestHandler.h
+  src/Textures/CascadeRequestHandler.h
   src/Textures/DemandTextureImpl.h
   src/Textures/DenseTexture.h
   src/Textures/SamplerRequestHandler.h
@@ -176,15 +167,13 @@ source_group( "Header Files\\Implementation" FILES
   src/Textures/TextureRequestHandler.h
   src/ThreadPoolRequestProcessor.h
   src/TicketImpl.h
+  src/TransferBufferDesc.h
   src/Util/ContextSaver.h
   src/Util/CudaCallback.h
   src/Util/CudaContext.h
-  src/Util/DeviceSet.h
-  src/Util/Exception.h
   src/Util/Math.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
-  src/Util/PerContextData.h
   src/Util/Stopwatch.h
   src/Util/TraceFile.h
   )

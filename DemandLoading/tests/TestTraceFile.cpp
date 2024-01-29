@@ -27,7 +27,7 @@
 //
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "Util/TraceFile.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -50,12 +50,8 @@ class TestTraceFile : public testing::Test
     void SetUp()
     {
         // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
-
-        // Create stream.
-        CUstream stream;
-        DEMAND_CUDA_CHECK( cuStreamCreate( &stream, 0 ) );
+        OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 
     unsigned int m_deviceIndex = 0;
@@ -68,7 +64,6 @@ TEST_F( TestTraceFile, TestWriteAndRead )
     const char* traceFilename = "DemandLoadingTrace.dat";
     {
         TraceFileWriter writer( traceFilename );
-
         Options options;
         writer.recordOptions( options );
 
@@ -80,6 +75,5 @@ TEST_F( TestTraceFile, TestWriteAndRead )
         unsigned int pageIds[1] = {0};
         writer.recordRequests( m_stream, pageIds, 1 );
     }
-
     replayTraceFile( traceFilename );
 }

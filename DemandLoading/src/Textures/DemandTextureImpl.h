@@ -30,12 +30,11 @@
 #include "Textures/DenseTexture.h"
 #include "Textures/SparseTexture.h"
 #include "Textures/TextureRequestHandler.h"
-#include "Util/Exception.h"
-#include "Util/PerContextData.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <cuda.h>
@@ -94,8 +93,11 @@ class DemandTextureImpl : public DemandTexture
     /// Get the memory fill type for this texture.
     CUmemorytype getFillType() const { return m_image->getFillType(); }
 
-    /// Replace the current texture image. Return true if the sampler for the texture needs to be updated.
-    bool setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage );
+    /// Replace the current texture image.
+    void setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage );
+
+    /// Get the current texture image.
+    std::shared_ptr<imageSource::ImageSource> getImage() { return m_image; }
 
     /// Get the texture id, which is used as an index into the device-side sampler array.
     unsigned int getId() const override;
@@ -140,8 +142,8 @@ class DemandTextureImpl : public DemandTexture
     /// Get the request handler for this texture.
     TextureRequestHandler* getRequestHandler() { return m_requestHandler.get(); }
 
-    /// Accumulate statistics for this texture, if the associated ImageSource is not in the set.
-    void accumulateStatistics( Statistics& stats, std::set<imageSource::ImageSource*>& images );
+    /// Accumulate statistics for this texture.
+    void accumulateStatistics( Statistics& stats );
 
     /// Read the specified tile into the given buffer.
     /// Throws an exception on error.
@@ -158,6 +160,13 @@ class DemandTextureImpl : public DemandTexture
                    size_t                       tileSize,
                    CUmemGenericAllocationHandle handle,
                    size_t                       offset ) const;
+
+    void mapTile( CUstream                     stream,
+                  unsigned int                 mipLevel,
+                  unsigned int                 tileX,
+                  unsigned int                 tileY,
+                  CUmemGenericAllocationHandle tileHandle,
+                  size_t                       tileOffset ) const;
 
     /// Unmap backing storage for a tile
     void unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
@@ -182,6 +191,8 @@ class DemandTextureImpl : public DemandTexture
                       CUmemGenericAllocationHandle handle,
                       size_t                       offset ) const;
 
+    void mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset );
+
     /// Unmap backing storage for the mip tail
     void unmapMipTail( CUstream stream ) const;
 
@@ -191,6 +202,7 @@ class DemandTextureImpl : public DemandTexture
     /// Opens the corresponding ImageSource and obtains basic information about the texture dimensions.
     void open();
 
+    /// Return true if the texture is open
     bool isOpen() const { return m_isOpen; }
 
     /// Set this texture as an entry point to a udim texture array
@@ -201,6 +213,15 @@ class DemandTextureImpl : public DemandTexture
     
     /// Return the size of the mip tail if the texture is initialized.
     size_t getMipTailSize(); 
+
+    /// Get the master texture for a texture variant
+    DemandTextureImpl* getMasterTexture() { return m_masterTexture; }
+
+    /// Add a variant id to this (assumes this is a master texture)
+    void addVariantId( unsigned int id ) { m_variantTextureIds.push_back( id ); }
+
+    /// Return a list of all the variant ids
+    const std::vector<unsigned int>& getVariantsIds() { return m_variantTextureIds; }
 
   private:
     // A mutex guards against concurrent initialization, which can arise when the sampler
@@ -218,6 +239,7 @@ class DemandTextureImpl : public DemandTexture
 
     // Master texture, if this is a texture variant (shares image backing store with master texture). 
     DemandTextureImpl* m_masterTexture;
+    std::vector<unsigned int> m_variantTextureIds;
 
     // The DemandLoader provides access to the PageTableManager, etc.
     DemandLoaderImpl* const m_loader = nullptr;
@@ -237,11 +259,9 @@ class DemandTextureImpl : public DemandTexture
     size_t             m_mipTailSize       = 0;
     std::vector<uint2> m_mipLevelDims;
 
-    // Sparse and dense textures (one per CUDA context).
-    PerContextData<SparseTexture> m_sparseTextures;
-    PerContextData<DenseTexture> m_denseTextures;
-    std::mutex m_sparseTexturesMutex;
-    std::mutex m_denseTexturesMutex;
+    // Sparse and dense textures
+    SparseTexture m_sparseTexture;
+    DenseTexture m_denseTexture;
 
     // Request handler.
     std::unique_ptr<TextureRequestHandler> m_requestHandler;
@@ -251,18 +271,6 @@ class DemandTextureImpl : public DemandTexture
 
     // Threshold number of pixels to switch between sparse and dense texture
     const unsigned int SPARSE_TEXTURE_THRESHOLD = 1024;
-
-    // Get the sparse texture for the current CUDA context, creating it if necessary.
-    SparseTexture& getSparseTexture();
-
-    // Get a const reference to the sparse texture for the current CUDA context, creating it if necessary.
-    const SparseTexture& getSparseTexture() const { return const_cast<DemandTextureImpl*>( this )->getSparseTexture(); }
-
-    // Get the dense texture for the current CUDA context, creating it if necessary.
-    DenseTexture& getDenseTexture();
-
-    // Get a const reference to the dense texture for the current CUDA context, creating it if necessary.
-    const DenseTexture& getDenseTexture() const { return const_cast<DemandTextureImpl*>( this )->getDenseTexture(); }
 };
 
 }  // namespace demandLoading

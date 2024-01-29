@@ -27,8 +27,7 @@
 //
 
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
-
-#include "Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda_runtime.h>
 
@@ -59,13 +58,13 @@ CUarray_format pixelTypeToArrayFormat( const OIIO::TypeDesc& type )
     if( type == OIIO::TypeDesc::FLOAT )
         return CU_AD_FORMAT_FLOAT;
 
-    DEMAND_ASSERT_MSG( false, "Invalid pixel type" );
+    OTK_ASSERT_MSG( false, "Invalid pixel type" );
     return CU_AD_FORMAT_FLOAT;
 }
 
 namespace {
 
-double toFloat( const char* src, const CUarray_format format )
+float toFloat( const char* src, const CUarray_format format )
 {
     switch( format )
     {
@@ -91,10 +90,10 @@ double toFloat( const char* src, const CUarray_format format )
             return static_cast<float>( *( reinterpret_cast<const float*>( src ) ) );
 
         default:
-            DEMAND_ASSERT_MSG( false, "Invalid CUDA array format" );
+            OTK_ASSERT_MSG( false, "Invalid CUDA array format" );
     }
 
-    return 0.;
+    return 0.f;
 }
 }
 
@@ -108,7 +107,7 @@ void OIIOReader::open( TextureInfo* info )
         if( !m_input )
         {
             m_input = OIIO::ImageInput::open( m_filename );
-            DEMAND_ASSERT_MSG( m_input, std::string( "Failed to open image file " ) + m_filename + "." );
+            OTK_ASSERT_MSG( m_input, ( "Failed to open image file " + m_filename + "." ).c_str() );
 
             OIIO::ImageSpec spec = m_input->spec();
 
@@ -139,12 +138,12 @@ void OIIOReader::open( TextureInfo* info )
         }
     }
 
-    if( m_readBaseColor && m_baseColorWasRead == false && m_info.numMipLevels > 1 )
+    if( m_readBaseColor && !m_baseColorWasRead && m_info.numMipLevels > 1 )
     {
         std::vector<char> tmp( getBytesPerChannel( m_info.format ) * m_info.numChannels, 0 );
         readMipLevel( tmp.data(), m_info.numMipLevels - 1, 1, 1, 0 );
 
-        float out[4];
+        float out[4]{};
 
         for( unsigned int i = 0; i < m_info.numChannels; ++i )
             out[i] = toFloat( tmp.data() + getBytesPerChannel( m_info.format ) * i, m_info.format );
@@ -172,7 +171,7 @@ void OIIOReader::close()
 void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
 {
     std::lock_guard<std::mutex> guard( m_mutex );
-    DEMAND_ASSERT( m_input.get() );
+    OTK_ASSERT( m_input.get() );
 
     OIIO::ImageSpec spec;
     m_input->seek_subimage( 0, mipLevel, spec );
@@ -180,9 +179,9 @@ void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int
                         getBytesPerChannel( m_info.format ) * m_info.numChannels, rowPitch );
 }
 
-bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream /*stream*/ )
+bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
-    DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
     OIIO::ImageSpec spec;
     {
@@ -196,26 +195,26 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
         const unsigned int actualTileWidth  = spec.tile_width;
         const unsigned int actualTileHeight = spec.tile_height;
 
-        if( !( actualTileWidth <= tileWidth && tileWidth % actualTileWidth == 0 )
-            || !( actualTileHeight <= tileHeight && tileHeight % actualTileHeight == 0 ) )
+        if( actualTileWidth > tile.width || tile.width % actualTileWidth != 0
+            || actualTileHeight > tile.height || tile.height % actualTileHeight != 0 )
         {
             std::stringstream str;
             str << "Unsupported tile size (" << actualTileWidth << "x" << actualTileHeight << ").  Expected "
-                << tileWidth << "x" << tileHeight << " (or a whole fraction thereof) for this pixel format";
-            throw Exception( str.str().c_str() );
+                << tile.width << "x" << tile.height << " (or a whole fraction thereof) for this pixel format";
+            throw std::runtime_error( str.str().c_str() );
         }
 
-        const unsigned int actualTileX    = tileX * tileWidth / actualTileWidth;
-        const unsigned int actualTileY    = tileY * tileHeight / actualTileHeight;
+        const unsigned int actualTileX    = tile.x * tile.width / actualTileWidth;
+        const unsigned int actualTileY    = tile.y * tile.height / actualTileHeight;
         const unsigned int bytesPerPixel  = getBytesPerChannel( m_info.format ) * m_info.numChannels;
-        const unsigned int rowPitch       = tileWidth * bytesPerPixel;
+        const unsigned int rowPitch       = tile.width * bytesPerPixel;
         const size_t       actualTileSize = actualTileWidth * actualTileHeight * bytesPerPixel;
 
         // Don't request non-existent tiles on the edge of the texture
         unsigned int levelWidthInSourceTiles  = ( m_levelWidths[mipLevel] + actualTileWidth - 1 ) / actualTileWidth;
         unsigned int levelHeightInSourceTiles = ( m_levelHeights[mipLevel] + actualTileHeight - 1 ) / actualTileHeight;
-        const unsigned int numTilesX = std::min( tileWidth / actualTileWidth, levelWidthInSourceTiles - actualTileX );
-        const unsigned int numTilesY = std::min( tileHeight / actualTileHeight, levelHeightInSourceTiles - actualTileY );
+        const unsigned int numTilesX = std::min( tile.width / actualTileWidth, levelWidthInSourceTiles - actualTileX );
+        const unsigned int numTilesY = std::min( tile.height / actualTileHeight, levelHeightInSourceTiles - actualTileY );
 
         for( unsigned int j = 0; j < numTilesY; ++j )
         {
@@ -228,10 +227,10 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
     }
     else  // Scanline image
     {
-        const unsigned int start_x = tileX * tileWidth;
-        const unsigned int end_x   = std::min<int>( spec.width, start_x + tileWidth );
-        const unsigned int start_y = tileY * tileHeight;
-        const unsigned int end_y   = std::min<int>( spec.height, start_y + tileHeight );
+        const unsigned int start_x = tile.x * tile.width;
+        const unsigned int end_x   = std::min<int>( spec.width, start_x + tile.width );
+        const unsigned int start_y = tile.y * tile.height;
+        const unsigned int end_y   = std::min<int>( spec.height, start_y + tile.height );
 
         const unsigned int bytesPerPixel    = getBytesPerChannel( m_info.format ) * m_info.numChannels;
         const unsigned int file_pixel_bytes = spec.pixel_bytes();
@@ -253,7 +252,10 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, unsigned int tileX
         }
     }
 
-    m_numTilesRead += 1;
+    {
+        std::lock_guard<std::mutex> guard( m_mutex );
+        ++m_numTilesRead;
+    }
     return true;
 }
 
@@ -278,7 +280,8 @@ bool OIIOReader::readMipLevel( char*        dest,
                                unsigned int expectedDepth,
                                CUstream     /*stream*/ )
 {
-    DEMAND_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read missing mip level" );
 
     OIIO::ImageSpec spec;
     unsigned int    bytesPerPixel;
@@ -286,9 +289,12 @@ bool OIIOReader::readMipLevel( char*        dest,
         std::lock_guard<std::mutex> guard( m_mutex );
         m_input->seek_subimage( 0, mipLevel, spec );
 
-        DEMAND_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
-        DEMAND_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
-        DEMAND_ASSERT( spec.depth == static_cast<int>( expectedDepth ) );
+        OTK_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
+        OTK_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
+        OTK_ASSERT( spec.depth == static_cast<int>( expectedDepth ) );
+        (void)expectedWidth;  // silence unused variable warning.
+        (void)expectedHeight;
+        (void)expectedDepth;
 
         bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
 

@@ -35,6 +35,7 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/Resource.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/Statistics.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/DemandLoading/Ticket.h>
@@ -70,7 +71,7 @@ class DemandLoader
                                                     std::vector<TextureDescriptor>&                         textureDescs,
                                                     unsigned int                                            udim,
                                                     unsigned int                                            vdim,
-                                                    int baseTextureId ) = 0;
+                                                    int                                                     baseTextureId ) = 0;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     /// Returns the starting index of the resource in the page table.  The user-supplied callbackContext
@@ -81,13 +82,18 @@ class DemandLoader
     virtual void unloadTextureTiles( unsigned int textureId ) = 0;
 
     /// Replace the indicated texture, clearing out the old texture as needed
-    virtual void replaceTexture( unsigned int                              textureId,
+    virtual void replaceTexture( CUstream                                  stream,
+                                 unsigned int                              textureId,
                                  std::shared_ptr<imageSource::ImageSource> image,
-                                 const TextureDescriptor&                  textureDesc ) = 0;
+                                 const TextureDescriptor&                  textureDesc,
+                                 bool                                      migrateTiles ) = 0;
 
     /// Pre-initialize the texture on the device corresponding to the given stream.  The caller must
     /// ensure that the current CUDA context matches the given stream.
     virtual void initTexture( CUstream stream, unsigned int textureId ) = 0;
+
+    /// Pre-initialize all of the subtextures in the udim grid, as well as the base texture.
+    virtual void initUdimTexture( CUstream stream, unsigned int baseTextureId ) = 0;
 
     /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
     virtual unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) = 0;
@@ -123,11 +129,8 @@ class DemandLoader
     /// processing.  Useful in case of catastrophic CUDA error or corruption.
     virtual void abort() = 0;
     
-    /// Get current statistics.
+    /// Get time/space stats for the DemandLoader.
     virtual Statistics getStatistics() const = 0;
-
-    /// Get the ordinals of the devices that can be employed by the DemandLoader (i.e. those that support sparse textures).
-    virtual std::vector<unsigned int> getDevices() const = 0;
 
     /// Get the current options
     virtual const Options& getOptions() const = 0;
@@ -137,6 +140,9 @@ class DemandLoader
 
     /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
     virtual void setMaxTextureMemory( size_t maxMem ) = 0;
+
+    /// Get the CUDA context associated with this demand loader
+    virtual CUcontext getCudaContext() = 0;
 };
 
 /// Create a DemandLoader with the given options.  
@@ -144,5 +150,11 @@ DemandLoader* createDemandLoader( const Options& options );
 
 /// Function to destroy a DemandLoader.
 void destroyDemandLoader( DemandLoader* manager );
+
+/// Get a bitmap of devices to use for demand loading
+inline std::vector<unsigned int> getDemandLoadDevices( bool sparseOnly )
+{
+    return sparseOnly ? getSparseTextureDevices() : getCudaDevices();
+}
 
 }  // namespace demandLoading

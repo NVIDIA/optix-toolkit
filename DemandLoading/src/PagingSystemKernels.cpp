@@ -28,7 +28,7 @@
 
 #include "PagingSystemKernels.h"
 
-#include "Util/Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <algorithm>
 
@@ -37,8 +37,8 @@ namespace demandLoading {
 void launchKernel( CUmodule module, const char* symbol, unsigned int numBlocks, unsigned int numThreadsPerBlock, CUstream stream, void** params )
 {
     CUfunction fn{};
-    DEMAND_CUDA_CHECK( cuModuleGetFunction( &fn, module, symbol ) );
-    DEMAND_CUDA_CHECK( cuLaunchKernel( fn, numBlocks, 1, 1, numThreadsPerBlock, 1, 1, 0U, stream, params, nullptr ) );  // NOLINT(readability-suspicious-call-argument)
+    OTK_ERROR_CHECK( cuModuleGetFunction( &fn, module, symbol ) );
+    OTK_ERROR_CHECK( cuLaunchKernel( fn, numBlocks, 1, 1, numThreadsPerBlock, 1, 1, 0U, stream, params, nullptr ) );  // NOLINT(readability-suspicious-call-argument)
 }
 
 inline unsigned int roundNearest32( unsigned int value )

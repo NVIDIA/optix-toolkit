@@ -31,11 +31,11 @@
 #include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/HeapSuballocator.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
-#include "Util/Exception.h"
 #include "Util/Math.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 namespace demandLoading {
 

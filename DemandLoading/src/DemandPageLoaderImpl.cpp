@@ -28,7 +28,6 @@
 
 #include "DemandPageLoaderImpl.h"
 
-#include "Util/Exception.h"
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
 #include "Util/TraceFile.h"
@@ -37,7 +36,9 @@
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -48,106 +49,28 @@
 
 using namespace otk;
 
-namespace {
-
-unsigned int getCudaDeviceCount()
-{
-    int numDevices;
-    DEMAND_CUDA_CHECK( cuDeviceGetCount( &numDevices ) );
-    return static_cast<unsigned int>( numDevices );
-}
-
-demandLoading::Options configure( demandLoading::Options options )
-{
-    // If maxTexMemPerDevice is 0, consider it to be unlimited
-    if( options.maxTexMemPerDevice == 0 )
-        options.maxTexMemPerDevice = 0xfffffffffffffffful;
-
-    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
-    if( options.maxFilledPages < options.maxRequestedPages )
-        options.maxFilledPages = options.maxRequestedPages;
-
-    // Anticipate at lease one active stream per device.
-    options.maxActiveStreams = std::max( getCudaDeviceCount(), options.maxActiveStreams );
-
-    return options;
-}
-
-}  // anonymous namespace
-
 namespace demandLoading {
 
-bool DemandPageLoaderImpl::supportsSparseTextures( unsigned int deviceIndex )
-{
-    int sparseSupport = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &sparseSupport, CU_DEVICE_ATTRIBUTE_SPARSE_CUDA_ARRAY_SUPPORTED, deviceIndex ) );
 
-    // Skip devices in TCC mode.  This guards against an "operation not supported" error when
-    // querying the recommended allocation granularity via cuMemGetAllocationGranularity.
-    int inTccMode = 0;
-    DEMAND_CUDA_CHECK( cuDeviceGetAttribute( &inTccMode, CU_DEVICE_ATTRIBUTE_TCC_DRIVER, deviceIndex ) );
-
-    return sparseSupport && !inTccMode;
-}
-
-DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, const Options& options )
-    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( configure( options ).numPages, configure( options ).numPageTableEntries ), requestProcessor, options )
+DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options )
+    : DemandPageLoaderImpl( std::make_shared<PageTableManager>( options->numPages, options->numPageTableEntries ), requestProcessor, options )
 {
 }
-
-const static unsigned long long PINNED_ALLOC_SIZE = 2 * 1024 * 1024;
 
 DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager,
                                             RequestProcessor*                 requestProcessor,
-                                            const Options&                    options )
-    : m_options( configure( options ) )
-    , m_numDevices( getCudaDeviceCount() )
+                                            std::shared_ptr<Options>          options )
+    : m_options( options )
+    , m_deviceMemoryManager( m_options )
+    , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, m_options->maxPinnedMemory )
     , m_pageTableManager( std::move( pageTableManager ) )
     , m_requestProcessor( requestProcessor )
-    , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC_SIZE ), PINNED_ALLOC_SIZE, options.maxPinnedMemory )
+    , m_pagingSystem( m_options, &m_deviceMemoryManager, &m_pinnedMemoryPool, m_requestProcessor )
 {
-    // Determine which devices to use.  Look for devices supporting sparse textures first
-    for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
-    {
-        if( m_options.useSparseTextures && supportsSparseTextures( deviceIndex ) )
-            m_devices.push_back( deviceIndex );
-    }
-
-    // Fall back to dense textures if no devices supporting sparse textures were found
-    if( m_devices.empty() )
-    {
-        // FIXME: log a warning here that we are falling back to dense textures if m_options.useSparseTextures is true.
-        //throw Exception( "No devices that support CUDA sparse textures were found (sm_60+ required)." );
-        m_options.useSparseTextures = false;
-        for( unsigned int deviceIndex = 0; deviceIndex < m_numDevices; ++deviceIndex )
-            m_devices.push_back( deviceIndex );
-    }
-}
-
-DeviceMemoryManager* DemandPageLoaderImpl::getDeviceMemoryManager() const
-{
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_deviceMemoryManagersMutex );
-    return m_deviceMemoryManagers.findOrCreate(
-        [this]() { return std::unique_ptr<DeviceMemoryManager>( new DeviceMemoryManager( m_options ) ); } );
-}
-
-PagingSystem* DemandPageLoaderImpl::getPagingSystem() const
-{
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_pagingSystemsMutex );
-    return m_pagingSystems.findOrCreate( [this]() {
-        return std::unique_ptr<PagingSystem>(
-            new PagingSystem( m_options, getDeviceMemoryManager(), &m_pinnedMemoryPool, m_requestProcessor ) );
-    } );
-}
-
-std::vector<DemandPageLoaderImpl::InvalidationRange>* DemandPageLoaderImpl::getPagesToInvalidate()
-{
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    std::unique_lock<std::mutex> lock( m_pagesToInvalidateMutex );
-    return m_pagesToInvalidate.findOrCreate(
-        []() { return std::unique_ptr<std::vector<InvalidationRange>>( new std::vector<InvalidationRange> ); } );
+    CUdevice device;
+    OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
+    if( !deviceSupportsSparseTextures( device ) )
+        m_options->useSparseTextures = false;
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
@@ -159,45 +82,40 @@ unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool ba
                     m_pageTableManager->reserveUnbackedPages( numPages, nullptr );
 }
 
-void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry )
+void DemandPageLoaderImpl::setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry )
 {
-    return getPagingSystem()->addMapping( pageId, evictable ? 0U : NON_EVICTABLE_LRU_VAL,
-                                          reinterpret_cast<unsigned long long>( pageTableEntry ) );
+    unsigned int lruVal = evictable ? 0U : NON_EVICTABLE_LRU_VAL;
+    return m_pagingSystem.addMapping( pageId, lruVal, pageTableEntry );
 }
 
 // Returns false if the device doesn't support sparse textures.
 bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    PagingSystem* pagingSystem = getPagingSystem();
-    if( pagingSystem == nullptr )
-        return false;
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 
     // Get DeviceContext from pool and copy it to output parameter.
     {
         // allocate() is not thread safe
         std::unique_lock<std::mutex> lock( m_mutex );
-        context = *getDeviceMemoryManager()->allocateDeviceContext();
+        context = *m_deviceMemoryManager.allocateDeviceContext();
         invalidatePages( stream, context );
     }
-    context.requestIfResident = m_options.evictionActive;
+    context.requestIfResident = m_options->evictionActive;
 
-    pagingSystem->pushMappings( context, stream );
+    m_pagingSystem.pushMappings( context, stream );
     return true;
 }
 
 void DemandPageLoaderImpl::invalidatePages( CUstream stream, DeviceContext& context )
 {
-    checkCudaContext( stream );
-
     // Mutex acquired in caller
-    std::vector<InvalidationRange>* pagesToInvalidate = getPagesToInvalidate();
-    for( InvalidationRange& ir : *pagesToInvalidate )
+    for( InvalidationRange& ir : m_pagesToInvalidate )
     {
-        getPagingSystem()->invalidatePages( ir.startPage, ir.endPage, ir.predicate, context, stream );
+        m_pagingSystem.invalidatePages( ir.startPage, ir.endPage, ir.predicate, context, stream );
         delete ir.predicate;
     }
-    pagesToInvalidate->clear();
+    m_pagesToInvalidate.clear();
 }
 
 
@@ -208,11 +126,10 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
     // Pull requests from the device.  This launches a kernel on the given stream to scan the
-    // request bits copies the requested page ids to host memory (asynchronously).
-    PagingSystem* pagingSystem = getPagingSystem();
-    unsigned int  startPage    = 0;
-    unsigned int  endPage      = m_pageTableManager->getEndPage();
-    pagingSystem->pullRequests( context, stream, id, startPage, endPage);
+    // request bits, and copies the requested page ids to host memory asynchronously.
+    unsigned int  startPage = 0;
+    unsigned int  endPage   = m_pageTableManager->getEndPage();
+    m_pagingSystem.pullRequests( context, stream, id, startPage, endPage);
 
     std::unique_lock<std::mutex> lock( m_mutex );
     m_totalProcessingTime += stopwatch.elapsed();
@@ -225,12 +142,13 @@ void DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int id, con
     std::unique_lock<std::mutex> lock( m_mutex );
 
     // Flush any page mappings that have accumulated for the current CUDA context.
-    getPagingSystem()->flushMappings();
+    m_pagingSystem.flushMappings();
 
     m_requestProcessor->addRequests( stream, id, pageIds, numPageIds);
 }
 
-// Predicate that returns pages to a tile pool if the arenaId is high enough
+// Predicate that returns tile pages to a tile pool if the arenaId is high enough, allowing
+// the arenas to be deleted.
 class ResizeTilePoolPredicate : public PageInvalidatorPredicate
 {
   public:
@@ -238,7 +156,7 @@ class ResizeTilePoolPredicate : public PageInvalidatorPredicate
         : m_maxArenas( maxArenas )
     {
     }
-    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal ) override
+    bool operator()( unsigned int /*pageId*/, unsigned long long pageVal, CUstream /*stream*/ ) override
     {
         TileBlockDesc tileBlock( pageVal );
         // Note: no need to free the tile block in the deviceMemoryManager because the
@@ -253,40 +171,30 @@ class ResizeTilePoolPredicate : public PageInvalidatorPredicate
 void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    m_deviceMemoryManagers.for_each( [this, maxMem]( DeviceMemoryManager& manager ) {
-        unsigned int tilesStartPage = m_options.numPageTableEntries;
-        unsigned int tilesEndPage   = m_options.numPages;
-        size_t       maxArenas      = maxMem / manager.getTilePoolArenaSize();
+    
+    unsigned int tilesStartPage = m_options->numPageTableEntries;
+    unsigned int tilesEndPage   = m_options->numPages;
+    size_t       maxArenas      = maxMem / m_deviceMemoryManager.getTilePoolArenaSize();
 
-        // Resize, deleting tile arenas as needed
-        manager.setMaxTextureTileMemory( maxMem );
+    // Resize, deleting tile arenas as needed
+    m_deviceMemoryManager.setMaxTextureTileMemory( maxMem );
 
-        // Schedule tiles from deleted arenas to be discarded
-        ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
-        getPagesToInvalidate()->push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
-    } );
-    m_options.maxTexMemPerDevice = maxMem;
+    // Schedule tiles from deleted arenas to be discarded
+    ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
+    m_pagesToInvalidate.push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
+
+    m_options->maxTexMemPerDevice = maxMem;
 }
 
 void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate )
 {
-    getPagesToInvalidate()->push_back( InvalidationRange{startPage, endPage, predicate} );
-}
-
-void DemandPageLoaderImpl::accumulateStatistics( Statistics& stats ) const
-{
-    m_deviceMemoryManagers.for_each( [&stats]( const DeviceMemoryManager& manager ) {
-        CUdevice device;
-        DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-        unsigned int deviceIndex = static_cast<unsigned int>( device );
-        manager.accumulateStatistics( stats.perDevice[deviceIndex] );
-    } );
+    m_pagesToInvalidate.push_back( InvalidationRange{startPage, endPage, predicate} );
 }
 
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    return new DemandPageLoaderImpl( requestProcessor, options );
+    return new DemandPageLoaderImpl( requestProcessor, std::shared_ptr<Options>( new Options( options ) ) );
 }
 
 void destroyDemandPageLoader( DemandPageLoader* manager )

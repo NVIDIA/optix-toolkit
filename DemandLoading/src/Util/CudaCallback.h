@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "Exception.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -56,7 +56,7 @@ class CudaCallback
     {
         // cuLaunchHostFunc requires a function that takes a void*, so we use a static method to
         // delegate to the virtual callback method.
-        DEMAND_CUDA_CHECK( cuLaunchHostFunc( stream, &staticCallback, callback ) );
+        OTK_ERROR_CHECK( cuLaunchHostFunc( stream, &staticCallback, callback ) );
     }
 
   private:

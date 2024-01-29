@@ -28,13 +28,14 @@
 
 #include "TestSparseTexture.h"
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoaderImpl.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PageTableManager.h"
 #include "Textures/DemandTextureImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
@@ -44,6 +45,7 @@
 #include <cuda.h>
 
 #include <memory>
+#include <stdexcept>
 
 using namespace demandLoading;
 using namespace imageSource;
@@ -55,8 +57,8 @@ class TestDemandTexture : public testing::Test
     void SetUp()
     {
         // Initialize CUDA.
-        DEMAND_CUDA_CHECK( cuInit( 0 ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cuInit( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 
     void initTexture( unsigned int width, unsigned int height, bool useMipMaps = true, bool tiledImage = true )
@@ -64,15 +66,17 @@ class TestDemandTexture : public testing::Test
         m_width = width;
         m_height = height;
 
+        // Use the first capable device.
+        m_deviceIndex = getFirstSparseTextureDevice();
+        if( m_deviceIndex == demandLoading::MAX_DEVICES )
+            throw std::runtime_error( "No devices support demand loading" );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,
         // and it's provides a PageTableManager that's needed by initSampler().
         demandLoading::Options options{};
         options.useSmallTextureOptimization = true;
         m_loader.reset( new DemandLoaderImpl( options ) );
-
-        // Use the first capable device.
-        m_deviceIndex = m_loader->getDevices().at(0);
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         // Create TextureDescriptor.
         m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
@@ -115,6 +119,10 @@ TEST_F( TestDemandTexture, TestInitNonMipMapped )
 
 TEST_F( TestDemandTexture, TestFillTile )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256);
 
     unsigned int      mipLevel      = 0;
@@ -142,18 +150,18 @@ TEST_F( TestDemandTexture, TestFillTile )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
     float       lod           = static_cast<float>( mipLevel );
     CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     // Copy output buffer to host.
     std::vector<float4> hostOutput( outWidth * outHeight );
-    DEMAND_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
 
     // Validate the red channels of the output.  When resident, the red channel is a 0/1 checkerboard.
     // The output channels are -1 if the tile is not resident.
@@ -167,11 +175,15 @@ TEST_F( TestDemandTexture, TestFillTile )
         }
     }
 
-    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestReadMipTail )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256); 
 
     // Read the entire mip tail.
@@ -208,6 +220,10 @@ TEST_F( TestDemandTexture, TestReadMipTail )
 
 TEST_F( TestDemandTexture, TestFillMipTail )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256);
 
     // Read the entire mip tail.
@@ -227,18 +243,18 @@ TEST_F( TestDemandTexture, TestFillMipTail )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
     float       lod           = static_cast<float>( m_texture->getMipTailFirstLevel() );
     CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     // Copy output buffer to host.
     std::vector<float4> hostOutput( outWidth * outHeight );
-    DEMAND_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
 
     // Validate output.  The first level of the mip tail is a green/black checkerboard
     unsigned int pattern[4][4] = {{1, 0, 1, 0}, {0, 1, 0, 1}, {1, 0, 1, 0}, {0, 1, 0, 1}};
@@ -254,7 +270,7 @@ TEST_F( TestDemandTexture, TestFillMipTail )
         }
     }
 
-    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestDenseTexture )
@@ -277,18 +293,18 @@ TEST_F( TestDemandTexture, TestDenseTexture )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
     float       lod           = 0;
     CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     // Copy output buffer to host.
     std::vector<float4> hostOutput( outWidth * outHeight );
-    DEMAND_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
 
     // Validate output. (Red checkerboard)
     float4 pattern[16] = {
@@ -309,7 +325,7 @@ TEST_F( TestDemandTexture, TestDenseTexture )
         }
     }
 
-    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
@@ -331,18 +347,18 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
     float       lod           = 0;
     CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     // Copy output buffer to host.
     std::vector<float4> hostOutput( outWidth * outHeight );
-    DEMAND_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
 
     // Validate output. (Red checkerboard)
     float4 pattern[16] = {
@@ -363,11 +379,15 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
         }
     }
 
-    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
 TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
 {
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
     initTexture(256, 256, false, true);
 
     // Read and fill the corner tiles, leaving the others non-resident.
@@ -396,18 +416,18 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
     const int outHeight = 4;
     float4*   devOutput;
     size_t    outputSize = outWidth * outHeight * sizeof( float4 );
-    DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outWidth * outHeight * sizeof( float4 ) ) );
 
     // Launch the worker.
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
     float       lod           = 1.0f; // Give a non-zero lod, and test if level 0 is still retrieved in tex2D
     CUtexObject textureObject = m_texture->getTextureObject();
     launchSparseTextureKernel( textureObject, devOutput, outWidth, outHeight, lod );
-    DEMAND_CUDA_CHECK( cudaDeviceSynchronize() );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     // Copy output buffer to host.
     std::vector<float4> hostOutput( outWidth * outHeight );
-    DEMAND_CUDA_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput.data(), devOutput, outputSize, cudaMemcpyDeviceToHost ) );
 
     // Validate the red channels of the output.  When resident, the red channel is a 0/1 checkerboard.
     // The output channels are -1 if the tile is not resident.
@@ -421,5 +441,5 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
         }
     }
 
-    DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }

@@ -27,9 +27,9 @@
 //
 #pragma once
 
-#include "Util/Exception.h"
 
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <vector_types.h>
@@ -52,7 +52,7 @@ public:
     CUarray getLevel( unsigned int mipLevel ) const
     {
         CUarray mipLevelArray{};
-        DEMAND_CUDA_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, m_array, mipLevel ) );
+        OTK_ERROR_CHECK( cuMipmappedArrayGetLevel( &mipLevelArray, m_array, mipLevel ) );
         return mipLevelArray;
     }
 
@@ -62,7 +62,7 @@ public:
     size_t       getMipTailSize() const { return m_properties.miptailSize; }
     uint2 getMipLevelDims( unsigned int mipLevel ) const
     {
-        DEMAND_ASSERT( mipLevel < m_mipLevelDims.size() );
+        OTK_ASSERT( mipLevel < m_mipLevelDims.size() );
         return m_mipLevelDims[mipLevel];
     }
 
@@ -125,6 +125,14 @@ class SparseTexture
     /// Get the CUDA texture object.
     CUtexObject getTextureObject() const { return m_texture; }
 
+    /// Map the given backing storage for the specified tile into the sparse texture.
+    void mapTile( CUstream stream,
+                  unsigned int                 mipLevel,
+                  unsigned int                 tileX,
+                  unsigned int                 tileY,
+                  CUmemGenericAllocationHandle tileHandle,
+                  size_t                       tileOffset ) const;
+
     /// Map the given backing storage for the specified tile into the sparse texture and fill it with the given data.
     void fillTile( CUstream                     stream,
                    unsigned int                 mipLevel,
@@ -138,6 +146,9 @@ class SparseTexture
 
     /// Unmap the backing storage for the specified tile.
     void unmapTile( CUstream stream, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
+
+    /// Map the given backing storage the for mip tail into the sparse texture.
+    void mapMipTail( CUstream stream, CUmemGenericAllocationHandle tileHandle, size_t tileOffset ) const;
 
     /// Map the given backing storage for mip tail into the sparse texture and fill it with the given data.
     void fillMipTail( CUstream                     stream,

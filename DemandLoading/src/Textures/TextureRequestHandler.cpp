@@ -119,7 +119,7 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     {
         std::stringstream ss;
         ss << "readTile call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 
     if( satisfied )
@@ -135,7 +135,7 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
         // Add a mapping for the tile, which will be sent to the device in pushMappings().
         if( useNewBlock )
         {
-            m_loader->setPageTableEntry( pageId, true, reinterpret_cast<void*>( bh.block.data ) );
+            m_loader->setPageTableEntry( pageId, true, static_cast<unsigned long long>( bh.block.data ) );
         }
     }
 
@@ -178,7 +178,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
     {
         std::stringstream ss;
         ss << "readMipTail call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw Exception( ss.str().c_str() );
+        throw std::runtime_error( ss.str().c_str() );
     }
 
     if( satisfied )
@@ -194,7 +194,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
 
         if( useNewBlock )
         {
-            m_loader->setPageTableEntry( pageId, true, reinterpret_cast<void*>( bh.block.data ) );
+            m_loader->setPageTableEntry( pageId, true, static_cast<unsigned long long>( bh.block.data ) );
         }
     }
 
@@ -206,7 +206,7 @@ void TextureRequestHandler::unmapTileResource( CUstream stream, unsigned int pag
     // We use MutexArray to ensure mutual exclusion on a per-page basis.  This is necessary because
     // multiple streams might race to fill the same tile (or the mip tail).
     unsigned int tileIndex = pageId - m_startPage;
-    MutexArrayLock lock( m_mutex.get(), tileIndex);
+    MutexArrayLock lock( m_mutex.get(), tileIndex );
 
     // If the page has already been remapped, don't unmap it
     PagingSystem* pagingSystem = m_loader->getPagingSystem();

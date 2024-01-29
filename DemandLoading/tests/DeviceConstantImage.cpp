@@ -27,7 +27,8 @@
 //
 
 #include "DeviceConstantImage.h"
-#include "Util/Exception.h"
+
+#include <OptiXToolkit/Error/ErrorCheck.h>
 
 using namespace imageSource;
 
@@ -52,18 +53,12 @@ void DeviceConstantImage::open( TextureInfo* info )
         *info = m_info;
 }
 
-bool DeviceConstantImage::readTile( char*        dest,
-                                    unsigned int mipLevel,
-                                    unsigned int /*tileX*/,
-                                    unsigned int /*tileY*/,
-                                    unsigned int tileWidth,
-                                    unsigned int tileHeight,
-                                    CUstream     stream )
+bool DeviceConstantImage::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     DeviceConstantImageParams params;
-    params.num_pixels = tileWidth * tileHeight;
+    params.num_pixels = tile.width * tile.height;
     params.color = m_mipColors[ mipLevel % m_mipColors.size() ];
     params.output_buffer = reinterpret_cast<float4*>( dest );
 
@@ -74,14 +69,16 @@ bool DeviceConstantImage::readTile( char*        dest,
 
 bool DeviceConstantImage::readMipLevel( char* dest, unsigned int mipLevel, unsigned int width, unsigned int height, CUstream stream )
 {
-    DEMAND_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const unsigned int levelWidth  = std::max( 1u, m_info.width >> mipLevel );
     const unsigned int levelHeight = std::max( 1u, m_info.height >> mipLevel );
 
-    DEMAND_ASSERT_MSG( levelWidth == width && levelHeight == height,
-                       "Mismatch between parameter and calculated mip level size." );
-
+    OTK_ASSERT_MSG( levelWidth == width && levelHeight == height,
+                    "Mismatch between parameter and calculated mip level size." );
+    (void)width;  // silence unused variable warning
+    (void)height;
+    
     DeviceConstantImageParams params{};
     params.num_pixels    = levelWidth * levelHeight;
     params.color         = m_mipColors[mipLevel % m_mipColors.size()];
@@ -99,7 +96,7 @@ bool DeviceConstantImage::readMipTail( char* dest,
                                        unsigned int /*pixelSizeInBytes*/,
                                        CUstream stream )
 {
-    DEMAND_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
+    OTK_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );
 
     const unsigned int levelWidth  = mipLevelDims[mipTailFirstLevel].x;
     const unsigned int levelHeight = mipLevelDims[mipTailFirstLevel].y;

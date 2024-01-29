@@ -42,6 +42,25 @@ namespace imageSource {
 
 struct TextureInfo;
 
+struct PixelPosition
+{
+    unsigned int x;
+    unsigned int y;
+};
+
+struct Tile
+{
+    unsigned int x;
+    unsigned int y;
+    unsigned int width;
+    unsigned int height;
+};
+
+inline PixelPosition pixelPosition( const Tile& tile )
+{
+    return { tile.x * tile.width, tile.y * tile.height };
+}
+
 /// Interface for a mipmapped image.
 ///
 /// Any method may be called from multiple threads; the implementation must be threadsafe.
@@ -73,13 +92,7 @@ class ImageSource
     /// the bounds of the mip level will be filled in with black.
     /// Throws an exception on error.
     /// Returns true if the request was satisfied and data was copied into dest.
-    virtual bool readTile( char*        dest,
-                           unsigned int mipLevel,
-                           unsigned int tileX,
-                           unsigned int tileY,
-                           unsigned int tileWidth,
-                           unsigned int tileHeight,
-                           CUstream     stream ) = 0;
+    virtual bool readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream stream ) = 0;
 
     /// Read the specified mipLevel. Throws an exception on error.
     /// Returns true if the request was satisfied and data was copied into dest.
@@ -90,15 +103,15 @@ class ImageSource
     /// zero), along with the pixel size.
     /// Throws an exception on error.
     /// Returns true if the request was satisfied and data was copied into dest.
-    virtual bool readMipTail( char* dest,
+    virtual bool readMipTail( char*        dest,
                               unsigned int mipTailFirstLevel,
                               unsigned int numMipLevels,
                               const uint2* mipLevelDims,
                               unsigned int pixelSizeInBytes,
-                              CUstream stream ) = 0;
+                              CUstream     stream ) = 0;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
-    virtual bool readBaseColor( float4& dest ) = 0; 
+    virtual bool readBaseColor( float4& dest ) = 0;
 
     /// Returns the number of tiles that have been read.
     virtual unsigned long long getNumTilesRead() const = 0;
@@ -110,6 +123,8 @@ class ImageSource
     /// Returns the time in seconds spent reading image data (tiles or mip levels).  This number may
     /// be zero if the reader does not load tiles from disk, e.g. for procedural textures.
     virtual double getTotalReadTime() const = 0;
+
+    virtual bool hasCascade() const = 0;
 };
 
 /// Base class for ImageSource with default implementation of readMipTail, etc.
@@ -118,18 +133,20 @@ class ImageSourceBase : public ImageSource
   public:
     ~ImageSourceBase() override = default;
 
-    bool readMipTail( char* dest,
+    bool readMipTail( char*        dest,
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
                       unsigned int pixelSizeInBytes,
-                      CUstream stream ) override;
+                      CUstream     stream ) override;
 
     unsigned long long getNumTilesRead() const override { return 0u; }
 
     unsigned long long getNumBytesRead() const override { return 0u; }
 
     double getTotalReadTime() const override { return 0.0; }
+
+    bool hasCascade() const override { return false; }
 };
 
 /// @private

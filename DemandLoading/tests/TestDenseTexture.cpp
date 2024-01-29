@@ -27,7 +27,7 @@
 //
 
 #include "Textures/DenseTexture.h"
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
 
@@ -46,8 +46,8 @@ class TestDenseTexture : public testing::Test
   public:
     void SetUp() override
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
         m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
         m_desc.addressMode[1]   = CU_TR_ADDRESS_MODE_CLAMP;

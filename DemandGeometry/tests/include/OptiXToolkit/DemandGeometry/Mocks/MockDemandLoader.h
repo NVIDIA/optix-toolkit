@@ -44,7 +44,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( void, unloadTextureTiles, ( unsigned int textureId ) );
     MOCK_METHOD( void,
                  replaceTexture,
-                 ( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const demandLoading::TextureDescriptor& textureDesc ) );
+                 ( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const demandLoading::TextureDescriptor& textureDesc, bool migrateTiles ) );
     MOCK_METHOD( bool, launchPrepare, ( unsigned int deviceIndex, CUstream stream, demandLoading::DeviceContext& context ) );
     MOCK_METHOD( demandLoading::Ticket,
                  processRequests,
@@ -57,12 +57,14 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( void, setMaxTextureMemory, ( size_t maxMem ) );
     MOCK_METHOD( const demandLoading::Options&, getOptions, (), ( const ) );
     MOCK_METHOD( void, initTexture, (CUstream, unsigned int), ( override ) );
+    MOCK_METHOD( void, initUdimTexture, (CUstream, unsigned int), ( override ) );
     MOCK_METHOD( unsigned int, getTextureTilePageId, (unsigned int, unsigned int, unsigned int, unsigned int), ( override ) );
     MOCK_METHOD( unsigned int, getMipTailFirstLevel, (unsigned int), ( override ) );
     MOCK_METHOD( void, loadTextureTile, (CUstream, unsigned int, unsigned int, unsigned int, unsigned int), ( override ) );
     MOCK_METHOD( bool, pageResident, (unsigned int), ( override ) );
     MOCK_METHOD( bool, launchPrepare, (CUstream, demandLoading::DeviceContext&), ( override ) );
     MOCK_METHOD( demandLoading::Ticket, processRequests, (CUstream, const demandLoading::DeviceContext&), ( override ) );
+    MOCK_METHOD( CUcontext, getCudaContext, (), ( override ) );
 };
 
 }  // namespace testing

@@ -34,6 +34,7 @@
 #include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/FixedSuballocator.h>
 #include <OptiXToolkit/Memory/HeapSuballocator.h>
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
@@ -41,12 +42,14 @@
 #include <OptiXToolkit/DemandLoading/Statistics.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
+#include <memory>
+
 namespace demandLoading {
 
 class DeviceMemoryManager
 {
   public:
-    DeviceMemoryManager( const Options& options );
+    DeviceMemoryManager( std::shared_ptr<Options> options );
     ~DeviceMemoryManager();
 
     /// Allocate a DeviceContext for this device.
@@ -68,9 +71,14 @@ class DeviceMemoryManager
     {
         return m_tilePool.getAllocationHandle( bh.arenaId );
     }
-
+    
     /// Returns true if TileBlocks need to be freed.
-    bool needTileBlocksFreed() const { return m_tilePool.allocatableSpace() < m_tilePool.allocationGranularity(); };
+    bool needTileBlocksFreed() const 
+    { 
+        if( m_tilePool.trackedSize() < m_tilePool.maxSize() )
+            return false;
+        return m_tilePool.currentFreeSpace() < ( m_options->maxStagedPages * otk::TILE_SIZE_IN_BYTES );
+    }
     /// Returns the arena size for m_tilePool.
     size_t getTilePoolArenaSize() const { return static_cast<size_t>( m_tilePool.allocationGranularity() ); }
     /// Set the max texture memory
@@ -82,10 +90,8 @@ class DeviceMemoryManager
         return m_samplerPool.trackedSize() + m_deviceContextMemory.trackedSize() + m_tilePool.trackedSize();
     }
 
-    void accumulateStatistics( DeviceStatistics& stats ) const { stats.memoryUsed += getTotalDeviceMemory(); }
-
   private:
-    Options      m_options;
+    std::shared_ptr<Options> m_options;
 
     otk::MemoryPool<otk::DeviceAllocator, otk::FixedSuballocator>     m_samplerPool;
     otk::MemoryPool<otk::DeviceAllocator, otk::HeapSuballocator>      m_deviceContextMemory;

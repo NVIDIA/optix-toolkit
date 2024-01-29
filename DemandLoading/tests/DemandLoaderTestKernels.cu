@@ -28,7 +28,7 @@
 
 #include "DemandLoaderTestKernels.h"
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
 
@@ -42,8 +42,8 @@ __global__ static void pageRequester( DeviceContext context, unsigned int pageId
 __host__ void launchPageRequester( CUstream stream, const DeviceContext& context, unsigned int pageId, bool* devIsResident, unsigned long long* pageTableEntry )
 {
     pageRequester<<<1, 1, 0U, stream>>>( context, pageId, devIsResident, pageTableEntry );
-    DEMAND_CUDA_CHECK( cudaStreamSynchronize( stream ) );
-    DEMAND_CUDA_CHECK( cudaGetLastError() );
+    OTK_ERROR_CHECK( cudaStreamSynchronize( stream ) );
+    OTK_ERROR_CHECK( cudaGetLastError() );
 }
 
 

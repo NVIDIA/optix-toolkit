@@ -26,13 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <TestDemandLoadingKernelsPTX.h>
+#include <TestDemandLoadingKernelsCuda.h>
 
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DeferredImageLoadingKernels.h"
-#include "ErrorCheck.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
@@ -46,6 +49,7 @@
 
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #if OPTIX_VERSION < 70700
@@ -86,10 +90,7 @@ class MockImageSource : public imageSource::ImageSource
     MOCK_METHOD( bool, isOpen, (), ( const override ) );
     MOCK_METHOD( const imageSource::TextureInfo&, getInfo, (), ( const override ) );
     MOCK_METHOD( CUmemorytype, getFillType, (), ( const override ) );
-    MOCK_METHOD( bool,
-                 readTile,
-                 ( char* dest, unsigned int mipLevel, unsigned int tileX, unsigned int tileY, unsigned int tileWidth, unsigned int tileHeight, CUstream stream ),
-                 ( override ) );
+    MOCK_METHOD( bool, readTile, ( char* dest, unsigned int mipLevel, const imageSource::Tile& tile, CUstream stream ), ( override ) );
     MOCK_METHOD( bool,
                  readMipLevel,
                  ( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream ),
@@ -102,6 +103,7 @@ class MockImageSource : public imageSource::ImageSource
     MOCK_METHOD( unsigned long long, getNumTilesRead, (), ( const override ) );
     MOCK_METHOD( unsigned long long, getNumBytesRead, (), ( const override ) );
     MOCK_METHOD( double, getTotalReadTime, (), ( const override ) );
+    MOCK_METHOD( bool, hasCascade, (), ( const override ) );
 };
 
 class DeferredImageLoadingTest : public testing::Test
@@ -182,32 +184,32 @@ void DeferredImageLoadingTest::initDemandLoading()
 #ifndef NDEBUG
     options.maxThreads = 1;
 #endif
+
+    m_deviceIndex = demandLoading::getFirstSparseTextureDevice();
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        throw std::runtime_error( "No devices support demand loading" );
+
+    OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+    OTK_ERROR_CHECK( cudaFree( nullptr ) );
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
+
     m_loader = createDemandLoader( options );
-    std::vector<uint_t> devices = m_loader->getDevices();
-    if( devices.empty() )
-    {
-        throw std::runtime_error( "No devices support demand loading." );
-    }
-    m_deviceIndex = devices[0];
-    ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
-    ERROR_CHECK( cudaFree( nullptr ) );
-    ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
 }
 
 void DeferredImageLoadingTest::createContext()
 {
-    ERROR_CHECK( optixInit() );
+    OTK_ERROR_CHECK( optixInit() );
     OptixDeviceContextOptions options{};
     options.logCallbackFunction = contextLog;
     options.logCallbackLevel    = 4;
 #ifndef NDEBUG
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
 #endif
-    ERROR_CHECK( optixDeviceContextCreate( m_cudaContext, &options, &m_context ) );
+    OTK_ERROR_CHECK( optixDeviceContextCreate( m_cudaContext, &options, &m_context ) );
 
-    ERROR_CHECK( cudaStreamCreate( &m_stream ) );
+    OTK_ERROR_CHECK( cudaStreamCreate( &m_stream ) );
 
-    ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
+    OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
 }
 
 void DeferredImageLoadingTest::initPipelineOpts()
@@ -239,8 +241,8 @@ void DeferredImageLoadingTest::createModules()
     compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
                                             OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
 #endif
-    OPTIX_CHECK_LOG2( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernels_ptx_text(),
-                                         DeferredImageLoadingKernels_ptx_size, LOG, &LOG_SIZE, &m_module ) );
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernelsCudaText(),
+                                             DeferredImageLoadingKernelsCudaSize, LOG, &LOG_SIZE, &m_module ) );
 }
 
 void DeferredImageLoadingTest::createProgramGroups()
@@ -253,7 +255,7 @@ void DeferredImageLoadingTest::createProgramGroups()
     descs[GROUP_MISS].kind                                         = OPTIX_PROGRAM_GROUP_KIND_MISS;
     descs[GROUP_MISS].miss.module                                  = nullptr;
     descs[GROUP_MISS].miss.entryFunctionName                       = nullptr;
-    OPTIX_CHECK_LOG2( optixProgramGroupCreate( m_context, descs, NUM_GROUPS, &options,
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( m_context, descs, NUM_GROUPS, &options,
                                                LOG, &LOG_SIZE, m_groups ) );
 }
 
@@ -262,25 +264,25 @@ void DeferredImageLoadingTest::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options;
     options.maxTraceDepth = maxTraceDepth;
-    OPTIX_CHECK_LOG2( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
     for( OptixProgramGroup group : m_groups )
     {
 #if OPTIX_VERSION < 70700
-        ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
 #else
-        ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, m_pipeline ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, m_pipeline ) );
 #endif
     }
     uint_t directCallableTraversalStackSize{};
     uint_t directCallableStateStackSize{};
     uint_t continuationStackSize{};
-    ERROR_CHECK( optixUtilComputeStackSizes(
+    OTK_ERROR_CHECK( optixUtilComputeStackSizes(
         &stackSizes, maxTraceDepth, 0, 0, &directCallableTraversalStackSize,
         &directCallableStateStackSize, &continuationStackSize ) );
     const uint_t maxTraversableDepth = 3;
-    ERROR_CHECK( optixPipelineSetStackSize( m_pipeline, directCallableTraversalStackSize,
+    OTK_ERROR_CHECK( optixPipelineSetStackSize( m_pipeline, directCallableTraversalStackSize,
                                             directCallableStateStackSize, continuationStackSize,
                                             maxTraversableDepth ) );
 }
@@ -289,18 +291,18 @@ void DeferredImageLoadingTest::buildShaderBindingTable()
 {
     void*        devRayGenRecord;
     const size_t rayGenRecordSize = sizeof( RayGenSbtRecord );
-    ERROR_CHECK( cudaMalloc( &devRayGenRecord, rayGenRecordSize ) );
+    OTK_ERROR_CHECK( cudaMalloc( &devRayGenRecord, rayGenRecordSize ) );
     RayGenSbtRecord rayGenSBT;
-    ERROR_CHECK( optixSbtRecordPackHeader( m_groups[GROUP_RAYGEN], &rayGenSBT ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( m_groups[GROUP_RAYGEN], &rayGenSBT ) );
     rayGenSBT.data.m_nonResidentColor = { 0.462f, 0.725f, 0.f, 1.0f };
-    ERROR_CHECK( cudaMemcpy( devRayGenRecord, &rayGenSBT, rayGenRecordSize, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMemcpy( devRayGenRecord, &rayGenSBT, rayGenRecordSize, cudaMemcpyHostToDevice ) );
 
     void*  devMissRecord;
     size_t missRecordSize = sizeof( MissSbtRecord );
-    ERROR_CHECK( cudaMalloc( &devMissRecord, missRecordSize ) );
+    OTK_ERROR_CHECK( cudaMalloc( &devMissRecord, missRecordSize ) );
     MissSbtRecord missSBT;
-    ERROR_CHECK( optixSbtRecordPackHeader( m_groups[GROUP_MISS], &missSBT ) );
-    ERROR_CHECK( cudaMemcpy( devMissRecord, &missSBT, missRecordSize, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( m_groups[GROUP_MISS], &missSBT ) );
+    OTK_ERROR_CHECK( cudaMemcpy( devMissRecord, &missSBT, missRecordSize, cudaMemcpyHostToDevice ) );
 
     m_sbt.raygenRecord            = reinterpret_cast<CUdeviceptr>( devRayGenRecord );
     m_sbt.missRecordBase          = reinterpret_cast<CUdeviceptr>( devMissRecord );
@@ -310,7 +312,7 @@ void DeferredImageLoadingTest::buildShaderBindingTable()
 
 void DeferredImageLoadingTest::allocateParams()
 {
-    ERROR_CHECK( cudaMalloc( &m_devParams, sizeof( Params ) ) );
+    OTK_ERROR_CHECK( cudaMalloc( &m_devParams, sizeof( Params ) ) );
     m_params.m_width  = OUTPUT_WIDTH;
     m_params.m_height = OUTPUT_HEIGHT;
 }
@@ -318,46 +320,46 @@ void DeferredImageLoadingTest::allocateParams()
 void DeferredImageLoadingTest::allocateOutput()
 {
     const size_t outputSize = static_cast<size_t>( OUTPUT_WIDTH * OUTPUT_HEIGHT ) * sizeof( float4 );
-    ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devOutput ), outputSize ) );
-    ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( m_devOutput ), 0U, outputSize ) );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &m_devOutput ), outputSize ) );
+    OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( m_devOutput ), 0U, outputSize ) );
 }
 
 void DeferredImageLoadingTest::freeOutput()
 {
-    ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devOutput ) ) );
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( m_devOutput ) ) );
 }
 
 void DeferredImageLoadingTest::freeParams()
 {
-    ERROR_CHECK( cudaFree( m_devParams ) );
+    OTK_ERROR_CHECK( cudaFree( m_devParams ) );
 }
 
 void DeferredImageLoadingTest::freeShaderBindingTable()
 {
-    ERROR_CHECK( cudaFree( reinterpret_cast<void*>( m_sbt.raygenRecord ) ) );
-    ERROR_CHECK( cudaFree( reinterpret_cast<void*>( m_sbt.missRecordBase ) ) );
+    OTK_ERROR_CHECK( cudaFree( reinterpret_cast<void*>( m_sbt.raygenRecord ) ) );
+    OTK_ERROR_CHECK( cudaFree( reinterpret_cast<void*>( m_sbt.missRecordBase ) ) );
 }
 
 void DeferredImageLoadingTest::freePipeline()
 {
-    ERROR_CHECK( optixPipelineDestroy( m_pipeline ) );
+    OTK_ERROR_CHECK( optixPipelineDestroy( m_pipeline ) );
 }
 
 void DeferredImageLoadingTest::freeProgramGroups()
 {
     for( OptixProgramGroup group : m_groups )
-        ERROR_CHECK( optixProgramGroupDestroy( group ) );
+        OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
 }
 
 void DeferredImageLoadingTest::freeModules()
 {
-    ERROR_CHECK( optixModuleDestroy( m_module ) );
+    OTK_ERROR_CHECK( optixModuleDestroy( m_module ) );
 }
 
 void DeferredImageLoadingTest::freeContext()
 {
-    ERROR_CHECK( optixDeviceContextDestroy( m_context ) );
-    ERROR_CHECK( cudaStreamDestroy( m_stream ) );
+    OTK_ERROR_CHECK( optixDeviceContextDestroy( m_context ) );
+    OTK_ERROR_CHECK( cudaStreamDestroy( m_stream ) );
 }
 
 void DeferredImageLoadingTest::freeDemandLoading()
@@ -368,8 +370,8 @@ void DeferredImageLoadingTest::freeDemandLoading()
 void DeferredImageLoadingTest::launchAndWaitForRequests()
 {
     m_loader->launchPrepare( m_stream, m_params.m_context );
-    ERROR_CHECK( cudaMemcpy( m_devParams, &m_params, sizeof( m_params ), cudaMemcpyHostToDevice ) );
-    ERROR_CHECK( optixLaunch( m_pipeline, m_stream, reinterpret_cast<CUdeviceptr>( m_devParams ), sizeof( Params ), &m_sbt,
+    OTK_ERROR_CHECK( cudaMemcpy( m_devParams, &m_params, sizeof( m_params ), cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( optixLaunch( m_pipeline, m_stream, reinterpret_cast<CUdeviceptr>( m_devParams ), sizeof( Params ), &m_sbt,
                               OUTPUT_WIDTH, OUTPUT_HEIGHT, /*depth=*/1 ) );
     m_loader->processRequests( m_stream, m_params.m_context ).wait();
 }
@@ -428,12 +430,17 @@ static imageSource::TextureInfo stockNonTiledMipMappedImage()
 
 TEST_F( DeferredImageLoadingTest, deferredTileIsLoadedAgain )
 {
+    // Ignore tests for devices that do not support texture footprints
+    if( !demandLoading::deviceSupportsSparseTextures( m_deviceIndex ) )
+        return;
+
     using namespace testing;
     auto                                image{ std::make_shared<StrictMock<MockImageSource>>() };
     const demandLoading::DemandTexture& texture = m_loader->createTexture( image, pointSampledTexture() );
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockTiledImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
-    EXPECT_CALL( *image, readTile( _, _, _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, readTile( _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();
 
@@ -451,6 +458,7 @@ TEST_F( DeferredImageLoadingTest, deferredMipLevelIsLoadedAgain )
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockNonTiledImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
     EXPECT_CALL( *image, readMipLevel( _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();
 
@@ -468,6 +476,7 @@ TEST_F( DeferredImageLoadingTest, deferredMipTailIsLoadedAgain )
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockNonTiledMipMappedImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
     EXPECT_CALL( *image, readMipTail( _, _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();
 

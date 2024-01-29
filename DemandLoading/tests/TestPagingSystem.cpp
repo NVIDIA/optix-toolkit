@@ -32,7 +32,7 @@
 #include "PageTableManager.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
-#include "CudaCheck.h"
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
 
@@ -56,41 +56,41 @@ class DevicePaging
     CUstream                                      m_stream{};
     std::unique_ptr<bool[]>                       m_pagesResident;
 
-    DevicePaging( unsigned int deviceIndex, const Options& options, RequestProcessor* requestProcessor )
+    DevicePaging( unsigned int deviceIndex, std::shared_ptr<Options> options, RequestProcessor* requestProcessor )
         : m_deviceIndex( deviceIndex )
         , m_deviceMemoryManager( options )
-        , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( PINNED_ALLOC ), PINNED_ALLOC, MAX_PINNED_MEM )
+        , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator(), PINNED_ALLOC, MAX_PINNED_MEM )
         , m_paging( options, &m_deviceMemoryManager, &m_pinnedMemoryPool, requestProcessor )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK( cuStreamCreate( &m_stream, 0U ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cuStreamCreate( &m_stream, 0U ) );
     }
 
     ~DevicePaging()
     {
-        DEMAND_CUDA_CHECK_NOTHROW( cudaSetDevice( m_deviceIndex ) );
-        DEMAND_CUDA_CHECK_NOTHROW( cuStreamDestroy( m_stream ) );
+        OTK_ERROR_CHECK_NOTHROW( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK_NOTHROW( cuStreamDestroy( m_stream ) );
     }
 
     std::vector<unsigned long long> requestPages( const std::vector<unsigned int> pageIds )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
 
         // Copy given pageIds to device.
         size_t        numPages = pageIds.size();
         unsigned int* devPageIds;
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPageIds ), numPages * sizeof( unsigned int ) ) );
-        DEMAND_CUDA_CHECK( cudaMemcpy( devPageIds, pageIds.data(), numPages * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPageIds ), numPages * sizeof( unsigned int ) ) );
+        OTK_ERROR_CHECK( cudaMemcpy( devPageIds, pageIds.data(), numPages * sizeof( unsigned int ), cudaMemcpyHostToDevice ) );
 
         // Allocate buffer of output page table entries and resident flags.
         unsigned long long* devPages;
         const size_t        sizeofPages = numPages * sizeof( unsigned long long );
         bool*               devPagesResident;
         const size_t        sizeofPagesResident = numPages * sizeof( bool );
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPages ), sizeofPages ) );
-        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPages ), 0xFF, sizeofPages ) );
-        DEMAND_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPagesResident ), sizeofPagesResident ) );
-        DEMAND_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPagesResident ), 0xFF, sizeofPagesResident ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPages ), sizeofPages ) );
+        OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPages ), 0xFF, sizeofPages ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devPagesResident ), sizeofPagesResident ) );
+        OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( devPagesResident ), 0xFF, sizeofPagesResident ) );
 
         // Launch kernel
         DeviceContext* context = m_deviceMemoryManager.allocateDeviceContext();
@@ -98,14 +98,14 @@ class DevicePaging
 
         // Copy output values to host.
         std::vector<unsigned long long> pages( numPages );
-        DEMAND_CUDA_CHECK( cudaMemcpy( pages.data(), devPages, sizeofPages, cudaMemcpyDeviceToHost ) );
+        OTK_ERROR_CHECK( cudaMemcpy( pages.data(), devPages, sizeofPages, cudaMemcpyDeviceToHost ) );
         m_pagesResident.reset( new bool[numPages] );
-        DEMAND_CUDA_CHECK( cudaMemcpy( m_pagesResident.get(), devPagesResident, sizeofPagesResident, cudaMemcpyDeviceToHost ) );
+        OTK_ERROR_CHECK( cudaMemcpy( m_pagesResident.get(), devPagesResident, sizeofPagesResident, cudaMemcpyDeviceToHost ) );
 
         // Clean up.
         m_deviceMemoryManager.freeDeviceContext( context );
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPageIds ) ) );
-        DEMAND_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPages ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPageIds ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devPages ) ) );
 
         return pages;
     }
@@ -125,18 +125,18 @@ class TestPagingSystem : public testing::Test
     void SetUp() override
     {
         // Initialize paging system options.
-        m_options.numPages            = 1025;
-        m_options.numPageTableEntries = 128;
-        m_options.maxRequestedPages   = 63;
-        m_options.maxFilledPages      = 65;
-        m_options.maxStalePages       = 33;
-        m_options.maxEvictablePages   = 31;
-        m_options.maxEvictablePages   = 17;
-        m_options.useLruTable         = true;
-        m_options.maxActiveStreams    = 4;
+        m_options.reset( new Options );
+        m_options->numPages            = 1025;
+        m_options->numPageTableEntries = 128;
+        m_options->maxRequestedPages   = 63;
+        m_options->maxFilledPages      = 65;
+        m_options->maxStalePages       = 33;
+        m_options->maxEvictablePages   = 31;
+        m_options->maxEvictablePages   = 17;
+        m_options->useLruTable         = true;
 
-        m_pageTableManager = std::make_shared<PageTableManager>( m_options.numPages, m_options.numPageTableEntries );
-        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, m_options ) );
+        m_pageTableManager = std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries );
+        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, *m_options ) );
 
         // Create per-device PagingSystem, etc.
         int numDevices;
@@ -145,8 +145,8 @@ class TestPagingSystem : public testing::Test
         for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
             // Initialize CUDA
-            DEMAND_CUDA_CHECK( cudaSetDevice( deviceIndex ) );
-            DEMAND_CUDA_CHECK( cudaFree( nullptr ) );
+            OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+            OTK_ERROR_CHECK( cudaFree( nullptr ) );
 
             // Create PagingSystem, etc.
             m_devices.emplace_back( new DevicePaging( deviceIndex, m_options, m_requestProcessor.get() ) );
@@ -155,7 +155,7 @@ class TestPagingSystem : public testing::Test
     }
 
   protected:
-    Options                                    m_options;
+    std::shared_ptr<Options>                   m_options;
     std::shared_ptr<PageTableManager>          m_pageTableManager;
     std::unique_ptr<RequestProcessor>          m_requestProcessor;
     std::vector<std::unique_ptr<DevicePaging>> m_devices;
@@ -166,7 +166,7 @@ TEST_F( TestPagingSystem, TestNonResidentPage )
 {
     for( auto& device : m_devices )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( device->m_deviceIndex ) );
 
         // Request a page that is not resident.
         const unsigned int pageId = 0;
@@ -183,7 +183,7 @@ TEST_F( TestPagingSystem, TestResidentPage )
 {
     for( auto& device : m_devices )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( device->m_deviceIndex ) );
 
         // Map page 0 to an arbitrary value.
         const unsigned int pageId = 0;
@@ -204,11 +204,11 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
 {
     for( auto& device : m_devices )
     {
-        DEMAND_CUDA_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+        OTK_ERROR_CHECK( cudaSetDevice( device->m_deviceIndex ) );
 
         // Page table entries are allocated only for texture samplers, not tiles,
         // so page ids >= Options::numPageTableEntries are mapped to zero.
-        const unsigned int pageId = m_options.numPageTableEntries + 1;
+        const unsigned int pageId = m_options->numPageTableEntries + 1;
         // Map a page id that has no corresponding page table entry.
         device->m_paging.addMapping( pageId, 0 /*lruValue*/, 42ULL );
         EXPECT_EQ( 1U, device->pushMappings() );
@@ -220,5 +220,22 @@ TEST_F( TestPagingSystem, TestUnbackedPageTableEntry )
         // The mapping should be zero for page ids without corresponding page table entries.
         EXPECT_EQ( 0ULL, pages[0] ) << "page " << pageId;
         EXPECT_TRUE( device->m_pagesResident[0] ) << "page " << pageId << " was not resident.";
+    }
+}
+
+TEST_F( TestPagingSystem, TestPageMappingOverflow )
+{
+    for( auto& device : m_devices )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( device->m_deviceIndex ) );
+
+        // Page table entries are allocated only for texture samplers, not tiles,
+        // so page ids >= Options::numPageTableEntries are mapped to zero.
+        for( unsigned pageId = 0; pageId < m_options->numPageTableEntries; ++pageId )
+        {
+            // Map a page id.
+            device->m_paging.addMapping( pageId, 0 /*lruValue*/, 42ULL );
+        }
+        EXPECT_EQ( m_options->numPageTableEntries, device->pushMappings() );
     }
 }

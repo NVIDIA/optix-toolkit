@@ -28,10 +28,10 @@
 
 #include "TraceFile.h"
 #include "DemandLoaderImpl.h"
-#include "Util/Exception.h"
 
 #include <OptiXToolkit/DemandLoading/Options.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/EXRReader.h>
 
 #include <cassert>
@@ -44,6 +44,23 @@ enum RecordType
     TEXTURE,
     REQUESTS
 };
+
+// Check that the current CUDA context matches the one associated with the given stream
+// and return the associated device index.
+static unsigned int getDeviceIndex( CUstream /*stream*/ )
+{
+    // Get the current CUDA context.
+    CUcontext cudaContext, streamContext;
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &cudaContext ) );
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &streamContext ) );
+    OTK_ASSERT_MSG( cudaContext == streamContext,
+                       "The current CUDA context must match the one associated with the given stream" );
+
+    // Get the device index from the CUDA context.
+    CUdevice device;
+    OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
+    return static_cast<unsigned int>( device );
+}
 
 TraceFileWriter::TraceFileWriter( const char* filename )
     : m_file( filename, std::ios::out | std::ios::binary )
@@ -66,6 +83,7 @@ void TraceFileWriter::recordOptions( const Options& options )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     write( OPTIONS );
+    write( getDeviceIndex( CUstream{0} ) );
     writeOption( "numPages", options.numPages );
     writeOption( "numPageTableEntries", options.numPageTableEntries );
     writeOption( "maxRequestedPages", options.maxRequestedPages );
@@ -78,7 +96,6 @@ void TraceFileWriter::recordOptions( const Options& options )
     writeOption( "maxTexMemPerDevice", options.maxTexMemPerDevice );
     writeOption( "maxPinnedMemory", options.maxPinnedMemory );
     writeOption( "maxThreads", options.maxThreads );
-    writeOption( "maxActiveStreams", options.maxActiveStreams );
 }
 
 void TraceFileWriter::recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& desc )
@@ -88,9 +105,10 @@ void TraceFileWriter::recordTexture( std::shared_ptr<imageSource::ImageSource> i
     // For now, only EXRReader can be serialized.
     std::shared_ptr<imageSource::EXRReader> exrReader( std::dynamic_pointer_cast<imageSource::EXRReader>( imageSource ) );
     if( !exrReader )
-        throw Exception( "Cannot serialize ImageSource (expected EXRReader)" );
+        throw std::runtime_error( "Cannot serialize ImageSource (expected EXRReader)" );
 
     write( TEXTURE );
+    write( getDeviceIndex( CUstream{0} ) );
     exrReader->serialize( m_file );
 
     // Serialize TextureDescriptor.
@@ -111,23 +129,6 @@ unsigned int TraceFileWriter::getStreamId( CUstream stream )
     unsigned int streamId = m_nextStreamId++;
     m_streamIds[stream]   = streamId;
     return streamId;
-}
-
-// Check that the current CUDA context matches the one associated with the given stream
-// and return the associated device index.
-static unsigned int getDeviceIndex( CUstream /*stream*/ )
-{
-    // Get the current CUDA context.
-    CUcontext cudaContext, streamContext;
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &cudaContext ) );
-    DEMAND_CUDA_CHECK( cuCtxGetCurrent( &streamContext ) );
-    DEMAND_ASSERT_MSG( cudaContext == streamContext,
-                       "The current CUDA context must match the one associated with the given stream" );
-
-    // Get the device index from the CUDA context.
-    CUdevice device;
-    DEMAND_CUDA_CHECK( cuCtxGetDevice( &device ) );
-    return static_cast<unsigned int>( device );
 }
 
 void TraceFileWriter::recordRequests( CUstream stream, const unsigned int* pageIds, unsigned int numPageIds )
@@ -161,6 +162,8 @@ class TraceFileReader
         assert( recordType == OPTIONS );
 
         Options options;
+        unsigned int deviceIndex = 0;
+        read( &deviceIndex );
         readOption( "numPages", &options.numPages );
         readOption( "numPageTableEntries", &options.numPageTableEntries );
         readOption( "maxRequestedPages", &options.maxRequestedPages );
@@ -173,11 +176,10 @@ class TraceFileReader
         readOption( "maxTexMemPerDevice", &options.maxTexMemPerDevice );
         readOption( "maxPinnedMemory", &options.maxPinnedMemory );
         readOption( "maxThreads", &options.maxThreads );
-        readOption( "maxActiveStreams", &options.maxActiveStreams );
         return options;
     }
 
-    void replay( DemandLoader* loader )
+    void replay( std::vector<DemandLoader*>& loaders )
     {
         while( true )
         {
@@ -187,17 +189,32 @@ class TraceFileReader
                 break;
             if( recordType == TEXTURE )
             {
-                replayCreateTexture( loader );
+                replayCreateTexture( loaders );
             }
             else if( recordType == REQUESTS )
             {
-                replayRequests( loader );
+                replayRequests( loaders );
             }
             else
             {
-                throw Exception( "Unknown record type in trace file" );
+                throw std::runtime_error( "Unknown record type in trace file" );
             }
         }
+    }
+
+    CUcontext getContext( unsigned int deviceIndex )
+    {
+        if( deviceIndex >= m_contexts.size() )
+        {
+            m_contexts.resize( deviceIndex + 1 );
+        }
+        if( !m_contexts[deviceIndex] )
+        {
+            CUdevice device;
+            OTK_ERROR_CHECK( cuDeviceGet( &device, deviceIndex ) );
+            OTK_ERROR_CHECK( cuCtxCreate( &m_contexts[deviceIndex], 0, device ) );
+        }
+        return m_contexts[deviceIndex];
     }
 
   private:
@@ -234,13 +251,18 @@ class TraceFileReader
         {
             std::stringstream stream;
             stream << "Error reading option from trace file.  Expected " << expected << ", found " << found;
-            throw Exception( stream.str().c_str() );
+            throw std::runtime_error( stream.str().c_str() );
         }
         read( option );
     }
 
-    void replayCreateTexture( DemandLoader* loader )
+    void replayCreateTexture( std::vector<DemandLoader*>& loaders )
     {
+        unsigned int deviceIndex = 0;
+        read( &deviceIndex );
+
+        // FIXME: The image sources can be shared between devices and variant textures.
+        // This should be handled.
         std::shared_ptr<imageSource::ImageSource> imageSource( imageSource::EXRReader::deserialize( m_file ) );
 
         TextureDescriptor desc;
@@ -251,43 +273,28 @@ class TraceFileReader
         read( &desc.maxAnisotropy );
         read( &desc.flags );
 
-        loader->createTexture( imageSource, desc );
-    }
-
-    CUcontext getContext( unsigned int deviceIndex )
-    {
-        if( deviceIndex >= m_contexts.size() )
-        {
-            m_contexts.resize( deviceIndex + 1 );
-        }
-        if( !m_contexts[deviceIndex] )
-        {
-            CUdevice device;
-            DEMAND_CUDA_CHECK( cuDeviceGet( &device, deviceIndex ) );
-            DEMAND_CUDA_CHECK( cuCtxCreate( &m_contexts[deviceIndex], 0, device ) );
-        }
-        return m_contexts[deviceIndex];
+        OTK_ERROR_CHECK( cuCtxSetCurrent( m_contexts[deviceIndex] ) );
+        loaders[deviceIndex]->createTexture( imageSource, desc );
     }
 
     CUstream getStream( unsigned int deviceIndex, unsigned int streamId )
     {
-
         if( streamId < m_streams.size() )
             return m_streams[streamId];
 
         if( streamId != m_streams.size() )
-            throw Exception( "Unexpected stream id in page request trace file" );
+            throw std::runtime_error( "Unexpected stream id in page request trace file" );
 
         CUcontext context = getContext( deviceIndex );
-        DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+        OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
 
         CUstream stream;
-        DEMAND_CUDA_CHECK( cuStreamCreate( &stream, 0U ) );
+        OTK_ERROR_CHECK( cuStreamCreate( &stream, 0U ) );
         m_streams.push_back( stream );
         return stream;
     }
 
-    void replayRequests( DemandLoader* loader )
+    void replayRequests( std::vector<DemandLoader*>& loaders )
     {
         unsigned int deviceIndex;
         read( &deviceIndex );
@@ -301,11 +308,14 @@ class TraceFileReader
         std::vector<unsigned int> pageIds( numPageIds );
         read( pageIds.data(), numPageIds );
 
+        CUcontext context = getContext( deviceIndex );
+        OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
+        CUstream stream = getStream( deviceIndex, streamId );
+
         // Downcast demand loader, since trace file playback relies on internal interface.
-        DemandLoaderImpl* loaderImpl = dynamic_cast<DemandLoaderImpl*>( loader );
+        DemandLoaderImpl* loaderImpl = dynamic_cast<DemandLoaderImpl*>( loaders[deviceIndex] );
         assert( loaderImpl );
 
-        CUstream stream = getStream( deviceIndex, streamId );
         Ticket ticket = loaderImpl->replayRequests( stream, pageIds.data(), numPageIds );
         ticket.wait();
     }
@@ -320,15 +330,28 @@ Statistics replayTraceFile( const char* filename )
     Options options = reader.readOptions();
     options.traceFile = "";
 
-    // Create demand loader.
-    DemandLoader* loader = createDemandLoader( options );
+    // Create demand loaders for each device.
+    int numDevices;
+    OTK_ERROR_CHECK( cuDeviceGetCount( &numDevices ) );
+    std::vector<DemandLoader*> loaders;
+    for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+    {
+        CUcontext context = reader.getContext( deviceIndex );
+        OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
+        loaders.push_back( createDemandLoader( options ) );
+    }
 
     // Replay the trace file.
-    reader.replay( loader );
-    Statistics stats = loader->getStatistics();
+    reader.replay( loaders );
+
+    // FIXME: Get stats from all loaders
+    Statistics stats = loaders[0]->getStatistics();
 
     // Clean up.
-    destroyDemandLoader( loader );
+    for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
+    {
+        destroyDemandLoader( loaders[deviceIndex] );
+    }
 
     return stats;
 }

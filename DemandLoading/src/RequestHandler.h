@@ -28,8 +28,9 @@
 
 #pragma once
 
-#include <Util/Exception.h>
 #include "Util/MutexArray.h"
+
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -55,7 +56,7 @@ class RequestHandler
         // of the existing range.
         if( m_mutex.get() != nullptr )
         {
-            DEMAND_ASSERT_MSG( startPage >= m_startPage && startPage + numPages <= m_startPage + m_numPages,
+            OTK_ASSERT_MSG( startPage >= m_startPage && startPage + numPages <= m_startPage + m_numPages,
                                "Cannot change request handler page range" );
             return;
         }
@@ -67,7 +68,13 @@ class RequestHandler
     }
 
     /// Fill a request for the specified page using the given stream.
-    virtual void fillRequest( CUstream stream, unsigned int pageId ) = 0;
+    virtual void fillRequest( CUstream /*stream*/, unsigned int /*pageId*/ ) {}
+
+    /// Get the start page for the request handler
+    unsigned int getStartPage() { return m_startPage; }
+
+    /// Get the number of pages assigned to the request handler
+    unsigned int getNumPages() { return m_numPages; }
 
   protected:
     unsigned int                m_startPage = 0;

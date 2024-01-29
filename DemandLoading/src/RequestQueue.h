@@ -55,7 +55,7 @@ struct PageRequest
     }
 
     // Default constructor
-    PageRequest() {}
+    PageRequest() = default;
 };
 
 class RequestQueue

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -40,7 +40,10 @@
 #include "ResourceRequestHandler.h"
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
+#include "Textures/CascadeRequestHandler.h"
+#include <OptiXToolkit/DemandLoading/TextureCascade.h>
 #include "TransferBufferDesc.h"
+#include "Util/TraceFile.h"
 
 #include <cuda.h>
 
@@ -74,7 +77,8 @@ class DemandLoaderImpl : public DemandLoader
     /// Create a demand-loaded texture for the given image.  The texture initially has no backing
     /// storage.  The readTile() method is invoked on the image to fill each required tile.  The
     /// ImageSource pointer is retained indefinitely.
-    const DemandTexture& createTexture( std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
+    const DemandTexture& createTexture( std::shared_ptr<imageSource::ImageSource> image,
+                                        const TextureDescriptor&                  textureDesc ) override;
 
     /// Create a demand-loaded UDIM texture for a given set of images.  If a baseTexture is used,
     /// it should be created first by calling createTexture.  The id of the returned texture should be
@@ -84,7 +88,7 @@ class DemandLoaderImpl : public DemandLoader
                                             std::vector<TextureDescriptor>&                         textureDescs,
                                             unsigned int                                            udim,
                                             unsigned int                                            vdim,
-                                            int baseTextureId ) override;
+                                            int                                                     baseTextureId ) override;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
@@ -92,12 +96,20 @@ class DemandLoaderImpl : public DemandLoader
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     void unloadTextureTiles( unsigned int textureId ) override;
 
-    /// Replace the indicated texture, clearing out the old texture as needed
-    void replaceTexture( unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const TextureDescriptor& textureDesc ) override;
+    void migrateTextureTiles( const TextureSampler& oldSampler, DemandTextureImpl* newTexture );
 
-    /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches
-    /// the given stream.
+    /// Replace the indicated texture, clearing out the old texture as needed
+    void replaceTexture( CUstream                                  stream,
+                         unsigned int                              textureId,
+                         std::shared_ptr<imageSource::ImageSource> image,
+                         const TextureDescriptor&                  textureDesc,
+                         bool                                      migrateTiles ) override;
+
+    /// Pre-initialize the texture.  The caller must ensure that the current CUDA context matches the given stream.
     void initTexture( CUstream stream, unsigned int textureId ) override;
+
+    /// Pre-initialize all of the subtextures in the udim grid, as well as the base texture.
+    void initUdimTexture( CUstream stream, unsigned int baseTextureId ) override;
 
     /// Get the page id associated with with the given texture tile. Return MAX_INT if the texture is not initialized.
     unsigned int getTextureTilePageId( unsigned int textureId, unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) override;
@@ -135,15 +147,12 @@ class DemandLoaderImpl : public DemandLoader
     /// Abort demand loading, with minimal cleanup and no CUDA calls.  Halts asynchronous request
     /// processing.  Useful in case of catastrophic CUDA error or corruption.
     void abort() override;
-    
-    /// Get current statistics.
+
+    /// Get time/space stats for the DemandLoader.
     Statistics getStatistics() const override;
 
     /// Get the demand loading configuration options.
-    const Options& getOptions() const override;
-
-    /// Get indices of the devices that can be employed by the DemandLoader.
-    std::vector<unsigned int> getDevices() const override;
+    const Options& getOptions() const override { return *m_options; }
 
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override;
@@ -175,26 +184,28 @@ class DemandLoaderImpl : public DemandLoader
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
 
-    void setPageTableEntry( unsigned int pageId, bool evictable, void* pageTableEntry );
+    /// Set the value of a page table entry.
+    void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry );
+
+    /// Get the CUDA context associated with this demand loader
+    virtual CUcontext getCudaContext() { return m_cudaContext; }
 
   private:
-    mutable std::mutex        m_mutex;
+    mutable std::mutex       m_mutex;
+    std::shared_ptr<Options> m_options;
+    CUcontext                m_cudaContext;  // The demand loader is for this context
 
     std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.
     std::unique_ptr<DemandPageLoaderImpl> m_pageLoader;
 
-    std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures;     // demand-loaded textures, indexed by textureId
-    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId; // lookup from image* to textureId
+    std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures; // demand-loaded textures, indexed by textureId
+    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId;  // lookup from image* to textureId
 
-    SamplerRequestHandler      m_samplerRequestHandler;    // Handles requests for texture samplers.
+    SamplerRequestHandler m_samplerRequestHandler;  // Handles requests for texture samplers.
+    CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
 
-#if CUDA_VERSION >= 11020
-    PerContextData<otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>> m_deviceTransferPools;
-#else
-    PerContextData<otk::MemoryPool<otk::DeviceAllocator, otk::RingSuballocator>> m_deviceTransferPools;
-#endif
-    std::mutex m_deviceTransferPoolsMutex;
+    otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator> m_deviceTransferPool;
 
     std::vector<std::unique_ptr<ResourceRequestHandler>> m_resourceRequestHandlers;  // Request handlers for arbitrary resources.
 
@@ -206,13 +217,8 @@ class DemandLoaderImpl : public DemandLoader
     // Create a normal or variant version of a demand texture, based on the imageSource 
     DemandTextureImpl* makeTextureOrVariant( unsigned int textureId, const TextureDescriptor& textureDesc, std::shared_ptr<imageSource::ImageSource>& imageSource );
 
+    // Allocate pages for a number of textures (samplers and base colors)
     unsigned int allocateTexturePages( unsigned int numTextures );
-
-#if CUDA_VERSION >= 11020
-    otk::MemoryPool<otk::DeviceAsyncAllocator, otk::RingSuballocator>* getDeviceTransferPool();
-#else
-    otk::MemoryPool<otk::DeviceAllocator, otk::RingSuballocator>* getDeviceTransferPool();
-#endif
 };
 
 }  // namespace demandLoading

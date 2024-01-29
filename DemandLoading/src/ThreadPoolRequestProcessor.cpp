@@ -34,19 +34,33 @@
 
 namespace demandLoading {
 
+std::mutex ThreadPoolRequestProcessor::s_traceFileMutex;
+std::unique_ptr<TraceFileWriter> ThreadPoolRequestProcessor::s_traceFile;
+
 ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )
     : m_pageTableManager( std::move( pageTableManager ) )
+    , m_options( options )
 {
     m_requests.reset( new RequestQueue( options.maxRequestQueueSize ) );
+
     if( !options.traceFile.empty() )
     {
-        m_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
-        m_traceFile->recordOptions( options );
+        std::unique_lock<std::mutex> lock( s_traceFileMutex );
+        if( !s_traceFile )
+        {
+            s_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
+        }
+        s_traceFile->recordOptions( options );
     }
 }
 
-void ThreadPoolRequestProcessor::start( unsigned int maxThreads )
+void ThreadPoolRequestProcessor::start()
 {
+    if( m_started )
+        return;
+
+    m_requests.reset( new RequestQueue( m_options.maxRequestQueueSize ) );
+    unsigned int maxThreads = m_options.maxThreads;
     if( maxThreads == 0 )
         maxThreads = std::thread::hardware_concurrency();
     m_threads.reserve( maxThreads );
@@ -54,10 +68,16 @@ void ThreadPoolRequestProcessor::start( unsigned int maxThreads )
     {
         m_threads.emplace_back( &ThreadPoolRequestProcessor::worker, this );
     }
+    m_started = true;
 }
 
 void ThreadPoolRequestProcessor::stop()
 {
+    std::unique_lock<std::mutex> lock( m_ticketsMutex );
+
+    if( !m_started )
+        return;
+
     // Any threads that are waiting in RequestQueue::popOrWait will be notified when the queue is
     // shut down.
     m_requests->shutDown();
@@ -65,37 +85,52 @@ void ThreadPoolRequestProcessor::stop()
     {
         thread.join();
     }
+    m_requests.reset();
+    m_threads.clear();
+    m_started = false;
 }
 
 void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
     std::unique_lock<std::mutex> lock( m_ticketsMutex );
+    start();
+    
     auto it = m_tickets.find( id );
-    DEMAND_ASSERT( it != m_tickets.end() );
+    OTK_ASSERT( it != m_tickets.end() );
     Ticket ticket = it->second;
-    // We won't be issued this id again, so we can discard it from the map.
+    // We won't issue this id again, so we can discard it from the map.
     m_tickets.erase( it );
-    m_requests->push( pageIds, numPageIds, ticket );
+
+    // Filter the batch of requests, and add it to the main request list with the ticket to track their progress
+    if( numPageIds > 0 && m_requestFilter )
+    {
+        std::vector<unsigned int> filteredRequests = m_requestFilter->filter( pageIds, numPageIds );
+        m_requests->push( &filteredRequests[0], static_cast<unsigned int>( filteredRequests.size() ), ticket );
+    }
+    else
+    {
+        m_requests->push( pageIds, numPageIds, ticket );
+    }
 
     // If recording is enabled, write the requests to the trace file.
-    if( m_traceFile && numPageIds > 0 )
+    if( s_traceFile && numPageIds > 0 )
     {
-        m_traceFile->recordRequests( stream, pageIds, numPageIds );
+        s_traceFile->recordRequests( stream, pageIds, numPageIds );
     }
 }
 
 void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc )
 {
-    if( m_traceFile )
+    if( s_traceFile )
     {
-        m_traceFile->recordTexture( imageSource, textureDesc );
+        s_traceFile->recordTexture( imageSource, textureDesc );
     }
 }
 
 void ThreadPoolRequestProcessor::setTicket( unsigned int id, Ticket ticket )
 {
     std::unique_lock<std::mutex> lock( m_ticketsMutex );
-    DEMAND_ASSERT( m_tickets.find( id ) == m_tickets.end() );
+    OTK_ASSERT( m_tickets.find( id ) == m_tickets.end() );
     m_tickets[id] = ticket;
 }
 
@@ -113,13 +148,13 @@ void ThreadPoolRequestProcessor::worker()
             // Ask the PageTableManager for the request handler associated with the range of pages in
             // which the request occurred.
             RequestHandler* handler = m_pageTableManager->getRequestHandler( request.pageId );
-            DEMAND_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
+            OTK_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
 
             // Use the CUDA context associated with the stream in the ticket.
             std::shared_ptr<TicketImpl>& ticket = TicketImpl::getImpl( request.ticket );
             CUcontext                    context;
-            DEMAND_CUDA_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
-            DEMAND_CUDA_CHECK( cuCtxSetCurrent( context ) );
+            OTK_ERROR_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
+            OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
 
             // Process the request.  Page table updates are accumulated in the PagingSystem.
             handler->fillRequest( ticket->getStream(), request.pageId );
