@@ -83,6 +83,18 @@ using OutputBuffer      = otk::CUDAOutputBuffer<uchar4>;
 const int NUM_PAYLOAD_VALUES   = 4;
 const int NUM_ATTRIBUTE_VALUES = 3;
 
+static const char *getKeyHelp()
+{
+    // clang-format off
+    return
+        "Interactive keys (case insensitive):\n"
+        "         D                           Toggle debug mode\n"
+        "         G                           Resolve one proxy geometry\n"
+        "         M                           Resolve one proxy material\n"
+        "         Q or ESC                    Quit\n";
+    // clang-format on
+}
+
 [[noreturn]] void printUsageAndExit( const char* argv0 )
 {
     // clang-format off
@@ -94,7 +106,12 @@ const int NUM_ATTRIBUTE_VALUES = 3;
         "         --warmup=<num>              Specify number of warmup frames before writing to file\n"
         "         --bg=<r>,<g>,<b>            Specify the background color as 3 floating-point values in [0,1]\n"
         "         --optixGetSphereData=yes/no Use optixGetSphereData or application data access\n"
-        "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n";
+        "         --debug=<x>,<y>             Enable debug information at pixel screen coordinates\n"
+        "         --oneshot-geometry          Enable one-shot proxy geometry resolution by keystroke\n"
+        "         --oneshot-material          Enable one-shot proxy material resolution by keystroke\n"
+        "\n"
+        << getKeyHelp()
+        ;
     // clang-format on
     exit( 1 );
 }
@@ -108,6 +125,8 @@ struct Options
     int                warmup{};
     otk::DebugLocation debug{};
     bool               useOptixGetSphereData{ true };
+    bool               oneShotGeometry{};
+    bool               oneShotMaterial{};
 };
 
 bool hasOption( const std::string& arg, const std::string& flag, std::istringstream& value )
@@ -180,6 +199,14 @@ Options parseArguments( int argc, char* argv[] )
             debug.enabled             = true;
             debug.debugIndexSet       = true;
             debug.debugIndex          = make_uint3( x, y, 0 );
+        }
+        else if( arg == "--oneshot-geometry" )
+        {
+            options.oneShotGeometry = true;
+        }
+        else if( arg == "--oneshot-material" )
+        {
+            options.oneShotMaterial = true;
         }
         else
         {
@@ -288,6 +315,8 @@ class Application
     OptixModule                 m_realizedMaterialModule{};
     OptixModule                 m_sphereModule{};
     bool                        m_updateNeeded{};
+    bool                        m_resolveOneGeometry{};
+    bool                        m_resolveOneMaterial{};
 
     enum
     {
@@ -783,6 +812,7 @@ void Application::run()
 
 void Application::runInteractive()
 {
+    std::cout << '\n' << getKeyHelp() << '\n';
     m_window = otk::initGLFW( "DemandGeometry", m_options.width, m_options.height );
     otk::initGL();
     m_trackballCamera.trackWindow( m_window );
@@ -887,14 +917,32 @@ void Application::updateScene()
     m_ticket.wait();
 
     OTK_ERROR_CHECK( cuCtxSetCurrent( m_cudaContext ) );
-    for( const uint_t proxyId : m_proxies->requestedProxyIds() )
+    if( !m_options.oneShotGeometry || m_resolveOneGeometry )
     {
-        createGeometry( proxyId );
+        for( const uint_t proxyId : m_proxies->requestedProxyIds() )
+        {
+            createGeometry( proxyId );
+
+            if( m_resolveOneGeometry )
+            {
+                m_resolveOneGeometry = false;
+                break;
+            }
+        }
     }
     OTK_CUDA_SYNC_CHECK();
-    for( const uint_t materialId : m_materials->requestedMaterialIds() )
+    if( !m_options.oneShotMaterial || m_resolveOneMaterial )
     {
-        realizeMaterial( materialId );
+        for( const uint_t materialId : m_materials->requestedMaterialIds() )
+        {
+            realizeMaterial( materialId );
+
+            if( m_resolveOneMaterial )
+            {
+                m_resolveOneMaterial = false;
+                break;
+            }
+        }
     }
 
     if( m_updateNeeded )
@@ -975,6 +1023,21 @@ void Application::key( GLFWwindow* window, int32_t key, int32_t /*scanCode*/, in
                 }
                 break;
             }
+
+            case GLFW_KEY_G:
+                if( m_options.oneShotGeometry )
+                {
+                    m_resolveOneGeometry = true;
+                }
+                break;
+
+            case GLFW_KEY_M:
+                if( m_options.oneShotMaterial )
+                {
+                    m_resolveOneMaterial = true;
+                }
+                break;
+
             case GLFW_KEY_Q:
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose( window, 1 );
