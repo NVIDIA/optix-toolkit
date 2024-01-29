@@ -28,14 +28,16 @@
 
 #pragma once
 
-#include <OptiXToolkit/Memory/CudaCheck.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
+#include <algorithm>
 #include <cstring>
 
 namespace otk {
 
+const uint64_t DEFAULT_ALLOC_SIZE = 8 * 1024 * 1024;
 const unsigned int HOST_DEVICE = 0xFFFFFFFF;
 
 /// Host allocator using malloc
@@ -55,10 +57,10 @@ class PinnedAllocator
     void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         void* result;
-        OTK_MEMORY_CUDA_CHECK( cuMemAllocHost( &result, numBytes ) );
+        OTK_ERROR_CHECK( cuMemAllocHost( &result, numBytes ) );
         return result;
     }
-    void free( void* ptr, CUstream /*dummy*/ = 0 ) { OTK_MEMORY_CUDA_CHECK( cuMemFreeHost( ptr ) ); }
+    void free( void* ptr, CUstream /*dummy*/ = 0 ) { OTK_ERROR_CHECK( cuMemFreeHost( ptr ) ); }
     void set( void* ptr, int val, size_t numBytes, CUstream /*dummy*/ = 0 ) { memset( ptr, val, numBytes ); }
     bool allocationIsHandle() const { return false; }
 };
@@ -70,29 +72,29 @@ class DeviceAllocator
     DeviceAllocator()
     {
         // Record current CUDA context.
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
-        checkCudaContext( m_context );
+        OTK_ASSERT_CONTEXT_IS( m_context );
         if( numBytes == 0 )
             return nullptr;  // cuMemAlloc does not handle this.
         void* result;
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
         return result;
     }
 
     void free( void* ptr, CUstream /*dummy*/ = 0 )
     {
-        checkCudaContext( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
+        OTK_ASSERT_CONTEXT_IS( m_context );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
     }
 
     void set( void* ptr, int val, size_t numBytes, CUstream /*dummy*/ = 0 )
     {
-        checkCudaContext( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<unsigned char>( val ), numBytes ) );
+        OTK_ASSERT_CONTEXT_IS( m_context );
+        OTK_ERROR_CHECK( cuMemsetD8( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<char>( val ), numBytes ) );
     }
 
     bool allocationIsHandle() const { return false; }
@@ -108,43 +110,62 @@ class DeviceAsyncAllocator
     DeviceAsyncAllocator()
     {
         // Record current CUDA context.
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
+
+#if OTK_USE_CUDA_MEMORY_POOLS
+        CUdevice device;
+        OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
+        OTK_ERROR_CHECK( cuDeviceGetAttribute( &m_usePools, CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED, device ) );
+#endif
     }
 
     void* allocate( size_t numBytes, CUstream stream = 0 )
     {
-        checkCudaContext( m_context );
+        OTK_ASSERT_CONTEXT_IS( m_context );
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
         if( numBytes == 0 )
             return nullptr;  // cuMemAlloc does not handle this.
         void* result;
+
 #if OTK_USE_CUDA_MEMORY_POOLS
-        OTK_MEMORY_CUDA_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+        if( m_usePools )
+            OTK_ERROR_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+        else
+            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
 #else
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
 #endif
+
         return result;
     }
 
     void free( void* ptr, CUstream stream = 0 )
     {
-        checkCudaContext( m_context );
+        OTK_ASSERT_CONTEXT_IS( m_context );
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+
 #if OTK_USE_CUDA_MEMORY_POOLS
-        OTK_MEMORY_CUDA_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( ptr ), stream ) );
+        if( m_usePools )
+            OTK_ERROR_CHECK( cuMemFreeAsync( reinterpret_cast<CUdeviceptr>( ptr ), stream ) );
+        else
+            OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
 #else
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( ptr ) ) );
 #endif
     }
 
     void set( void* ptr, int val, size_t numBytes, CUstream stream = 0 )
     {
-        checkCudaContext( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<unsigned char>( val ), numBytes, stream ) );
+        OTK_ASSERT_CONTEXT_IS( m_context );
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+        OTK_ERROR_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( ptr ), static_cast<char>( val ), numBytes, stream ) );
     }
 
     bool allocationIsHandle() const { return false; }
 
   private:
     CUcontext m_context;
+    int m_usePools = 0;
 };
 
 /// Texture tile allocator using cuMemCreate
@@ -155,21 +176,21 @@ class TextureTileAllocator
         : m_allocationProp( makeAllocationProp() )
     {
         // Record current CUDA context.
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetCurrent( &m_context ) );
+        OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
     }
 
     void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
-        checkCudaContext( m_context );
+        OTK_ASSERT_CONTEXT_IS( m_context );
         CUmemGenericAllocationHandle handle;
-        OTK_MEMORY_CUDA_CHECK( cuMemCreate( &handle, numBytes, &m_allocationProp, 0U ) );
+        OTK_ERROR_CHECK( cuMemCreate( &handle, numBytes, &m_allocationProp, 0U ) );
         return reinterpret_cast<void*>( handle );
     }
 
     void free( void* handle, CUstream /*dummy*/ = 0 )
     {
-        checkCudaContext( m_context );
-        OTK_MEMORY_CUDA_CHECK( cuMemRelease( reinterpret_cast<CUmemGenericAllocationHandle>( handle ) ) );
+        OTK_ASSERT_CONTEXT_IS( m_context );
+        OTK_ERROR_CHECK( cuMemRelease( reinterpret_cast<CUmemGenericAllocationHandle>( handle ) ) );
     }
 
     bool allocationIsHandle() const { return true; }  // The allocation is not a pointer that can be incremented
@@ -177,7 +198,7 @@ class TextureTileAllocator
     static CUmemAllocationProp makeAllocationProp()
     {
         CUdevice device;
-        OTK_MEMORY_CUDA_CHECK( cuCtxGetDevice( &device ) );
+        OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
 
         CUmemAllocationProp prop{};
         prop.type             = CU_MEM_ALLOCATION_TYPE_PINNED;
@@ -190,8 +211,8 @@ class TextureTileAllocator
     {
         size_t              size;
         CUmemAllocationProp prop( makeAllocationProp() );
-        OTK_MEMORY_CUDA_CHECK( cuMemGetAllocationGranularity( &size, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED ) );
-        return size ? size : 8 << 20;  // get the recommended size, or 8MB if it returns 0
+        OTK_ERROR_CHECK( cuMemGetAllocationGranularity( &size, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED ) );
+        return std::max( size, static_cast<size_t>( DEFAULT_ALLOC_SIZE ) );
     }
 
   private:

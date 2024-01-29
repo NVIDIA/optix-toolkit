@@ -29,6 +29,7 @@
 #define OTK_ERROR_OPTIX_ERROR_CHECK_H
 
 #include <optix.h>
+#include <optix_stubs.h>
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
@@ -57,14 +58,14 @@ inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, 
     {
         std::stringstream ss;
         ss << "; Log:\n" << log << ( sizeof_log_returned > sizeof_log ? "<TRUNCATED>" : "" ) << '\n';
-        reportError( res, call, file, line, ss.str().c_str() );
+        throw std::runtime_error( makeErrorString( res, call, file, line, ss.str().c_str() ) );
     }
 }
 
 }  // namespace error
 }  // namespace otk
 
-#define OTK_ERROR_CHECK_LOG2( call )                                                                                   \
+#define OTK_ERROR_CHECK_LOG( call )                                                                                   \
     do                                                                                                                 \
     {                                                                                                                  \
         char LOG[400];                                                                                                 \

@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "CudaCheck.h"
-
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
 
 #include <gtest/gtest.h>
@@ -43,8 +42,8 @@ class TestAllocators : public testing::Test
   public:
     void SetUp() override
     {
-        OTK_MEMORY_CUDA_CHECK( cudaSetDevice( 0 ) );
-        OTK_MEMORY_CUDA_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
 };
 
@@ -98,7 +97,7 @@ TEST_F( TestAllocators, TextureTileAllocator )
 
 TEST_F( TestAllocators, DeviceAllocatorSpeed )
 {
-    OTK_MEMORY_CUDA_CHECK( cudaSetDevice( 0 ) );
+    OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
 
     unsigned int       numBytes       = 1024;
     unsigned int       numAllocations = 10000;
@@ -119,9 +118,9 @@ TEST_F( TestAllocators, DeviceAllocatorSpeed )
 
 TEST_F( TestAllocators, DeviceAsyncAllocatorSpeed )
 {
-    OTK_MEMORY_CUDA_CHECK( cudaSetDevice( 0 ) );
+    OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
     CUstream stream;
-    OTK_MEMORY_CUDA_CHECK( cudaStreamCreate( &stream ) );
+    OTK_ERROR_CHECK( cudaStreamCreate( &stream ) );
 
     unsigned int       numBytes       = 1024;
     unsigned int       numAllocations = 10000;

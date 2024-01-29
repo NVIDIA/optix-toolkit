@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include <OptiXToolkit/Memory/CudaCheck.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 
@@ -38,8 +38,14 @@ namespace otk {
 // do not need to be freed, but buffer overflow can be detected by calling
 // free after each allocation is done.
 
-const unsigned long long BAD_ALLOC = 0xFFFFFFFFFFFFFFFFULL;
-const unsigned int       WARP_SIZE = 32;
+const unsigned long long BAD_ALLOC        = 0xFFFFFFFFFFFFFFFFULL;
+const unsigned int       WARP_SIZE        = 32;
+const unsigned int       INTERLEAVE_BYTES = 4;
+
+enum AllocMode
+{
+    THREAD_BASED, WARP_BASE_POINTER, WARP_NON_INTERLEAVED, WARP_INTERLEAVED
+};
 
 #ifdef __CUDACC__
 __forceinline__ __device__ unsigned int getLaneId()
@@ -52,33 +58,33 @@ __forceinline__ __device__ unsigned int getLaneId()
 
 struct DeviceRingBuffer
 {
-    char*               buffer;       // Backing store for the ring buffer.
-    unsigned long long  buffSize;     // Size of the buffer in bytes. must be power of 2.
-    unsigned long long* nextStart;    // Offset of the next allocation (% buffSize).
-    bool                allocByWarp;  // Whether to allocate by warp or by individual threads.
+    char*               buffer;     // Backing store for the ring buffer.
+    unsigned long long  buffSize;   // Size of the buffer in bytes. must be power of 2.
+    unsigned long long* nextStart;  // Offset of the next allocation (% buffSize).
+    AllocMode           allocMode;  // Allocation mode
 
 #ifndef __CUDACC__
     /// Initialize the ring buffer
-    void init( unsigned long long _buffSize, bool _allocByWarp )
+    void init( unsigned long long buffSize_, AllocMode allocMode_ )
     {
-        allocByWarp = _allocByWarp;
-        buffSize    = _buffSize;
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), buffSize ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextStart ), sizeof( unsigned long long ) ) );
+        allocMode = allocMode_;
+        buffSize  = buffSize_;
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), buffSize ) );
+        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextStart ), sizeof( unsigned long long ) ) );
         clear( 0 );
     }
 
     /// Tear down, freeing all the memory
     void tearDown()
     {
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
-        OTK_MEMORY_CUDA_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextStart ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( buffer ) ) );
+        OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( nextStart ) ) );
     }
 
     /// Clear the allocator
     void clear( CUstream stream = 0 )
     {
-        OTK_MEMORY_CUDA_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextStart ), 0, sizeof( unsigned long long ), stream ) );
+        OTK_ERROR_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextStart ), 0, sizeof( unsigned long long ), stream ) );
     }
 #endif
 
@@ -86,7 +92,7 @@ struct DeviceRingBuffer
     /// Allocate memory from the ring buffer, returning a pointer to it, and the memory handle.
     __forceinline__ __device__ char* alloc( unsigned long long allocSize, unsigned long long* handle )
     {
-        return ( allocByWarp ) ? allocW( allocSize, handle ) : allocT( allocSize, handle );
+        return ( allocMode != THREAD_BASED ) ? allocW( allocSize, handle ) : allocT( allocSize, handle );
     }
 
     /// Allocate memory from the ring buffer, returning a pointer to it.
@@ -106,7 +112,7 @@ struct DeviceRingBuffer
     /// if the buffer has overflowed (memory was reallocated before being freed).
     __forceinline__ __device__ bool free( unsigned long long handle )
     {
-        if( !allocByWarp )
+        if( allocMode != THREAD_BASED )
             return ( ( handle == BAD_ALLOC ) || ( handle + buffSize > atomicAdd( nextStart, 0 ) ) );
 
         const unsigned int activeMask = __activemask();
@@ -116,7 +122,7 @@ struct DeviceRingBuffer
         bool rval = 0;
         if( laneId == leadLane )
             rval = ( ( handle == BAD_ALLOC ) || ( handle + buffSize > atomicAdd( nextStart, 0 ) ) );
-        rval     = __shfl_sync( activeMask, rval, leadLane );
+        rval = __shfl_sync( activeMask, rval, leadLane );
         return rval;
     }
 
@@ -147,9 +153,13 @@ struct DeviceRingBuffer
         unsigned long long ptrBase = 0ULL;
         if( laneId == leadLane )
             ptrBase = reinterpret_cast<unsigned long long>( allocT( allocSize * WARP_SIZE, handle ) );
-        ptrBase     = __shfl_sync( activeMask, ptrBase, leadLane );
+        ptrBase = __shfl_sync( activeMask, ptrBase, leadLane );
 
-        return reinterpret_cast<char*>( ptrBase + ( allocSize * laneId ) );
+        if( allocMode == WARP_INTERLEAVED )
+            ptrBase += INTERLEAVE_BYTES * laneId;
+        else if ( allocMode == WARP_NON_INTERLEAVED )
+            ptrBase += allocSize * laneId;
+        return reinterpret_cast<char*>( ptrBase );
     }
 #endif
 };

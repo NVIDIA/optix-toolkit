@@ -28,9 +28,11 @@
 #ifndef OTK_ERROR_CU_ERROR_CHECK_H
 #define OTK_ERROR_CU_ERROR_CHECK_H
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
+
 #include <cuda.h>
 
-#include <OptiXToolkit/Error/ErrorCheck.h>
+#include <sstream>
 
 namespace otk {
 namespace error {
@@ -56,6 +58,30 @@ inline std::string getErrorMessage( CUresult value )
         return message;
     return {};
 }
+
+/// Get the context of a stream
+inline CUcontext getCudaContext( CUstream stream ) 
+{
+    CUcontext context;
+    OTK_ERROR_CHECK( cuStreamGetCtx( stream, &context ) );
+    return context;
+}
+
+/// Verify that the current CUDA context matches the given context.
+inline void cudaContextCheck( CUcontext expected, const char* file, unsigned int line )
+{
+    CUcontext current;
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &current ) );
+    if( expected != current )
+    {
+        std::stringstream ss;
+        ss << "Cuda context check failed (" << file << ":" << line << ")\n";
+        throw std::runtime_error( ss.str() );
+    }
+}
+
+#define OTK_ASSERT_CONTEXT_IS( context ) otk::error::cudaContextCheck( context, __FILE__, __LINE__ )
+#define OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream ) if( stream ) otk::error::cudaContextCheck( otk::error::getCudaContext( stream ), __FILE__, __LINE__ )
 
 }  // namespace error
 }  // namespace otk

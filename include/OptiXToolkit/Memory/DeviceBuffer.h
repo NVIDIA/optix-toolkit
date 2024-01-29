@@ -28,8 +28,8 @@
 
 #pragma once
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
-#include <OptiXToolkit/Memory/CudaCheck.h>
 
 #include <cuda.h>
 
@@ -104,7 +104,7 @@ class DeviceBuffer
             throw std::runtime_error( "DeviceBuffer already allocated." );
         m_size     = size;
         m_capacity = size;
-        OTK_MEMORY_CUDA_CHECK( cuMemAlloc( &m_devStorage, m_capacity ) );
+        OTK_ERROR_CHECK( cuMemAlloc( &m_devStorage, m_capacity ) );
     }
 
     ///. Free the associated CUDA device memory.
@@ -112,7 +112,7 @@ class DeviceBuffer
     {
         if( m_devStorage != CUdeviceptr{} )
         {
-            OTK_MEMORY_CUDA_CHECK( cuMemFree( m_devStorage ) );
+            OTK_ERROR_CHECK( cuMemFree( m_devStorage ) );
             m_devStorage = CUdeviceptr{};
             m_size       = 0;
             m_capacity   = 0;
@@ -162,7 +162,7 @@ class DeviceBuffer
     void release() noexcept
     {
         if( m_devStorage )
-            OTK_MEMORY_CUDA_CHECK_NOTHROW( cuMemFree( m_devStorage ) );
+            OTK_ERROR_CHECK_NOTHROW( cuMemFree( m_devStorage ) );
         m_devStorage = CUdeviceptr{};
     }
 
