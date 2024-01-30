@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef OTK_DEMAND_MATERIAL_MATERIAL_LOADER_H
-#define OTK_DEMAND_MATERIAL_MATERIAL_LOADER_H
+
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -55,5 +55,3 @@ class MaterialLoader
 std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* demandLoader );
 
 }  // namespace demandMaterial
-
-#endif

@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef OTK_DEMAND_GEOMETRY_PROXY_INSTANCES_H
-#define OTK_DEMAND_GEOMETRY_PROXY_INSTANCES_H
+#pragma once
 
 #include <OptiXToolkit/DemandLoading/Resource.h>
 
@@ -172,5 +171,3 @@ class ProxyInstances : public GeometryLoader
 };
 
 }  // namespace demandGeometry
-
-#endif

@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef DEMAND_GEOMETRY_PROXY_INSTANCES_IMPL_H
-#define DEMAND_GEOMETRY_PROXY_INSTANCES_IMPL_H
+#pragma once
 
 /// Include this implementation file at the end of your CUDA source file in order
 /// to supply the implementation of the proxy instances intersection and closest hit
@@ -81,5 +80,3 @@ extern "C" __global__ void __closesthit__electricBoundingBox()
 }
 
 }  // namespace demandGeometry
-
-#endif
