@@ -35,15 +35,7 @@ endif()
 
 file(COPY optix examples requirements.txt test DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-add_custom_command(OUTPUT "venv"
-    COMMAND ${Python_EXECUTABLE} -m venv env
-    COMMAND ./env/bin/pip install -r requirements.txt
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Created virtual environment for PyOptiX build")
-
 add_custom_target(PyOptiX ALL 
                   ${CMAKE_COMMAND} -E env PYOPTIX_CMAKE_ARGS="-DOptiX_INSTALL_DIR=${OptiX_INSTALL_DIR}" 
                   ${Python_EXECUTABLE} setup.py build 
-                  WORKING_DIRECTORY optix
-                  DEPENDS "venv")
-
+                  WORKING_DIRECTORY optix)
