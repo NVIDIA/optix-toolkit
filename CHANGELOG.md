@@ -1,5 +1,18 @@
 # OptiX Demand Loading Library Change Log
 
+## Version 0.9
+
+* The error message was improved when loading a texture sampler fails during request processing.
+* A `Tile` structure was introduced to clearly distinguish tile coordinates vs. pixel coordinates.
+* A `MipMapImageSource` adapater was added that adapts a single level image source into a mipmapped
+  image source, using point sampling to generate smaller mip levels.
+* A `TiledImageSource` adapater was added that adapts a non-tiled image source into a tiled image
+  source by fetching mip levels into a memory buffer and serving tiles from there.
+* The `MockOptix` google mock class was expanded to cover the entire OptiX API.
+* PNG and JPEG image source tests were enabled when OpenImageIO is available.
+* The Demand Geometry library received some bug fixes related to updating internal data structures.
+* The Demand Material library was extracted from the Demand Geometry Viewer sample.
+
 ## Version 0.8
 
 The demand loading library was factored into two layers:
