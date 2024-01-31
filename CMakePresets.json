@@ -1,0 +1,395 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 27,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "otk-sibling-build-preset",
+      "hidden": true,
+      "displayName": "OptiX Toolkit sibling preset build directory",
+      "description": "Inherit from this preset to set the build directory from the preset name as a sibling of the source directory (out of source tree)",
+      "binaryDir": "${sourceDir}/../build-${presetName}"
+    },
+    {
+      "name": "otk-project-name-preset",
+      "hidden": true,
+      "displayName": "OptiX Toolkit project name containing preset",
+      "description": "Inherit from this preset to set the IDE project name to include the preset name",
+      "cacheVariables": {
+        "OTK_PROJECT_NAME": "OptiX Toolkit ${presetName}"
+      }
+    },
+    {
+      "name": "otk-demand-loading-library",
+      "hidden": true,
+      "displayName": "OptiX Toolkit DemandLoading standalone library",
+      "description": "Inherit from this preset to build only the DemandLoading library",
+      "cacheVariables": {
+        "OTK_LIBRARIES": {
+          "type": "STRING",
+          "value": "DemandLoading"
+        }
+      }
+    },
+    {
+      "name": "otk-memory-library",
+      "hidden": true,
+      "displayName": "OptiX Toolkit Memory standalone library",
+      "description": "Inherit from this preset to build only the Memory library",
+      "cacheVariables": {
+        "OTK_LIBRARIES": {
+          "type": "STRING",
+          "value": "Memory"
+        }
+      }
+    },
+    {
+      "name": "otk-omm-baking-library",
+      "hidden": true,
+      "displayName": "OptiX Toolkit OmmBaking standalone library",
+      "description": "Inherit from this preset to build only the OmmBaking library",
+      "cacheVariables": {
+        "OTK_LIBRARIES": {
+          "type": "STRING",
+          "value": "OmmBaking"
+        }
+      }
+    },
+    {
+      "name": "otk-shader-util-library",
+      "hidden": true,
+      "displayName": "OptiX Toolkit ShaderUtil standalone library",
+      "description": "Inherit from this preset to build only the ShaderUtil library",
+      "cacheVariables": {
+        "OTK_LIBRARIES": {
+          "type": "STRING",
+          "value": "ShaderUtil"
+        }
+      }
+    },
+    {
+      "name": "otk-no-examples",
+      "hidden": true,
+      "displayName": "Inherit from this preset to skip building of examples",
+      "cacheVariables": {
+        "OTK_BUILD_EXAMPLES": false
+      }
+    },
+    {
+      "name": "otk-no-tests",
+      "hidden": true,
+      "displayName": "Inherit from this preset to skip building of tests",
+      "cacheVariables": {
+        "BUILD_TESTING": false
+      }
+    },
+    {
+      "name": "otk-docs",
+      "hidden": true,
+      "displayName": "Inherit from this preset to build documentation",
+      "cacheVariables": {
+        "OTK_BUILD_DOCS": true
+      }
+    },
+    {
+      "name": "otk-use-fetch-content",
+      "hidden": true,
+      "displayName": "Use FetchContent for dependencies",
+      "description": "Inherit from this preset to use FetchContent to obtain dependencies",
+      "cacheVariables": {
+        "OTK_USE_VCPKG": false
+      }
+    },
+    {
+      "name": "otk-use-vcpkg",
+      "hidden": true,
+      "displayName": "Use vcpkg for dependencies",
+      "description": "Inherit from this preset to use vcpkg to obtain dependencies",
+      "cacheVariables": {
+        "OTK_USE_VCPKG": true
+      }
+    },
+    {
+      "name": "otk-use-open-image-io",
+      "hidden": true,
+      "displayName": "Use OpenImageIO for additional texture file formats",
+      "description": "Inherit from this preset to use OpenImageIO to support PNG and JPEG textures",
+      "cacheVariables": {
+        "OTK_FETCH_OIIO": true
+      }
+    },
+    {
+      "name": "otk-default",
+      "displayName": "OptiX Toolkit configured with vcpkg for dependencies and default settings",
+      "description": "Use vcpkg for dependencies, build all tests and examples.",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg" ]
+    },
+    {
+      "name": "otk-fetch-content",
+      "displayName": "OptiX Toolkit configured with FetchContent for dependencies",
+      "description": "Use FetchContent for dependencies, build all tests and examples.",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-fetch-content" ]
+    },
+    {
+      "name": "otk-open-image-io",
+      "displayName": "OptiX Toolkit configured with vcpkg OpenImageIO for additional texture file formats",
+      "description": "Use OpenImageIO from vcpkg for additional texture file formats",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-use-open-image-io" ]
+    },
+    {
+      "name": "otk-demand-loading",
+      "displayName": "OptiX Toolkit configured for only the DemandLoading library",
+      "description": "Use vcpkg for dependencies, build all tests and examples for the DemandLoading library.",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-demand-loading-library" ]
+    },
+    {
+      "name": "otk-memory",
+      "displayName": "OptiX Toolkit configured for only the Memory library",
+      "description": "Use vcpkg for dependencies, build all tests for the Memory library; there are no examples.",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-memory-library", "otk-no-examples" ]
+    },
+    {
+      "name": "otk-omm-baking",
+      "displayName": "OptiX Toolkit configured for only the OmmBaking library",
+      "description": "Use vcpkg for dependencies, build all tests and examples for the OmmBaking library.",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-omm-baking-library" ]
+    },
+    {
+      "name": "otk-shader-util",
+      "displayName": "OptiX Toolkit configured for only the ShaderUtil library",
+      "description": "Use vcpkg for dependencies, build all tests for the ShaderUtil library; there are no examples.",
+      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-shader-util-library", "otk-no-examples" ]
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "otk-default",
+      "displayName": "OptiX Toolkit build with default settings",
+      "configuration": "Release",
+      "configurePreset": "otk-default"
+    },
+    {
+      "name": "otk-fetch-content",
+      "displayName": "OptiX Toolkit build with FetchContent settings",
+      "configuration": "Release",
+      "configurePreset": "otk-fetch-content"
+    },
+    {
+      "name": "otk-open-image-io",
+      "displayName": "OptiX Toolkit build with OpenImageIO settings",
+      "configuration": "Release",
+      "configurePreset": "otk-open-image-io"
+    },
+    {
+      "name": "otk-demand-loading",
+      "displayName": "OptiX Toolkit build for only the DemandLoading library.",
+      "configuration": "Release",
+      "configurePreset": "otk-demand-loading"
+    },
+    {
+      "name": "otk-memory",
+      "displayName": "OptiX Toolkit build for only the Memory library.",
+      "configuration": "Release",
+      "configurePreset": "otk-memory"
+    },
+    {
+      "name": "otk-omm-baking",
+      "displayName": "OptiX Toolkit build for only the OmmBaking library.",
+      "configuration": "Release",
+      "configurePreset": "otk-omm-baking"
+    },
+    {
+      "name": "otk-shader-util",
+      "displayName": "OptiX Toolkit build for only the ShaderUtil library.",
+      "configuration": "Release",
+      "configurePreset": "otk-shader-util"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "otk-settings",
+      "displayName": "OptiX Toolkit test preset common settings",
+      "hidden": true,
+      "configuration": "Release",
+      "execution": {
+        "timeout": 1500
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "otk-default",
+      "displayName": "OptiX Toolkit test with default settings",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-default"
+    },
+    {
+      "name": "otk-fetch-content",
+      "displayName": "OptiX Toolkit test with FetchContent settings",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-fetch-content"
+    },
+    {
+      "name": "otk-open-image-io",
+      "displayName": "OptiX Toolkit test with OpenImageIO settings",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-open-image-io"
+    },
+    {
+      "name": "otk-demand-loading",
+      "displayName": "OptiX Toolkit test for the DemandLoading library",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-demand-loading"
+    },
+    {
+      "name": "otk-memory",
+      "displayName": "OptiX Toolkit test for the Memory library",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-memory"
+    },
+    {
+      "name": "otk-omm-baking",
+      "displayName": "OptiX Toolkit test for the OmmBaking library",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-omm-baking"
+    },
+    {
+      "name": "otk-shader-util",
+      "displayName": "OptiX Toolkit test for the ShaderUtil library",
+      "inherits": [ "otk-settings" ],
+      "configurePreset": "otk-shader-util"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "otk-default",
+      "displayName": "OptiX Toolkit default workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-default"
+        },
+        {
+          "type": "build",
+          "name": "otk-default"
+        },
+        {
+          "type": "test",
+          "name": "otk-default"
+        }
+      ]
+    },
+    {
+      "name": "otk-fetch-content",
+      "displayName": "OptiX Toolkit FetchContent workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-fetch-content"
+        },
+        {
+          "type": "build",
+          "name": "otk-fetch-content"
+        },
+        {
+          "type": "test",
+          "name": "otk-fetch-content"
+        }
+      ]
+    },
+    {
+      "name": "otk-open-image-io",
+      "displayName": "OptiX Toolkit OpenImageIO workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-open-image-io"
+        },
+        {
+          "type": "build",
+          "name": "otk-open-image-io"
+        },
+        {
+          "type": "test",
+          "name": "otk-open-image-io"
+        }
+      ]
+    },
+    {
+      "name": "otk-demand-loading",
+      "displayName": "OptiX Toolkit DemandLoading library workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-demand-loading"
+        },
+        {
+          "type": "build",
+          "name": "otk-demand-loading"
+        },
+        {
+          "type": "test",
+          "name": "otk-demand-loading"
+        }
+      ]
+    },
+    {
+      "name": "otk-memory",
+      "displayName": "OptiX Toolkit Memory library workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-memory"
+        },
+        {
+          "type": "build",
+          "name": "otk-memory"
+        },
+        {
+          "type": "test",
+          "name": "otk-memory"
+        }
+      ]
+    },
+    {
+      "name": "otk-omm-baking",
+      "displayName": "OptiX Toolkit OmmBaking library workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-omm-baking"
+        },
+        {
+          "type": "build",
+          "name": "otk-omm-baking"
+        },
+        {
+          "type": "test",
+          "name": "otk-omm-baking"
+        }
+      ]
+    },
+    {
+      "name": "otk-shader-util",
+      "displayName": "OptiX Toolkit ShaderUtil library workflow: configure, build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "otk-shader-util"
+        },
+        {
+          "type": "build",
+          "name": "otk-shader-util"
+        },
+        {
+          "type": "test",
+          "name": "otk-shader-util"
+        }
+      ]
+    }
+  ]
+}

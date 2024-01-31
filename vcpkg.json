@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "optix-toolkit",
+  "description": "OptiX Toolkit libraries and examples",
+  "features": {
+    "otk-examples": {
+      "description": "Dependencies needed only by the examples",
+      "dependencies": [
+        "glad",
+        "glfw3",
+        {
+          "name": "imgui",
+          "features": [
+            "glfw-binding",
+            "opengl3-binding"
+          ]
+        },
+        "stb"
+      ]
+    },
+    "otk-openexr": {
+      "description": "OpenEXR support",
+      "dependencies": [
+        "imath",
+        "openexr"
+      ]
+    },
+    "otk-openimageio": {
+      "description": "OpenImageIO support for JPG and PNG files",
+      "dependencies": [
+        "openimageio"
+      ]
+    },
+    "otk-tests": {
+      "description": "Dependencies needed only by the tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  }
+}
