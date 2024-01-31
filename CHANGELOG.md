@@ -1,5 +1,11 @@
 # OptiX Toolkit Shader Util changes
 
+## Version 0.9
+
+* Corrected some build issues to allow standalone build of Shader Util library.
+* Added a `DebugLocation` facility for dumping application state interactively.
+  This is demonstrated in the Demand Geometry Viewer example.
+
 ## Version 0.8.1
 
 * Helper functions in [ray_cone.h](include/OptiXToolkit/ShaderUtil/ray_cone.h) facilitate using ray
