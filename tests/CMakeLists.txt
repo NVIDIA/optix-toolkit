@@ -41,7 +41,7 @@ embed_cuda(
     Util/OptiXKernels.cu
     Util/OptiXKernels.h
   FOLDER
-    CmOmmBaking/Tests
+    OmmBaking/Tests
 )
 
 add_definitions( -DTEST_OMM_BAKING_TEXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Textures/" )
@@ -70,7 +70,7 @@ otk_add_executable( testCuOmmBaking
 
 set_target_properties(testCuOmmBaking PROPERTIES 
   CXX_STANDARD 14  # Required by latest gtest
-  FOLDER CmOmmBaking/Tests 
+  FOLDER OmmBaking/Tests 
   )
 
 target_include_directories( testCuOmmBaking PUBLIC

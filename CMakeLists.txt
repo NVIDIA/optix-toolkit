@@ -111,7 +111,7 @@ target_link_libraries( CuOmmBaking
   ${CMAKE_DL_LIBS}  
   )
 
-set_target_properties(CuOmmBaking PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON FOLDER CmOmmBaking)
+set_target_properties(CuOmmBaking PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON FOLDER OmmBaking)
 
 # NVTX Profiling
 option( OMM_BAKING_USE_NVTX "Enable NVTX profiling" OFF )
