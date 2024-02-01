@@ -43,7 +43,6 @@ function(glad_folders)
   endforeach()
 endfunction()
 
-option( OTK_FETCH_CONTENT "Use FetchContent for third party libraries" ON )
 if( NOT OTK_FETCH_CONTENT )
   find_package( glad REQUIRED )
   glad_folders()
