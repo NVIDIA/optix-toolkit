@@ -114,8 +114,8 @@ target_link_libraries( CuOmmBaking
 set_target_properties(CuOmmBaking PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON FOLDER OmmBaking)
 
 # NVTX Profiling
-option( OMM_BAKING_USE_NVTX "Enable NVTX profiling" OFF )
-if( OMM_BAKING_USE_NVTX )
+option( OTK_OMM_BAKING_USE_NVTX "Enable NVTX profiling" OFF )
+if( OTK_OMM_BAKING_USE_NVTX )
   target_compile_definitions( CuOmmBaking PUBLIC ENABLE_NVTX_PROFILING )
 endif()
 
