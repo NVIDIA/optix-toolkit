@@ -38,7 +38,7 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 
 # CMake source file options
-[CMakeLists.txt]
+[{CMakeLists.txt,*.cmake}]
 indent_style = space
 indent_size = 4
 trim_trailing_whitespace = true
