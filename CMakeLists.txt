@@ -71,7 +71,9 @@ if( OTK_USE_VCPKG )
   configure_file( vcpkg.json.in ${PROJECT_SOURCE_DIR}/vcpkg.json @ONLY )
 
   # Load vcpkg toolchain file, which triggers downloading and building dependencies in the manifest.
-  include( vcpkg/scripts/buildsystems/vcpkg.cmake )
+  if(NOT CMAKE_TOOLCHAIN_FILE)
+    include( vcpkg/scripts/buildsystems/vcpkg.cmake )
+  endif()
 endif()
 
 #########################################################
