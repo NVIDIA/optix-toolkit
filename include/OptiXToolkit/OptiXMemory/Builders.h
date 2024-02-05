@@ -104,6 +104,7 @@ class ProgramGroupDescBuilder
 
     /// Build a hit group program group description for a closest hit program from another module.
     ///
+    /// @param module The OptiX module for the closest hit program.
     /// @param closestHit The entry function name for the closest hit program.
     ///
     ProgramGroupDescBuilder& hitGroupCH( OptixModule module, const char* closestHit )

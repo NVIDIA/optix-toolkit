@@ -28,7 +28,7 @@
 
 #include "TestDeviceMemoryPools.h"
 
-#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/DeviceRingBuffer.h>
 #include <OptiXToolkit/Memory/DeviceFixedPool.h>
 
