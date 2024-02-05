@@ -1,5 +1,5 @@
 
-# OptiX Toolkit (OTK) Examples
+# OptiX Toolkit Examples
 
 Example programs demonstrating features in the OptiX Toolkit.
 
