@@ -118,7 +118,7 @@
       "displayName": "Use OpenImageIO for additional texture file formats",
       "description": "Inherit from this preset to use OpenImageIO to support PNG and JPEG textures",
       "cacheVariables": {
-        "OTK_FETCH_OIIO": true
+        "OTK_USE_OIIO": true
       }
     },
     {
