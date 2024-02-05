@@ -38,6 +38,7 @@ endif()
 set( OTK_DOCS_EXTRACT_ALL YES CACHE STRING "Extract documentation for all symbols (YES/NO)" )
 set( OTK_DOCS_WARN_IF_UNDOCUMENTED NO CACHE STRING "Warn about undocumented symbols (YES/NO)" )
 
+set( OTK_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../.. )
 configure_file( Doxyfile Doxyfile @ONLY )
 
 add_custom_target( docs ALL

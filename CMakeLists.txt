@@ -71,7 +71,9 @@ if( OTK_USE_VCPKG )
   configure_file( vcpkg.json.in ${PROJECT_SOURCE_DIR}/vcpkg.json @ONLY )
 
   # Load vcpkg toolchain file, which triggers downloading and building dependencies in the manifest.
-  include( vcpkg/scripts/buildsystems/vcpkg.cmake )
+  if(NOT CMAKE_TOOLCHAIN_FILE)
+    include( vcpkg/scripts/buildsystems/vcpkg.cmake )
+  endif()
 endif()
 
 #########################################################
@@ -118,11 +120,9 @@ find_package(OptiX)
 if(PROJECT_IS_TOP_LEVEL)
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" ON)
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" ON)
-  option( OTK_BUILD_PYOPTIX "Enable build of PyOptiX libraries" ON)
 else()
   option( OTK_BUILD_EXAMPLES "Enable build of OptiXToolkit examples" OFF)
   option( OTK_BUILD_DOCS "Enable build of OptiXToolkit documentation" OFF)
-  option( OTK_BUILD_PYOPTIX "Enable build of PyOptiX libraries" OFF)
 endif()
 
 function(addOptionalSubdirectory dir)
@@ -136,6 +136,7 @@ addOptionalSubdirectory(Memory)
 addOptionalSubdirectory(DemandLoading)
 addOptionalSubdirectory(ShaderUtil)
 
+option( OTK_BUILD_PYOPTIX "Enable build of PyOptiX libraries" OFF)
 if( UNIX AND OTK_BUILD_PYOPTIX )
   addOptionalSubdirectory(PyOptiX)
 endif()
