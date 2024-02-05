@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef OTK_DEMAND_GEOMETRY_GEOMETRY_LOADER_H
-#define OTK_DEMAND_GEOMETRY_GEOMETRY_LOADER_H
+#pragma once
 
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 
@@ -113,5 +112,3 @@ class GeometryLoader
 };
 
 }  // namespace demandGeometry
-
-#endif
