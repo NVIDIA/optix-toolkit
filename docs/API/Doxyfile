@@ -113,16 +113,29 @@ WARN_LOGFILE           =
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = \
-  @CMAKE_SOURCE_DIR@/README.md \
-  @CMAKE_SOURCE_DIR@/ShaderUtil/include \
-  @CMAKE_SOURCE_DIR@/ShaderUtil/README.md \
-  @CMAKE_SOURCE_DIR@/OmmBaking/include \
-  @CMAKE_SOURCE_DIR@/OmmBaking/README.md \
-  @CMAKE_SOURCE_DIR@/DemandLoading/include \
-  @CMAKE_SOURCE_DIR@/DemandLoading/README.md \
-  @CMAKE_SOURCE_DIR@/Memory/include \
-  @CMAKE_SOURCE_DIR@/Memory/README.md \
-  @CMAKE_SOURCE_DIR@/PyOptiX/README.md
+  @OTK_ROOT@/README.md \
+  @OTK_ROOT@/DemandLoading/DemandGeometry/README.md \
+  @OTK_ROOT@/DemandLoading/DemandGeometry/include \
+  @OTK_ROOT@/DemandLoading/DemandLoading/include \
+  @OTK_ROOT@/DemandLoading/DemandMaterial/README.md \
+  @OTK_ROOT@/DemandLoading/DemandMaterial/include \
+  @OTK_ROOT@/DemandLoading/ImageSource/include \
+  @OTK_ROOT@/DemandLoading/ImageSource/README.md \
+  @OTK_ROOT@/DemandLoading/README.md \
+  @OTK_ROOT@/Memory/README.md \
+  @OTK_ROOT@/Memory/include \
+  @OTK_ROOT@/OmmBaking/README.md \
+  @OTK_ROOT@/OmmBaking/include \
+  @OTK_ROOT@/PyOptiX/README.md \
+  @OTK_ROOT@/ShaderUtil/README.md \
+  @OTK_ROOT@/ShaderUtil/include \
+  @OTK_ROOT@/examples/DemandLoading/DemandTextureAppBase/include \
+  @OTK_ROOT@/examples/DemandLoading/ImageSources/include \
+  @OTK_ROOT@/examples/DemandLoading/RayCones/README.md \
+  @OTK_ROOT@/examples/DemandLoading/TexturePainting/README.md \
+  @OTK_ROOT@/examples/Gui/include \
+  @OTK_ROOT@/examples/README.md \
+  @OTK_ROOT@/examples/Util/include
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.h 
 RECURSIVE              = YES
@@ -138,7 +151,7 @@ INPUT_FILTER           =
 FILTER_PATTERNS        =
 FILTER_SOURCE_FILES    = YES
 FILTER_SOURCE_PATTERNS =
-USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
+USE_MDFILE_AS_MAINPAGE = @OTK_ROOT@/README.md
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
 #---------------------------------------------------------------------------
