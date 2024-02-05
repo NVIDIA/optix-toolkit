@@ -37,7 +37,7 @@ option( OTK_USE_OIIO          "Use OpenImageIO to allow DemandLoading to read PN
 option( OTK_FETCH_CONTENT     "Use FetchContent for third party libraries" ON )
 option( OTK_BUILD_EXAMPLES    "Enable build of OptiXToolkit examples" ON )
 option( OTK_BUILD_TESTS       "Enable build of OptiXToolkit test" ON )
-option( OTK_BUILD_DOCS        "Enable build of OptiXToolkit documentation" OFF )
+option( OTK_BUILD_DOCS        "Enable build of OptiXToolkit documentation" ON )
 option( OTK_BUILD_PYOPTIX     "Enable build of PyOptiX libraries" OFF )
 
 set( OTK_PROJECT_NAME   "OptiXToolkit"  CACHE STRING "Project name for use in IDEs (default: OptiXToolkit)" )
