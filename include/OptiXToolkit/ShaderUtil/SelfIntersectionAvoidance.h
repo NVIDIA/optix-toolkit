@@ -28,13 +28,12 @@
 
 #pragma once
 
+// #define OTK_SIA_DISABLE_TRANSFORM_TRAVERSABLES // Disables support for optix transform traversables (motion matrix, motion srt and static matrix). Only instances are supported.
+
 /// \file SelfIntersectionAvoidance.h
 /// Primary interface of Self Intersection Avoidance library.
 ///
-/// #define OTK_SIA_DISABLE_TRANSFORM_TRAVERSABLES // Disables support for optix transform traversables (motion matrix, motion srt and static matrix). Only instances are supported.
-///
-///
-/// /// Example use:
+/// Example use:
 ///
 ///     ...
 ///

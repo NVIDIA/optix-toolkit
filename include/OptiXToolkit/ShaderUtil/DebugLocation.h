@@ -83,7 +83,7 @@ static __forceinline__ __device__ bool inDebugWindow( const uint3& launchIndex, 
 ///
 /// @param  debug       The DebugLocation structure containing enable flags and debug launchIndex.
 /// @param  dumpFn      The function to be invoked when the launch index matches.
-/// @param  setColor    The function invoked to set colors for the debug pixel and its border.
+///         setColor    The function invoked to set colors for the debug pixel and its border.
 ///
 /// @returns            Returns true if a debug color was set at the current launch index.
 ///
