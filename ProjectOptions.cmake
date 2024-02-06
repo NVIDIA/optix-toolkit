@@ -29,6 +29,12 @@
 #########################################################
 # Project options (must precede project() for vcpkg mechanismn to work properly.)
 
+# Guard against being included multiple times.
+if( _OTK_PROJECT_OPTIONS_SET )
+    return()
+endif()
+set( _OTK_PROJECT_OPTIONS_SET ON )
+
 # Default to using vcpkg for dependencies
 option( OTK_USE_VCPKG         "Use vcpkg for third party libraries" ON )
 option( OTK_USE_VCPKG_OPENEXR "Use vcpkg to obtain OpenEXR" ${OTK_USE_VCPKG} )
@@ -81,10 +87,10 @@ if( OTK_USE_VCPKG )
 
     if( NOT CMAKE_TOOLCHAIN_FILE )
         # Assume that vcpkg submodule is sibling of current list dir
-        set( OTK_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake )
+        file( REAL_PATH ${CMAKE_CURRENT_LIST_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake OTK_TOOLCHAIN_FILE )
         if( NOT EXISTS ${OTK_TOOLCHAIN_FILE} )
-            message( FATAL_ERROR "Could not locate vcpkg toolchain file ${OTK_TOOLCHAIN_FILE}" )
+            message( FATAL_ERROR "OTK_USE_VCPKG is ON, but could not locate vcpkg toolchain file ${OTK_TOOLCHAIN_FILE}" )
         endif()
-        include( ${OTK_TOOLCHAIN_FILE} )
+        set( CMAKE_TOOLCHAIN_FILE ${OTK_TOOLCHAIN_FILE} )
     endif()
 endif()
