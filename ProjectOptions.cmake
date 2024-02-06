@@ -40,7 +40,7 @@ option( OTK_USE_VCPKG         "Use vcpkg for third party libraries" ON )
 option( OTK_USE_VCPKG_OPENEXR "Use vcpkg to obtain OpenEXR" ${OTK_USE_VCPKG} )
 option( OTK_USE_OIIO          "Use OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
 # OTK_USE_VCPKG takes precedence over FetchContent if both are ON.
-option( OTK_FETCH_CONTENT     "Use FetchContent for third party libraries" ON )
+option( OTK_FETCH_CONTENT     "Use FetchContent for third party libraries, if OTK_USE_VCPKG is OFF" ON )
 option( OTK_BUILD_EXAMPLES    "Enable build of OptiXToolkit examples" ON )
 option( OTK_BUILD_TESTS       "Enable build of OptiXToolkit test" ON )
 option( OTK_BUILD_DOCS        "Enable build of OptiXToolkit documentation" ON )
