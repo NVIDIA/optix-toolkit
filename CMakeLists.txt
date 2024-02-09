@@ -119,7 +119,7 @@ foreach( subdir ${buildSubDirs} )
 endforeach()
 
 # Handle these subdirectories based on their specific options.
-if( UNIX AND OTK_BUILD_PYOPTIX )
+if( OTK_BUILD_PYOPTIX )
   checkSubDirectory( PyOptiX )
 endif()
 
