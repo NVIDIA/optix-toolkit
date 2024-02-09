@@ -35,6 +35,11 @@ if( _OTK_PROJECT_OPTIONS_SET )
 endif()
 set( _OTK_PROJECT_OPTIONS_SET ON )
 
+# Guard against being included too late.
+if( PROJECT_NAME )
+    message( FATAL_ERROR "Include ProjectOptions before calling project()." )
+endif()
+
 # Default to using vcpkg for dependencies
 option( OTK_USE_VCPKG         "Use vcpkg for third party libraries" ON )
 option( OTK_USE_VCPKG_OPENEXR "Use vcpkg to obtain OpenEXR" ${OTK_USE_VCPKG} )
