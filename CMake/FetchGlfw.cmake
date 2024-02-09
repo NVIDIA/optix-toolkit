@@ -55,6 +55,8 @@ set( GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" )
 set( GLFW_INSTALL OFF CACHE BOOL "Generate GLFW installation target")
 
 include(FetchContent)
+
+message(VERBOSE "Finding glfw3...")
 FetchContent_Declare(
     glfw3
     GIT_REPOSITORY https://github.com/glfw/glfw.git

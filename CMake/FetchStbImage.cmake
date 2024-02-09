@@ -38,6 +38,7 @@ else()
 
     # Instead of fetching isolated files from master (which can shift implementations),
     # get the whole repository at the same commit as the vcpkg recipe for consistency.
+    message(VERBOSE "Finding sbt...")
     FetchContent_Declare(
         Stb
         GIT_REPOSITORY  https://github.com/nothings/stb.git

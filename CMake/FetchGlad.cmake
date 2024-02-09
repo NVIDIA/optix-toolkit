@@ -53,6 +53,7 @@ include(FetchContent)
 
 set( GLAD_INSTALL OFF CACHE BOOL "Generate glad installation target" )
 
+message(VERBOSE "Finding glad...")
 FetchContent_Declare(
   glad
   GIT_REPOSITORY https://github.com/Dav1dde/glad
