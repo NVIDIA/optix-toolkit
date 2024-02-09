@@ -10,6 +10,7 @@ project(optix)
 #------------------------------------------------------------------------------
 include(FetchContent)
 
+message(VERBOSE "Finding pybind11...")
 FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11
