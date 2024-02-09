@@ -54,6 +54,7 @@ include(FetchContent)
 
 set( INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest" )
 
+message(VERBOSE "Finding googletest...")
 FetchContent_Declare(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git

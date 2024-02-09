@@ -73,6 +73,7 @@ if( NOT OTK_FETCH_CONTENT )
 else()
   include(FetchContent)
 
+  message(VERBOSE "Finding Imath...")
   FetchContent_Declare(
     Imath
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
@@ -96,6 +97,7 @@ else()
   set( IMATH_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install Imath.pc file" )
   set( OPENEXR_INSTALL_PKG_CONFIG OFF CACHE BOOL "Install OpenEXR.pc file" )
 
+  message(VERBOSE "Finding OpenEXR...")
   FetchContent_Declare(
     OpenEXR
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
