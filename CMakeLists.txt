@@ -35,7 +35,26 @@ endif()
 
 file(COPY optix examples requirements.txt test DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+if(UNIX)
+    add_custom_command(OUTPUT env.timestamp
+        COMMAND ${Python_EXECUTABLE} -m venv env
+        COMMAND bash -c "source ./env/bin/activate"
+        COMMAND ./env/bin/pip install -r requirements.txt
+        COMMAND ${CMAKE_COMMAND} -E touch env.timestamp
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Creating virtual environment for PyOptiX build")
+else()
+    add_custom_command(OUTPUT env.timestamp
+        COMMAND ${Python_EXECUTABLE} -m venv env
+        COMMAND powershell ./env/Scripts/Activate.ps1
+        COMMAND powershell ./env/Scripts/pip.exe install -r requirements.txt
+        COMMAND ${CMAKE_COMMAND} -E touch env.timestamp
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Creating virtual environment for PyOptiX build")
+endif()
+
 add_custom_target(PyOptiX ALL 
-                  ${CMAKE_COMMAND} -E env PYOPTIX_CMAKE_ARGS="-DOptiX_INSTALL_DIR=${OptiX_INSTALL_DIR}" 
-                  ${Python_EXECUTABLE} setup.py build 
-                  WORKING_DIRECTORY optix)
+    ${CMAKE_COMMAND} -E env PYOPTIX_CMAKE_ARGS="-DOptiX_INSTALL_DIR=${OptiX_INSTALL_DIR}" 
+    ${Python_EXECUTABLE} setup.py build 
+    WORKING_DIRECTORY optix
+    DEPENDS env.timestamp)
