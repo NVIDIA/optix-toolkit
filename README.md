@@ -74,8 +74,8 @@ presets.  It is recommended that you store your personal presets in the file `CM
 in the source directory so that future updates to the toolkit won't conflict with your
 personal presets.
 
-The supplied presets create build directories as siblings of the source directory with the name
-of the preset in the build directory name, e.g. `../build-otk-default`.  This gives each preset a
+The supplied presets create build directories as children of the source directory with the name
+of the preset in the build directory name, e.g. `build-otk-default`.  This gives each preset a
 distinct build directory allowing you to experiment with different presets without them interfering
 with one another.
 
@@ -86,8 +86,6 @@ own customized preset that suits your individual needs.
 
 Building the toolkit follows the standard CMake worfklow: configure, build and test.
 
-- It is recommended that you build the toolkit outside your downloaded source tree,
-  e.g. as a sibling to the toolkit source directory.
 - Create a directory called `build` and `cd` to that directory.
   ```
   mkdir build
@@ -97,9 +95,9 @@ Building the toolkit follows the standard CMake worfklow: configure, build and t
   This can be accomplished using the [CMake GUI tool](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html),
   the [CMake console tool](https://cmake.org/cmake/help/latest/manual/ccmake.1.html) (not available on Windows as of this writing),
   or from the command-line directly by entering the following command:
-  (Note that `../optix-toolkit` specifies the path to the source code from the build directory.)
+  (Note that `..` specifies the path to the source code from the build directory.)
   ```
-  cmake ../optix-toolkit
+  cmake ..
   ```
   This will configure the toolkit with the default options create a build project using
   the default CMake generator for your platform.

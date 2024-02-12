@@ -7,11 +7,11 @@
   },
   "configurePresets": [
     {
-      "name": "otk-sibling-build-preset",
+      "name": "otk-child-build-dir-preset",
       "hidden": true,
       "displayName": "OptiX Toolkit sibling preset build directory",
-      "description": "Inherit from this preset to set the build directory from the preset name as a sibling of the source directory (out of source tree)",
-      "binaryDir": "${sourceDir}/../build-${presetName}"
+      "description": "Inherit from this preset to set the build directory from the preset name as a child of the source directory",
+      "binaryDir": "${sourceDir}/build-${presetName}"
     },
     {
       "name": "otk-project-name-preset",
@@ -125,43 +125,43 @@
       "name": "otk-default",
       "displayName": "OptiX Toolkit configured with vcpkg for dependencies and default settings",
       "description": "Use vcpkg for dependencies, build all tests and examples.",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-vcpkg" ]
     },
     {
       "name": "otk-fetch-content",
       "displayName": "OptiX Toolkit configured with FetchContent for dependencies",
       "description": "Use FetchContent for dependencies, build all tests and examples.",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-fetch-content" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-fetch-content" ]
     },
     {
       "name": "otk-open-image-io",
       "displayName": "OptiX Toolkit configured with vcpkg OpenImageIO for additional texture file formats",
       "description": "Use OpenImageIO from vcpkg for additional texture file formats",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-use-open-image-io" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-use-open-image-io" ]
     },
     {
       "name": "otk-demand-loading",
       "displayName": "OptiX Toolkit configured for only the DemandLoading library",
       "description": "Use vcpkg for dependencies, build all tests and examples for the DemandLoading library.",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-demand-loading-library" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-demand-loading-library" ]
     },
     {
       "name": "otk-memory",
       "displayName": "OptiX Toolkit configured for only the Memory library",
       "description": "Use vcpkg for dependencies, build all tests for the Memory library; there are no examples.",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-memory-library", "otk-no-examples" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-memory-library", "otk-no-examples" ]
     },
     {
       "name": "otk-omm-baking",
       "displayName": "OptiX Toolkit configured for only the OmmBaking library",
       "description": "Use vcpkg for dependencies, build all tests and examples for the OmmBaking library.",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-omm-baking-library" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-omm-baking-library" ]
     },
     {
       "name": "otk-shader-util",
       "displayName": "OptiX Toolkit configured for only the ShaderUtil library",
       "description": "Use vcpkg for dependencies, build all tests for the ShaderUtil library; there are no examples.",
-      "inherits": [ "otk-sibling-build-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-shader-util-library", "otk-no-examples" ]
+      "inherits": [ "otk-child-build-dir-preset", "otk-project-name-preset", "otk-use-vcpkg", "otk-shader-util-library", "otk-no-examples" ]
     }
   ],
   "buildPresets": [
