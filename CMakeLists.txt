@@ -82,9 +82,7 @@ source_group( "Header Files\\Implementation" FILES
   src/Util/XXH.h
 )
 
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::CuOmmBaking ALIAS CuOmmBaking)
-endif()
+add_library(OptiXToolkit::CuOmmBaking ALIAS CuOmmBaking)
 
 target_sources(CuOmmBaking
   PUBLIC 
