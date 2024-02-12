@@ -107,9 +107,7 @@ otk_add_library( DemandLoading
   )
 set_property(TARGET DemandLoading PROPERTY FOLDER DemandLoading)
 
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::DemandLoading ALIAS DemandLoading)
-endif()
+add_library(OptiXToolkit::DemandLoading ALIAS DemandLoading)
 
 target_sources(DemandLoading
   PUBLIC 
