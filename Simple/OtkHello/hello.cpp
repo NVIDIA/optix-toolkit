@@ -224,7 +224,7 @@ int main( int argc, char* argv[] )
             CUdeviceptr miss_record;
             size_t      miss_record_size = sizeof( MissSbtRecord );
             OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &miss_record ), miss_record_size ) );
-            RayGenSbtRecord ms_sbt;
+            MissSbtRecord ms_sbt;
             OTK_ERROR_CHECK( optixSbtRecordPackHeader( miss_prog_group, &ms_sbt ) );
             OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
 
