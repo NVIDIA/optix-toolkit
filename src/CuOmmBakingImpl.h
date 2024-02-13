@@ -49,7 +49,7 @@ struct TextureData
     /// horizontal and vertical address modes.
     cudaTextureAddressMode addressMode[2];
 
-    /// (#transparent,#opaque) state sum table
+    /// (num-transparent,num-opaque) state sum table
     /// table is in column major order for efficient construction.
     /// is null for custom texture inputs
     const uint2* sumTable;
@@ -265,7 +265,8 @@ struct ReduceRoundUp
         InputIteratorT  d_in,               ///< [in] Pointer to the input sequence of data items
         OutputIteratorT d_out,              ///< [out] Pointer to the output aggregate
         int             num_items,          ///< [in] Total number of input items (i.e., length of \p d_in)
-        cudaStream_t    stream = 0 ) const; ///< [in] <b>[optional]</b> CUDA stream to launch kernels within.  Default is stream<sub>0</sub>.
+        cudaStream_t    stream = 0          ///< [in] <b>[optional]</b> CUDA stream to launch kernels within.  Default is stream<sub>0</sub>.
+      ) const; 
 };
 
 // Functor encapsulating cuda cub InclusiveSum.
@@ -279,7 +280,8 @@ struct InclusiveSum
         InputIteratorT  d_in,                ///< [in] Pointer to the input sequence of data items
         OutputIteratorT d_out,               ///< [out] Pointer to the output sequence of data items
         int             num_items,           ///< [in] Total number of input items (i.e., the length of \p d_in)
-        cudaStream_t    stream = 0 ) const;
+        cudaStream_t    stream = 0           ///< [in] <b>[optional]</b> CUDA stream to launch kernels within.  Default is stream<sub>0</sub>.
+      ) const;
 };
 
 // Functor encapsulating cuda cub SortPairs.
@@ -297,5 +299,6 @@ struct SortPairs
         int           num_items,                     ///< [in] Number of items to sort
         int           begin_bit = 0,                 ///< [in] <b>[optional]</b> The least-significant bit index (inclusive)  needed for key comparison
         int           end_bit = sizeof( KeyT ) * 8,  ///< [in] <b>[optional]</b> The most-significant bit index (exclusive) needed for key comparison (e.g., sizeof(unsigned int) * 8)
-        cudaStream_t  stream = 0 ) const;
+        cudaStream_t  stream = 0                     ///< [in] <b>[optional]</b> CUDA stream to launch kernels within.  Default is stream<sub>0</sub>.
+      ) const;
 };
