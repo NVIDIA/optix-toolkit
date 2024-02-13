@@ -225,8 +225,7 @@ inline const char* nameOrNullPtr( const char* name )
 
 MATCHER_P3( hasRayGenDesc, count, module, entryPoint, "" )
 {
-    OptixProgramGroupDesc desc{ OPTIX_PROGRAM_GROUP_KIND_RAYGEN, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
-    desc.raygen       = { module, entryPoint };
+    OptixProgramGroupDesc desc{ OPTIX_PROGRAM_GROUP_KIND_RAYGEN, OPTIX_PROGRAM_GROUP_FLAGS_NONE, { module, entryPoint } };
     const bool result = detail::programGroupDescsContain( arg, count, desc );
     if( !result )
     {
@@ -243,8 +242,7 @@ MATCHER_P3( hasRayGenDesc, count, module, entryPoint, "" )
 
 MATCHER_P3( hasMissDesc, count, module, entryPoint, "" )
 {
-    OptixProgramGroupDesc desc{ OPTIX_PROGRAM_GROUP_KIND_MISS, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
-    desc.miss         = { module, entryPoint };
+    OptixProgramGroupDesc desc{ OPTIX_PROGRAM_GROUP_KIND_MISS, OPTIX_PROGRAM_GROUP_FLAGS_NONE, { module, entryPoint } };
     const bool result = detail::programGroupDescsContain( arg, count, desc );
     if( !result )
     {
@@ -261,7 +259,7 @@ MATCHER_P3( hasMissDesc, count, module, entryPoint, "" )
 
 MATCHER_P5( hasHitGroupISCHDesc, count, isModule, isEntryPoint, chModule, chEntryPoint, "" )
 {
-    OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
+    OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE, {{0,0}} };
     OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
     hitgroup.moduleIS                   = isModule;
     hitgroup.entryFunctionNameIS        = isEntryPoint;
@@ -285,7 +283,7 @@ MATCHER_P5( hasHitGroupISCHDesc, count, isModule, isEntryPoint, chModule, chEntr
 
 MATCHER_P7( hasHitGroupISAHCHDesc, count, isModule, isEntryPoint, ahModule, ahEntryPoint, chModule, chEntryPoint, "" )
 {
-    OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE };
+    OptixProgramGroupDesc      desc{ OPTIX_PROGRAM_GROUP_KIND_HITGROUP, OPTIX_PROGRAM_GROUP_FLAGS_NONE, {{0,0}} };
     OptixProgramGroupHitgroup& hitgroup = desc.hitgroup;
     hitgroup.moduleIS                   = isModule;
     hitgroup.entryFunctionNameIS        = isEntryPoint;
