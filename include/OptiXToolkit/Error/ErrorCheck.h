@@ -58,6 +58,13 @@ inline std::string getErrorName( bool value )
     return value ? "true" : "false";
 }
 
+/// Specialization for int status.
+template <>
+inline std::string getErrorName( int value )
+{
+    return std::to_string( value );
+}
+
 /// Return a string giving the error message for an error code.
 ///
 /// @param value    The error code to be described.
@@ -72,6 +79,13 @@ template <>
 inline std::string getErrorMessage( bool value )
 {
     return value ? "true" : "false";
+}
+
+/// Specialization for integer status.
+template <>
+inline std::string getErrorMessage( int value )
+{
+    return std::to_string( value );
 }
 
 /// Identify an error code as a failure.
