@@ -114,34 +114,25 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 INPUT                  = \
   @OTK_ROOT@/README.md \
-  @OTK_ROOT@/DemandLoading/DemandGeometry/README.md \
-  @OTK_ROOT@/DemandLoading/DemandGeometry/include \
-  @OTK_ROOT@/DemandLoading/DemandLoading/include \
-  @OTK_ROOT@/DemandLoading/DemandMaterial/README.md \
-  @OTK_ROOT@/DemandLoading/DemandMaterial/include \
-  @OTK_ROOT@/DemandLoading/ImageSource/include \
-  @OTK_ROOT@/DemandLoading/ImageSource/README.md \
-  @OTK_ROOT@/DemandLoading/README.md \
-  @OTK_ROOT@/Memory/README.md \
-  @OTK_ROOT@/Memory/include \
-  @OTK_ROOT@/OmmBaking/README.md \
-  @OTK_ROOT@/OmmBaking/include \
+  @OTK_ROOT@/CHANGELOG.md \
+  @OTK_ROOT@/DemandLoading \
+  @OTK_ROOT@/Memory \
+  @OTK_ROOT@/OmmBaking \
   @OTK_ROOT@/PyOptiX/README.md \
-  @OTK_ROOT@/ShaderUtil/README.md \
-  @OTK_ROOT@/ShaderUtil/include \
+  @OTK_ROOT@/ShaderUtil \
+  @OTK_ROOT@/examples/README.md \
   @OTK_ROOT@/examples/DemandLoading/DemandTextureAppBase/include \
   @OTK_ROOT@/examples/DemandLoading/ImageSources/include \
   @OTK_ROOT@/examples/DemandLoading/RayCones/README.md \
   @OTK_ROOT@/examples/DemandLoading/TexturePainting/README.md \
   @OTK_ROOT@/examples/Gui/include \
-  @OTK_ROOT@/examples/README.md \
   @OTK_ROOT@/examples/Util/include
 INPUT_ENCODING         = UTF-8
-FILE_PATTERNS          = *.h 
+FILE_PATTERNS          = *.h *.md
 RECURSIVE              = YES
 EXCLUDE                =
 EXCLUDE_SYMLINKS       = NO
-EXCLUDE_PATTERNS       =
+EXCLUDE_PATTERNS       = */tests/*
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           =
 EXAMPLE_PATTERNS       =
