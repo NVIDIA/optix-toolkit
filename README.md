@@ -62,11 +62,17 @@ means of specifying CMake configure settings, build settings and test settings a
 A `CMakePresets.json` file is provided with the toolkit to cover some basic use cases and
 for use as building blocks for creating your own preset that covers your specific use case.
 
-To build the toolkit with default settings and run the tests using the preset, issue the following
-command from the source code directory.
+To build the toolkit with default settings, issue the following command from the source code
+directory.
 
 ```
-cmake --workflow --preset otk-default
+cmake --preset otk-default
+cmake --build --preset otk-default -j
+```
+
+The following command runs the tests using the default preset.  (Note that `ctest` requires a value for the `-j` option.)
+```
+ctest --preset otk-default -j 16
 ```
 
 All supplied presets begin with the prefix `otk-` so that they won't conflict with your personal
