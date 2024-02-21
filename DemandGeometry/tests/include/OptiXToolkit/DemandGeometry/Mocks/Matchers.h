@@ -80,6 +80,12 @@ using OptixTriangleBuildInputPredicate        = ListenerPredicate<OptixBuildInpu
 // the other predicates from being evaluated.  This would imply re-running the
 // tests to fix the errors one by one.
 //
+template <typename T>
+ListenerPredicate<T> hasAll( const ListenerPredicate<T>& head )
+{
+    return head;
+}
+
 template <typename T, typename... Predicates>
 ListenerPredicate<T> hasAll( const ListenerPredicate<T>& head, Predicates... tail )
 {
@@ -89,12 +95,6 @@ ListenerPredicate<T> hasAll( const ListenerPredicate<T>& head, Predicates... tai
         const bool tailResult = hasAll( tail... )( listener, instance );
         return headResult && tailResult;
     };
-}
-
-template <typename T>
-ListenerPredicate<T> hasAll( const ListenerPredicate<T>& head )
-{
-    return head;
 }
 
 // A listener predicate that matches any argument.
