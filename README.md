@@ -97,7 +97,7 @@ Building the toolkit follows the standard CMake worfklow: configure, build and t
   mkdir build
   cd build
   ```
-- Configure the toolkit using CMake, optionally [specifying the location of the OptiX SDK](#specifying-the-location-of-the-optix-sdk).
+- Configure the toolkit using CMake, optionally [specifying the location of the OptiX SDK](README.md#specifying-the-location-of-the-optix-sdk).
   This can be accomplished using the [CMake GUI tool](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html),
   the [CMake console tool](https://cmake.org/cmake/help/latest/manual/ccmake.1.html) (not available on Windows as of this writing),
   or from the command-line directly by entering the following command:
@@ -112,7 +112,7 @@ Building the toolkit follows the standard CMake worfklow: configure, build and t
 - After building you can execute the tests with the following command:
   `ctest -C Release`
 
-If you wish to customize the build of the toolkit, see the section on [options](#optix-toolkit-options).
+If you wish to customize the build of the toolkit, see the section on [options](README.md#optix-toolkit-options).
 
 If you encounter problems or if you have any questions, we encourage you to post on the
 [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
@@ -123,10 +123,10 @@ The following options may be supplied to CMake at configure time to customize th
 
 Variable | Type | Default | Description
 -------- | ---- | ------- | -----------
-`OTK_USE_VCPKG` | `BOOL` | `ON` | Use [vcpkg](https://vcpkg.io/) for [dependencies](#third-party-libraries).
+`OTK_USE_VCPKG` | `BOOL` | `ON` | Use [vcpkg](https://vcpkg.io/) for [dependencies](README.md#third-party-libraries).
 `OTK_USE_VCPKG_OPENEXR` | `BOOL` | `${OTK_USE_VCPKG}` | Obtain OpenEXR via vcpkg.
 `OTK_USE_OIIO` | `BOOL` | `OFF` | Use [OpenImageIO](https://openimageio.readthedocs.io/) to read PNG and JPEG files as image sources.
-`OTK_FETCH_CONTENT` | `BOOL` | `ON` | Use [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html) for [dependencies](#third-party-libraries) if `OTK_USE_VCPKG` is `OFF`.
+`OTK_FETCH_CONTENT` | `BOOL` | `ON` | Use [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html) for [dependencies](README.md#third-party-libraries) if `OTK_USE_VCPKG` is `OFF`.
 `OTK_BUILD_EXAMPLES` | `BOOL` | `ON` | Build the examples.
 `OTK_BUILD_TESTS` | `BOOL` | `ON` | Build the tests.
 `OTK_BUILD_DOCS` | `BOOL` | `ON` | Build the doxygen documentation.
@@ -157,8 +157,8 @@ the examples and a unit test framework for the tests.
 |                   | stb                       |
 | **Tests**         | gtest                     |
 
-The toolkit can automatically obtain these third party libraries in one of two ways: via a [vcpkg](#vcpkg)
-manifest or via [FetchContent](#fetchcontent) as described below.
+The toolkit can automatically obtain these third party libraries in one of two ways: via a [vcpkg](README.md#vcpkg)
+manifest or via [FetchContent](README.md#fetchcontent) as described below.
 
 Using vcpkg is the recommended method of obtaining third-party libraries.
 
@@ -171,7 +171,7 @@ the dependencies to be used.  The vcpkg standard CMake integration via a toolcha
 is used to bootstrap vcpkg and obtain the dependencies.
 
 The use of `vcpkg` can be disabled by configuring with `OTK_USE_VCPKG=OFF`, which will
-cause the toolkit to use [FetchContent](#fetchcontent) for third party libraries.
+cause the toolkit to use [FetchContent](README.md#fetchcontent) for third party libraries.
 
 When the toolkit is used as a subdirectory, e.g. a git submodule, of another project,
 the vcpkg manifest for toolkit must be incorporated into the parent project's manifest
