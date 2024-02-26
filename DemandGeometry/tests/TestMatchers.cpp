@@ -125,7 +125,7 @@ class TestHasSbtFlags : public TestOptixBuildInput
 
     std::vector<unsigned int> m_flags;
     std::vector<unsigned int> m_expectedFlags{ OPTIX_GEOMETRY_FLAG_NONE, OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT,
-                                               OPTIX_GEOMETRY_FLAG_DISABLE_TRIANGLE_FACE_CULLING };
+                                               OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL };
 };
 
 TEST_F( TestHasSbtFlags, notTriangleBuildInput )
@@ -145,6 +145,13 @@ TEST_F( TestHasSbtFlags, differentNumSbtRecords )
 TEST_F( TestHasSbtFlags, differentFlags )
 {
     m_flags[0] = OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
+
+    EXPECT_THAT( &m_data, Not( hasTriangleBuildInput( 0, hasSbtFlags( m_expectedFlags ) ) ) );
+}
+
+TEST_F( TestHasSbtFlags, differentFlagsOtherIndex )
+{
+    m_flags[1] = OPTIX_GEOMETRY_FLAG_NONE;
 
     EXPECT_THAT( &m_data, Not( hasTriangleBuildInput( 0, hasSbtFlags( m_expectedFlags ) ) ) );
 }

@@ -69,7 +69,9 @@ using OptixCustomPrimitiveBuildInputPredicate = ListenerPredicate<OptixBuildInpu
 using OptixInstanceBuildInputPredicate        = ListenerPredicate<OptixBuildInputInstanceArray>;
 using OptixInstancePredicate                  = ListenerPredicate<OptixInstance>;
 using OptixInstanceVectorPredicate            = ListenerPredicate<std::vector<OptixInstance>>;
+#if OPTIX_VERSION >= 70500
 using OptixSphereBuildInputPredicate          = ListenerPredicate<OptixBuildInputSphereArray>;
+#endif
 using OptixTriangleBuildInputPredicate        = ListenerPredicate<OptixBuildInputTriangleArray>;
 
 // hasAll constructs a lambda that evaluates all the predicates; note that shortcut
@@ -129,7 +131,9 @@ inline const char* toString( OptixBuildInputType type )
         OTK_TESTING_TOSTRING_ENUM_CASE( OPTIX_BUILD_INPUT_TYPE_INSTANCES );
         OTK_TESTING_TOSTRING_ENUM_CASE( OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS );
         OTK_TESTING_TOSTRING_ENUM_CASE( OPTIX_BUILD_INPUT_TYPE_CURVES );
+#if OPTIX_VERSION >= 70500
         OTK_TESTING_TOSTRING_ENUM_CASE( OPTIX_BUILD_INPUT_TYPE_SPHERES );
+#endif
     }
     return "?unknown OptixBuildInputType";
 }
@@ -407,9 +411,9 @@ inline OptixTriangleBuildInputPredicate hasNoPrimitiveIndexOffset()
 
 inline OptixTriangleBuildInputPredicate hasNoOpacityMap()
 {
+#if OPTIX_VERSION >= 70600
     return []( ::testing::MatchResultListener* listener, const OptixBuildInputTriangleArray& triangles ) {
         bool result = true;
-#if OPTIX_VERSION >= 70600
         auto separator = [&] {
             if( !result )
                 *listener << "; ";
@@ -458,14 +462,19 @@ inline OptixTriangleBuildInputPredicate hasNoOpacityMap()
             *separator() << "has non-null opacity micromap usage count array " << opacityMicromap.micromapUsageCounts;
             result = false;
         }
-#endif
         if( result )
         {
             *listener << "has no opacity micromap";
         }
 
         return result;
+};
+#else
+    return []( ::testing::MatchResultListener* listener, const OptixBuildInputTriangleArray& /*triangles*/ ) {
+        *listener << "has no opacity micromap";
+        return true;
     };
+#endif
 }
 
 MATCHER_P2( hasTriangleBuildInput, n, predicate, "" )
@@ -553,6 +562,7 @@ MATCHER_P2( hasCustomPrimitiveBuildInput, n, predicate, "" )
     return predicate( result_listener, arg[n].customPrimitiveArray );
 }
 
+#if OPTIX_VERSION >= 70500
 inline OptixSphereBuildInputPredicate hasSphereVertexStride( unsigned int value )
 {
     return [=]( ::testing::MatchResultListener* listener, const OptixBuildInputSphereArray& spheres ) {
@@ -687,6 +697,7 @@ MATCHER_P2( hasSphereBuildInput, n, predicate, "" )
     const bool predResult = predicate( result_listener, arg[n].sphereArray );
     return result && predResult;
 }
+#endif
 
 /// Assertion for testing instance 4x3 transforms, e.g. ASSERT_TRUE( isSameTransform( expected, actual ) )
 inline ::testing::AssertionResult isSameTransform( const float ( &expectedTransform )[12], const float ( &transform )[12] )
