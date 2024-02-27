@@ -45,7 +45,7 @@ include( ProjectOptions )
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
-project( ${OTK_PROJECT_NAME} LANGUAGES C CXX CUDA VERSION 1.0 )
+project( ${OTK_PROJECT_NAME} LANGUAGES C CXX CUDA VERSION 0.9.1 )
 set( OTK_PROJECT_SOURCE_DIR ${${OTK_PROJECT_NAME}_SOURCE_DIR} )
 set( OTK_PROJECT_BINARY_DIR ${${OTK_PROJECT_NAME}_BINARY_DIR} )
 set( CMAKE_CXX_STANDARD 11 )
