@@ -88,8 +88,8 @@ __forceinline__ bool __device__ intersectParallelogram( const float3& rayOrigin,
 }
 
 __forceinline__ __device__ Parallelogram makeParallelogram( const float3& p0,
-                                                            const float3& p1,
-                                                            const float3& anchor )
+                                                            const float3& anchor,
+                                                            const float3& p1 )
 {
     using namespace otk;
     const float3 v1 = p0 - anchor;
@@ -138,15 +138,15 @@ __forceinline__ bool __device__ intersectAabb( const float3&    rayOrigin,
         // 0
         detail::makeParallelogram( A, C, G ),
         // 1
-        detail::makeParallelogram( C, B, D ),
+        detail::makeParallelogram( C, D, B ),
         // 2
         detail::makeParallelogram( D, E, H ),
         // 3
-        detail::makeParallelogram( E, F, A ),
+        detail::makeParallelogram( E, A, F ),
         // 4
-        detail::makeParallelogram( A, D, E ),
+        detail::makeParallelogram( A, E, D ),
         // 5
-        detail::makeParallelogram( F, B, G ) };
+        detail::makeParallelogram( F, G, B ) };
         // clang-format on
     float currentTIntersect{ rayTMax };
     bool  intersected{ false };
