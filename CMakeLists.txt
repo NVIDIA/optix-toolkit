@@ -81,9 +81,7 @@ target_link_libraries( Error INTERFACE
   CUDA::cudart
   )
 set_property(TARGET Error PROPERTY FOLDER Memory)
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::Error ALIAS Error)
-endif()
+add_library(OptiXToolkit::Error ALIAS Error)
 
 # Basic memory allocators and operations.
 otk_add_library(Memory INTERFACE)
@@ -116,9 +114,7 @@ target_link_libraries( Memory INTERFACE
 if( OTK_USE_CUDA_MEMORY_POOLS )
   target_compile_options( Memory INTERFACE "-DOTK_USE_CUDA_MEMORY_POOLS" )
 endif()
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::Memory ALIAS Memory)
-endif()
+add_library(OptiXToolkit::Memory ALIAS Memory)
 
 # OptiX related memory operations.
 otk_add_library(OptiXMemory INTERFACE)
@@ -140,9 +136,7 @@ target_link_libraries(OptiXMemory INTERFACE
   CUDA::cuda_driver
   )
 set_target_properties(OptiXMemory PROPERTIES FOLDER Memory)
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::OptiXMemory ALIAS OptiXMemory)
-endif()
+add_library(OptiXToolkit::OptiXMemory ALIAS OptiXMemory)
 
 if( BUILD_TESTING )
   add_subdirectory( tests )
