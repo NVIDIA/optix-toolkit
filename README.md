@@ -43,61 +43,154 @@ On most Linux systems the necessary packages can be installed using the followin
 sudo apt-get install libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev mesa-common-dev
 ```
 
-## Building the OptiX Toolkit
+## Specifying the Location of the OptiX SDK
 
-- In the directory containing the OTK source code, create a subdirectory called `build` and `cd` to that directory.
+The OptiX Toolkit will do it's best to locate the highest installed version of the OptiX SDK.
+On Windows, the standard installation location `%ProgramData%/NVIDIA Corporation` is searched;
+on Linux, the locations `/opt`, `/usr/local`, `$HOME` and `$HOME/Downloads` are searched for
+the default SDK directory name.
+
+If you installed the OptiX SDK in another location, or using a different directory name than the
+suggested default, you can specify the location of the OptiX SDK by setting the CMake variable
+`OptiX_INSTALL_DIR` (case sensitive) at CMake configure time.  Set the variable to the path to
+the directory containing the OptiX SDK `include` directory.
+
+## Building the OptiX Toolkit with the Supplied CMake Presets
+
+[CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) provide a convenient
+means of specifying CMake configure settings, build settings and test settings as a named collection.
+A `CMakePresets.json` file is provided with the toolkit to cover some basic use cases and
+for use as building blocks for creating your own preset that covers your specific use case.
+
+To build the toolkit with default settings, issue the following command from the source code
+directory.
+
 ```
-mkdir build
-cd build
-```
-- Configure CMake, specifying the location of the OptiX SDK.  This can be accomplished using `cmake-gui` or by entering the following command in a terminal window.  (Note that `..` specifies the path to the source code in the parent directory.)
-```
-cmake -DOptiX_INSTALL_DIR=/path/to/optix ..
-```
-Under Windows, be sure to use a
-[Visual Studio developer console](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell)
-or use the `vcvarsall.bat` batch file to set up necessary environment variables.  It might also be
-necessary to specify a generator and a toolset under Windows:
-```
-cmake -G "Visual Studio 15 2017 Win64" -T host=x64 -DOptiX_INSTALL_DIR=/path/to/optix ..
-```
-- If the configuration is successful, build the OTK libraries.
-  * Under Windows, simply load the Visual Studio solution file from the `build` directory.  
-  * Under Linux, run `make -j` in the `build` directory.
-
-- Alternatively, building with [Ninja](https://ninja-build.org/) works well under both Linux and Windows.
-```
-cmake -G Ninja [...]
-ninja
+cmake --preset otk-default
+cmake --build --preset otk-default -j
 ```
 
-If you encounter problems or if you have any questions, we encourage you to post on the [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
+The following command runs the tests using the default preset.  (Note that `ctest` requires a value for the `-j` option.)
+```
+ctest --preset otk-default -j 16
+```
 
-## Third-party libraries
+All supplied presets begin with the prefix `otk-` so that they won't conflict with your personal
+presets.  It is recommended that you store your personal presets in the file `CMakeUserPresets.json`
+in the source directory so that future updates to the toolkit won't conflict with your
+personal presets.
 
-The OptiX Toolkit build system employs a "download if missing" workflow.  The following third-party libraries
-are downloaded and built if necessary:
-- Imath 3.1.5 or later
-- OpenEXR 3.1.5 or later
-- GLFW 3.3 or later
-- glad (any recent version)
+The supplied presets create build directories as children of the source directory with the name
+of the preset in the build directory name, e.g. `build-otk-default`.  This gives each preset a
+distinct build directory allowing you to experiment with different presets without them interfering
+with one another.
 
-The DemandLoading library can optionally employ OpenImageIO to read image files (see below).
+Consult the `CMakePresets.json` file for the available building blocks for use in creating your
+own customized preset that suits your individual needs.
 
-### vcpkg
+## Building the OptiX Toolkit Manually
 
-The OptiX Toolkit repository uses [vcpkg](https://github.com/microsoft/vcpkg) to download and build
-third party libraries.  OTK includes the `vcpkg` repository as a submodule and generates a `vcpkg`
-manifest that specifies which third-party libraries are required.  CMake then invokes `vcpkg` to
-download and build these packages during configuration.
+Building the toolkit follows the standard CMake worfklow: configure, build and test.
 
-The use of `vcpkg` can be disabled by configuring with `OTK_USE_VCPKG=OFF`.  It is disabled by
-default if the OTK repository is included as a submodule within another project (because generating
-a top-level `vcpkg` manifest is presumptuous under such circumstances).
+- Create a directory called `build` and `cd` to that directory.
+  ```
+  mkdir build
+  cd build
+  ```
+- Configure the toolkit using CMake, optionally [specifying the location of the OptiX SDK](README.md#specifying-the-location-of-the-optix-sdk).
+  This can be accomplished using the [CMake GUI tool](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html),
+  the [CMake console tool](https://cmake.org/cmake/help/latest/manual/ccmake.1.html) (not available on Windows as of this writing),
+  or from the command-line directly by entering the following command:
+  (Note that `..` specifies the path to the source code from the build directory.)
+  ```
+  cmake ..
+  ```
+  This will configure the toolkit with the default options create a build project using
+  the default CMake generator for your platform.
+- If the configuration is successful, build the OTK libraries with the following command:
+  `cmake --build . --config Release`
+- After building you can execute the tests with the following command:
+  `ctest -C Release`
+
+If you wish to customize the build of the toolkit, see the section on [options](README.md#optix-toolkit-options).
+
+If you encounter problems or if you have any questions, we encourage you to post on the
+[OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
+
+## OptiX Toolkit Options
+
+The following options may be supplied to CMake at configure time to customize the toolkit:
+
+Variable | Type | Default | Description
+-------- | ---- | ------- | -----------
+`OTK_USE_VCPKG` | `BOOL` | `ON` | Use [vcpkg](https://vcpkg.io/) for [dependencies](README.md#third-party-libraries).
+`OTK_USE_VCPKG_OPENEXR` | `BOOL` | `${OTK_USE_VCPKG}` | Obtain OpenEXR via vcpkg.
+`OTK_USE_OIIO` | `BOOL` | `OFF` | Use [OpenImageIO](https://openimageio.readthedocs.io/) to read PNG and JPEG files as image sources.
+`OTK_FETCH_CONTENT` | `BOOL` | `ON` | Use [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html) for [dependencies](README.md#third-party-libraries) if `OTK_USE_VCPKG` is `OFF`.
+`OTK_BUILD_EXAMPLES` | `BOOL` | `ON` | Build the examples.
+`OTK_BUILD_TESTS` | `BOOL` | `ON` | Build the tests.
+`OTK_BUILD_DOCS` | `BOOL` | `ON` | Build the doxygen documentation.
+`OTK_BUILD_PYOPTIX` | `BOOL` | `OFF` | Build the PyOptiX python module.
+`OTK_PROJECT_NAME` | `STRING` | `OptiXToolkit` | Project name for the generated build scripts.
+`OTK_LIBRARIES` | `STRING` | `ALL` | List of libraries to build.
+
+If both `OTK_USE_VCPKG` and `OTK_FETCH_CONTENT` are `ON`, vcpkg will be used for dependencies.
+
+If the option `OTK_LIBRARIES` is used to configure the libraries to build, the value should be a semi-colon
+separated list of one or more of the names `DemandLoading`, `Memory`, `OmmBaking` or `ShaderUtil`.
+The default value `ALL` is the same as specifying `DemandLoading;Memory;OmmBaking;ShaderUtil`.
+Some libraries depend on other libraries.  The CMake build script includes dependent libraries as needed.
+
+## Third-party Libraries
+
+The toolkit depends on third party libraries for texture file format parsing, a GUI framework for
+the examples and a unit test framework for the tests.  
+
+| Component         | Dependency                |
+| ----------------- | ------------------------- |
+| **DemandLoading** | Imath 3.1.5 or later      |
+|                   | OpenEXR 3.1.5 or later    |
+|                   | (optional) OpenImageIO    |
+| **Examples**      | imgui                     |
+|                   | GLFW 3.3 or later         |
+|                   | glad (any recent version) |
+|                   | stb                       |
+| **Tests**         | gtest                     |
+
+The toolkit can automatically obtain these third party libraries in one of two ways: via a [vcpkg](README.md#vcpkg)
+manifest or via [FetchContent](README.md#fetchcontent) as described below.
+
+Using vcpkg is the recommended method of obtaining third-party libraries.
+
+### VcPkg
+
+The toolkit repository contains a [vcpkg](https://vcpkg.io) manifest to download and build
+third party libraries.  The repository includes the `vcpkg` repository as a submodule to select
+the specific versions of dependencies used.  A vcpkg manifest, `vcpkg.json`, specifies
+the dependencies to be used.  The vcpkg standard CMake integration via a toolchain file
+is used to bootstrap vcpkg and obtain the dependencies.
+
+The use of `vcpkg` can be disabled by configuring with `OTK_USE_VCPKG=OFF`, which will
+cause the toolkit to use [FetchContent](README.md#fetchcontent) for third party libraries.
+
+When the toolkit is used as a subdirectory, e.g. a git submodule, of another project,
+the vcpkg manifest for toolkit must be incorporated into the parent project's manifest
+for vcpkg to correctly fetch the third party libraries used by the toolkit.
+
+The CMake module `ProjectOptions` (from the toolkit's `CMake` submodule) should be included by
+the parent project's `CMakeLists.txt` before the first call to [`project`](https://cmake.org/cmake/help/latest/command/project.html).
+This gives the toolkit the chance to configure optional features from the manifest
+and configure options controlling how the toolkit is built.
+
+If the variable `CMAKE_TOOLCHAIN_FILE` is not set when `ProjectOptions` is included, it will
+be set to point to the CMake integration in the toolkit's `vcpkg` submodule.  A parent
+project using vcpkg for dependency management may be using it's own submodule of vcpkg for
+toolchain integration and should set `CMAKE_TOOLCHAIN_FILE` as appropriate before including
+the toolkit's `ProjectOptions` module.
 
 ### FetchContent
 
-If `vcpkg` is disabled, the OptiX Toolkit can use CMake's `FetchContent` feature to download and build
+If `vcpkg` is disabled, the toolkit will use CMake's `FetchContent` feature to download and build
 any missing third-party libraries.  The use of `FetchContent` can be disabled by setting
 `OTK_FETCH_CONTENT=OFF` during CMake configuration, which is necessary when building statically
 linked libraries, as described below.
@@ -109,14 +202,16 @@ project's CMake configuration file.  For example:
 ```
 cd build
 cmake \
--DBUILD_SHARED_LIBS=OFF \
--DOTK_FETCH_CONTENT=OFF \
--DImath_DIR=/usr/local/Imath/lib/cmake/Imath \
--DOpenEXR_DIR=/usr/local/OpenEXR/lib/cmake/OpenEXR \
--Dglfw3_DIR=/usr/local/glfw3/lib/cmake/glfw3 \
--Dglad_DIR=/usr/local/glad/lib/cmake/glad \
--DOptiX_ROOT_DIR=/usr/local/OptiX-SDK-7.5 \
-..
+-DBUILD_SHARED_LIBS:BOOL=OFF \
+-DOTK_FETCH_CONTENT:BOOL=OFF \
+-DOTK_BUILD_EXAMPLES:BOOL=OFF \
+-DOTK_BUILD_TESTS:BOOL=OFF \
+-DImath_DIR:PATH=/usr/local/Imath/lib/cmake/Imath \
+-DOpenEXR_DIR:PATH=/usr/local/OpenEXR/lib/cmake/OpenEXR \
+-Dglfw3_DIR:PATH=/usr/local/glfw3/lib/cmake/glfw3 \
+-Dglad_DIR:PATH=/usr/local/glad/lib/cmake/glad \
+-DOptiX_ROOT_DIR:PATH=/usr/local/OptiX-SDK-7.5 \
+../optix-toolkit
 ```
 When `FetchContent` is disabled, using `vcpkg` as described above is recommended.  Alternatively,
 the necessary third-party libraries from source code downloaded from the following locations:
@@ -126,13 +221,13 @@ the necessary third-party libraries from source code downloaded from the followi
 - GLFW 3.3: https://github.com/glfw/glfw.git
 - glad: https://github.com/Dav1dde/glad
 
-### Building statically linked libraries
+### Building Statically Linked Libraries
 
 OptiX Toolkit components are compiled into dynamic libraries (DSOs/DLLs) to simplify linking client
 applications.  This eliminates the need for client applications to link with third-party libraries
 like OpenEXR and GLFW.
 
-Some clients of the OptiX Toolkit might prefer to use statically linked libraries.  This can be accomplished
+Some clients of the toolkit might prefer to use statically linked libraries.  This can be accomplished
 by setting the CMake configuration variable `BUILD_SHARED_LIBS=OFF`.
 
 Important: when building statically linked libraries, the CMake configuration variable
@@ -141,7 +236,7 @@ described above.
 
 ## Troubleshooting
 
-**Problem:** CMake Error: include could not find requested file: Policies<br>
+**Problem:** CMake Error: include could not find requested file: BuildConfig<br>
 **Solution:** Git submodules must be initialized, e.g. `git submodule update --init --recursive`
 
 **Problem:** add_library cannot create ALIAS target "OpenEXR::Config" because another target with the same name already exists.<br>
