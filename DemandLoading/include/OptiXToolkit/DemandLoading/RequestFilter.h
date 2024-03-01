@@ -35,6 +35,7 @@ namespace demandLoading {
 class RequestFilter
 {
   public:
+    virtual ~RequestFilter() { }
     virtual std::vector<unsigned int> filter( const unsigned int* requests, unsigned int numRequests ) = 0;
 };
 

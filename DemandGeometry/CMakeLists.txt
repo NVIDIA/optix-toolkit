@@ -42,9 +42,7 @@ target_include_directories( DemandGeometry PUBLIC include )
 target_link_libraries( DemandGeometry PUBLIC DemandLoading OptiXToolkit::Error CUDA::cuda_driver )
 set_target_properties( DemandGeometry PROPERTIES FOLDER DemandLoading )
 
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::DemandGeometry ALIAS DemandGeometry)
-endif()
+add_library(OptiXToolkit::DemandGeometry ALIAS DemandGeometry)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)

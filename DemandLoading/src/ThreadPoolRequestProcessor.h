@@ -56,7 +56,7 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     ~ThreadPoolRequestProcessor() override = default;
 
     /// Stop processing requests, terminating threads.
-    void stop();
+    void stop() override;
 
     /// Add a batch of page requests to the request queue.
     void addRequests( CUstream stream, unsigned id, const unsigned int* pageIds, unsigned int numPageIds ) override;

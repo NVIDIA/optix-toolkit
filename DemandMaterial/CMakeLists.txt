@@ -38,6 +38,4 @@ target_include_directories( DemandMaterial PUBLIC include )
 target_link_libraries( DemandMaterial PUBLIC DemandLoading OptiXToolkit::Error CUDA::cuda_driver )
 set_target_properties( DemandMaterial PROPERTIES FOLDER DemandLoading )
 
-if(NOT PROJECT_IS_TOP_LEVEL)
-  add_library(OptiXToolkit::DemandMaterial ALIAS DemandMaterial)
-endif()
+add_library(OptiXToolkit::DemandMaterial ALIAS DemandMaterial)

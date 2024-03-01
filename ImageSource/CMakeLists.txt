@@ -99,22 +99,25 @@ target_link_libraries( ImageSource
   OpenEXR_OTK
   )
 
-find_package(OpenImageIO QUIET)
-if(OpenImageIO_FOUND)
-  set(Boost_NO_WARN_NEW_VERSIONS ON)
-  find_package(Boost COMPONENTS system filesystem thread REQUIRED)
-  target_sources(ImageSource PRIVATE 
-    src/OIIOReader.cpp 
-    include/OptiXToolkit/ImageSource/OIIOReader.h
-  )
-  target_link_libraries(ImageSource
-    PUBLIC # TODO: make this private
-    OpenImageIO::OpenImageIO
-    Boost::filesystem
-    Boost::thread
-  )
-else()
-  message(WARNING "OpenImageIO not found.  Skipping OIIOReader.")
+if( OTK_USE_OIIO )
+    find_package(OpenImageIO QUIET)
+    if(OpenImageIO_FOUND)
+        set(Boost_NO_WARN_NEW_VERSIONS ON)
+        find_package(Boost COMPONENTS system filesystem thread REQUIRED)
+        target_sources(ImageSource PRIVATE 
+            src/OIIOReader.cpp 
+            include/OptiXToolkit/ImageSource/OIIOReader.h
+        )
+        target_link_libraries(ImageSource
+            PUBLIC # TODO: make this private
+            OpenImageIO::OpenImageIO
+            Boost::filesystem
+            Boost::thread
+        )
+    else()
+        message( WARNING "OTK_USE_OIIO is ON, but OpenImageIO not found; skipping OIIOReader and forcing to OFF." )
+        set( OTK_USE_OIIO OFF CACHE BOOL "Use OpenImageIO to allow DemandLoading to read PNGs and JPGs" FORCE )
+    endif()
 endif()
 
 # Define OTK_USE_OIIO in Config.h

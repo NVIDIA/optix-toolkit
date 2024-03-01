@@ -188,7 +188,7 @@ class DemandLoaderImpl : public DemandLoader
     void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry );
 
     /// Get the CUDA context associated with this demand loader
-    virtual CUcontext getCudaContext() { return m_cudaContext; }
+    virtual CUcontext getCudaContext() override { return m_cudaContext; }
 
   private:
     mutable std::mutex       m_mutex;

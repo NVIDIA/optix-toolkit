@@ -144,7 +144,7 @@ TEST( IntersectAabb, pointsAtNearXYFace )
     EXPECT_EQ( 0, intersection.face ) << intersection;
     EXPECT_FLOAT_EQ( 0.0f, intersection.normal.x ) << intersection;
     EXPECT_FLOAT_EQ( 0.0f, intersection.normal.y ) << intersection;
-    EXPECT_FLOAT_EQ( 1.0f, intersection.normal.z ) << intersection;
+    EXPECT_FLOAT_EQ( -1.0f, intersection.normal.z ) << intersection;
     EXPECT_TRUE( intersection.intersected ) << intersection;
 }
 
@@ -170,7 +170,7 @@ TEST( IntersectAabb, pointsAtFarXYFace )
     EXPECT_EQ( 2, intersection.face ) << intersection;
     EXPECT_FLOAT_EQ( 0.0f, intersection.normal.x ) << intersection;
     EXPECT_FLOAT_EQ( 0.0f, intersection.normal.y ) << intersection;
-    EXPECT_FLOAT_EQ( -1.0f, intersection.normal.z ) << intersection;
+    EXPECT_FLOAT_EQ( 1.0f, intersection.normal.z ) << intersection;
     EXPECT_TRUE( intersection.intersected ) << intersection;
 }
 

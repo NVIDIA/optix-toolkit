@@ -61,7 +61,7 @@ class OIIOReader : public ImageSourceBase
     void close() override;
 
     /// Check if image is currently open.
-    bool isOpen() const { return static_cast<bool>( m_input ); }
+    bool isOpen() const override { return static_cast<bool>( m_input ); }
 
     /// Get the image info.  Valid only after calling open().
     const TextureInfo& getInfo() const override { return m_info; }
