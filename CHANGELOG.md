@@ -1,5 +1,13 @@
 # OptiX Toolkit CMake changes
 
+## Version 0.9.3
+
+* embed_cuda now generates OptiX IR by default.  Be careful to use the PTX option when compiling pure CUDA kernels.
+
+## Version 0.9.2
+
+* Fixed intermittent PTX compilation issues caused by lack of trailing zero bytes in embedded PTX.
+
 ## Version 0.9
 
 * `PrintTargetProperties` module added to aid in debugging CMake targets.

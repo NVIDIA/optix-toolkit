@@ -12,8 +12,8 @@ cmake_minimum_required(VERSION 3.17)
 # Keyword arguments:
 # CONST             Pass --const to bin2c to generate constant data arrays.
 # RELOCATABLE       Pass -rdc=true to nvcc to generate relocatable PTX/OptiXIR.
-# OPTIXIR           Generate and embed optixir
-# PTX               Generate and embed PTX (default)
+# OPTIXIR           Generate and embed optixir (default.  OptiX programs only.)
+# PTX               Generate and embed PTX 
 # DEBUG             Generate OptiX debug symbols (OptiX IR required). 
 #
 # Single value arguments:
@@ -63,9 +63,9 @@ function(embed_cuda)
   if(EMBED_CUDA_PTX AND EMBED_CUDA_OPTIXIR)
     message(FATAL_ERROR "embed_cuda(): Specify one of PTX or OPTIXIR, not both.")
   endif()
-  # Default to PTX
+  # Default to OptiX IR
   if(NOT (EMBED_CUDA_PTX OR EMBED_CUDA_OPTIXIR))
-    set(EMBED_CUDA_PTX ON)
+    set(EMBED_CUDA_OPTIXIR ON)
   endif()
 
   ## Find bin2c and CMake script to feed it ##
