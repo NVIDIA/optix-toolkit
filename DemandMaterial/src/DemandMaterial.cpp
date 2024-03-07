@@ -57,8 +57,11 @@ class DemandMaterial : public MaterialLoader
   private:
     demandLoading::DemandLoader* m_loader;
     std::vector<uint_t>          m_materialIds;
+    std::vector<uint_t>          m_freeMaterialIds;
     std::vector<uint_t>          m_requestedMaterials;
     std::mutex                   m_requestedMaterialsMutex;
+
+    uint_t allocateMaterialId();
 
     bool loadMaterial( CUstream stream, uint_t pageId, void** pageTableEntry );
 
@@ -68,9 +71,21 @@ class DemandMaterial : public MaterialLoader
     }
 };
 
+uint_t DemandMaterial::allocateMaterialId()
+{
+    if( !m_freeMaterialIds.empty() )
+    {
+        const uint_t materialId = m_freeMaterialIds.back();
+        m_freeMaterialIds.pop_back();
+        return materialId;
+    }
+
+    return m_loader->createResource( 1, callback, this );
+}
+
 uint_t DemandMaterial::add()
 {
-    m_materialIds.push_back( m_loader->createResource( 1, callback, this ) );
+    m_materialIds.push_back( allocateMaterialId() );
     return m_materialIds.back();
 }
 
@@ -85,7 +100,6 @@ void DemandMaterial::remove( uint_t pageId )
             throw std::runtime_error( "Resource not found for page " + std::to_string( pageId ) );
 
         m_materialIds.erase( pos );
-        // TODO: reuse material id?
     }
 
     {
@@ -93,6 +107,9 @@ void DemandMaterial::remove( uint_t pageId )
         if( pos != m_requestedMaterials.end() )
             m_requestedMaterials.erase( pos );
     }
+
+    m_freeMaterialIds.push_back( pageId );
+    m_loader->unloadResource( pageId );
 }
 
 bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )

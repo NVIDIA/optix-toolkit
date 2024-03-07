@@ -39,3 +39,7 @@ target_link_libraries( DemandMaterial PUBLIC DemandLoading OptiXToolkit::Error C
 set_target_properties( DemandMaterial PROPERTIES FOLDER DemandLoading )
 
 add_library(OptiXToolkit::DemandMaterial ALIAS DemandMaterial)
+
+if( BUILD_TESTING )
+    add_subdirectory( tests )
+endif()
