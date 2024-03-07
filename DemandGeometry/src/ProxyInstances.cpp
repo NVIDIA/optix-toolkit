@@ -100,6 +100,8 @@ void ProxyInstances::remove( uint_t pageId )
         if( pos != m_requestedResources.end() )
             m_requestedResources.erase( pos );
     }
+
+    deallocateResource( pageId );
 }
 
 void ProxyInstances::copyToDevice()
@@ -259,6 +261,13 @@ uint_t ProxyInstances::insertResource( const uint_t pageId )
 
 uint_t ProxyInstances::allocateResource()
 {
+    if( !m_freePages.empty() )
+    {
+        const uint_t pageId = m_freePages.back();
+        m_freePages.pop_back();
+        return insertResource( pageId );
+    }
+
     for( PageIdRange& range : m_pageRanges )
     {
         if( range.m_used < range.m_size )
@@ -274,6 +283,17 @@ uint_t ProxyInstances::allocateResource()
     range.m_used  = 1;
     m_pageRanges.push_back( range );
     return insertResource( range.m_start );
+}
+
+void ProxyInstances::deallocateResource( uint_t pageId )
+{
+    auto pos = std::lower_bound( m_freePages.begin(), m_freePages.end(), pageId );
+    if(pos != m_freePages.end() && *pos == pageId)
+    {
+        throw std::runtime_error( "Page " + std::to_string( pageId ) + " already freed." );
+    }
+    m_freePages.insert( pos, pageId );
+    m_loader->unloadResource( pageId );
 }
 
 }  // namespace demandGeometry

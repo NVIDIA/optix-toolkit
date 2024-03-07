@@ -142,6 +142,7 @@ class ProxyInstances : public GeometryLoader
     bool callback( CUstream stream, uint_t pageId, void** pageTableEntry );
 
     uint_t allocateResource();
+    void   deallocateResource( uint_t pageId );
 
     uint_t insertResource( uint_t pageId );
 
@@ -152,6 +153,7 @@ class ProxyInstances : public GeometryLoader
 
     demandLoading::DemandLoader* m_loader;
     std::vector<PageIdRange>     m_pageRanges;
+    std::vector<uint_t>          m_freePages;
 
     otk::SyncVector<OptixAabb> m_primitiveBounds;
     otk::SyncVector<OptixAabb> m_proxyData;
