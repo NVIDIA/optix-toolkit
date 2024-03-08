@@ -53,6 +53,7 @@ void TestMaterialLoader::SetUp()
 
 TEST_F( TestMaterialLoader, removedPageIdsAreRecycled )
 {
+    m_materials->setRecycleProxyIds( true );
     const uint_t secondId = firstId + 1;
     EXPECT_CALL( m_loader, createResource( 1, _, _ ) ).After( expectFirstId ).WillOnce( Return( secondId ) );
     const uint_t id1 = m_materials->add();
@@ -68,10 +69,32 @@ TEST_F( TestMaterialLoader, removedPageIdsAreRecycled )
     EXPECT_NE( id1, id2 );
 }
 
+TEST_F( TestMaterialLoader, alwaysNewPageIdWhenNotRecycling )
+{
+    m_materials->setRecycleProxyIds( false ); // the default
+    const uint_t secondId = firstId + 1;
+    Expectation expectSecondId = EXPECT_CALL( m_loader, createResource( 1, _, _ ) ).After( expectFirstId ).WillOnce( Return( secondId ) );
+    const uint_t thirdId = secondId + 1;
+    EXPECT_CALL( m_loader, createResource( 1, _, _ ) ).After( expectSecondId ).WillOnce( Return( thirdId ) );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    const uint_t id1 = m_materials->add();
+    const uint_t id2 = m_materials->add();
+    m_materials->remove( id1 );
+
+    const uint_t id3 = m_materials->add();
+
+    EXPECT_EQ( firstId, id1 );
+    EXPECT_EQ( secondId, id2 );
+    EXPECT_EQ( thirdId, id3 );
+    EXPECT_NE( id1, id2 );
+    EXPECT_NE( id1, id3 );
+}
+
 TEST_F( TestMaterialLoader, removingTwiceThrowsException )
 {
+    m_materials->setRecycleProxyIds( false ); // the default
     const uint_t id1 = m_materials->add();
-    EXPECT_CALL( m_loader, unloadResource( id1 ) );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
     m_materials->remove( id1 );
 
     EXPECT_THROW( m_materials->remove( id1 ), std::runtime_error );

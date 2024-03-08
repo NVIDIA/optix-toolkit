@@ -54,12 +54,16 @@ class DemandMaterial : public MaterialLoader
 
     std::vector<uint_t> requestedMaterialIds() const override { return m_requestedMaterials; }
 
+    bool getRecycleProxyIds() const override { return m_recycleProxyIds; }
+    void setRecycleProxyIds( bool enable ) override { m_recycleProxyIds = enable; }
+
   private:
     demandLoading::DemandLoader* m_loader;
     std::vector<uint_t>          m_materialIds;
     std::vector<uint_t>          m_freeMaterialIds;
     std::vector<uint_t>          m_requestedMaterials;
     std::mutex                   m_requestedMaterialsMutex;
+    bool                         m_recycleProxyIds{};
 
     uint_t allocateMaterialId();
 
@@ -73,7 +77,7 @@ class DemandMaterial : public MaterialLoader
 
 uint_t DemandMaterial::allocateMaterialId()
 {
-    if( !m_freeMaterialIds.empty() )
+    if( m_recycleProxyIds && !m_freeMaterialIds.empty() )
     {
         const uint_t materialId = m_freeMaterialIds.back();
         m_freeMaterialIds.pop_back();
@@ -108,8 +112,11 @@ void DemandMaterial::remove( uint_t pageId )
             m_requestedMaterials.erase( pos );
     }
 
-    m_freeMaterialIds.push_back( pageId );
-    m_loader->unloadResource( pageId );
+    if( m_recycleProxyIds )
+    {
+        m_freeMaterialIds.push_back( pageId );
+        m_loader->unloadResource( pageId );
+    }
 }
 
 bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )

@@ -261,7 +261,7 @@ uint_t ProxyInstances::insertResource( const uint_t pageId )
 
 uint_t ProxyInstances::allocateResource()
 {
-    if( !m_freePages.empty() )
+    if( m_recycleProxyIds && !m_freePages.empty() )
     {
         const uint_t pageId = m_freePages.back();
         m_freePages.pop_back();
@@ -287,8 +287,13 @@ uint_t ProxyInstances::allocateResource()
 
 void ProxyInstances::deallocateResource( uint_t pageId )
 {
+    if( !m_recycleProxyIds )
+    {
+        return;
+    }
+
     auto pos = std::lower_bound( m_freePages.begin(), m_freePages.end(), pageId );
-    if(pos != m_freePages.end() && *pos == pageId)
+    if( pos != m_freePages.end() && *pos == pageId )
     {
         throw std::runtime_error( "Page " + std::to_string( pageId ) + " already freed." );
     }

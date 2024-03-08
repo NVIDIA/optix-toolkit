@@ -109,6 +109,13 @@ class GeometryLoader
 
     /// Return the maximum number of attributes used by IS and CH programs.
     virtual int getNumAttributes() const = 0;
+
+    /// Return whether or not proxy ids are recycled as they are removed.
+    virtual bool getRecycleProxyIds() const = 0;
+
+    /// Enable or disable whether or not proxy ids are recycled as they are removed.
+    /// The default is to not recycle proxy ids.
+    virtual void setRecycleProxyIds( bool enable ) = 0;
 };
 
 }  // namespace demandGeometry

@@ -50,6 +50,13 @@ class MaterialLoader
     virtual void   remove( uint_t id ) = 0;
 
     virtual std::vector<uint_t> requestedMaterialIds() const = 0;
+
+    /// Return whether or not proxy ids are recycled as they are removed.
+    virtual bool getRecycleProxyIds() const = 0;
+
+    /// Enable or disable whether or not proxy ids are recycled as they are removed.
+    /// The default is to not recycle proxy ids.
+    virtual void setRecycleProxyIds( bool enable ) = 0;
 };
 
 std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* demandLoader );

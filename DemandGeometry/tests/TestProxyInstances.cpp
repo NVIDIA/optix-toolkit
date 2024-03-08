@@ -447,6 +447,7 @@ TEST_F( TestProxyInstance, removeOutOfOrderPageIdProxies )
 
 TEST_F( TestProxyInstance, removedPageIdsAreRecycled )
 {
+    m_instances.setRecycleProxyIds( true );
     const OptixAabb bounds1{ 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
     const OptixAabb bounds2{ 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f };
     const uint_t    firstId{ 1010 };
@@ -462,6 +463,27 @@ TEST_F( TestProxyInstance, removedPageIdsAreRecycled )
     EXPECT_EQ( firstId + 1, id2 );
     EXPECT_EQ( id1, id3 );
     EXPECT_NE( id1, id2 );
+}
+
+TEST_F( TestProxyInstance, alwaysNewPageIdWhenNotRecycling )
+{
+    m_instances.setRecycleProxyIds( false ); // the default
+    const OptixAabb bounds1{ 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+    const OptixAabb bounds2{ 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f };
+    const uint_t    firstId{ 1010 };
+    EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    const uint_t id1 = m_instances.add( bounds1 );
+    const uint_t id2 = m_instances.add( bounds2 );
+    m_instances.remove( id1 );
+
+    const uint_t id3 = m_instances.add( bounds1 );
+
+    EXPECT_EQ( firstId, id1 );
+    EXPECT_EQ( firstId + 1, id2 );
+    EXPECT_EQ( firstId + 2, id3 );
+    EXPECT_NE( id1, id2 );
+    EXPECT_NE( id1, id3 );
 }
 
 TEST_F( TestProxyInstance, removingTwiceThrowsException )

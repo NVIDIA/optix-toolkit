@@ -126,6 +126,13 @@ class ProxyInstances : public GeometryLoader
     /// Return the maximum number of attributes used by IS and CH programs.
     int getNumAttributes() const override;
 
+    /// Return whether or not proxy ids are recycled as they are removed.
+    bool getRecycleProxyIds() const override { return m_recycleProxyIds; }
+
+    /// Enable or disable whether or not proxy ids are recycled as they are removed.
+    /// The default is to not recycle proxy ids.
+    void setRecycleProxyIds( bool enable ) override { m_recycleProxyIds = enable; }
+
   private:
     struct PageIdRange
     {
@@ -170,6 +177,8 @@ class ProxyInstances : public GeometryLoader
     uint_t m_sbtIndex{};
 
     std::vector<uint_t> m_requestedResources;
+
+    bool m_recycleProxyIds{};
 };
 
 }  // namespace demandGeometry
