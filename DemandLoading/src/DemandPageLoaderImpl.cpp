@@ -194,7 +194,7 @@ void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned
 DemandPageLoader* createDemandPageLoader( RequestProcessor* requestProcessor, const Options& options )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    return new DemandPageLoaderImpl( requestProcessor, std::shared_ptr<Options>( new Options( options ) ) );
+    return new DemandPageLoaderImpl( requestProcessor, std::make_shared<Options>( options ) );
 }
 
 void destroyDemandPageLoader( DemandPageLoader* manager )
