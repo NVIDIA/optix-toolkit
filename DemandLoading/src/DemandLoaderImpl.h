@@ -93,6 +93,9 @@ class DemandLoaderImpl : public DemandLoader
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
 
+    /// Unload an arbitrary resource from the page table.
+    void unloadResource( unsigned int pageId ) override;
+
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     void unloadTextureTiles( unsigned int textureId ) override;
 

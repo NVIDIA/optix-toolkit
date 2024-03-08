@@ -103,7 +103,7 @@ class PagingSystem
     /// Flush accumulated page mappings.  Used during trace file playback.
     void flushMappings();
 
-    /// Invalidate some pages based on a predicate
+    /// Invalidate a half open interval of page ids, from startId up to but not including endId, based on a predicate
     void invalidatePages( unsigned int startId, unsigned int endId, PageInvalidatorPredicate* predicate, const DeviceContext& context, CUstream stream );
 
   private:
