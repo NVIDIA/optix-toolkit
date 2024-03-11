@@ -259,7 +259,9 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::unmap()
 
     if( m_type == CUDAOutputBufferType::CUDA_DEVICE || m_type == CUDAOutputBufferType::CUDA_P2P )
     {
+#ifndef NDEBUG
         OTK_ERROR_CHECK( cudaStreamSynchronize( m_stream ) );
+#endif        
     }
     else if( m_type == CUDAOutputBufferType::GL_INTEROP  )
     {
@@ -267,7 +269,9 @@ void CUDAOutputBuffer<PIXEL_FORMAT>::unmap()
     }
     else // m_type == CUDAOutputBufferType::ZERO_COPY
     {
+#ifndef NDEBUG
         OTK_ERROR_CHECK( cudaStreamSynchronize( m_stream ) );
+#endif        
     }
 }
 
