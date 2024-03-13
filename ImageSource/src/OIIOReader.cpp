@@ -106,8 +106,14 @@ void OIIOReader::open( TextureInfo* info )
         // Check to see if the image is already open
         if( !m_input )
         {
+            // XXX
+            printf( "OIIOReader::open: %s\n", m_filename.c_str() ); fflush(stdout);
+
             m_input = OIIO::ImageInput::open( m_filename );
-            OTK_ASSERT_MSG( m_input, ( "Failed to open image file " + m_filename + "." ).c_str() );
+            if( !m_input )
+            {
+                throw std::runtime_error( OIIO::geterror().c_str() );
+            }                
 
             OIIO::ImageSpec spec = m_input->spec();
 
