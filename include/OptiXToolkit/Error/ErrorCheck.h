@@ -122,7 +122,7 @@ std::string makeErrorString( T error, const char* expr, const char* file, unsign
     if( !errorMessage.empty() )
         message += ' ' + errorMessage;
     if( extra != nullptr )
-        message += extra;
+        message += std::string( ": " ) + extra;
     return message;    
 }
 
