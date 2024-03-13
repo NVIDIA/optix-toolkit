@@ -34,6 +34,7 @@ otk_add_library( ImageSource
   src/CoreEXRReader.cpp
   src/EXRReader.cpp
   src/ImageSource.cpp
+  src/ImageSourceCache.cpp
   src/MipMapImageSource.cpp
   src/RateLimitedImageSource.cpp
   src/Stopwatch.h
@@ -57,6 +58,7 @@ target_sources(ImageSource
   include/OptiXToolkit/ImageSource/EXRReader.h
   include/OptiXToolkit/ImageSource/ImageHelpers.h
   include/OptiXToolkit/ImageSource/ImageSource.h
+  include/OptiXToolkit/ImageSource/ImageSourceCache.h
   include/OptiXToolkit/ImageSource/MipMapImageSource.h
   include/OptiXToolkit/ImageSource/RateLimitedImageSource.h
   include/OptiXToolkit/ImageSource/TextureInfo.h
