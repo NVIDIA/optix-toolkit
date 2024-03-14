@@ -45,8 +45,8 @@ TEST_F(TestImageSourceCache, TestGet)
     std::string      filename( "TiledMipMappedFloat.exr" );
 
 
-    std::shared_ptr<ImageSource> imageSource1( cache.get( dir, filename ) );
-    std::shared_ptr<ImageSource> imageSource2( cache.get( dir, filename ) );
+    std::shared_ptr<ImageSource> imageSource1( cache.get( filename, dir ) );
+    std::shared_ptr<ImageSource> imageSource2( cache.get( filename, dir ) );
 
     EXPECT_TRUE( imageSource1 );
     EXPECT_TRUE( imageSource2 );
