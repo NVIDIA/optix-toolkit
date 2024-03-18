@@ -123,7 +123,7 @@ add_executable(TestShaderUtil
 )
 target_link_libraries(TestShaderUtil PUBLIC
     TestShaderUtilsKernels
-    GTest::gtest_main
+    GTest::gmock_main
     OptiXToolkit::Error
     OptiXToolkit::Memory
     OptiXToolkit::OptiXMemory
