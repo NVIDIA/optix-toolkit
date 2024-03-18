@@ -197,7 +197,9 @@ OptixTraversableHandle ProxyInstances::createProxyInstanceAS( OptixDeviceContext
     OTK_ERROR_CHECK( optixAccelBuild( dc, stream, &options, inputs, NUM_BUILD_INPUTS, m_devTempAccelBuffer,
                                   sizes.tempSizeInBytes, m_devProxyInstanceAccelBuffer, sizes.outputSizeInBytes,
                                   &m_proxyInstanceTraversable, nullptr, 0 ) );
+#ifndef NDEBG
     OTK_CUDA_SYNC_CHECK();
+#endif    
     return m_proxyInstanceTraversable;
 }
 
