@@ -119,6 +119,7 @@ add_executable(TestShaderUtil
     TestDebugLocation.cpp
     TestDebugLocationParams.h
     TestOperators.cpp
+    TestTransform4.cpp
 )
 target_link_libraries(TestShaderUtil PUBLIC
     TestShaderUtilsKernels
