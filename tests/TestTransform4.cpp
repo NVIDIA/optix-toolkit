@@ -65,6 +65,26 @@ TEST( TestTransform4, scale )
                                        make_float4( zero, zero, zero, 1.0f ) ) );
 }
 
+TEST( TestTransform4, inverseScale )
+{
+    Transform4 xform{ inverse( scale( 10.0f, 20.0f, 40.0f ) ) };
+
+    EXPECT_THAT( xform.m, ElementsAre( make_float4( 1.0f / 10.0f, zero, zero, zero ),  //
+                                       make_float4( zero, 1.0f / 20.0f, zero, zero ),  //
+                                       make_float4( zero, zero, 1.0f / 40.0f, zero ),  //
+                                       make_float4( zero, zero, zero, 1.0f ) ) );
+}
+
+TEST( TestTransform4, inverseTranslate )
+{
+    Transform4 xform{ inverse( translate( 10.0f, 20.0f, 40.0f ) ) };
+
+    EXPECT_THAT( xform.m, ElementsAre( make_float4( 1.0f, zero, zero, -10.0f ),  //
+                                       make_float4( zero, 1.0f, zero, -20.0f ),  //
+                                       make_float4( zero, zero, 1.0f, -40.0f ),  //
+                                       make_float4( zero, zero, zero, 1.0f ) ) );
+}
+
 TEST( TestTransform4, pointMultiply )
 {
     const float4     src{ 1.0f, 2.0f, 3.0f, 1.0f };
