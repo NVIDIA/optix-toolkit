@@ -77,3 +77,16 @@ TEST( TestTransform4, pointMultiply )
     EXPECT_EQ( make_float4( 3.0f, 5.0f, 7.0f, 1.0f ), dest1 );
     EXPECT_EQ( make_float4( 2.0f, 8.0f, 30.0f, 1.0f ), dest2 );
 }
+
+TEST( TestTransform4, matrixMultiply )
+{
+    const Transform4 move{ translate( 2.0f, 3.0f, 4.0f ) };
+    const Transform4 resize{ scale( 2.0f, 4.0f, 10.0f ) };
+
+    const Transform4 dest = move * resize;
+
+    EXPECT_THAT( dest.m, ElementsAre( make_float4( 2.0f, zero, zero, 2.0f ),      //
+                                      make_float4( zero, 4.0f, zero, 3.0f ),      //
+                                      make_float4( zero, zero, 10.0f, 4.0f ),     //
+                                      make_float4( zero, zero, zero, 1.0f ) ) );  //
+}

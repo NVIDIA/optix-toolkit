@@ -90,4 +90,22 @@ OTK_INLINE OTK_HOSTDEVICE float4 operator*( const Transform4& lhs, const float4&
     return make_float4( dot( lhs.m[0], rhs ), dot( lhs.m[1], rhs ), dot( lhs.m[2], rhs ), dot( lhs.m[3], rhs ) );
 }
 
+OTK_INLINE OTK_HOSTDEVICE Transform4 operator*( const Transform4& lhs, const Transform4& rhs )
+{
+    const float4 rhsColumns[4]{ make_float4( rhs.m[0].x, rhs.m[1].x, rhs.m[2].x, rhs.m[3].x ),    //
+                                make_float4( rhs.m[0].y, rhs.m[1].y, rhs.m[2].y, rhs.m[3].y ),    //
+                                make_float4( rhs.m[0].z, rhs.m[1].z, rhs.m[2].z, rhs.m[3].z ),    //
+                                make_float4( rhs.m[0].w, rhs.m[1].w, rhs.m[2].w, rhs.m[3].w ) };  //
+
+    Transform4 result{};
+    for (int row = 0; row < 4; ++row)
+    {
+        result.m[row].x = dot( lhs.m[row], rhsColumns[0] );
+        result.m[row].y = dot( lhs.m[row], rhsColumns[1] );
+        result.m[row].z = dot( lhs.m[row], rhsColumns[2] );
+        result.m[row].w = dot( lhs.m[row], rhsColumns[3] );
+    }
+    return result;
+}
+
 }  // namespace otk
