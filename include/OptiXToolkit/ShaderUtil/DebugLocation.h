@@ -72,7 +72,7 @@ static __forceinline__ __device__ bool inDebugWindow( const uint3& launchIndex, 
 /// Returns true if debugging enabled, debug pixel set and it matches the given launchIndex.
 /// This is useful when dumping debug information from raygen programs.
 ///
-inline bool atDebugIndex( const DebugLocation& debug, const uint3 launchIndex = optixGetLaunchIndex() )
+__forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const uint3 launchIndex = optixGetLaunchIndex() )
 {
     return debug.enabled && debug.debugIndexSet && debug.debugIndex == launchIndex;
 }
