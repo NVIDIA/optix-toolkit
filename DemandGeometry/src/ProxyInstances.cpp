@@ -72,6 +72,18 @@ std::vector<uint_t> ProxyInstances::requestedProxyIds() const
     return result;
 }
 
+void ProxyInstances::clearRequestedProxyIds()
+{
+    std::lock_guard<std::mutex> lock( m_proxyDataMutex );
+
+    if( m_recycleProxyIds )
+    {
+        m_freePages.insert( m_freePages.end(), m_requestedResources.begin(), m_requestedResources.end() );
+    }
+    
+    m_requestedResources.clear();
+}    
+
 uint_t ProxyInstances::add( const OptixAabb& bounds )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
@@ -83,6 +95,9 @@ uint_t ProxyInstances::add( const OptixAabb& bounds )
 
 void ProxyInstances::remove( uint_t pageId )
 {
+    // Set page table entry for the requested page, ensuring that it won't be requested again.
+    m_loader->setPageTableEntry( pageId, /*evictable=*/true, 0LL /* value doesn't matter */ );
+
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
     {
@@ -228,7 +243,7 @@ int ProxyInstances::getNumAttributes() const
     return NUM_ATTRIBUTES;
 }
 
-bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )
+bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** /*pageTableEntry*/ )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
@@ -244,10 +259,9 @@ bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTa
     if( pos == m_requestedResources.end() || *pos != pageId )
         m_requestedResources.insert( pos, pageId );
 
-    // The value stored in the page table doesn't matter.
-    *pageTableEntry = nullptr;
-
-    return true;
+    // The callback returns false, indicating that the request has not yet been satisfied.  Later,
+    // when the proxy has been resolved, setPageTableEntry is called to update the page table.
+    return false;
 }
 
 uint_t ProxyInstances::insertResource( const uint_t pageId )

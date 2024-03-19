@@ -77,6 +77,13 @@ class GeometryLoader
     ///
     virtual std::vector<uint_t> requestedProxyIds() const = 0;
 
+    /// Clear the requested proxy ids, unloading their associated resources.
+    ///
+    /// Subsequent launches will result in a fresh set of requested proxy ids, including any
+    /// previously requested proxies that were not resolved.
+    ///
+    virtual void clearRequestedProxyIds() = 0;
+    
     /// Set the shader binding table index to be used by the proxy traversable.
     ///
     /// @param  index       The hit group index to use for the proxies.

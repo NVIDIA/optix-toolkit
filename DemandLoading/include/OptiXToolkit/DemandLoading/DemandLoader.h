@@ -84,6 +84,13 @@ class DemandLoader
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     virtual void unloadTextureTiles( unsigned int textureId ) = 0;
 
+    /// Set the value of a page table entry (does not take effect until launchPrepare is called).
+    /// It's usually not necessary to call this.  It is helpful for asynchronous resource request
+    /// handling, in which a ResourceCallback enqueues a request and returns false, indicating that
+    /// the request has not yet been satisfied.  Later, when the request has been processed,
+    /// setPageTableEntry is called to update the page table.
+    virtual void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) = 0;
+
     /// Replace the indicated texture, clearing out the old texture as needed
     virtual void replaceTexture( CUstream                                  stream,
                                  unsigned int                              textureId,

@@ -50,6 +50,7 @@ class MaterialLoader
     virtual void   remove( uint_t id ) = 0;
 
     virtual std::vector<uint_t> requestedMaterialIds() const = 0;
+    virtual void                clearRequestedMaterialIds()  = 0;
 
     /// Return whether or not proxy ids are recycled as they are removed.
     virtual bool getRecycleProxyIds() const = 0;

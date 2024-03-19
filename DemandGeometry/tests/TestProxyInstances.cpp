@@ -283,9 +283,8 @@ TEST_F( TestProxyInstance, resourceCallbackSavesPageId )
     void*      result;
     const bool satisfied = resourceCallback( m_stream, m_startPageId, context, &result );
 
-    EXPECT_TRUE( satisfied );
+    EXPECT_FALSE( satisfied );
     EXPECT_TRUE( beforePageIds.empty() );
-    EXPECT_EQ( nullptr, result );
     const std::vector<uint_t> afterPageIds = m_instances.requestedProxyIds();
     EXPECT_FALSE( afterPageIds.empty() );
     EXPECT_NE( afterPageIds.end(), std::find( afterPageIds.begin(), afterPageIds.end(), m_startPageId ) );

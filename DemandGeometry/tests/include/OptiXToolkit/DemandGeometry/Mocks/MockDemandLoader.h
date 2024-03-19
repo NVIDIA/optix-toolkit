@@ -43,6 +43,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( unsigned int, createResource, ( unsigned int numPages, demandLoading::ResourceCallback callback, void* callbackContext ) );
     MOCK_METHOD( void, unloadResource, ( unsigned int pageId ) );
     MOCK_METHOD( void, unloadTextureTiles, ( unsigned int textureId ) );
+    MOCK_METHOD( void, setPageTableEntry, ( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) );
     MOCK_METHOD( void,
                  replaceTexture,
                  ( CUstream stream, unsigned int textureId, std::shared_ptr<imageSource::ImageSource> image, const demandLoading::TextureDescriptor& textureDesc, bool migrateTiles ) );

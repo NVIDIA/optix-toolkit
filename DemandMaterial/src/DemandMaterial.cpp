@@ -53,6 +53,7 @@ class DemandMaterial : public MaterialLoader
     void   remove( uint_t id ) override;
 
     std::vector<uint_t> requestedMaterialIds() const override { return m_requestedMaterials; }
+    void                clearRequestedMaterialIds() override;
 
     bool getRecycleProxyIds() const override { return m_recycleProxyIds; }
     void setRecycleProxyIds( bool enable ) override { m_recycleProxyIds = enable; }
@@ -93,8 +94,22 @@ uint_t DemandMaterial::add()
     return m_materialIds.back();
 }
 
+void DemandMaterial::clearRequestedMaterialIds()
+{
+    std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
+
+    if( m_recycleProxyIds )
+    {
+        m_freeMaterialIds.insert( m_freeMaterialIds.end(), m_requestedMaterials.begin(), m_requestedMaterials.end() );
+    }
+    m_requestedMaterials.clear();
+}
+
 void DemandMaterial::remove( uint_t pageId )
 {
+    // Set page table entry for the requested page, ensuring that it won't be requested again.
+    m_loader->setPageTableEntry( pageId, /*evictable=*/true, 0LL /* value doesn't matter */ );
+    
     std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
 
     {
@@ -119,7 +134,7 @@ void DemandMaterial::remove( uint_t pageId )
     }
 }
 
-bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )
+bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** /*pageTableEntry*/ )
 {
     std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
 
@@ -136,10 +151,9 @@ bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pa
     if( pos == m_requestedMaterials.end() || *pos != pageId )
         m_requestedMaterials.insert( pos, pageId );
 
-    // The value stored in the page table doesn't matter.
-    *pageTableEntry = nullptr;
-
-    return true;
+    // The callback returns false, indicating that the request has not yet been satisfied.  Later,
+    // when the material has been loaded, setPageTableEntry is called to update the page table.
+    return false;
 }
 
 std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* loader )
