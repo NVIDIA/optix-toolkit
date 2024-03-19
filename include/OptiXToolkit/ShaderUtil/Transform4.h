@@ -90,6 +90,16 @@ OTK_INLINE OTK_HOSTDEVICE float4 operator*( const Transform4& lhs, const float4&
     return make_float4( dot( lhs.m[0], rhs ), dot( lhs.m[1], rhs ), dot( lhs.m[2], rhs ), dot( lhs.m[3], rhs ) );
 }
 
+OTK_INLINE OTK_HOSTDEVICE float4 operator*( const Transform4& lhs, const float2& rhs )
+{
+    return lhs * make_float4( rhs.x, rhs.y, 0.0f, 1.0f );
+}
+
+OTK_INLINE OTK_HOSTDEVICE float4 operator*( const Transform4& lhs, const float3& rhs )
+{
+    return lhs * make_float4( rhs.x, rhs.y, rhs.z, 1.0f );
+}
+
 OTK_INLINE OTK_HOSTDEVICE Transform4 operator*( const Transform4& lhs, const Transform4& rhs )
 {
     const float4 rhsColumns[4]{ make_float4( rhs.m[0].x, rhs.m[1].x, rhs.m[2].x, rhs.m[3].x ),    //

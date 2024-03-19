@@ -85,7 +85,33 @@ TEST( TestTransform4, inverseTranslate )
                                        make_float4( zero, zero, zero, 1.0f ) ) );
 }
 
-TEST( TestTransform4, pointMultiply )
+TEST( TestTransform4, point2Multiply )
+{
+    const float2     src{ 1.0f, 2.0f };
+    const Transform4 xform1{ translate( 2.0f, 3.0f, 4.0f ) };
+    const Transform4 xform2{ scale( 2.0f, 4.0f, 10.0f ) };
+
+    const float4 dest1{ xform1 * src };
+    const float4 dest2{ xform2 * src };
+
+    EXPECT_EQ( make_float4( 3.0f, 5.0f, 4.0f, 1.0f ), dest1 );
+    EXPECT_EQ( make_float4( 2.0f, 8.0f, zero, 1.0f ), dest2 );
+}
+
+TEST( TestTransform4, point3Multiply )
+{
+    const float3     src{ 1.0f, 2.0f, 3.0f };
+    const Transform4 xform1{ translate( 2.0f, 3.0f, 4.0f ) };
+    const Transform4 xform2{ scale( 2.0f, 4.0f, 10.0f ) };
+
+    const float4 dest1{ xform1 * src };
+    const float4 dest2{ xform2 * src };
+
+    EXPECT_EQ( make_float4( 3.0f, 5.0f, 7.0f, 1.0f ), dest1 );
+    EXPECT_EQ( make_float4( 2.0f, 8.0f, 30.0f, 1.0f ), dest2 );
+}
+
+TEST( TestTransform4, point4Multiply )
 {
     const float4     src{ 1.0f, 2.0f, 3.0f, 1.0f };
     const Transform4 xform1{ translate( 2.0f, 3.0f, 4.0f ) };
