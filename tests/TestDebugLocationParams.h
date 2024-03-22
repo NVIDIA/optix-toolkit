@@ -43,8 +43,9 @@ struct Params
     uint_t        width;
     uint_t        height;
     float3*       image;
-    DebugLocation debug;
     float3        miss;
+    uint_t*       dumpIndicator;
+    DebugLocation debug;
 };
 
 }  // namespace testing

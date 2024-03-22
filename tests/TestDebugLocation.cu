@@ -48,7 +48,7 @@ __device__ __forceinline__ void setPixel( float r, float g, float b )
 extern "C" __global__ void __raygen__debugLocationTest()
 {
     if( otk::debugInfoDump(
-            g_params.debug, []( uint3 ) {}, setPixel ) )
+            g_params.debug, []( uint3 ) { ++g_params.dumpIndicator[0]; }, setPixel ) )
         return;
 
     setPixel( g_params.miss.x, g_params.miss.y, g_params.miss.z );

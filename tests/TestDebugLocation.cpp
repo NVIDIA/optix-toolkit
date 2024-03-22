@@ -275,6 +275,7 @@ class TestDebugLocation : public testing::Test
 
     float3 getResultPixel( uint_t x, uint_t y );
     void   checkResults( const Predictor& predictor );
+    uint_t getDumpIndicator();
 
     OptixDeviceContextOptions   contextOptions{};
     std::ostringstream          log;
@@ -289,6 +290,7 @@ class TestDebugLocation : public testing::Test
     Pipeline                    pipeline;
     uint2                       dimensions{ 10, 10 };
     otk::SyncVector<float3>     output;
+    otk::SyncVector<uint_t>     dumpIndicator;
     otk::SyncVector<Params>     params;
     EmptySbtRecord              raygen;
     EmptySbtRecord              miss;
@@ -321,11 +323,15 @@ void TestDebugLocation::SetUp()
     output.resize( dimensions.x * dimensions.y );
     std::fill( output.begin(), output.end(), m_background );
     output.copyToDevice();
+    dumpIndicator.resize(1);
+    dumpIndicator[0] = 0U;
+    dumpIndicator.copyToDevice();
     params.resize( 1 );
     params[0].width                 = dimensions.x;
     params[0].height                = dimensions.y;
     params[0].image                 = output.typedDevicePtr();
     params[0].miss                  = m_miss;
+    params[0].dumpIndicator         = dumpIndicator.typedDevicePtr();
     raygen                          = groups[0];
     miss                            = groups[1];
     hitgroup                        = groups[2];
@@ -369,6 +375,13 @@ void TestDebugLocation::checkResults( const Predictor& predictor )
     }
 }
 
+uint_t TestDebugLocation::getDumpIndicator()
+{
+    uint_t indicator{ ~0U };
+    OTK_ERROR_CHECK( cudaMemcpy( &indicator, params[0].dumpIndicator, sizeof( uint_t ), cudaMemcpyDeviceToHost ) );
+    return indicator;
+}
+
 }  // namespace
 
 TEST_F( TestDebugLocation, debugLocationDisabled )
@@ -406,6 +419,26 @@ TEST_F( TestDebugLocation, debugLocationSet )
             return m_white;
         return m_miss;
     } );
+    EXPECT_EQ( 1U, getDumpIndicator() );
+}
+
+TEST_F( TestDebugLocation, dumpSuppressed )
+{
+    setDebugIndex( params[0].debug, 5, 5 );
+    params[0].debug.dumpSuppressed = true;
+    params.copyToDevice();
+    OTK_ERROR_CHECK( optixLaunch( pipeline, CUstream{}, params, sizeof( Params ), &sbt, dimensions.x, dimensions.y, 1U ) );
+
+    checkResults( [&]( uint_t x, uint_t y ) {
+        if( x == 5 && y == 5 )
+            return m_red;
+        if( x >= 3 && x <= 7 && y >= 3 && y <= 7 )
+            return m_black;
+        if( x >= 1 && x <= 9 && y >= 1 && y <= 9 )
+            return m_white;
+        return m_miss;
+        } );
+    EXPECT_EQ( 0U, getDumpIndicator() );
 }
 
 TEST_F( TestDebugLocation, debugLocationSetTopLeftCorner )

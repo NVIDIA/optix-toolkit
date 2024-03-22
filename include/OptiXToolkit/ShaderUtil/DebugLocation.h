@@ -43,9 +43,10 @@ namespace otk {
 ///
 struct DebugLocation
 {
-    bool  enabled;        // when true, debug location checking is enabled
-    bool  debugIndexSet;  // when true, the debugIndex location is set to something meaningful
-    uint3 debugIndex;     // the launchIndex at which to emit debugging information
+    bool  enabled;         // when true, debug location checking is enabled
+    bool  dumpSuppressed;  // when true, the dump function is NOT called
+    bool  debugIndexSet;   // when true, the debugIndex location is set to something meaningful
+    uint3 debugIndex;      // the launchIndex at which to emit debugging information
 };
 
 #ifdef __CUDACC__
@@ -79,7 +80,7 @@ __forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const 
 
 /// debugInfoDump
 ///
-/// Invoke a functor at a specific launch index for debugging purposes.  THe functor takes the OptiX launch index
+/// Invoke a functor at a specific launch index for debugging purposes.  The functor takes the OptiX launch index
 /// at which debugging information is desired.  Generally the functor is a lambda that captures application
 /// state (or references or pointers to such state) to be dumped via printf at the specific launch index.
 /// A red pixel is drawn at the debug launch index, with a 2 pixel black border around the debug launch index
@@ -90,6 +91,17 @@ __forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const 
 /// as we don't have access to std::function<> to make a generic callable.  The set color routine is taken as a
 /// simple function pointer because it is assumed to not need to capture any application state in order to set
 /// a ray payload.
+///
+/// A "one-shot" debug information dump mechanism can be implemented as follows:
+/// - Enable the debug dump mechanism and set the debug launch index and the set flag.
+/// - Launch with dumpSuppressed set to false and the debug output will be printed
+/// - Set dumpSuppressed to true and subsequent launches will display the debug location,
+///   but will not emit debug output.
+///
+/// This allows you to get visual indication of the debug location in the rendered image without repeated
+/// output of the same debug information over and over again as frames are rendered.  This is most useful in
+/// an application where the rendered image only changes due to user interaction and therefore the debug output
+/// is static across many frames.
 ///
 /// @param  debug       The DebugLocation structure containing enable flags and debug launchIndex.
 /// @param  dumpFn      The function to be invoked when the launch index matches.
@@ -110,7 +122,10 @@ static __forceinline__ __device__ bool debugInfoDump( const DebugLocation& debug
     const uint3 launchIndex = optixGetLaunchIndex();
     if( debug.debugIndex == launchIndex )
     {
-        dumpFn( launchIndex );
+        if( !debug.dumpSuppressed )
+        {
+            dumpFn( launchIndex );
+        }
         setColor( 1.0f, 0.0f, 0.0f );  // red
         return true;
     }
