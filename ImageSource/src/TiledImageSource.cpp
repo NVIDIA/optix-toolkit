@@ -38,16 +38,29 @@
 namespace imageSource {
 
 TiledImageSource::TiledImageSource( std::shared_ptr<ImageSource> baseImage )
-    : WrappedImageSource( std::move( baseImage ) )
+    : WrappedImageSource( baseImage )
 {
+    if( baseImage->isOpen() )
+    {
+        getBaseInfo();
+    }
+}
+
+void TiledImageSource::getBaseInfo()
+{
+    m_tiledInfo = WrappedImageSource::getInfo();
+    m_baseIsTiled       = m_tiledInfo.isTiled;
+    m_tiledInfo.isTiled = true;
 }
 
 void TiledImageSource::open( TextureInfo* info )
 {
     std::unique_lock<std::mutex> lock( m_dataMutex );
-    WrappedImageSource::open( &m_tiledInfo );
-    m_baseIsTiled       = m_tiledInfo.isTiled;
-    m_tiledInfo.isTiled = true;
+    if( !WrappedImageSource::isOpen() )
+    {
+        WrappedImageSource::open( nullptr );
+    }
+    getBaseInfo();
     if( info != nullptr )
     {
         *info = m_tiledInfo;

@@ -57,6 +57,10 @@ class TestMipMapImageSource : public Test
   protected:
     void SetUp() override;
 
+    ExpectationSet expectCreate();
+    void           create();
+    ExpectationSet expectOpen();
+
     otk::testing::MockImageSourcePtr m_baseImage{ std::make_shared<otk::testing::MockImageSource>() };
     imageSource::TextureInfo         m_baseInfo{};
     MipMapImageSourcePtr             m_mipMapImage;
@@ -72,23 +76,48 @@ void TestMipMapImageSource::SetUp()
     m_baseInfo.numMipLevels = 1;
     m_baseInfo.isValid      = true;
     m_baseInfo.isTiled      = false;
-    m_mipMapImage           = std::make_shared<imageSource::MipMapImageSource>( m_baseImage );
+}
+
+ExpectationSet TestMipMapImageSource::expectCreate()
+{
+    ExpectationSet create;
+    create += EXPECT_CALL( *m_baseImage, isOpen() ).WillRepeatedly( Return( false ) );
+    return create;
+}
+
+void TestMipMapImageSource::create()
+{
+    m_mipMapImage = std::make_shared<imageSource::MipMapImageSource>( m_baseImage );
+}
+
+ExpectationSet TestMipMapImageSource::expectOpen()
+{
+    ExpectationSet create{ expectCreate() };
+    ExpectationSet open;
+    open += EXPECT_CALL( *m_baseImage, open( IsNull() ) ).Times( 1 ).After( create );
+    open += EXPECT_CALL( *m_baseImage, getInfo() ).After( create ).WillOnce( ReturnRef( m_baseInfo ) );
+    return open;
 }
 
 }  // namespace
 
 TEST_F( TestMipMapImageSource, create )
 {
+    expectCreate();
+
+    create();
+
     EXPECT_TRUE( m_mipMapImage );
 }
 
 TEST_F( TestMipMapImageSource, closeResetsInfo )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, close() );
-
+    ExpectationSet open{ expectOpen() };
+    EXPECT_CALL( *m_baseImage, close() ).After( open );
+    create();
     imageSource::TextureInfo info{};
     m_mipMapImage->open( &info );
+
     m_mipMapImage->close();
     const imageSource::TextureInfo closedInfo = m_mipMapImage->getInfo();
 
@@ -102,8 +131,8 @@ TEST_F( TestMipMapImageSource, openReturnsMipMapInfo )
 {
     imageSource::TextureInfo mipInfo{ m_baseInfo };
     mipInfo.numMipLevels = EXPECTED_NUM_MIP_LEVELS;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, getInfo() ).Times( 0 );
+    expectOpen();
+    create();
 
     imageSource::TextureInfo info{};
     m_mipMapImage->open( &info );
@@ -117,8 +146,8 @@ TEST_F( TestMipMapImageSource, openGetsMipMapInfoOnNullPtr )
 {
     imageSource::TextureInfo mipInfo{ m_baseInfo };
     mipInfo.numMipLevels = EXPECTED_NUM_MIP_LEVELS;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, getInfo() ).Times( 0 );
+    expectOpen();
+    create();
 
     m_mipMapImage->open( nullptr );
     const imageSource::TextureInfo result = m_mipMapImage->getInfo();
@@ -128,6 +157,9 @@ TEST_F( TestMipMapImageSource, openGetsMipMapInfoOnNullPtr )
 
 TEST_F( TestMipMapImageSource, getInfoWithoutOpenIsInvalid )
 {
+    expectCreate();
+    create();
+
     const imageSource::TextureInfo result = m_mipMapImage->getInfo();
 
     ASSERT_FALSE( result.isValid );
@@ -135,7 +167,6 @@ TEST_F( TestMipMapImageSource, getInfoWithoutOpenIsInvalid )
 
 TEST_F( TestMipMapImageSource, readTileMipLevelZeroSourcesDataFromReadMipLevelZero )
 {
-    EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
     const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
@@ -151,8 +182,11 @@ TEST_F( TestMipMapImageSource, readTileMipLevelZeroSourcesDataFromReadMipLevelZe
             }
         }
     };
+    ExpectationSet open{ expectOpen() };
     EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) )
+        .After( open )
         .WillOnce( DoAll( fillMipLevel, Return( true ) ) );
+    create();
     imageSource::TextureInfo info{};
     m_mipMapImage->open( &info );
     ASSERT_TRUE( info.isValid );
@@ -179,11 +213,12 @@ TEST_F( TestMipMapImageSource, readTileMipLevelZeroSourcesDataFromReadMipLevelZe
 
 TEST_F( TestMipMapImageSource, readTileMipLevelOneSourcesDataFromMipLevelZero )
 {
-    EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    ExpectationSet     open{ expectOpen() };
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
     const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
-    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) ).After( open ).WillOnce( Return( true ) );
+    create();
     imageSource::TextureInfo info{};
     m_mipMapImage->open( &info );
     ASSERT_TRUE( info.isValid );
@@ -199,11 +234,12 @@ TEST_F( TestMipMapImageSource, readTileMipLevelOneSourcesDataFromMipLevelZero )
 
 TEST_F( TestMipMapImageSource, readMipLevelOneSourcesDataFromMipLevelZero )
 {
-    EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    ExpectationSet     open{ expectOpen() };
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
     const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
-    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) ).After( open ).WillOnce( Return( true ) );
+    create();
     imageSource::TextureInfo info{};
     m_mipMapImage->open( &info );
     ASSERT_TRUE( info.isValid );
@@ -217,26 +253,30 @@ TEST_F( TestMipMapImageSource, readMipLevelOneSourcesDataFromMipLevelZero )
 
 TEST_F( TestMipMapImageSource, readMipTailReadsMipLevelZero )
 {
-    imageSource::TextureInfo baseInfo{ m_baseInfo };
-    baseInfo.width        = 16;
-    baseInfo.height       = 16;
-    baseInfo.numMipLevels = 1;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( baseInfo ) );
+    ExpectationSet open{ expectOpen() };
+    m_baseInfo.width        = 16;
+    m_baseInfo.height       = 16;
+    m_baseInfo.numMipLevels = 1;
     const unsigned int mipTailFirstLevel{ 0 };
     const unsigned int numMipLevels{ 5 };
     std::vector<uint2> mipLevelDims;
     unsigned int       size = 16;
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( baseInfo.format ) * baseInfo.numChannels };
+    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
     for( unsigned int i = 0; i < numMipLevels; ++i )
     {
         mipLevelDims.push_back( make_uint2( size, size ) );
         size /= 2;
     }
-    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, baseInfo.width, baseInfo.height, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, m_baseInfo.width, m_baseInfo.height, m_stream ) )
+        .After( open )
+        .WillOnce( Return( true ) );
+    create();
+    imageSource::TextureInfo info{};
+    m_mipMapImage->open( &info );
+    ASSERT_TRUE( info.isValid );
 
-    m_mipMapImage->open( nullptr );
-    std::vector<char> dest;
-    imageSource::TextureInfo mippedInfo{ baseInfo };
+    std::vector<char>        dest;
+    imageSource::TextureInfo mippedInfo{ m_baseInfo };
     mippedInfo.numMipLevels = numMipLevels;
     dest.resize( getTextureSizeInBytes( mippedInfo ) );
     EXPECT_TRUE( m_mipMapImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(),
@@ -245,8 +285,9 @@ TEST_F( TestMipMapImageSource, readMipTailReadsMipLevelZero )
 
 TEST_F( TestMipMapImageSource, tracksTileReadCount )
 {
-    EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, m_baseInfo.width, m_baseInfo.height, _ ) ).WillOnce( Return( true ) );
+    ExpectationSet open{ expectOpen() };
+    EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, m_baseInfo.width, m_baseInfo.height, _ ) ).After( open ).WillOnce( Return( true ) );
+    create();
     m_mipMapImage->open( nullptr );
     const unsigned int tileX{ 0 };
     const unsigned int tileY{ 0 };
@@ -272,27 +313,26 @@ class TestMipMapImageSourcePassThrough : public TestMipMapImageSource
     {
         TestMipMapImageSource::SetUp();
         m_baseInfo.numMipLevels = 9;
-        EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+        m_open                  = expectOpen();
+        create();
         m_mipMapImage->open( nullptr );
     }
+
+    ExpectationSet m_open;
 };
 
 }  // namespace
 
-TEST_F( TestMipMapImageSourcePassThrough, open )
-{
-}
-
 TEST_F( TestMipMapImageSourcePassThrough, close )
 {
-    EXPECT_CALL( *m_baseImage, close() );
+    EXPECT_CALL( *m_baseImage, close() ).After( m_open );
 
     m_mipMapImage->close();
 }
 
 TEST_F( TestMipMapImageSourcePassThrough, getInfo )
 {
-    EXPECT_CALL( *m_baseImage, getInfo() ).WillOnce( ReturnRef( m_baseInfo ) );
+    EXPECT_CALL( *m_baseImage, getInfo() ).After( m_open ).WillOnce( ReturnRef( m_baseInfo ) );
 
     const imageSource::TextureInfo info = m_mipMapImage->getInfo();
 
@@ -303,7 +343,7 @@ TEST_F( TestMipMapImageSourcePassThrough, getInfo )
 TEST_F( TestMipMapImageSourcePassThrough, readTile )
 {
     char buffer{};
-    EXPECT_CALL( *m_baseImage, readTile( &buffer, 1, imageSource::Tile{ 2, 3, 16, 16 }, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readTile( &buffer, 1, imageSource::Tile{ 2, 3, 16, 16 }, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
     EXPECT_TRUE( m_mipMapImage->readTile( &buffer, 1, { 2, 3, 16, 16 }, m_stream ) );
 }
@@ -311,7 +351,7 @@ TEST_F( TestMipMapImageSourcePassThrough, readTile )
 TEST_F( TestMipMapImageSourcePassThrough, readMipLevel )
 {
     char buffer{};
-    EXPECT_CALL( *m_baseImage, readMipLevel( &buffer, 2, 16, 32, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipLevel( &buffer, 2, 16, 32, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
     EXPECT_TRUE( m_mipMapImage->readMipLevel( &buffer, 2, 16, 32, m_stream ) );
 }
@@ -320,14 +360,14 @@ TEST_F( TestMipMapImageSourcePassThrough, readMipTail )
 {
     char        buffer{};
     const uint2 dims{};
-    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
     EXPECT_TRUE( m_mipMapImage->readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) );
 }
 
 TEST_F( TestMipMapImageSourcePassThrough, getNumTilesRead )
 {
-    EXPECT_CALL( *m_baseImage, getNumTilesRead() ).WillOnce( Return( 13 ) );
+    EXPECT_CALL( *m_baseImage, getNumTilesRead() ).After( m_open ).WillOnce( Return( 13 ) );
 
     EXPECT_EQ( 13, m_mipMapImage->getNumTilesRead() );
 }

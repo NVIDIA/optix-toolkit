@@ -52,6 +52,10 @@ class TestTiledImageSource : public Test
   protected:
     void SetUp() override;
 
+    ExpectationSet expectCreate();
+    void           create();
+    ExpectationSet expectOpen();
+
     otk::testing::MockImageSourcePtr m_baseImage{ std::make_shared<otk::testing::MockImageSource>() };
     imageSource::TextureInfo         m_baseInfo{};
     TiledImageSourcePtr              m_tiledImage;
@@ -67,21 +71,47 @@ void TestTiledImageSource::SetUp()
     m_baseInfo.numMipLevels = 1;
     m_baseInfo.isValid      = true;
     m_baseInfo.isTiled      = false;
-    m_tiledImage            = std::make_shared<imageSource::TiledImageSource>( m_baseImage );
+}
+
+ExpectationSet TestTiledImageSource::expectCreate()
+{
+    ExpectationSet expect;
+    expect += EXPECT_CALL( *m_baseImage, isOpen() ).WillOnce( Return( false ) );
+    return expect;
+}
+
+void TestTiledImageSource::create()
+{
+    m_tiledImage = std::make_shared<imageSource::TiledImageSource>( m_baseImage );
+}
+
+ExpectationSet TestTiledImageSource::expectOpen()
+{
+    ExpectationSet create{ expectCreate() };
+    ExpectationSet open;
+    open += EXPECT_CALL( *m_baseImage, isOpen() ).Times( 1 ).After( create ).WillRepeatedly( Return( false ) );
+    open += EXPECT_CALL( *m_baseImage, open( IsNull() ) ).After( create );
+    open += EXPECT_CALL( *m_baseImage, getInfo() ).After( create ).WillOnce( ReturnRef( m_baseInfo ) );
+    return open;
 }
 
 }  // namespace
 
 TEST_F( TestTiledImageSource, create )
 {
+    expectCreate();
+
+    create();
+
     EXPECT_TRUE( m_tiledImage );
 }
 
 TEST_F( TestTiledImageSource, closeResetsInfo )
 {
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, close() );
+    ExpectationSet open{ expectOpen() };
+    EXPECT_CALL( *m_baseImage, close() ).After( open );
     imageSource::TextureInfo info{};
+    create();
     m_tiledImage->open( &info );
 
     m_tiledImage->close();
@@ -97,8 +127,8 @@ TEST_F( TestTiledImageSource, openReturnsTiledInfo )
 {
     imageSource::TextureInfo tiledInfo{ m_baseInfo };
     tiledInfo.isTiled = true;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, getInfo() ).Times( 0 );
+    expectOpen();
+    create();
 
     imageSource::TextureInfo info{};
     m_tiledImage->open( &info );
@@ -112,8 +142,8 @@ TEST_F( TestTiledImageSource, openGetsTiledInfoOnNullPtr )
 {
     imageSource::TextureInfo tiledInfo{ m_baseInfo };
     tiledInfo.isTiled = true;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
-    EXPECT_CALL( *m_baseImage, getInfo() ).Times( 0 );
+    expectOpen();
+    create();
 
     m_tiledImage->open( nullptr );
     const imageSource::TextureInfo result = m_tiledImage->getInfo();
@@ -123,6 +153,9 @@ TEST_F( TestTiledImageSource, openGetsTiledInfoOnNullPtr )
 
 TEST_F( TestTiledImageSource, getInfoWithoutOpenIsInvalid )
 {
+    expectCreate();
+    create();
+
     const imageSource::TextureInfo result = m_tiledImage->getInfo();
 
     ASSERT_FALSE( result.isValid );
@@ -130,7 +163,8 @@ TEST_F( TestTiledImageSource, getInfoWithoutOpenIsInvalid )
 
 TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
 {
-    EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    expectOpen();
+    create();
     const unsigned int mipLevel{ 0 };
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
@@ -164,7 +198,8 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
         {
             for( unsigned int c = 0; c < pixelSizeInBytes; ++c )
             {
-                EXPECT_EQ( static_cast<char>( ( x + y ) % 256 ), dest[y * tile.width * pixelSizeInBytes + x * pixelSizeInBytes + c] );
+                EXPECT_EQ( static_cast<char>( ( x + y ) % 256 ),
+                           dest[y * tile.width * pixelSizeInBytes + x * pixelSizeInBytes + c] );
             }
         }
     }
@@ -172,11 +207,12 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
 
 TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
 {
+    ExpectationSet open{ expectOpen() };
+    create();
     imageSource::TextureInfo baseMipInfo{ m_baseInfo };
     baseMipInfo.width        = 16;
     baseMipInfo.height       = 16;
     baseMipInfo.numMipLevels = 5;
-    EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( baseMipInfo ) );
     const unsigned int mipTailFirstLevel{ 0 };
     const unsigned int numMipLevels{ 5 };
     std::vector<uint2> mipLevelDims;
@@ -198,7 +234,8 @@ TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
 
 TEST_F( TestTiledImageSource, tracksTileReadCount )
 {
-    EXPECT_CALL( *m_baseImage, open( _ ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+    ExpectationSet open{ expectOpen() };
+    create();
     EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, m_baseInfo.width, m_baseInfo.height, _ ) ).WillOnce( Return( true ) );
     m_tiledImage->open( nullptr );
     const imageSource::Tile tile{ 0, 0, 64, 64 };
@@ -222,28 +259,27 @@ class TestTiledImageSourcePassThrough : public TestTiledImageSource
     void SetUp() override
     {
         TestTiledImageSource::SetUp();
+        m_open             = expectOpen();
         m_baseInfo.isTiled = true;
-        EXPECT_CALL( *m_baseImage, open( NotNull() ) ).WillOnce( SetArgPointee<0>( m_baseInfo ) );
+        create();
         m_tiledImage->open( nullptr );
     }
+
+    ExpectationSet m_open;
 };
 
 }  // namespace
 
-TEST_F( TestTiledImageSourcePassThrough, open )
-{
-}
-
 TEST_F( TestTiledImageSourcePassThrough, close )
 {
-    EXPECT_CALL( *m_baseImage, close() );
+    EXPECT_CALL( *m_baseImage, close() ).After( m_open );
 
     m_tiledImage->close();
 }
 
 TEST_F( TestTiledImageSourcePassThrough, getInfo )
 {
-    EXPECT_CALL( *m_baseImage, getInfo() ).WillOnce( ReturnRef( m_baseInfo ) );
+    EXPECT_CALL( *m_baseImage, getInfo() ).After( m_open ).WillOnce( ReturnRef( m_baseInfo ) );
 
     const imageSource::TextureInfo info = m_tiledImage->getInfo();
 
@@ -253,7 +289,7 @@ TEST_F( TestTiledImageSourcePassThrough, getInfo )
 
 TEST_F( TestTiledImageSourcePassThrough, readTile )
 {
-    EXPECT_CALL( *m_baseImage, readTile( NotNull(), 1, imageSource::Tile{ 2, 3, 16, 16 }, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readTile( NotNull(), 1, imageSource::Tile{ 2, 3, 16, 16 }, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
     char buffer{};
     EXPECT_TRUE( m_tiledImage->readTile( &buffer, 1, { 2, 3, 16, 16 }, m_stream ) );
@@ -263,14 +299,14 @@ TEST_F( TestTiledImageSourcePassThrough, readMipTail )
 {
     char        buffer{};
     const uint2 dims{};
-    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
     EXPECT_TRUE( m_tiledImage->readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) );
 }
 
 TEST_F( TestTiledImageSourcePassThrough, getNumTilesRead )
 {
-    EXPECT_CALL( *m_baseImage, getNumTilesRead() ).WillOnce( Return( 13 ) );
+    EXPECT_CALL( *m_baseImage, getNumTilesRead() ).After( m_open ).WillOnce( Return( 13 ) );
 
     EXPECT_EQ( 13, m_tiledImage->getNumTilesRead() );
 }

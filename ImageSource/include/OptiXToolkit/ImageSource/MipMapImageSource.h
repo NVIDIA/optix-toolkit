@@ -40,10 +40,7 @@ namespace imageSource {
 class MipMapImageSource : public WrappedImageSource
 {
   public:
-    MipMapImageSource( std::shared_ptr<ImageSource> baseImage )
-        : WrappedImageSource( std::move( baseImage ) )
-    {
-    }
+    MipMapImageSource( std::shared_ptr<ImageSource> baseImage );
 
     void open( TextureInfo* info ) override;
 
@@ -65,6 +62,8 @@ class MipMapImageSource : public WrappedImageSource
     unsigned long long getNumTilesRead() const override;
 
   private:
+    void getBaseInfo();
+
     // Must be called while the mutex is locked.
     const char* getMipLevelBuffer( unsigned int mipLevel, CUstream stream );
 

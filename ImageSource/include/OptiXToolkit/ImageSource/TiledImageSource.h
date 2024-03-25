@@ -62,6 +62,8 @@ class TiledImageSource : public WrappedImageSource
     unsigned long long getNumTilesRead() const override;
 
   private:
+    void getBaseInfo();
+
     mutable std::mutex m_dataMutex;
     bool               m_baseIsTiled{};
     TextureInfo        m_tiledInfo{};
