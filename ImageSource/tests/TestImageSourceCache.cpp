@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,40 +26,29 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include <memory>
-#include <vector>
+#include <OptiXToolkit/ImageSource/ImageSourceCache.h>
 
-namespace demandLoading {
-class DemandLoader;
-}  // namespace demandLoading
+#include <gtest/gtest.h>
 
-namespace demandMaterial {
+using namespace imageSource;
 
-using uint_t = unsigned int;
-
-class MaterialLoader
+class TestImageSourceCache : public testing::Test
 {
-  public:
-    virtual ~MaterialLoader() = default;
+};    
 
-    virtual const char* getCHFunctionName() const = 0;
+TEST_F(TestImageSourceCache, TestGet)
+{
+    ImageSourceCache cache;
+    std::string      dir( getSourceDir() + "/Textures" );
+    std::string      filename( "TiledMipMappedFloat.exr" );
 
-    virtual uint_t add()               = 0;
-    virtual void   remove( uint_t id ) = 0;
 
-    virtual std::vector<uint_t> requestedMaterialIds() const = 0;
-    virtual void                clearRequestedMaterialIds()  = 0;
+    std::shared_ptr<ImageSource> imageSource1( cache.get( filename, dir ) );
+    std::shared_ptr<ImageSource> imageSource2( cache.get( filename, dir ) );
 
-    /// Return whether or not proxy ids are recycled as they are removed.
-    virtual bool getRecycleProxyIds() const = 0;
-
-    /// Enable or disable whether or not proxy ids are recycled as they are removed.
-    /// The default is to not recycle proxy ids.
-    virtual void setRecycleProxyIds( bool enable ) = 0;
-};
-
-std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* demandLoader );
-
-}  // namespace demandMaterial
+    EXPECT_TRUE( imageSource1 );
+    EXPECT_TRUE( imageSource2 );
+    EXPECT_EQ( imageSource1, imageSource2 );
+}

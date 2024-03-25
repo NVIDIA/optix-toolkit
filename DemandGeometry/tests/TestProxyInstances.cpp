@@ -178,7 +178,7 @@ TEST_F( TestProxyInstance, addProxyAllocatesResource )
 
     const uint_t pageId = m_instances.add( m_proxy1Bounds );
 
-    ASSERT_EQ( m_startPageId, pageId );
+    EXPECT_EQ( m_startPageId, pageId );
 }
 
 TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
@@ -188,7 +188,7 @@ TEST_F( TestProxyInstance, addMultipleProxiesReturnsDifferentPageIds )
     const uint_t pageId1 = m_instances.add( m_proxy1Bounds );
     const uint_t pageId2 = m_instances.add( m_proxy2Bounds );
 
-    ASSERT_NE( pageId1, pageId2 );
+    EXPECT_NE( pageId1, pageId2 );
 }
 
 TEST_F( TestProxyInstance, createAccelsUsesExpectedTransform )
@@ -283,9 +283,8 @@ TEST_F( TestProxyInstance, resourceCallbackSavesPageId )
     void*      result;
     const bool satisfied = resourceCallback( m_stream, m_startPageId, context, &result );
 
-    EXPECT_TRUE( satisfied );
+    EXPECT_FALSE( satisfied );
     EXPECT_TRUE( beforePageIds.empty() );
-    EXPECT_EQ( nullptr, result );
     const std::vector<uint_t> afterPageIds = m_instances.requestedProxyIds();
     EXPECT_FALSE( afterPageIds.empty() );
     EXPECT_NE( afterPageIds.end(), std::find( afterPageIds.begin(), afterPageIds.end(), m_startPageId ) );
@@ -327,11 +326,12 @@ TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
     auto                   isUpdatedIAS = isBuildingNumInstances( 0, 0U );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     m_instances.createTraversable( m_fakeDc, m_stream );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
 
     m_instances.remove( m_startPageId );
     OptixTraversableHandle updatedHandle = m_instances.createTraversable( m_fakeDc, m_stream );
 
-    ASSERT_EQ( updatedHandle, updatedIAS );
+    EXPECT_EQ( updatedHandle, updatedIAS );
 }
 
 TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
@@ -368,13 +368,14 @@ TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
                                                                                   hasInstanceTransform( expectedTransform3 ) ) ) ) ) );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
 
     m_instances.remove( id2 );
     m_instances.remove( id1 );
     OptixTraversableHandle handle = m_instances.createTraversable( m_fakeDc, m_stream );
 
-    ASSERT_NE( initialHandle, handle );
-    ASSERT_NE( m_startPageId, id3 );
+    EXPECT_NE( initialHandle, handle );
+    EXPECT_NE( m_startPageId, id3 );
 }
 
 OptixInstanceVectorPredicate hasNoInstanceWithId( unsigned int instanceId )
@@ -410,11 +411,11 @@ TEST_F( TestProxyInstance, removeOutOfOrderPageIdProxies )
         const OptixAabb bounds{ minCoord, minCoord, minCoord, maxCoord, maxCoord, maxCoord };
         batch1ProxyBounds.push_back( bounds );
         batch1ProxyIds.push_back( m_instances.add( bounds ) );
-        ASSERT_GE( batch1ProxyIds.back(), batch1StartId );
+        EXPECT_GE( batch1ProxyIds.back(), batch1StartId );
     }
     const uint_t lowerInstanceIndex = 0U;
     const uint_t lowerPageId        = m_instances.add( m_proxy1Bounds );
-    ASSERT_LT( lowerPageId, batch1StartId );
+    EXPECT_LT( lowerPageId, batch1StartId );
     auto         isGAS = AllOf( NotNull(), hasCustomPrimitiveBuildInput( 0, hasNumCustomPrimitives( 1U ) ) );
     const uint_t numInitialInstances = ProxyInstances::PAGE_CHUNK_SIZE + 1;
     auto         isIAS =
@@ -433,10 +434,64 @@ TEST_F( TestProxyInstance, removeOutOfOrderPageIdProxies )
                                                             hasDeviceInstances( hasNoInstanceWithId( lowerPageId ) ) ) ) );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
 
     m_instances.remove( lowerPageId );
     OptixTraversableHandle handle = m_instances.createTraversable( m_fakeDc, m_stream );
 
-    ASSERT_NE( initialHandle, handle );
-    ASSERT_EQ( updatedIAS, handle );
+    EXPECT_NE( initialHandle, handle );
+    EXPECT_EQ( updatedIAS, handle );
+}
+
+TEST_F( TestProxyInstance, removedPageIdsAreRecycled )
+{
+    m_instances.setRecycleProxyIds( true );
+    const OptixAabb bounds1{ 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+    const OptixAabb bounds2{ 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f };
+    const uint_t    firstId{ 1010 };
+    EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
+    const uint_t id1 = m_instances.add( bounds1 );
+    const uint_t id2 = m_instances.add( bounds2 );
+    EXPECT_CALL( m_loader, unloadResource( id1 ) );
+    m_instances.remove( id1 );
+
+    const uint_t id3 = m_instances.add( bounds1 );
+
+    EXPECT_EQ( firstId, id1 );
+    EXPECT_EQ( firstId + 1, id2 );
+    EXPECT_EQ( id1, id3 );
+    EXPECT_NE( id1, id2 );
+}
+
+TEST_F( TestProxyInstance, alwaysNewPageIdWhenNotRecycling )
+{
+    m_instances.setRecycleProxyIds( false ); // the default
+    const OptixAabb bounds1{ 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+    const OptixAabb bounds2{ 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f };
+    const uint_t    firstId{ 1010 };
+    EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    const uint_t id1 = m_instances.add( bounds1 );
+    const uint_t id2 = m_instances.add( bounds2 );
+    m_instances.remove( id1 );
+
+    const uint_t id3 = m_instances.add( bounds1 );
+
+    EXPECT_EQ( firstId, id1 );
+    EXPECT_EQ( firstId + 1, id2 );
+    EXPECT_EQ( firstId + 2, id3 );
+    EXPECT_NE( id1, id2 );
+    EXPECT_NE( id1, id3 );
+}
+
+TEST_F( TestProxyInstance, removingTwiceThrowsException )
+{
+    const OptixAabb bounds1{ 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+    const uint_t    firstId{ 1010 };
+    EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
+    const uint_t id1 = m_instances.add( bounds1 );
+    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    m_instances.remove( id1 );
+
+    EXPECT_THROW( m_instances.remove( id1 ), std::runtime_error );
 }

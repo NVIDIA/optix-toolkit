@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,40 +26,22 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#pragma once
+#include <OptiXToolkit/ImageSource/ImageSourceCache.h>
 
-#include <memory>
-#include <vector>
+namespace imageSource {
 
-namespace demandLoading {
-class DemandLoader;
-}  // namespace demandLoading
-
-namespace demandMaterial {
-
-using uint_t = unsigned int;
-
-class MaterialLoader
+std::shared_ptr<ImageSource> ImageSourceCache::get( const std::string& filename, const std::string& directory )
 {
-  public:
-    virtual ~MaterialLoader() = default;
+    // Use a cached ImageSource if possible.
+    auto it = m_map.find( Key( filename, directory ) );
+    if( it != m_map.end() )
+        return it->second;
 
-    virtual const char* getCHFunctionName() const = 0;
+    // Create a new ImageSource and cache it.
+    std::shared_ptr<ImageSource> imageSource = createImageSource( filename, directory );
 
-    virtual uint_t add()               = 0;
-    virtual void   remove( uint_t id ) = 0;
+    m_map[Key( filename, directory )] = imageSource;
+    return imageSource;
+}
 
-    virtual std::vector<uint_t> requestedMaterialIds() const = 0;
-    virtual void                clearRequestedMaterialIds()  = 0;
-
-    /// Return whether or not proxy ids are recycled as they are removed.
-    virtual bool getRecycleProxyIds() const = 0;
-
-    /// Enable or disable whether or not proxy ids are recycled as they are removed.
-    /// The default is to not recycle proxy ids.
-    virtual void setRecycleProxyIds( bool enable ) = 0;
-};
-
-std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* demandLoader );
-
-}  // namespace demandMaterial
+}  // namespace imageSource

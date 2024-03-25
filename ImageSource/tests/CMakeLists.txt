@@ -36,6 +36,7 @@ otk_add_executable( testImageSource
   MockImageSource.h
   TestCheckerBoardImage.cpp
   TestImageSource.cpp
+  TestImageSourceCache.cpp
   TestMipMapImageSource.cpp
   TestRateLimitedImageSource.cpp
   TestTiledImageSource.cpp

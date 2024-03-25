@@ -1,5 +1,14 @@
 # OptiX Demand Loading Library Change Log
 
+## v0.9.3
+
+* The `DemandLoader` interface now provides a `setPageTableEntry` method, which is helpful for
+  asynchronous resource request handling.  In such an approach `ResourceCallback` can enqueue a
+  request and return false, indicating that the request has not yet been satisfied.  Later, when the
+  request has been processed, `setPageTableEntry` can called to update the page table.  Note that
+  it's not necessary to call this method when requests are processed synchronously: if the
+  `ResourceCallback` returns true, the page table is automatically updated.
+
 ## Version 0.9
 
 * The `DemandLoader` API has changed to simplify the handling of multiple GPUs and the management of the corresponding CUDA contexts.

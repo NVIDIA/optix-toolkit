@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -28,38 +28,29 @@
 
 #pragma once
 
+/// \file ImageSourceCache.h
+/// Cache for ImageSource instances.
+
+#include <OptiXToolkit/ImageSource/ImageSource.h>
+
+#include <map>
 #include <memory>
-#include <vector>
+#include <string>
 
-namespace demandLoading {
-class DemandLoader;
-}  // namespace demandLoading
+namespace imageSource {
 
-namespace demandMaterial {
-
-using uint_t = unsigned int;
-
-class MaterialLoader
+/// Cache for ImageSource instances.
+class ImageSourceCache
 {
   public:
-    virtual ~MaterialLoader() = default;
+    /// Get the specified ImageSource.  Returns a cached ImageSource if possible; otherwise a new
+    /// instance is created.  The type of the ImageSource is determined by the filename extension.
+    /// Returns the TextureInfo via result parameter.  Throws an exception on error.
+    std::shared_ptr<ImageSource> get( const std::string& filename, const std::string& directory = "" );
 
-    virtual const char* getCHFunctionName() const = 0;
-
-    virtual uint_t add()               = 0;
-    virtual void   remove( uint_t id ) = 0;
-
-    virtual std::vector<uint_t> requestedMaterialIds() const = 0;
-    virtual void                clearRequestedMaterialIds()  = 0;
-
-    /// Return whether or not proxy ids are recycled as they are removed.
-    virtual bool getRecycleProxyIds() const = 0;
-
-    /// Enable or disable whether or not proxy ids are recycled as they are removed.
-    /// The default is to not recycle proxy ids.
-    virtual void setRecycleProxyIds( bool enable ) = 0;
+  private:
+    using Key = std::pair<std::string, std::string>;
+    std::map<Key, std::shared_ptr<ImageSource>> m_map;
 };
 
-std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* demandLoader );
-
-}  // namespace demandMaterial
+}  // namespace imageSource

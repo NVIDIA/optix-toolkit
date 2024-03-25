@@ -93,6 +93,13 @@ class ProxyInstances : public GeometryLoader
     ///
     std::vector<uint_t> requestedProxyIds() const override;
 
+    /// Clear the requested proxy ids, unloading their associated resources.
+    ///
+    /// Subsequent launches will result in a fresh set of requested proxy ids, including any
+    /// previously requested proxies that were not resolved.
+    ///
+    void clearRequestedProxyIds() override;
+
     /// Set the shader binding table index to be used by the proxy traversable.
     ///
     /// @param  index       The hit group index to use for the proxies.
@@ -126,6 +133,13 @@ class ProxyInstances : public GeometryLoader
     /// Return the maximum number of attributes used by IS and CH programs.
     int getNumAttributes() const override;
 
+    /// Return whether or not proxy ids are recycled as they are removed.
+    bool getRecycleProxyIds() const override { return m_recycleProxyIds; }
+
+    /// Enable or disable whether or not proxy ids are recycled as they are removed.
+    /// The default is to not recycle proxy ids.
+    void setRecycleProxyIds( bool enable ) override { m_recycleProxyIds = enable; }
+
   private:
     struct PageIdRange
     {
@@ -142,6 +156,7 @@ class ProxyInstances : public GeometryLoader
     bool callback( CUstream stream, uint_t pageId, void** pageTableEntry );
 
     uint_t allocateResource();
+    void   deallocateResource( uint_t pageId );
 
     uint_t insertResource( uint_t pageId );
 
@@ -152,6 +167,7 @@ class ProxyInstances : public GeometryLoader
 
     demandLoading::DemandLoader* m_loader;
     std::vector<PageIdRange>     m_pageRanges;
+    std::vector<uint_t>          m_freePages;
 
     otk::SyncVector<OptixAabb> m_primitiveBounds;
     otk::SyncVector<OptixAabb> m_proxyData;
@@ -168,6 +184,8 @@ class ProxyInstances : public GeometryLoader
     uint_t m_sbtIndex{};
 
     std::vector<uint_t> m_requestedResources;
+
+    bool m_recycleProxyIds{};
 };
 
 }  // namespace demandGeometry

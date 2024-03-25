@@ -283,6 +283,13 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
     return startPage;
 }
 
+void DemandLoaderImpl::unloadResource( unsigned int pageId )
+{
+    std::unique_lock<std::mutex> lock( m_mutex );
+
+    m_pageLoader->invalidatePageRange( pageId, pageId + 1, nullptr );
+}
+
 void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
 {
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );

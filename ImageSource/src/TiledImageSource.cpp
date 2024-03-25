@@ -106,7 +106,10 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
             }
             m_mipLevels[mipLevel] = ptr;
             if( !WrappedImageSource::readMipLevel( m_mipLevels[mipLevel], mipLevel, mipLevelWidth, mipLevelHeight, stream ) )
+            {
+                OTK_ASSERT(false);
                 return false;
+            }    
         }
 
         ++m_numTilesRead;
@@ -114,15 +117,19 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
     }
 
     OTK_ASSERT_MSG( mipLevelBuffer != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
-    const size_t        pixelSizeInBytes      = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
-    const size_t        imageRowStrideInBytes = m_tiledInfo.width * pixelSizeInBytes;
-    const size_t        tileRowStrideInBytes  = tile.width * pixelSizeInBytes;
-    const PixelPosition start                 = pixelPosition( tile );
+    const size_t        pixelSizeInBytes           = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
+    const size_t        imageRowStrideInBytes      = m_tiledInfo.width * pixelSizeInBytes;
+    // Partial tile dimensions might be less than the nominal dimensions.
+    const size_t        sourceTileWidth            = std::min( tile.width, m_tiledInfo.width - tile.x * tile.width );
+    const size_t        sourceTileHeight           = std::min( tile.height, m_tiledInfo.height - tile.y * tile.height );
+    const size_t        sourceTileRowStrideInBytes = sourceTileWidth * pixelSizeInBytes;
+    const size_t        destTileRowStrideInBytes   = tile.width * pixelSizeInBytes;
+    const PixelPosition start                      = pixelPosition( tile );
     const char*         source = mipLevelBuffer + start.y * imageRowStrideInBytes + start.x * pixelSizeInBytes;
-    for( unsigned int i = 0; i < tile.height; ++i )
+    for( unsigned int i = 0; i < sourceTileHeight; ++i )
     {
-        std::copy_n( source, tileRowStrideInBytes, dest );
-        dest += tileRowStrideInBytes;
+        std::copy_n( source, sourceTileRowStrideInBytes, dest );
+        dest += destTileRowStrideInBytes;
         source += imageRowStrideInBytes;
     }
 

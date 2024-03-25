@@ -72,6 +72,18 @@ std::vector<uint_t> ProxyInstances::requestedProxyIds() const
     return result;
 }
 
+void ProxyInstances::clearRequestedProxyIds()
+{
+    std::lock_guard<std::mutex> lock( m_proxyDataMutex );
+
+    if( m_recycleProxyIds )
+    {
+        m_freePages.insert( m_freePages.end(), m_requestedResources.begin(), m_requestedResources.end() );
+    }
+    
+    m_requestedResources.clear();
+}    
+
 uint_t ProxyInstances::add( const OptixAabb& bounds )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
@@ -83,6 +95,9 @@ uint_t ProxyInstances::add( const OptixAabb& bounds )
 
 void ProxyInstances::remove( uint_t pageId )
 {
+    // Set page table entry for the requested page, ensuring that it won't be requested again.
+    m_loader->setPageTableEntry( pageId, /*evictable=*/true, 0LL /* value doesn't matter */ );
+
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
     {
@@ -100,6 +115,8 @@ void ProxyInstances::remove( uint_t pageId )
         if( pos != m_requestedResources.end() )
             m_requestedResources.erase( pos );
     }
+
+    deallocateResource( pageId );
 }
 
 void ProxyInstances::copyToDevice()
@@ -195,7 +212,9 @@ OptixTraversableHandle ProxyInstances::createProxyInstanceAS( OptixDeviceContext
     OTK_ERROR_CHECK( optixAccelBuild( dc, stream, &options, inputs, NUM_BUILD_INPUTS, m_devTempAccelBuffer,
                                   sizes.tempSizeInBytes, m_devProxyInstanceAccelBuffer, sizes.outputSizeInBytes,
                                   &m_proxyInstanceTraversable, nullptr, 0 ) );
+#ifndef NDEBG
     OTK_CUDA_SYNC_CHECK();
+#endif    
     return m_proxyInstanceTraversable;
 }
 
@@ -224,7 +243,7 @@ int ProxyInstances::getNumAttributes() const
     return NUM_ATTRIBUTES;
 }
 
-bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )
+bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** /*pageTableEntry*/ )
 {
     std::lock_guard<std::mutex> lock( m_proxyDataMutex );
 
@@ -240,10 +259,9 @@ bool ProxyInstances::callback( CUstream /*stream*/, uint_t pageId, void** pageTa
     if( pos == m_requestedResources.end() || *pos != pageId )
         m_requestedResources.insert( pos, pageId );
 
-    // The value stored in the page table doesn't matter.
-    *pageTableEntry = nullptr;
-
-    return true;
+    // The callback returns false, indicating that the request has not yet been satisfied.  Later,
+    // when the proxy has been resolved, setPageTableEntry is called to update the page table.
+    return false;
 }
 
 uint_t ProxyInstances::insertResource( const uint_t pageId )
@@ -259,6 +277,13 @@ uint_t ProxyInstances::insertResource( const uint_t pageId )
 
 uint_t ProxyInstances::allocateResource()
 {
+    if( m_recycleProxyIds && !m_freePages.empty() )
+    {
+        const uint_t pageId = m_freePages.back();
+        m_freePages.pop_back();
+        return insertResource( pageId );
+    }
+
     for( PageIdRange& range : m_pageRanges )
     {
         if( range.m_used < range.m_size )
@@ -274,6 +299,22 @@ uint_t ProxyInstances::allocateResource()
     range.m_used  = 1;
     m_pageRanges.push_back( range );
     return insertResource( range.m_start );
+}
+
+void ProxyInstances::deallocateResource( uint_t pageId )
+{
+    if( !m_recycleProxyIds )
+    {
+        return;
+    }
+
+    auto pos = std::lower_bound( m_freePages.begin(), m_freePages.end(), pageId );
+    if( pos != m_freePages.end() && *pos == pageId )
+    {
+        throw std::runtime_error( "Page " + std::to_string( pageId ) + " already freed." );
+    }
+    m_freePages.insert( pos, pageId );
+    m_loader->unloadResource( pageId );
 }
 
 }  // namespace demandGeometry

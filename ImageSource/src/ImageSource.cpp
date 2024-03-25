@@ -87,7 +87,7 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     const std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
 
     // Attempt relative path first, then absolute path.
-    const std::string path = fileExists( filename ) ? filename : directory + '/' + filename;
+    const std::string path = directory.empty() ? filename : ( fileExists( filename ) ? filename : directory + '/' + filename );
 
     if( extension == ".exr" )
     {

@@ -93,6 +93,9 @@ class DemandLoaderImpl : public DemandLoader
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
 
+    /// Unload an arbitrary resource from the page table.
+    void unloadResource( unsigned int pageId ) override;
+
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     void unloadTextureTiles( unsigned int textureId ) override;
 
@@ -184,11 +187,15 @@ class DemandLoaderImpl : public DemandLoader
     /// Free a temporary buffer after current work in the stream finishes 
     void freeTransferBuffer( const TransferBufferDesc& transferBuffer, CUstream stream );
 
-    /// Set the value of a page table entry.
-    void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry );
+    /// Set the value of a page table entry (does not take effect until launchPrepare is called).
+    /// It's usually not necessary to call this.  It is helpful for asynchronous resource request
+    /// handling, in which a ResourceCallback enqueues a request and returns false, indicating that
+    /// the request has not yet been satisfied.  Later, when the request has been processed,
+    /// setPageTableEntry is called to update the page table.
+    void setPageTableEntry( unsigned int pageId, bool evictable, unsigned long long pageTableEntry ) override;
 
     /// Get the CUDA context associated with this demand loader
-    virtual CUcontext getCudaContext() override { return m_cudaContext; }
+    CUcontext getCudaContext() override { return m_cudaContext; }
 
   private:
     mutable std::mutex       m_mutex;

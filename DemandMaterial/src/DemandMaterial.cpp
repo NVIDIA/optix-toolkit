@@ -53,12 +53,20 @@ class DemandMaterial : public MaterialLoader
     void   remove( uint_t id ) override;
 
     std::vector<uint_t> requestedMaterialIds() const override { return m_requestedMaterials; }
+    void                clearRequestedMaterialIds() override;
+
+    bool getRecycleProxyIds() const override { return m_recycleProxyIds; }
+    void setRecycleProxyIds( bool enable ) override { m_recycleProxyIds = enable; }
 
   private:
     demandLoading::DemandLoader* m_loader;
     std::vector<uint_t>          m_materialIds;
+    std::vector<uint_t>          m_freeMaterialIds;
     std::vector<uint_t>          m_requestedMaterials;
     std::mutex                   m_requestedMaterialsMutex;
+    bool                         m_recycleProxyIds{};
+
+    uint_t allocateMaterialId();
 
     bool loadMaterial( CUstream stream, uint_t pageId, void** pageTableEntry );
 
@@ -68,14 +76,40 @@ class DemandMaterial : public MaterialLoader
     }
 };
 
+uint_t DemandMaterial::allocateMaterialId()
+{
+    if( m_recycleProxyIds && !m_freeMaterialIds.empty() )
+    {
+        const uint_t materialId = m_freeMaterialIds.back();
+        m_freeMaterialIds.pop_back();
+        return materialId;
+    }
+
+    return m_loader->createResource( 1, callback, this );
+}
+
 uint_t DemandMaterial::add()
 {
-    m_materialIds.push_back( m_loader->createResource( 1, callback, this ) );
+    m_materialIds.push_back( allocateMaterialId() );
     return m_materialIds.back();
+}
+
+void DemandMaterial::clearRequestedMaterialIds()
+{
+    std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
+
+    if( m_recycleProxyIds )
+    {
+        m_freeMaterialIds.insert( m_freeMaterialIds.end(), m_requestedMaterials.begin(), m_requestedMaterials.end() );
+    }
+    m_requestedMaterials.clear();
 }
 
 void DemandMaterial::remove( uint_t pageId )
 {
+    // Set page table entry for the requested page, ensuring that it won't be requested again.
+    m_loader->setPageTableEntry( pageId, /*evictable=*/true, 0LL /* value doesn't matter */ );
+    
     std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
 
     {
@@ -85,7 +119,6 @@ void DemandMaterial::remove( uint_t pageId )
             throw std::runtime_error( "Resource not found for page " + std::to_string( pageId ) );
 
         m_materialIds.erase( pos );
-        // TODO: reuse material id?
     }
 
     {
@@ -93,9 +126,15 @@ void DemandMaterial::remove( uint_t pageId )
         if( pos != m_requestedMaterials.end() )
             m_requestedMaterials.erase( pos );
     }
+
+    if( m_recycleProxyIds )
+    {
+        m_freeMaterialIds.push_back( pageId );
+        m_loader->unloadResource( pageId );
+    }
 }
 
-bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pageTableEntry )
+bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** /*pageTableEntry*/ )
 {
     std::lock_guard<std::mutex> lock( m_requestedMaterialsMutex );
 
@@ -112,10 +151,9 @@ bool DemandMaterial::loadMaterial( CUstream /*stream*/, uint_t pageId, void** pa
     if( pos == m_requestedMaterials.end() || *pos != pageId )
         m_requestedMaterials.insert( pos, pageId );
 
-    // The value stored in the page table doesn't matter.
-    *pageTableEntry = nullptr;
-
-    return true;
+    // The callback returns false, indicating that the request has not yet been satisfied.  Later,
+    // when the material has been loaded, setPageTableEntry is called to update the page table.
+    return false;
 }
 
 std::shared_ptr<MaterialLoader> createMaterialLoader( demandLoading::DemandLoader* loader )

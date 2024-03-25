@@ -306,6 +306,42 @@ TEST_F( TestDemandLoaderResident, TestDeferredResourceRequest )
     }
 }
 
+TEST_F( TestDemandLoaderResident, TestResourceResident )
+{
+    const std::vector<unsigned int> devices = getSparseTextureDevices();
+    if( devices.empty() )
+        return;
+    const unsigned int deviceIndex = devices[0];
+    OTK_ERROR_CHECK( cudaSetDevice( deviceIndex ) );
+
+    const ResourceCallback callback = []( CUstream /*stream*/, unsigned int /*pageIndex*/, void* /*context*/,
+                                          void** /*pageTableEntry*/ ) { return true; };
+
+    const unsigned int pageId = m_loaders[deviceIndex]->createResource( 1, callback, nullptr );
+
+    bool isResident1{true};
+    bool isResident2{};
+
+    // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
+    // The helper function processes any requests.
+    const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
+    // Launch the kernel again.  The sampler should now be resident.
+    const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
+
+    EXPECT_EQ( 1, numFilled1 );
+    EXPECT_FALSE( isResident1 );
+    EXPECT_EQ( 0, numFilled2 );
+    EXPECT_TRUE( isResident2 );
+
+    // Unload the resource and confirm that it's requested on a subsequent launch.
+    m_loaders[deviceIndex]->unloadResource( pageId );
+    const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
+    bool      isResident3{};
+    EXPECT_EQ( 1, numFilled3 );
+    EXPECT_FALSE( isResident3 );
+}
+
+
 TEST_F( TestDemandLoader, TestTextureVariants )
 {
     OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
@@ -343,7 +379,7 @@ TEST_F( TestDemandLoader, TestTextureVariants )
     EXPECT_EQ( texture1->getSampler().numPages, texture2->getSampler().numPages );
 }
 
-class TestDemandLoaderBatches : public TestDemandLoader
+    class TestDemandLoaderBatches : public TestDemandLoader
 {
   protected:
     using PageTableEntry = unsigned long long;

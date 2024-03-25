@@ -77,6 +77,13 @@ class GeometryLoader
     ///
     virtual std::vector<uint_t> requestedProxyIds() const = 0;
 
+    /// Clear the requested proxy ids, unloading their associated resources.
+    ///
+    /// Subsequent launches will result in a fresh set of requested proxy ids, including any
+    /// previously requested proxies that were not resolved.
+    ///
+    virtual void clearRequestedProxyIds() = 0;
+    
     /// Set the shader binding table index to be used by the proxy traversable.
     ///
     /// @param  index       The hit group index to use for the proxies.
@@ -109,6 +116,13 @@ class GeometryLoader
 
     /// Return the maximum number of attributes used by IS and CH programs.
     virtual int getNumAttributes() const = 0;
+
+    /// Return whether or not proxy ids are recycled as they are removed.
+    virtual bool getRecycleProxyIds() const = 0;
+
+    /// Enable or disable whether or not proxy ids are recycled as they are removed.
+    /// The default is to not recycle proxy ids.
+    virtual void setRecycleProxyIds( bool enable ) = 0;
 };
 
 }  // namespace demandGeometry
