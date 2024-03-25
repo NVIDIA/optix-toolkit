@@ -3,6 +3,11 @@
 More detailed change logs are available in various submodules, e.g. 
 [Demand Loading CHANGELOG](https://github.com/NVIDIA/otk-demand-loading/blob/master/CHANGELOG.md).
 
+## Version 0.9.2
+* Added CMake presets.  Updated [README](README.md).
+* Overhauled vcpkg dependency management and build options.
+* Fixed intermittent PTX compilation issues caused by lack of trailing zero bytes in embedded PTX.
+
 ## Version 0.8
 
 * Added [Self Intersection Avoidance library](https://github.com/NVIDIA/otk-shader-util).

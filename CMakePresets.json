@@ -9,7 +9,7 @@
     {
       "name": "otk-child-build-dir-preset",
       "hidden": true,
-      "displayName": "OptiX Toolkit sibling preset build directory",
+      "displayName": "OptiX Toolkit child preset build directory",
       "description": "Inherit from this preset to set the build directory from the preset name as a child of the source directory",
       "binaryDir": "${sourceDir}/build-${presetName}"
     },
