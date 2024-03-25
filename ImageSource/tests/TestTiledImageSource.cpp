@@ -171,12 +171,13 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
     const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
     const auto fillMipLevel = [=]( char* dest, unsigned int /*mipLevel*/, unsigned int expectedWidth,
                                    unsigned int expectedHeight, CUstream /*stream*/ ) {
+        int val{};
         for( unsigned int y = 0; y < expectedHeight; ++y )
         {
             for( unsigned int x = 0; x < expectedWidth; ++x )
             {
-                const char val = static_cast<char>( ( x + y ) % 256 );
-                std::fill( &dest[0], &dest[pixelSizeInBytes], val );
+                std::fill( &dest[0], &dest[pixelSizeInBytes], static_cast<char>( val & 0xFF ) );
+                ++val;
                 dest += pixelSizeInBytes;
             }
         }
@@ -194,13 +195,14 @@ TEST_F( TestTiledImageSource, readTileSourcesDataFromReadMipLevel )
 
     for( unsigned int y = 0; y < 64; ++y )
     {
+        int val = y * m_baseInfo.width;
         for( unsigned int x = 0; x < 64; ++x )
         {
             for( unsigned int c = 0; c < pixelSizeInBytes; ++c )
             {
-                EXPECT_EQ( static_cast<char>( ( x + y ) % 256 ),
-                           dest[y * tile.width * pixelSizeInBytes + x * pixelSizeInBytes + c] );
+                EXPECT_EQ( static_cast<char>( val & 0xFF ), dest[y * tile.width * pixelSizeInBytes + x * pixelSizeInBytes + c] );
             }
+            ++val;
         }
     }
 }
