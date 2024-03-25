@@ -38,17 +38,18 @@ include(FetchStbImage)
 configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)
 
 otk_add_library(Util STATIC
+  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
   include/OptiXToolkit/Util/AssetLocator.h
   include/OptiXToolkit/Util/EXRInputFile.h
   include/OptiXToolkit/Util/Fill.h
+  include/OptiXToolkit/Util/ImageBuffer.h
   include/OptiXToolkit/Util/Logger.h
-  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
   src/AssetLocator.cpp
   src/BinaryDataDir.h.in
   src/EXRInputFile.cpp
+  src/ImageBuffer.cpp
   src/Logger.cpp
   src/BinaryDataDir.h.in
-  ${CMAKE_CURRENT_BINARY_DIR}/BinaryDataDir.h
   )
 
 add_library(OptiXToolkit::Util ALIAS Util)

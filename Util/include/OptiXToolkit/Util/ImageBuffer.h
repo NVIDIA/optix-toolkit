@@ -26,47 +26,34 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #pragma once
 
-#include <OptiXToolkit/Util/ImageBuffer.h>
-
-#include <cuda_runtime.h>
-#include <vector_types.h>
-
 #include <cstdlib>
-#include <chrono>
-#include <vector>
-
-struct GLFWwindow;
 
 namespace otk {
 
-void displayBufferWindow( const char* title, const ImageBuffer& buffer );
+enum class BufferImageFormat
+{
+    UNSIGNED_BYTE4,
+    FLOAT4,
+    FLOAT3
+};
 
-void        initGL();
-void        initGLFW();
-GLFWwindow* initGLFW( const char* window_title, int width, int height );
+struct ImageBuffer
+{
+    void* data =      nullptr;
+    unsigned int      width = 0;
+    unsigned int      height = 0;
+    BufferImageFormat pixel_format;
+};
 
-// Parse the string of the form <width>x<height> and return numeric values.
-void parseDimensions(
-        const char* arg,                    // String of form <width>x<height>
-        int& width,                         // [out] width
-        int& height );                      // [in]  height
+size_t pixelFormatSize( BufferImageFormat format );
 
+// Floating point image buffers (see BufferImageFormat above) are assumed to be
+// linear and will be converted to sRGB when writing to a file format with 8
+// bits per channel.  This can be skipped if disable_srgb is set to true.
+// Image buffers with format UNSIGNED_BYTE4 are assumed to be in sRGB already
+// and will be written like that.
+void saveImage( const char* fname, const ImageBuffer& image, bool disableSRGBConversion );
 
-// Get current time in seconds for benchmarking/timing purposes.
-double currentTime();
-
-// Ensures that width and height have the minimum size to prevent launch errors.
-void ensureMinimumSize(
-    int& width,                             // Will be assigned the minimum suitable width if too small.
-    int& height);                           // Will be assigned the minimum suitable height if too small.
-
-// Ensures that width and height have the minimum size to prevent launch errors.
-void ensureMinimumSize(
-    unsigned& width,                        // Will be assigned the minimum suitable width if too small.
-    unsigned& height);                      // Will be assigned the minimum suitable height if too small.
-
-} // end namespace otk
-
+} // namespace otk
