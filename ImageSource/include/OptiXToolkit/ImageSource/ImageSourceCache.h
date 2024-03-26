@@ -43,14 +43,21 @@ namespace imageSource {
 class ImageSourceCache
 {
   public:
+    /// Returns the image source from the cache associated with the given path.
+    /// If no such image source exists, returns an empty shared_ptr.
+    std::shared_ptr<ImageSource> find( const std::string& path ) const
+    {
+        auto it = m_map.find( path );
+        return it == m_map.end() ? std::shared_ptr<ImageSource>() : it->second;
+    }
+
     /// Get the specified ImageSource.  Returns a cached ImageSource if possible; otherwise a new
     /// instance is created.  The type of the ImageSource is determined by the filename extension.
     /// Returns the TextureInfo via result parameter.  Throws an exception on error.
-    std::shared_ptr<ImageSource> get( const std::string& filename, const std::string& directory = "" );
+    std::shared_ptr<ImageSource> get( const std::string& path );
 
   private:
-    using Key = std::pair<std::string, std::string>;
-    std::map<Key, std::shared_ptr<ImageSource>> m_map;
+    std::map<std::string, std::shared_ptr<ImageSource>> m_map;
 };
 
 }  // namespace imageSource

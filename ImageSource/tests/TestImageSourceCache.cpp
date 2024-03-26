@@ -36,19 +36,29 @@ using namespace imageSource;
 
 class TestImageSourceCache : public testing::Test
 {
-};    
+  protected:
+    ImageSourceCache m_cache;
+    std::string      m_path{ getSourceDir() + "/Textures/TiledMipMappedFloat.exr" };
+};
 
-TEST_F(TestImageSourceCache, TestGet)
+TEST_F( TestImageSourceCache, get )
 {
-    ImageSourceCache cache;
-    std::string      dir( getSourceDir() + "/Textures" );
-    std::string      filename( "TiledMipMappedFloat.exr" );
-
-
-    std::shared_ptr<ImageSource> imageSource1( cache.get( filename, dir ) );
-    std::shared_ptr<ImageSource> imageSource2( cache.get( filename, dir ) );
+    std::shared_ptr<ImageSource> imageSource1( m_cache.get( m_path ) );
+    std::shared_ptr<ImageSource> imageSource2( m_cache.get( m_path ) );
 
     EXPECT_TRUE( imageSource1 );
     EXPECT_TRUE( imageSource2 );
     EXPECT_EQ( imageSource1, imageSource2 );
+}
+
+TEST_F( TestImageSourceCache, findMissing )
+{
+    EXPECT_EQ( std::shared_ptr<ImageSource>(), m_cache.find( "missing-file.foo" ) );
+}
+
+TEST_F( TestImageSourceCache, findPresent )
+{
+    std::shared_ptr<ImageSource> image = m_cache.get( m_path );
+
+    EXPECT_EQ( image, m_cache.find( m_path ) );
 }

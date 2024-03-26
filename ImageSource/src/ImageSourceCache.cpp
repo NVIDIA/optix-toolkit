@@ -30,17 +30,16 @@
 
 namespace imageSource {
 
-std::shared_ptr<ImageSource> ImageSourceCache::get( const std::string& filename, const std::string& directory )
+std::shared_ptr<ImageSource> ImageSourceCache::get( const std::string& path )
 {
     // Use a cached ImageSource if possible.
-    auto it = m_map.find( Key( filename, directory ) );
-    if( it != m_map.end() )
-        return it->second;
+    std::shared_ptr<ImageSource> imageSource{ find( path ) };
+    if( imageSource )
+        return imageSource;
 
     // Create a new ImageSource and cache it.
-    std::shared_ptr<ImageSource> imageSource = createImageSource( filename, directory );
-
-    m_map[Key( filename, directory )] = imageSource;
+    imageSource = createImageSource( path );
+    m_map[path] = imageSource;
     return imageSource;
 }
 
