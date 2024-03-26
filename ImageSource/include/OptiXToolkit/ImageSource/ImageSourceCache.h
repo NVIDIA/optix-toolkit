@@ -56,7 +56,13 @@ class ImageSourceCache
     /// Returns the TextureInfo via result parameter.  Throws an exception on error.
     std::shared_ptr<ImageSource> get( const std::string& path );
 
-  private:
+    /// Set the specified ImageSource to be associated with the given path.  This allows the application
+    /// to insert their own ImageSources into the cache without relying on createImageSource to create
+    /// the image from the associated filename.  For instance, this allows tiled or mipmap adapted
+    /// images to be inserted into the cache.
+    void set( const std::string& path, const std::shared_ptr<ImageSource>& image ) { m_map[path] = image; }
+
+private:
     std::map<std::string, std::shared_ptr<ImageSource>> m_map;
 };
 

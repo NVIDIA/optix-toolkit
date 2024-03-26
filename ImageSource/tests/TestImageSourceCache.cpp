@@ -29,6 +29,7 @@
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
 #include <OptiXToolkit/ImageSource/ImageSourceCache.h>
+#include <OptiXToolkit/ImageSource/TiledImageSource.h>
 
 #include <gtest/gtest.h>
 
@@ -38,13 +39,15 @@ class TestImageSourceCache : public testing::Test
 {
   protected:
     ImageSourceCache m_cache;
-    std::string      m_path{ getSourceDir() + "/Textures/TiledMipMappedFloat.exr" };
+    std::string      m_directoryPrefix{ getSourceDir() + "/Textures/" };
+    std::string      m_exrPath{ m_directoryPrefix + "TiledMipMappedFloat.exr" };
+    std::string      m_jpgPath{ m_directoryPrefix + "level0.jpg" };
 };
 
 TEST_F( TestImageSourceCache, get )
 {
-    std::shared_ptr<ImageSource> imageSource1( m_cache.get( m_path ) );
-    std::shared_ptr<ImageSource> imageSource2( m_cache.get( m_path ) );
+    std::shared_ptr<ImageSource> imageSource1( m_cache.get( m_exrPath ) );
+    std::shared_ptr<ImageSource> imageSource2( m_cache.get( m_exrPath ) );
 
     EXPECT_TRUE( imageSource1 );
     EXPECT_TRUE( imageSource2 );
@@ -58,7 +61,19 @@ TEST_F( TestImageSourceCache, findMissing )
 
 TEST_F( TestImageSourceCache, findPresent )
 {
-    std::shared_ptr<ImageSource> image = m_cache.get( m_path );
+    std::shared_ptr<ImageSource> image = m_cache.get( m_exrPath );
 
-    EXPECT_EQ( image, m_cache.find( m_path ) );
+    EXPECT_EQ( image, m_cache.find( m_exrPath ) );
 }
+
+#if OTK_USE_OIIO
+TEST_F( TestImageSourceCache, setAdaptedReturnsAdapted )
+{
+    std::shared_ptr<ImageSource> adapted = std::make_shared<TiledImageSource>( createImageSource( m_jpgPath ) );
+    m_cache.set( m_jpgPath, adapted );
+
+    std::shared_ptr<ImageSource> image = m_cache.get( m_jpgPath );
+
+    EXPECT_EQ( adapted, image );
+}
+#endif
