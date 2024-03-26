@@ -27,7 +27,7 @@
 //
 
 #include "Config.h"  // generated from Config.h.in
-#include "SourceDir.h"  // generated from SourceDir.h.in
+#include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
 
 #include "gtest/gtest.h"
 #include <OptiXToolkit/ImageSource/EXRReader.h>
