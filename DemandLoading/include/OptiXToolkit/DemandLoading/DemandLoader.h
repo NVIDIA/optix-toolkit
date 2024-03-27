@@ -78,8 +78,8 @@ class DemandLoader
     /// value is forwarded to the callback during request processing.
     virtual unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) = 0;
 
-    /// Unload an arbitrary resource from the page table.
-    virtual void unloadResource( unsigned int pageId ) = 0;
+    /// Invalidate a page in an arbitrary resource.
+    virtual void invalidatePage( unsigned int pageId ) = 0;
 
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     virtual void unloadTextureTiles( unsigned int textureId ) = 0;

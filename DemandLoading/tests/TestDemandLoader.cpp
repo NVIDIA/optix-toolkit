@@ -317,15 +317,16 @@ TEST_F( TestDemandLoaderResident, TestResourceResident )
     const ResourceCallback callback = []( CUstream /*stream*/, unsigned int /*pageIndex*/, void* /*context*/,
                                           void** /*pageTableEntry*/ ) { return true; };
 
+    // Create a resource with a single page.
     const unsigned int pageId = m_loaders[deviceIndex]->createResource( 1, callback, nullptr );
 
     bool isResident1{true};
     bool isResident2{};
 
-    // Launch the kernel, which requests the texture sampler and returns a boolean indicating whether it's resident.
+    // Launch the kernel, which requests the resource and returns a boolean indicating whether it's resident.
     // The helper function processes any requests.
     const int numFilled1 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident1 );
-    // Launch the kernel again.  The sampler should now be resident.
+    // Launch the kernel again.  The resource should now be resident.
     const int numFilled2 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
 
     EXPECT_EQ( 1, numFilled1 );
@@ -333,8 +334,8 @@ TEST_F( TestDemandLoaderResident, TestResourceResident )
     EXPECT_EQ( 0, numFilled2 );
     EXPECT_TRUE( isResident2 );
 
-    // Unload the resource and confirm that it's requested on a subsequent launch.
-    m_loaders[deviceIndex]->unloadResource( pageId );
+    // Invalidate the resource and confirm that it's requested on a subsequent launch.
+    m_loaders[deviceIndex]->invalidatePage( pageId );
     const int numFilled3 = launchKernelAndSynchronize( deviceIndex, pageId, &isResident2 );
     bool      isResident3{};
     EXPECT_EQ( 1, numFilled3 );

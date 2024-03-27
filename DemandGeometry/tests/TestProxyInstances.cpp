@@ -326,7 +326,7 @@ TEST_F( TestProxyInstance, removingAProxyRemovesTheCustomPrimitiveInstance )
     auto                   isUpdatedIAS = isBuildingNumInstances( 0, 0U );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     m_instances.createTraversable( m_fakeDc, m_stream );
-    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    EXPECT_CALL( m_loader, invalidatePage( _ ) ).Times( 0 );
 
     m_instances.remove( m_startPageId );
     OptixTraversableHandle updatedHandle = m_instances.createTraversable( m_fakeDc, m_stream );
@@ -368,7 +368,7 @@ TEST_F( TestProxyInstance, removingMultipleProxiesKeepsOtherProxies )
                                                                                   hasInstanceTransform( expectedTransform3 ) ) ) ) ) );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
-    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    EXPECT_CALL( m_loader, invalidatePage( _ ) ).Times( 0 );
 
     m_instances.remove( id2 );
     m_instances.remove( id1 );
@@ -434,7 +434,7 @@ TEST_F( TestProxyInstance, removeOutOfOrderPageIdProxies )
                                                             hasDeviceInstances( hasNoInstanceWithId( lowerPageId ) ) ) ) );
     configureUpdatedBuild( first, isUpdatedIAS, updatedIAS );
     OptixTraversableHandle initialHandle = m_instances.createTraversable( m_fakeDc, m_stream );
-    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    EXPECT_CALL( m_loader, invalidatePage( _ ) ).Times( 0 );
 
     m_instances.remove( lowerPageId );
     OptixTraversableHandle handle = m_instances.createTraversable( m_fakeDc, m_stream );
@@ -452,7 +452,7 @@ TEST_F( TestProxyInstance, removedPageIdsAreRecycled )
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
     const uint_t id1 = m_instances.add( bounds1 );
     const uint_t id2 = m_instances.add( bounds2 );
-    EXPECT_CALL( m_loader, unloadResource( id1 ) );
+    EXPECT_CALL( m_loader, invalidatePage( id1 ) );
     m_instances.remove( id1 );
 
     const uint_t id3 = m_instances.add( bounds1 );
@@ -470,7 +470,7 @@ TEST_F( TestProxyInstance, alwaysNewPageIdWhenNotRecycling )
     const OptixAabb bounds2{ 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f };
     const uint_t    firstId{ 1010 };
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
-    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    EXPECT_CALL( m_loader, invalidatePage( _ ) ).Times( 0 );
     const uint_t id1 = m_instances.add( bounds1 );
     const uint_t id2 = m_instances.add( bounds2 );
     m_instances.remove( id1 );
@@ -490,7 +490,7 @@ TEST_F( TestProxyInstance, removingTwiceThrowsException )
     const uint_t    firstId{ 1010 };
     EXPECT_CALL( m_loader, createResource( _, _, _ ) ).WillOnce( Return( firstId ) );
     const uint_t id1 = m_instances.add( bounds1 );
-    EXPECT_CALL( m_loader, unloadResource( _ ) ).Times( 0 );
+    EXPECT_CALL( m_loader, invalidatePage( _ ) ).Times( 0 );
     m_instances.remove( id1 );
 
     EXPECT_THROW( m_instances.remove( id1 ), std::runtime_error );
