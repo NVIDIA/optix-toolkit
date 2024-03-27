@@ -30,6 +30,7 @@
 
 #include <stb_image_write.h>
 
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
