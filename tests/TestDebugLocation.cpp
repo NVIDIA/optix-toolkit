@@ -40,6 +40,7 @@
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/vec_printers.h>
 
 #include <gtest/gtest.h>
 
@@ -57,11 +58,6 @@
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX
 #endif
-
-void PrintTo( const float3& value, std::ostream* stream )
-{
-    *stream << "float3(" << value.x << ", " << value.y << ", " << value.z << ')';
-}
 
 using namespace otk::shaderUtil::testing;
 
