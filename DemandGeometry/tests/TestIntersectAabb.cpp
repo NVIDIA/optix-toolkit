@@ -17,10 +17,11 @@
 //  INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
 //  SUCH DAMAGES
 //
-
-#include <gtest/gtest.h>
+#include <OptiXToolkit/ShaderUtil/vec_printers.h>
 
 #include <vector_functions.h>
+
+#include <gtest/gtest.h>
 
 #include "LaunchIntersectAabb.h"
 
@@ -37,11 +38,6 @@ static const float3 posY{ make_float3( 0.0f, 1.0f, 0.0f ) };
 static const float3 negY{ make_float3( 0.0f, -1.0f, 0.0f ) };
 static const float3 posZ{ make_float3( 0.0f, 0.0f, 1.0f ) };
 static const float3 negZ{ make_float3( 0.0f, 0.0f, -1.0f ) };
-
-std::ostream& operator<<( std::ostream& str, const float3& val )
-{
-    return str << '(' << val.x << ", " << val.y << ", " << val.z << ')';
-}
 
 std::ostream& operator<<( std::ostream& str, const OptixAabb& val )
 {

@@ -48,6 +48,7 @@ target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/i
 target_link_libraries( testImageSource PUBLIC
     ImageSource
     DemandLoading
+    OptiXToolkit::ShaderUtil
     OpenEXR::OpenEXR # for half
     GTest::gmock_main )
 set_target_properties( testImageSource PROPERTIES 

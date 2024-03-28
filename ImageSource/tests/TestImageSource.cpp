@@ -26,19 +26,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "Config.h"  // generated from Config.h.in
+#include "Config.h"                 // generated from Config.h.in
 #include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
-
-#include "gtest/gtest.h"
-#include <OptiXToolkit/ImageSource/EXRReader.h>
-
-#if OTK_USE_OIIO
-#include <OptiXToolkit/ImageSource/OIIOReader.h>
-#endif
 
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #endif
+#include <OptiXToolkit/ImageSource/EXRReader.h>
+#if OTK_USE_OIIO
+#include <OptiXToolkit/ImageSource/OIIOReader.h>
+#endif
+#include <OptiXToolkit/ShaderUtil/vec_printers.h>
 
 #include <gtest/gtest.h>
 
@@ -90,12 +88,6 @@ static float3 getTexel( unsigned int x, unsigned int y, const std::vector<float4
 {
     float4 c = texels[y * width + x];
     return make_float3( c.x, c.y, c.z );
-}
-
-// float3 output operators for more readable EXCEPT failures.
-std::ostream& operator<<( std::ostream& out, const float3& a )
-{
-    return out << '(' << a.x << ", " << a.y << ", " << a.z << ')';
 }
 
 std::ostream& operator<<( std::ostream& out, const half2& a )
