@@ -61,6 +61,7 @@ target_sources(ShaderUtil
   include/OptiXToolkit/ShaderUtil/Preprocessor.h
   include/OptiXToolkit/ShaderUtil/Transform4.h
   include/OptiXToolkit/ShaderUtil/vec_math.h
+  include/OptiXToolkit/ShaderUtil/vec_printers.h
   )
 
 target_include_directories(ShaderUtil INTERFACE
