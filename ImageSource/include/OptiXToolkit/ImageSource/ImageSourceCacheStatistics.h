@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,34 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ImageSource/ImageSourceCache.h>
+#pragma once
 
 namespace imageSource {
 
-std::shared_ptr<ImageSource> ImageSourceCache::get( const std::string& path )
+struct CacheStatistics
 {
-    // Use a cached ImageSource if possible.
-    std::shared_ptr<ImageSource> imageSource{ find( path ) };
-    if( imageSource )
-        return imageSource;
-
-    // Create a new ImageSource and cache it.
-    imageSource = createImageSource( path );
-    m_cache[path] = imageSource;
-    return imageSource;
-}
-
-CacheStatistics ImageSourceCache::getStatistics() const
-{
-    CacheStatistics result{};
-    for (const auto &keyValue :  m_cache)
-    {
-        ++result.numImageSources;
-        result.totalBytesRead += keyValue.second->getNumBytesRead();
-        result.totalTilesRead += keyValue.second->getNumTilesRead();
-        result.totalReadTime += keyValue.second->getTotalReadTime();
-    }
-    return result;
-}
+    unsigned int       numImageSources;
+    unsigned long long totalTilesRead;
+    unsigned long long totalBytesRead;
+    double             totalReadTime;
+};
 
 }  // namespace imageSource

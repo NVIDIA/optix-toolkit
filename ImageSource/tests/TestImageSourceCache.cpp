@@ -48,10 +48,12 @@ TEST_F( TestImageSourceCache, get )
 {
     std::shared_ptr<ImageSource> imageSource1( m_cache.get( m_exrPath ) );
     std::shared_ptr<ImageSource> imageSource2( m_cache.get( m_exrPath ) );
+    const CacheStatistics        stats{ m_cache.getStatistics() };
 
     EXPECT_TRUE( imageSource1 );
     EXPECT_TRUE( imageSource2 );
     EXPECT_EQ( imageSource1, imageSource2 );
+    EXPECT_EQ( 1, stats.numImageSources );
 }
 
 TEST_F( TestImageSourceCache, findMissing )

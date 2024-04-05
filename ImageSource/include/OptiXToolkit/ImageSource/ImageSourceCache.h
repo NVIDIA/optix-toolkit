@@ -32,6 +32,7 @@
 /// Cache for ImageSource instances.
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/ImageSourceCacheStatistics.h>
 
 #include <map>
 #include <memory>
@@ -47,8 +48,8 @@ class ImageSourceCache
     /// If no such image source exists, returns an empty shared_ptr.
     std::shared_ptr<ImageSource> find( const std::string& path ) const
     {
-        auto it = m_map.find( path );
-        return it == m_map.end() ? std::shared_ptr<ImageSource>() : it->second;
+        auto it = m_cache.find( path );
+        return it == m_cache.end() ? std::shared_ptr<ImageSource>() : it->second;
     }
 
     /// Get the specified ImageSource.  Returns a cached ImageSource if possible; otherwise a new
@@ -60,10 +61,13 @@ class ImageSourceCache
     /// to insert their own ImageSources into the cache without relying on createImageSource to create
     /// the image from the associated filename.  For instance, this allows tiled or mipmap adapted
     /// images to be inserted into the cache.
-    void set( const std::string& path, const std::shared_ptr<ImageSource>& image ) { m_map[path] = image; }
+    void set( const std::string& path, const std::shared_ptr<ImageSource>& image ) { m_cache[path] = image; }
+
+    /// Return aggregate statistics for all ImageSources in the cache
+    CacheStatistics getStatistics() const;
 
 private:
-    std::map<std::string, std::shared_ptr<ImageSource>> m_map;
+    std::map<std::string, std::shared_ptr<ImageSource>> m_cache;
 };
 
 }  // namespace imageSource
