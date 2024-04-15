@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,14 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_subdirectory(DemandGeometryViewer)
-add_subdirectory(DemandPbrtScene)
-add_subdirectory(DemandTextureAppBase)
-add_subdirectory(DemandTextureViewer)
-add_subdirectory(ImageSources)
-add_subdirectory(RayCones)
-add_subdirectory(Simple)
-add_subdirectory(Texture)
-add_subdirectory(TexturePainting)
-add_subdirectory(TextureVariantViewer)
-add_subdirectory(UdimTextureViewer)
+# Tries to robustly patch glog by first doing a git restore, then doing
+# a git apply on the patch.
+
+execute_process(COMMAND ${GITCOMMAND} restore .)
+execute_process(COMMAND ${GITCOMMAND} apply ${PATCHFILE})

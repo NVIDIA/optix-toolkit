@@ -1,0 +1,27 @@
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "sphere.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+
+    Include "light-sources.pbrt"
+
+    AttributeBegin
+        Shape "sphere"
+            "float radius" 1
+        # red
+        "rgb Kd" [ 1 0 0 ]
+    AttributeEnd
+
+WorldEnd

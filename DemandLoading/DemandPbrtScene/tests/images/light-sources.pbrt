@@ -1,0 +1,14 @@
+LightSource "distant"
+    "point from" [0.742781, 0.371391, -0.557086]
+    "point to" [0 0 0]
+    "rgb L" [0.5, 0.5, 0.5]
+
+LightSource "distant"
+    "point from" [0.174078, 0.696311, 0.696311]
+    "point to" [0 0 0]
+    "rgb L" [0.5, 0.5, 0.5]
+
+LightSource "distant"
+    "point from" [-0.507093, 0.845154, -0.169031]
+    "point to" [0 0 0]
+    "rgb L" [0.5, 0.5, 0.5]

@@ -72,6 +72,7 @@ target_link_libraries(Util PUBLIC OptiXToolkit::Memory)
 
 set_target_properties(Util PROPERTIES FOLDER Examples)
 
+add_subdirectory( PbrtSceneLoader )
 if( BUILD_TESTING )
   add_subdirectory( tests )
 endif()
