@@ -36,7 +36,7 @@ add_library( PbrtSceneLoader STATIC
 target_link_libraries( PbrtSceneLoader PUBLIC pbrtParser rply::rply )
 target_link_libraries( PbrtSceneLoader PRIVATE OptiX::OptiX ShaderUtil Util )
 target_include_directories( PbrtSceneLoader PUBLIC include )
-set_property( TARGET PbrtSceneLoader PROPERTY FOLDER "Examples/Util/Libraries" )
+set_property( TARGET PbrtSceneLoader PROPERTY FOLDER "Examples" )
 
 if(BUILD_TESTING)
     add_subdirectory(tests)
