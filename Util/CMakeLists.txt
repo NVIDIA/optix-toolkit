@@ -70,7 +70,7 @@ target_link_libraries(Util PRIVATE
   )
 target_link_libraries(Util PUBLIC OptiXToolkit::Memory)
 
-set_target_properties(Util PROPERTIES FOLDER Examples)
+set_target_properties(Util PROPERTIES FOLDER Examples/Libraries)
 
 if( BUILD_TESTING )
   add_subdirectory( tests )

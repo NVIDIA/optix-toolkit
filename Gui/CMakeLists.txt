@@ -66,4 +66,4 @@ target_link_libraries(Gui
     Stb::Image
 )
 
-set_target_properties(Gui PROPERTIES FOLDER Examples)
+set_target_properties(Gui PROPERTIES FOLDER Examples/Libraries)
