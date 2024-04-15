@@ -30,6 +30,11 @@ if( TARGET rply::rply )
     return()
 endif()
 
+if(OTK_USE_VCPKG)
+    find_package(rply CONFIG REQUIRED)
+    return()
+endif()
+
 if( NOT OTK_FETCH_CONTENT )
   find_package( rply REQUIRED )
   return()
@@ -37,7 +42,7 @@ endif()
 
 include(FetchContent)
 
-message(VERBOSE "Finding rply...")
+message(VERBOSE "Fetching rply...")
 FetchContent_Declare(
   rply
   GIT_REPOSITORY https://github.com/diegonehab/rply.git
@@ -46,12 +51,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(rply)
 
+configure_file(${rply_SOURCE_DIR}/rply.h ${rply_SOURCE_DIR}/include/rply/rply.h COPYONLY)
 add_library(rply STATIC
     ${rply_SOURCE_DIR}/rply.h
     ${rply_SOURCE_DIR}/rply.c
     ${rply_SOURCE_DIR}/rplyfile.h
 )
-target_include_directories(rply PUBLIC ${rply_SOURCE_DIR})
+target_include_directories(rply PUBLIC ${rply_SOURCE_DIR}/include)
 set_target_properties(rply PROPERTIES FOLDER ThirdParty)
 
 if (NOT TARGET rply::rply)

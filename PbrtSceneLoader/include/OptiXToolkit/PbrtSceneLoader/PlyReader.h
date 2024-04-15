@@ -30,7 +30,7 @@
 
 #include "MeshReader.h"
 
-#include <rply.h>
+#include <rply/rply.h>
 
 #include <string>
 
