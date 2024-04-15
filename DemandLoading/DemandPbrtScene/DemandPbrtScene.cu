@@ -216,7 +216,7 @@ extern "C" __global__ void __miss__backgroundColor()
     }
 
     float3 background{};
-    if( PARAMS_VAR_NAME.numInfiniteLights > 0 )
+    if( 0 /*XXX PARAMS_VAR_NAME.numInfiniteLights > 0 */ )
     {
         bool isResident{};
         bool first{ true };
@@ -242,7 +242,8 @@ extern "C" __global__ void __miss__backgroundColor()
     }
     else
     {
-        background = PARAMS_VAR_NAME.background;
+        // XXX background = PARAMS_VAR_NAME.background;
+        background = make_float3( .5f, .8f, .9f );
     }
 
     setRayPayload( background );

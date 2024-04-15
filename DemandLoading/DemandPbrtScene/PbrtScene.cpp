@@ -306,12 +306,12 @@ void PbrtScene::cleanup()
 void PbrtScene::setLaunchParams( CUstream stream, Params& params )
 {
     static const float3 proxyFaceColors[6] = {
-        { 1.0f, 1.0f, 0.0f },  // +x
-        { 1.0f, 0.0f, 0.0f },  // -x
-        { 0.0f, 1.0f, 1.0f },  // +y
-        { 0.0f, 1.0f, 0.0f },  // -y
-        { 1.0f, 0.0f, 1.0f },  // +z
-        { 0.0f, 0.0f, 1.0f },  // -z
+        { 1.0f, 0.6f, 0.0f },  // +x = yellow
+        { 1.0f, 0.0f, 0.0f },  // -x = red
+        { 0.0f, 1.0f, 0.0f },  // +y = green
+        { 0.0f, 1.0f, 1.0f },  // -y = cyan
+        { 0.0f, 0.0f, 1.0f },  // +z = blue
+        { 1.0f, 0.0f, 1.0f },  // -z = magenta
     };
     std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( params.proxyFaceColors ) );
 
