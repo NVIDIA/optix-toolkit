@@ -242,16 +242,16 @@ void GLDisplay::display( GLint screen_res_x, GLint screen_res_y, GLint framebuf_
 
     bool convertToSrgb = true;
 
-    if( m_image_format == UNSIGNED_BYTE4 )
+    if( m_image_format == BufferImageFormat::UNSIGNED_BYTE4 )
     {
         // input is assumed to be in srgb since it is only 1 byte per channel in size
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8,   screen_res_x, screen_res_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr );
         convertToSrgb = false;
     }
-    else if( m_image_format == FLOAT3 )
+    else if( m_image_format == BufferImageFormat::FLOAT3 )
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB32F,  screen_res_x, screen_res_y, 0, GL_RGB,  GL_FLOAT,         nullptr );
 
-    else if( m_image_format == FLOAT4 )
+    else if( m_image_format == BufferImageFormat::FLOAT4 )
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA32F, screen_res_x, screen_res_y, 0, GL_RGBA, GL_FLOAT,         nullptr );
 
     else

@@ -44,7 +44,7 @@ otk_add_library(Gui STATIC
   include/OptiXToolkit/Gui/Camera.h
   include/OptiXToolkit/Gui/GLCheck.h
   include/OptiXToolkit/Gui/GLDisplay.h
-  include/OptiXToolkit/Gui/Gui.h  
+  include/OptiXToolkit/Gui/Gui.h
   include/OptiXToolkit/Gui/Trackball.h
   include/OptiXToolkit/Gui/TrackballCamera.h
   include/OptiXToolkit/Gui/Window.h
@@ -66,4 +66,4 @@ target_link_libraries(Gui
     Stb::Image
 )
 
-set_target_properties(Gui PROPERTIES FOLDER Examples)
+set_target_properties(Gui PROPERTIES FOLDER Examples/Libraries)

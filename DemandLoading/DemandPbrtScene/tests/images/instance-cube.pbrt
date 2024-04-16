@@ -1,0 +1,28 @@
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "instance-cube.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+
+    Include "light-sources.pbrt"
+
+    ObjectBegin "cube"
+        Include "cube-geom.pbrt"
+        # blue
+        "rgb Kd" [ 0 0 1 ]
+    ObjectEnd
+
+    Translate 1 1 0
+    ObjectInstance "cube"
+WorldEnd

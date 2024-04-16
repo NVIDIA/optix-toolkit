@@ -1,0 +1,29 @@
+# Simple test scene for alpha cutout maps
+
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "cutout.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+    Include "light-sources.pbrt"
+
+    Texture "cutout" "float" "imagemap"
+        "string filename" [ "cutout.png" ]
+
+    AttributeBegin
+        Include "cube-textured-geom.pbrt"
+        "texture alpha" "cutout" 
+    AttributeEnd
+
+WorldEnd

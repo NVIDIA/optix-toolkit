@@ -52,9 +52,10 @@ if(NOT TARGET OptiX::OptiX)
   find_package(OptiX 7.3 REQUIRED)
 endif()
 
-add_subdirectory(Util)
 add_subdirectory(Gui)
+add_subdirectory(PbrtSceneLoader)
 add_subdirectory(Simple)
+add_subdirectory(Util)
 add_subdirectory(tests)
 
 # Skip examples if the libraries they depend upon were not built.

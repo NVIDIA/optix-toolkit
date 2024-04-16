@@ -1,0 +1,33 @@
+# Simple test scene for alpha cutout maps
+
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "diffuse-alpha.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+    Include "light-sources.pbrt"
+
+    Texture "diffuse" "spectrum" "imagemap"
+        "string filename" [ "mandelbrot-hue.png" ]
+
+    Texture "circle" "float" "imagemap"
+        "string filename" [ "circle.png" ]
+
+    AttributeBegin
+        Include "cube-textured-geom.pbrt"
+        "rgb Kd" [ 1 1 1 ]
+        "texture Kd" [ "diffuse" ] 
+        "texture alpha" "circle" 
+    AttributeEnd
+WorldEnd

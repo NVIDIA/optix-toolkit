@@ -1,0 +1,33 @@
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "two-cubes.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+
+    Include "light-sources.pbrt"
+
+    AttributeBegin
+        Include "cube-geom.pbrt"
+        # red
+        "rgb Kd" [ 1 0 0 ]
+    AttributeEnd
+
+    AttributeBegin
+        Translate 1 1 0
+
+        Include "cube-geom.pbrt"
+        # green
+        "rgb Kd" [ 0 1 0 ]
+    AttributeEnd
+WorldEnd

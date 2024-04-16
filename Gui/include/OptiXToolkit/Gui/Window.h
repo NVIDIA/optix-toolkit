@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include <OptiXToolkit/Util/ImageBuffer.h>
+
 #include <cuda_runtime.h>
 #include <vector_types.h>
 
@@ -39,30 +41,6 @@
 struct GLFWwindow;
 
 namespace otk {
-
-enum BufferImageFormat
-{
-    UNSIGNED_BYTE4,
-    FLOAT4,
-    FLOAT3
-};
-
-struct ImageBuffer
-{
-    void* data =      nullptr;
-    unsigned int      width = 0;
-    unsigned int      height = 0;
-    BufferImageFormat pixel_format;
-};
-
-size_t pixelFormatSize( BufferImageFormat format );
-
-// Floating point image buffers (see BufferImageFormat above) are assumed to be
-// linear and will be converted to sRGB when writing to a file format with 8
-// bits per channel.  This can be skipped if disable_srgb is set to true.
-// Image buffers with format UNSIGNED_BYTE4 are assumed to be in sRGB already
-// and will be written like that.
-void        saveImage( const char* filename, const ImageBuffer& buffer, bool disable_srgb );
 
 void displayBufferWindow( const char* title, const ImageBuffer& buffer );
 

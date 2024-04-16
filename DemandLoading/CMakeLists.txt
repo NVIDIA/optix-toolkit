@@ -27,8 +27,10 @@
 #
 
 add_subdirectory(DemandGeometryViewer)
+add_subdirectory(DemandPbrtScene)
 add_subdirectory(DemandTextureAppBase)
 add_subdirectory(DemandTextureViewer)
+add_subdirectory(ImageSourceInfo)
 add_subdirectory(ImageSources)
 add_subdirectory(RayCones)
 add_subdirectory(Simple)
