@@ -108,6 +108,10 @@ MATCHER_P( hasDeviceTriangleNormals, triangleMesh, "" )
             }
         }
     }
+    if( result )
+    {
+        *result_listener << "has expected device triangle normals";
+    }
     return result;
 }
 
@@ -144,6 +148,10 @@ MATCHER_P( hasDevicePlyNormals, buffers, "" )
             }
         }
     }
+    if( result )
+    {
+        *result_listener << "has expected device ply normals";
+    }
     return result;
 }
 
@@ -178,6 +186,10 @@ MATCHER_P( hasDevicePlyUVs, buffers, "" )
                 result = false;
             }
         }
+    }
+    if( result )
+    {
+        *result_listener << "has expected device ply UVs";
     }
     return result;
 }
@@ -239,6 +251,10 @@ MATCHER_P( hasDeviceTriangleUVs, triangleMesh, "" )
                 result = false;
             }
         }
+    }
+    if( result )
+    {
+        *result_listener << "has expected device triangle UVs";
     }
     return result;
 }
