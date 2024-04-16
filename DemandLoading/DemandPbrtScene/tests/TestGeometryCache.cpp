@@ -90,7 +90,7 @@ MATCHER_P( hasDeviceTriangleNormals, triangleMesh, "" )
     std::vector<TriangleNormals> actual;
     actual.resize( triangleMesh->indices.size() / 3 );
     OTK_ERROR_CHECK( cudaMemcpy( actual.data(), arg, sizeof( TriangleNormals ) * actual.size(), cudaMemcpyDeviceToHost ) );
-    bool result{true};
+    bool result{ true };
     auto toFloat3 = []( const pbrt::Point3f& val ) { return make_float3( val.x, val.y, val.z ); };
     for( size_t tri = 0; tri < actual.size(); ++tri )
     {
@@ -125,7 +125,7 @@ MATCHER_P( hasDevicePlyNormals, buffers, "" )
     std::vector<TriangleNormals> actual;
     actual.resize( buffers->indices.size() / 3 );
     OTK_ERROR_CHECK( cudaMemcpy( actual.data(), arg, sizeof( TriangleNormals ) * actual.size(), cudaMemcpyDeviceToHost ) );
-    bool result{true};
+    bool result{ true };
     auto toFloat3 = [&]( size_t tri, int vert ) {
         return make_float3( buffers->normalCoords[buffers->indices[tri * 3 + vert] * 3 + 0],
                             buffers->normalCoords[buffers->indices[tri * 3 + vert] * 3 + 1],
@@ -165,7 +165,7 @@ MATCHER_P( hasDevicePlyUVs, buffers, "" )
     std::vector<TriangleUVs> actual;
     actual.resize( buffers->indices.size() / 3 );
     OTK_ERROR_CHECK( cudaMemcpy( actual.data(), arg, sizeof( TriangleUVs ) * actual.size(), cudaMemcpyDeviceToHost ) );
-    bool result{true};
+    bool result{ true };
     auto toFloat2 = [&]( size_t tri, int vert ) {
         return make_float2( buffers->uvCoords[buffers->indices[tri * 3 + vert] * 2 + 0],
                             buffers->uvCoords[buffers->indices[tri * 3 + vert] * 2 + 1] );
@@ -234,7 +234,7 @@ MATCHER_P( hasDeviceTriangleUVs, triangleMesh, "" )
     std::vector<TriangleUVs> actual;
     actual.resize( triangleMesh->indices.size() / 3 );
     OTK_ERROR_CHECK( cudaMemcpy( actual.data(), arg, sizeof( TriangleUVs ) * actual.size(), cudaMemcpyDeviceToHost ) );
-    bool result{true};
+    bool result{ true };
     auto toFloat2 = []( const pbrt::Point2f& val ) { return make_float2( val.x, val.y ); };
     for( size_t tri = 0; tri < actual.size(); ++tri )
     {
@@ -316,12 +316,12 @@ class TestGeometryCache : public Test
     }
 
     CUstream               m_stream{};
-    GeometryCachePtr       m_geometryCache{createGeometryCache()};
+    GeometryCachePtr       m_geometryCache{ createGeometryCache() };
     StrictMock<MockOptix>  m_optix;
-    OptixDeviceContext     m_fakeContext{otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL )};
+    OptixDeviceContext     m_fakeContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
     GeometryCacheEntry     m_geom{};
     OptixAccelBufferSizes  m_accelSizes{};
-    OptixTraversableHandle m_fakeGeomAS{0xfeedf00dU};
+    OptixTraversableHandle m_fakeGeomAS{ 0xfeedf00dU };
     std::vector<uint_t>    m_expectedFlags;
 };
 
@@ -329,8 +329,8 @@ class TestGeometryCache : public Test
 
 static void singleTrianglePlyData( otk::pbrt::MeshData& buffers, otk::pbrt::MeshInfo& info )
 {
-    static std::vector<float> coords{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
-    static std::vector<int>   indices{0, 1, 2};
+    static std::vector<float> coords{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+    static std::vector<int>   indices{ 0, 1, 2 };
     buffers.vertexCoords = coords;
     buffers.indices      = indices;
     info.numVertices     = coords.size() / 3;
@@ -341,7 +341,7 @@ static otk::pbrt::ShapeDefinition makePlyShape( MockMeshLoaderPtr loader, otk::p
 {
     otk::pbrt::ShapeDefinition shape{};
     shape.type    = "plymesh";
-    shape.plyMesh = otk::pbrt::PlyMeshData{"cube-mesh.ply", loader};
+    shape.plyMesh = otk::pbrt::PlyMeshData{ "cube-mesh.ply", loader };
     EXPECT_CALL( *loader, getMeshInfo() ).WillOnce( Return( info ) );
     EXPECT_CALL( *loader, load( _ ) ).WillOnce( SetArgReferee<0>( buffers ) );
     return shape;
@@ -359,7 +359,7 @@ static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithNormals( MockMeshLoad
 {
     singleTrianglePlyData( buffers, info );
     info.numNormals = info.numVertices;
-    static std::vector<float> normalCoords{1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    static std::vector<float> normalCoords{ 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
     buffers.normalCoords = normalCoords;
     return makePlyShape( loader, buffers, info );
 }
@@ -370,7 +370,7 @@ static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPt
 {
     singleTrianglePlyData( buffers, info );
     info.numTextureCoordinates = info.numVertices;
-    static std::vector<float> uvCoords{1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+    static std::vector<float> uvCoords{ 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
     buffers.uvCoords = uvCoords;
     return makePlyShape( loader, buffers, info );
 }
@@ -468,26 +468,26 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
 
 static otk::pbrt::ShapeDefinition singleTriangleTriangleMesh( otk::pbrt::MeshData& buffers )
 {
-    static std::vector<float>         coords{0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
-    static std::vector<int>           indices{0, 1, 2};
-    static std::vector<pbrt::Point3f> points{P3{coords[0 + 0], coords[0 + 1], coords[0 + 2]},
-                                             P3{coords[3 + 0], coords[3 + 1], coords[3 + 2]},
-                                             P3{coords[6 + 0], coords[6 + 1], coords[6 + 2]}};
+    static std::vector<float>         coords{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+    static std::vector<int>           indices{ 0, 1, 2 };
+    static std::vector<pbrt::Point3f> points{ P3{ coords[0 + 0], coords[0 + 1], coords[0 + 2] },
+                                              P3{ coords[3 + 0], coords[3 + 1], coords[3 + 2] },
+                                              P3{ coords[6 + 0], coords[6 + 1], coords[6 + 2] } };
     buffers.vertexCoords = coords;
     buffers.indices      = indices;
     otk::pbrt::ShapeDefinition shape{};
     shape.type         = "trianglemesh";
-    shape.triangleMesh = otk::pbrt::TriangleMeshData{indices, points, {}, {}};
+    shape.triangleMesh = otk::pbrt::TriangleMeshData{ indices, points, {}, {} };
     return shape;
 }
 
 static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithNormals( otk::pbrt::MeshData& buffers )
 {
     otk::pbrt::ShapeDefinition        shape = singleTriangleTriangleMesh( buffers );
-    static const std::vector<float>   coords{-1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, -1.0f};
-    static std::vector<pbrt::Point3f> normals{P3{coords[0 + 0], coords[0 + 1], coords[0 + 2]},
-                                              P3{coords[3 + 0], coords[3 + 1], coords[3 + 2]},
-                                              P3{coords[6 + 0], coords[6 + 1], coords[6 + 2]}};
+    static const std::vector<float>   coords{ -1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, -1.0f };
+    static std::vector<pbrt::Point3f> normals{ P3{ coords[0 + 0], coords[0 + 1], coords[0 + 2] },
+                                               P3{ coords[3 + 0], coords[3 + 1], coords[3 + 2] },
+                                               P3{ coords[6 + 0], coords[6 + 1], coords[6 + 2] } };
     buffers.normalCoords       = coords;
     shape.triangleMesh.normals = normals;
     return shape;
@@ -496,9 +496,9 @@ static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithNormals( otk::pb
 static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithUVs( otk::pbrt::MeshData& buffers )
 {
     otk::pbrt::ShapeDefinition        shape = singleTriangleTriangleMesh( buffers );
-    static const std::vector<float>   coords{-1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f};
-    static std::vector<pbrt::Point2f> uvs{P2{coords[0 + 0], coords[0 + 1]}, P2{coords[2 + 0], coords[2 + 1]},
-                                          P2{coords[4 + 0], coords[4 + 1]}};
+    static const std::vector<float>   coords{ -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f };
+    static std::vector<pbrt::Point2f> uvs{ P2{ coords[0 + 0], coords[0 + 1] }, P2{ coords[2 + 0], coords[2 + 1] },
+                                           P2{ coords[4 + 0], coords[4 + 1] } };
     buffers.uvCoords       = coords;
     shape.triangleMesh.uvs = uvs;
     return shape;
@@ -556,7 +556,8 @@ TEST( TestHasDeviceTriangleNormals, normalsDontMatchFirstVertex )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {P3{0.0f, 1.0f, 0.0f}, P3{0.0f, 1.0f, 0.0f}, P3{0.0f, 0.0f, 1.0f}}};
+    const otk::pbrt::TriangleMeshData triangleMesh{
+        { 0, 1, 2 }, {}, { P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -568,7 +569,8 @@ TEST( TestHasDeviceTriangleNormals, normalsDontMatchSecondVertex )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {P3{1.0f, 0.0f, 0.0f}, P3{0.0f, 0.0f, 1.0f}, P3{0.0f, 0.0f, 1.0f}}};
+    otk::pbrt::TriangleMeshData triangleMesh{
+        { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -580,7 +582,8 @@ TEST( TestHasDeviceTriangleNormals, normalsDontMatchThirdVertex )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {P3{1.0f, 0.0f, 0.0f}, P3{0.0f, 1.0f, 0.0f}, P3{1.0f, 0.0f, 0.0f}}};
+    otk::pbrt::TriangleMeshData triangleMesh{
+        { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 1.0f, 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -592,7 +595,8 @@ TEST( TestHasDeviceTriangleNormals, allNormalsMatch )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {P3{1.0f, 0.0f, 0.0f}, P3{0.0f, 1.0f, 0.0f}, P3{0.0f, 0.0f, 1.0f}}};
+    otk::pbrt::TriangleMeshData triangleMesh{
+        { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), hasDeviceTriangleNormals( &triangleMesh ) );
 }
@@ -648,7 +652,7 @@ TEST( TestHasDeviceTriangleUVs, uvsDontMatchFirstVertex )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {}, {P2{1.0f, 1.0f}, P2{0.0f, 1.0f}, P2{0.0f, 0.0f}}};
+    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 1.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -660,7 +664,7 @@ TEST( TestHasDeviceTriangleUVs, uvsDontMatchSecondVertex )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {}, {P2{1.0f, 0.0f}, P2{1.0f, 1.0f}, P2{0.0f, 0.0f}}};
+    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 1.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -672,7 +676,7 @@ TEST( TestHasDeviceTriangleUVs, uvsDontMatchThirdVertex )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {}, {P2{1.0f, 0.0f}, P2{0.0f, 1.0f}, P2{1.0f, 1.0f}}};
+    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 1.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -684,7 +688,7 @@ TEST( TestHasDeviceTriangleUVs, allUVsMatch )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{{0, 1, 2}, {}, {}, {P2{1.0f, 0.0f}, P2{0.0f, 1.0f}, P2{0.0f, 0.0f}}};
+    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), hasDeviceTriangleUVs( &triangleMesh ) );
 }
