@@ -15,6 +15,7 @@
             "opengl3-binding"
           ]
         },
+        "rply",
         "stb"
       ]
     },
