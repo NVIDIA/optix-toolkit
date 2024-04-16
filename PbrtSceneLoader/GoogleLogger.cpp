@@ -29,11 +29,21 @@ void GoogleLogger::start( const char* programName )
 {
     google::InitGoogleLogging( programName );
     FLAGS_logtostderr = true;
+    FLAGS_minloglevel = m_minLogLevel;
 }
 
 void GoogleLogger::stop()
 {
     google::ShutdownGoogleLogging();
+}
+
+void GoogleLogger::info( std::string text, const char *file, int line ) const
+{
+    if( text.empty() )
+        return;
+    if( text.back() != '\n' )
+        text += '\n';
+    google::LogMessage( file, line, google::GLOG_INFO ).stream() << text;
 }
 
 void GoogleLogger::warning( std::string text, const char *file, int line ) const

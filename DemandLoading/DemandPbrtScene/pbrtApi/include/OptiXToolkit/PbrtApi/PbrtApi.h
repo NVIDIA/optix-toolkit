@@ -84,6 +84,7 @@ class Api
     virtual void worldEnd()                                                           = 0;
 
     // Error handling during parse
+    virtual void info( std::string text, const char* file, int line ) const    = 0;
     virtual void warning( std::string text, const char* file, int line ) const = 0;
     virtual void error( std::string text, const char* file, int line ) const   = 0;
 };

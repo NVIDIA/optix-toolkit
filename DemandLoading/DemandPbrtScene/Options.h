@@ -46,6 +46,7 @@ struct Options
     int         warmupFrames{ 0 };
     bool        oneShotGeometry{};
     bool        oneShotMaterial{};
+    bool        verboseLoading{};
     bool        verboseProxyGeometryResolution{};
     bool        verboseProxyMaterialResolution{};
     bool        verboseSceneDecomposition{};

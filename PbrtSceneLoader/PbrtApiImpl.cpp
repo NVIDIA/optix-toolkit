@@ -100,6 +100,7 @@ public:
     void objectInstance( const std::string& name ) override;
     void worldEnd() override;
 
+    void info( std::string text, const char* file, int line ) const override;
     void warning( std::string text, const char* file, int line ) const override;
     void error( std::string text, const char* file, int line ) const override;
 
@@ -284,6 +285,11 @@ void PbrtApiImpl::coordinateSystem( const std::string& name )
     m_coordinateSystems[name] = m_currentTransform;
 }
 
+void PbrtApiImpl::info( std::string text, const char *file, int line ) const
+{
+    m_logger->info( std::move( text ), file, line );
+}
+
 void PbrtApiImpl::warning( std::string text, const char *file, int line ) const
 {
     ++m_scene->warnings;
@@ -296,8 +302,9 @@ void PbrtApiImpl::error( std::string text, const char *file, int line ) const
     m_logger->error( std::move( text ), file, line );
 }
 
-#define PBRT_ERROR( text_ ) error( text_, __FILE__, __LINE__ )
+#define PBRT_INFO( text_ ) info( text_, __FILE__, __LINE__ )
 #define PBRT_WARNING( text_ ) warning( text_, __FILE__, __LINE__ )
+#define PBRT_ERROR( text_ ) error( text_, __FILE__, __LINE__ )
 
 void PbrtApiImpl::coordSysTransform( const std::string& name )
 {
@@ -582,7 +589,9 @@ void PbrtApiImpl::shape( const std::string& type, const ParamSet& params )
     else if( type == "cone" || type == "curve" || type == "cylinder" || type == "disk" || type == "hyperboloid"
              || type == "paraboloid" || type == "heightfield" || type == "loopsubdiv" || type == "nurbs" )
     {
+#ifndef NDEBUG
         PBRT_WARNING( "Unsupported shape type " + type );
+#endif        
     }
     else
     {
@@ -670,7 +679,8 @@ void PbrtApiImpl::requireInWorld( const char* name )
 
 ShapeDefinition PbrtApiImpl::createPlyMesh( const ::pbrt::ParamSet& params )
 {
-    const std::string      filename = ::pbrt::ResolveFilename( params.FindOneFilename( "filename", "" ) );
+    const std::string filename = ::pbrt::ResolveFilename( params.FindOneFilename( "filename", "" ) );
+    PBRT_INFO( std::string( "Reading info from " + filename ) );
     const MeshInfo         info     = m_infoReader->read( filename );
     const ::pbrt::Bounds3f bounds{ ::pbrt::Point3f( info.minCoord[0], info.minCoord[1], info.minCoord[2] ),
                                    ::pbrt::Point3f( info.maxCoord[0], info.maxCoord[1], info.maxCoord[2] ) };
