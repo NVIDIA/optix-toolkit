@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -26,9 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <string>
+#pragma once
 
-inline std::string getSourceDir()
+namespace imageSource {
+
+struct CacheStatistics
 {
-    return "@CMAKE_CURRENT_SOURCE_DIR@";
-}
+    unsigned int       numImageSources;
+    unsigned long long totalTilesRead;
+    unsigned long long totalBytesRead;
+    double             totalReadTime;
+};
+
+}  // namespace imageSource

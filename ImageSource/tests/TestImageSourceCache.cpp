@@ -26,9 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "SourceDir.h"  // generated from SourceDir.h.in
+#include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
 
 #include <OptiXToolkit/ImageSource/ImageSourceCache.h>
+#include <OptiXToolkit/ImageSource/TiledImageSource.h>
 
 #include <gtest/gtest.h>
 
@@ -36,19 +37,45 @@ using namespace imageSource;
 
 class TestImageSourceCache : public testing::Test
 {
-};    
+  protected:
+    ImageSourceCache m_cache;
+    std::string      m_directoryPrefix{ getSourceDir() + "/Textures/" };
+    std::string      m_exrPath{ m_directoryPrefix + "TiledMipMappedFloat.exr" };
+    std::string      m_jpgPath{ m_directoryPrefix + "level0.jpg" };
+};
 
-TEST_F(TestImageSourceCache, TestGet)
+TEST_F( TestImageSourceCache, get )
 {
-    ImageSourceCache cache;
-    std::string      dir( getSourceDir() + "/Textures" );
-    std::string      filename( "TiledMipMappedFloat.exr" );
-
-
-    std::shared_ptr<ImageSource> imageSource1( cache.get( filename, dir ) );
-    std::shared_ptr<ImageSource> imageSource2( cache.get( filename, dir ) );
+    std::shared_ptr<ImageSource> imageSource1( m_cache.get( m_exrPath ) );
+    std::shared_ptr<ImageSource> imageSource2( m_cache.get( m_exrPath ) );
+    const CacheStatistics        stats{ m_cache.getStatistics() };
 
     EXPECT_TRUE( imageSource1 );
     EXPECT_TRUE( imageSource2 );
     EXPECT_EQ( imageSource1, imageSource2 );
+    EXPECT_EQ( 1, stats.numImageSources );
 }
+
+TEST_F( TestImageSourceCache, findMissing )
+{
+    EXPECT_EQ( std::shared_ptr<ImageSource>(), m_cache.find( "missing-file.foo" ) );
+}
+
+TEST_F( TestImageSourceCache, findPresent )
+{
+    std::shared_ptr<ImageSource> image = m_cache.get( m_exrPath );
+
+    EXPECT_EQ( image, m_cache.find( m_exrPath ) );
+}
+
+#if OTK_USE_OIIO
+TEST_F( TestImageSourceCache, setAdaptedReturnsAdapted )
+{
+    std::shared_ptr<ImageSource> adapted = std::make_shared<TiledImageSource>( createImageSource( m_jpgPath ) );
+    m_cache.set( m_jpgPath, adapted );
+
+    std::shared_ptr<ImageSource> image = m_cache.get( m_jpgPath );
+
+    EXPECT_EQ( adapted, image );
+}
+#endif

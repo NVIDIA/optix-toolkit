@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "SourceDir.h"  // generated from SourceDir.h.in
+#include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
 
 #include <OptiXToolkit/ImageSource/EXRReader.h>
 #include <OptiXToolkit/ImageSource/RateLimitedImageSource.h>

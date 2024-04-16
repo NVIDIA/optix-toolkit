@@ -314,7 +314,7 @@ void ProxyInstances::deallocateResource( uint_t pageId )
         throw std::runtime_error( "Page " + std::to_string( pageId ) + " already freed." );
     }
     m_freePages.insert( pos, pageId );
-    m_loader->unloadResource( pageId );
+    m_loader->invalidatePage( pageId );
 }
 
 }  // namespace demandGeometry

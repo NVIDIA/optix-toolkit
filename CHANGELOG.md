@@ -1,5 +1,10 @@
 # OptiX Demand Loading Library Change Log
 
+
+## v0.9.4
+
+* Renamed `DemandLoader::unloadResource()` to `invalidatePage()`
+
 ## v0.9.3
 
 * The `DemandLoader` interface now provides a `setPageTableEntry` method, which is helpful for

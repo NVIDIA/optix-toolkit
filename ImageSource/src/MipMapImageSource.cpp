@@ -34,16 +34,23 @@
 
 namespace imageSource {
 
-void MipMapImageSource::open( TextureInfo* info )
+MipMapImageSource::MipMapImageSource( std::shared_ptr<ImageSource> baseImage )
+    : WrappedImageSource( baseImage )
 {
-    std::unique_lock<std::mutex> lock( m_dataMutex );
-    WrappedImageSource::open( &m_mipMapInfo );
+    if( baseImage->isOpen() )
+    {
+        getBaseInfo();
+    }
+}
+
+void MipMapImageSource::getBaseInfo()
+{
+    m_mipMapInfo = WrappedImageSource::getInfo();
     m_mipMappedBase = m_mipMapInfo.numMipLevels > 1;
     if( m_mipMappedBase )
     {
         return;
     }
-
     unsigned int width        = m_mipMapInfo.width;
     unsigned int height       = m_mipMapInfo.height;
     unsigned int numMipLevels = 1;
@@ -56,6 +63,21 @@ void MipMapImageSource::open( TextureInfo* info )
     m_mipMapInfo.numMipLevels = numMipLevels;
     m_pixelStrideInBytes      = getBytesPerChannel( m_mipMapInfo.format ) * m_mipMapInfo.numChannels;
     m_mipLevels.resize( numMipLevels );
+}
+
+void MipMapImageSource::open( TextureInfo* info )
+{
+    std::unique_lock<std::mutex> lock( m_dataMutex );
+    if( !WrappedImageSource::isOpen() )
+    {
+        WrappedImageSource::open( nullptr );
+    }
+    getBaseInfo();
+    if( m_mipMappedBase )
+    {
+        return;
+    }
+
     if( info != nullptr )
     {
         *info = m_mipMapInfo;

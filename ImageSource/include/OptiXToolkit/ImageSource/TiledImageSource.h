@@ -31,6 +31,8 @@
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 #include <OptiXToolkit/ImageSource/WrappedImageSource.h>
 
+#include <vector_types.h>
+
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -62,12 +64,15 @@ class TiledImageSource : public WrappedImageSource
     unsigned long long getNumTilesRead() const override;
 
   private:
+    void getBaseInfo();
+
     mutable std::mutex m_dataMutex;
     bool               m_baseIsTiled{};
     TextureInfo        m_tiledInfo{};
     unsigned long long m_numTilesRead{};
     std::vector<char>  m_buffer;
     std::vector<char*> m_mipLevels;
+    std::vector<uint2> m_mipDimensions;
 };
 
 /// A simple convenience function to reliably get a tiled image source.

@@ -283,7 +283,7 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
     return startPage;
 }
 
-void DemandLoaderImpl::unloadResource( unsigned int pageId )
+void DemandLoaderImpl::invalidatePage( unsigned int pageId )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
 

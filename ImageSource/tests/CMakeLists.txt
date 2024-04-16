@@ -30,7 +30,7 @@ include( FetchGtest )
 include( GoogleTest )
 
 # Embed CMAKE_CURRENT_SOURCE_DIR in getSourceDir()
-configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
+configure_file( ImageSourceTestConfig.h.in include/ImageSourceTestConfig.h @ONLY )
 
 otk_add_executable( testImageSource
   MockImageSource.h
@@ -40,14 +40,15 @@ otk_add_executable( testImageSource
   TestMipMapImageSource.cpp
   TestRateLimitedImageSource.cpp
   TestTiledImageSource.cpp
-  SourceDir.h.in
-  ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
+  ImageSourceTestConfig.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/ImageSourceTestConfig.h
 )
 
 target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
 target_link_libraries( testImageSource PUBLIC
     ImageSource
     DemandLoading
+    OptiXToolkit::ShaderUtil
     OpenEXR::OpenEXR # for half
     GTest::gmock_main )
 set_target_properties( testImageSource PROPERTIES 

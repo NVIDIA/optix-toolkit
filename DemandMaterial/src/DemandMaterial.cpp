@@ -130,7 +130,7 @@ void DemandMaterial::remove( uint_t pageId )
     if( m_recycleProxyIds )
     {
         m_freeMaterialIds.push_back( pageId );
-        m_loader->unloadResource( pageId );
+        m_loader->invalidatePage( pageId );
     }
 }
 

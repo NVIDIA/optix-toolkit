@@ -38,16 +38,29 @@
 namespace imageSource {
 
 TiledImageSource::TiledImageSource( std::shared_ptr<ImageSource> baseImage )
-    : WrappedImageSource( std::move( baseImage ) )
+    : WrappedImageSource( baseImage )
 {
+    if( baseImage->isOpen() )
+    {
+        getBaseInfo();
+    }
+}
+
+void TiledImageSource::getBaseInfo()
+{
+    m_tiledInfo = WrappedImageSource::getInfo();
+    m_baseIsTiled       = m_tiledInfo.isTiled;
+    m_tiledInfo.isTiled = true;
 }
 
 void TiledImageSource::open( TextureInfo* info )
 {
     std::unique_lock<std::mutex> lock( m_dataMutex );
-    WrappedImageSource::open( &m_tiledInfo );
-    m_baseIsTiled       = m_tiledInfo.isTiled;
-    m_tiledInfo.isTiled = true;
+    if( !WrappedImageSource::isOpen() )
+    {
+        WrappedImageSource::open( nullptr );
+    }
+    getBaseInfo();
     if( info != nullptr )
     {
         *info = m_tiledInfo;
@@ -81,6 +94,7 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
     }
 
     const char* mipLevelBuffer;
+    uint2 mipDimensions;
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
 
@@ -88,6 +102,7 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
         {
             m_buffer.resize( getTextureSizeInBytes( m_tiledInfo ) );
             m_mipLevels.resize( m_tiledInfo.numMipLevels );
+            m_mipDimensions.resize( m_tiledInfo.numMipLevels );
         }
 
         if( m_mipLevels[mipLevel] == nullptr )
@@ -105,6 +120,8 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
                 mipLevelHeight /= 2;
             }
             m_mipLevels[mipLevel] = ptr;
+            m_mipDimensions[mipLevel].x = mipLevelWidth;
+            m_mipDimensions[mipLevel].y = mipLevelHeight;
             if( !WrappedImageSource::readMipLevel( m_mipLevels[mipLevel], mipLevel, mipLevelWidth, mipLevelHeight, stream ) )
             {
                 OTK_ASSERT(false);
@@ -114,23 +131,24 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
 
         ++m_numTilesRead;
         mipLevelBuffer = m_mipLevels[mipLevel];
+        mipDimensions = m_mipDimensions[mipLevel];
     }
 
     OTK_ASSERT_MSG( mipLevelBuffer != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
     const size_t        pixelSizeInBytes           = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
-    const size_t        imageRowStrideInBytes      = m_tiledInfo.width * pixelSizeInBytes;
     // Partial tile dimensions might be less than the nominal dimensions.
-    const size_t        sourceTileWidth            = std::min( tile.width, m_tiledInfo.width - tile.x * tile.width );
-    const size_t        sourceTileHeight           = std::min( tile.height, m_tiledInfo.height - tile.y * tile.height );
-    const size_t        sourceTileRowStrideInBytes = sourceTileWidth * pixelSizeInBytes;
-    const size_t        destTileRowStrideInBytes   = tile.width * pixelSizeInBytes;
-    const PixelPosition start                      = pixelPosition( tile );
-    const char*         source = mipLevelBuffer + start.y * imageRowStrideInBytes + start.x * pixelSizeInBytes;
-    for( unsigned int i = 0; i < sourceTileHeight; ++i )
+    const size_t        sourceWidth              = std::min( tile.width, mipDimensions.x - tile.x * tile.width );
+    const size_t        sourceHeight             = std::min( tile.height, mipDimensions.y - tile.y * tile.height );
+    const size_t        sourceRowWidthInBytes    = sourceWidth * pixelSizeInBytes;
+    const size_t        sourceRowStrideInBytes   = mipDimensions.x * pixelSizeInBytes;
+    const size_t        destTileRowStrideInBytes = tile.width * pixelSizeInBytes;
+    const PixelPosition start                    = pixelPosition( tile );
+    const char*         source = mipLevelBuffer + start.y * sourceRowStrideInBytes + start.x * pixelSizeInBytes;
+    for( unsigned int i = 0; i < sourceHeight; ++i )
     {
-        std::copy_n( source, sourceTileRowStrideInBytes, dest );
+        std::copy_n( source, sourceRowWidthInBytes, dest );
         dest += destTileRowStrideInBytes;
-        source += imageRowStrideInBytes;
+        source += sourceRowStrideInBytes;
     }
 
     return true;
