@@ -79,6 +79,7 @@ class MockLogger : public Logger
 
     MOCK_METHOD( void, start, ( const char* programName ), ( override ) );
     MOCK_METHOD( void, stop, (), ( override ) );
+    MOCK_METHOD( void, info, ( std::string text, const char* file, int line ), ( const ) );
     MOCK_METHOD( void, warning, ( std::string text, const char* file, int line ), ( const override ) );
     MOCK_METHOD( void, error, ( std::string text, const char* file, int line ), ( const override ) );
 };

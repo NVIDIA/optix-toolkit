@@ -437,6 +437,7 @@ class MockApi : public StrictMock<otk::pbrt::Api>
     MOCK_METHOD( void, objectEnd, (), ( override ) );
     MOCK_METHOD( void, objectInstance, (const std::string&), ( override ) );
     MOCK_METHOD( void, worldEnd, (), ( override ) );
+    MOCK_METHOD( void, info, ( std::string text, const char* file, int line ), ( const ) );
     MOCK_METHOD( void, error, (std::string, const char*, int), ( const override ) );
     MOCK_METHOD( void, warning, (std::string, const char*, int), ( const override ) );
 };
