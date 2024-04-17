@@ -90,6 +90,7 @@ class MockStartStopLogger : public MockLogger
     MockStartStopLogger()
     {
         ExpectationSet start = EXPECT_CALL( *this, start( _ ) ).Times( 1 );
+        EXPECT_CALL( *this, info( _, _, _ ) ).Times( AnyNumber() ).After( start );
         EXPECT_CALL( *this, stop() ).Times( 1 ).After( start );
     }
     ~MockStartStopLogger() override = default;
