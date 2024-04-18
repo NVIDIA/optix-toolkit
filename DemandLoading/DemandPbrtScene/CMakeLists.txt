@@ -113,7 +113,6 @@ add_executable(DemandPbrtScene main.cpp)
 target_link_libraries(DemandPbrtScene PUBLIC DemandPbrtSceneImpl)
 set_target_properties(DemandPbrtScene PROPERTIES FOLDER "Examples/DemandLoading")
 
-add_subdirectory(pbrtApi)
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
