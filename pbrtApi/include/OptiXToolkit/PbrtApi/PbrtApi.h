@@ -41,9 +41,6 @@ class Api
 
     virtual ~Api() = default;
 
-    virtual SceneDescriptionPtr parseFile( std::string filename ) = 0;
-    virtual SceneDescriptionPtr parseString( std::string str )    = 0;
-
     virtual void identity()                                                                                         = 0;
     virtual void translate( float dx, float dy, float dz )                                                          = 0;
     virtual void rotate( float angle, float ax, float ay, float az )                                                = 0;

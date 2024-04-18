@@ -33,13 +33,13 @@
 #include <core/geometry.h>
 #include <core/transform.h>
 
+#include <OptiXToolkit/PbrtApi/PbrtApi.h>
+
 #include <OptiXToolkit/PbrtSceneLoader/Logger.h>
-
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
-#include <OptiXToolkit/PbrtSceneLoader/PbrtApiImpl.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 
-#include "OptiXToolkit/PbrtApi/PbrtApi.h"
 
 using namespace otk::pbrt;
 using namespace testing;
@@ -112,7 +112,7 @@ class TestPbrtApi : public Test
     std::shared_ptr<MockStartStopLogger> m_mockLogger{ std::make_shared<StrictMock<MockStartStopLogger>>() };
     std::shared_ptr<MockMeshLoader>      m_mockLoader{ std::make_shared<MockMeshLoader>() };
 
-    std::shared_ptr<Api> m_api{ createApi( g_programName, m_mockLogger, m_mockMeshInfoReader ) };
+    std::shared_ptr<SceneLoader> m_api{ createSceneLoader( g_programName, m_mockLogger, m_mockMeshInfoReader ) };
     Bounds3              m_meshBounds{ Point3( -1.0f, -2.0f, -3.0f ), Point3( 4.0f, 5.0f, 6.0f ) };
     MeshInfo             m_meshInfo{};
 };
@@ -149,7 +149,7 @@ TEST_F( TestPbrtApiConstruction, constructorStartsLogging )
     EXPECT_CALL( *m_logger, stop() ).Times( AnyNumber() );
 
     {
-        std::shared_ptr<Api> api( createApi( g_programName, m_logger, nullptr ) );
+        std::shared_ptr<SceneLoader> loader( createSceneLoader( g_programName, m_logger, nullptr ) );
     }
 }
 
@@ -159,7 +159,7 @@ TEST_F( TestPbrtApiConstruction, constructorSetsApi )
     EXPECT_CALL( *m_logger, start( _ ) ).Times( AnyNumber() );
     EXPECT_CALL( *m_logger, stop() ).Times( AnyNumber() );
 
-    std::shared_ptr<Api> api( createApi( g_programName, m_logger, nullptr ) );
+    std::shared_ptr<SceneLoader> loader( createSceneLoader( g_programName, m_logger, nullptr ) );
 
     ASSERT_NE( nullptr, getApi() );
 }
@@ -170,7 +170,7 @@ TEST_F( TestPbrtApiConstruction, destructorStopsLogging )
     EXPECT_CALL( *m_logger, stop() ).Times( 1 );
 
     {
-        std::shared_ptr<Api> api( createApi( g_programName, m_logger, nullptr ) );
+        std::shared_ptr<SceneLoader> loader( createSceneLoader( g_programName, m_logger, nullptr ) );
     }
 }
 
@@ -180,7 +180,7 @@ TEST_F( TestPbrtApiConstruction, destructorResetsApi )
     EXPECT_CALL( *m_logger, stop() ).Times( AnyNumber() );
 
     {
-        std::shared_ptr<Api> api( createApi( g_programName, m_logger, nullptr ) );
+        std::shared_ptr<SceneLoader> loader( createSceneLoader( g_programName, m_logger, nullptr ) );
     }
 
     ASSERT_EQ( nullptr, getApi() );

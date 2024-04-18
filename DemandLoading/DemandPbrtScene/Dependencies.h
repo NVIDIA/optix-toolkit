@@ -33,9 +33,9 @@
 namespace otk {
 namespace pbrt {
 struct SceneDescription;
-class Api;
 class Logger;
 class MeshInfoReader;
+class SceneLoader;
 }  // namespace pbrt
 }  // namespace otk
 
@@ -79,7 +79,7 @@ using ImageSourcePtr        = std::shared_ptr<imageSource::ImageSource>;
 using LoggerPtr             = std::shared_ptr<otk::pbrt::Logger>;
 using MaterialLoaderPtr     = std::shared_ptr<demandMaterial::MaterialLoader>;
 using MeshInfoReaderPtr     = std::shared_ptr<otk::pbrt::MeshInfoReader>;
-using PbrtApiPtr            = std::shared_ptr<otk::pbrt::Api>;
+using PbrtSceneLoaderPtr    = std::shared_ptr<otk::pbrt::SceneLoader>;
 using ProxyFactoryPtr       = std::shared_ptr<ProxyFactory>;
 using RendererPtr           = std::shared_ptr<Renderer>;
 using SceneDescriptionPtr   = std::shared_ptr<::otk::pbrt::SceneDescription>;

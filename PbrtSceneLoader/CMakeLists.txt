@@ -26,13 +26,16 @@ add_library( PbrtSceneLoader STATIC
     include/OptiXToolkit/PbrtSceneLoader/GoogleLogger.h
     include/OptiXToolkit/PbrtSceneLoader/Logger.h
     include/OptiXToolkit/PbrtSceneLoader/MeshReader.h
-    include/OptiXToolkit/PbrtSceneLoader/PbrtApiImpl.h
     include/OptiXToolkit/PbrtSceneLoader/PlyReader.h
     include/OptiXToolkit/PbrtSceneLoader/SceneDescription.h
+    include/OptiXToolkit/PbrtSceneLoader/SceneLoader.h
     GoogleLogger.cpp
     PbrtApiImpl.cpp
+    PbrtApiImpl.h
+    PbrtSceneLoader.cpp
     PlyReader.cpp
 )
+source_group("Header Files/Internal" PbrtApiImpl.h)
 target_link_libraries( PbrtSceneLoader PUBLIC pbrtParser rply::rply )
 target_link_libraries( PbrtSceneLoader PRIVATE OptiX::OptiX ShaderUtil Util )
 target_include_directories( PbrtSceneLoader PUBLIC include )
