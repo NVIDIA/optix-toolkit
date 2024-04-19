@@ -77,6 +77,7 @@ add_library( pbrtParser STATIC
   # the API to an interface.
   PbrtApi.cpp
   include/OptiXToolkit/PbrtApi/PbrtApi.h
+  ReadMe.md
   )
 source_group("Source Files" REGULAR_EXPRESSION "[^/]*\\.cpp")
 source_group("Header Files" REGULAR_EXPRESSION "[^/]*\\.h")
