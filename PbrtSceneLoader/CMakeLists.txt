@@ -34,6 +34,7 @@ add_library( PbrtSceneLoader STATIC
     PbrtApiImpl.h
     PbrtSceneLoader.cpp
     PlyReader.cpp
+    ReadMe.md
 )
 source_group("Header Files/Internal" PbrtApiImpl.h)
 target_link_libraries( PbrtSceneLoader PUBLIC pbrtParser rply::rply )
