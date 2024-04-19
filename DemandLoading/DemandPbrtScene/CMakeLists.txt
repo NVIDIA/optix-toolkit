@@ -109,7 +109,7 @@ target_link_libraries(DemandPbrtSceneImpl PUBLIC
     OptiX::OptiX
 )
 
-add_executable(DemandPbrtScene main.cpp)
+add_executable(DemandPbrtScene main.cpp ReadMe.md)
 target_link_libraries(DemandPbrtScene PUBLIC DemandPbrtSceneImpl)
 set_target_properties(DemandPbrtScene PROPERTIES FOLDER "Examples/DemandLoading")
 
