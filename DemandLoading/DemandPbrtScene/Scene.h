@@ -58,7 +58,7 @@ class Scene
 };
 
 ScenePtr createPbrtScene( const Options&        options,
-                          PbrtSceneLoaderPtr            pbrt,
+                          PbrtSceneLoaderPtr    pbrt,
                           DemandTextureCachePtr demandTextureCache,
                           ProxyFactoryPtr       proxyFactory,
                           DemandLoaderPtr       demandLoader,

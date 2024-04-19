@@ -62,7 +62,7 @@
 namespace demandPbrtScene {
 
 PbrtScene::PbrtScene( const Options&        options,
-                      PbrtSceneLoaderPtr            pbrt,
+                      PbrtSceneLoaderPtr    pbrt,
                       DemandTextureCachePtr demandTextureCache,
                       ProxyFactoryPtr       proxyFactory,
                       DemandLoaderPtr       demandLoader,
@@ -753,7 +753,7 @@ void PbrtScene::afterLaunch( CUstream stream, const Params& params )
 }
 
 ScenePtr createPbrtScene( const Options&        options,
-                          PbrtSceneLoaderPtr            pbrt,
+                          PbrtSceneLoaderPtr    pbrt,
                           DemandTextureCachePtr demandTextureCache,
                           ProxyFactoryPtr       proxyFactory,
                           DemandLoaderPtr       demandLoader,

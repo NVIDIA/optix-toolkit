@@ -85,7 +85,7 @@ class Application : public otk::Sample
     CudaContext           m_cuda;
     LoggerPtr             m_logger;
     MeshInfoReaderPtr     m_infoReader;
-    PbrtSceneLoaderPtr            m_pbrt;
+    PbrtSceneLoaderPtr    m_pbrt;
     DemandLoaderPtr       m_demandLoader;
     GeometryLoaderPtr     m_geometryLoader;
     MaterialLoaderPtr     m_materialLoader;
