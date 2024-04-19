@@ -31,8 +31,9 @@ class Logger
     virtual ~Logger() = default;
 
     virtual void start( const char* programName ) = 0;
-    virtual void stop()                           = 0;
+    virtual void stop() = 0;
 
+    virtual void info( std::string text, const char* file, int line ) const = 0;
     virtual void warning( std::string text, const char* file, int line ) const = 0;
     virtual void error( std::string text, const char* file, int line ) const   = 0;
 };

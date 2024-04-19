@@ -61,6 +61,7 @@ namespace demandPbrtScene {
         "   --sort-proxies              Sort proxies before resolving\n"
         "   --sync                      Enable extra synchronization for debugging (off in release build)\n"
         "   --verbose                   Enables all verbose logging\n"
+        "   --verbose-loading           Enable verbose of mesh reading\n"
         "   --debug=<x>/<y>             Enable debug output for pixel at (x,y)\n"
         "   --oneshot-debug             Enable one-shot debug output\n"
         "\n"
@@ -186,11 +187,16 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         }
         else if( arg == "--verbose" )
         {
+            options.verboseLoading                 = true;
             options.verboseProxyGeometryResolution = true;
             options.verboseProxyMaterialResolution = true;
             options.verboseSceneDecomposition      = true;
             options.verboseTextureCreation         = true;
         }
+        else if( arg == "--verbose-loading" )
+        {
+            options.verboseLoading = true;
+        }            
         else if( arg == "--sort-proxies" )
         {
             options.sortProxies = true;

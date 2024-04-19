@@ -18,38 +18,36 @@
 // SUCH DAMAGES
 //
 
-#include <OptiXToolkit/PbrtSceneLoader/PbrtSceneLoader.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 
-#include <OptiXToolkit/PbrtApi/PbrtApi.h>
-#include <OptiXToolkit/PbrtSceneLoader/Logger.h>
+#include "PbrtApiImpl.h"
 
-#include <core/api.h>
+#include <utility>
 
 namespace otk {
 namespace pbrt {
 
-PbrtSceneLoader::PbrtSceneLoader( const char* programName, std::shared_ptr<Logger> logger, std::shared_ptr<Api> api )
-    : m_logger( std::move( logger ) )
-    , m_api( std::move( api ) )
+class PbrtSceneLoader : public SceneLoader
 {
-    m_logger->start( programName );
-    setApi( m_api.get() );
-}
+  public:
+    PbrtSceneLoader( const char* programName, std::shared_ptr<Logger> logger, std::shared_ptr<MeshInfoReader> infoReader )
+        : m_api( std::make_shared<PbrtApiImpl>( programName, std::move( logger ), std::move( infoReader ) ) )
+    {
+    }
+    ~PbrtSceneLoader() override = default;
 
-PbrtSceneLoader::~PbrtSceneLoader()
-{
-    m_logger->stop();
-    setApi( nullptr );
-}
+    SceneDescriptionPtr parseFile( const std::string& filename ) override { return m_api->parseFile( filename ); }
+    SceneDescriptionPtr parseString( const std::string& str ) override { return m_api->parseString( str ); }
 
-void PbrtSceneLoader::loadFile( std::string filename )
-{
-    m_api->parseFile( std::move( filename ) );
-}
+  private:
+    std::shared_ptr<PbrtApiImpl> m_api;
+};
 
-void PbrtSceneLoader::loadString( std::string text )
+std::shared_ptr<SceneLoader> createSceneLoader( const char*                            programName,
+                                                const std::shared_ptr<Logger>&         logger,
+                                                const std::shared_ptr<MeshInfoReader>& infoReader )
 {
-    m_api->parseString( std::move( text ) );
+    return std::make_shared<PbrtSceneLoader>( programName, logger, infoReader );
 }
 
 }  // namespace pbrt

@@ -41,9 +41,6 @@ class Api
 
     virtual ~Api() = default;
 
-    virtual SceneDescriptionPtr parseFile( std::string filename ) = 0;
-    virtual SceneDescriptionPtr parseString( std::string str )    = 0;
-
     virtual void identity()                                                                                         = 0;
     virtual void translate( float dx, float dy, float dz )                                                          = 0;
     virtual void rotate( float angle, float ax, float ay, float az )                                                = 0;
@@ -84,6 +81,7 @@ class Api
     virtual void worldEnd()                                                           = 0;
 
     // Error handling during parse
+    virtual void info( std::string text, const char* file, int line ) const    = 0;
     virtual void warning( std::string text, const char* file, int line ) const = 0;
     virtual void error( std::string text, const char* file, int line ) const   = 0;
 };

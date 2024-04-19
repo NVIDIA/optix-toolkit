@@ -70,7 +70,7 @@ class PbrtScene : public Scene
 {
   public:
     PbrtScene( const Options&        options,
-               PbrtApiPtr            pbrt,
+               PbrtSceneLoaderPtr    pbrt,
                DemandTextureCachePtr demandTextureCache,
                ProxyFactoryPtr       proxyFactory,
                DemandLoaderPtr       demandLoader,
@@ -113,7 +113,7 @@ class PbrtScene : public Scene
 
     // Dependencies
     const Options&        m_options;
-    PbrtApiPtr            m_pbrt;
+    PbrtSceneLoaderPtr    m_sceneLoader;
     DemandTextureCachePtr m_demandTextureCache;
     ProxyFactoryPtr       m_proxyFactory;
     DemandLoaderPtr       m_demandLoader;

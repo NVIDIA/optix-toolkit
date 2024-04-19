@@ -77,11 +77,14 @@ add_library( pbrtParser STATIC
   # the API to an interface.
   PbrtApi.cpp
   include/OptiXToolkit/PbrtApi/PbrtApi.h
+  ReadMe.md
   )
 source_group("Source Files" REGULAR_EXPRESSION "[^/]*\\.cpp")
 source_group("Header Files" REGULAR_EXPRESSION "[^/]*\\.h")
 source_group("Header Files/core" REGULAR_EXPRESSION "core/[^/]*\\.h")
 source_group("Header Files/textures" REGULAR_EXPRESSION "textures/[^/]*\\.h")
+source_group("Interface/Source Files" PbrtApi.cpp)
+source_group("Interface/Header Files" include/OptiXToolkit/PbrtApi/PbrtApi.h)
 
 set_property(TARGET pbrtParser PROPERTY FOLDER "ThirdParty")
 

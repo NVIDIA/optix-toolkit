@@ -44,7 +44,7 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Gui/BufferMapper.h>
 #include <OptiXToolkit/PbrtSceneLoader/GoogleLogger.h>
-#include <OptiXToolkit/PbrtSceneLoader/PbrtApiImpl.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/PbrtSceneLoader/PlyReader.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
@@ -66,9 +66,9 @@ static demandLoading::Options getDemandLoaderOptions()
 Application::Application( int argc, char* argv[] )
     : m_options( parseOptions( argc, argv ) )
     , m_cuda( getCudaDeviceIndex() )
-    , m_logger( std::make_shared<otk::pbrt::GoogleLogger>() )
+    , m_logger( std::make_shared<otk::pbrt::GoogleLogger>( m_options.verboseLoading ? /*info=*/0 : /*warning=*/1 ) )
     , m_infoReader( std::make_shared<ply::InfoReader>() )
-    , m_pbrt( createApi( m_options.program.c_str(), m_logger, m_infoReader ) )
+    , m_pbrt( createSceneLoader( m_options.program.c_str(), m_logger, m_infoReader ) )
     , m_demandLoader( createDemandLoader( getDemandLoaderOptions() ), demandLoading::destroyDemandLoader )
     , m_geometryLoader( std::make_shared<demandGeometry::ProxyInstances>( m_demandLoader.get() ) )
     , m_materialLoader( demandMaterial::createMaterialLoader( m_demandLoader.get() ) )

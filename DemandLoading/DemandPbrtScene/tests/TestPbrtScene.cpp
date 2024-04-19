@@ -53,8 +53,8 @@
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
-#include <OptiXToolkit/PbrtApi/PbrtApi.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <cuda.h>
@@ -392,53 +392,13 @@ inline OptixProgramGroup PG( unsigned int id )
 
 namespace {
 
-class MockApi : public StrictMock<otk::pbrt::Api>
+class MockSceneLoader : public StrictMock<otk::pbrt::SceneLoader>
 {
   public:
-    ~MockApi() override = default;
+    ~MockSceneLoader() override = default;
 
-    MOCK_METHOD( SceneDescriptionPtr, parseFile, ( std::string ), ( override ) );
-    MOCK_METHOD( SceneDescriptionPtr, parseString, ( std::string ), ( override ) );
-    MOCK_METHOD( void, identity, (), ( override ) );
-    MOCK_METHOD( void, translate, (float, float, float), ( override ) );
-    MOCK_METHOD( void, rotate, (float, float, float, float), ( override ) );
-    MOCK_METHOD( void, scale, (float, float, float), ( override ) );
-    MOCK_METHOD( void, lookAt, (float, float, float, float, float, float, float, float, float), ( override ) );
-    MOCK_METHOD( void, concatTransform, ( float[16] ), ( override ) );
-    MOCK_METHOD( void, transform, ( float[16] ), ( override ) );
-    MOCK_METHOD( void, coordinateSystem, (const std::string&), ( override ) );
-    MOCK_METHOD( void, coordSysTransform, (const std::string&), ( override ) );
-    MOCK_METHOD( void, activeTransformAll, (), ( override ) );
-    MOCK_METHOD( void, activeTransformEndTime, (), ( override ) );
-    MOCK_METHOD( void, activeTransformStartTime, (), ( override ) );
-    MOCK_METHOD( void, transformTimes, (float, float), ( override ) );
-    MOCK_METHOD( void, pixelFilter, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, film, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, sampler, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, accelerator, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, integrator, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, camera, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, makeNamedMedium, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, mediumInterface, (const std::string&, const std::string&), ( override ) );
-    MOCK_METHOD( void, worldBegin, (), ( override ) );
-    MOCK_METHOD( void, attributeBegin, (), ( override ) );
-    MOCK_METHOD( void, attributeEnd, (), ( override ) );
-    MOCK_METHOD( void, transformBegin, (), ( override ) );
-    MOCK_METHOD( void, transformEnd, (), ( override ) );
-    MOCK_METHOD( void, texture, (const std::string&, const std::string&, const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, material, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, makeNamedMaterial, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, namedMaterial, (const std::string&), ( override ) );
-    MOCK_METHOD( void, lightSource, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, areaLightSource, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, shape, (const std::string&, const ParamSet&), ( override ) );
-    MOCK_METHOD( void, reverseOrientation, (), ( override ) );
-    MOCK_METHOD( void, objectBegin, (const std::string&), ( override ) );
-    MOCK_METHOD( void, objectEnd, (), ( override ) );
-    MOCK_METHOD( void, objectInstance, (const std::string&), ( override ) );
-    MOCK_METHOD( void, worldEnd, (), ( override ) );
-    MOCK_METHOD( void, error, (std::string, const char*, int), ( const override ) );
-    MOCK_METHOD( void, warning, (std::string, const char*, int), ( const override ) );
+    MOCK_METHOD( SceneDescriptionPtr, parseFile, ( const std::string& path ), ( override ) );
+    MOCK_METHOD( SceneDescriptionPtr, parseString, ( const std::string& str ), ( override ) );
 };
 
 class MockDemandTexture : public StrictMock<demandLoading::DemandTexture>
@@ -523,7 +483,7 @@ class MockRenderer : public StrictMock<Renderer>
 
 using StrictMockDemandLoader    = StrictMock<MockDemandLoader>;
 using StrictMockOptix           = StrictMock<MockOptix>;
-using MockApiPtr                = std::shared_ptr<MockApi>;
+using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
 using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
 using MockDemandTextureCachePtr = std::shared_ptr<MockDemandTextureCache>;
 using MockImageSourcePtr        = std::shared_ptr<MockImageSource>;
@@ -572,7 +532,7 @@ class TestPbrtScene : public Test
 
     CUstream                  m_stream{};
     StrictMockOptix           m_optix{};
-    MockApiPtr                m_api{ std::make_shared<MockApi>() };
+    MockSceneLoaderPtr        m_sceneLoader{ std::make_shared<MockSceneLoader>() };
     MockDemandTextureCachePtr m_demandTextureCache{ std::make_shared<MockDemandTextureCache>() };
     MockProxyFactoryPtr       m_proxyFactory{ std::make_shared<MockProxyFactory>() };
     MockDemandLoaderPtr       m_demandLoader{ std::make_shared<StrictMockDemandLoader>() };
@@ -581,7 +541,7 @@ class TestPbrtScene : public Test
     MockRendererPtr           m_renderer{ std::make_shared<MockRenderer>() };
     Options                   m_options{"DemandPbrtScene", "test.pbrt", "out.png"};
     // clang-format off
-    PbrtScene m_scene{ m_options, m_api, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_renderer };
+    PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_renderer };
     // clang-format on
     SceneDescriptionPtr            m_sceneDesc{ std::make_shared<otk::pbrt::SceneDescription>() };
     OptixAabb                      m_sceneBounds{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
@@ -667,7 +627,7 @@ Expectation TestPbrtScene::expectModuleCreated( OptixModule module )
 ExpectationSet TestPbrtScene::expectInitializeCreatesOptixState()
 {
     ExpectationSet expect;
-    expect += EXPECT_CALL( *m_api, parseFile( _ ) ).WillOnce( Return( m_sceneDesc ) );
+    expect += EXPECT_CALL( *m_sceneLoader, parseFile( _ ) ).WillOnce( Return( m_sceneDesc ) );
     expect += EXPECT_CALL( *m_mockSceneProxy, getPageId() ).WillOnce( Return( m_scenePageId ) );
     // TODO: Determine why adding this expectation to the set causes a dangling reference to m_mockSceneProxy
     /*expect +=*/EXPECT_CALL( *m_proxyFactory, scene( _, _ ) ).WillOnce( Return( m_mockSceneProxy ) );
@@ -1123,7 +1083,7 @@ MATCHER_P( hasLensRadius, value, "" )
 
 TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
 {
-    EXPECT_CALL( *m_api, parseFile( m_options.sceneFile ) ).Times( 1 ).WillOnce( Return( m_sceneDesc ) );
+    EXPECT_CALL( *m_sceneLoader, parseFile( m_options.sceneFile ) ).Times( 1 ).WillOnce( Return( m_sceneDesc ) );
     EXPECT_CALL( *m_mockSceneProxy, getPageId() ).WillOnce( Return( m_scenePageId ) );
     EXPECT_CALL( *m_proxyFactory, scene( static_cast<GeometryLoaderPtr>( m_geometryLoader ), m_sceneDesc ) ).WillOnce( Return( m_mockSceneProxy ) );
     EXPECT_CALL( *m_renderer, getDeviceContext() ).WillRepeatedly( Return( m_fakeContext ) );

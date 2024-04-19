@@ -44,8 +44,8 @@
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
-#include <OptiXToolkit/PbrtApi/PbrtApi.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 
 #include <optix_stubs.h>
 
@@ -62,7 +62,7 @@
 namespace demandPbrtScene {
 
 PbrtScene::PbrtScene( const Options&        options,
-                      PbrtApiPtr            pbrt,
+                      PbrtSceneLoaderPtr    pbrt,
                       DemandTextureCachePtr demandTextureCache,
                       ProxyFactoryPtr       proxyFactory,
                       DemandLoaderPtr       demandLoader,
@@ -70,7 +70,7 @@ PbrtScene::PbrtScene( const Options&        options,
                       MaterialLoaderPtr     materialLoader,
                       RendererPtr           renderer )
     : m_options( options )
-    , m_pbrt( std::move( pbrt ) )
+    , m_sceneLoader( std::move( pbrt ) )
     , m_demandTextureCache( std::move( demandTextureCache ) )
     , m_proxyFactory( std::move( proxyFactory ) )
     , m_demandLoader( std::move( demandLoader ) )
@@ -264,7 +264,7 @@ void PbrtScene::createTopLevelTraversable( CUstream stream )
 void PbrtScene::initialize( CUstream stream )
 {
     std::cout << "Reading " << m_options.sceneFile << "...\n";
-    m_scene = m_pbrt->parseFile( m_options.sceneFile );
+    m_scene = m_sceneLoader->parseFile( m_options.sceneFile );
     if( m_scene->errors > 0 )
         throw std::runtime_error( "Couldn't load scene " + m_options.sceneFile );
 
@@ -753,7 +753,7 @@ void PbrtScene::afterLaunch( CUstream stream, const Params& params )
 }
 
 ScenePtr createPbrtScene( const Options&        options,
-                          PbrtApiPtr            pbrt,
+                          PbrtSceneLoaderPtr    pbrt,
                           DemandTextureCachePtr demandTextureCache,
                           ProxyFactoryPtr       proxyFactory,
                           DemandLoaderPtr       demandLoader,
