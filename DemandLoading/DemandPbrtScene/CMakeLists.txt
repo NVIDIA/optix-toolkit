@@ -24,7 +24,7 @@ include(BuildConfig)
 include(embed_cuda)
 
 find_package(OptiX 7.5)
-if(NOT OptiX_FOUND)
+if(NOT OptiX_FOUND OR OPTIX_VERSION VERSION_LESS 7.5)
     message(WARNING "Cannot build DemandPbrtScene: it requires OptiX 7.5 or greater.")
     return()
 endif()
