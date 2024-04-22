@@ -515,6 +515,16 @@ BuildInputMatcher twoInstanceIAS( OptixTraversableHandle instance1, OptixTravers
                                                                                      hasInstanceId( instanceId1 ) ) ) ) ) );
 }
 
+// This was needed to satisfy gcc instead of constructing from a brace initializer list.
+Options testOptions()
+{
+    Options options{};
+    options.program   = "DemandPbrtScene";
+    options.sceneFile = "test.pbrt";
+    options.outFile   = "out.png";
+    return options;
+}
+
 class TestPbrtScene : public Test
 {
   public:
@@ -539,7 +549,7 @@ class TestPbrtScene : public Test
     MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockMaterialLoaderPtr     m_materialLoader{ std::make_shared<MockMaterialLoader>() };
     MockRendererPtr           m_renderer{ std::make_shared<MockRenderer>() };
-    Options                   m_options{"DemandPbrtScene", "test.pbrt", "out.png"};
+    Options                   m_options{ testOptions() };
     // clang-format off
     PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_renderer };
     // clang-format on
