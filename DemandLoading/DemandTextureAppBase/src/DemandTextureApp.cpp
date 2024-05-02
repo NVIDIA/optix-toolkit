@@ -375,11 +375,11 @@ demandLoading::TextureDescriptor DemandTextureApp::makeTextureDescriptor( CUaddr
 }
 
 
-imageSource::ImageSource* DemandTextureApp::createExrImage( const std::string& filePath )
+std::shared_ptr<imageSource::ImageSource> DemandTextureApp::createExrImage( const std::string& filePath )
 {
     try
     {
-        return filePath.empty() ? nullptr : new imageSource::EXRREADER( filePath, true );
+        return filePath.empty() ? std::shared_ptr<imageSource::ImageSource>() : imageSource::createImageSource( filePath );
     }
     catch( ... )
     {

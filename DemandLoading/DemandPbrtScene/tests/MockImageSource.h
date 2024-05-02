@@ -149,6 +149,8 @@ class MockImageSource : public ::testing::StrictMock<imageSource::ImageSource>
     MOCK_METHOD( bool, readMipLevel, ( char*, unsigned, unsigned, unsigned, CUstream ), ( override ) );
     MOCK_METHOD( bool, readMipTail, ( char*, unsigned, unsigned, const uint2*, unsigned, CUstream ), ( override ) );
     MOCK_METHOD( bool, readBaseColor, (float4&), ( override ) );
+    MOCK_METHOD( unsigned int, getTileWidth, (), ( const, override ) );
+    MOCK_METHOD( unsigned int, getTileHeight, (), ( const, override ) );
     MOCK_METHOD( unsigned long long, getNumTilesRead, (), ( const, override ) );
     MOCK_METHOD( unsigned long long, getNumBytesRead, (), ( const, override ) );
     MOCK_METHOD( double, getTotalReadTime, (), ( const, override ) );

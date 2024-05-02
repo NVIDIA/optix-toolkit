@@ -160,7 +160,7 @@ ImageSourcePtr DemandTextureViewer::createImageSource()
     {
         // Assume EXR images are tiled and mipmapped.
         if( endsWith( m_textureName, ".exr" ) )
-            img.reset( createExrImage( m_textureName ) );
+            img = createExrImage( m_textureName );
         else
         {
             img = imageSources::createImageSource( m_textureName );

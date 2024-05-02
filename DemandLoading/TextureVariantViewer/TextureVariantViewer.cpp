@@ -59,13 +59,11 @@ class TextureVariantApp : public DemandTextureApp
 
 void TextureVariantApp::createTexture()
 {
-    imageSource::ImageSource* img = createExrImage( m_textureName );
-    if( !img && ( !m_textureName.empty() ) )
+    std::shared_ptr<imageSource::ImageSource> imageSource = createExrImage( m_textureName );
+    if( !imageSource && ( !m_textureName.empty() ) )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
-    if( !img )
-        img = new imageSources::MultiCheckerImage<float4>( 8192, 8192, 16, true );
-    
-    std::shared_ptr<imageSource::ImageSource> imageSource( img );
+    if( !imageSource )
+        imageSource.reset( new imageSources::MultiCheckerImage<float4>( 8192, 8192, 16, true ) );
 
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
