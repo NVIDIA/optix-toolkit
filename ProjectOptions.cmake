@@ -42,7 +42,7 @@ endif()
 
 # Default to using vcpkg for dependencies
 option( OTK_USE_VCPKG         "Use vcpkg for third party libraries" ON )
-option( OTK_USE_VCPKG_OPENEXR "Use vcpkg to obtain OpenEXR" ${OTK_USE_VCPKG} )
+option( OTK_USE_OPENEXR       "Use OpenEXR in DemandLoading to read EXRs" ON )
 option( OTK_USE_OIIO          "Use OpenImageIO to allow DemandLoading to read PNGs and JPGs" OFF )
 # OTK_USE_VCPKG takes precedence over FetchContent if both are ON.
 option( OTK_FETCH_CONTENT     "Use FetchContent for third party libraries, if OTK_USE_VCPKG is OFF" ON )
@@ -85,7 +85,7 @@ if( OTK_USE_VCPKG )
     if( NOT VCPKG_MANIFEST_FEATURES )
         set(VCPKG_MANIFEST_FEATURES "" )
     endif()
-    otk_vcpkg_feature( OTK_USE_VCPKG_OPENEXR  "otk-openexr" )
+    otk_vcpkg_feature( OTK_USE_OPENEXR        "otk-openexr" )
     # OpenImageIO is too costly to include by default (it depends on Boost).
     otk_vcpkg_feature( OTK_USE_OIIO           "otk-openimageio" )
     otk_vcpkg_feature( OTK_BUILD_EXAMPLES     "otk-examples" )
