@@ -68,7 +68,7 @@ TEST_F( TestTicket, TestSingleThreaded )
 
 TEST_F( TestTicket, TestMultiThreaded )
 {
-    const unsigned int numTasks = 32;
+    unsigned int numTasks = 32;
     TicketImpl         ticket( CUstream{} );
     ticket.update( numTasks );
     std::vector<std::thread> workers;

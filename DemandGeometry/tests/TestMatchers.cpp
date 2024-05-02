@@ -202,8 +202,6 @@ TEST_F( TestHasNoPreTransform, matchesNoTransform )
     EXPECT_THAT( &m_data, hasTriangleBuildInput( 0, hasNoPreTransform() ) );
 }
 
-const unsigned int NUM_SBT_RECORDS = 5;
-
 class TestHasNoSbtIndexOffsets : public TestOptixBuildInput
 {
   public:
