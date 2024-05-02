@@ -28,4 +28,5 @@
 
 #pragma once
 
+#cmakedefine01 OTK_USE_OPENEXR
 #cmakedefine01 OTK_USE_OIIO

@@ -113,6 +113,12 @@ class ImageSource
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     virtual bool readBaseColor( float4& dest ) = 0;
 
+    /// Get tile width (used only for testing).
+    virtual unsigned int getTileWidth() const = 0;
+
+    /// Get tile height (used only for testing).
+    virtual unsigned int getTileHeight() const = 0;
+
     /// Returns the number of tiles that have been read.
     virtual unsigned long long getNumTilesRead() const = 0;
 
@@ -139,6 +145,10 @@ class ImageSourceBase : public ImageSource
                       const uint2* mipLevelDims,
                       unsigned int pixelSizeInBytes,
                       CUstream     stream ) override;
+
+    unsigned int getTileWidth() const override { return 0u; }
+
+    unsigned int getTileHeight() const override { return 0u; }
 
     unsigned long long getNumTilesRead() const override { return 0u; }
 

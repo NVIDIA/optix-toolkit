@@ -100,6 +100,8 @@ class MockImageSource : public imageSource::ImageSource
                  ( char* dest, unsigned int mipTailFirstLevel, unsigned int numMipLevels, const uint2* mipLevelDims, unsigned int pixelSizeInBytes, CUstream stream ),
                  ( override ) );
     MOCK_METHOD( bool, readBaseColor, ( float4 & dest ), ( override ) );
+    MOCK_METHOD( unsigned int, getTileWidth, (), ( const override ) );
+    MOCK_METHOD( unsigned int, getTileHeight, (), ( const override ) );
     MOCK_METHOD( unsigned long long, getNumTilesRead, (), ( const override ) );
     MOCK_METHOD( unsigned long long, getNumBytesRead, (), ( const override ) );
     MOCK_METHOD( double, getTotalReadTime, (), ( const override ) );

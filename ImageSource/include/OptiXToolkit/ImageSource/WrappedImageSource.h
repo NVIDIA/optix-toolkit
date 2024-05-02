@@ -92,6 +92,12 @@ class WrappedImageSource : public ImageSource
     bool readBaseColor( float4& dest ) override { return m_imageSource->readBaseColor( dest ); }
 
     /// Delegates to the wrapped ImageSource.
+    unsigned int getTileWidth() const override { return m_imageSource->getTileWidth(); }
+
+    /// Delegates to the wrapped ImageSource.
+    unsigned int getTileHeight() const override { return m_imageSource->getTileHeight(); }
+
+    /// Delegates to the wrapped ImageSource.
     unsigned long long getNumTilesRead() const override { return m_imageSource->getNumTilesRead(); }
 
     /// Delegates to the wrapped ImageSource.

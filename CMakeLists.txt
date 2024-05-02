@@ -37,7 +37,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 include(BuildConfig)
-include(FetchOpenEXR)
 include(CTest)
 
 if(NOT TARGET CUDA::cuda_driver)

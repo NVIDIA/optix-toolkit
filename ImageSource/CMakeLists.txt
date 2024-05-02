@@ -31,8 +31,6 @@ include(BuildConfig)
 otk_add_library( ImageSource
   src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
-  src/CoreEXRReader.cpp
-  src/EXRReader.cpp
   src/ImageSource.cpp
   src/ImageSourceCache.cpp
   src/MipMapImageSource.cpp
@@ -54,8 +52,6 @@ target_sources(ImageSource
   FILES
   include/OptiXToolkit/ImageSource/CascadeImage.h
   include/OptiXToolkit/ImageSource/CheckerBoardImage.h
-  include/OptiXToolkit/ImageSource/CoreEXRReader.h
-  include/OptiXToolkit/ImageSource/EXRReader.h
   include/OptiXToolkit/ImageSource/ImageHelpers.h
   include/OptiXToolkit/ImageSource/ImageSource.h
   include/OptiXToolkit/ImageSource/ImageSourceCache.h
@@ -70,16 +66,6 @@ source_group( "Header Files\\Implementation" FILES
   src/Stopwatch.h
   )
 
-target_compile_definitions( ImageSource PUBLIC
-  OPTIX_SAMPLE_USE_CORE_EXR
-  OTK_IMF_NAMESPACE=Imf_3_1
-  )
-
-if(NOT MSVC)
-  # Silence 'ISO C++ prohibits anonymous structs' warning in OpenEXR header.
-  target_compile_options( ImageSource PRIVATE -Wno-pedantic )
-endif()
-
 target_include_directories( ImageSource
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -89,17 +75,48 @@ target_include_directories( ImageSource
   src
   )
 
-# Bundle OpenEXR libraries to work around export problem.
-add_library(OpenEXR_OTK INTERFACE IMPORTED)
-target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
-
 target_link_libraries( ImageSource
   PUBLIC
   CUDA::cuda_driver
   PRIVATE
   OptiXToolkit::Error
-  OpenEXR_OTK
   )
+
+if( OTK_USE_OPENEXR )
+    include(FetchOpenEXR)
+    if(OpenEXR_FOUND)
+        target_sources(ImageSource PRIVATE 
+            src/CoreEXRReader.cpp
+            src/EXRReader.cpp
+        )
+        target_sources(ImageSource
+            PUBLIC 
+            FILE_SET HEADERS 
+            BASE_DIRS include
+            FILES
+            include/OptiXToolkit/ImageSource/CoreEXRReader.h
+            include/OptiXToolkit/ImageSource/EXRReader.h
+        )
+        target_compile_definitions( ImageSource PUBLIC
+            OPTIX_SAMPLE_USE_CORE_EXR
+            OTK_IMF_NAMESPACE=Imf_3_1
+        )
+        if(NOT MSVC)
+            # Silence 'ISO C++ prohibits anonymous structs' warning in OpenEXR header.
+            target_compile_options( ImageSource PRIVATE -Wno-pedantic )
+        endif()
+        # Bundle OpenEXR libraries to work around export problem.
+        add_library(OpenEXR_OTK INTERFACE IMPORTED)
+        target_link_libraries(OpenEXR_OTK INTERFACE OpenEXR::OpenEXR OpenEXR::OpenEXRCore)
+        target_link_libraries( ImageSource
+            PRIVATE
+            OpenEXR_OTK
+        )
+    else()
+        message( WARNING "OTK_USE_OPENEXR is ON, but OpenEXR not found; skipping EXRReader and forcing to OFF." )
+        set( OTK_USE_OPENEXR OFF CACHE BOOL "Use OpenEXR in DemandLoading to read EXRs" FORCE )
+    endif()
+endif()
 
 if( OTK_USE_OIIO )
     find_package(OpenImageIO QUIET)
@@ -122,7 +139,7 @@ if( OTK_USE_OIIO )
     endif()
 endif()
 
-# Define OTK_USE_OIIO in Config.h
+# Define OTK_USE_OPENEXR and OTK_USE_OIIO in Config.h
 configure_file( src/Config.h.in include/Config.h @ONLY )
 
 target_include_directories(ImageSource PUBLIC  # public to facilitate unit testing.
