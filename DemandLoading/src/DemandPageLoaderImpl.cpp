@@ -30,7 +30,6 @@
 
 #include "Util/NVTXProfiling.h"
 #include "Util/Stopwatch.h"
-#include "Util/TraceFile.h"
 #include "TicketImpl.h"
 
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
@@ -133,18 +132,6 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
 
     std::unique_lock<std::mutex> lock( m_mutex );
     m_totalProcessingTime += stopwatch.elapsed();
-}
-
-void DemandPageLoaderImpl::replayRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
-{
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    // Flush any page mappings that have accumulated for the current CUDA context.
-    m_pagingSystem.flushMappings();
-
-    m_requestProcessor->addRequests( stream, id, pageIds, numPageIds);
 }
 
 // Predicate that returns tile pages to a tile pool if the arenaId is high enough, allowing

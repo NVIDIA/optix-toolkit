@@ -193,9 +193,6 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
     DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDesc, imageSource );
     m_textures.emplace( textureId, tex );
 
-    // Record the image reader and texture descriptor.
-    m_requestProcessor.recordTexture( imageSource, textureDesc );
-
     return *m_textures[textureId];
 }
 
@@ -230,9 +227,6 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
                 tex->setUdimTexture( startTextureId, udim, vdim, false );
-
-                // Record the image reader and texture descriptor.
-                m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
             else 
             {
@@ -371,7 +365,6 @@ void DemandLoaderImpl::replaceTexture( CUstream                                 
                 m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( variantId, getOptions().maxTextures ), true );
         }
     }
-    m_requestProcessor.recordTexture( image, textureDesc );
 }
 
 void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
@@ -447,23 +440,6 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     m_requestProcessor.setTicket( id, ticket);
 
     m_pageLoader->pullRequests( stream, context, id );
-
-    return ticket;
-}
-
-Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
-{
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
-    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket = TicketImpl::create( stream );
-    const unsigned int id = m_ticketId++;
-    m_requestProcessor.setTicket( id, ticket );
-
-    m_pageLoader->replayRequests( stream, id, requestedPages, numRequestedPages );
 
     return ticket;
 }

@@ -43,7 +43,6 @@
 #include "Textures/CascadeRequestHandler.h"
 #include <OptiXToolkit/DemandLoading/TextureCascade.h>
 #include "TransferBufferDesc.h"
-#include "Util/TraceFile.h"
 
 #include <cuda.h>
 
@@ -141,11 +140,6 @@ class DemandLoaderImpl : public DemandLoader
     /// tile data to the device.  Returns a ticket that is notified when the requests have been
     /// filled on the host side.
     Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) override;
-
-    /// Replay the given page requests (from a trace file), adding them to the page requeuest queue
-    /// for asynchronous processing.  The caller must ensure that the current CUDA context matches
-    /// the given stream.  Returns a ticket that is notified when the requests have been filled.
-    Ticket replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages );
 
     /// Abort demand loading, with minimal cleanup and no CUDA calls.  Halts asynchronous request
     /// processing.  Useful in case of catastrophic CUDA error or corruption.

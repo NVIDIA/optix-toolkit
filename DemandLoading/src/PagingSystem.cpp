@@ -382,12 +382,6 @@ size_t PagingSystem::getNumStagedPages()
     return numPages;
 }
 
-void PagingSystem::flushMappings()
-{
-    std::unique_lock<std::mutex> lock( m_mutex );
-    m_pageMappingsContext->numFilledPages = 0;
-}
-
 void PagingSystem::pushMappingsAndInvalidations( const DeviceContext& context, CUstream stream )
 {
     // Mutex acquired in caller 

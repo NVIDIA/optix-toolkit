@@ -40,7 +40,6 @@
 #include "Textures/DemandTextureImpl.h"
 #include "Textures/SamplerRequestHandler.h"
 #include "TransferBufferDesc.h"
-#include "Util/TraceFile.h"
 
 #include <cuda.h>
 
@@ -59,7 +58,6 @@ struct DeviceContext;
 class DemandTexture;
 class RequestProcessor;
 struct TextureDescriptor;
-class TraceFileWriter;
 
 /// DemandLoader demonstrates how to implement demand-loaded textures using the OptiX paging library.
 class DemandPageLoaderImpl : public DemandPageLoader
@@ -92,16 +90,6 @@ class DemandPageLoaderImpl : public DemandPageLoader
     /// notified when the requests have been filled.
     void pullRequests( CUstream stream, const DeviceContext& deviceContext, unsigned int id ) override;
 
-    /// Replay the given page requests (from a trace file), adding them to the page request queue
-    /// for asynchronous processing.  The caller must ensure that the current CUDA context matches
-    /// the given stream.
-    void replayRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds );
-
-#if 0    
-    /// Get the demand loading configuration options.
-    const Options& getOptions() const { return *m_options; }
-#endif
-    
     /// Turn on or off eviction
     void enableEviction( bool evictionActive ) override { m_options->evictionActive = evictionActive; }
 
