@@ -28,5 +28,7 @@
 
 #pragma once
 
+// Generated from @CMAKE_CURRENT_LIST_DIR@/Config.h.in
+
 #cmakedefine01 OTK_USE_OPENEXR
 #cmakedefine01 OTK_USE_OIIO

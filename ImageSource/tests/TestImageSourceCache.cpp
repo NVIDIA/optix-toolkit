@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
+#include "Config.h"
+#include "ImageSourceTestConfig.h"
 
 #include <OptiXToolkit/ImageSource/ImageSourceCache.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
@@ -44,6 +45,12 @@ class TestImageSourceCache : public testing::Test
     std::string      m_jpgPath{ m_directoryPrefix + "level0.jpg" };
 };
 
+TEST_F( TestImageSourceCache, findMissing )
+{
+    EXPECT_EQ( std::shared_ptr<ImageSource>(), m_cache.find( "missing-file.foo" ) );
+}
+
+#if OTK_USE_OPENEXR
 TEST_F( TestImageSourceCache, get )
 {
     std::shared_ptr<ImageSource> imageSource1( m_cache.get( m_exrPath ) );
@@ -56,17 +63,13 @@ TEST_F( TestImageSourceCache, get )
     EXPECT_EQ( 1, stats.numImageSources );
 }
 
-TEST_F( TestImageSourceCache, findMissing )
-{
-    EXPECT_EQ( std::shared_ptr<ImageSource>(), m_cache.find( "missing-file.foo" ) );
-}
-
 TEST_F( TestImageSourceCache, findPresent )
 {
     std::shared_ptr<ImageSource> image = m_cache.get( m_exrPath );
 
     EXPECT_EQ( image, m_cache.find( m_exrPath ) );
 }
+#endif
 
 #if OTK_USE_OIIO
 TEST_F( TestImageSourceCache, setAdaptedReturnsAdapted )

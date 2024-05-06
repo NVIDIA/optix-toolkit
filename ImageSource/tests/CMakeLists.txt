@@ -35,14 +35,19 @@ configure_file( ImageSourceTestConfig.h.in include/ImageSourceTestConfig.h @ONLY
 otk_add_executable( testImageSource
   MockImageSource.h
   TestCheckerBoardImage.cpp
-  TestImageSource.cpp
   TestImageSourceCache.cpp
   TestMipMapImageSource.cpp
-  TestRateLimitedImageSource.cpp
   TestTiledImageSource.cpp
   ImageSourceTestConfig.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/ImageSourceTestConfig.h
 )
+if(OTK_USE_OIIO OR OTK_USE_OPENEXR)
+    target_sources(testImageSource PUBLIC TestImageSource.cpp)
+endif()
+if(OTK_USE_OPENEXR)
+    target_sources(testImageSource PUBLIC TestRateLimitedImageSource.cpp)
+endif()
+source_group("CMake Templates" REGULAR_EXPRESSION ".*\.in$")
 
 target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
 target_link_libraries( testImageSource PUBLIC

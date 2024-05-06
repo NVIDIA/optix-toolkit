@@ -41,6 +41,7 @@ otk_add_library( ImageSource
   src/Config.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/Config.h
 )
+source_group("CMake Templates" REGULAR_EXPRESSION ".*\.in$")
 set_property(TARGET ImageSource PROPERTY FOLDER DemandLoading)
 
 add_library(OptiXToolkit::ImageSource ALIAS ImageSource)

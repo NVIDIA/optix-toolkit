@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
+#include "ImageSourceTestConfig.h"
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/RateLimitedImageSource.h>
