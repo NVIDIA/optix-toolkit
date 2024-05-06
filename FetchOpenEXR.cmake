@@ -106,6 +106,9 @@ else()
     FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(OpenEXR)
+
+  # Act like find_package(OpenEXR 3.1 REQUIRED) was run successfully.
+  set(OpenEXR_FOUND ON PARENT_SCOPE)
 endif()
 
 foreach(_target OpenEXR OpenEXRCore OpenEXRUtil IlmThread Iex Imath)
