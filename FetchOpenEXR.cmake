@@ -82,6 +82,8 @@ else()
     FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(Imath)
+  # Let find_package know we have it
+  set(Imath_FOUND ON PARENT_SCOPE)
 
   # Note: Imath does not permit installation to be disabled.
   # set( IMATH_INSTALL OFF CACHE BOOL "Install Imath" )
@@ -106,8 +108,7 @@ else()
     FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(OpenEXR)
-
-  # Act like find_package(OpenEXR 3.1 REQUIRED) was run successfully.
+  # Let find_package know we have it
   set(OpenEXR_FOUND ON PARENT_SCOPE)
 endif()
 

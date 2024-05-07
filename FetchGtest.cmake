@@ -63,6 +63,8 @@ FetchContent_Declare(
   FIND_PACKAGE_ARGS NAMES GTest
 )
 FetchContent_MakeAvailable(googletest)
+# Let find_package know we have it
+set(GTest_FOUND ON PARENT_SCOPE)
 
 gtest_folders()
 
