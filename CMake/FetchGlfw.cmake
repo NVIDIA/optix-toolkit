@@ -62,10 +62,8 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG 3.3.7
     GIT_SHALLOW TRUE
-    FIND_PACKAGE_ARGS
+    OVERRIDE_FIND_PACKAGE
     )
 FetchContent_MakeAvailable(glfw3)
-# Let find_package know we have it
-set(glfw3_FOUND ON PARENT_SCOPE)
 
 glfw_folders()

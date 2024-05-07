@@ -59,7 +59,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/Dav1dde/glad
   GIT_TAG v0.1.36
   GIT_SHALLOW TRUE
-  FIND_PACKAGE_ARGS
+  OVERRIDE_FIND_PACKAGE
 )
 FetchContent_GetProperties(glad)
 if(NOT glad_POPULATED)
@@ -69,8 +69,6 @@ if(NOT glad_POPULATED)
     set(GLAD_GENERATOR "c" CACHE STRING "Language to generate the binding for")
     add_subdirectory(${glad_SOURCE_DIR} ${glad_BINARY_DIR})
 endif()
-# Let find_package know we have it
-set(glad_FOUND ON PARENT_SCOPE)
 
 set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

@@ -42,10 +42,9 @@ FetchContent_Declare(imgui
   GIT_REPOSITORY https://github.com/ocornut/imgui.git
   GIT_TAG v1.89.5
   GIT_SHALLOW TRUE
+  OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(imgui)
-# Let find_package know we have it
-set(imgui_FOUND ON PARENT_SCOPE)
 
 add_library( imgui STATIC
     ${imgui_SOURCE_DIR}/imconfig.h

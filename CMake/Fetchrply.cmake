@@ -48,10 +48,9 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/diegonehab/rply.git
   GIT_TAG 75639e3f12755ca64559d45a4a0bcffc52e04ef8 # v1.1.4
   GIT_SHALLOW TRUE
+  OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(rply)
-# Let find_package know we have it
-set(rply_FOUND ON PARENT_SCOPE)
 
 configure_file(${rply_SOURCE_DIR}/rply.h ${rply_SOURCE_DIR}/include/rply/rply.h COPYONLY)
 add_library(rply STATIC
