@@ -46,5 +46,7 @@ FetchContent_Declare(
   PATCH_COMMAND ${CMAKE_COMMAND} -DGITCOMMAND:PATH=${GITCOMMAND} -DPATCHFILE:PATH=${CMAKE_CURRENT_LIST_DIR}/glog-build-parameters.patch.txt -P ${CMAKE_CURRENT_LIST_DIR}/GitPatch.cmake
 )
 FetchContent_MakeAvailable(glog)
+# Let find_package know we have it
+set(glog_FOUND ON PARENT_SCOPE)
 
 set_target_properties(glog PROPERTIES FOLDER "ThirdParty")

@@ -50,6 +50,8 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(rply)
+# Let find_package know we have it
+set(rply_FOUND ON PARENT_SCOPE)
 
 configure_file(${rply_SOURCE_DIR}/rply.h ${rply_SOURCE_DIR}/include/rply/rply.h COPYONLY)
 add_library(rply STATIC
