@@ -60,11 +60,9 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_TAG release-1.11.0
   GIT_SHALLOW TRUE
-  FIND_PACKAGE_ARGS NAMES GTest
+  OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(googletest)
-# Let find_package know we have it
-set(GTest_FOUND ON PARENT_SCOPE)
 
 gtest_folders()
 
