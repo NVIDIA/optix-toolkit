@@ -79,9 +79,11 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
     GIT_TAG v3.1.7
     GIT_SHALLOW TRUE
-    OVERRIDE_FIND_PACKAGE
+    FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(Imath)
+  # Let find_package know we have it
+  set(Imath_FOUND ON PARENT_SCOPE)
 
   # Note: Imath does not permit installation to be disabled.
   # set( IMATH_INSTALL OFF CACHE BOOL "Install Imath" )
@@ -103,9 +105,11 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
     GIT_TAG v3.1.7
     GIT_SHALLOW TRUE
-    OVERRIDE_FIND_PACKAGE
+    FIND_PACKAGE_ARGS 3.1
   )
   FetchContent_MakeAvailable(OpenEXR)
+  # Let find_package know we have it
+  set(OpenEXR_FOUND ON PARENT_SCOPE)
 endif()
 
 foreach(_target OpenEXR OpenEXRCore OpenEXRUtil IlmThread Iex Imath)
