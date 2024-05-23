@@ -202,7 +202,8 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                                                           std::vector<TextureDescriptor>& textureDescs,
                                                           unsigned int                    udim,
                                                           unsigned int                    vdim,
-                                                          int                             baseTextureId )
+                                                          int                             baseTextureId,
+                                                          unsigned int                    numChannelTextures )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
@@ -226,7 +227,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 entryPointId = std::min( textureId, entryPointId );
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
-                tex->setUdimTexture( startTextureId, udim, vdim, false );
+                tex->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, false );
 
                 // Record the image reader and texture descriptor.
                 m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
@@ -240,7 +241,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
 
     if( baseTextureId >= 0 )
     {
-        m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, true );
+        m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, true );
         return *m_textures[baseTextureId];
     }
 
@@ -283,8 +284,20 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 void DemandLoaderImpl::invalidatePage( unsigned int pageId )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-
     m_pageLoader->invalidatePageRange( pageId, pageId + 1, nullptr );
+}
+
+void DemandLoaderImpl::loadTextureTiles( CUstream stream, unsigned int textureId, bool reloadIfResident )
+{
+    initTexture( stream, textureId );
+    TextureRequestHandler *requestHandler = m_textures[textureId]->getRequestHandler();
+    unsigned int startPage = requestHandler->getStartPage();
+    unsigned int endPage = startPage + requestHandler->getNumPages();
+
+    for( unsigned int pageId = startPage; pageId < endPage; ++pageId )
+    {
+        requestHandler->loadPage( stream, pageId, reloadIfResident );
+    }
 }
 
 void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )

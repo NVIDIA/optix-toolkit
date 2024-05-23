@@ -71,7 +71,8 @@ class DemandLoader
                                                     std::vector<TextureDescriptor>&                         textureDescs,
                                                     unsigned int                                            udim,
                                                     unsigned int                                            vdim,
-                                                    int                                                     baseTextureId ) = 0;
+                                                    int                                                     baseTextureId,
+                                                    unsigned int                                            numChannelTextures = 1 ) = 0;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     /// Returns the starting index of the resource in the page table.  The user-supplied callbackContext
@@ -80,6 +81,9 @@ class DemandLoader
 
     /// Invalidate a page in an arbitrary resource.
     virtual void invalidatePage( unsigned int pageId ) = 0;
+    
+    // Load or reload all texture tiles in a texture.
+    virtual void loadTextureTiles( CUstream stream, unsigned int textureId, bool reloadIfResident ) = 0;
 
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     virtual void unloadTextureTiles( unsigned int textureId ) = 0;

@@ -56,7 +56,7 @@ extern "C" __global__ void __raygen__testFootprintGrad()
     params.outputs[launchIndex.x + launchDim.x] = coarseFootprint;
 
     requestTexFootprint2DGrad( params.sampler, params.referenceBits, params.residenceBits, inputs.x, inputs.y, inputs.dPdx_x,
-                               inputs.dPdx_y, inputs.dPdy_x, inputs.dPdy_y );
+                               inputs.dPdx_y, inputs.dPdy_x, inputs.dPdy_y, 0.0f, 0.0f );
 #endif
 }
 

@@ -57,6 +57,7 @@ class TestDemandTexture : public testing::Test
     void SetUp()
     {
         // Initialize CUDA.
+
         OTK_ERROR_CHECK( cuInit( 0 ) );
         OTK_ERROR_CHECK( cudaFree( nullptr ) );
     }
@@ -70,7 +71,13 @@ class TestDemandTexture : public testing::Test
         m_deviceIndex = getFirstSparseTextureDevice();
         if( m_deviceIndex == demandLoading::MAX_DEVICES )
             throw std::runtime_error( "No devices support demand loading" );
+            m_deviceIndex = 0;
+
+        // FIXME: Which of these can I delete???
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        OTK_ERROR_CHECK( cuInit( 0 ) );
+        OTK_ERROR_CHECK( cudaFree( nullptr ) );
+        OTK_ERROR_CHECK( cudaStreamCreate( &m_stream) );
 
         // Construct DemandLoaderImpl.  DemandTexture needs it to construct a TextureRequestHandler,
         // and it's provides a PageTableManager that's needed by initSampler().
@@ -441,5 +448,87 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
         }
     }
 
+    OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+}
+
+
+
+//-------------------------------------------------------------------------
+
+uint8_t quantize( float f )
+{
+    float value = 255 * std::min( 1.0f, std::max( 0.0f, f ));
+    return uint8_t( value );
+}
+
+void writePPM( const char* filename, float* pixels, int width, int height, int numComponents )
+{
+    FILE* fp = fopen( filename, "wb" ); /* b - binary mode */
+    fprintf( fp, "P6\n%d %d\n255\n", width, height );
+    for( int j = height-1; j >= 0; --j )
+    {
+        for( int i = 0; i < width; ++i )
+        {
+            float r = (numComponents >= 1) ? pixels[ (j*width + i) * numComponents + 0 ] : 0;
+            float g = (numComponents >= 2) ? pixels[ (j*width + i) * numComponents + 1 ] : 0;
+            float b = (numComponents >= 3) ? pixels[ (j*width + i) * numComponents + 2 ] : 0;
+            uint8_t color[3] = {quantize( r ), quantize( g ), quantize( b )};
+            fwrite( color, sizeof( uint8_t ), 3, fp );
+        }
+    }
+    fclose( fp );
+}
+
+TEST_F( TestDemandTexture, TestNonOptixTexturing )
+{
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
+    // This initializes the demand loader, and creates a texture, but not managed by the demand loader
+    initTexture( m_width, m_height );
+
+    // Create a texture that is managed by the demand loader
+    TextureDescriptor desc{};
+    desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
+    desc.addressMode[1]   = CU_TR_ADDRESS_MODE_CLAMP;
+    desc.filterMode       = CU_TR_FILTER_MODE_LINEAR;
+    desc.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    desc.maxAnisotropy    = 16;
+    std::shared_ptr<ImageSource> image = std::make_shared<CheckerBoardImage>( m_width, m_height, 16, true, true );
+    const demandLoading::DemandTexture& texture = m_loader->createTexture( image, desc );
+    unsigned int textureId = texture.getId();
+
+    // Make output buffer for host and device
+    const int outWidth  = 150;
+    const int outHeight = 150;
+    float4*   devOutput;
+    size_t    outputSize = outWidth * outHeight * sizeof( float4 );
+    OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &devOutput ), outputSize ) );
+    float4*   hostOutput = (float4*) malloc( outputSize );
+
+    // Perform launches
+    unsigned int totalRequests = 0;
+    const unsigned int numLaunches = 4;
+    for( unsigned int launchNum = 0; launchNum < numLaunches; ++launchNum )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );
+        demandLoading::DeviceContext context;
+        m_loader->launchPrepare( m_stream, context );
+        launchTextureDrawKernel( m_stream, context, textureId, devOutput, outWidth, outHeight );
+        Ticket ticket = m_loader->processRequests( m_stream, context );
+        ticket.wait();
+        totalRequests += ticket.numTasksTotal();
+        printf( "Launch %d: %d requests.\n", launchNum, ticket.numTasksTotal() );
+    }
+
+    // 1 sampler request plus 20 tile requests
+    EXPECT_EQ( totalRequests, 21 );
+
+    OTK_ERROR_CHECK( cudaMemcpy( hostOutput, devOutput, outputSize, cudaMemcpyDeviceToHost ) );
+    writePPM( "noOptix.ppm", (float*)hostOutput, outWidth, outHeight, 4 );
+
+    // Free output buffers
+    free( hostOutput );
     OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }

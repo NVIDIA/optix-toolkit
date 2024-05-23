@@ -87,13 +87,17 @@ class DemandLoaderImpl : public DemandLoader
                                             std::vector<TextureDescriptor>&                         textureDescs,
                                             unsigned int                                            udim,
                                             unsigned int                                            vdim,
-                                            int                                                     baseTextureId ) override;
+                                            int                                                     baseTextureId,
+                                            unsigned int                                            numChannelTextures = 1 ) override;
 
     /// Create an arbitrary resource with the specified number of pages.  \see ResourceCallback.
     unsigned int createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext ) override;
 
     /// Invalidate a page in an arbitrary resource.
     void invalidatePage( unsigned int pageId ) override;
+    
+    /// Load  or reload all texture tiles in a texture.
+    void loadTextureTiles( CUstream stream, unsigned int textureId, bool reloadIfResident ) override;
 
     /// Schedule a list of textures to be unloaded when launchPrepare is called next.
     void unloadTextureTiles( unsigned int textureId ) override;

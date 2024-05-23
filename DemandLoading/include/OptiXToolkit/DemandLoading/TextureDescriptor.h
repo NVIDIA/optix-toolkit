@@ -34,24 +34,31 @@
 
 namespace demandLoading {
 
+enum FilterMode { FILTER_POINT=CU_TR_FILTER_MODE_POINT, FILTER_BILINEAR, FILTER_BICUBIC, FILTER_SMARTBICUBIC };
+
 /// TextureDescriptor specifies the address mode (e.g. wrap vs. clamp), filter mode (point vs. linear), etc.
 struct TextureDescriptor
 {
     /// Address mode (e.g. wrap)
     CUaddress_mode addressMode[2]{ CU_TR_ADDRESS_MODE_WRAP, CU_TR_ADDRESS_MODE_WRAP };
 
-    /// Filter mode (e.g. linear vs. point)
-    CUfilter_mode filterMode = CU_TR_FILTER_MODE_LINEAR;
+    /// Filter mode (point, bilinear, bicubic, smartbicubic)
+    unsigned int filterMode = FILTER_SMARTBICUBIC;
 
-    /// Filter mode between miplevels (e.g. linear vs. point)
+    /// Filter mode between miplevels (linear or point)
     CUfilter_mode mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
-    /// Maximum anisotropy.   A value of 1 disables anisotropic filtering.
+    /// Maximum anisotropy.  A value of 1 disables anisotropic filtering.
     unsigned int maxAnisotropy = 16;
 
     /// CUDA texture flags.  Use 0 to enable trilinear optimization (off by default).
     unsigned int flags = CU_TRSF_DISABLE_TRILINEAR_OPTIMIZATION;
 };
+
+inline CUfilter_mode toCudaFilterMode( unsigned int mode )
+{
+    return ( mode == FILTER_POINT ) ? CU_TR_FILTER_MODE_POINT : CU_TR_FILTER_MODE_LINEAR;
+}
 
 inline bool operator==( const TextureDescriptor& adesc, const TextureDescriptor& bdesc )
 {

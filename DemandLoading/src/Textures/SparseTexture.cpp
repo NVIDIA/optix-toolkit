@@ -226,7 +226,7 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     CUDA_TEXTURE_DESC td{};
     td.addressMode[0]      = descriptor.addressMode[0];
     td.addressMode[1]      = descriptor.addressMode[1];
-    td.filterMode          = descriptor.filterMode;
+    td.filterMode          = toCudaFilterMode( descriptor.filterMode );
     td.flags               = CU_TRSF_NORMALIZED_COORDINATES | descriptor.flags;
     td.maxAnisotropy       = descriptor.maxAnisotropy;
     td.mipmapFilterMode    = descriptor.mipmapFilterMode;

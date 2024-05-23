@@ -26,9 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "TestSparseTexture.h"
-
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
+
+#include "TestSparseTexture.h"
 
 #if __CUDA_ARCH__ >= 600
 #define SPARSE_TEX_SUPPORT true
@@ -88,5 +90,33 @@ __host__ void launchWrapTestKernel( cudaTextureObject_t texture, float4* output,
     dim3 dimBlock( 16, 16 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
     wrapTestKernel<<<dimGrid, dimBlock>>>( texture, output, width, height, lod );
+    OTK_ERROR_CHECK( cudaGetLastError() );
+}
+
+
+__global__ static void textureDrawKernel( demandLoading::DeviceContext context, unsigned int textureId,
+                                          float4* output, int width, int height )
+{
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if( x >= width || y >= height )
+        return;
+
+    bool resident = true;
+    float s = (x + 0.5f) / width;
+    float t = (y + 0.5f) / height;
+    float2 ddx = float2{ 1.0f / width, 0.0f };
+    float2 ddy = float2{ 0.0f, 1.0f / height };
+    float4 color = tex2DGrad<float4>( context, textureId, s, t, ddx, ddy, &resident );
+
+    output[y * width + x] = resident ? color : make_float4( 1.f, 0.f, 1.f, 0.f );
+}
+
+__host__ void launchTextureDrawKernel( CUstream stream, demandLoading::DeviceContext& context, unsigned int textureId,
+                                       float4* output, int width, int height )
+{
+    dim3 dimBlock( 16, 16 );
+    dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
+    textureDrawKernel<<<dimGrid, dimBlock, 0U, stream>>>( context, textureId, output, width, height );
     OTK_ERROR_CHECK( cudaGetLastError() );
 }
