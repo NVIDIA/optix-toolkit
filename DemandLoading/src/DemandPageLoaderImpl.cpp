@@ -48,23 +48,6 @@
 
 using namespace otk;
 
-namespace {
-
-demandLoading::Options configure( demandLoading::Options options )
-{
-    // If maxTexMemPerDevice is 0, consider it to be unlimited
-    if( options.maxTexMemPerDevice == 0 )
-        options.maxTexMemPerDevice = std::numeric_limits<size_t>::max();
-
-    // PagingSystem::pushMappings requires enough capacity to handle all the requested pages.
-    if( options.maxFilledPages < options.maxRequestedPages )
-        options.maxFilledPages = options.maxRequestedPages;
-
-    return options;
-}
-
-}  // anonymous namespace
-
 namespace demandLoading {
 
 
@@ -76,7 +59,7 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, 
 DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager,
                                             RequestProcessor*                 requestProcessor,
                                             std::shared_ptr<Options>          options )
-    : m_options( configure( options ) )
+    : m_options( options )
     , m_deviceMemoryManager( m_options )
     , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, m_options->maxPinnedMemory )
     , m_pageTableManager( std::move( pageTableManager ) )

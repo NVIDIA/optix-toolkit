@@ -151,7 +151,7 @@ DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, m_options ) )
     , m_samplerRequestHandler( this )
     , m_cascadeRequestHandler( this )
-    , m_deviceTransferPool( new otk::DeviceAsyncAllocator(), new RingSuballocator(), DEFAULT_ALLOC_SIZE, options.maxPinnedMemory, 64 << 20 )
+    , m_deviceTransferPool( new otk::DeviceAsyncAllocator(), new RingSuballocator(), DEFAULT_ALLOC_SIZE, options.maxPinnedMemory )
 {
     // The demand loader is for the current cuda context
     OTK_ERROR_CHECK( cuCtxGetCurrent( &m_cudaContext ) );
@@ -228,9 +228,6 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
                 tex->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, false );
-
-                // Record the image reader and texture descriptor.
-                m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
             }
             else 
             {
