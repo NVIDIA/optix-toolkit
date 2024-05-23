@@ -31,6 +31,8 @@
 /// \file PdfTable.h
 /// Create a pdf table from a texture
 
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+
 #include <math.h>
 
 enum PdfBrightnessType { pbLUMINANCE, pbRGBSUM };
@@ -52,7 +54,7 @@ void makePdfTable( float* pdfTable, TYPE* srcArray, float* aveBrightness,
         float angleTerm = 1.0f;
         if ( angleType == paLATLONG )
         {
-            angleTerm = sinf( ( j + 0.5f ) * float( M_PI ) / height );
+            angleTerm = sinf( ( j + 0.5f ) * float( M_PIf ) / height );
         }
 
         for( int i = 0; i < width; ++i )
