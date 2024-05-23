@@ -323,12 +323,12 @@ void CdfInversionApp::createTexture()
     float* pdf = reinterpret_cast<float*>( malloc( tableWidth * tableHeight * sizeof(float) ) );
     if( texInfo.format == CU_AD_FORMAT_UNSIGNED_INT8 )
     {
-        makePdfTable<ubyte4>( pdf, (imageSource::ubyte4*)imgData, &hostEmapInversionTable.aveValue, 
+        makePdfTable<uchar4>( pdf, (uchar4*)imgData, &hostEmapInversionTable.aveValue, 
                               tableWidth, tableHeight, pbLUMINANCE, paLATLONG );
     }
     else if( texInfo.format == CU_AD_FORMAT_HALF )
     {
-        makePdfTable<half4>( pdf, (imageSource::half4*)imgData, &hostEmapInversionTable.aveValue, 
+        makePdfTable<half4>( pdf, (half4*)imgData, &hostEmapInversionTable.aveValue, 
                              tableWidth, tableHeight, pbLUMINANCE, paLATLONG );
     } 
     else if( texInfo.format == CU_AD_FORMAT_FLOAT )

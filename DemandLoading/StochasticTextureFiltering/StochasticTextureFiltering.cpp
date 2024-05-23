@@ -301,7 +301,7 @@ void StochasticTextureFilteringApp::createTexture()
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<ubyte4>( 16384, 16384, 256, true, false ) );
+        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 256, true, false ) );
     
     demandLoading::TextureDescriptor texDesc0 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_POINT );
     demandLoading::TextureDescriptor texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
