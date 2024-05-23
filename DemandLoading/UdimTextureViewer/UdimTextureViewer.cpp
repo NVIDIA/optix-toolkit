@@ -38,6 +38,7 @@
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 using namespace demandTextureApp;
+using namespace demandLoading;
 
 //------------------------------------------------------------------------------
 // UdimTextureApp
@@ -91,7 +92,7 @@ void UdimTextureApp::createTexture()
         if( !baseImageSource )
             baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors ) );
 
-        demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+        demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
         // Create a base texture for all devices
         for( PerDeviceOptixState& state : m_perDeviceOptixStates )
@@ -143,7 +144,7 @@ void UdimTextureApp::createTexture()
 
             // Note: Use address mode CU_TR_ADDRESS_MODE_BORDER for subimages in tex2DGradUdimBlend calls in OptiX programs.
             // (CU_TR_ADDRESS_MODE_CLAMP for tex2DGradUdim calls).
-            subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, CU_TR_FILTER_MODE_LINEAR ) );
+            subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, FILTER_BILINEAR ) );
         }
     }
 

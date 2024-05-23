@@ -40,20 +40,21 @@ float3 evalPhongBsdf( float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, 
                       float& prob, float curvature )
 {
     using namespace otk;
-    float kd = ( fabsf(Kd.x) + fabsf(Kd.y) + fabsf(Kd.z) ) / 3.0f;
-    float ks = ( fabsf(Ks.x) + fabsf(Ks.y) + fabsf(Ks.z) ) / 3.0f;
+    float kd = ( Kd.x + Kd.y + Kd.z ) / 3.0f;
+    float ks = ( Ks.x + Ks.y + Ks.z ) / 3.0f;
     float ksum = kd + ks;
 
     // Diffuse term
     float3 Fd = Kd / M_PIf;
-    float pd = 1.0f / M_PIf;
+    float pd = dot( R, g.N ) / M_PIf;
 
     // Specular term
     float3 refl = reflect( D, g.N );
     float cosTheta = maxf( 0.0f, dot( refl, R ) );
     float s = 1.0f / roughness; 
     float ps = ( s + 2.0f ) * powf( cosTheta, s ) / ( 2.0f * M_PIf );
-    float3 Fs = Ks * ps;
+    float correction = 0.5f * ( fabsf( dot( R, g.N ) ) + fabsf( dot( D, g.N ) ) );
+    float3 Fs = Ks * ps / correction;
 
     // Calculate the combined probability of sampling this ray when sampling the bsdf
     prob = ( pd * kd / ksum ) + ( ps * ks / ksum );
@@ -82,8 +83,8 @@ static __forceinline__ __device__
 bool samplePhongBsdf( float2 xi, float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, float3 D, float3& R )
 {
     using namespace otk;
-    float kd = ( fabsf(Kd.x) + fabsf(Kd.y) + fabsf(Kd.z) ) / 3.0f;
-    float ks = ( fabsf(Ks.x) + fabsf(Ks.y) + fabsf(Ks.z) ) / 3.0f;
+    float kd = ( Kd.x + Kd.y + Kd.z ) / 3.0f;
+    float ks = ( Ks.x + Ks.y + Ks.z ) / 3.0f;
     float ksum = kd + ks;
 
     float x = xi.x * ksum;
@@ -133,8 +134,8 @@ float3 evalGlassBsdf( float3 Ks, float3 Kt, float ior, float roughness, SurfaceG
 {
     using namespace otk;
     float fr = schlick( ior, fabsf( dot( g.N, D ) ) );
-    float ks = fr * ( fabsf(Ks.x) + fabsf(Ks.y) + fabsf(Ks.z) ) / 3.0f;
-    float kt = ( 1.0f - fr ) * ( fabsf(Kt.x) + fabsf(Kt.y) + fabsf(Kt.z) ) / 3.0f;
+    float ks = fr * (Ks.x + Ks.y + Ks.z) / 3.0f;
+    float kt = ( 1.0f - fr ) * ( Kt.x + Kt.y + Kt.z ) / 3.0f;
     float ksum = ks + kt;
 
     float s = 1.0f / roughness; // phong exponent
@@ -167,8 +168,8 @@ bool sampleGlassBsdf( float2 xi, float3 Ks, float3 Kt, float ior, float roughnes
 {
     using namespace otk;
     float fr = schlick( ior, fabsf( dot( g.N, D ) ) );
-    float ks = fr * ( fabsf(Ks.x) + fabsf(Ks.y) + fabsf(Ks.z) ) / 3.0f;
-    float kt = ( 1.0f - fr ) * ( fabsf(Kt.x) + fabsf(Kt.y) + fabsf(Kt.z) ) / 3.0f;
+    float ks = fr * ( Ks.x + Ks.y + Ks.z ) / 3.0f;
+    float kt = ( 1.0f - fr ) * ( Kt.x + Kt.y + Kt.z ) / 3.0f;
     float ksum = ks + kt;
 
     float x = xi.x * ksum;

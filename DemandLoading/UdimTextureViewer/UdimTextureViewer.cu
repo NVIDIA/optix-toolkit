@@ -32,6 +32,8 @@
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
 
+#include <OptiXToolkit/DemandLoading/Texture2DCubic.h>
+
 using namespace demandLoading;
 using namespace demandTextureApp;
 using namespace otk;  // for vec_math operators

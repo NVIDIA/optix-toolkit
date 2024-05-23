@@ -26,26 +26,18 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-const int SUBFRAME_ID  = 0;
-const int PIXEL_FILTER_ID = 1;
-const int TEXTURE_FILTER_ID = 2;
-const int TEXTURE_JITTER_ID = 3;
-const int MOUSEX_ID = 4;
-const int MOUSEY_ID = 5;
+const int SUBFRAME_ID = 0;
+const int EMAP_ID = 1;
+const int MIP_LEVEL_0_ID = 2;
 
 const int MIP_SCALE_ID = 0;
-const int TEXTURE_FILTER_WIDTH_ID = 1;
-const int TEXTURE_FILTER_STRENGTH_ID = 2;
 
-// clang-format off
-enum        PixelFilterMode                   {pfBOX=0, pfTENT, pfGAUSSIAN, pfPIXELCENTER, pfSIZE};
-const char* PIXEL_FILTER_MODE_NAMES[pfSIZE] = {"Box",   "Tent", "Gaussian", "Pixel Center"};
+// Stuffing cdf inversion and alias table in colors
+const int EMAP_INVERSION_TABLE_ID = 0; // also 1 and 2
+const int EMAP_ALIAS_TABLE_ID = 3;
 
-enum        TextureFilterMode                   {fmPOINT=0, fmLINEAR, fmCUBIC,   fmLANCZOS, fmMITCHELL, fmSIZE};
-const char* TEXTURE_FILTER_MODE_NAMES[fmSIZE] = {"Point",   "Linear", "Bicubic", "Lanczos", "Mitchell"};
-
-enum        TextureJitterMode                   {jmNONE=0, jmBOX, jmTENT, jmGAUSSIAN, jmEWA0, jmEXT_ANISOTROPY,
-                                                 jmUNSHARPMASK, jmLANCZOS, jmMITCHELL, jmCLANCZOS, jmSIZE};
-const char* TEXTURE_JITTER_MODE_NAMES[jmSIZE] = {"None",   "Box", "Tent", "Gaussian", "EWA 0", "Extend Anisotropy",
-                                                 "Unsharp Mask", "Lanczos", "Mitchell", "Cylindrical Lanczos"};
-// clang-format on
+// Emap sample modes. Uncomment one.
+//#define emBIN_SEARCH 1
+//#define emLIN_SEARCH 2
+#define emDIRECT_LOOKUP 3
+//#define emALIAS_TABLE 4

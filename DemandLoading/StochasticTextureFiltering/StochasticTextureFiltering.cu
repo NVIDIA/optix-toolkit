@@ -26,14 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
-#include <OptiXToolkit/DemandLoading/Texture2DStochastic.h>
 
-#include "Texture2DCubic.h"
+#include "Texture2DFilters.h"
 #include "StochasticTextureFilteringParams.h"
 #include "Bsdf.h"
 
@@ -85,89 +85,146 @@ struct RayPayload
 // Utility functions
 //------------------------------------------------------------------------------
 
-/*
-static __forceinline__ __device__ 
-void jitterAnisotropy( float2& uv, float2& ddx, float2& ddy, float2 xi )
-{
-    float ddxlen = length( ddx ); 
-    float ddylen = length( ddy );
-    if( ddxlen > 16.0f * ddylen )
-    {
-        ddx = ddx * ddylen * 16.0f / ddxlen;
-    }
-}
-*/
-
 // Sample a ColorTex
 static __forceinline__ __device__ 
 float3 sampleSurfaceValue( const DeviceContext context, SurfaceGeometry g, ColorTex tex, bool* is_resident, float2 xi )
 {
-    using namespace otk;
     if( tex.texid < 0 )
         return tex.color;
 
-    // Use point filtering (0) or linear filtering (1)
-    const unsigned int textureFilter = static_cast<TextureFilterMode>( params.i[TEXTURE_FILTER_ID] );
+    // Unpack the parameters to decide filter mode
+    const unsigned int textureFilterMode = static_cast<TextureFilterMode>( params.i[TEXTURE_FILTER_ID] );
+    const unsigned int textureJitterMode = static_cast<TextureFilterMode>( params.i[TEXTURE_JITTER_ID] );
     const float filterWidth = params.f[TEXTURE_FILTER_WIDTH_ID];
     const float filterStrength = params.f[TEXTURE_FILTER_STRENGTH_ID];
-    int variantOffset = ( textureFilter < tfTRILINEAR ) ? 0 : 1;
 
-    // Point sampling filters
-    if( textureFilter == tfPOINT )
-    {
-        xi = float2{0.0f, 0.0f};
-    }
-    else if( textureFilter == tfBOX_POINT )
-    {
-        xi = filterWidth * ( xi - float2{0.5f, 0.5f} );
-    }
-    else if( textureFilter == tfTENT_POINT )
-    {
-        xi = filterWidth * ( float2{tentFilter( xi.x ), tentFilter( xi.y )} );
-    }
-    else if( textureFilter == tfGAUSSIAN_POINT )
-    {
-        xi = filterWidth * ( 0.5f * boxMuller( xi ) );
-    }
+    // Choose between point and linear base filter
+    int variantOffset = ( textureFilterMode == fmPOINT ) ? 0 : 1;
 
-    // Trilinear sampling filters
-    else if( textureFilter == tfTRILINEAR )
+    // Copy uv, ddx, ddy
+    float2 uv = g.uv;
+    float2 ddx = g.ddx;
+    float2 ddy = g.ddy;
+
+    // Exact multi-tap filters (cubic, lanczos, mitchell)
+    if( textureFilterMode == fmCUBIC )
     {
-        xi = float2{0.0f, 0.0f};
-    }
-    else if( textureFilter == tfCUBIC )
-    {
-        float4 t = tex2DCubic<float4>( context, tex.texid + variantOffset, g.uv.x, g.uv.y, is_resident );
+        // Mitchell(1,0,...) is bicubic upsampling
+        float4 t = tex2DMitchell<float4>( 1.0f, 0.0f, context, tex.texid + variantOffset, uv.x, uv.y, is_resident );
         return tex.color * float3{t.x, t.y, t.z};
     }
-    else if( textureFilter == tfBOX_LINEAR )
+    else if( textureFilterMode == fmLANCZOS )
     {
-        xi = filterWidth * ( xi - float2{0.5f, 0.5f} );
+        float4 t = tex2DLanczos<float4>( context, tex.texid + variantOffset, uv.x, uv.y, is_resident );
+        return tex.color * float3{t.x, t.y, t.z};
     }
-    else if( textureFilter == tfTENT_LINEAR )
+    else if( textureFilterMode == fmMITCHELL )
     {
-        xi = filterWidth * ( float2{tentFilter( xi.x ), tentFilter( xi.y )} );
-    }
-    else if( textureFilter == tfGAUSSIAN_LINEAR )
-    {
-        xi = filterWidth * ( 0.5f * boxMuller( xi ) );
-    }
-    else if( textureFilter == tfUNSHARP_LINEAR )
-    {
-        xi = filterWidth * ( 0.5f * boxMuller( xi ) );
-        float4 t = tex2DGradUdimStochastic<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident, xi );
-        t = ( 1.0f + filterStrength ) * t - filterStrength * tex2DGradUdimStochastic<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident, xi * 1.5 );
+        float4 t = tex2DMitchell<float4>( 0.33333f, 0.33333f, context, tex.texid + variantOffset, uv.x, uv.y, is_resident );
         return tex.color * float3{t.x, t.y, t.z};
     }
 
-    float4 t = tex2DGradUdimStochastic<float4>( context, tex.texid + variantOffset, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident, xi );
+    // Single tap jitter kernels (box, tent, gaussian, ewa0, extendAnisotropy)
+    if( textureJitterMode <= jmEXT_ANISOTROPY )
+    {
+        float2 texelJitter = float2{0.0f, 0.0f};
 
-//jitterAnisotropy( g.uv, g.ddx, g.ddy );
-float ddxlen = length( g.ddx ); 
-float ddylen = length( g.ddy );
-if( ddxlen > 16.0f * ddylen || ddylen > 16.0f * ddxlen )
-    return tex.color * float3{1.0f, 0.8f, 1.0f} * float3{t.x, t.y, t.z};
+        if( textureJitterMode == jmBOX )
+        {
+            texelJitter = filterWidth * boxFilter( xi );
+        }
+        else if( textureJitterMode == jmTENT )
+        {
+            texelJitter = filterWidth * tentFilter( xi );
+        }
+        else if( textureJitterMode == jmGAUSSIAN )
+        {
+            texelJitter = filterWidth * GAUSSIAN_STANDARD_WIDTH * boxMuller( xi );
+        }
+        else if( textureJitterMode == jmEWA0 )
+        {
+            texelJitter = filterWidth * GAUSSIAN_STANDARD_WIDTH * boxMuller( xi );
+            uv += jitterEWA( ddx, ddy, xi );
+            ddx = float2{0.0f, 0.0f}; // force sampling mip level 0
+            ddy = float2{0.0f, 0.0f};
+        }
+        else if( textureJitterMode == jmEXT_ANISOTROPY )
+        {
+            texelJitter = filterWidth * GAUSSIAN_STANDARD_WIDTH * boxMuller( xi );
+            uv += extendAnisotropy( ddx, ddy, xi );
+        }
 
+        float4 t = tex2DGradUdim<float4>( context, tex.texid + variantOffset, uv.x, uv.y, ddx, ddy, is_resident, texelJitter );
+        return tex.color * float3{t.x, t.y, t.z};
+    }
+
+    // Two tap jitter kernels (unsharp mask, lanczos, mitchell, cylindrical mitchell)
+    float2 posJitter = float2{0.0f, 0.0f};
+    float2 negJitter = float2{0.0f, 0.0f};
+    float blendWeight = 0.0f;
+
+    if( textureJitterMode == jmUNSHARPMASK )
+    {
+        const float posRadius = 0.5f;
+        const float negRadius = 0.7f;
+        const float unsharpStrength = 1.0f;
+
+        float2 gjitter = filterWidth * boxMuller( xi );
+        posJitter = gjitter * posRadius;
+        negJitter = gjitter * negRadius;
+        blendWeight = filterStrength * unsharpStrength;
+    }
+    else if( textureJitterMode == jmLANCZOS )
+    {
+        if( variantOffset == 0 )
+        {
+            posJitter = filterWidth * sampleSharpenPos( LANCZOS_BOX, xi );
+            negJitter = filterWidth * sampleSharpenNeg( LANCZOS_BOX, xi );
+            blendWeight = filterStrength * LANCZOS_BOX_NWEIGHT;
+        }
+        else
+        {
+            posJitter = filterWidth * sampleSharpenPos( LANCZOS_TENT, xi );
+            negJitter = filterWidth * sampleSharpenNeg( LANCZOS_TENT, xi );
+            blendWeight = filterStrength * LANCZOS_TENT_NWEIGHT;
+        }
+    }
+    else if( textureJitterMode == jmMITCHELL )
+    {
+        if( variantOffset == 0 )
+        {
+            posJitter = filterWidth * sampleSharpenPos( MITCHELL_BOX, xi );
+            negJitter = filterWidth * sampleSharpenNeg( MITCHELL_BOX, xi );
+            blendWeight = filterStrength * MITCHELL_BOX_NWEIGHT;
+        }
+        else
+        {
+            posJitter = filterWidth * sampleSharpenPos( MITCHELL_TENT, xi );
+            negJitter = filterWidth * sampleSharpenNeg( MITCHELL_TENT, xi );
+            blendWeight = filterStrength * MITCHELL_TENT_NWEIGHT;
+        }
+    }
+    else if( textureJitterMode == jmCLANCZOS )
+    {
+        float2 cjitter = filterWidth * sampleCircle( xi.x );
+        if( variantOffset == 0 )
+        {
+            posJitter = cjitter * stretchedCubic01( CLANCZOS_BOX_POS, xi.y );
+            negJitter = cjitter * stretchedCubic01( CLANCZOS_BOX_NEG, xi.y );
+            blendWeight = filterStrength * CLANCZOS_BOX_WEIGHT;
+        }
+        else
+        {
+            posJitter = cjitter * stretchedCubic01( CLANCZOS_TENT_POS, xi.y );
+            negJitter = cjitter * stretchedCubic01( CLANCZOS_TENT_NEG, xi.y );
+            blendWeight = filterStrength * CLANCZOS_TENT_WEIGHT;
+        }
+    }
+
+    // Take positive and negative taps and combine them
+    float4 gp = tex2DGradUdim<float4>( context, tex.texid + variantOffset, uv.x, uv.y, ddx, ddy, is_resident, posJitter );
+    float4 gn = tex2DGradUdim<float4>( context, tex.texid + variantOffset, uv.x, uv.y, ddx, ddy, is_resident, negJitter );
+    float4 t  = ( 1.0f + blendWeight ) * gp - ( blendWeight ) * gn;
     return tex.color * float3{t.x, t.y, t.z};
 }
 
@@ -204,9 +261,9 @@ static __forceinline__ __device__ void makeEyeRay( uint2 px, float2 xi, float2 l
     else if( pixelFilterMode == pfBOX )
         ; //xi = xi;
     else if( pixelFilterMode == pfGAUSSIAN )
-        xi = 0.5f * boxMuller( xi ) + float2{0.5f, 0.5f};
+        xi =  GAUSSIAN_STANDARD_WIDTH * boxMuller( xi ) + float2{0.5f, 0.5f};
     else // pixel center
-        xi = float2{tentFilter( xi.x ) + 0.5f, tentFilter( xi.y ) + 0.5f};
+        xi = tentFilter( xi ) + float2{0.5f, 0.5f};
 
     if( params.projection == ORTHOGRAPHIC )
         makeEyeRayOrthographic( params.camera, params.image_dim, float2{px.x + xi.x, px.y + xi.y}, origin, direction );
@@ -299,7 +356,7 @@ extern "C" __global__ void __raygen__rg()
     }
 
     const int minDepth   = 0;
-    const int maxDepth   = 2;
+    const int maxDepth   = 1;
     const int subframeId = params.i[SUBFRAME_ID];
 
     unsigned int rseed = srand( px.x, px.y, subframeId );
@@ -329,8 +386,6 @@ extern "C" __global__ void __raygen__rg()
         float3 Ke, Kd, Ks, Kt;
         float roughness, ior;
         bool success = getSurfaceValues( payload.geom, payload.tex, Ke, Kd, Ks, Kt, roughness, ior, float2{rnd(rseed), rnd(rseed)} );
-        //if( rayDepth > 3 ) payload.rayCone1.setDiffuse(); // clamp cone angle for deeper paths
-        //if( rayDepth > 3 ) payload.rayCone2.setDiffuse(); // clamp cone angle for deeper paths
 
         radiance += weight * Ke;
         if( payload.geom.flipped && ior != 0.0f )
@@ -344,14 +399,14 @@ extern "C" __global__ void __raygen__rg()
         if( !sampleBsdf( xi, Kd, Ks, Kt, ior, roughness, payload.geom, direction, R ) )
             break;
         bsdf = evalBsdf( Kd, Ks, Kt, ior, roughness, payload.geom, direction, R, prob, payload.geom.curvature );
-        
+
         // Sanity check.  Discard 0 probability and nan samples
         if( !( prob > 0.0f ) || !( dot( bsdf, bsdf ) >= 0.0f ) )
             break;
 
         // Update the ray cone
         bool isTransmission = dot( R, payload.geom.N ) < 0.0f;
-        float fs = bsdf.x + bsdf.y + bsdf.z;
+        float fs = fabsf( bsdf.x + bsdf.y + bsdf.z );
         rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone1 );
         rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone2 );
 
@@ -370,29 +425,22 @@ extern "C" __global__ void __raygen__rg()
 
     // Blend result of ray trace with inset display and put in result buffer
     accum_color *= ( 1.0f / accum_color.w );
+    accum_color = float4{ maxf(accum_color.x, 0.0f), maxf(accum_color.y, 0.0f), maxf(accum_color.z, 0.0f), 1.0f};
 
-    const int magLevel = 2;
-    const int2 insetDisplayDim = int2{128, 128};
-    int2 insetLoc = int2{params.i[MOUSEX_ID] - (insetDisplayDim.x >> (magLevel+1)), (int)params.image_dim.y - params.i[MOUSEY_ID] - (insetDisplayDim.x >> (magLevel+1))};
-    int2 insetDisplayLoc = int2{(int)params.image_dim.x - insetDisplayDim.x - 5, (int)params.image_dim.y - insetDisplayDim.y - 5};
-    float4 tcolor = insetColor( params.accum_buffer, params.image_dim, insetLoc, insetDisplayLoc, insetDisplayDim, float4{1,0,0,1}, magLevel, px );
-
-    //float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
-    float4 color  = ( 1.0f - tcolor.w ) * accum_color + tcolor.w * tcolor;
-
-    params.result_buffer[image_idx] = make_color( color );
+    params.result_buffer[image_idx] = make_color( accum_color );
 }
 
 extern "C" __global__ void __miss__ms()
 {
     const float4 bg = reinterpret_cast<MissData*>( optixGetSbtDataPointer() )->background_color;
-    getRayPayload()->background = float3{bg.x, bg.y, bg.z};
-    getRayPayload()->occluded = false;
+    ((RayPayload*)getRayPayload())->background = float3{bg.x, bg.y, bg.z};
+    ((RayPayload*)getRayPayload())->occluded = false;
 }
 
 extern "C" __global__ void __closesthit__ch()
 {
-    RayPayload* payload = getRayPayload();
+    const float INV_MAX_ANISOTROPY = 1.0f / 64.0f;
+    RayPayload* payload = (RayPayload*)getRayPayload();
     payload->occluded = true;
     if( isOcclusionRay() ) // for occlusion query, just return
         return;
@@ -442,10 +490,11 @@ extern "C" __global__ void __closesthit__ch()
     payload->rayCone1 = propagate( payload->rayCone1, rayDistance );
     payload->rayCone2 = propagate( payload->rayCone2, rayDistance );
     if( fabs(payload->rayCone1.width) >= fabs(payload->rayCone2.width) || pinholeSpecialCase ) 
-        projectToRayDifferentialsOnSurface( payload->rayCone1.width, D, geom.N, dPdx, dPdy );
+        projectToRayDifferentialsOnSurface( payload->rayCone1.width, D, geom.N, dPdx, dPdy, INV_MAX_ANISOTROPY );
     else
-        projectToRayDifferentialsOnSurface( payload->rayCone2.width, D, geom.N, dPdx, dPdy );
+        projectToRayDifferentialsOnSurface( payload->rayCone2.width, D, geom.N, dPdx, dPdy, INV_MAX_ANISOTROPY );
     computeTexGradientsForTriangle( Va, Vb, Vc, tex_coords[0], tex_coords[1], tex_coords[2], dPdx, dPdy, geom.ddx, geom.ddy );
     geom.ddx *= params.f[MIP_SCALE_ID];
     geom.ddy *= params.f[MIP_SCALE_ID];
 }
+

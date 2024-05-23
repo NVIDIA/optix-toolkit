@@ -44,6 +44,7 @@
 #include "TexturePaintingParams.h"
 
 using namespace demandTextureApp;
+using namespace demandLoading;
 
 class TexturePaintingApp : public DemandTextureApp
 {
@@ -103,7 +104,7 @@ void TexturePaintingApp::createTexture()
         m_canvases[i]->clearImage( m_canvasBackgroundColor );
     }
 
-    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
@@ -292,7 +293,7 @@ void TexturePaintingApp::replaceTexture( unsigned int newCanvasId )
         for( PerDeviceOptixState& state : m_perDeviceOptixStates )
         {
             cudaSetDevice( state.device_idx );
-            demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+            demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
             state.demandLoader->replaceTexture( state.stream, m_textureIds[0], m_canvases[m_activeCanvas], texDesc, false );
         }
     }

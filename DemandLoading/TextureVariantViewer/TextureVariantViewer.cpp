@@ -35,8 +35,8 @@
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
-using namespace demandLoading;
 using namespace demandTextureApp;
+using namespace demandLoading;
 
 //------------------------------------------------------------------------------
 // TextureVariantApp
@@ -70,14 +70,14 @@ void TextureVariantApp::createTexture()
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
 
         // Make first texture with trilinear filtering.
-        demandLoading::TextureDescriptor    texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+        demandLoading::TextureDescriptor    texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
         const demandLoading::DemandTexture& texture1 = state.demandLoader->createTexture( imageSource, texDesc1 );
         if( m_textureIds.size() == 0 )
             m_textureIds.push_back( texture1.getId() );
 
         // Make second texture with point filtering.
         // The demand loader will share the backing store for textures created with the same imageSource pointer.
-        demandLoading::TextureDescriptor    texDesc2 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_POINT );
+        demandLoading::TextureDescriptor    texDesc2 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_POINT );
         const demandLoading::DemandTexture& texture2 = state.demandLoader->createTexture( imageSource, texDesc2 );
         if( m_textureIds.size() == 1 )
             m_textureIds.push_back( texture2.getId() );

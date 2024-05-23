@@ -27,6 +27,7 @@
 //
 
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
@@ -109,7 +110,7 @@ bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke,
 
 static __forceinline__ __device__ void makeEyeRay( uint2 px, float2 xi, float2 lx, float3& origin, float3& direction )
 {
-    xi = float2{ tentFilter(xi.x) + 0.5f, tentFilter(xi.y) + 0.5f }; 
+    xi = tentFilter( xi ) + float2{0.5f, 0.5f};
     if( params.projection == ORTHOGRAPHIC )
         makeEyeRayOrthographic( params.camera, params.image_dim, float2{px.x + xi.x, px.y + xi.y}, origin, direction );
     else if( params.projection == PINHOLE )

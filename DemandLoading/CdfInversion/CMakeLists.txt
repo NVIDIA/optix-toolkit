@@ -33,9 +33,9 @@ include(FetchGlad)
 include(embed_cuda)
 
 embed_cuda(
-  CONST HEADER StochasticTextureFilteringKernel.h
+  CONST HEADER CdfInversionKernelCuda.h
   OUTPUT_TARGET
-    stochasticTextureFilteringKernel
+    cdfInversionKernel
   FOLDER
     Examples/DemandLoading
   LIBRARIES
@@ -43,19 +43,19 @@ embed_cuda(
     OptiXToolkit::DemandTextureAppBase
     OptiXToolkit::ShaderUtil
   SOURCES
-    StochasticTextureFiltering.cu
+    CdfInversion.cu
 )
 
-otk_add_executable( stochasticTextureFiltering
+otk_add_executable( cdfInversion
   Bsdf.h
-  StochasticTextureFiltering.cpp
+  CdfInversion.cpp
   ShapeMaker.cpp 
   ShapeMaker.h
   )
 
-target_link_libraries( stochasticTextureFiltering
+target_link_libraries( cdfInversion
   PUBLIC
-  stochasticTextureFilteringKernel
+  cdfInversionKernel
   OptiXToolkit::DemandLoading
   OptiXToolkit::DemandTextureAppBase
   OptiXToolkit::Gui
@@ -63,13 +63,13 @@ target_link_libraries( stochasticTextureFiltering
   OptiXToolkit::Util
   )
 
-set_target_properties( stochasticTextureFiltering PROPERTIES
+set_target_properties( cdfInversion PROPERTIES
   FOLDER Examples/DemandLoading
   INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
-if( $<TARGET_RUNTIME_DLLS:stochasticTextureFiltering> )
-  add_custom_command( TARGET stochasticTextureFiltering POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:stochasticTextureFiltering> $<TARGET_FILE_DIR:stochasticTextureFiltering>
+if( $<TARGET_RUNTIME_DLLS:cdfInversion> )
+  add_custom_command( TARGET cdfInversion POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:cdfInversion> $<TARGET_FILE_DIR:cdfInversion>
     COMMAND_EXPAND_LISTS )
 endif()

@@ -26,26 +26,30 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-const int SUBFRAME_ID  = 0;
-const int PIXEL_FILTER_ID = 1;
-const int TEXTURE_FILTER_ID = 2;
-const int TEXTURE_JITTER_ID = 3;
-const int MOUSEX_ID = 4;
-const int MOUSEY_ID = 5;
+#include <cuda_runtime.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <vector>
+using namespace otk;
 
-const int MIP_SCALE_ID = 0;
-const int TEXTURE_FILTER_WIDTH_ID = 1;
-const int TEXTURE_FILTER_STRENGTH_ID = 2;
+struct Vert
+{
+    float3 p; // position
+    float3 n; // normal
+    float2 t; // tex coord
+};
 
-// clang-format off
-enum        PixelFilterMode                   {pfBOX=0, pfTENT, pfGAUSSIAN, pfPIXELCENTER, pfSIZE};
-const char* PIXEL_FILTER_MODE_NAMES[pfSIZE] = {"Box",   "Tent", "Gaussian", "Pixel Center"};
+class ShapeMaker
+{
+  public:
+    static void makeAxisPlane( float3 minCorner, float3 maxCorner, std::vector<Vert>& shape );
+    static void makeCircle( float3 center, float radius, int numSegments, std::vector<Vert>& shape );
+    static void makeSphere( float3 center, float radius, int numSegments, std::vector<Vert>& shape, float beginAngle=0.0f, float endAngle=M_PIf );
+    static void makeCylinder( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
+    static void makeCone( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
+    static void makeTorus( float3 center, float radius1, float radius2, int numSegments, std::vector<Vert>& shape );
+    static void makeVase( float3 basePoint, float radius1, float radius2, float height, int numSegments, std::vector<Vert>& shape );
 
-enum        TextureFilterMode                   {fmPOINT=0, fmLINEAR, fmCUBIC,   fmLANCZOS, fmMITCHELL, fmSIZE};
-const char* TEXTURE_FILTER_MODE_NAMES[fmSIZE] = {"Point",   "Linear", "Bicubic", "Lanczos", "Mitchell"};
+    static void spinZaxis( std::vector<Vert>& silhouette, int numSegments, float3 translation, std::vector<Vert>& shape );
+    static Vert rotateSilhouettePoint( const Vert& p, float angle );
+};
 
-enum        TextureJitterMode                   {jmNONE=0, jmBOX, jmTENT, jmGAUSSIAN, jmEWA0, jmEXT_ANISOTROPY,
-                                                 jmUNSHARPMASK, jmLANCZOS, jmMITCHELL, jmCLANCZOS, jmSIZE};
-const char* TEXTURE_JITTER_MODE_NAMES[jmSIZE] = {"None",   "Box", "Tent", "Gaussian", "EWA 0", "Extend Anisotropy",
-                                                 "Unsharp Mask", "Lanczos", "Mitchell", "Cylindrical Lanczos"};
-// clang-format on

@@ -582,7 +582,8 @@ int main( int argc, char* argv[] )
         std::vector<PerDeviceSampleState> states;
         createContexts( states );
 
-        std::string                  directory( getSourceDir() + "/Textures/" );
+        //std::string                  directory( getSourceDir() + "/Textures/" );
+        std::string directory( "." );
         std::shared_ptr<ImageSource> imageSource = imageSources::createImageSource( textureFile, directory );
 
         // Set up OptiX per-device states and demand loaders

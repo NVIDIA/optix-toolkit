@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+add_subdirectory(CdfInversion)
 add_subdirectory(DemandGeometryViewer)
 add_subdirectory(DemandPbrtScene)
 add_subdirectory(DemandTextureAppBase)

@@ -41,6 +41,7 @@
 #include <stdexcept>
 
 using namespace demandTextureApp;
+using namespace demandLoading;
 
 //------------------------------------------------------------------------------
 // DemandTextureViewer
@@ -201,7 +202,7 @@ void DemandTextureViewer::createTexture()
 {
     ImageSourcePtr imageSource( createImageSource() );
 
-    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
