@@ -57,7 +57,7 @@ static __forceinline__ __device__ float sinc( float x )
 {
     if( fabs( x ) < 0.0001f ) 
         return 1.0f;
-    return sin( M_PI * x ) / ( M_PI * x );
+    return sin( M_PIf * x ) / ( M_PIf * x );
 }
 
 static __forceinline__ __device__ float lanczos( float x, float a )

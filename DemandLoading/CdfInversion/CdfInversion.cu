@@ -102,7 +102,8 @@ bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, SurfaceValu
 {
     if( tex == nullptr )
     {
-        sv = SurfaceValues{.Kd = float3{1.0f, 0.0f, 1.0f}};
+        sv = SurfaceValues{};
+        sv.Kd = float3{1.0f, 0.0f, 1.0f};
         return false;
     }
     
