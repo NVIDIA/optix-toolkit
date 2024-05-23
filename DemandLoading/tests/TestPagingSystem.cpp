@@ -236,6 +236,8 @@ TEST_F( TestPagingSystem, TestPageMappingOverflow )
             // Map a page id.
             device->m_paging.addMapping( pageId, 0 /*lruValue*/, 42ULL );
         }
-        EXPECT_EQ( m_options->numPageTableEntries, device->pushMappings() );
+        // addMapping now calls pushMappings on overflow, so we can't do much
+        // to test here here other than pushing any remaining mappings.
+        device->pushMappings();
     }
 }

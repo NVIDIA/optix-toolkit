@@ -79,7 +79,7 @@ void CoreEXRReader::open( TextureInfo* info )
         exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
         cinit.error_handler_fn          = nullptr;
 
-        OTK_ERROR_CHECK( exr_start_read( &m_exrCtx, m_filename.c_str(), &cinit ) == EXR_ERR_SUCCESS );
+        OTK_ERROR_CHECK( exr_start_read( &m_exrCtx, m_filename.c_str(), &cinit ) );
 
         // Get the width and height from the data window of the finest mipLevel.
         exr_attr_box2i_t dw;
@@ -88,7 +88,7 @@ void CoreEXRReader::open( TextureInfo* info )
         m_info.height = dw.max.y - dw.min.y + 1;
 
         exr_storage_t storageType;
-        OTK_ERROR_CHECK( exr_get_storage( m_exrCtx, m_partIndex, &storageType ) == EXR_ERR_SUCCESS );
+        OTK_ERROR_CHECK( exr_get_storage( m_exrCtx, m_partIndex, &storageType ) );
         OTK_ASSERT_MSG( storageType == EXR_STORAGE_SCANLINE || storageType == EXR_STORAGE_TILED,
                            "CoreEXR Reader doesn't support deep files." );
         m_isScanline = storageType == EXR_STORAGE_SCANLINE;
@@ -97,7 +97,7 @@ void CoreEXRReader::open( TextureInfo* info )
         // (they don't round up from 1+log2(max(width/height))).
         int numMipLevelsX = 1, numMipLevelsY = 1;
         if( !m_isScanline )
-            OTK_ERROR_CHECK( exr_get_tile_levels( m_exrCtx, m_partIndex, &numMipLevelsX, &numMipLevelsY ) == EXR_ERR_SUCCESS );
+            OTK_ERROR_CHECK( exr_get_tile_levels( m_exrCtx, m_partIndex, &numMipLevelsX, &numMipLevelsY ) );
 
         OTK_ASSERT_MSG( numMipLevelsX == numMipLevelsY, "Number of mip levels must match for X and Y" );
         m_info.numMipLevels = static_cast<unsigned int>( numMipLevelsX );
@@ -106,17 +106,15 @@ void CoreEXRReader::open( TextureInfo* info )
         {
             // Get the tile specifications.
             OTK_ERROR_CHECK( exr_get_tile_descriptor( m_exrCtx, m_partIndex, &m_tileWidth, &m_tileHeight,
-                                                    reinterpret_cast<exr_tile_level_mode_t*>( &m_levelMode ),
-                                                    reinterpret_cast<exr_tile_round_mode_t*>( &m_roundMode ) )
-                           == EXR_ERR_SUCCESS );
+                                                      reinterpret_cast<exr_tile_level_mode_t*>( &m_levelMode ),
+                                                      reinterpret_cast<exr_tile_round_mode_t*>( &m_roundMode ) ) );
 
             // Cache the level dimensions and tile tile dimensions for each mip level
             for( int mipLevel = 0; mipLevel < numMipLevelsX; ++mipLevel )
             {
                 int tileWidth, tileHeight, levelSizeX, levelSizeY;
-                OTK_ERROR_CHECK( exr_get_tile_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &tileWidth, &tileHeight ) == EXR_ERR_SUCCESS );
-                OTK_ERROR_CHECK( exr_get_level_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &levelSizeX, &levelSizeY )
-                               == EXR_ERR_SUCCESS );
+                OTK_ERROR_CHECK( exr_get_tile_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &tileWidth, &tileHeight ) );
+                OTK_ERROR_CHECK( exr_get_level_sizes( m_exrCtx, m_partIndex, mipLevel, mipLevel, &levelSizeX, &levelSizeY ) );
 
                 m_tileWidths[mipLevel]   = tileWidth;
                 m_tileHeights[mipLevel]  = tileHeight;
@@ -127,7 +125,7 @@ void CoreEXRReader::open( TextureInfo* info )
 
         // Get channel list.
         const exr_attr_chlist_t* chlist = nullptr;
-        OTK_ERROR_CHECK( exr_get_channels( m_exrCtx, m_partIndex, &chlist ) == EXR_ERR_SUCCESS );
+        OTK_ERROR_CHECK( exr_get_channels( m_exrCtx, m_partIndex, &chlist ) );
         OTK_ASSERT_MSG( chlist->num_channels > 0, "No channels found in EXR file" );
         OTK_ASSERT_MSG( chlist->num_channels <= 4, "More than four channels found in EXR file" );
 
@@ -182,7 +180,7 @@ void CoreEXRReader::close()
 {
     if( m_exrCtx != nullptr )
     {
-        OTK_ERROR_CHECK( exr_finish( &m_exrCtx ) == EXR_ERR_SUCCESS );
+        OTK_ERROR_CHECK( exr_finish( &m_exrCtx ) );
     }
     m_exrCtx = nullptr;
 }
@@ -211,8 +209,8 @@ void CoreEXRReader::readActualTile( char* dest, int rowPitch, int mipLevel, int 
 
     exr_chunk_info_t      cinfo;
     exr_decode_pipeline_t decoder;
-    OTK_ERROR_CHECK( exr_read_tile_chunk_info( m_exrCtx, m_partIndex, tileX, tileY, mipLevel, mipLevel, &cinfo ) == EXR_ERR_SUCCESS );
-    OTK_ERROR_CHECK( exr_decoding_initialize( m_exrCtx, 0, &cinfo, &decoder ) == EXR_ERR_SUCCESS );
+    OTK_ERROR_CHECK( exr_read_tile_chunk_info( m_exrCtx, m_partIndex, tileX, tileY, mipLevel, mipLevel, &cinfo ) );
+    OTK_ERROR_CHECK( exr_decoding_initialize( m_exrCtx, 0, &cinfo, &decoder ) );
 
     const int bytesPerChannel = decoder.channels[0].bytes_per_element;
 
@@ -242,9 +240,9 @@ void CoreEXRReader::readActualTile( char* dest, int rowPitch, int mipLevel, int 
     }
 
     // Run the decoder
-    OTK_ERROR_CHECK( exr_decoding_choose_default_routines( m_exrCtx, 0, &decoder ) == EXR_ERR_SUCCESS );
-    OTK_ERROR_CHECK( exr_decoding_run( m_exrCtx, 0, &decoder ) == EXR_ERR_SUCCESS );
-    OTK_ERROR_CHECK( exr_decoding_destroy( m_exrCtx, &decoder ) == EXR_ERR_SUCCESS );
+    OTK_ERROR_CHECK( exr_decoding_choose_default_routines( m_exrCtx, 0, &decoder ) );
+    OTK_ERROR_CHECK( exr_decoding_run( m_exrCtx, 0, &decoder ) );
+    OTK_ERROR_CHECK( exr_decoding_destroy( m_exrCtx, &decoder ) );
 
     // Stats tracking
     {
@@ -259,15 +257,15 @@ void CoreEXRReader::readScanlineData( char* dest )
     OTK_ASSERT( m_isScanline );
 
     int scanlinesPerChunk;
-    OTK_ERROR_CHECK( exr_get_scanlines_per_chunk( m_exrCtx, m_partIndex, &scanlinesPerChunk ) == EXR_ERR_SUCCESS );
+    OTK_ERROR_CHECK( exr_get_scanlines_per_chunk( m_exrCtx, m_partIndex, &scanlinesPerChunk ) );
 
     size_t offset = 0;
     for( int y = 0; y < (int)m_info.height; y += scanlinesPerChunk )
     {
         exr_chunk_info_t      cinfo;
         exr_decode_pipeline_t decoder;
-        OTK_ERROR_CHECK( exr_read_scanline_chunk_info( m_exrCtx, m_partIndex, y, &cinfo ) == EXR_ERR_SUCCESS );
-        OTK_ERROR_CHECK( exr_decoding_initialize( m_exrCtx, 0, &cinfo, &decoder ) == EXR_ERR_SUCCESS );
+        OTK_ERROR_CHECK( exr_read_scanline_chunk_info( m_exrCtx, m_partIndex, y, &cinfo ) );
+        OTK_ERROR_CHECK( exr_decoding_initialize( m_exrCtx, 0, &cinfo, &decoder ) );
 
         const int bytesPerElement = decoder.channels[0].bytes_per_element;
 
@@ -296,9 +294,9 @@ void CoreEXRReader::readScanlineData( char* dest )
         }
 
         // Run the decoder
-        OTK_ERROR_CHECK( exr_decoding_choose_default_routines( m_exrCtx, 0, &decoder ) == EXR_ERR_SUCCESS );
-        OTK_ERROR_CHECK( exr_decoding_run( m_exrCtx, 0, &decoder ) == EXR_ERR_SUCCESS );
-        OTK_ERROR_CHECK( exr_decoding_destroy( m_exrCtx, &decoder ) == EXR_ERR_SUCCESS );
+        OTK_ERROR_CHECK( exr_decoding_choose_default_routines( m_exrCtx, 0, &decoder ) );
+        OTK_ERROR_CHECK( exr_decoding_run( m_exrCtx, 0, &decoder ) );
+        OTK_ERROR_CHECK( exr_decoding_destroy( m_exrCtx, &decoder ) );
 
         offset += m_info.width * m_info.numChannels * bytesPerElement * scanlinesPerChunk;
     }
