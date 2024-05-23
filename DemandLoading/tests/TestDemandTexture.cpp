@@ -71,7 +71,6 @@ class TestDemandTexture : public testing::Test
         m_deviceIndex = getFirstSparseTextureDevice();
         if( m_deviceIndex == demandLoading::MAX_DEVICES )
             throw std::runtime_error( "No devices support demand loading" );
-            m_deviceIndex = 0;
 
         // FIXME: Which of these can I delete???
         OTK_ERROR_CHECK( cudaSetDevice( m_deviceIndex ) );

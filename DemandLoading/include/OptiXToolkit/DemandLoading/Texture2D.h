@@ -72,14 +72,14 @@ D_INLINE float getMipLevel( float2 ddx, float2 ddy, int texWidth, int texHeight,
     const float A    = ddy.x * ddy.x + ddy.y * ddy.y;
     const float B    = -2.0f * ( ddx.x * ddy.x + ddx.y * ddy.y );
     const float C    = ddx.x * ddx.x + ddx.y * ddx.y;
-    const float root = sqrtf( maxf( A * A - 2.0f * A * C + C * C + B * B, 0.0f ) );
+    const float root = sqrtf( fmaxf( A * A - 2.0f * A * C + C * C + B * B, 0.0f ) );
 
     // Compute the square of the major and minor ellipse radius lengths to avoid sqrts.
     // Then compensate by taking half the log to get the mip level.
 
     const float minorRadius2 = ( A + C - root ) * 0.5f;
     const float majorRadius2 = ( A + C + root ) * 0.5f;
-    const float filterWidth2 = maxf( minorRadius2, majorRadius2 * invAnisotropy * invAnisotropy );
+    const float filterWidth2 = fmaxf( minorRadius2, majorRadius2 * invAnisotropy * invAnisotropy );
     const float mipLevel     = 0.5f * log2f( filterWidth2 );
     return mipLevel;
 }
@@ -233,8 +233,8 @@ D_INLINE bool requestTexFootprint2DGrad( const TextureSampler& sampler,
 #endif
 
     // Request footprint for rectangular extent. (Expand footprint by (0.5f / sampler.width) to make sure it's at least a texel wide.)
-    float dxmax = 0.5f * maxf( fabs( dPdx_x ), fabs( dPdy_x ) ) + ( 0.5f / sampler.width )  + expandX;
-    float dymax = 0.5f * maxf( fabs( dPdx_y ), fabs( dPdy_y ) ) + ( 0.5f / sampler.height ) + expandY;
+    float dxmax = 0.5f * fmaxf( fabs( dPdx_x ), fabs( dPdy_x ) ) + ( 0.5f / sampler.width )  + expandX;
+    float dymax = 0.5f * fmaxf( fabs( dPdx_y ), fabs( dPdy_y ) ) + ( 0.5f / sampler.height ) + expandY;
 
     bool isResident = requestTexFootprint2DRect( sampler, referenceBits, residenceBits, x, y, dxmax, dymax, fineLevel, singleMipLevel );
     if( !isResident || !swFootprint )
@@ -263,7 +263,7 @@ D_INLINE bool requestTexFootprint2DLod( const TextureSampler& sampler,
                                         float                 lod )
 {
     // Figure out which mip levels are sampled.
-    unsigned int fineLevel = static_cast<unsigned int>( maxf( lod, 0.0f ) );
+    unsigned int fineLevel = static_cast<unsigned int>( fmaxf( lod, 0.0f ) );
     fineLevel = min( fineLevel, sampler.desc.numMipLevels - 1 );
     unsigned int singleMipLevel = static_cast<unsigned int>( lod == fineLevel || sampler.desc.numMipLevels <= 1 ); 
 
@@ -271,30 +271,6 @@ D_INLINE bool requestTexFootprint2DLod( const TextureSampler& sampler,
     float dx = exp2f( fineLevel * 2.0f ) / sampler.width;
     float dy = exp2f( fineLevel * 2.0f ) / sampler.height;
     return requestTexFootprint2DRect( sampler, referenceBits, residenceBits, x, y, dx, dy, fineLevel, singleMipLevel );
-}
-
-#endif  // SPARSE_TEX_SUPPORT
-
-/// Request the footprint for a texture sample at coords (x,y) with the specified lod value.
-D_INLINE bool requestTexFootprint2DLod( const TextureSampler& sampler,
-                                        unsigned int*         referenceBits,
-                                        unsigned int*         residenceBits,
-                                        float                 x,
-                                        float                 y,
-                                        float                 lod )
-{
-    // Get the footprint for the fine level, to find out which mip levels are sampled.
-    unsigned int singleMipLevel;
-    unsigned int desc = *reinterpret_cast<const unsigned int*>( &sampler.desc );
-    uint4 fp = optixTexFootprint2DLod( sampler.texture, desc, x, y, lod, FINE_MIP_LEVEL, &singleMipLevel );
-    Texture2DFootprint* finefp = reinterpret_cast<Texture2DFootprint*>( &fp );
-    unsigned int mipLevel = finefp->level;
-
-    // Request footprint for rectangular extent.
-    float dx = exp2f( mipLevel ) / sampler.width;
-    float dy = exp2f( mipLevel ) / sampler.height;
-
-    return requestTexFootprint2DRect( sampler, referenceBits, residenceBits, x, y, dx, dy, mipLevel, singleMipLevel );
 }
 
 #endif  // SPARSE_TEX_SUPPORT
@@ -317,10 +293,12 @@ getBaseColor( const DeviceContext& context, unsigned int textureId, Sample& rval
     return false;
 }
 
+#endif  // ndef DOXYGEN_SKIP
+
 /// Fetch from a demand-loaded texture with the specified identifer, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
-template <class TYPE> D_INLINE TYPE 
+template <class Sample> D_INLINE Sample 
 tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident, float2 texelJitter )
 {
     // Check for base color
@@ -352,9 +330,9 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     // Prevent footprint from exceeding min tile width for non-mipmapped textures
     if( sampler->desc.numMipLevels == 1 && sampler->desc.isSparseTexture )
     {
-        float       pixelSpanX       = maxf( fabsf( ddx.x ), fabsf( ddy.x ) ) * sampler->width;
-        float       pixelSpanY       = maxf( fabsf( ddx.y ), fabsf( ddy.y ) ) * sampler->height;
-        float       pixelSpan        = maxf( pixelSpanX, pixelSpanY );
+        float       pixelSpanX       = fmaxf( fabsf( ddx.x ), fabsf( ddy.x ) ) * sampler->width;
+        float       pixelSpanY       = fmaxf( fabsf( ddx.y ), fabsf( ddy.y ) ) * sampler->height;
+        float       pixelSpan        = fmaxf( pixelSpanX, pixelSpanY );
         const float halfMinTileWidth = 32.0f;  // half min tile width for sparse textures
 
         if( pixelSpan > halfMinTileWidth )
@@ -404,7 +382,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
 /// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
-template <class TYPE> D_INLINE TYPE 
+template <class Sample> D_INLINE Sample 
 tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y, float lod, bool* isResident, float2 texelJitter )
 {
     // Check whether the texture sampler is resident.

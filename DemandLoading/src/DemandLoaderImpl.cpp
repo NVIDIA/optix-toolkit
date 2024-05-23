@@ -390,7 +390,8 @@ void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
 
 void DemandLoaderImpl::initUdimTexture( CUstream stream, unsigned int baseTextureId )
 {
-    OTK_CONTEXT_STREAM_CUDA_CHECK( m_cudaContext, stream );
+    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     m_samplerRequestHandler.loadPage( stream, baseTextureId, true ); // make sure the sampler is reloaded to get udim params.
     m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( baseTextureId, getOptions().maxTextures ) );
 
