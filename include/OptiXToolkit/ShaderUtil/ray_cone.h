@@ -34,7 +34,7 @@
 
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
-OTK_DEVICE const static float INV_MAX_ANISOTROPY = 1.0f / 64.0f;
+OTK_DEVICE const static float INV_MAX_ANISOTROPY = 1.0f / 16.0f;
 OTK_DEVICE const static float MAX_CONE_ANGLE = 0.25f;
 
 struct RayCone
@@ -123,18 +123,19 @@ OTK_INLINE OTK_HOSTDEVICE void scatterPhaseFunction( RayCone rayCone, float phas
 
 /// Return the isotropic texture footprint width in texture space, 
 /// given the world-space texture derivative lengths.
-OTK_INLINE OTK_HOSTDEVICE float texFootprintWidth( float rayConeWidth, float dPdsLen, float dPdtLen ) 
+OTK_INLINE OTK_HOSTDEVICE float texFootprintWidth( float rayConeWidth, float dPdsLen, float dPdtLen )
 { 
     return fabsf( rayConeWidth ) / fmaxf( dPdsLen, dPdtLen ); 
 }
 
 /// Project the ray cone onto the surface to get ray differentials, 
 /// given the normalized ray direction D and surface normal N.
-OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayConeWidth, float3 D, float3 N, float3& dPdx, float3& dPdy )
+OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayConeWidth, float3 D, float3 N, float3& dPdx, float3& dPdy,
+                                                                   float invMaxAnisotropy = INV_MAX_ANISOTROPY )
 {
     using namespace otk;
     float DdotN = dot(D, N);
-    dPdx = normalize( D - DdotN * N ) * ( rayConeWidth / fmaxf( fabsf( DdotN ), INV_MAX_ANISOTROPY ) );
+    dPdx = normalize( D - DdotN * N ) * ( rayConeWidth / fmaxf( fabsf( DdotN ), invMaxAnisotropy ) );
     dPdy = normalize( cross( D, N ) ) * rayConeWidth;
 }
 

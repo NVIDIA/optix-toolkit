@@ -115,10 +115,13 @@ embed_cuda(
 )
 
 add_executable(TestShaderUtil
+    TestAliasTable.cpp
+    TestCdfInversionTable.cpp
     TestDebugLocation.h
     TestDebugLocation.cpp
     TestDebugLocationParams.h
     TestOperators.cpp
+    TestPdfTable.cpp
     TestPrinters.cpp
     TestTransform4.cpp
 )
