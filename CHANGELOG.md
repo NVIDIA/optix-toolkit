@@ -1,7 +1,19 @@
 # OptiX Toolkit changes
 
-More detailed change logs are available in various submodules, e.g. 
-[Demand Loading CHANGELOG](https://github.com/NVIDIA/otk-demand-loading/blob/master/CHANGELOG.md).
+## Version 1.0.0
+* Merged multiple submodules into the main repository (CMake, DemandLoading, Memory, OmmBaking, PyOptiX, ShaderUtil, examples).
+
+## Version 0.9.4
+* Renamed `DemandLoader::unloadResource()` to `invalidatePage()`
+
+## Version 0.9.3
+* The `DemandLoader` interface now provides a `setPageTableEntry` method, which is helpful for
+  asynchronous resource request handling.  In such an approach `ResourceCallback` can enqueue a
+  request and return false, indicating that the request has not yet been satisfied.  Later, when the
+  request has been processed, `setPageTableEntry` can called to update the page table.  Note that
+  it's not necessary to call this method when requests are processed synchronously: if the
+  `ResourceCallback` returns true, the page table is automatically updated.
+* embed_cuda now generates OptiX IR by default.  Be careful to use the PTX option when compiling pure CUDA kernels.
 
 ## Version 0.9.2
 * Added CMake presets.  Updated [README](README.md).

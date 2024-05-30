@@ -15,7 +15,7 @@ A quick start guide is provided below.  For additional information, please the
 API documentation for the Demand Loading library can be generated via `make docs` after configuring
 CMake.
 
-The Demand Loading library is a submodule of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
+The Demand Loading library is part of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
 For more information on prerequisites and build procedures, please see the 
 [OptiX Toolkit README](https://github.com/NVIDIA/optix-toolkit/blob/master/README.md).
 
@@ -81,7 +81,7 @@ while( true )
 ```
 ## How to incorporate into your project
 
-The Demand Loading library is a submodule of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
+The Demand Loading library is part of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
 In order to include the entire OptiX Toolkit in your project, simply add it as a submodule, e.g.
 ```
 git submodule add https://github.com/NVIDIA/optix-toolkit.git OptiXToolkit
@@ -92,21 +92,4 @@ If your build uses CMake, you can simply include the OptiX Toolkit as a subdirec
 `CMakeLists.txt`, e.g.
 ```
 add_subirectory( OptiXToolkit )
-```
-
-Alternatively, the Demand Loading repository can be incorporated directly into a project as a
-submodule without including the rest of the OptiX Toolkit.  When doing so, you should also include
-the [otk-memory](https://github.com/NVIDIA/otk-memory),
-[otk-shader-util](https://github.com/NVIDIA/otk-shader-util), and
-[otk-cmake](https://github.com/NVIDIA/otk-cmake) repositories as submodules.  For example,
-```
-git submodule add https://github.com/NVIDIA/otk-demand-loading.git DemandLoading
-git submodule add https://github.com/NVIDIA/otk-memory.git Memory
-git submodule add https://github.com/NVIDIA/otk-shader-util.git ShaderUtil
-git submodule add https://github.com/NVIDIA/otk-cmake.git CMake
-```
-In this scenario it's necessary to add the CMake folder to the CMake module path:
-```
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/CMake)
-add_subdirectory( DemandLoading )
 ```
