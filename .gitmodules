@@ -1,6 +1,3 @@
-[submodule "DemandLoading"]
-	path = DemandLoading
-	url = https://github.com/NVIDIA/otk-demand-loading.git 
 [submodule "examples"]
 	path = examples
 	url = https://github.com/NVIDIA/otk-examples.git 
