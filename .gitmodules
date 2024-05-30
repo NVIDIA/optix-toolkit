@@ -10,9 +10,6 @@
 [submodule "PyOptiX"]
 	path = PyOptiX
 	url = https://github.com/NVIDIA/otk-pyoptix.git 
-[submodule "CMake"]
-	path = CMake
-	url = https://github.com/NVIDIA/otk-cmake.git 
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/microsoft/vcpkg.git
