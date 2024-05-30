@@ -36,6 +36,8 @@
 using CUtexObject = unsigned long long;
 #endif
 
+#include "TextureDescriptor.h"
+
 namespace demandLoading {
 
 const unsigned int MAX_TILE_LEVELS = 9;
@@ -87,9 +89,11 @@ struct TextureSampler
     unsigned short vdim;
 
     // Cascaded textures
-    unsigned short cascadeLevel;
-    bool hasCascade;
-
+    unsigned int cascadeLevel : 4;
+    unsigned int hasCascade   : 1;
+    unsigned int filterMode   : 2;
+    unsigned int numChannelTextures : 5;
+    unsigned int pad          : 20;
 };
 
 // Indexing related to base colors

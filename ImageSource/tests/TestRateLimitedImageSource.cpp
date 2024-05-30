@@ -26,10 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "ImageSourceTestConfig.h"  // generated from ImageSourceTestConfig.h.in
+#include "ImageSourceTestConfig.h"
 
-#include <OptiXToolkit/ImageSource/EXRReader.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/RateLimitedImageSource.h>
+#include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <gtest/gtest.h>
 
@@ -42,7 +43,7 @@ TEST(TestRateLimitedImageSource, TestReadTile)
     *timeRemaining = 0; // microseconds
 
     // Create EXRReader and RateLimitedImageSource.
-    std::shared_ptr<EXRReader>   exrReader( new EXRReader( getSourceDir() + "/Textures/TiledMipMappedFloat.exr" ) );
+    std::shared_ptr<ImageSource> exrReader( createImageSource( getSourceDir() + "/Textures/TiledMipMappedFloat.exr" ) );
     std::shared_ptr<ImageSource> imageSource( new RateLimitedImageSource( exrReader, timeRemaining ) );
 
     // Open the texture file.  Note that open() calls proceed regardless of the time limit.

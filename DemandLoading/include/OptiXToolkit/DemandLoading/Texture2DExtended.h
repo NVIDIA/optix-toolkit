@@ -48,7 +48,7 @@ D_INLINE void wrapAndSeparateUdimCoord( float x, CUaddress_mode wrapMode, unsign
 /// object (with an optional base texture).  This entry point does not combine multiple samples to blend across subtexture boundaries.
 /// Use CU_TR_ADDRESS_MODE_CLAMP when defining all subtextures. Other blending modes will show lines between subtextures.
 template <class TYPE> D_INLINE TYPE
-tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
+tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident, float2 texelJitter )
 {
     TYPE rval{};
     TextureSampler* bsmp = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) ); // base sampler
@@ -59,6 +59,8 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
     {
         float mipLevel = getMipLevel( ddx, ddy, bsmp->width, bsmp->height, 1.0f / bsmp->desc.maxAnisotropy );
         useBaseTexture = ( mipLevel >= 0.0f ) || bsmp->hasCascade;
+        if( useBaseTexture )
+            texelJitter = float2{0.0f};
     }
 
     // Sample the subtexture
@@ -69,19 +71,25 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
         wrapAndSeparateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, sx, xidx );
         wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, sy, yidx );
 
-        unsigned int subTexId = bsmp->udimStartPage + ( yidx * bsmp->udim + xidx );
+        unsigned int subTexId = bsmp->udimStartPage + ( yidx * bsmp->udim + xidx ) * bsmp->numChannelTextures;
         const float2 ddx_dim = make_float2( ddx.x * bsmp->udim, ddx.y * bsmp->vdim );
         const float2 ddy_dim = make_float2( ddy.x * bsmp->udim, ddy.y * bsmp->vdim );
-        rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx_dim, ddy_dim, isResident );
+        rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx_dim, ddy_dim, isResident, texelJitter );
 
         if( *isResident || !bsmp->desc.isUdimBaseTexture )
             return rval;
     }
 
     // Sample the base texture
-    rval = tex2DGrad<TYPE>( context, textureId, x, y, ddx, ddy, isResident );
+    rval = tex2DGrad<TYPE>( context, textureId, x, y, ddx, ddy, isResident, texelJitter );
     *isResident = *isResident && useBaseTexture;
     return rval;
+}
+
+template <class TYPE> D_INLINE TYPE
+tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
+{
+    return tex2DGradUdim<TYPE>( context, textureId, x, y, ddx, ddy, isResident, float2{0.0f} );
 }
 
 
@@ -89,7 +97,7 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
 /// object (with an optional base texture).  This entry point will combine multiple samples to blend across subtexture boundaries.
 /// Use CU_TR_ADDRESS_MODE_BORDER when defining all subtextures. Other blending modes will show lines between subtextures.
 template <class TYPE> D_INLINE TYPE
-tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
+tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident, float2 texelJitter )
 {
     TYPE rval{};
     TextureSampler* bsmp = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, isResident ) ); // base sampler
@@ -100,6 +108,8 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
     {
         float mipLevel = getMipLevel( ddx, ddy, bsmp->width, bsmp->height, 1.0f / bsmp->desc.maxAnisotropy );
         useBaseTexture = ( mipLevel >= 0.0f ) || bsmp->hasCascade;
+        if( useBaseTexture )
+            texelJitter = float2{0.0f};
     }
 
     // Sample subtextures
@@ -156,10 +166,10 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
         // Try to sample up to 4 subtextures
         bool subTexResident;
-        unsigned int subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx0 );
+        unsigned int subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx0 ) * bsmp->numChannelTextures;
         float xoff = ( xidx != xidx0 ) ? 1.0f : 0.0f;
         float yoff = ( yidx != yidx0 ) ? 1.0f : 0.0f;
-        rval = tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
+        rval = tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
         *isResident = subTexResident;
 
         // Special case for base colors - don't blend with neighbors
@@ -168,26 +178,26 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
         if( xidx1 != xidx0 )
         {
-            subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx1 );
+            subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx1 ) * bsmp->numChannelTextures;
             xoff = ( xidx != xidx1 ) ? -1.0f : 0.0f;
             yoff = ( yidx != yidx0 ) ? 1.0f : 0.0f;
-            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
+            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
             *isResident = *isResident && subTexResident;
         }
         if( yidx1 != yidx0 )
         {
-            subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx0 );
+            subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx0 ) * bsmp->numChannelTextures;
             xoff = ( xidx != xidx0 ) ? 1.0f : 0.0f;
             yoff = ( yidx != yidx1 ) ? -1.0f : 0.0f;
-            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
+            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
             *isResident = *isResident && subTexResident;
         }
         if( xidx1 != xidx0 && yidx1 != yidx0 )
         {
-            subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx1 );
+            subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx1 ) * bsmp->numChannelTextures;
             xoff = ( xidx != xidx1 ) ? -1.0f : 0.0f;
             yoff = ( yidx != yidx1 ) ? -1.0f : 0.0f;
-            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident );
+            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
             *isResident = *isResident && subTexResident;
         }
 
@@ -196,9 +206,15 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
     }
 
     // Sample the base texture
-    rval = tex2DGrad<TYPE>( context, textureId, x, y, ddx, ddy, isResident );
+    rval = tex2DGrad<TYPE>( context, textureId, x, y, ddx, ddy, isResident, texelJitter );
     *isResident = *isResident && useBaseTexture;
     return rval;
+}
+
+template <class TYPE> D_INLINE TYPE
+tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
+{
+    return tex2DGradUdimBlend<TYPE>( context, textureId, x, y, ddx, ddy, isResident, float2{0.0f} );
 }
 
 }  // namespace demandLoading

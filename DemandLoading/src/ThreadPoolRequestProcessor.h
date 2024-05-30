@@ -32,7 +32,6 @@
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 
 #include "RequestQueue.h"
-#include "Util/TraceFile.h"
 
 #include <cuda.h>
 
@@ -45,7 +44,6 @@
 namespace demandLoading {
 
 class PageTableManager;
-class TraceFileWriter;
 
 class ThreadPoolRequestProcessor : public RequestProcessor
 {
@@ -64,9 +62,6 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     /// Add a request filter to preprocess batches of requests
     void setRequestFilter( std::shared_ptr<RequestFilter> requestFilter ) { m_requestFilter = requestFilter; }
 
-    /// Record a texture creation for later playback
-    void recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc );
-
     /// Set the ticket that will track requests with the given ticket id
     void setTicket( unsigned int id, Ticket ticket );
 
@@ -82,15 +77,6 @@ private:
 
     /// Start processing requests.
     void start();
-
-    static std::mutex s_traceFileMutex;
-    static std::unique_ptr<TraceFileWriter> s_traceFile;
-    static void initTraceFile( const Options& options )
-    {
-        std::unique_lock<std::mutex> lock( s_traceFileMutex );
-        if( !s_traceFile )
-            s_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
-    }
 
     // Per-thread worker function.
     void worker();

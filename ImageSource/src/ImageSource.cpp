@@ -89,11 +89,12 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     // Attempt relative path first, then absolute path.
     const std::string path = directory.empty() ? filename : ( fileExists( filename ) ? filename : directory + '/' + filename );
 
+#if OTK_USE_OPENEXR    
     if( extension == ".exr" )
     {
         return std::make_shared<CoreEXRReader>( path );
     }
-
+#endif
 #if OTK_USE_OIIO
     return std::make_shared<OIIOReader>( path );
 #else

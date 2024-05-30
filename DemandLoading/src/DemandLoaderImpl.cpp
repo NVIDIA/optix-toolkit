@@ -193,9 +193,6 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
     DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDesc, imageSource );
     m_textures.emplace( textureId, tex );
 
-    // Record the image reader and texture descriptor.
-    m_requestProcessor.recordTexture( imageSource, textureDesc );
-
     return *m_textures[textureId];
 }
 
@@ -205,7 +202,8 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                                                           std::vector<TextureDescriptor>& textureDescs,
                                                           unsigned int                    udim,
                                                           unsigned int                    vdim,
-                                                          int                             baseTextureId )
+                                                          int                             baseTextureId,
+                                                          unsigned int                    numChannelTextures )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
@@ -229,10 +227,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 entryPointId = std::min( textureId, entryPointId );
                 DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
                 m_textures.emplace( textureId, tex );
-                tex->setUdimTexture( startTextureId, udim, vdim, false );
-
-                // Record the image reader and texture descriptor.
-                m_requestProcessor.recordTexture( imageSources[imageIndex], textureDescs[imageIndex] );
+                tex->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, false );
             }
             else 
             {
@@ -243,7 +238,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
 
     if( baseTextureId >= 0 )
     {
-        m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, true );
+        m_textures[baseTextureId]->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, true );
         return *m_textures[baseTextureId];
     }
 
@@ -286,8 +281,20 @@ unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCa
 void DemandLoaderImpl::invalidatePage( unsigned int pageId )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-
     m_pageLoader->invalidatePageRange( pageId, pageId + 1, nullptr );
+}
+
+void DemandLoaderImpl::loadTextureTiles( CUstream stream, unsigned int textureId, bool reloadIfResident )
+{
+    initTexture( stream, textureId );
+    TextureRequestHandler *requestHandler = m_textures[textureId]->getRequestHandler();
+    unsigned int startPage = requestHandler->getStartPage();
+    unsigned int endPage = startPage + requestHandler->getNumPages();
+
+    for( unsigned int pageId = startPage; pageId < endPage; ++pageId )
+    {
+        requestHandler->loadPage( stream, pageId, reloadIfResident );
+    }
 }
 
 void DemandLoaderImpl::unloadTextureTiles( unsigned int textureId )
@@ -348,8 +355,8 @@ void DemandLoaderImpl::replaceTexture( CUstream                                 
 
     if( textureOpen )
     {
-        // Reload the sampler to the GPU
         m_samplerRequestHandler.loadPage( stream, textureId, true );
+        m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ), true );
 
         // Reload base color if not migrating the tiles
         if( !migrateTiles )
@@ -371,7 +378,6 @@ void DemandLoaderImpl::replaceTexture( CUstream                                 
                 m_samplerRequestHandler.loadPage( stream, samplerIdToBaseColorId( variantId, getOptions().maxTextures ), true );
         }
     }
-    m_requestProcessor.recordTexture( image, textureDesc );
 }
 
 void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
@@ -447,23 +453,6 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     m_requestProcessor.setTicket( id, ticket);
 
     m_pageLoader->pullRequests( stream, context, id );
-
-    return ticket;
-}
-
-Ticket DemandLoaderImpl::replayRequests( CUstream stream, unsigned int* requestedPages, unsigned int numRequestedPages )
-{
-    SCOPED_NVTX_RANGE_FUNCTION_NAME();
-    OTK_ASSERT_CONTEXT_IS( m_cudaContext );
-    OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
-    std::unique_lock<std::mutex> lock( m_mutex );
-
-    // Create a Ticket that the caller can use to track request processing.
-    Ticket ticket = TicketImpl::create( stream );
-    const unsigned int id = m_ticketId++;
-    m_requestProcessor.setTicket( id, ticket );
-
-    m_pageLoader->replayRequests( stream, id, requestedPages, numRequestedPages );
 
     return ticket;
 }

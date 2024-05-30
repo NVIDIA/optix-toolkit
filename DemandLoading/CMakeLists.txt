@@ -102,8 +102,6 @@ otk_add_library( DemandLoading
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
   src/Util/Stopwatch.h
-  src/Util/TraceFile.cpp
-  src/Util/TraceFile.h
   )
 set_property(TARGET DemandLoading PROPERTY FOLDER DemandLoading)
 
@@ -164,7 +162,6 @@ source_group( "Header Files\\Implementation" FILES
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
   src/Util/Stopwatch.h
-  src/Util/TraceFile.h
   )
 
 target_include_directories( DemandLoading

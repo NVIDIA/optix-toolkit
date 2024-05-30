@@ -256,9 +256,10 @@ void DemandTextureImpl::initSampler()
         m_sampler.startPage = m_id;
     }
 
-    // Fill in the hasCascade and cascadeLevel values in the sampler
+    // Fill in the hasCascade, cascadeLevel, and filterMode values in the sampler
     m_sampler.hasCascade = m_image->hasCascade();
     m_sampler.cascadeLevel = static_cast<unsigned short>( getCascadeLevel( m_sampler.width, m_sampler.height ) );
+    m_sampler.filterMode = m_descriptor.filterMode;
 }
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const
@@ -484,12 +485,13 @@ void DemandTextureImpl::open()
 }
 
 // Set this texture as an entry point for a udim texture array.
-void DemandTextureImpl::setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture )
+void DemandTextureImpl::setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, unsigned int numChannelTextures, bool isBaseTexture )
 {
     m_sampler.desc.isUdimBaseTexture = isBaseTexture ? 1 : 0;
     m_sampler.udimStartPage          = udimStartPage;
     m_sampler.udim                   = static_cast<unsigned short>( udim );
     m_sampler.vdim                   = static_cast<unsigned short>( vdim );
+    m_sampler.numChannelTextures     = numChannelTextures;
 }
 
 size_t DemandTextureImpl::getMipTailSize() 

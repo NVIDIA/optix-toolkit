@@ -57,7 +57,7 @@ class TestSparseTexture : public testing::Test
 
         m_desc.addressMode[0]   = CU_TR_ADDRESS_MODE_CLAMP;
         m_desc.addressMode[1]   = CU_TR_ADDRESS_MODE_CLAMP;
-        m_desc.filterMode       = CU_TR_FILTER_MODE_POINT;
+        m_desc.filterMode       = FILTER_POINT;
         m_desc.mipmapFilterMode = CU_TR_FILTER_MODE_POINT;
         m_desc.maxAnisotropy    = 16;
 

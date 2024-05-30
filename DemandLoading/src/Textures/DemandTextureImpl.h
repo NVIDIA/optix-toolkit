@@ -206,7 +206,7 @@ class DemandTextureImpl : public DemandTexture
     bool isOpen() const { return m_isOpen; }
 
     /// Set this texture as an entry point to a udim texture array
-    void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, bool isBaseTexture );
+    void setUdimTexture( unsigned int udimStartPage, unsigned int udim, unsigned int vdim, unsigned int numChannelTextures, bool isBaseTexture );
 
     /// Return true if the texture is an entry point for a udim texture
     bool isUdimEntryPoint() { return ( m_sampler.udim > 0 ); }

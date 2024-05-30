@@ -34,24 +34,11 @@
 
 namespace demandLoading {
 
-std::mutex ThreadPoolRequestProcessor::s_traceFileMutex;
-std::unique_ptr<TraceFileWriter> ThreadPoolRequestProcessor::s_traceFile;
-
 ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )
     : m_pageTableManager( std::move( pageTableManager ) )
     , m_options( options )
 {
     m_requests.reset( new RequestQueue( options.maxRequestQueueSize ) );
-
-    if( !options.traceFile.empty() )
-    {
-        std::unique_lock<std::mutex> lock( s_traceFileMutex );
-        if( !s_traceFile )
-        {
-            s_traceFile.reset( new TraceFileWriter( options.traceFile.c_str() ) );
-        }
-        s_traceFile->recordOptions( options );
-    }
 }
 
 void ThreadPoolRequestProcessor::start()
@@ -90,7 +77,7 @@ void ThreadPoolRequestProcessor::stop()
     m_started = false;
 }
 
-void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
+void ThreadPoolRequestProcessor::addRequests( CUstream /*stream*/, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
     std::unique_lock<std::mutex> lock( m_ticketsMutex );
     start();
@@ -110,20 +97,6 @@ void ThreadPoolRequestProcessor::addRequests( CUstream stream, unsigned int id, 
     else
     {
         m_requests->push( pageIds, numPageIds, ticket );
-    }
-
-    // If recording is enabled, write the requests to the trace file.
-    if( s_traceFile && numPageIds > 0 )
-    {
-        s_traceFile->recordRequests( stream, pageIds, numPageIds );
-    }
-}
-
-void ThreadPoolRequestProcessor::recordTexture( std::shared_ptr<imageSource::ImageSource> imageSource, const TextureDescriptor& textureDesc )
-{
-    if( s_traceFile )
-    {
-        s_traceFile->recordTexture( imageSource, textureDesc );
     }
 }
 

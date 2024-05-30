@@ -32,7 +32,9 @@
 #ifdef OPTIX_SAMPLE_USE_CORE_EXR
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #endif
+#if OTK_USE_OPENEXR
 #include <OptiXToolkit/ImageSource/EXRReader.h>
+#endif
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
@@ -117,16 +119,22 @@ struct TestOIIOReader : public testing::Test
 };
 
 // Macro to instantiate the test cases for all Reader types
-#if OTK_USE_OIIO
+#if OTK_USE_OPENEXR && OTK_USE_OIIO
 #define INSTANTIATE_READER_TESTS( TEST_NAME )                                                                          \
     TEST_F( TestEXRReader, TEST_NAME ) { run##TEST_NAME<EXRReader>(); }                                                \
     TEST_F( TestCoreEXRReader, TEST_NAME ) { run##TEST_NAME<CoreEXRReader>(); }                                        \
     TEST_F( TestOIIOReader, TEST_NAME ) { run##TEST_NAME<OIIOReader>(); }
-#else
+#elif OTK_USE_OPENEXR
 #define INSTANTIATE_READER_TESTS( TEST_NAME )                                                                          \
     TEST_F( TestEXRReader, TEST_NAME ) { run##TEST_NAME<EXRReader>(); }                                                \
     TEST_F( TestCoreEXRReader, TEST_NAME ) { run##TEST_NAME<CoreEXRReader>(); } 
+#elif OTK_USE_OIIO
+#define INSTANTIATE_READER_TESTS( TEST_NAME )                                                                          \
+    TEST_F( TestOIIOReader, TEST_NAME ) { run##TEST_NAME<OIIOReader>(); }
+#else
+#define INSTANTIATE_READER_TESTS( TEST_NAME )
 #endif
+
 
 // The test image was constructed with two distinctive miplevels.  The fine miplevel is 128x128,
 // with a red/white checkboard pattern (with 16x16 squares), while the coarser miplevel is 64x64,

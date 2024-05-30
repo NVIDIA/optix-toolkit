@@ -71,7 +71,6 @@ otk_add_executable( testDemandLoading
   TestTextureInstantiation.cpp
   TestTicket.cpp
   TestTileIndexing.cpp
-  TestTraceFile.cpp
   SourceDir.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )

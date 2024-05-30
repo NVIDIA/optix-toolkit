@@ -29,9 +29,9 @@
 
 #include <string>
 
+// Generated from @CMAKE_CURRENT_LIST_DIR@/ImageSourceTestConfig.h.in
+
 inline std::string getSourceDir()
 {
     return "@CMAKE_CURRENT_SOURCE_DIR@";
 }
-
-#cmakedefine01 OTK_USE_OIIO

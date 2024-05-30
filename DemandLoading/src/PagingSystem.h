@@ -100,9 +100,6 @@ class PagingSystem
     /// Returns whether eviction is turned on or off
     bool evictionIsActive() { return m_evictionActive; }
 
-    /// Flush accumulated page mappings.  Used during trace file playback.
-    void flushMappings();
-
     /// Invalidate a half open interval of page ids, from startId up to but not including endId, based on a predicate
     void invalidatePages( unsigned int startId, unsigned int endId, PageInvalidatorPredicate* predicate, const DeviceContext& context, CUstream stream );
 
