@@ -1,6 +1,6 @@
 # Memory allocators - OptiX Toolkit
 
-This repository is a submodule of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
+This repository is part of the [OptiX Toolkit](https://github.com/NVIDIA/optix-toolkit).
 
 For recent changes, see the [CHANGELOG](CHANGELOG.md).
 

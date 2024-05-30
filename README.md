@@ -4,23 +4,25 @@ A set of utilities commonly used in applications utilizing the [OptiX ray tracin
 
 See the [CHANGELOG](CHANGELOG.md) for recent changes.
 
-## Current Utilities
-- **[DemandLoading](https://github.com/NVIDIA/otk-demand-loading)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
-- **[Memory](https://github.com/NVIDIA/otk-memory)** - Memory allocators (used by DemandLoading library).
-- **[OmmBaking](https://github.com/NVIDIA/otk-omm-baking)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
-- **[PyOptiX](https://github.com/NVIDIA/otk-pyoptix)** - Complete Python bindings for the OptiX host API.
-- **[ShaderUtil](https://github.com/NVIDIA/otk-shader-util)** - Header-only libraries for OptiX kernels (e.g. vector math, Self Intersection Avoidance).
-
-Each of these components is stored in a separate git repository, which is referenced as a git submodule.
-After checking out the OptiX Toolkit repository, be sure to initialize the submodules, e.g.
+After checking out the toolkit, be sure to initialize the submodules before building:
 ```
 git submodule update --init --recursive
 ```
-Alternatively, a subset of the submodules can be specified.  For example, the OTK memory allocator library
-can be built in isolation by initializing its submodule, along with the submodules upon which it depends:
-```
-git submodule update --init --recursive Memory CMake
-```
+
+## Submodules merged in v1.0.0
+
+If you cloned the OptiX Tookit repository prior to v1.0.0, we recommend cloning a fresh repository.
+We restructured the repository, merging multiple submodules into the main repository, which
+complicates performing a pull operation.  (If you are intent on pulling, use `git submodule deinit`
+on all of the submodules except `vcpkg` before pulling.)
+
+
+## Current Utilities
+- **[DemandLoading](DemandLoading)** -  a C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers.
+- **[Memory](Memory)** - Memory allocators (used by DemandLoading library).
+- **[OmmBaking](OmmBaking)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
+- **[PyOptiX](PyOptiX)** - Complete Python bindings for the OptiX host API.
+- **[ShaderUtil](ShaderUtil)** - Header-only libraries for OptiX kernels (e.g. vector math, Self Intersection Avoidance).
 
 ## Requirements
 
@@ -177,14 +179,14 @@ When the toolkit is used as a subdirectory, e.g. a git submodule, of another pro
 the vcpkg manifest for toolkit must be incorporated into the parent project's manifest
 for vcpkg to correctly fetch the third party libraries used by the toolkit.
 
-The CMake module `ProjectOptions` (from the toolkit's `CMake` submodule) should be included by
+The CMake module `ProjectOptions` (from the toolkit's `CMake` directory) should be included by
 the parent project's `CMakeLists.txt` before the first call to [`project`](https://cmake.org/cmake/help/latest/command/project.html).
 This gives the toolkit the chance to configure optional features from the manifest
 and configure options controlling how the toolkit is built.
 
 If the variable `CMAKE_TOOLCHAIN_FILE` is not set when `ProjectOptions` is included, it will
 be set to point to the CMake integration in the toolkit's `vcpkg` submodule.  A parent
-project using vcpkg for dependency management may be using it's own submodule of vcpkg for
+project using vcpkg for dependency management may be using its own submodule of vcpkg for
 toolchain integration and should set `CMAKE_TOOLCHAIN_FILE` as appropriate before including
 the toolkit's `ProjectOptions` module.
 
@@ -235,9 +237,6 @@ Important: when building statically linked libraries, the CMake configuration va
 described above.
 
 ## Troubleshooting
-
-**Problem:** CMake Error: include could not find requested file: BuildConfig<br>
-**Solution:** Git submodules must be initialized, e.g. `git submodule update --init --recursive`
 
 **Problem:** CMake configuration error: "`OTK_USE_VCPKG` is ON, but could not locate vcpkg toolchain file"<br>
 **Solution:** vcpkg submodule must be initialized, e.g. `git submodule update --init --recursive`
