@@ -1,0 +1,65 @@
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "cube-normals.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+    Include "light-sources.pbrt"
+
+    AttributeBegin
+        Shape "trianglemesh"
+            "point P" [
+                -0.5   -0.5   -0.5   # 0
+                +0.5   -0.5   -0.5   # 1
+                +0.5   +0.5   -0.5   # 2
+                -0.5   +0.5   -0.5   # 3
+                -0.5   -0.5   +0.5   # 4
+                +0.5   -0.5   +0.5   # 5
+                +0.5   +0.5   +0.5   # 6
+                -0.5   +0.5   +0.5   # 7
+            ]
+            "point N" [
+                -1  -1  +1  # 0
+                +1  -1  +1  # 1
+                +1  +1  +1  # 2
+                -1  +1  +1  # 3
+                -1  -1  -1  # 4
+                +1  -1  -1  # 5
+                +1  +1  -1  # 6
+                -1  +1  -1  # 7
+            ]
+            "integer indices" [
+                # face 0
+                2 1 0
+                0 3 2
+                # face 1
+                6 5 1
+                1 2 6
+                # face 2
+                7 4 5
+                5 6 7
+                # face 3
+                3 0 4
+                4 7 3
+                # face 4
+                6 2 3
+                3 7 6
+                # face 5
+                1 5 4
+                4 0 1
+            ]
+            # red
+            "rgb Kd" [ 1 0 0 ]
+    AttributeEnd
+
+WorldEnd
