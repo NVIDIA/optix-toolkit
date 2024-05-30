@@ -1,6 +1,3 @@
-[submodule "OmmBaking"]
-	path = OmmBaking
-	url = https://github.com/NVIDIA/otk-omm-baking.git 
 [submodule "PyOptiX"]
 	path = PyOptiX
 	url = https://github.com/NVIDIA/otk-pyoptix.git 
