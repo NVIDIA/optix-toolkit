@@ -16,9 +16,6 @@
 [submodule "CMake"]
 	path = CMake
 	url = https://github.com/NVIDIA/otk-cmake.git 
-[submodule "Memory"]
-	path = Memory
-	url = https://github.com/NVIDIA/otk-memory.git
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/microsoft/vcpkg.git
