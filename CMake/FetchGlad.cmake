@@ -69,6 +69,8 @@ if(NOT glad_POPULATED)
     set(GLAD_GENERATOR "c" CACHE STRING "Language to generate the binding for")
     add_subdirectory(${glad_SOURCE_DIR} ${glad_BINARY_DIR})
 endif()
+# Let find_package know we have it
+set(glad_FOUND ON PARENT_SCOPE)
 
 set_target_properties(glad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

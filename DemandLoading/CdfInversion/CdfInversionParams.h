@@ -26,30 +26,18 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cuda_runtime.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
-#include <vector>
-using namespace otk;
+const int SUBFRAME_ID = 0;
+const int EMAP_ID = 1;
+const int MIP_LEVEL_0_ID = 2;
 
-struct Vert
-{
-    float3 p; // position
-    float3 n; // normal
-    float2 t; // tex coord
-};
+const int MIP_SCALE_ID = 0;
 
-class ShapeMaker
-{
-  public:
-    static void makeAxisPlane( float3 minCorner, float3 maxCorner, std::vector<Vert>& shape );
-    static void makeCircle( float3 center, float radius, int numSegments, std::vector<Vert>& shape );
-    static void makeSphere( float3 center, float radius, int numSegments, std::vector<Vert>& shape, float beginAngle=0.0f, float endAngle=M_PIf );
-    static void makeCylinder( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
-    static void makeCone( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
-    static void makeTorus( float3 center, float radius1, float radius2, int numSegments, std::vector<Vert>& shape );
-    static void makeVase( float3 basePoint, float radius1, float radius2, float height, int numSegments, std::vector<Vert>& shape );
+// Stuffing cdf inversion and alias table in colors
+const int EMAP_INVERSION_TABLE_ID = 0; // also 1 and 2
+const int EMAP_ALIAS_TABLE_ID = 3;
 
-    static void spinZaxis( std::vector<Vert>& silhouette, int numSegments, float3 translation, std::vector<Vert>& shape );
-    static Vert rotateSilhouettePoint( const Vert& p, float angle );
-};
-
+// Emap sample modes. Uncomment one.
+//#define emBIN_SEARCH 1
+//#define emLIN_SEARCH 2
+#define emDIRECT_LOOKUP 3
+//#define emALIAS_TABLE 4

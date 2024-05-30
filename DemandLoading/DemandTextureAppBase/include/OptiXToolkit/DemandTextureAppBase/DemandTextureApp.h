@@ -41,14 +41,6 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
-#ifdef OPTIX_SAMPLE_USE_CORE_EXR
-#include <OptiXToolkit/ImageSource/CoreEXRReader.h>
-#define EXRREADER CoreEXRReader
-#else 
-#include <OptiXToolkit/ImageSource/EXRReader.h>
-#define EXRREADER EXRReader
-#endif
-
 #include "LaunchParams.h"
 #include "PerDeviceOptixState.h"
 
@@ -94,8 +86,8 @@ class DemandTextureApp
     virtual void cleanupState( PerDeviceOptixState& state );
 
     // Demand loading and texturing system
-    demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, CUfilter_mode filterMode );
-    imageSource::ImageSource*        createExrImage( const std::string& filePath );
+    demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, demandLoading::FilterMode filterMode );
+    std::shared_ptr<imageSource::ImageSource> createExrImage( const std::string& filePath );
     
     // OptiX launches
     virtual void initView();
@@ -139,6 +131,7 @@ class DemandTextureApp
     float m_lens_width = 0.0f;
     float4 m_backgroundColor = float4{0.1f, 0.1f, 0.5f, 0.0f};
     float m_mipScale = 1.0f;
+    int m_reset_subframe_threshold = 10;
 
     // Mouse state
     static const int NO_BUTTON = -1;

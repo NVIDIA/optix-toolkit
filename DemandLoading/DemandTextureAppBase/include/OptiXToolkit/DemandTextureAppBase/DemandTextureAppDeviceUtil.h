@@ -163,17 +163,17 @@ static __forceinline__ __device__ unsigned int srand( unsigned int x, unsigned i
     return xyz + xyz * xyz * xyz;
 }
 
-// get a random number in [0,1)
+// Get a random number in [0,1)
 static __forceinline__ __device__ float rnd( unsigned int& prev )
 {
     prev = 1664525u * prev + 1013904223u;
     return static_cast<float>( prev & 0x00FFFFFF ) / 0x01000000;
 }
 
-// transform a point in [0,1) to a tent filter distribution in [-0.5, 1.5)
-static __forceinline__ __device__ float tentFilter( float x )
+// Get a random tuple in [0,1)^2
+static __forceinline__ __device__ float2 rnd2( unsigned int& prev )
 {
-    return ( x < 0.5f ) ? -0.5f + sqrtf( x * 2.0f ) : 1.5f - sqrtf( 2.0f - x * 2.0f );
+    return float2{rnd( prev ), rnd( prev )};
 }
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,27 +26,50 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-if( TARGET glog )
-    return()
-endif()
+include(GNUInstallDirs)
+include(BuildConfig)
+include(FetchGlfw)
+include(FetchGlad)
+include(embed_cuda)
 
-if( NOT OTK_FETCH_CONTENT )
-  find_package( glog REQUIRED )
-  return()
-endif()
-
-include(FetchContent)
-
-message(VERBOSE "Finding glog...")
-FetchContent_Declare(
-  glog
-  GIT_REPOSITORY https://github.com/google/glog.git
-  GIT_TAG a6a166db069520dbbd653c97c2e5b12e08a8bb26 # v0.3.5
-  GIT_PROGRESS TRUE
-  PATCH_COMMAND ${CMAKE_COMMAND} -DGITCOMMAND:PATH=${GITCOMMAND} -DPATCHFILE:PATH=${CMAKE_CURRENT_LIST_DIR}/glog-build-parameters.patch.txt -P ${CMAKE_CURRENT_LIST_DIR}/GitPatch.cmake
+embed_cuda(
+  CONST HEADER CdfInversionKernelCuda.h
+  OUTPUT_TARGET
+    cdfInversionKernel
+  FOLDER
+    Examples/DemandLoading
+  LIBRARIES
+    OptiXToolkit::DemandLoading 
+    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::ShaderUtil
+  SOURCES
+    CdfInversion.cu
 )
-FetchContent_MakeAvailable(glog)
-# Let find_package know we have it
-set(glog_FOUND ON PARENT_SCOPE)
 
-set_target_properties(glog PROPERTIES FOLDER "ThirdParty")
+otk_add_executable( cdfInversion
+  Bsdf.h
+  CdfInversion.cpp
+  ShapeMaker.cpp 
+  ShapeMaker.h
+  )
+
+target_link_libraries( cdfInversion
+  PUBLIC
+  cdfInversionKernel
+  OptiXToolkit::DemandLoading
+  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::Gui
+  OptiXToolkit::ImageSources
+  OptiXToolkit::Util
+  )
+
+set_target_properties( cdfInversion PROPERTIES
+  FOLDER Examples/DemandLoading
+  INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
+
+# Copy shared libraries that the built executable depends on.
+if( $<TARGET_RUNTIME_DLLS:cdfInversion> )
+  add_custom_command( TARGET cdfInversion POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:cdfInversion> $<TARGET_FILE_DIR:cdfInversion>
+    COMMAND_EXPAND_LISTS )
+endif()

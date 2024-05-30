@@ -29,15 +29,25 @@
 // This include is needed to avoid a link error
 #include <optix_stubs.h>
 
-#include "ShapeMaker.h"
-#include "RayConesParams.h"
-#include "RayConesKernelCuda.h"
+#include <StochasticTextureFilteringKernel.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/Gui/glfw3.h>
+
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
+
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+#include "ShapeMaker.h"
+#include "StochasticTextureFilteringParams.h"
 
 #include <optix_stubs.h>
 
@@ -47,13 +57,13 @@ using namespace demandLoading;
 using namespace imageSource;
 
 //------------------------------------------------------------------------------
-// RayConesApp
+// StochasticTextureFilteringApp
 //------------------------------------------------------------------------------
 
-class RayConesApp : public DemandTextureApp
+class StochasticTextureFilteringApp : public DemandTextureApp
 {
   public:
-    RayConesApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
+    StochasticTextureFilteringApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
     void createTexture() override;
     void initView() override;
@@ -63,6 +73,7 @@ class RayConesApp : public DemandTextureApp
     
     void buildAccel( PerDeviceOptixState& state ) override;
     void createSBT( PerDeviceOptixState& state ) override;
+    void drawGui() override;
 
   protected:
     std::string m_textureName;
@@ -79,34 +90,46 @@ class RayConesApp : public DemandTextureApp
     void copyGeometryToDevice();
 
     void cursorPosCallback( GLFWwindow* window, double xpos, double ypos ) override;
+    void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods ) override;
+
     void keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods ) override;
     void pollKeys() override;
 
     int m_minRayDepth = 0;
     int m_maxRayDepth = 6;
     int m_updateRayCones = 1;
+
+    // GUI controls
+    unsigned int m_selectedOutputValueId = 0;
+    unsigned int m_selectedPixelFilterId = 0;
+    unsigned int m_selectedTextureFilterId = 0;
+    unsigned int m_selectedTextureJitterId = 0;
+    bool         m_singleSample = false;
+    float        m_filterWidth = 1.0f;
+    float        m_filterStrength = 1.0f;
 };
 
 
-RayConesApp::RayConesApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
+StochasticTextureFilteringApp::StochasticTextureFilteringApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
     : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
 {
     m_backgroundColor = float4{1.0f, 1.0f, 1.0f, 0.0f};
-    m_projection = Projection::THINLENS;
-    m_lens_width = 0.1f;
+    m_projection = Projection::PINHOLE;
 }
 
 
-void RayConesApp::initView()
+void StochasticTextureFilteringApp::initView()
 {
-    if( m_sceneId < 5 )
+    if( m_sceneId == 0 )
+        setView( float3{0.0f, 0.0f, 1.0f}, float3{-10.0f, -5.0f, 0.0f}, float3{0.0f, 0.0f, 1.0f}, 30.0f );
+    else if( m_sceneId == 1 )
+        setView( float3{0.0f, 40.0f, 5.0f}, float3{0.0f, 0.0f, 0.0f}, float3{0.0f, 0.0f, 1.0f}, 30.0f );
+    else 
         setView( float3{0.0f, 25.0f, 7.0f}, float3{0.0f, 0.0f, 3.0f}, float3{0.0f, 0.0f, 1.0f}, 30.0f );
-    else
-        setView( float3{-8.0f, 0.0f, 15.0f}, float3{0.0f, 0.0f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, 30.0f );
 }
 
 
-void RayConesApp::buildAccel( PerDeviceOptixState& state )
+void StochasticTextureFilteringApp::buildAccel( PerDeviceOptixState& state )
 {
     // Copy vertex data to device
     void* d_vertices = nullptr;
@@ -200,7 +223,7 @@ void RayConesApp::buildAccel( PerDeviceOptixState& state )
 }
 
 
-void  RayConesApp::createSBT( PerDeviceOptixState& state )
+void  StochasticTextureFilteringApp::createSBT( PerDeviceOptixState& state )
 {
     // Raygen record 
     void*  d_raygen_record = nullptr;
@@ -247,36 +270,53 @@ void  RayConesApp::createSBT( PerDeviceOptixState& state )
     state.sbt.hitgroupRecordCount         = MAT_COUNT;
 }
 
-void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
+void StochasticTextureFilteringApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
 {
+    // If the GUI state has changed, reset the subframe id.
+    if( state.params.i[PIXEL_FILTER_ID] != static_cast<int>( m_selectedPixelFilterId ) ||
+        state.params.i[TEXTURE_FILTER_ID] != static_cast<int>( m_selectedTextureFilterId ) ||
+        state.params.i[TEXTURE_JITTER_ID] != static_cast<int>( m_selectedTextureJitterId ) ||
+        state.params.f[TEXTURE_FILTER_WIDTH_ID] != m_filterWidth ||
+        state.params.f[TEXTURE_FILTER_STRENGTH_ID] != m_filterStrength ||
+        m_singleSample )
+        m_subframeId = 0;
+
     DemandTextureApp::initLaunchParams( state, numDevices );
-    state.params.i[MIN_RAY_DEPTH_ID]    = m_minRayDepth;
-    state.params.i[MAX_RAY_DEPTH_ID]    = m_maxRayDepth;
-    state.params.i[SUBFRAME_ID]         = m_subframeId;
-    state.params.i[UPDATE_RAY_CONES_ID] = m_updateRayCones;
-    state.params.f[MIP_SCALE_ID]        = m_mipScale;
+
+    state.params.i[SUBFRAME_ID]       = m_subframeId;
+    state.params.i[PIXEL_FILTER_ID]   = m_selectedPixelFilterId; 
+    state.params.i[TEXTURE_FILTER_ID] = m_selectedTextureFilterId;
+    state.params.i[TEXTURE_JITTER_ID] = m_selectedTextureJitterId;
+    state.params.i[MOUSEX_ID]         = static_cast<int>( m_mousePrevX );
+    state.params.i[MOUSEY_ID]         = static_cast<int>( m_mousePrevY );
+
+    state.params.f[MIP_SCALE_ID]               = m_mipScale;
+    state.params.f[TEXTURE_FILTER_WIDTH_ID]    = m_filterWidth;
+    state.params.f[TEXTURE_FILTER_STRENGTH_ID] = m_filterStrength;
 }
 
-void RayConesApp::createTexture()
+void StochasticTextureFilteringApp::createTexture()
 {
-    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName ) );
+    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName.c_str() ) );
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 64, true ) );
+        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 256, true, false ) );
     
-    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
+    demandLoading::TextureDescriptor texDesc0 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_POINT );
+    demandLoading::TextureDescriptor texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
-        const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
+        const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc0 );
         if( m_textureIds.empty() )
             m_textureIds.push_back( texture.getId() );
+        state.demandLoader->createTexture( imageSource, texDesc1 );
     }
 }
 
-void RayConesApp::createScene()
+void StochasticTextureFilteringApp::createScene()
 {
     const unsigned int NUM_SEGMENTS = 128;
     TriangleHitGroupData mat{};
@@ -285,35 +325,22 @@ void RayConesApp::createScene()
     // ground plane
     if( m_sceneId == 0 )
     {
-        // Ground
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+        ShapeMaker::makeAxisPlane( float3{-100, -100, 0}, float3{100, 100, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
-    // glass and steel balls
+    // square
     if( m_sceneId == 1 )
     {
-        // Ground
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // balls
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.0, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xeeeeee, -1, 0xeeeeee, -1, 0.0, 1.5f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{-4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
+        ShapeMaker::makeAxisPlane( float3{-10, 0, -10}, float3{10, 0, 10}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
-    // vases and spheres
+    // vase
     if( m_sceneId == 2 )
     {
         // Ground
@@ -323,113 +350,28 @@ void RayConesApp::createScene()
         ShapeMaker::makeAxisPlane( float3{-40, -40, 0}, float3{40, 40, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
-        // Vases
+        // Vase
         mat.tex = makeSurfaceTex( 0xffffff, 0, 0x252525, -1, 0x000000, -1, 0.0001, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 4.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
         ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 1.0f, 4.0f, 8.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.5f, 1.5f, 6.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
+
+        ShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
+        addShapeToScene( shape, m_materials.size() - 1 );
 
         // Vase liners with diffuse material to block negative curvature traps
         mat.tex = makeSurfaceTex( 0x111111, -1, 0x111111, -1, 0x000000, -1, 0.1, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.49f, 2.29f, 4.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
         ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.99f, 3.99f, 8.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.49f, 1.49f, 6.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-
-        // Spheres
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0xffffff, -1, 0.0, 1.5f );
-        m_materials.push_back( mat );
-
-        ShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        ShapeMaker::makeSphere( float3{1.0f, 7.0f, 3.7f}, 2.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
-    // spheres with differing roughness
-    if( m_sceneId == 3 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x000001, -1, 0x000000, -1, 0.1f, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // sphere
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.001f, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // sphere
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.01, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{0.0f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // sphere
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.1, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{-5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
-    // cylinder
-    if( m_sceneId == 4 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // cylinder
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0x555555, -1, 0x000000, -1, 0.0, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.5f, 2.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        mat.tex = makeSurfaceTex( 0x555555, -1, 0x333333, -1, 0x000000, -1, 0.01, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.51f, 2.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
-    // concave reflector
-    if( m_sceneId >= 5 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0x222222, -1, 0x000000, -1, 0x000000, -1, 0.1, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x000000, -1, 0x000000, -1, 0.1, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{2.0f, 0.0f, 4.5f}, 1.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // reflector
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xeeeeee, -1, 0x000000, -1, 0.0, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{0.0f, 0.0f, 7.5f}, 7.5f, NUM_SEGMENTS, shape, 0.0f, 0.55f );
-        addShapeToScene( shape, m_materials.size() - 1 );
     }
 
     copyGeometryToDevice();
 }
 
-SurfaceTexture RayConesApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior )
+SurfaceTexture StochasticTextureFilteringApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior )
 {
     SurfaceTexture tex;
     tex.emission     = ColorTex{ float3{ 0.0f, 0.0f, 0.0f }, -1 };
@@ -441,7 +383,7 @@ SurfaceTexture RayConesApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex
     return tex;
 }
 
-void RayConesApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materialId )
+void StochasticTextureFilteringApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materialId )
 {
     for( unsigned int i=0; i<shape.size(); ++i )
     {
@@ -453,7 +395,7 @@ void RayConesApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materi
     }
 }
 
-void RayConesApp::copyGeometryToDevice()
+void StochasticTextureFilteringApp::copyGeometryToDevice()
 {
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
@@ -473,31 +415,44 @@ void RayConesApp::copyGeometryToDevice()
     }
 }
 
-void RayConesApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
+void StochasticTextureFilteringApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
+    float dx = static_cast<float>( xpos - m_mousePrevX );
+    float dy = static_cast<float>( ypos - m_mousePrevY );
+    m_mousePrevX = xpos;
+    m_mousePrevY = ypos;
+
     if( m_mouseButton < 0 )
         return;
 
-    const float pan = 0.03f;
+    const float pan = 0.005f * length(m_camera.lookAt() - m_camera.eye());
     const float rot = 0.002f;
 
     float3 U, V, W;
     m_camera.UVWFrame( U, V, W );
     V.z = 0.0f;
-    float dx = static_cast<float>( xpos - m_mousePrevX );
-    float dy = static_cast<float>( ypos - m_mousePrevY );
-
+    
     if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )  
         panCamera( ( pan * dx * normalize(U) ) + ( -pan * dy * normalize(V) ) );
     else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )  
         rotateCamera( -rot * dx );
 
-    m_mousePrevX = xpos;
-    m_mousePrevY = ypos;
     m_subframeId = 0;
 }
 
-void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
+void StochasticTextureFilteringApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int /*mods*/ )
+{
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMouseButtonEvent( button, (bool) action );
+
+    if( !io.WantCaptureMouse )
+    {
+        glfwGetCursorPos( window, &m_mousePrevX, &m_mousePrevY );
+        m_mouseButton = ( action == GLFW_PRESS ) ? button : NO_BUTTON;
+    }
+}
+
+void StochasticTextureFilteringApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;
@@ -536,12 +491,14 @@ void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scanco
         m_lens_width *= 1.1f;
     } else if ( key == GLFW_KEY_I ) {
         m_lens_width /= 1.1f;
+    } else if( key == GLFW_KEY_F1 ) {
+        saveImage();
     }
 
     m_subframeId = 0;
 }
 
-void RayConesApp::pollKeys()
+void StochasticTextureFilteringApp::pollKeys()
 {
     const float pan = 0.04f;
     const float vpan = 0.01f;
@@ -567,6 +524,44 @@ void RayConesApp::pollKeys()
     if( glfwGetKey( getWindow(), GLFW_KEY_L ) )
         rotateCamera( -rot );
 }
+
+void displayComboBox( const char* title, const char* items[], unsigned int numItems, unsigned int& selectedId )
+{
+    if( ImGui::BeginCombo( title, items[selectedId], ImGuiComboFlags_HeightLarge ) )
+    {
+        for( unsigned int id = 0; id < numItems; ++id )
+        {
+            bool isSelected = ( selectedId == id ); 
+            if( ImGui::Selectable( items[id], selectedId ) )
+                selectedId = id;
+            if( isSelected )
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+}
+
+void StochasticTextureFilteringApp::drawGui()
+{
+    otk::beginFrameImGui();
+
+    ImGui::SetNextWindowPos( ImVec2( 5, 5 ) );
+    ImGui::SetNextWindowSize( ImVec2( 0, 0 ) );
+    ImGui::SetNextWindowBgAlpha( 0.75f );
+    ImGui::Begin( "" );
+
+    ImGui::Text("framerate: %.1f fps", ImGui::GetIO().Framerate);
+    displayComboBox( "Pixel Filter", PIXEL_FILTER_MODE_NAMES, pfSIZE, m_selectedPixelFilterId );
+    displayComboBox( "Filter Mode", TEXTURE_FILTER_MODE_NAMES, fmSIZE, m_selectedTextureFilterId );
+    displayComboBox( "Jitter Kernel", TEXTURE_JITTER_MODE_NAMES, jmSIZE, m_selectedTextureJitterId );
+    ImGui::Checkbox( "Single Sample", &m_singleSample );
+
+    ImGui::SliderFloat("Filter Width", &m_filterWidth, 0.0f, 3.0f, "%.3f", 0);
+    ImGui::SliderFloat("Filter Strength", &m_filterStrength, 0.0f, 3.0f, "%.3f", 0);
+
+    otk::endFrameImGui();
+}
+
 
 //------------------------------------------------------------------------------
 // Main function
@@ -626,7 +621,7 @@ int main( int argc, char* argv[] )
             exit(0);
     }
 
-    RayConesApp app( "Ray Cones", windowWidth, windowHeight, outFileName, glInterop );
+    StochasticTextureFilteringApp app( "Stochastic Texture Filtering", windowWidth, windowHeight, outFileName, glInterop );
     app.setSceneId( sceneId );
     app.initView();
     app.setNumLaunches( numLaunches );
@@ -636,7 +631,7 @@ int main( int argc, char* argv[] )
     app.createTexture();
     app.createScene();
     app.resetAccumulator();
-    app.initOptixPipelines( RayConesCudaText(), RayConesCudaSize );
+    app.initOptixPipelines( StochasticTextureFilteringCudaText(), StochasticTextureFilteringCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

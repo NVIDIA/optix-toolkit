@@ -362,24 +362,24 @@ void DemandTextureApp::cleanupState( PerDeviceOptixState& state )
 // Demand Loading
 //------------------------------------------------------------------------------
 
-demandLoading::TextureDescriptor DemandTextureApp::makeTextureDescriptor( CUaddress_mode addressMode, CUfilter_mode filterMode )
+demandLoading::TextureDescriptor DemandTextureApp::makeTextureDescriptor( CUaddress_mode addressMode, FilterMode filterMode )
 {
     demandLoading::TextureDescriptor texDesc{};
     texDesc.addressMode[0]   = addressMode;
     texDesc.addressMode[1]   = addressMode;
     texDesc.filterMode       = filterMode;
-    texDesc.mipmapFilterMode = filterMode;
+    texDesc.mipmapFilterMode = toCudaFilterMode( filterMode );
     texDesc.maxAnisotropy    = 16;
 
     return texDesc;
 }
 
 
-imageSource::ImageSource* DemandTextureApp::createExrImage( const std::string& filePath )
+std::shared_ptr<imageSource::ImageSource> DemandTextureApp::createExrImage( const std::string& filePath )
 {
     try
     {
-        return filePath.empty() ? nullptr : new imageSource::EXRREADER( filePath, true );
+        return filePath.empty() ? std::shared_ptr<imageSource::ImageSource>() : imageSource::createImageSource( filePath );
     }
     catch( ... )
     {
@@ -415,7 +415,7 @@ void DemandTextureApp::initDemandLoading()
     options.maxTexMemPerDevice  = maxTexMem;         // max texture to use before starting eviction (0 is unlimited)
     options.maxPinnedMemory     = 64 * 1024 * 1024;  // max pinned memory to reserve for transfers.
     options.maxThreads          = 0;                 // request threads. (0 is std::thread::hardware_concurrency)
-    options.evictionActive      = true;              // turn on or off eviction
+    options.evictionActive      = true;             // turn on or off eviction
     options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
     options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
 
@@ -464,6 +464,7 @@ void DemandTextureApp::printDemandLoadingStats()
     {
         std::cout << "[GPU-" << state.device_idx << ": " << stats[state.device_idx].numEvictions << "]  ";
     }
+
     std::cout << "\n" << std::endl;
 }
 
@@ -583,7 +584,6 @@ unsigned int DemandTextureApp::performLaunches( )
 
 void DemandTextureApp::startLaunchLoop()
 {
-    const int RESET_SUBFRAME_THRESHOLD = 10;
     int numFilled = 0;
 
     if( isInteractive() )
@@ -596,7 +596,7 @@ void DemandTextureApp::startLaunchLoop()
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-            m_subframeId = ( numFilled <= RESET_SUBFRAME_THRESHOLD ) ? m_subframeId + 1 : 0;
+            m_subframeId = ( numFilled <= m_reset_subframe_threshold ) ? m_subframeId + 1 : 0;
             displayFrame();
             drawGui();
             glfwSwapBuffers( getWindow() );
@@ -605,12 +605,13 @@ void DemandTextureApp::startLaunchLoop()
     else 
     {
         // Launch repeatedly until there are no more requests to fill.
+        numFilled = performLaunches();
         do
         {
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-            m_subframeId = ( numFilled <= RESET_SUBFRAME_THRESHOLD ) ? m_subframeId + 1 : 0;
+            m_subframeId = ( numFilled <= m_reset_subframe_threshold ) ? m_subframeId + 1 : 0;
         } while( numFilled > 0 || m_launchCycles < m_minLaunches );
 
         saveImage();
@@ -659,7 +660,9 @@ void DemandTextureApp::saveImage()
     buffer.width        = m_outputBuffer->width();
     buffer.height       = m_outputBuffer->height();
     buffer.pixel_format = otk::BufferImageFormat::UNSIGNED_BYTE4;
-    otk::saveImage( m_outputFileName.c_str(), buffer, false );
+
+    std::string fileName = !m_outputFileName.empty() ? m_outputFileName : "out.ppm";
+    otk::saveImage( fileName.c_str(), buffer, false );
 }
 
  void DemandTextureApp::resetAccumulator()
@@ -736,10 +739,14 @@ void DemandTextureApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*s
     if( action != GLFW_PRESS )
         return;
 
-    if( key == GLFW_KEY_ESCAPE )
+    if( key == GLFW_KEY_F1 )
+        saveImage();
+    else if( key == GLFW_KEY_ESCAPE )
         glfwSetWindowShouldClose( window, true );
     else if( key == GLFW_KEY_C )
         initView();
+    else if( key >= GLFW_KEY_0 && key <= GLFW_KEY_9 )
+        m_render_mode = key - GLFW_KEY_0;
 }
 
 void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods )

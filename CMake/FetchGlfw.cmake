@@ -65,5 +65,7 @@ FetchContent_Declare(
     FIND_PACKAGE_ARGS
     )
 FetchContent_MakeAvailable(glfw3)
+# Let find_package know we have it
+set(glfw3_FOUND ON PARENT_SCOPE)
 
 glfw_folders()

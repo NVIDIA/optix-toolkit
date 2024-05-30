@@ -38,6 +38,7 @@
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 
 using namespace demandTextureApp;
+using namespace demandLoading;
 
 //------------------------------------------------------------------------------
 // UdimTextureApp
@@ -85,13 +86,13 @@ void UdimTextureApp::createTexture()
     {
         std::shared_ptr<imageSource::ImageSource> baseImageSource;
         if( m_textureName != "mandelbrot" && m_textureName != "checker" )
-            baseImageSource.reset( createExrImage( m_textureName + ".exr" ) );
+            baseImageSource = createExrImage( m_textureName + ".exr" );
         if( !baseImageSource && m_textureName == "checker" )
             baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
         if( !baseImageSource )
             baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors ) );
 
-        demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, CU_TR_FILTER_MODE_LINEAR );
+        demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
         // Create a base texture for all devices
         for( PerDeviceOptixState& state : m_perDeviceOptixStates )
@@ -113,7 +114,7 @@ void UdimTextureApp::createTexture()
     {
         for( int u = 0; u < m_udim; ++u )
         {
-            imageSource::ImageSource* subImage = nullptr;
+            std::shared_ptr<imageSource::ImageSource> subImage;
             if( m_textureName != "mandelbrot" && m_textureName != "checker" ) // loading exr images
             {
                 int         udimNum      = 10000 + v * 100 + u;
@@ -125,11 +126,11 @@ void UdimTextureApp::createTexture()
                 int maxAspect = 64;
                 int w         = std::max( 4 << u, ( 4 << v ) / maxAspect );
                 int h         = std::max( 4 << v, ( 4 << u ) / maxAspect );
-                subImage      = new imageSources::MultiCheckerImage<float4>( w, h, 4, true );
+                subImage.reset( new imageSources::MultiCheckerImage<float4>( w, h, 4, true ) );
             }
             if( !subImage && m_textureName == "checker" )
             {
-                subImage = new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true );
+                subImage.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
             }
             if( !subImage ) // many images of the same size
             {
@@ -137,13 +138,13 @@ void UdimTextureApp::createTexture()
                 double xmax = -2.0 + 4.0 * ( u + 1.0 ) / m_udim;
                 double ymin = -2.0 + 4.0 * v / m_vdim;
                 double ymax = -2.0 + 4.0 * ( v + 1.0 ) / m_vdim;
-                subImage = new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax, iterations, colors );
+                subImage.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax, iterations, colors ) );
             }
             subImageSources.emplace_back( subImage );
 
             // Note: Use address mode CU_TR_ADDRESS_MODE_BORDER for subimages in tex2DGradUdimBlend calls in OptiX programs.
             // (CU_TR_ADDRESS_MODE_CLAMP for tex2DGradUdim calls).
-            subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, CU_TR_FILTER_MODE_LINEAR ) );
+            subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, FILTER_BILINEAR ) );
         }
     }
 

@@ -50,6 +50,9 @@ else()
     FetchContent_MakeAvailable(Stb)
     if(NOT stb_SOURCE_DIR)
         message(FATAL_ERROR "Could not locate stb source")
+    else()
+        # Let find_package know we have it
+        set(stb_FOUND ON PARENT_SCOPE)
     endif()
 
     set(Stb_INCLUDE_DIR "${stb_SOURCE_DIR}")

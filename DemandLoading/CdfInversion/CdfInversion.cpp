@@ -26,47 +26,57 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-// This include is needed to avoid a link error
-#include <optix_stubs.h>
+#include <chrono>
+
+#include <optix_stubs.h> // This include is needed to avoid a link error
+#include <cuda_runtime.h>
 
 #include "ShapeMaker.h"
-#include "RayConesParams.h"
-#include "RayConesKernelCuda.h"
+#include "CdfInversionParams.h"
+#include "CdfInversionKernelCuda.h"
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
-#include <OptiXToolkit/ShaderUtil/ray_cone.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/AliasTable.h>
+#include <OptiXToolkit/ShaderUtil/PdfTable.h>
+#include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
 
-#include <optix_stubs.h>
-
-using namespace otk;
 using namespace demandTextureApp;
 using namespace demandLoading;
 using namespace imageSource;
+using namespace std::chrono;
 
 //------------------------------------------------------------------------------
-// RayConesApp
+// Timing
 //------------------------------------------------------------------------------
 
-class RayConesApp : public DemandTextureApp
+#define TIMEPOINT time_point<high_resolution_clock>
+TIMEPOINT now() { return high_resolution_clock::now(); }
+double elapsed( TIMEPOINT start ) { return duration_cast<duration<double>>( now() - start ).count(); }
+
+//------------------------------------------------------------------------------
+// CdfInversionApp
+//------------------------------------------------------------------------------
+
+class CdfInversionApp : public DemandTextureApp
 {
   public:
-    RayConesApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
+    CdfInversionApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
     void createTexture() override;
     void initView() override;
     void createScene();
-    void setSceneId( int sceneId ) { m_sceneId = sceneId; }
     void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
+    void setRenderMode( int mode ) { m_render_mode = mode; }
+    void setTableMipLevel( int level ) { m_tableMipLevel = level; }
     
     void buildAccel( PerDeviceOptixState& state ) override;
     void createSBT( PerDeviceOptixState& state ) override;
+    void cleanupState( PerDeviceOptixState& state ) override;
 
   protected:
     std::string m_textureName;
-    int m_sceneId = 0;
 
     std::vector<float4> m_vertices;
     std::vector<float3> m_normals;
@@ -82,31 +92,33 @@ class RayConesApp : public DemandTextureApp
     void keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods ) override;
     void pollKeys() override;
 
-    int m_minRayDepth = 0;
-    int m_maxRayDepth = 6;
-    int m_updateRayCones = 1;
+    int m_tableMipLevel = 0;
+    int m_mipLevel0 = 0;
+    std::vector<CdfInversionTable> m_emapInversionTables;
+    std::vector<AliasTable> m_emapAliasTables;
 };
 
 
-RayConesApp::RayConesApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
+CdfInversionApp::CdfInversionApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
     : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
 {
+    m_reset_subframe_threshold = 2;
     m_backgroundColor = float4{1.0f, 1.0f, 1.0f, 0.0f};
-    m_projection = Projection::THINLENS;
-    m_lens_width = 0.1f;
+    m_projection = Projection::PINHOLE;
+    m_lens_width = 0.0f;
+
+    m_emapInversionTables.resize( m_perDeviceOptixStates.size() );
+    m_emapAliasTables.resize( m_perDeviceOptixStates.size() );
 }
 
 
-void RayConesApp::initView()
+void CdfInversionApp::initView()
 {
-    if( m_sceneId < 5 )
-        setView( float3{0.0f, 25.0f, 7.0f}, float3{0.0f, 0.0f, 3.0f}, float3{0.0f, 0.0f, 1.0f}, 30.0f );
-    else
-        setView( float3{-8.0f, 0.0f, 15.0f}, float3{0.0f, 0.0f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, 30.0f );
+    setView( float3{0.0f, 25.0f, 7.0f}, float3{0.0f, 0.0f, 3.0f}, float3{0.0f, 0.0f, 1.0f}, 30.0f );
 }
 
 
-void RayConesApp::buildAccel( PerDeviceOptixState& state )
+void CdfInversionApp::buildAccel( PerDeviceOptixState& state )
 {
     // Copy vertex data to device
     void* d_vertices = nullptr;
@@ -200,7 +212,7 @@ void RayConesApp::buildAccel( PerDeviceOptixState& state )
 }
 
 
-void  RayConesApp::createSBT( PerDeviceOptixState& state )
+void  CdfInversionApp::createSBT( PerDeviceOptixState& state )
 {
     // Raygen record 
     void*  d_raygen_record = nullptr;
@@ -247,26 +259,42 @@ void  RayConesApp::createSBT( PerDeviceOptixState& state )
     state.sbt.hitgroupRecordCount         = MAT_COUNT;
 }
 
-void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
+void CdfInversionApp::cleanupState( PerDeviceOptixState& state )
 {
-    DemandTextureApp::initLaunchParams( state, numDevices );
-    state.params.i[MIN_RAY_DEPTH_ID]    = m_minRayDepth;
-    state.params.i[MAX_RAY_DEPTH_ID]    = m_maxRayDepth;
-    state.params.i[SUBFRAME_ID]         = m_subframeId;
-    state.params.i[UPDATE_RAY_CONES_ID] = m_updateRayCones;
-    state.params.f[MIP_SCALE_ID]        = m_mipScale;
+    OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+    freeCdfInversionTableDevice( m_emapInversionTables[state.device_idx] );
+    freeAliasTableDevice( m_emapAliasTables[state.device_idx] );
+    DemandTextureApp::cleanupState( state );
 }
 
-void RayConesApp::createTexture()
+void CdfInversionApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
 {
-    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName ) );
+    DemandTextureApp::initLaunchParams( state, numDevices );
+    state.params.i[SUBFRAME_ID]      = m_subframeId;
+    state.params.i[EMAP_ID]          = m_textureIds[0];
+    state.params.i[MIP_LEVEL_0_ID]   = m_mipLevel0;
+    state.params.f[MIP_SCALE_ID]     = m_mipScale;
+
+    CdfInversionTable* cit = reinterpret_cast<CdfInversionTable*>( &state.params.c[EMAP_INVERSION_TABLE_ID] );
+    *cit = m_emapInversionTables[ state.device_idx ];
+    AliasTable* at = reinterpret_cast<AliasTable*>( &state.params.c[EMAP_ALIAS_TABLE_ID] );
+    *at = m_emapAliasTables[ state.device_idx ];
+}
+
+void CdfInversionApp::createTexture()
+{
+    // Open the environment map texture
+    std::shared_ptr<ImageSource> imageSource( createExrImage( m_textureName.c_str() ) );
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 64, true ) );
-    
-    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
+        imageSource.reset( new imageSources::MultiCheckerImage<half4>( 2048, 1024, 16, true, false ) );
+    imageSource::TextureInfo texInfo;
+    imageSource->open(&texInfo);
 
+    // Make an environment map texture for each device
+    demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_WRAP, FILTER_BILINEAR );
+    texDesc.addressMode[1] = CU_TR_ADDRESS_MODE_CLAMP;
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
@@ -274,162 +302,117 @@ void RayConesApp::createTexture()
         if( m_textureIds.empty() )
             m_textureIds.push_back( texture.getId() );
     }
+
+    // Allocate inversion and alias tables on host
+    int tableWidth = texInfo.width >> m_tableMipLevel;
+    int tableHeight = texInfo.height >> m_tableMipLevel;
+    CdfInversionTable hostEmapInversionTable{};
+    allocCdfInversionTableHost( hostEmapInversionTable, tableWidth, tableHeight );
+
+    AliasTable hostEmapAliasTable{};
+    allocAliasTableHost( hostEmapAliasTable, (int)(tableWidth * tableHeight) );
+
+    // Read a mip level and make a pdf from it
+    TIMEPOINT imageLoadStart = now();
+    int bytesPerPixel = getBytesPerChannel(texInfo.format) * texInfo.numChannels;
+    char* imgData = (char*)malloc( tableWidth * tableHeight * bytesPerPixel );
+    imageSource->readMipLevel( imgData, m_tableMipLevel, tableWidth, tableHeight, CUstream{0} );
+    printf( "Time to load image: %0.4f sec.\n", elapsed( imageLoadStart ) );
+
+    TIMEPOINT makePdfStart = now();
+    float* pdf = reinterpret_cast<float*>( malloc( tableWidth * tableHeight * sizeof(float) ) );
+    if( texInfo.format == CU_AD_FORMAT_UNSIGNED_INT8 )
+    {
+        makePdfTable<uchar4>( pdf, (uchar4*)imgData, &hostEmapInversionTable.aveValue, 
+                              tableWidth, tableHeight, pbLUMINANCE, paLATLONG );
+    }
+    else if( texInfo.format == CU_AD_FORMAT_HALF )
+    {
+        makePdfTable<half4>( pdf, (half4*)imgData, &hostEmapInversionTable.aveValue, 
+                             tableWidth, tableHeight, pbLUMINANCE, paLATLONG );
+    } 
+    else if( texInfo.format == CU_AD_FORMAT_FLOAT )
+    {
+        makePdfTable<float4>( pdf, (float4*)imgData, &hostEmapInversionTable.aveValue, 
+                             tableWidth, tableHeight, pbLUMINANCE, paLATLONG );
+    }
+    printf( "Time to make pdf table: %0.4f sec.\n", elapsed( makePdfStart ) );
+
+    // Invert pdf, cdf, and make alias table on host
+    memcpy( hostEmapInversionTable.cdfRows, pdf, tableWidth * tableHeight * sizeof(float) );
+    TIMEPOINT makeCdfStart;
+    invertPdf2D( hostEmapInversionTable );
+    printf( "Time to make cdf table: %0.4f sec.\n", elapsed( makeCdfStart ) );
+
+    TIMEPOINT invertCdfStart = now();
+    invertCdf2D( hostEmapInversionTable );
+    printf( "Time to invert cdf table: %0.4f sec.\n", elapsed( invertCdfStart ) );
+
+    TIMEPOINT makeAliasTableStart = now();
+    makeAliasTable( hostEmapAliasTable, pdf );
+    printf( "Time to make alias table: %0.4f sec.\n", elapsed( makeAliasTableStart ) );
+
+    // Copy tables to devices
+    // FIXME: The tables should be de-allocated on the device
+    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+        bool allocCdf = true;
+        #ifdef emDIRECT_LOOKUP
+            allocCdf = false;
+        #endif
+
+        allocCdfInversionTableDevice( m_emapInversionTables[state.device_idx], tableWidth, tableHeight, allocCdf );
+        copyToDevice( hostEmapInversionTable, m_emapInversionTables[state.device_idx] );
+        allocAliasTableDevice( m_emapAliasTables[state.device_idx], tableWidth * tableHeight );
+        copyToDevice( hostEmapAliasTable, m_emapAliasTables[state.device_idx] );
+    }
+
+    // Free temp host data structures
+    freeAliasTableHost( hostEmapAliasTable );
+    freeCdfInversionTableHost( hostEmapInversionTable );
+    free( pdf );
+    free( imgData );
 }
 
-void RayConesApp::createScene()
+void CdfInversionApp::createScene()
 {
-    const unsigned int NUM_SEGMENTS = 128;
+    const unsigned int NUM_SEGMENTS = 256;
     TriangleHitGroupData mat{};
     std::vector<Vert> shape;
 
-    // ground plane
-    if( m_sceneId == 0 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
+    // Ground
+    mat.tex = makeSurfaceTex( 0x335533, -1, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
+    m_materials.push_back( mat );
+    ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+    addShapeToScene( shape, m_materials.size() - 1 );
 
-    // glass and steel balls
-    if( m_sceneId == 1 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
+    // ball
+    mat.tex = makeSurfaceTex( 0x000000, -1, 0xCCCCCC, -1, 0x000000, -1, 0.00000f, 0.0f );
+    m_materials.push_back( mat );
+    ShapeMaker::makeSphere( float3{-3.0f, 4.5f, 0.75f}, 0.75f, NUM_SEGMENTS, shape );
+    addShapeToScene( shape, m_materials.size() - 1 );
 
-        // balls
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.0, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
+    // Vases
+    mat.tex = makeSurfaceTex( 0x773333, -1, 0x010101, -1, 0x000000, -1, 0.02f, 0.0f );
+    m_materials.push_back( mat );
+    ShapeMaker::makeVase( float3{6.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
+    addShapeToScene( shape, m_materials.size() -1 );
 
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xeeeeee, -1, 0xeeeeee, -1, 0.0, 1.5f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{-4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
+    mat.tex = makeSurfaceTex( 0x010101, -1, 0x555566, -1, 0x000000, -1, 0.01f, 0.0f );
+    m_materials.push_back( mat );
+    ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
+    addShapeToScene( shape, m_materials.size() -1 );
 
-    // vases and spheres
-    if( m_sceneId == 2 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0x777777, -1, 0x777777, -1, 0x000000, -1, 0.01, 0.0f );
-        m_materials.push_back( mat );
-
-        ShapeMaker::makeAxisPlane( float3{-40, -40, 0}, float3{40, 40, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // Vases
-        mat.tex = makeSurfaceTex( 0xffffff, 0, 0x252525, -1, 0x000000, -1, 0.0001, 0.0f );
-        m_materials.push_back( mat );
-
-        ShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 4.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 1.0f, 4.0f, 8.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.5f, 1.5f, 6.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-
-        // Vase liners with diffuse material to block negative curvature traps
-        mat.tex = makeSurfaceTex( 0x111111, -1, 0x111111, -1, 0x000000, -1, 0.1, 0.0f );
-        m_materials.push_back( mat );
-
-        ShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.49f, 2.29f, 4.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.99f, 3.99f, 8.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.49f, 1.49f, 6.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() -1 );
-
-        // Spheres
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0xffffff, -1, 0.0, 1.5f );
-        m_materials.push_back( mat );
-
-        ShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        ShapeMaker::makeSphere( float3{1.0f, 7.0f, 3.7f}, 2.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
-    // spheres with differing roughness
-    if( m_sceneId == 3 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x000001, -1, 0x000000, -1, 0.1f, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // sphere
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.001f, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // sphere
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.01, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{0.0f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // sphere
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.1, 10.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{-5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
-    // cylinder
-    if( m_sceneId == 4 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // cylinder
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0x555555, -1, 0x000000, -1, 0.0, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.5f, 2.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        mat.tex = makeSurfaceTex( 0x555555, -1, 0x333333, -1, 0x000000, -1, 0.01, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.51f, 2.5f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
-    // concave reflector
-    if( m_sceneId >= 5 )
-    {
-        // Ground
-        mat.tex = makeSurfaceTex( 0x222222, -1, 0x000000, -1, 0x000000, -1, 0.1, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x000000, -1, 0x000000, -1, 0.1, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{2.0f, 0.0f, 4.5f}, 1.0f, NUM_SEGMENTS, shape );
-        addShapeToScene( shape, m_materials.size() - 1 );
-
-        // reflector
-        mat.tex = makeSurfaceTex( 0x000000, -1, 0xeeeeee, -1, 0x000000, -1, 0.0, 0.0f );
-        m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{0.0f, 0.0f, 7.5f}, 7.5f, NUM_SEGMENTS, shape, 0.0f, 0.55f );
-        addShapeToScene( shape, m_materials.size() - 1 );
-    }
-
+    mat.tex = makeSurfaceTex( 0x444444, -1, 0x000000, -1, 0x000000, -1, 0.01f, 0.0f );
+    m_materials.push_back( mat );
+    ShapeMaker::makeVase( float3{-6.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
+    addShapeToScene( shape, m_materials.size() -1 );
+    
     copyGeometryToDevice();
 }
 
-SurfaceTexture RayConesApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior )
+SurfaceTexture CdfInversionApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior )
 {
     SurfaceTexture tex;
     tex.emission     = ColorTex{ float3{ 0.0f, 0.0f, 0.0f }, -1 };
@@ -441,7 +424,7 @@ SurfaceTexture RayConesApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex
     return tex;
 }
 
-void RayConesApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materialId )
+void CdfInversionApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materialId )
 {
     for( unsigned int i=0; i<shape.size(); ++i )
     {
@@ -453,7 +436,7 @@ void RayConesApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materi
     }
 }
 
-void RayConesApp::copyGeometryToDevice()
+void CdfInversionApp::copyGeometryToDevice()
 {
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
@@ -473,7 +456,7 @@ void RayConesApp::copyGeometryToDevice()
     }
 }
 
-void RayConesApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
+void CdfInversionApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos )
 {
     if( m_mouseButton < 0 )
         return;
@@ -497,7 +480,7 @@ void RayConesApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double
     m_subframeId = 0;
 }
 
-void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
+void CdfInversionApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
 {
     if( action != GLFW_PRESS )
         return;
@@ -506,42 +489,16 @@ void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scanco
         glfwSetWindowShouldClose( window, true );
     } else if( key == GLFW_KEY_C ) {
         initView();
-    } else if( key >= GLFW_KEY_1 && key <= GLFW_KEY_9 ) {
+    } else if( key >= GLFW_KEY_1 && key <= GLFW_KEY_3 ) {
         m_render_mode = key - GLFW_KEY_1;
-    } else if( key == GLFW_KEY_LEFT ) {
-        m_maxRayDepth = std::max( m_maxRayDepth - 1, 1 );
-    } else if( key == GLFW_KEY_RIGHT ) {
-        m_maxRayDepth++;
-    } else if( key == GLFW_KEY_UP ) {
-        m_minRayDepth = std::min( m_minRayDepth + 1, m_maxRayDepth );
-    } else if( key == GLFW_KEY_DOWN ) {
-        m_minRayDepth = std::max( m_minRayDepth - 1, 0 );
-    } else if( key == GLFW_KEY_EQUAL ) {
-        m_mipScale *= 0.5f;
-    } else if( key == GLFW_KEY_MINUS ) {
-        m_mipScale *= 2.0f;
-    } else if( key == GLFW_KEY_X ) {
-        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
-        {
-            OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
-            state.demandLoader->unloadTextureTiles( m_textureIds[0] );
-        }
-    } else if( key == GLFW_KEY_U ) {
-        m_updateRayCones = static_cast<int>( !m_updateRayCones );
-    } else if( key == GLFW_KEY_P && m_projection == Projection::PINHOLE ) {
-        m_projection = Projection::THINLENS;
-    } else if( key == GLFW_KEY_P && m_projection == Projection::THINLENS ) {
-        m_projection = Projection::PINHOLE;
-    } else if( key == GLFW_KEY_O ) {
-        m_lens_width *= 1.1f;
-    } else if ( key == GLFW_KEY_I ) {
-        m_lens_width /= 1.1f;
+    } else if( key == GLFW_KEY_B ) {
+        m_mipLevel0 = !m_mipLevel0;
     }
 
     m_subframeId = 0;
 }
 
-void RayConesApp::pollKeys()
+void CdfInversionApp::pollKeys()
 {
     const float pan = 0.04f;
     const float vpan = 0.01f;
@@ -574,34 +531,32 @@ void RayConesApp::pollKeys()
 
 void printUsage( const char* argv0 )
 {
-    std::cerr << "\n\nUsage: " << argv0 << " [options]\n\n";
+    std::cout << "\n\nUsage: " << argv0 << " [options]\n\n";
     std::cout << "Options:  --scene [0-5], --texture <texturefile.exr>, --launches <numLaunches>\n";
-    std::cout << "          --dim=<width>x<height>, --file <outputfile.ppm>, --no-gl-interop\n\n";
+    std::cout << "          --dim=<width>x<height>, --file <outputfile.ppm>, --no-gl-interop\n";
+    std::cout << "          --table-mip-level\n\n";
     std::cout << "Mouse:    <LMB>:          pan camera\n";
     std::cout << "          <RMB>:          rotate camera\n\n";
     std::cout << "Keyboard: <ESC>:          exit\n";
-    std::cout << "          1-7:            set output variable\n";
+    std::cout << "          1-3:            set render mode (1=MIS,2=EMAP, 3=BSDF)\n";
     std::cout << "          <LEFT>,<RIGHT>: change max depth\n";
     std::cout << "          <UP>,<DOWN>:    change min depth\n";
     std::cout << "          WASD,QE:        pan camera\n";
     std::cout << "          J,L:            rotate camera\n";
     std::cout << "          C:              reset view\n";
-    std::cout << "          +,-:            change mip bias\n";
-    std::cout << "          P:              toggle thin lens camera\n";
-    std::cout << "          U:              toggle distance-based vs. ray cones\n";
-    std::cout << "          I,O:            change lens width\n";
-    std::cout << "          X:              unload all texture tiles\n\n";
+    std::cout << "          B:              toggle use ray differentials / mip level 0\n";
 }
 
 int main( int argc, char* argv[] )
 {
-    int         windowWidth  = 900;
-    int         windowHeight = 600;
-    const char* textureName  = "";
-    const char* outFileName  = "";
-    bool        glInterop    = true;
-    int         numLaunches  = 256;
-    int         sceneId      = 1;
+    int         windowWidth   = 900;
+    int         windowHeight  = 600;
+    const char* textureName   = "";
+    const char* outFileName   = "";
+    bool        glInterop     = true;
+    int         numLaunches   = 256;
+    int         renderMode    = 0;
+    int         tableMipLevel = 0;
 
     printUsage( argv[0] );
 
@@ -620,15 +575,18 @@ int main( int argc, char* argv[] )
             glInterop = false;
         else if( arg == "--launches" && !lastArg )
             numLaunches = atoi( argv[++i] );
-        else if( arg == "--scene" && !lastArg )
-            sceneId = atoi( argv[++i] );
+        else if( arg == "--render-mode" && !lastArg )
+            renderMode = atoi( argv[++i] ) - 1;
+        else if( arg == "--table-mip-level" && !lastArg )
+            tableMipLevel = atoi( argv[++i] );
         else 
             exit(0);
     }
 
-    RayConesApp app( "Ray Cones", windowWidth, windowHeight, outFileName, glInterop );
-    app.setSceneId( sceneId );
+    CdfInversionApp app( "Cdf Inversion", windowWidth, windowHeight, outFileName, glInterop );
     app.initView();
+    app.setTableMipLevel( tableMipLevel );
+    app.setRenderMode( renderMode );
     app.setNumLaunches( numLaunches );
     app.sceneIsTriangles( true );
     app.initDemandLoading();
@@ -636,7 +594,7 @@ int main( int argc, char* argv[] )
     app.createTexture();
     app.createScene();
     app.resetAccumulator();
-    app.initOptixPipelines( RayConesCudaText(), RayConesCudaSize );
+    app.initOptixPipelines( CdfInversionCudaText(), CdfInversionCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
     

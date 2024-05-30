@@ -44,6 +44,8 @@ FetchContent_Declare(imgui
   GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(imgui)
+# Let find_package know we have it
+set(imgui_FOUND ON PARENT_SCOPE)
 
 add_library( imgui STATIC
     ${imgui_SOURCE_DIR}/imconfig.h

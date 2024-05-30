@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+add_subdirectory(CdfInversion)
 add_subdirectory(DemandGeometryViewer)
 add_subdirectory(DemandPbrtScene)
 add_subdirectory(DemandTextureAppBase)
@@ -34,6 +35,7 @@ add_subdirectory(ImageSourceInfo)
 add_subdirectory(ImageSources)
 add_subdirectory(RayCones)
 add_subdirectory(Simple)
+add_subdirectory(StochasticTextureFiltering)
 add_subdirectory(Texture)
 add_subdirectory(TexturePainting)
 add_subdirectory(TextureVariantViewer)

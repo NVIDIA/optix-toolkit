@@ -44,7 +44,7 @@ class MultiCheckerImage : public imageSource::ImageSourceBase
 {
   public:
     /// Create a test image with the specified dimensions.
-    MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps = true );
+    MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps = true, bool mipLevelColors = true );
 
     /// The destructor is virtual.
     ~MultiCheckerImage() override {}
@@ -84,7 +84,8 @@ class MultiCheckerImage : public imageSource::ImageSourceBase
 
 
 template <class TYPE>
-MultiCheckerImage<TYPE>::MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps )
+MultiCheckerImage<TYPE>::MultiCheckerImage( unsigned int width, unsigned int height, unsigned int squaresPerSide, bool useMipmaps,
+                                            bool mipLevelColors )
     : m_squaresPerSide( squaresPerSide )
 {
     TYPE c;
@@ -96,23 +97,30 @@ MultiCheckerImage<TYPE>::MultiCheckerImage( unsigned int width, unsigned int hei
     m_info.isValid      = true;
     m_info.isTiled      = true;
 
-    // Use a different color per miplevel.
-    std::vector<float4> colors{
-        {1.0f, 0.0, 0.0, 0},    // red
-        {1.0f, 0.5f, 0.0, 0},   // orange
-        {1.0f, 1.0f, 0.0, 0},   // yellow
-        {0.0, 1.0f, 0.0, 0},    // green
-        {0.0, 0.0, 1.0f, 0},    // blue
-        {0.5f, 0.0, 0.0, 0},    // dark red
-        {0.5f, 0.25f, 0.0, 0},  // dark orange
-        {0.5f, 0.5f, 0.0, 0},   // dark yellow
-        {0.0, 0.5f, 0.0, 0},    // dark green
-        {0.0, 0.0, 0.5f, 0},    // dark blue
-    };
-    for( float4& color : colors )
+    if( mipLevelColors )
     {
-        imageSource::convertType( color, c );
-        m_mipLevelColors.push_back( c );
+        std::vector<float4> colors{
+            {1.0f, 0.0, 0.0, 0},    // red
+            {1.0f, 0.5f, 0.0, 0},   // orange
+            {1.0f, 1.0f, 0.0, 0},   // yellow
+            {0.0, 1.0f, 0.0, 0},    // green
+            {0.0, 0.0, 1.0f, 0},    // blue
+            {0.5f, 0.0, 0.0, 0},    // dark red
+            {0.5f, 0.25f, 0.0, 0},  // dark orange
+            {0.5f, 0.5f, 0.0, 0},   // dark yellow
+            {0.0, 0.5f, 0.0, 0},    // dark green
+            {0.0, 0.0, 0.5f, 0},    // dark blue
+        };
+        for( float4& color : colors )
+        {
+            imageSource::convertType( color, c );
+            m_mipLevelColors.push_back( c );
+        }
+    }
+    else
+    {
+        imageSource::convertType( float4{1.0f, 1.0f, 1.0f, 0.0f}, c );
+        m_mipLevelColors.push_back( c ); 
     }
 }
 

@@ -37,23 +37,23 @@ void ShapeMaker::makeAxisPlane( float3 A, float3 B, std::vector<Vert>& shape )
 {
     if( A.x == B.x )
     {
-        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{1.0f, 0.0f, 0.0f}, float2{0.0f, 0.0f} } );
-        shape.push_back( Vert{ float3{A.x, B.y, A.z}, float3{1.0f, 0.0f, 0.0f}, float2{1.0f, 0.0f} } );
-        shape.push_back( Vert{ float3{A.x, B.y, B.z}, float3{1.0f, 0.0f, 0.0f}, float2{1.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{1.0f, 0.0f, 0.0f}, float2{0.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, B.y, A.z}, float3{1.0f, 0.0f, 0.0f}, float2{1.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, B.y, B.z}, float3{1.0f, 0.0f, 0.0f}, float2{1.0f, 0.0f} } );
 
-        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{1.0f, 0.0f, 0.0f}, float2{0.0f, 0.0f} } );
-        shape.push_back( Vert{ float3{A.x, B.y, B.z}, float3{1.0f, 0.0f, 0.0f}, float2{1.0f, 1.0f} } );
-        shape.push_back( Vert{ float3{A.x, A.y, B.z}, float3{1.0f, 0.0f, 0.0f}, float2{0.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{1.0f, 0.0f, 0.0f}, float2{0.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, B.y, B.z}, float3{1.0f, 0.0f, 0.0f}, float2{1.0f, 0.0f} } );
+        shape.push_back( Vert{ float3{A.x, A.y, B.z}, float3{1.0f, 0.0f, 0.0f}, float2{0.0f, 0.0f} } );
     }
     else if ( A.y == B.y )
     {
-        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{0.0f, 1.0f, 0.0f}, float2{0.0f, 0.0f} } );
+        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{0.0f, 1.0f, 0.0f}, float2{0.0f, 1.0f} } );
         shape.push_back( Vert{ float3{B.x, A.y, B.z}, float3{0.0f, 1.0f, 0.0f}, float2{1.0f, 0.0f} } );
         shape.push_back( Vert{ float3{B.x, A.y, A.z}, float3{0.0f, 1.0f, 0.0f}, float2{1.0f, 1.0f} } );
 
-        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{0.0f, 1.0f, 0.0f}, float2{0.0f, 0.0f} } );
-        shape.push_back( Vert{ float3{B.x, A.y, B.z}, float3{0.0f, 1.0f, 0.0f}, float2{1.0f, 1.0f} } );
-        shape.push_back( Vert{ float3{A.x, A.y, B.z}, float3{0.0f, 1.0f, 0.0f}, float2{0.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, A.y, A.z}, float3{0.0f, 1.0f, 0.0f}, float2{0.0f, 1.0f} } );
+        shape.push_back( Vert{ float3{A.x, A.y, B.z}, float3{0.0f, 1.0f, 0.0f}, float2{0.0f, 0.0f} } );
+        shape.push_back( Vert{ float3{B.x, A.y, B.z}, float3{0.0f, 1.0f, 0.0f}, float2{1.0f, 0.0f} } );
     }
     else if ( A.z == B.z )
     {

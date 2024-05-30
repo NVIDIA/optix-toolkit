@@ -35,12 +35,11 @@ FetchContent_Declare(
   GIT_PROGRESS TRUE
 )
 FetchContent_Populate(pbrt)
+set(pbrt_api_dir ${pbrt_SOURCE_DIR}/src/core)
 
 string(TIMESTAMP t2 "%s")
 math(EXPR elapsed "${t2} - ${t1}")
 message(VERBOSE "FetchContent(pbrt) took ${elapsed} seconds.")
-
-set(pbrt_api_dir ${pbrt_SOURCE_DIR}/src/core)
 
 add_library( pbrtParser STATIC
   ${pbrt_api_dir}/api.h
