@@ -1,6 +1,3 @@
-[submodule "examples"]
-	path = examples
-	url = https://github.com/NVIDIA/otk-examples.git 
 [submodule "OmmBaking"]
 	path = OmmBaking
 	url = https://github.com/NVIDIA/otk-omm-baking.git 
