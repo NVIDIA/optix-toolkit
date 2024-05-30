@@ -239,13 +239,16 @@ described above.
 **Problem:** CMake Error: include could not find requested file: BuildConfig<br>
 **Solution:** Git submodules must be initialized, e.g. `git submodule update --init --recursive`
 
+**Problem:** CMake configuration error: "`OTK_USE_VCPKG` is ON, but could not locate vcpkg toolchain file"<br>
+**Solution:** vcpkg submodule must be initialized, e.g. `git submodule update --init --recursive`
+
 **Problem:** add_library cannot create ALIAS target "OpenEXR::Config" because another target with the same name already exists.<br>
 **Solution:** Install OpenEXR 3.1 or later or set `OpenEXR_DIR` to such an installation.
 
 **Problem:** CMake configuration error: "could not find git for clone of glad-populate" <br>
 **Solution:** [git is required](https://git-scm.com/download) in order to download third party libraries (e.g. glad)
 
-**Problem:** Runtime error: OPTIX_ERROR_UNSUPPORTED_ABI_VERSION: Optix call 'optixInit()' failed <br>
+**Problem:** Runtime error: `OPTIX_ERROR_UNSUPPORTED_ABI_VERSION`: Optix call 'optixInit()' failed <br>
 **Solution:** [Download newer driver](https://www.nvidia.com/download)
 
 **Problem:** CMake configuration error: "Failed to detect a default cuda architecture" <br>

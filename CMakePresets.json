@@ -122,6 +122,24 @@
       }
     },
     {
+      "name": "otk-use-openexr",
+      "hidden": true,
+      "displayName": "Use OpenEXR for EXR texture file formats",
+      "description": "Inherit from this preset to use OpenEXR for EXR textures",
+      "cacheVariables": {
+        "OTK_USE_OPENEXR": true
+      }
+    },
+    {
+      "name": "otk-warnings-as-errors",
+      "hidden": true,
+      "displayName": "Treat compiler warnings as errors",
+      "description": "Inherit from this preset to treat compiler warnings as errors.",
+      "cacheVariables": {
+        "OTK_WARNINGS_AS_ERRORS": true
+      }
+    },
+    {
       "name": "otk-default",
       "displayName": "OptiX Toolkit configured with vcpkg for dependencies and default settings",
       "description": "Use vcpkg for dependencies, build all tests and examples.",
