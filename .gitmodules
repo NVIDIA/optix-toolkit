@@ -1,3 +1,6 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/microsoft/vcpkg.git
+[submodule "PyOptiX"]
+	path = PyOptiX
+	url = https://github.com/NVIDIA/otk-pyoptix.git
