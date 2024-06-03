@@ -68,6 +68,7 @@ target_sources(ShaderUtil
   include/OptiXToolkit/ShaderUtil/SelfIntersectionAvoidance.h
   include/OptiXToolkit/ShaderUtil/SelfIntersectionAvoidanceTypes.h
   include/OptiXToolkit/ShaderUtil/Transform4.h
+  include/OptiXToolkit/ShaderUtil/Transform4Printer.h
   include/OptiXToolkit/ShaderUtil/vec_math.h
   include/OptiXToolkit/ShaderUtil/vec_printers.h
   )
