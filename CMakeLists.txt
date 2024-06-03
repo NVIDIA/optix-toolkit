@@ -56,6 +56,8 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 # Enable testing with CTest.
 if( OTK_BUILD_TESTS )
     include( CTest )
+else()
+    set( BUILD_TESTING OFF )
 endif()
 
 #########################################################
