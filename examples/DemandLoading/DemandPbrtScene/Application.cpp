@@ -123,8 +123,8 @@ void Application::launch( otk::CUDAOutputBuffer<uchar4>& outputBuffer )
         }
         catch( const std::runtime_error& e )
         {
-	    std::cerr << "Error: " << e.what() << std::endl;
-	    abort();
+            std::cerr << "Error: " << e.what() << std::endl;
+            abort();
         }
     }
     m_scene->afterLaunch( stream, params );
@@ -140,7 +140,7 @@ void Application::updateStats( const UserInterfacePtr& ui )
     stats.imageSourceFactory = m_imageSourceFactory->getStatistics();
     stats.proxyFactory       = m_proxyFactory->getStatistics();
     stats.scene              = m_scene->getStatistics();
-    ui->setStatistics(stats);
+    ui->setStatistics( stats );
 }
 
 void Application::runInteractive()
@@ -159,7 +159,7 @@ void Application::runInteractive()
             {
                 launch( output );
             }
-            updateStats(ui);
+            updateStats( ui );
             ui->afterLaunch( output );
         } while( !ui->shouldClose() );
     }
