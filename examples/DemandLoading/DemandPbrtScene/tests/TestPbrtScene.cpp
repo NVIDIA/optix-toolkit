@@ -717,7 +717,6 @@ class TestPbrtSceneInitialized : public TestPbrtScene
     OptixModule                    m_phongModule{ reinterpret_cast<OptixModule>( 0x3333U ) };
     OptixProgramGroup              m_fakePhongProgramGroup{ PG( 8888U ) };
     OptixProgramGroup              m_fakeAlphaPhongProgramGroup{ PG( 9999U ) };
-    OptixProgramGroup              m_fakeDiffusePhongProgramGroup{ PG( 0x1010U ) };
     uint_t                         m_fakeMaterialId{ 666U };
     PhongMaterial                  m_realizedMaterial{
         make_float3( 0.1f, 0.2f, 0.3f ),     // Ka
