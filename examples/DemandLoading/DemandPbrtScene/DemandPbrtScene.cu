@@ -45,17 +45,12 @@
 namespace demandPbrtScene {
 
 template <typename T>
-__forceinline__ __device__ T* getSbtData()
-{
-    return reinterpret_cast<T*>( optixGetSbtDataPointer() );
-}
-
-template <typename T>
 __forceinline__ __device__ uint_t& attr( T& val )
 {
     return reinterpret_cast<uint_t&>( val );
 }
 
+/// Use this in the parameter list to optixTrace.
 #define float3Attr( vec_ ) attr( ( vec_ ).x ), attr( ( vec_ ).y ), attr( ( vec_ ).z )
 
 __forceinline__ __device__ uchar4 makeColor( const float3& c )
