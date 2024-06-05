@@ -29,12 +29,11 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/Texture2DCubic.h>
 
 #include "TestSparseTexture.h"
 
-#if __CUDA_ARCH__ >= 600
-#define SPARSE_TEX_SUPPORT true
-#endif
+using namespace demandLoading;
 
 __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
 {
@@ -118,5 +117,32 @@ __host__ void launchTextureDrawKernel( CUstream stream, demandLoading::DeviceCon
     dim3 dimBlock( 16, 16 );
     dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
     textureDrawKernel<<<dimGrid, dimBlock, 0U, stream>>>( context, textureId, output, width, height );
+    OTK_ERROR_CHECK( cudaGetLastError() );
+}
+
+
+__global__ static void cubicTextureDrawKernel( demandLoading::DeviceContext context, unsigned int textureId,
+                                          float4* output, int width, int height, float2 ddx, float2 ddy )
+{
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if( x >= width || y >= height )
+        return;
+
+    bool resident = true;
+    float s = (x + 0.5f) / width;
+    float t = (y + 0.5f) / height;
+    float4 color;
+    resident = textureUdim<float4>( context, textureId, s, t, ddx, ddy, &color );
+
+    output[y * width + x] = resident ? color : make_float4( 1.f, 0.f, 1.f, 0.f );
+}
+
+__host__ void launchCubicTextureDrawKernel( CUstream stream, demandLoading::DeviceContext& context, unsigned int textureId,
+                                            float4* output, int width, int height, float2 ddx, float2 ddy )
+{
+    dim3 dimBlock( 16, 16 );
+    dim3 dimGrid( ( width + dimBlock.x - 1 ) / dimBlock.x, ( height + dimBlock.y - 1 ) / dimBlock.y );
+    cubicTextureDrawKernel<<<dimGrid, dimBlock, 0U, stream>>>( context, textureId, output, width, height, ddx, ddy );
     OTK_ERROR_CHECK( cudaGetLastError() );
 }

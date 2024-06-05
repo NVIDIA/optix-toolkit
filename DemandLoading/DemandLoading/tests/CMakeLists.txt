@@ -90,6 +90,7 @@ target_link_libraries( testDemandLoading
   DemandLoadingKernels
   OptiX::OptiX
   DemandLoading
+  ShaderUtil
   CUDA::cudart
   OpenEXR::OpenEXR # for half
   GTest::gmock

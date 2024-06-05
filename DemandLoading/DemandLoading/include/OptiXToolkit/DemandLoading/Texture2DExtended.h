@@ -32,6 +32,8 @@
 /// Extended device-side entry points for fetching from demand-loaded sparse textures.
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
+using namespace otk;
 
 namespace demandLoading {
 
