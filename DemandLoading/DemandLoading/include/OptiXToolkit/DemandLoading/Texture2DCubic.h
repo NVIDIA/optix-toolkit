@@ -29,7 +29,7 @@
 #pragma once
 
 /// \file Texture2DCubic.h 
-/// Extended device-side functions for fetching cubic and derivative samples from a texture.
+/// Device-side functions for cubic filtering and sampling derivatives from a texture.
 
 #include <OptiXToolkit/DemandLoading/Texture2DExtended.h>
 
@@ -174,13 +174,16 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     // Determine the blend between linear and cubic filtering based on the filterolation mode
     float pixelSpan = getPixelSpan( ddx, ddy, sampler->width, sampler->height );
     float cubicBlend = 0.0f;
+    float ml = 0.0f;
     int mipLevel = 0;
 
     if( filterMode == FILTER_BICUBIC ) 
     {
-        // FIXME: FILTER_CUBIC does not blend between mip levels.
         cubicBlend = 1.0f;
-        mipLevel = ceilf( getMipLevel( ddx, ddy, sampler->width, sampler->height, 1.0f / sampler->desc.maxAnisotropy ) );
+        ml = getMipLevel( ddx, ddy, sampler->width, sampler->height, 1.0f / sampler->desc.maxAnisotropy );
+        if( sampler->desc.mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
+            ml = maxf( 0.0f, ceilf( ml - 0.5f ) );
+        mipLevel = ceilf( ml );
         mipLevel = max( mipLevel, 0 );
     }
     else if( filterMode == FILTER_SMARTBICUBIC && pixelSpan <= 0.5f ) 
@@ -244,28 +247,29 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
             return true;
     }
 
-    // Cubic Sampling
-    s = s * mipLevelWidth - 0.5f;
-    t = t * mipLevelHeight - 0.5f;
-    float i = floorf( s );
-    float j = floorf( t );
-    
+    // Get unnormalized texture coordinates
+    float ts = s * mipLevelWidth - 0.5f;
+    float tt = t * mipLevelHeight - 0.5f;
+    float i = floorf( ts );
+    float j = floorf( tt );
+
+    // Do cubic sampling
     if( result )
     {
         // Blend between cubic and linear weights
-        float4 wx = cubicBlend * cubicWeights(s - i) + (1.0f - cubicBlend) * linearWeights(s - i);
-        float4 wy = cubicBlend * cubicWeights(t - j) + (1.0f - cubicBlend) * linearWeights(t - j);
+        float4 wx = cubicBlend * cubicWeights(ts - i) + (1.0f - cubicBlend) * linearWeights(ts - i);
+        float4 wy = cubicBlend * cubicWeights(tt - j) + (1.0f - cubicBlend) * linearWeights(tt - j);
         *result = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel );
     }
     if( dresultds || dresultdt )
     {
         // Get axis aligned cubic derivatives
-        float4 wx = cubicDerivativeWeights(s - i);
-        float4 wy = cubicWeights(t - j);
+        float4 wx = cubicDerivativeWeights(ts - i);
+        float4 wy = cubicWeights(tt - j);
         TYPE drds = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->width;
     
-        wx = cubicWeights(s - i);
-        wy = cubicDerivativeWeights(t - j);
+        wx = cubicWeights(ts - i);
+        wy = cubicDerivativeWeights(tt - j);
         TYPE drdt = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->height;
 
         // Rotate cubic derivatives to align with ddx and ddy, and blend with linear derivatives computed earlier
@@ -278,7 +282,53 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
             *dresultdt = cubicBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - cubicBlend) * *dresultdt;
     }
 
-    // FIXME: If using FILTER_CUBIC we have to manually blend between two sampled levels.
+    // Return unless we have to blend between levels
+    if( filterMode != FILTER_BICUBIC || ml == mipLevel || ml < 0.0f )
+        return resident;
+
+    //-------------------------------------------------------------------------------
+    // Sample second level for blending between levels in FILTER_BICUBIC mode
+
+    // Get unnormalized texture coordinates
+    mipLevel--;
+    mipLevelWidth = max(sampler->width >> mipLevel, 1);
+    mipLevelHeight = max(sampler->height >> mipLevel, 1);
+    ts = s * mipLevelWidth - 0.5f;
+    tt = t * mipLevelHeight - 0.5f;
+    i = floorf( ts );
+    j = floorf( tt );
+
+    float levelBlend = 1.0f - (ml - mipLevel);
+
+    // Do cubic sampling
+    if( result )
+    {
+        // Blend between cubic and linear weights
+        float4 wx = cubicWeights(ts - i);
+        float4 wy = cubicWeights(tt - j);
+        *result = levelBlend * textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) + (1.0f - levelBlend) * *result;
+    }
+    if( dresultds || dresultdt )
+    {
+        // Get axis aligned cubic derivatives
+        float4 wx = cubicDerivativeWeights(ts - i);
+        float4 wy = cubicWeights(tt - j);
+        TYPE drds = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->width;
+
+        wx = cubicWeights(ts - i);
+        wy = cubicDerivativeWeights(tt - j);
+        TYPE drdt = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->height;
+
+        // Rotate cubic derivatives to align with ddx and ddy, and blend with linear derivatives computed earlier
+        float a = atan2f( ddx.y, ddx.x );
+        if( dresultds )
+            *dresultds = levelBlend * ( drds * cosf( a ) + drdt * sinf( a ) ) + (1.0f - levelBlend) * *dresultds;
+
+        float b = atan2f( ddy.y, ddy.x );
+        if( dresultdt )
+            *dresultdt = levelBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - levelBlend) * *dresultdt;
+    }
+
     return resident;
 }
 
