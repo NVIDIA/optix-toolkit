@@ -31,10 +31,9 @@
 /// TextureDescriptor specifies address mode, filter mode, etc.
 
 #include <cuda.h>
+#include <OptiXToolkit/ShaderUtil/TextureUtil.h>
 
 namespace demandLoading {
-
-enum FilterMode { FILTER_POINT=CU_TR_FILTER_MODE_POINT, FILTER_BILINEAR, FILTER_BICUBIC, FILTER_SMARTBICUBIC };
 
 /// TextureDescriptor specifies the address mode (e.g. wrap vs. clamp), filter mode (point vs. linear), etc.
 struct TextureDescriptor

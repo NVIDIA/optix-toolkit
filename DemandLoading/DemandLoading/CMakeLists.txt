@@ -178,6 +178,7 @@ target_link_libraries(DemandLoading PRIVATE DemandLoadingKernels)
 target_link_libraries( DemandLoading
   PUBLIC
   ImageSource
+  ShaderUtil
   OptiXToolkit::Memory
   OptiX::OptiX
   CUDA::cuda_driver
