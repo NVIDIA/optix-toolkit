@@ -32,106 +32,9 @@
 /// Device-side functions for cubic filtering and sampling derivatives from a texture.
 
 #include <OptiXToolkit/DemandLoading/Texture2DExtended.h>
+#include <OptiXToolkit/ShaderUtil/CubicFiltering.h>
 
 namespace demandLoading {
-
-D_INLINE float4 cubicWeights( float x )
-{
-    float4 weight;
-    weight.x = -x*x*x      + 3.0f*x*x - 3.0f*x + 1.0f;
-    weight.y = 3.0f*x*x*x  - 6.0f*x*x          + 4.0f;
-    weight.z = -3.0f*x*x*x + 3.0f*x*x + 3.0f*x + 1.0f;
-    weight.w = x*x*x;
-    return weight * (1.0f / 6.0f);
-}
-
-D_INLINE float4 cubicDerivativeWeights( float x )
-{
-    float4 weight;
-    weight.x = -0.5f*x*x + x       - 0.5f;
-    weight.y = 1.5f*x*x  - 2.0f*x;
-    weight.z = -1.5f*x*x + x       + 0.5f;
-    weight.w = 0.5f*x*x;
-    return weight;
-}
-
-D_INLINE float4 linearWeights( float x )
-{
-    return float4{ 0.0f, 1.0f-x, x, 0.0f };
-}
-
-D_INLINE float4 linearDerivativeWeights( float x )
-{
-    return float4{ x-1.0f, -x, 1.0f-x, x } * 0.5f; // finite difference
-    //return float4{ 0.0f, -0.5f, 0.5f, 0.0f }; // actual linear derivative
-}
-
-D_INLINE float getPixelSpan( float2 ddx, float2 ddy, float width, float height )
-{
-    float pixelSpanX = maxf( fabsf( ddx.x ), fabsf( ddy.x ) ) * width;
-    float pixelSpanY = maxf( fabsf( ddx.y ), fabsf( ddy.y ) ) * height;
-    return maxf( pixelSpanX, pixelSpanY ) + 1.0e-8f;
-}
-
-D_INLINE void fixGradients( float2& ddx, float2& ddy, TextureSampler* sampler, int filterMode )
-{
-    const float halfMinTileWidth = 32.0f;  // half min tile width for sparse textures
-    const float invAnisotropy    = 1.0f / 16.0f;
-    const float minCubicVal      = 1.0f / 131072.0f;
-
-    // Fix large gradients. Prevent footprint from exceeding min tile width for non-mipmapped textures
-    if( sampler->desc.numMipLevels == 1 && sampler->desc.isSparseTexture )
-    {
-        float pixelSpan = getPixelSpan( ddx, ddy, sampler->width, sampler->height );
-        float scale = minf( halfMinTileWidth / pixelSpan, 1.0f );
-        ddx *= scale;
-        ddy *= scale;
-    }
-
-    float minVal = ( filterMode <= FILTER_BILINEAR ) ? 0.5f / maxf(sampler->width, sampler->height) : minCubicVal;
-
-    // Check if gradients are large enough
-    float ddx2 = dot( ddx, ddx );
-    float ddy2 = dot( ddy, ddy );
-    if( ddx2 > minVal*minVal && ddy2 > minVal*minVal )
-        return;
-
-    // Fix zero gradients
-    if( ddx2 + ddy2 == 0.0f )
-        ddx = float2{ minVal, 0.0f };
-    else if( ddx2 == 0.0f )
-        ddx = float2{ ddy.y, -ddy.x } * invAnisotropy;
-
-    if( ddy2 == 0.0f )
-        ddy = float2{ -ddx.y, ddx.x } * invAnisotropy;
-
-    // Fix short gradients
-    if( dot( ddx, ddx ) < minVal*minVal )
-        ddx *= minVal / length( ddx );
-    if( dot( ddy, ddy ) < minVal*minVal )
-        ddy *= minVal / length( ddy );
-}
-
-template <class TYPE> D_INLINE TYPE
-textureWeighted( TextureSampler* sampler, float i, float j, float4 wx, float4 wy, int mipLevel )
- {
-    int width = ( sampler->width >> mipLevel );
-    int height = ( sampler->height >> mipLevel );
-
-    // Get x,y coordinates to sample
-    float x0 = (i - 0.5f + wx.y / (wx.x + wx.y) ) / width;
-    float x1 = (i + 1.5f + wx.w / (wx.z + wx.w) ) / width;
-    float y0 = (j - 0.5f + wy.y / (wy.x + wy.y) ) / height;
-    float y1 = (j + 1.5f + wy.w / (wy.z + wy.w) ) / height;
-
-    // Sum four weighted samples
-    TYPE t0 = (wx.x + wx.y) * (wy.x + wy.y) * ::tex2DLod<TYPE>( sampler->texture, x0, y0, mipLevel );
-    TYPE t1 = (wx.z + wx.w) * (wy.x + wy.y) * ::tex2DLod<TYPE>( sampler->texture, x1, y0, mipLevel );
-    TYPE t2 = (wx.x + wx.y) * (wy.z + wy.w) * ::tex2DLod<TYPE>( sampler->texture, x0, y1, mipLevel );
-    TYPE t3 = (wx.z + wx.w) * (wy.z + wy.w) * ::tex2DLod<TYPE>( sampler->texture, x1, y1, mipLevel );
-    return t0 + t1 + t2 + t3;
-}
-
 
 /// Fetch from a demand-loaded texture with the specified textureId. Results are computed and stored
 /// in the non-null locations pointed to by result, dresultds, and dresultdt. Filter based on the 
@@ -163,49 +66,38 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     if( !sampler )
         return resident && baseColorResident;
 
-    // Fix gradient sizes
+    const CUtexObject texture = sampler->texture;
+    const unsigned int texWidth = sampler->width;
+    const unsigned int texHeight = sampler->height;
     const unsigned int filterMode = sampler->filterMode;
-    fixGradients( ddx, ddy, sampler, filterMode );
-
+    const unsigned int mipmapFilterMode = sampler->desc.mipmapFilterMode;
+    const unsigned int maxAnisotropy = sampler->desc.maxAnisotropy;
+ 
     // Jitter the texture coordinate for stochastic filtering
-    s = s + (texelJitter.x / sampler->width);
-    t = t + (texelJitter.y / sampler->height);
+    s = s + (texelJitter.x / texWidth);
+    t = t + (texelJitter.y / texHeight);
 
-    // Determine the blend between linear and cubic filtering based on the filterolation mode
-    float pixelSpan = getPixelSpan( ddx, ddy, sampler->width, sampler->height );
-    float cubicBlend = 0.0f;
-    float ml = 0.0f;
-    int mipLevel = 0;
-
-    if( filterMode == FILTER_BICUBIC ) 
+    // Prevent footprint from exceeding min tile width for non-mipmapped textures.
+    if( sampler->desc.numMipLevels == 1 && sampler->desc.isSparseTexture )
     {
-        cubicBlend = 1.0f;
-        ml = getMipLevel( ddx, ddy, sampler->width, sampler->height, 1.0f / sampler->desc.maxAnisotropy );
-        if( sampler->desc.mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
-            ml = maxf( 0.0f, ceilf( ml - 0.5f ) );
-        mipLevel = ceilf( ml );
-        mipLevel = max( mipLevel, 0 );
+        const float halfMinTileWidth = 32.0f;  // half min tile width for sparse textures
+        float pixelSpan = getPixelSpan( ddx, ddy, texWidth, texHeight );
+        float scale = minf( halfMinTileWidth / pixelSpan, 1.0f );
+        ddx *= scale;
+        ddy *= scale;
     }
-    else if( filterMode == FILTER_SMARTBICUBIC && pixelSpan <= 0.5f ) 
-    {
-        cubicBlend = minf( -1.0f - log2f( pixelSpan ), 1.0f );
-        if( sampler->desc.mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
-            cubicBlend = floorf( cubicBlend + 0.5f );
-    }
-
-    int mipLevelWidth = max(sampler->width >> mipLevel, 1);
-    int mipLevelHeight = max(sampler->height >> mipLevel, 1);
 
 #ifdef SPARSE_TEX_SUPPORT
     if( sampler->desc.isSparseTexture )
     {
+        float pixelSpan = getPixelSpan( ddx, ddy, texWidth, texHeight );
         float expandX = 0.0f;
         float expandY = 0.0f;
-        if( cubicBlend > 0.0f )
+        if( filterMode == FILTER_BICUBIC || ( filterMode == FILTER_SMARTBICUBIC && pixelSpan < 0.5f ) )
         {
             // expand by 2 pixels for cubic sampling
-            expandX = 2.0f / mipLevelWidth;
-            expandY = 2.0f / mipLevelHeight;
+            expandX = 2.0f * maxf( pixelSpan, 1.0f ) / texWidth;
+            expandY = 2.0f * maxf( pixelSpan, 1.0f ) / texHeight;
         }
         else if( dresultds != nullptr || dresultdt != nullptr )
         {
@@ -220,115 +112,8 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     }
 #endif
 
-    // Linear Sampling
-    if( cubicBlend < 1.0f )
-    {
-        // Don't do bilinear sample for result unless cubicBlend is 0.
-        if( cubicBlend <= 0.0f && result )
-        {
-            *result = ::tex2DGrad<TYPE>( sampler->texture, s, t, ddx, ddy );
-        }
-
-        // Do a central difference along ddx, ddy
-        if( dresultds )
-        {
-            TYPE t1 = ::tex2DGrad<TYPE>( sampler->texture, s + ddx.x, t + ddx.y, ddx, ddy );
-            TYPE t2 = ::tex2DGrad<TYPE>( sampler->texture, s - ddx.x, t - ddx.y, ddx, ddy );
-            *dresultds = ( t1 - t2 ) / ( 2.0f * length( ddx ) );
-        }
-        if( dresultdt )
-        {
-            TYPE t1 = ::tex2DGrad<TYPE>( sampler->texture, s + ddy.x, t + ddy.y, ddx, ddy );
-            TYPE t2 = ::tex2DGrad<TYPE>( sampler->texture, s - ddy.x, t - ddy.y, ddx, ddy );
-            *dresultdt = ( t1 - t2 ) / ( 2.0f * length( ddy ) );
-        }
-
-        if( cubicBlend <= 0.0f )
-            return true;
-    }
-
-    // Get unnormalized texture coordinates
-    float ts = s * mipLevelWidth - 0.5f;
-    float tt = t * mipLevelHeight - 0.5f;
-    float i = floorf( ts );
-    float j = floorf( tt );
-
-    // Do cubic sampling
-    if( result )
-    {
-        // Blend between cubic and linear weights
-        float4 wx = cubicBlend * cubicWeights(ts - i) + (1.0f - cubicBlend) * linearWeights(ts - i);
-        float4 wy = cubicBlend * cubicWeights(tt - j) + (1.0f - cubicBlend) * linearWeights(tt - j);
-        *result = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel );
-    }
-    if( dresultds || dresultdt )
-    {
-        // Get axis aligned cubic derivatives
-        float4 wx = cubicDerivativeWeights(ts - i);
-        float4 wy = cubicWeights(tt - j);
-        TYPE drds = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->width;
-    
-        wx = cubicWeights(ts - i);
-        wy = cubicDerivativeWeights(tt - j);
-        TYPE drdt = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->height;
-
-        // Rotate cubic derivatives to align with ddx and ddy, and blend with linear derivatives computed earlier
-        float a = atan2f( ddx.y, ddx.x );
-        if( dresultds )
-            *dresultds = cubicBlend * ( drds * cosf( a ) + drdt * sinf( a ) ) + (1.0f - cubicBlend) * *dresultds;
-
-        float b = atan2f( ddy.y, ddy.x );
-        if( dresultdt )
-            *dresultdt = cubicBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - cubicBlend) * *dresultdt;
-    }
-
-    // Return unless we have to blend between levels
-    if( filterMode != FILTER_BICUBIC || ml == mipLevel || ml < 0.0f )
-        return resident;
-
-    //-------------------------------------------------------------------------------
-    // Sample second level for blending between levels in FILTER_BICUBIC mode
-
-    // Get unnormalized texture coordinates
-    mipLevel--;
-    mipLevelWidth = max(sampler->width >> mipLevel, 1);
-    mipLevelHeight = max(sampler->height >> mipLevel, 1);
-    ts = s * mipLevelWidth - 0.5f;
-    tt = t * mipLevelHeight - 0.5f;
-    i = floorf( ts );
-    j = floorf( tt );
-
-    float levelBlend = 1.0f - (ml - mipLevel);
-
-    // Do cubic sampling
-    if( result )
-    {
-        // Blend between cubic and linear weights
-        float4 wx = cubicWeights(ts - i);
-        float4 wy = cubicWeights(tt - j);
-        *result = levelBlend * textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) + (1.0f - levelBlend) * *result;
-    }
-    if( dresultds || dresultdt )
-    {
-        // Get axis aligned cubic derivatives
-        float4 wx = cubicDerivativeWeights(ts - i);
-        float4 wy = cubicWeights(tt - j);
-        TYPE drds = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->width;
-
-        wx = cubicWeights(ts - i);
-        wy = cubicDerivativeWeights(tt - j);
-        TYPE drdt = textureWeighted<TYPE>( sampler, i, j, wx, wy, mipLevel ) * sampler->height;
-
-        // Rotate cubic derivatives to align with ddx and ddy, and blend with linear derivatives computed earlier
-        float a = atan2f( ddx.y, ddx.x );
-        if( dresultds )
-            *dresultds = levelBlend * ( drds * cosf( a ) + drdt * sinf( a ) ) + (1.0f - levelBlend) * *dresultds;
-
-        float b = atan2f( ddy.y, ddy.x );
-        if( dresultdt )
-            *dresultdt = levelBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - levelBlend) * *dresultdt;
-    }
-
+    textureCubic( texture, texWidth, texHeight, filterMode, mipmapFilterMode, maxAnisotropy,
+                  s, t, ddx, ddy, result, dresultds, dresultdt );
     return resident;
 }
 

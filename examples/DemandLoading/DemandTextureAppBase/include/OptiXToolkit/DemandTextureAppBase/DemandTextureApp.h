@@ -86,7 +86,7 @@ class DemandTextureApp
     virtual void cleanupState( PerDeviceOptixState& state );
 
     // Demand loading and texturing system
-    demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, demandLoading::FilterMode filterMode );
+    demandLoading::TextureDescriptor makeTextureDescriptor( CUaddress_mode addressMode, FilterMode filterMode );
     std::shared_ptr<imageSource::ImageSource> createExrImage( const std::string& filePath );
     
     // OptiX launches
