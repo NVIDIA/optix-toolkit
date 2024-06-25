@@ -40,10 +40,15 @@ option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
 
 otk_add_library(DemandTextureAppBase STATIC
   src/DemandTextureApp.cpp
+  src/DemandTextureApp3D.cpp
+  src/ShapeMaker.cpp
+  include/OptiXToolkit/DemandTextureAppBase/SimpleBsdf.h
   include/OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h
+  include/OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h
   include/OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h
   include/OptiXToolkit/DemandTextureAppBase/LaunchParams.h
   include/OptiXToolkit/DemandTextureAppBase/PerDeviceOptixState.h
+  include/OptiXToolkit/DemandTextureAppBase/ShapeMaker.h
   )
 
 add_library(OptiXToolkit::DemandTextureAppBase ALIAS DemandTextureAppBase)

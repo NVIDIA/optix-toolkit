@@ -66,6 +66,7 @@ class DemandTextureApp
     void setMipScale( float scale ) { m_mipScale = scale; }
     void useSparseTextures( bool useSparseTextures ) { m_useSparseTextures = useSparseTextures; }
     void useCascadingTextureSizes( bool useCascade ) { m_useCascadingTextureSizes = useCascade; }
+    void setMaxSubframes( int maxSubframes ) { m_maxSubframes = maxSubframes; }
 
     // GLFW callbacks
     virtual void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
@@ -124,6 +125,9 @@ class DemandTextureApp
     int                       m_minLaunches = 2;
     bool                      m_useSparseTextures = true;
     bool                      m_useCascadingTextureSizes = false;
+
+    // Number of subframes to do
+    int m_maxSubframes = 1000000;
 
     // Camera and view
     otk::Camera m_camera;

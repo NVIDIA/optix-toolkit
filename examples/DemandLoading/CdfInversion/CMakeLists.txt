@@ -47,10 +47,7 @@ embed_cuda(
 )
 
 otk_add_executable( cdfInversion
-  Bsdf.h
   CdfInversion.cpp
-  ShapeMaker.cpp 
-  ShapeMaker.h
   )
 
 target_link_libraries( cdfInversion

@@ -32,10 +32,10 @@
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
+#include <OptiXToolkit/DemandTextureAppBase/SimpleBsdf.h>
 
 #include "Texture2DFilters.h"
 #include "StochasticTextureFilteringParams.h"
-#include "Bsdf.h"
 
 using namespace demandLoading;
 using namespace demandTextureApp;
@@ -50,7 +50,7 @@ OTK_DEVICE const float INF = 1e16f;
 
 enum RenderModes
 {
-    FULL_RENDER = 0,
+    FULL_RENDER = 1,
     NORMALS,
     GEOMETRIC_NORMALS,
     TEX_COORDS,
