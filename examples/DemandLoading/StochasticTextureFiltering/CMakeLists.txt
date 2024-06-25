@@ -47,10 +47,7 @@ embed_cuda(
 )
 
 otk_add_executable( stochasticTextureFiltering
-  Bsdf.h
   StochasticTextureFiltering.cpp
-  ShapeMaker.cpp 
-  ShapeMaker.h
   )
 
 target_link_libraries( stochasticTextureFiltering

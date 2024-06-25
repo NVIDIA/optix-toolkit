@@ -47,10 +47,7 @@ embed_cuda(
 )
 
 otk_add_executable( rayCones
-  Bsdf.h
   RayCones.cpp
-  ShapeMaker.cpp 
-  ShapeMaker.h
   )
 
 target_link_libraries( rayCones

@@ -30,14 +30,15 @@
 #include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
 #include <OptiXToolkit/ShaderUtil/PdfTable.h>
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/Reservoir.h>
 #include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
+#include <OptiXToolkit/DemandTextureAppBase/SimpleBsdf.h>
 
 #include "CdfInversionParams.h"
-#include "Bsdf.h"
 
 using namespace demandLoading;
 using namespace demandTextureApp;
@@ -52,9 +53,10 @@ OTK_DEVICE const float INF = 1e16f;
 
 enum RenderModes
 {
-    MIS_RENDER = 0,
-    EMAP_RENDER,
+    EMAP_RENDER = 1,
     BSDF_RENDER,
+    MIS_RENDER,
+    RIS_RENDER
 };
 
 //------------------------------------------------------------------------------
@@ -214,28 +216,76 @@ float3 evalEmap( float2 uv, float rayConeAngle, bool* isResident, float2 xi )
 // Sampling
 //------------------------------------------------------------------------------
 
+struct DirectionSample
+{
+    float3 direction;
+    float3 emap_bsdf_cos;
+};
+
+static __forceinline__ __device__
+float3 renderRis( Ray& ray, RayPayload& payload, SurfaceValues& sv, unsigned int rseed )
+{
+    bool resident;
+    float3 scatterDirection, bsdfVal, emapVal;
+    float bsdfProb, emapProb, psampled, pdesired, cosTerm, sampleWeight;
+    
+    // Set up random direction update
+    unsigned int numSamples = params.i[NUM_RIS_SAMPLES];
+    float2 dxi = float2{ 1.0f / sqrtf(numSamples) + 1.0f / numSamples, 1.0f / numSamples };
+    float2 xi = rnd2(rseed);
+
+    // Use a reservoir to figure out final sample
+    Reservoir<DirectionSample> reservoir;
+    DirectionSample sample;
+    for( int i = 0; i < numSamples; ++i )
+    {
+        // Alternately sample BSDF or EMAP
+        if( i%2 == 0 )
+            sampleBsdf( payload.geom, sv, ray.d, xi, scatterDirection );
+        else
+            scatterDirection = uvToVec( sampleEmap( xi ) );
+
+        // Compute BSDF and EMAP values
+        cosTerm = maxf( 0.0f, dot(payload.geom.N, scatterDirection) );
+        evalBsdf( payload.geom, sv, ray.d, scatterDirection, bsdfVal, bsdfProb );
+        RayCone rayCone = payload.rayCone;
+        float fs = 0.33333f * (bsdfVal.x + bsdfVal.y + bsdfVal.z);
+        rayConeReflect( payload.geom.curvature, fs, rayCone );
+        emapVal = evalEmap( vecToUv(scatterDirection), rayCone.angle, &resident, xi );
+        emapProb = EPS + LUMINANCE( emapVal ) / ( getInversionTable()->aveValue * 4.0f * M_PIf );
+
+        // Calculate probabilities and update reservoir
+        sample = DirectionSample{scatterDirection, bsdfVal * emapVal * cosTerm};
+        psampled = 0.5f * ( bsdfProb + emapProb );
+        pdesired = LUMINANCE( sample.emap_bsdf_cos );
+        if( pdesired > 0.0f )
+            sample.emap_bsdf_cos /= pdesired;
+        sampleWeight = ( psampled > 0.0f ) ? pdesired / psampled : 0.0f;
+        reservoir.update( sample, sampleWeight, rnd(rseed) );
+
+        // Update random number
+        xi = xi + dxi;
+        xi -= float2{ floorf(xi.x), floorf(xi.y) };
+    }
+
+    // No viable samples found.
+    if( reservoir.wsum == 0.0f )
+        return float3{0.0f};
+
+    // Determine if the direction is occluded
+    traceRay( params.traversable_handle, payload.geom.P, reservoir.y.direction, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+    if( payload.occluded )
+        return float3{0.0f};
+
+    return reservoir.y.emap_bsdf_cos * (reservoir.wsum / reservoir.m);
+}
+
 static __forceinline__ __device__
 float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
 {
     bool resident;
     float3 scatterDirection, bsdfVal, emapVal;
-    float bsdfProb, emapProb;
-    float bounceScale = 1.0f;
-
-    // Special case for perfect mirror: allow an extra bounce
-    if( sv.roughness <= MIN_ROUGHNESS )
-    {
-        bounceScale = sv.Ks.x;
-        scatterDirection = reflect( ray.d, payload.geom.N );
-        payload.rayCone = reflect( payload.rayCone, payload.geom.curvature );
-        traceRay( params.traversable_handle, payload.geom.P, scatterDirection, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
-        if( !payload.occluded )
-        {
-            return bounceScale * evalEmap( vecToUv(scatterDirection), payload.rayCone.angle, &resident, xi );
-        }
-        ray.d = scatterDirection;
-        getSurfaceValues( payload.geom, payload.tex, sv );
-    }
+    float bsdfProb, emapProb, prob;
 
     // Switch between BSDF, EMAP, and MIS render
     float bsdfWeight = 0.5f;
@@ -245,14 +295,14 @@ float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
         bsdfWeight = 0.0f;
 
     // Choose bsdf or environment map sample
-    if( xi.x < bsdfWeight )
+    uint2 px = getPixelIndex( params.num_devices, params.device_idx );
+    if( bsdfWeight == 1.0f || bsdfWeight > 0.0f &&
+        ((params.i[SUBFRAME_ID] + px.x + px.y) % 2 == 0) )
     {
-        xi.x /= bsdfWeight;
         sampleBsdf( payload.geom, sv, ray.d, xi, scatterDirection );
     }
     else 
     {
-        xi.x = ( xi.x - bsdfWeight ) / ( 1.0f - bsdfWeight );
         float2 emapUv = sampleEmap( xi );
         scatterDirection = uvToVec( emapUv );
     }
@@ -278,8 +328,9 @@ float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
 
     emapVal = evalEmap( vecToUv(scatterDirection), payload.rayCone.angle, &resident, xi );
     emapProb = EPS + LUMINANCE( emapVal ) / ( getInversionTable()->aveValue * 4.0f * M_PIf );
+    prob = (1.0f - bsdfWeight) * emapProb + bsdfWeight * bsdfProb;
 
-    return bounceScale * emapVal * bsdfVal * ( cosTerm / ( (1.0f - bsdfWeight) * emapProb + bsdfWeight * bsdfProb ) );
+    return emapVal * bsdfVal * cosTerm / prob;
 }
 
 //------------------------------------------------------------------------------
@@ -305,7 +356,7 @@ extern "C" __global__ void __raygen__rg()
     // Trace ray. If it misses, sample the environment map, otherwise render
     float3 radiance = float3{0.0f, 0.0f, 0.0f};
     traceRay( params.traversable_handle, ray.o, ray.d, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
-    if( payload.occluded == false )
+    if( !payload.occluded )
     {
         radiance = evalEmap( vecToUv( ray.d ), payload.rayCone.angle, &resident, rnd2(rseed) );
     }
@@ -313,7 +364,31 @@ extern "C" __global__ void __raygen__rg()
     {
         SurfaceValues sv;
         getSurfaceValues( payload.geom, payload.tex, sv );
-        radiance = renderMis( ray, payload, sv, rnd2(rseed) );
+        float3 colorScale = float3{1.0f, 1.0f, 1.0f};
+        float3 scatterDirection;
+
+        // Special case for perfect mirror: allow an extra bounce
+        if( sv.roughness <= MIN_ROUGHNESS )
+        {
+            colorScale = sv.Ks;
+            scatterDirection = reflect( ray.d, payload.geom.N );
+            payload.rayCone = reflect( payload.rayCone, payload.geom.curvature );
+            traceRay( params.traversable_handle, payload.geom.P, scatterDirection, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+            ray.d = scatterDirection;
+            getSurfaceValues( payload.geom, payload.tex, sv );
+        }
+
+        if( !payload.occluded )
+        {
+            radiance = colorScale * evalEmap( vecToUv(scatterDirection), payload.rayCone.angle, &resident, rnd2(rseed) );
+        }
+        else
+        {
+            if( params.render_mode == RIS_RENDER )
+                radiance = colorScale * renderRis( ray, payload, sv, rseed );
+            else
+                radiance = colorScale * renderMis( ray, payload, sv, rnd2(rseed) );
+        }
     }
 
     // Accumulate sample in the accumulation buffer

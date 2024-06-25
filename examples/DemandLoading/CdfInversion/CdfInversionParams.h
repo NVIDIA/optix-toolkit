@@ -29,6 +29,7 @@
 const int SUBFRAME_ID = 0;
 const int EMAP_ID = 1;
 const int MIP_LEVEL_0_ID = 2;
+const int NUM_RIS_SAMPLES = 3;
 
 const int MIP_SCALE_ID = 0;
 

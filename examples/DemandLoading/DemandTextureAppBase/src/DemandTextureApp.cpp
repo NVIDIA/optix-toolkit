@@ -590,13 +590,16 @@ void DemandTextureApp::startLaunchLoop()
     {
         while( !glfwWindowShouldClose( getWindow() ) )
         {
-
             glfwPollEvents();
             pollKeys();
+            if( numFilled > m_reset_subframe_threshold || m_launchCycles <= m_minLaunches )
+                m_subframeId = 0;
+            if( m_subframeId >= m_maxSubframes )
+                continue;
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-            m_subframeId = ( numFilled <= m_reset_subframe_threshold ) ? m_subframeId + 1 : 0;
+            ++m_subframeId;
             displayFrame();
             drawGui();
             glfwSwapBuffers( getWindow() );
@@ -611,7 +614,9 @@ void DemandTextureApp::startLaunchLoop()
             numFilled = performLaunches();
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
-            m_subframeId = ( numFilled <= m_reset_subframe_threshold ) ? m_subframeId + 1 : 0;
+            ++m_subframeId;
+            if ( numFilled > m_reset_subframe_threshold )
+                m_subframeId = 0;
         } while( numFilled > 0 || m_launchCycles < m_minLaunches );
 
         saveImage();
