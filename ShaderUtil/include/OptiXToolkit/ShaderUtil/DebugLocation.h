@@ -75,7 +75,7 @@ static __forceinline__ __device__ bool inDebugWindow( const uint3& launchIndex, 
 ///
 __forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const uint3 launchIndex = optixGetLaunchIndex() )
 {
-    return debug.enabled && debug.debugIndexSet && debug.debugIndex == launchIndex;
+    return debug.enabled && debug.debugIndexSet && debug.debugIndex == launchIndex && !debug.dumpSuppressed;
 }
 
 /// debugInfoDump

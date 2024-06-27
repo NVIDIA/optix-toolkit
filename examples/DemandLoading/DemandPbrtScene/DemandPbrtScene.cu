@@ -110,7 +110,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const uint_t        missSbtIndex = RAYTYPE_RADIANCE;
 
     const bool usePinhole{ params.usePinholeCamera };
-    if( otk::atDebugIndex( params.debug, idx ) && !params.debug.dumpSuppressed )
+    if( otk::atDebugIndex( params.debug, idx )  )
     {
         if( usePinhole )
         {
