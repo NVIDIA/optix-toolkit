@@ -45,6 +45,7 @@
 
 #define NullAllocator HostAllocator
 #define NullSuballocator HeapSuballocator
+const uint64_t DEFAULT_HEADROOM = 128ULL << 20;
 
 namespace otk {
 
@@ -57,36 +58,40 @@ class MemoryPool
 {
   public:
     /// Constructor specifying both allocator and suballocator, one of which could be nullptr
-    MemoryPool( Allocator* allocator, SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
-
+    MemoryPool( Allocator* allocator, SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE,
+                uint64_t maxSize = 0, uint64_t headroom = DEFAULT_HEADROOM )
         : m_allocator( allocator )
         , m_suballocator( suballocator )
         , m_allocationGranularity( allocationGranularity )
         , m_maxSize( maxSize ? maxSize : std::numeric_limits<uint64_t>::max() )
+        , m_headroom( headroom )
     {
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
         OTK_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when the suballocator has a default constructor
-    MemoryPool( Allocator* allocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
-        : MemoryPool( allocator, new SubAllocator(), allocationGranularity, maxSize )
+    MemoryPool( Allocator* allocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE,
+                uint64_t maxSize = 0, uint64_t headroom = DEFAULT_HEADROOM )
+        : MemoryPool( allocator, new SubAllocator(), allocationGranularity, maxSize, headroom )
     {
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
         OTK_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when the allocator has a default constructor
-    MemoryPool( SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
-        : MemoryPool( new Allocator(), suballocator, allocationGranularity, maxSize )
+    MemoryPool( SubAllocator* suballocator, uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE,
+                uint64_t maxSize = 0, uint64_t headroom = DEFAULT_HEADROOM )
+        : MemoryPool( new Allocator(), suballocator, allocationGranularity, maxSize, headroom )
     {
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
         OTK_ASSERT( m_context != nullptr );
     }
 
     /// Constructor for when both the allocator and suballocator have default constructors
-    MemoryPool( uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE, uint64_t maxSize = 0 )
-        : MemoryPool( new Allocator(), new SubAllocator(), allocationGranularity, maxSize )
+    MemoryPool( uint64_t allocationGranularity = DEFAULT_ALLOC_SIZE,
+                uint64_t maxSize = 0, uint64_t headroom = DEFAULT_HEADROOM )
+        : MemoryPool( new Allocator(), new SubAllocator(), allocationGranularity, maxSize, headroom )
     {
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
         OTK_ASSERT( m_context != nullptr );
@@ -94,7 +99,7 @@ class MemoryPool
 
     /// Move constructor
     MemoryPool( MemoryPool&& p )
-        : MemoryPool( p.m_allocator, p.m_suballocator, p.m_allocationGranularity, p.m_maxSize )
+        : MemoryPool( p.m_allocator, p.m_suballocator, p.m_allocationGranularity, p.m_maxSize, p.m_headroom )
     {
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
         OTK_ASSERT( m_context != nullptr );
@@ -145,14 +150,26 @@ class MemoryPool
         if( !m_suballocator )
             return MemoryBlockDesc{reinterpret_cast<uint64_t>( m_allocator->allocate( size, stream ) ), size, 0};
 
-        // Try to fill the request with the suballocator.  If it fails, allocate additional memory with the
-        // allocator and try again.
+        // Try to fill the request with the suballocator. If it fails, allocate more memory and try again.
         MemoryBlockDesc block = m_suballocator->alloc( size, alignment );
         if( ( block.isBad() ) && ( trackedSize() < m_maxSize ) && m_allocator )
         {
+            // Make sure there is enough headroom (allocatable space) still on the card
+            if( m_headroom > 0 )
+            {
+                size_t freeMem, totalMem;
+                OTK_ERROR_CHECK( cuMemGetInfo( &freeMem, &totalMem ) );
+                if( freeMem < m_headroom )
+                    return block;
+            }
+
             // Allocate enough memory for the current request at m_allocationGranularity increments.
             size_t allocSize = m_allocationGranularity * ( ( size + m_allocationGranularity - 1 ) / m_allocationGranularity );
-            m_allocations.push_back( m_allocator->allocate( allocSize ) );
+            void* ptr = m_allocator->allocate( allocSize );
+            if( !ptr )
+                return block;
+            m_allocations.push_back( ptr );
+
             if( m_allocator->allocationIsHandle() )
             {
                 // If the allocator returns handles, they are not pointers in a linear memory space, so
@@ -207,6 +224,7 @@ class MemoryPool
 
         CUmemGenericAllocationHandle handle =
             blockGood ? reinterpret_cast<CUmemGenericAllocationHandle>( m_allocations[arenaId] ) : 0;
+
         return TileBlockHandle{handle, {arenaId, tileId, numTiles}};
     }
 
@@ -337,6 +355,7 @@ class MemoryPool
     std::vector<void*> m_allocations;
     uint64_t           m_allocationGranularity;
     uint64_t           m_maxSize;
+    uint64_t           m_headroom; // Leave at least this much memory unallocated
     mutable std::mutex m_mutex;
 
     std::deque<StagedBlock> m_stagedBlocks;
