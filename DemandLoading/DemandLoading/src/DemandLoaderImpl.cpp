@@ -215,23 +215,26 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
 
     // Fill the textures in
     unsigned int entryPointId = 0xFFFFFFFF;
-    for( unsigned int v=0; v<vdim; ++v )
+    for( unsigned int v = 0; v < vdim; ++v )
     {
-        for( unsigned int u=0; u<udim; ++u )
+        for( unsigned int u = 0; u < udim; ++u )
         {
-            unsigned int imageIndex = v*udim + u;
-            unsigned int textureId = startTextureId + imageIndex;
-            if(imageIndex < imageSources.size() && imageSources[imageIndex].get() != nullptr )
+            for( unsigned int channelId = 0; channelId < numChannelTextures; ++channelId )
             {
-                // Create the texture and put it in the list of textures
-                entryPointId = std::min( textureId, entryPointId );
-                DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
-                m_textures.emplace( textureId, tex );
-                tex->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, false );
-            }
-            else 
-            {
-                m_textures.emplace( textureId, nullptr );
+                unsigned int imageIndex = (v*udim + u) * numChannelTextures + channelId;
+                unsigned int textureId = startTextureId + imageIndex;
+                if(imageIndex < imageSources.size() && imageSources[imageIndex].get() != nullptr )
+                {
+                    // Create the texture and put it in the list of textures
+                    entryPointId = std::min( textureId, entryPointId );
+                    DemandTextureImpl* tex = makeTextureOrVariant( textureId, textureDescs[imageIndex], imageSources[imageIndex] );
+                    m_textures.emplace( textureId, tex );
+                    tex->setUdimTexture( startTextureId, udim, vdim, numChannelTextures, false );
+                }
+                else
+                {
+                    m_textures.emplace( textureId, nullptr );
+                }
             }
         }
     }
@@ -402,9 +405,13 @@ void DemandLoaderImpl::initUdimTexture( CUstream stream, unsigned int baseTextur
     {
         for( unsigned int u = 0; u < baseSampler.udim; ++u)
         {
-            unsigned int subTextureId = baseSampler.udimStartPage + v * baseSampler.udim + u;
-            if( subTextureId != baseTextureId )
-                initTexture( stream, subTextureId );
+            for( unsigned int channelId = 0; channelId < baseSampler.numChannelTextures; ++channelId )
+            {
+                unsigned int subTextureId = baseSampler.udimStartPage +
+                                            (v * baseSampler.udim + u) * baseSampler.numChannelTextures + channelId;
+                if( subTextureId != baseTextureId )
+                    initTexture( stream, subTextureId );
+            }
         }
     }
 }

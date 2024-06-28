@@ -101,6 +101,7 @@ void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
         newSampler.udimStartPage = m_sampler.udimStartPage;
         newSampler.udim = m_sampler.udim;
         newSampler.vdim = m_sampler.vdim;
+        newSampler.numChannelTextures = m_sampler.numChannelTextures;
         newSampler.desc.isUdimBaseTexture = m_sampler.desc.isUdimBaseTexture;
         m_sampler = newSampler;
     }

@@ -393,15 +393,15 @@ void DemandTextureApp::initDemandLoading()
     // Default to final frame rendering. Use all of the device memory available for textures,
     // and set maxRequests to high values to reduce the total number of launches.
     unsigned int maxTexMem     = 0;  // unlimited
-    unsigned int maxRequests   = 8192;
-    unsigned int maxStalePages = 4096;
+    unsigned int maxRequests   = 512;
+    unsigned int maxStalePages = 1024;
 
     // In interactive mode, reduce the max texture memory to exercise eviction. Set maxRequests to
     // a low value to keep the system from being bogged down by pullRequests for any single launch.
     if( isInteractive() )
     {
         maxTexMem     = 2ULL * 1024 * 1024 * 1024;
-        maxRequests   = 128;
+        maxRequests   = 64;
         maxStalePages = 128;
     }
 

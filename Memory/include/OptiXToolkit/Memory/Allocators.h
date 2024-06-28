@@ -56,8 +56,8 @@ class PinnedAllocator
   public:
     void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
-        void* result;
-        OTK_ERROR_CHECK( cuMemAllocHost( &result, numBytes ) );
+        void* result = nullptr;
+        OTK_ERROR_CHECK_NOTHROW( cuMemAllocHost( &result, numBytes ) );
         return result;
     }
     void free( void* ptr, CUstream /*dummy*/ = 0 ) { OTK_ERROR_CHECK( cuMemFreeHost( ptr ) ); }
@@ -80,8 +80,8 @@ class DeviceAllocator
         OTK_ASSERT_CONTEXT_IS( m_context );
         if( numBytes == 0 )
             return nullptr;  // cuMemAlloc does not handle this.
-        void* result;
-        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+        void* result = nullptr;
+        OTK_ERROR_CHECK_NOTHROW( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
         return result;
     }
 
@@ -125,15 +125,15 @@ class DeviceAsyncAllocator
         OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
         if( numBytes == 0 )
             return nullptr;  // cuMemAlloc does not handle this.
-        void* result;
+        void* result = nullptr;
 
 #if OTK_USE_CUDA_MEMORY_POOLS
         if( m_usePools )
-            OTK_ERROR_CHECK( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
+            OTK_ERROR_CHECK_NOTHROW( cuMemAllocAsync( reinterpret_cast<CUdeviceptr*>( &result ), numBytes, stream ) );
         else
-            OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+            OTK_ERROR_CHECK_NOTHROW( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
 #else
-        OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
+        OTK_ERROR_CHECK_NOTHROW( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &result ), numBytes ) );
 #endif
 
         return result;
@@ -182,8 +182,8 @@ class TextureTileAllocator
     void* allocate( size_t numBytes, CUstream /*dummy*/ = 0 )
     {
         OTK_ASSERT_CONTEXT_IS( m_context );
-        CUmemGenericAllocationHandle handle;
-        OTK_ERROR_CHECK( cuMemCreate( &handle, numBytes, &m_allocationProp, 0U ) );
+        CUmemGenericAllocationHandle handle = 0U;
+        OTK_ERROR_CHECK_NOTHROW( cuMemCreate( &handle, numBytes, &m_allocationProp, 0U ) );
         return reinterpret_cast<void*>( handle );
     }
 

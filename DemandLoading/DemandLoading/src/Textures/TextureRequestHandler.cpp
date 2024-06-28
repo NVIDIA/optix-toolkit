@@ -97,7 +97,12 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     {
         bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
         if( bh.block.isBad() )
+        {
+            // If the allocation failed, set max memory to current size and turn on eviction.
+            m_loader->setMaxTextureMemory( m_loader->getDeviceMemoryManager()->getTextureTileMemory() );
+            m_loader->enableEviction( true );
             return;
+        }
     }
 
     // Allocate a transfer buffer.
@@ -157,7 +162,12 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
     {
         bh = deviceMemoryManager->allocateTileBlock( mipTailSize );
         if( bh.block.isBad() )
+        {
+            // If the allocation failed, set max memory to current size and turn on eviction.
+            m_loader->setMaxTextureMemory( m_loader->getDeviceMemoryManager()->getTextureTileMemory() );
+            m_loader->enableEviction( true );
             return;
+        }
     }
 
     // Allocate a transfer buffer.

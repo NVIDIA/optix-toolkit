@@ -166,12 +166,14 @@ void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 
     // Resize, deleting tile arenas as needed
     m_deviceMemoryManager.setMaxTextureTileMemory( maxMem );
+    m_options->maxTexMemPerDevice = maxMem;
+    // If no arenas to delete, just return to avoid slow predicate
+    if( m_deviceMemoryManager.getTextureTileMemory() <= maxMem )
+        return;
 
     // Schedule tiles from deleted arenas to be discarded
     ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
     m_pagesToInvalidate.push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
-
-    m_options->maxTexMemPerDevice = maxMem;
 }
 
 void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate )

@@ -101,11 +101,11 @@ class DeviceMemoryManager
             m_tilePool->setMaxSize( static_cast<uint64_t>( maxMemory ) );
     }
 
-    /// Returns the amount of device memory allocated.
-    size_t getTotalDeviceMemory() const
-    {
-        return m_samplerPool.trackedSize() + m_deviceContextMemory.trackedSize() + ( m_tilePool ? m_tilePool->trackedSize() : 0 );
-    }
+    /// Return the amount of device memory allocated in different pools.
+    size_t getSamplerMemory() const { return m_samplerPool.trackedSize(); }
+    size_t getDeviceContextMemory() const { return m_deviceContextMemory.trackedSize(); }
+    size_t getTextureTileMemory() const { return m_tilePool ? m_tilePool->trackedSize() : 0; }
+    size_t getTotalDeviceMemory() const { return getSamplerMemory() + getDeviceContextMemory() + getTextureTileMemory(); }
 
   private:
     std::shared_ptr<Options> m_options;
