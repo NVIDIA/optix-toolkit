@@ -51,6 +51,12 @@ extern "C" __global__ void __closesthit__mesh()
 
     const PhongMaterial& mat = PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
     setRayPayload( phongShade( mat, worldNormal ) );
+
+    // Values needed for AO
+    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
+    optixSetPayload_4( __float_as_uint( worldNormal.x ) );
+    optixSetPayload_5( __float_as_uint( worldNormal.y ) );
+    optixSetPayload_6( __float_as_uint( worldNormal.z ) );
 }
 
 static __forceinline__ __device__ bool sphereMaterialDebugInfo( const float4& q, const float3& worldNormal )
@@ -90,13 +96,19 @@ extern "C" __global__ void __closesthit__sphere()
     const float3 worldRayPos  = rayOrigin + tHit * rayDir;
     const float3 objectRayPos = optixTransformPointFromWorldToObjectSpace( worldRayPos );
     const float3 objectNormal = ( objectRayPos - make_float3( q ) ) / q.w;
-    const float3 worldNormal  = normalize( optixTransformNormalFromObjectToWorldSpace( objectNormal ) ) * 0.5f + 0.5f;
+    const float3 worldNormal  = normalize( optixTransformNormalFromObjectToWorldSpace( objectNormal ) );
 
     if( sphereMaterialDebugInfo( q, worldNormal ) )
         return;
 
     const PhongMaterial& mat = PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
     setRayPayload( phongShade( mat, worldNormal ) );
+
+    // Values needed for AO
+    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
+    optixSetPayload_4( __float_as_uint( worldNormal.x ) );
+    optixSetPayload_5( __float_as_uint( worldNormal.y ) );
+    optixSetPayload_6( __float_as_uint( worldNormal.z ) );
 }
 
 }  // namespace demandPbrtScene
