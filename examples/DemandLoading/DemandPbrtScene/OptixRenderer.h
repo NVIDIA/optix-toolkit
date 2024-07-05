@@ -35,6 +35,7 @@
 #endif
 #endif
 
+#include "Accumulator.h"
 #include "Dependencies.h"
 #include "Params.h"
 #include "Renderer.h"
@@ -75,8 +76,16 @@ class OptixRenderer : public Renderer
     const OptixPipelineCompileOptions& getPipelineCompileOptions() const override { return m_pipelineCompileOptions; }
 
     void setDebugLocation( const otk::DebugLocation& value ) override { m_params[0].debug = value; }
-    void setCamera( const PerspectiveCamera& value ) override { m_params[0].camera = value; }
-    void setLookAt( const LookAtParams& value ) override { m_params[0].lookAt = value; }
+    void setCamera( const PerspectiveCamera& value ) override
+    {
+        m_accumulator.clear();
+        m_params[0].camera = value;
+    }
+    void setLookAt( const LookAtParams& value ) override
+    {
+        m_accumulator.clear();
+        m_params[0].lookAt = value;
+    }
     void setProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
 
     void beforeLaunch( CUstream stream ) override;
@@ -112,6 +121,8 @@ class OptixRenderer : public Renderer
     bool                            m_pipelineChanged{ true };
     bool                            m_sbtChanged{ true };
     bool                            m_fireOneDebugDump{};
+
+    Accumulator                     m_accumulator;
 };
 
 }  // namespace demandPbrtScene

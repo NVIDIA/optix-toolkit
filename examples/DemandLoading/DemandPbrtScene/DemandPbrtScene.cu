@@ -75,6 +75,62 @@ __forceinline__ __device__ void uvwFrame( const LookAtParams& lookAt, const Pers
     U *= ulen;
 }
 
+
+// Seed a random number generator for a given pixel and launch index
+static __forceinline__ __device__ unsigned int srand( unsigned int x, unsigned int y, unsigned int z )
+{
+    const unsigned int xyz = 84721u * x + 28411u * y + 339341u * z + 23478;
+    return xyz + xyz * xyz * xyz;
+}
+
+// Get a random number in [0,1)
+static __forceinline__ __device__ float rnd( unsigned int& prev )
+{
+    prev = 1664525u * prev + 1013904223u;
+    return static_cast<float>( prev & 0x00FFFFFF ) / 0x01000000;
+}
+
+// Concentric mapping from Ray Tracing Gems : Sampling Transformations Zoo
+static __forceinline__ __device__ float2 concentricMapping( float2 u )
+{
+    float a = 2.0f * u.x - 1.0f;
+    float b = 2.0f * u.y - 1.0f;
+    if ( b == 0.0f ) b = 1.0f;
+    float r, phi;
+
+    if ( a * a > b * b )
+    {
+        r = a;
+        phi = ( M_PIf / 4.0f ) * ( b / a );
+    }
+    else
+    {
+        r = b;
+        phi = ( M_PIf / 2.0f ) - ( M_PIf / 4.0f ) * ( a / b );
+    }
+    return float2{r * cos( phi ), r * sin( phi )};
+}
+
+// Make an orthonormal basis from unit length vector N.
+static __forceinline__ __device__ void makeOrthoBasis( float3 N, float3& S, float3& T )
+{
+    using namespace otk;
+    S = ( fabsf( N.x ) + fabsf( N.y ) > fabsf( N.z ) ) ? float3{-N.y, N.x, 0.0f} : float3{0.0f, -N.z, N.y};
+    S = normalize( S );
+    T = cross( S, N );
+}
+
+// Sample a cosine-weighted hemisphere
+static __forceinline__ __device__ float3 sampleDiffuse( float2 xi, float3 N )
+{
+    float3 S, T;
+    makeOrthoBasis( N, S, T );
+    const float2 st = concentricMapping( xi );
+    return ( st.x * S ) + ( st.y * T ) + ( sqrtf( 1.0f - otk::dot( st, st ) ) * N );
+}
+
+
+
 extern "C" __global__ void __raygen__perspectiveCamera()
 {
     const uint3              idx{ optixGetLaunchIndex() };
@@ -82,6 +138,10 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const LookAtParams&      lookAt{ params.lookAt };
     const PerspectiveCamera& camera{ params.camera };
     const float2             imageSize{ static_cast<float>( params.width ), static_cast<float>( params.height ) };
+
+    const uint_t pixel{ params.width * idx.y + idx.x };
+    float4 accVal = params.accumulator[pixel];
+    unsigned int rseed = srand( idx.x, idx.y, (int)accVal.w );
 
     // Compute ray as pbrt would.
     const otk::Transform4 screenToRaster{ otk::scale( imageSize.x, imageSize.y, 1.0f )
@@ -95,14 +155,17 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const float4          pbrtRayPos{ camera.cameraToWorld * make_float4( 0.0f, 0.0f, 0.0f, 1.0f ) };
 
     // Compute ray using look at parameters.
-    const float2 d = make_float2( idx.x, idx.y ) / imageSize * 2.f - 1.f;
+    const float2 d = make_float2( idx.x + rnd( rseed ), idx.y + rnd( rseed ) ) / imageSize * 2.f - 1.f;
     float3       u, v, w;
     uvwFrame( lookAt, camera, u, v, w );
     const float3 pinholeRayOrigin = lookAt.eye;
     const float3 pinholeRayDir    = otk::normalize( d.x * u + d.y * v + w );
 
-    float3              result{};
-    const float         tMin         = 0.0f;
+    float3 result{};
+    float3 normal{};
+    float  isectDist = 0.0f;
+
+    const float         tMin         = params.sceneEpsilon;
     const float         tMax         = 1e16f;
     const float         rayTime      = 0.0f;
     const OptixRayFlags flags        = OPTIX_RAY_FLAG_NONE;
@@ -171,13 +234,65 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         }
     }
 
-    const float3 rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
-    const float3 rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
+    float3 rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
+    float3 rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
-                sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, float3Attr( result ) );
+                sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
+                float3Attr(result), attr<float>(isectDist), float3Attr(normal) );
 
-    const uint_t pixel{ params.width * idx.y + idx.x };
-    params.image[pixel] = makeColor( result );
+    // Phong shading
+    const bool PHONG_SHADING = false;
+    if ( PHONG_SHADING )
+    {
+        params.image[pixel] = makeColor( result );
+        return;
+    }
+
+    // White background for Ambient Occlusion
+    if( isectDist >= tMax )
+    {
+        accVal += float4{1.0f, 1.0f, 1.0f, 1.0f};
+        params.accumulator[pixel] = accVal;
+        float3 color = float3{accVal.x, accVal.y, accVal.z} / accVal.w;
+        params.image[pixel] = makeColor( color );
+        return;
+    }
+
+    if( otk::dot(normal, normal) == 0.0f )
+    {
+        params.image[pixel] = makeColor( result );
+        return;
+    }
+
+    // Ambient occlusion
+    const unsigned int NUM_AO_SAMPLES = 1;
+    const float aoDist = 128.0f;
+    rayOrigin = rayOrigin + isectDist * rayDirection;
+    normal = otk::normalize(normal);
+    if( otk::dot(normal, rayDirection) > 0.0f )
+        normal = -normal;
+    float count = 0.0f;
+    float2 xi = float2{rnd(rseed), rnd(rseed)};
+
+    for( int i=0; i<NUM_AO_SAMPLES; ++i )
+    {
+        float3 aoDirection = sampleDiffuse( xi, normal );
+        xi = float2{rnd(rseed), rnd(rseed)};
+        float3 dummyNormal;
+        float3 dummyResult;
+        isectDist = aoDist;
+        optixTrace( params.traversable, rayOrigin, aoDirection, tMin, aoDist, rayTime, OptixVisibilityMask( 255 ), flags,
+                    sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
+                    float3Attr(dummyResult), attr<float>(isectDist), float3Attr(dummyNormal) );
+        if( isectDist >= aoDist )
+            count += 1.0f;
+    }
+    count /= NUM_AO_SAMPLES;
+
+    accVal += float4{count, count, 0.6f*(count+0.5f), 1.0f};
+    params.accumulator[pixel] = accVal;
+    float3 color = float3{accVal.x, accVal.y, accVal.z} / accVal.w;
+    params.image[pixel] = makeColor( color );
 }
 
 __forceinline__ __device__ float2 sphericalCoordFromRayDirection()
@@ -241,6 +356,9 @@ extern "C" __global__ void __miss__backgroundColor()
     }
 
     setRayPayload( background );
+
+    // Values needed for AO
+    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
 }
 
 }  // namespace demandPbrtScene
@@ -484,6 +602,12 @@ extern "C" __global__ void __closesthit__texturedMesh()
         const float3 yellow( make_float3( 1.0f, 0.0f, 1.0f ) );
         setRayPayload( yellow );
     }
+
+    // Values needed for AO
+    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
+    optixSetPayload_4( __float_as_uint( worldNormal.x ) );
+    optixSetPayload_5( __float_as_uint( worldNormal.y ) );
+    optixSetPayload_6( __float_as_uint( worldNormal.z ) );
 }
 
 }  // namespace demandPbrtScene

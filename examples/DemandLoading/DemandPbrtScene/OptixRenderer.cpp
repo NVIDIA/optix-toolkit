@@ -83,7 +83,7 @@ void OptixRenderer::createOptixContext()
     OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &m_context ) );
 }
 
-const int NUM_PAYLOAD_VALUES   = 4;
+const int NUM_PAYLOAD_VALUES   = 7;
 const int NUM_ATTRIBUTE_VALUES = 3;
 
 void OptixRenderer::initPipelineOpts()
@@ -238,7 +238,9 @@ void OptixRenderer::beforeLaunch( CUstream stream )
 
 void OptixRenderer::launch( CUstream stream, uchar4* image )
 {
+    m_accumulator.resize( m_options.width, m_options.height );
     m_params[0].image = image;
+    m_params[0].accumulator = m_accumulator.getBuffer();
     m_params.copyToDevice();
     OTK_ERROR_CHECK( optixLaunch( m_pipeline, stream, m_params, sizeof( Params ), &m_sbt, m_options.width,
                                   m_options.height, /*depth=*/1 ) );

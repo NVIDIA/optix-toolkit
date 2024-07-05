@@ -316,7 +316,7 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( params.proxyFaceColors ) );
 
     params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
-    params.sceneEpsilon        = 1.e-4f;
+    params.sceneEpsilon        = 0.005f;
     params.usePinholeCamera    = m_options.usePinholeCamera;
     params.traversable         = m_topLevelTraversable;
     params.demandGeomContext   = m_geometryLoader->getContext();

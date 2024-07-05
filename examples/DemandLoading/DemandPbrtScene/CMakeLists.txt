@@ -51,6 +51,7 @@ target_sources( DemandPbrtSceneKernelCuda
 )
 
 add_library(DemandPbrtSceneImpl STATIC
+    Accumulator.h
     Application.h
     Application.cpp
     CudaContext.h

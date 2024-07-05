@@ -264,6 +264,7 @@ struct Params
 {
     otk::DebugLocation           debug;
     uchar4*                      image;
+    float4*                      accumulator;
     uint_t                       width;
     uint_t                       height;
     LookAtParams                 lookAt;

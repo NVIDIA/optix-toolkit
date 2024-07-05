@@ -69,7 +69,8 @@ static __device__ void getTriangleData( float3 ( &vertices )[3], float3& worldNo
         float2          uv      = optixGetTriangleBarycentrics();
         const float3    uDir( normals.N[1] - normals.N[0] );
         const float3    vDir( normals.N[2] - normals.N[0] );
-        worldNormal = otk::normalize( normals.N[0] + uDir * uv.x + vDir * uv.y );
+        worldNormal = optixTransformNormalFromObjectToWorldSpace( normals.N[0] + uDir * uv.x + vDir * uv.y );
+        worldNormal = otk::normalize( worldNormal );
     }
     else
     {
