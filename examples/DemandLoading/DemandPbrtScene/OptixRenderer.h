@@ -78,12 +78,12 @@ class OptixRenderer : public Renderer
     void setDebugLocation( const otk::DebugLocation& value ) override { m_params[0].debug = value; }
     void setCamera( const PerspectiveCamera& value ) override
     {
-        m_accumulator.clear();
+        setClearAccumulator();
         m_params[0].camera = value;
     }
     void setLookAt( const LookAtParams& value ) override
     {
-        m_accumulator.clear();
+        setClearAccumulator();
         m_params[0].lookAt = value;
     }
     void setProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
@@ -92,10 +92,10 @@ class OptixRenderer : public Renderer
     void launch( CUstream stream, uchar4* image ) override;
     void afterLaunch() override;
     void fireOneDebugDump() override;
+    void setClearAccumulator() override { m_clearAccumulator = true; }
 
   private:
     using uint_t = unsigned int;
-
 
     void createOptixContext();
     void initPipelineOpts();
@@ -123,6 +123,7 @@ class OptixRenderer : public Renderer
     bool                            m_fireOneDebugDump{};
 
     Accumulator                     m_accumulator;
+    bool                            m_clearAccumulator;
 };
 
 }  // namespace demandPbrtScene

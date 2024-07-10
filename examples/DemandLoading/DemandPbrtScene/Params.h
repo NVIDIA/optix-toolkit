@@ -48,6 +48,14 @@ enum RayType
     RAYTYPE_COUNT
 };
 
+enum RenderMode
+{
+    PHONG_SHADING = 0,
+    SHORT_AO,
+    LONG_AO,
+    PATH_TRACING
+};
+
 enum class ProgramGroupIndex : uint_t
 {
     RAYGEN                                 = 0,
@@ -267,6 +275,7 @@ struct Params
     float4*                      accumulator;
     uint_t                       width;
     uint_t                       height;
+    int                          renderMode;
     LookAtParams                 lookAt;
     PerspectiveCamera            camera;
     float3                       background;

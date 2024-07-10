@@ -723,6 +723,11 @@ bool PbrtScene::frameBudgetExceeded() const
         return false;
     }
 
+    // Hack: This reduces interactivity, but it prevents demand
+    // loading from discarding most of the requests when framerate
+    // is low.
+    return false;
+
     const Clock::duration duration = Clock::now() - m_frameStart;
     return duration > m_frameTime;
 }

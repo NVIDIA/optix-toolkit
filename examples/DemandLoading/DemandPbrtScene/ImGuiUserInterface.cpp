@@ -251,6 +251,18 @@ void ImGuiUserInterface::renderOptions()
             ImGui::TreePop();
             ImGui::Spacing();
         }
+        if( ImGui::TreeNode( "Render Mode" ) )
+        {
+            int currentRenderMode = m_options.renderMode;
+            ImGui::RadioButton( "Phong Shading", &m_options.renderMode, PHONG_SHADING );
+            ImGui::RadioButton( "Short AO", &m_options.renderMode, SHORT_AO );
+            ImGui::RadioButton( "Long AO", &m_options.renderMode, LONG_AO );
+            ImGui::RadioButton( "Path Tracing", &m_options.renderMode, PATH_TRACING );
+            ImGui::TreePop();
+            ImGui::Spacing();
+            if( currentRenderMode != m_options.renderMode )
+                m_renderer->setClearAccumulator();
+        }
         if( ImGui::TreeNode( "Debug Options" ) )
         {
             renderDebug();

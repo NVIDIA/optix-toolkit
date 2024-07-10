@@ -479,6 +479,7 @@ class MockRenderer : public StrictMock<Renderer>
     MOCK_METHOD( void, launch, (CUstream, uchar4*), ( override ) );
     MOCK_METHOD( void, afterLaunch, (), ( override ) );
     MOCK_METHOD( void, fireOneDebugDump, (), ( override ) );
+    MOCK_METHOD( void, setClearAccumulator, (), ( override ) );
 };
 
 using StrictMockDemandLoader    = StrictMock<MockDemandLoader>;
