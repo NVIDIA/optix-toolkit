@@ -58,6 +58,7 @@ struct Options
     bool        debug{};
     bool        oneShotDebug{};
     int2        debugPixel{};
+    int         renderMode;
 };
 
 using UsageFn = void( const char* program, const char* message );

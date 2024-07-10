@@ -74,6 +74,7 @@ class Renderer
     virtual void launch( CUstream stream, uchar4* pixels ) = 0;
     virtual void afterLaunch()                             = 0;
     virtual void fireOneDebugDump()                        = 0;
+    virtual void setClearAccumulator()                     = 0;
 };
 
 RendererPtr createRenderer( const Options& options, int numAttributes );

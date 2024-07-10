@@ -65,6 +65,7 @@ __forceinline__ __device__ float3 phongShade( const PhongMaterial& mat, float3 c
     const float3&           ambientColor = PARAMS_VAR_NAME.ambientColor;
     // ambient contribution
     float3 result = mat.Ka * ambientColor;
+    result += mat.Kd * 4.0f; // Hack to make the scene less dark
     {
         // directional light contribution
         const uint_t            numLights = PARAMS_VAR_NAME.numDirectionalLights;
@@ -83,6 +84,8 @@ __forceinline__ __device__ float3 phongShade( const PhongMaterial& mat, float3 c
             result += mat.Kd * lights[i].color;
         }
     }
+    
+
     return result;
 }
 

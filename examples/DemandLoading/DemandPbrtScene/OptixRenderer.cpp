@@ -239,8 +239,14 @@ void OptixRenderer::beforeLaunch( CUstream stream )
 void OptixRenderer::launch( CUstream stream, uchar4* image )
 {
     m_accumulator.resize( m_options.width, m_options.height );
+    if( m_clearAccumulator )
+    {
+        m_accumulator.clear();
+        m_clearAccumulator = false;
+    }
     m_params[0].image = image;
     m_params[0].accumulator = m_accumulator.getBuffer();
+    m_params[0].renderMode = m_options.renderMode;
     m_params.copyToDevice();
     OTK_ERROR_CHECK( optixLaunch( m_pipeline, stream, m_params, sizeof( Params ), &m_sbt, m_options.width,
                                   m_options.height, /*depth=*/1 ) );

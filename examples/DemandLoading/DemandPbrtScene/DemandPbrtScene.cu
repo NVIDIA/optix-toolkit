@@ -129,6 +129,15 @@ static __forceinline__ __device__ float3 sampleDiffuse( float2 xi, float3 N )
     return ( st.x * S ) + ( st.y * T ) + ( sqrtf( 1.0f - otk::dot( st, st ) ) * N );
 }
 
+// Accumulate a value
+static __forceinline__ __device__ void accumulateValue( int pixel, float3 val )
+{
+    const Params& params{ PARAMS_VAR_NAME };
+    float4 accVal = params.accumulator[pixel] + float4{val.x, val.y, val.z, 1.0f};
+    params.accumulator[pixel] = accVal;
+    params.image[pixel] = makeColor( float3{accVal.x, accVal.y, accVal.z} / accVal.w );
+}
+
 
 
 extern "C" __global__ void __raygen__perspectiveCamera()
@@ -138,10 +147,11 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const LookAtParams&      lookAt{ params.lookAt };
     const PerspectiveCamera& camera{ params.camera };
     const float2             imageSize{ static_cast<float>( params.width ), static_cast<float>( params.height ) };
+    const uint_t             pixel{ params.width * idx.y + idx.x };
 
-    const uint_t pixel{ params.width * idx.y + idx.x };
-    float4 accVal = params.accumulator[pixel];
-    unsigned int rseed = srand( idx.x, idx.y, (int)accVal.w );
+    const int renderMode = params.renderMode;
+    const int subframe = static_cast<int>( params.accumulator[pixel].w );
+    unsigned int rseed = srand( idx.x, idx.y, subframe );
 
     // Compute ray as pbrt would.
     const otk::Transform4 screenToRaster{ otk::scale( imageSize.x, imageSize.y, 1.0f )
@@ -160,10 +170,6 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     uvwFrame( lookAt, camera, u, v, w );
     const float3 pinholeRayOrigin = lookAt.eye;
     const float3 pinholeRayDir    = otk::normalize( d.x * u + d.y * v + w );
-
-    float3 result{};
-    float3 normal{};
-    float  isectDist = 0.0f;
 
     const float         tMin         = params.sceneEpsilon;
     const float         tMax         = 1e16f;
@@ -234,65 +240,81 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         }
     }
 
+    float3 result{};
+    float3 normal{};
+    float  isectDist = 0.0f;
+
     float3 rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
     float3 rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
                 float3Attr(result), attr<float>(isectDist), float3Attr(normal) );
 
-    // Phong shading
-    const bool PHONG_SHADING = false;
-    if ( PHONG_SHADING )
-    {
-        params.image[pixel] = makeColor( result );
-        return;
-    }
-
-    // White background for Ambient Occlusion
-    if( isectDist >= tMax )
-    {
-        accVal += float4{1.0f, 1.0f, 1.0f, 1.0f};
-        params.accumulator[pixel] = accVal;
-        float3 color = float3{accVal.x, accVal.y, accVal.z} / accVal.w;
-        params.image[pixel] = makeColor( color );
-        return;
-    }
-
+    // Render background and electric bounding boxes
     if( otk::dot(normal, normal) == 0.0f )
     {
-        params.image[pixel] = makeColor( result );
+        if( isectDist >= tMax ) // background
+            accumulateValue( pixel, result );
+        else // electric bounding box
+            params.image[pixel] = makeColor( result );
         return;
     }
 
-    // Ambient occlusion
-    const unsigned int NUM_AO_SAMPLES = 1;
-    const float aoDist = 128.0f;
-    rayOrigin = rayOrigin + isectDist * rayDirection;
-    normal = otk::normalize(normal);
-    if( otk::dot(normal, rayDirection) > 0.0f )
-        normal = -normal;
-    float count = 0.0f;
-    float2 xi = float2{rnd(rseed), rnd(rseed)};
-
-    for( int i=0; i<NUM_AO_SAMPLES; ++i )
+    // Phong shading
+    if ( renderMode == PHONG_SHADING )
     {
-        float3 aoDirection = sampleDiffuse( xi, normal );
-        xi = float2{rnd(rseed), rnd(rseed)};
-        float3 dummyNormal;
-        float3 dummyResult;
-        isectDist = aoDist;
-        optixTrace( params.traversable, rayOrigin, aoDirection, tMin, aoDist, rayTime, OptixVisibilityMask( 255 ), flags,
-                    sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
-                    float3Attr(dummyResult), attr<float>(isectDist), float3Attr(dummyNormal) );
-        if( isectDist >= aoDist )
-            count += 1.0f;
+        accumulateValue( pixel, result );
+        return;
     }
-    count /= NUM_AO_SAMPLES;
 
-    accVal += float4{count, count, 0.6f*(count+0.5f), 1.0f};
-    params.accumulator[pixel] = accVal;
-    float3 color = float3{accVal.x, accVal.y, accVal.z} / accVal.w;
-    params.image[pixel] = makeColor( color );
+    // Ambient Occlusion and Diffuse Path Tracing
+    const float rayTmax = (renderMode == SHORT_AO) ? 128.0f : 1000000.0f;
+    const float maxRayDepth = (renderMode != PATH_TRACING) ? 1 : 1;
+    // Path tracing starts out with diffuse color, ambient occlusion with white
+    float3 sampleColor = (renderMode == PATH_TRACING) ? result : float3{1.0f, 1.0f, 1.0f};
+
+    for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )
+    {
+        // Compute ray scatter direction
+        rayOrigin = rayOrigin + isectDist * rayDirection;
+        normal = otk::normalize(normal);
+        if( otk::dot(normal, rayDirection) > 0.0f )
+            normal = -normal;
+        rayDirection = sampleDiffuse( float2{rnd(rseed), rnd(rseed)}, normal );
+
+        // Trace ray
+        isectDist = rayTmax;
+        optixTrace( params.traversable, rayOrigin, rayDirection, tMin, rayTmax, rayTime, OptixVisibilityMask( 255 ), flags,
+                    sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
+                    float3Attr(result), attr<float>(isectDist), float3Attr(normal) );
+
+        // Ray hit sky, break
+        if( isectDist >= rayTmax )
+            break;
+
+        // Multiply by diffuse color
+        sampleColor *= result;
+
+        // Max depth reached. Make sample black.
+        if ( rayDepth == maxRayDepth - 1 )
+            sampleColor *= 0.0f;
+    }
+
+    if( renderMode == PATH_TRACING )
+    {
+        // Hack: Use a rather bright skylight for path tracing, since the scene colors
+        // of the landscape scene are fairly dark.
+        const float3 lightColor{3.0f, 3.0f, 3.0f};
+        sampleColor *= lightColor;
+    }
+    else
+    {
+        // Tint sample color for ambient occlusion modes
+        float x = sampleColor.x;
+        sampleColor = (1.0f - x) * float3{0.0f, 0.0f, 0.3f} + x * float3{1.0f, 1.0f, 0.9f};
+    }
+
+    accumulateValue( pixel, sampleColor );
 }
 
 __forceinline__ __device__ float2 sphericalCoordFromRayDirection()
@@ -577,6 +599,7 @@ __device__ __forceinline__ uint_t getRealizedDiffuseTextureId()
 
 extern "C" __global__ void __closesthit__texturedMesh()
 {
+    const Params& params{ PARAMS_VAR_NAME };
     float3 worldNormal;
     float3 vertices[3];
     getTriangleData(vertices, worldNormal);
@@ -590,11 +613,17 @@ extern "C" __global__ void __closesthit__texturedMesh()
     const uint_t textureId = getRealizedDiffuseTextureId();
     bool         isResident{};
     const float4 texel = demandLoading::tex2D<float4>( PARAMS_VAR_NAME.demandContext, textureId, uv.x, uv.y, &isResident );
+
     if( isResident )
     {
         PhongMaterial mat = PARAMS_VAR_NAME.realizedMaterials[instanceId];
-        mat.Kd *= make_float3( texel.x, texel.y, texel.z );
-        const float3 shaded = phongShade( mat, worldNormal );
+        // Hack: Use texture color as diffuse color for path tracing
+        float3 shaded = make_float3( texel.x, texel.y, texel.z ); 
+        if( params.renderMode == PHONG_SHADING )
+        {
+            mat.Kd *= make_float3( texel.x, texel.y, texel.z );
+            shaded = phongShade( mat, worldNormal );
+        }
         setRayPayload( shaded );
     }
     else
@@ -603,7 +632,7 @@ extern "C" __global__ void __closesthit__texturedMesh()
         setRayPayload( yellow );
     }
 
-    // Values needed for AO
+    // Values needed for path tracing
     optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
     optixSetPayload_4( __float_as_uint( worldNormal.x ) );
     optixSetPayload_5( __float_as_uint( worldNormal.y ) );
