@@ -442,13 +442,16 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
         return false;
     }
 
+    const unsigned int MIN_REALIZED = 512;
+    unsigned int realizedCount = 0;
     bool realized{};
     for( uint_t id : sortRequestedProxyGeometriesByCameraDistance() )
     {
-        if( frameBudgetExceeded() )
+        if( frameBudgetExceeded() && realizedCount > MIN_REALIZED )
         {
             break;
         }
+        ++realizedCount;
 
         resolveProxyGeometry( stream, id );
         realized = true;
@@ -722,11 +725,6 @@ bool PbrtScene::frameBudgetExceeded() const
     {
         return false;
     }
-
-    // Hack: This reduces interactivity, but it prevents demand
-    // loading from discarding most of the requests when framerate
-    // is low.
-    return false;
 
     const Clock::duration duration = Clock::now() - m_frameStart;
     return duration > m_frameTime;

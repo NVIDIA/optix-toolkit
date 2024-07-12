@@ -88,6 +88,7 @@ inline std::string extractValue( const std::string& text )
 Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usage )
 {
     Options options;
+    options.background = float3{3.0f, 3.0f, 3.0f};
     options.program = argv[0];
 #ifdef NDEBUG
     options.sync = false;

@@ -155,7 +155,7 @@ void Application::runInteractive()
         do
         {
             const bool uiUpdated = ui->beforeLaunch( output );
-            // FIXME: Update this test for an accumulator
+            // Keep launching for the accumulator
             //if( uiUpdated || m_sceneUpdated )
             {
                 launch( output );

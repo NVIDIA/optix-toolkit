@@ -1,6 +1,6 @@
 
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -253,7 +253,9 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     // Render background and electric bounding boxes
     if( otk::dot(normal, normal) == 0.0f )
     {
-        if( isectDist >= tMax ) // background
+        if( renderMode == PATH_TRACING && isectDist >= tMax )
+            accumulateValue( pixel, params.background );
+        else if( isectDist >= tMax ) // background
             accumulateValue( pixel, result );
         else // electric bounding box
             params.image[pixel] = makeColor( result );
@@ -269,7 +271,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
     // Ambient Occlusion and Diffuse Path Tracing
     const float rayTmax = (renderMode == SHORT_AO) ? 128.0f : 1000000.0f;
-    const float maxRayDepth = (renderMode != PATH_TRACING) ? 1 : 1;
+    const float maxRayDepth = (renderMode != PATH_TRACING) ? 1 : 3;
     // Path tracing starts out with diffuse color, ambient occlusion with white
     float3 sampleColor = (renderMode == PATH_TRACING) ? result : float3{1.0f, 1.0f, 1.0f};
 
@@ -302,10 +304,8 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
     if( renderMode == PATH_TRACING )
     {
-        // Hack: Use a rather bright skylight for path tracing, since the scene colors
-        // of the landscape scene are fairly dark.
-        const float3 lightColor{3.0f, 3.0f, 3.0f};
-        sampleColor *= lightColor;
+        // Background is the light source in path tracing mode
+        sampleColor *= params.background;
     }
     else
     {
