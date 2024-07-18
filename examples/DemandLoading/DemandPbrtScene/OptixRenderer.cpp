@@ -83,7 +83,7 @@ void OptixRenderer::createOptixContext()
     OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &m_context ) );
 }
 
-const int NUM_PAYLOAD_VALUES   = 7;
+const int NUM_PAYLOAD_VALUES   = 3;
 const int NUM_ATTRIBUTE_VALUES = 3;
 
 void OptixRenderer::initPipelineOpts()
