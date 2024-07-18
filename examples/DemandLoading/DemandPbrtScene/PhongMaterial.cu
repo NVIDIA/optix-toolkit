@@ -40,7 +40,6 @@ namespace demandPbrtScene {
 
 extern "C" __global__ void __closesthit__mesh()
 {
-    const Params& params{ PARAMS_VAR_NAME };
     float3 worldNormal;
     float3 vertices[3];
     getTriangleData( vertices, worldNormal );
@@ -50,16 +49,12 @@ extern "C" __global__ void __closesthit__mesh()
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
         return;
 
-    const PhongMaterial& mat = PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
-    // Hack: Return phong shaded value for PHONG_SHADING, Kd otherwise
-    float3 shaded = ( params.renderMode == PHONG_SHADING ) ? phongShade( mat, worldNormal ) : mat.Kd;
-    setRayPayload( shaded );
-
-    // Values needed for path tracing
-    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
-    optixSetPayload_4( __float_as_uint( worldNormal.x ) );
-    optixSetPayload_5( __float_as_uint( worldNormal.y ) );
-    optixSetPayload_6( __float_as_uint( worldNormal.z ) );
+    RayPayload* prd = getRayPayload();
+    prd->diffuseTextureId = 0xffffffff;
+    prd->material = &PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
+    prd->normal = worldNormal;
+    prd->rayDistance = optixGetRayTmax();
+    prd->color = float3{1.0f, 0.0f, 1.0f};
 }
 
 static __forceinline__ __device__ bool sphereMaterialDebugInfo( const float4& q, const float3& worldNormal )
@@ -83,7 +78,6 @@ static __forceinline__ __device__ bool sphereMaterialDebugInfo( const float4& q,
 
 extern "C" __global__ void __closesthit__sphere()
 {
-    const Params& params{ PARAMS_VAR_NAME };
     const float tHit = optixGetRayTmax();
 
     const float3 rayOrigin = optixGetWorldRayOrigin();
@@ -105,16 +99,12 @@ extern "C" __global__ void __closesthit__sphere()
     if( sphereMaterialDebugInfo( q, worldNormal ) )
         return;
 
-    // Hack: Return phong shaded value for PHONG_SHADING, Kd otherwise
-    const PhongMaterial& mat = PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
-    float3 shaded = ( params.renderMode == PHONG_SHADING ) ? phongShade( mat, worldNormal ) : mat.Kd;
-    setRayPayload( shaded );
-
-    // Values needed for path tracing
-    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
-    optixSetPayload_4( __float_as_uint( worldNormal.x ) );
-    optixSetPayload_5( __float_as_uint( worldNormal.y ) );
-    optixSetPayload_6( __float_as_uint( worldNormal.z ) );
+    RayPayload* prd = getRayPayload();
+    prd->diffuseTextureId = 0xffffffff;
+    prd->material = &PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
+    prd->normal = worldNormal;
+    prd->rayDistance = optixGetRayTmax();
+    prd->color = float3{1.0f, 0.0f, 1.0f};
 }
 
 }  // namespace demandPbrtScene

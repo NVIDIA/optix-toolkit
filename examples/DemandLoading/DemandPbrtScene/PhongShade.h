@@ -59,13 +59,10 @@ __forceinline__ __device__ float3 phongShadeDirectionalLight( const float3&     
     return {};
 }
 
-__forceinline__ __device__ float3 phongShade( const PhongMaterial& mat, float3 const& surfaceNormal )
+__forceinline__ __device__ float3 phongShade( const PhongMaterial& mat, float3 const& surfaceNormal, float3 const& rayDir )
 {
-    const float3            rayDir       = optixGetWorldRayDirection();
-    const float3&           ambientColor = PARAMS_VAR_NAME.ambientColor;
-    // ambient contribution
-    float3 result = mat.Ka * ambientColor;
-    result += mat.Kd * 4.0f; // Hack to make the scene less dark
+    const float3& ambientColor = PARAMS_VAR_NAME.ambientColor + float3{3.0f,3.0f,3.0f};
+    float3 result = mat.Kd * ambientColor;
     {
         // directional light contribution
         const uint_t            numLights = PARAMS_VAR_NAME.numDirectionalLights;
@@ -84,7 +81,6 @@ __forceinline__ __device__ float3 phongShade( const PhongMaterial& mat, float3 c
             result += mat.Kd * lights[i].color;
         }
     }
-    
 
     return result;
 }

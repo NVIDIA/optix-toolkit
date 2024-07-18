@@ -33,6 +33,7 @@
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
 
 #include <optix.h>
 
@@ -43,6 +44,13 @@
 #include <cmath>
 
 namespace demandPbrtScene {
+
+static __forceinline__ __device__ void packPointer( void* ptr, unsigned int& i0, unsigned int& i1 )
+{
+    const unsigned long long uptr = reinterpret_cast<unsigned long long>( ptr );
+    i0                            = uptr >> 32;
+    i1                            = uptr & 0x00000000ffffffff;
+}
 
 template <typename T>
 __forceinline__ __device__ uint_t& attr( T& val )
@@ -240,62 +248,108 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         }
     }
 
-    float3 result{};
-    float3 normal{};
-    float  isectDist = 0.0f;
+    RayPayload prd{};
+    unsigned int u0, u1;
+    packPointer( &prd, u0, u1 );
 
+    prd.rayDistance = tMax;
     float3 rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
     float3 rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
+    RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{params.width, params.height}, rayDirection );
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
-                sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
-                float3Attr(result), attr<float>(isectDist), float3Attr(normal) );
+                sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr(u0), attr(u1) );
+    rayCone = propagate(rayCone, prd.rayDistance);
+    rayCone.angle = MAX_CONE_ANGLE;
 
     // Render background and electric bounding boxes
-    if( otk::dot(normal, normal) == 0.0f )
+    if( otk::dot(prd.normal, prd.normal) == 0.0f )
     {
-        if( renderMode == PATH_TRACING && isectDist >= tMax )
-            accumulateValue( pixel, params.background );
-        else if( isectDist >= tMax ) // background
-            accumulateValue( pixel, result );
+        if( prd.isBackground )
+            accumulateValue( pixel, prd.color );
         else // electric bounding box
-            params.image[pixel] = makeColor( result );
+            params.image[pixel] = makeColor( prd.color );
         return;
     }
 
     // Phong shading
     if ( renderMode == PHONG_SHADING )
     {
-        accumulateValue( pixel, result );
+        if( prd.material == nullptr )
+        {
+            params.image[pixel] = makeColor( prd.color );
+            return;
+        }
+        PhongMaterial mat = *prd.material;
+        if( prd.diffuseTextureId != 0xffffffff )
+        {
+            bool isResident;
+            float dd = rayCone.width / prd.worldSpaceTextureSize;
+            float2 ddx = float2{ dd, 0.0f };
+            float2 ddy = float2{ 0.0f, dd };
+            float4 texel = demandLoading::tex2DGrad<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
+            if( !isResident )
+            {
+                params.image[pixel] = makeColor( prd.color );
+                return;
+            }
+            mat.Kd *= float3{texel.x, texel.y, texel.z};
+        }
+
+        float3 color = phongShade( mat, prd.normal, rayDirection );
+        accumulateValue( pixel, color );
         return;
+    }
+
+    // Path tracing starts out with diffuse color, ambient occlusion with white
+    float3 sampleColor = float3{1.0f, 1.0f, 1.0f};
+    if( renderMode == PATH_TRACING && prd.diffuseTextureId != 0xffffffff )
+    {
+        bool isResident;
+        float4 texel = demandLoading::tex2D<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, &isResident );
+        if( !isResident )
+        {
+            params.image[pixel] = makeColor( prd.color );
+            return;
+        }
+        sampleColor *= float3{texel.x, texel.y, texel.z};
     }
 
     // Ambient Occlusion and Diffuse Path Tracing
     const float rayTmax = (renderMode == SHORT_AO) ? 128.0f : 1000000.0f;
     const float maxRayDepth = (renderMode != PATH_TRACING) ? 1 : 3;
-    // Path tracing starts out with diffuse color, ambient occlusion with white
-    float3 sampleColor = (renderMode == PATH_TRACING) ? result : float3{1.0f, 1.0f, 1.0f};
 
     for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )
     {
         // Compute ray scatter direction
-        rayOrigin = rayOrigin + isectDist * rayDirection;
-        normal = otk::normalize(normal);
-        if( otk::dot(normal, rayDirection) > 0.0f )
-            normal = -normal;
-        rayDirection = sampleDiffuse( float2{rnd(rseed), rnd(rseed)}, normal );
+        rayOrigin = rayOrigin + prd.rayDistance * rayDirection;
+        if( otk::dot(prd.normal, rayDirection) > 0.0f )
+            prd.normal = -prd.normal;
+        rayDirection = sampleDiffuse( float2{rnd(rseed), rnd(rseed)}, prd.normal );
 
         // Trace ray
-        isectDist = rayTmax;
+        prd.rayDistance = rayTmax;
         optixTrace( params.traversable, rayOrigin, rayDirection, tMin, rayTmax, rayTime, OptixVisibilityMask( 255 ), flags,
-                    sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex,
-                    float3Attr(result), attr<float>(isectDist), float3Attr(normal) );
+                    sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
+        rayCone = propagate( rayCone, prd.rayDistance );
+        rayCone.angle = MAX_CONE_ANGLE;
 
         // Ray hit sky, break
-        if( isectDist >= rayTmax )
+        if( prd.rayDistance >= rayTmax )
             break;
 
         // Multiply by diffuse color
-        sampleColor *= result;
+        if( prd.diffuseTextureId != 0xffffffff )
+        {
+            bool isResident;
+            float dd = rayCone.width / prd.worldSpaceTextureSize;
+            float2 ddx = float2{ dd, 0.0f };
+            float2 ddy = float2{ 0.0f, dd };
+            float4 texel = demandLoading::tex2DGrad<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
+            if( isResident )
+            {
+                sampleColor *= float3{texel.x, texel.y, texel.z};
+            }
+        }
 
         // Max depth reached. Make sample black.
         if ( rayDepth == maxRayDepth - 1 )
@@ -377,10 +431,8 @@ extern "C" __global__ void __miss__backgroundColor()
         background = PARAMS_VAR_NAME.background;
     }
 
-    setRayPayload( background );
-
-    // Values needed for AO
-    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
+    getRayPayload()->color = background;
+    getRayPayload()->isBackground = true;
 }
 
 }  // namespace demandPbrtScene
@@ -427,7 +479,8 @@ __device__ void reportClosestHitNormal( float3 ffNormal )
         return;
     }
 
-    demandPbrtScene::setRayPayload( colors[index] );
+    demandPbrtScene::getRayPayload()->color = colors[index];
+    demandPbrtScene::getRayPayload()->rayDistance = optixGetRayTmax();
 }
 
 }  // namespace app
@@ -462,7 +515,7 @@ __device__ __forceinline__ void reportClosestHit( unsigned int materialId, bool 
     if( proxyMaterialDebugInfo( materialId, isResident ) )
         return;
 
-    demandPbrtScene::setRayPayload( demandPbrtScene::PARAMS_VAR_NAME.demandMaterialColor );
+    demandPbrtScene::getRayPayload()->color = demandPbrtScene::PARAMS_VAR_NAME.demandMaterialColor;
 }
 
 }  // namespace app
@@ -599,7 +652,6 @@ __device__ __forceinline__ uint_t getRealizedDiffuseTextureId()
 
 extern "C" __global__ void __closesthit__texturedMesh()
 {
-    const Params& params{ PARAMS_VAR_NAME };
     float3 worldNormal;
     float3 vertices[3];
     getTriangleData(vertices, worldNormal);
@@ -610,33 +662,19 @@ extern "C" __global__ void __closesthit__texturedMesh()
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
         return;
 
-    const uint_t textureId = getRealizedDiffuseTextureId();
-    bool         isResident{};
-    const float4 texel = demandLoading::tex2D<float4>( PARAMS_VAR_NAME.demandContext, textureId, uv.x, uv.y, &isResident );
+    RayPayload* prd = getRayPayload();
+    prd->diffuseTextureId = getRealizedDiffuseTextureId();
+    prd->material = &PARAMS_VAR_NAME.realizedMaterials[instanceId];
+    prd->normal = worldNormal;
+    prd->uv = uv;
+    prd->rayDistance = optixGetRayTmax();
+    prd->color = float3{1.0f, 0.0f, 1.0f};
 
-    if( isResident )
-    {
-        PhongMaterial mat = PARAMS_VAR_NAME.realizedMaterials[instanceId];
-        // Hack: Use texture color as diffuse color for path tracing
-        float3 shaded = make_float3( texel.x, texel.y, texel.z ); 
-        if( params.renderMode == PHONG_SHADING )
-        {
-            mat.Kd *= make_float3( texel.x, texel.y, texel.z );
-            shaded = phongShade( mat, worldNormal );
-        }
-        setRayPayload( shaded );
-    }
-    else
-    {
-        const float3 yellow( make_float3( 1.0f, 0.0f, 1.0f ) );
-        setRayPayload( yellow );
-    }
-
-    // Values needed for path tracing
-    optixSetPayload_3( __float_as_uint( optixGetRayTmax() ) );
-    optixSetPayload_4( __float_as_uint( worldNormal.x ) );
-    optixSetPayload_5( __float_as_uint( worldNormal.y ) );
-    optixSetPayload_6( __float_as_uint( worldNormal.z ) );
+    float2* uvs = PARAMS_VAR_NAME.instanceUVs[instanceId]->UV;
+    float a = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
+    float b = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
+    float c = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
+    prd->worldSpaceTextureSize = (a+b+c) / 3.0f;
 }
 
 }  // namespace demandPbrtScene
