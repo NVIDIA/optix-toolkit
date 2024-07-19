@@ -123,6 +123,7 @@ add_executable(TestShaderUtil
     TestOperators.cpp
     TestPdfTable.cpp
     TestPrinters.cpp
+    TestISummedAreaTable.cpp
     TestTransform4.cpp
 )
 target_link_libraries(TestShaderUtil PUBLIC
