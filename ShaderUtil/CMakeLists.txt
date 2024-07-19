@@ -67,6 +67,7 @@ target_sources(ShaderUtil
   include/OptiXToolkit/ShaderUtil/ray_cone.h
   include/OptiXToolkit/ShaderUtil/SelfIntersectionAvoidance.h
   include/OptiXToolkit/ShaderUtil/SelfIntersectionAvoidanceTypes.h
+  include/OptiXToolkit/ShaderUtil/ISummedAreaTable.h
   include/OptiXToolkit/ShaderUtil/Transform4.h
   include/OptiXToolkit/ShaderUtil/Transform4Printer.h
   include/OptiXToolkit/ShaderUtil/vec_math.h
