@@ -302,7 +302,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
             float dd = rayCone.width / prd.worldSpaceTextureSize;
             float2 ddx = float2{ dd, 0.0f };
             float2 ddy = float2{ 0.0f, dd };
-            float4 texel = demandLoading::tex2DGrad<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
+            float4 texel = demandLoading::tex2DGrad<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
             if( !isResident )
             {
                 showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
@@ -321,7 +321,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     if( renderMode == PATH_TRACING && prd.diffuseTextureId != 0xffffffff )
     {
         bool isResident;
-        float4 texel = demandLoading::tex2D<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, &isResident );
+        float4 texel = demandLoading::tex2D<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, &isResident );
         if( !isResident )
         {
             showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
@@ -360,7 +360,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
             float dd = rayCone.width / prd.worldSpaceTextureSize;
             float2 ddx = float2{ dd, 0.0f };
             float2 ddy = float2{ 0.0f, dd };
-            float4 texel = demandLoading::tex2DGrad<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
+            float4 texel = demandLoading::tex2DGrad<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
             if( isResident )
             {
                 sampleColor *= float3{texel.x, texel.y, texel.z};
