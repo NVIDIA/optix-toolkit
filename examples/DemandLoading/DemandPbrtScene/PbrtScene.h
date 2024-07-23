@@ -40,6 +40,7 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace demandPbrtScene {
@@ -101,6 +102,7 @@ class PbrtScene : public Scene
     void                pushInstance( OptixTraversableHandle handle );
     void                createTopLevelTraversable( CUstream stream );
     void                setLaunchParams( CUstream stream, Params& params );
+    std::optional<uint_t> findMaterial( const GeometryInstance& instance ) const;
     void                resolveProxyGeometry( CUstream stream, uint_t proxyGeomId );
     std::vector<uint_t> sortRequestedProxyGeometriesByCameraDistance();
     bool                resolveRequestedProxyGeometries( CUstream stream );
@@ -154,7 +156,8 @@ class PbrtScene : public Scene
     std::map<uint_t, SceneGeometry>   m_realizedGeometries;       // indexed by top level instance index
     otk::SyncVector<PartialMaterial>  m_partialMaterials;         // indexed by materialId
     otk::SyncVector<TriangleUVs*>     m_partialUVs;               // indexed by materialId
-    otk::SyncVector<PhongMaterial>    m_realizedMaterials;        // indexed by instance id
+    otk::SyncVector<uint_t>           m_instanceMaterialIds;      // indexed by instance id
+    otk::SyncVector<PhongMaterial>    m_realizedMaterials;        // indexed by values in m_instanceMaterialIds
     otk::SyncVector<TriangleNormals*> m_realizedNormals;          // indexed by instance id, then by primitive index
     otk::SyncVector<TriangleUVs*>     m_realizedUVs;              // indexed by instance id, then by primitive index
     otk::SyncVector<DirectionalLight> m_directionalLights;        // defined by the scene
