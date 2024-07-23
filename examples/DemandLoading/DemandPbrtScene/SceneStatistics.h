@@ -37,6 +37,7 @@ struct SceneStatistics
     unsigned int numProxyMaterialsCreated;
     unsigned int numPartialMaterialsRealized;
     unsigned int numMaterialsRealized;
+    unsigned int numMaterialsReused;
 };
 
 }  // namespace demandPbrtScene

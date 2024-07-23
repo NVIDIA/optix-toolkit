@@ -1288,6 +1288,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchCreatesSkyboxForInfiniteLightsInPa
     expectClearRequestedProxyIdsAfter( m_init );
     expectRequestedMaterialIdsAfter( {}, m_init );
     const uint_t textureId{ 1234 };
+    //EXPECT_CALL( *m_demandTextureCache, hasSkyboxTextureForFile( path ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_demandTextureCache, createSkyboxTextureFromFile( path ) ).WillOnce( Return( textureId ) );
 
     Params params{};
@@ -1600,8 +1601,6 @@ class TestPbrtSceneSecondLaunch : public TestPbrtSceneFirstLaunch
         second += expectLaunchPrepareTrueAfter( m_first );
         return second;
     }
-
-    std::vector<OptixProgramGroup> m_expectedGroups{};
 };
 
 class TestPbrtSceneSphere : public TestPbrtSceneSecondLaunch
@@ -1744,9 +1743,6 @@ class TestPbrtSceneAlphaMapTriMesh : public TestPbrtSceneTriMesh
   protected:
     GeometryInstance sceneGeometry() override;
     ExpectationSet   expectSecondLaunchCreatesAlphaMapForId( uint_t textureId );
-
-    MockImageSourcePtr m_imageSource{ std::make_shared<MockImageSource>() };
-    MockDemandTexture  m_texture;
 };
 
 GeometryInstance TestPbrtSceneAlphaMapTriMesh::sceneGeometry()
@@ -1763,6 +1759,8 @@ ExpectationSet TestPbrtSceneAlphaMapTriMesh::expectSecondLaunchCreatesAlphaMapFo
     second += expectRequestedProxyIdsAfter( {}, m_first );
     second += expectClearRequestedProxyIdsAfter( m_first );
     second += expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_first );
+    //second +=
+    //    EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( "alphaMap.png" ) ) ).After( m_first ).WillOnce( Return( false ) );
     second +=
         EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( "alphaMap.png" ) ) ).After( m_first ).WillOnce( Return( textureId ) );
     second += expectGeometryLoaderGetContextAfter( m_first );
@@ -1876,6 +1874,8 @@ GeometryInstance TestPbrtSceneDiffuseMapTriMesh::sceneGeometry()
 
 ExpectationSet TestPbrtSceneDiffuseMapTriMesh::expectSecondLaunchCreatesDiffuseMapForId( uint_t textureId, ExpectationSet& second )
 {
+    //second +=
+    //    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( "diffuseMap.png" ) ) ).After( m_first ).WillOnce( Return( false ) );
     second +=
         EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( "diffuseMap.png" ) ) ).After( m_first ).WillOnce( Return( textureId ) );
     return second;
@@ -1952,6 +1952,8 @@ void TestPbrtSceneDiffuseAlphaMapTriMesh::expectSecondLaunchCreatesAlphaTextureA
     m_second += expectRequestedProxyIdsAfter( {}, m_first );
     m_second += expectClearRequestedProxyIdsAfter( m_first );
     m_second += expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_first );
+    //m_second +=
+    //    EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( "alphaMap.png" ) ) ).After( m_first ).WillOnce( Return( false ) );
     m_second +=
         EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( "alphaMap.png" ) ) ).After( m_first ).WillOnce( Return( textureId ) );
     m_second += expectGeometryLoaderGetContextAfter( m_first );
@@ -1973,6 +1975,7 @@ void TestPbrtSceneDiffuseAlphaMapTriMesh::expectThirdLaunchCreatesDiffuseTexture
     expectClearRequestedProxyIdsAfter( m_second );
     expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_second );
     expectClearRequestedMaterialIdsAfter( m_second );
+    //EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( "diffuseMap.png" ) ) ).After( m_second ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( "diffuseMap.png" ) ) ).After( m_second ).WillOnce( Return( textureId ) );
 
     expectModuleCreatedAfter( m_phongModule, m_second );

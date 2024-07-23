@@ -51,6 +51,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -324,6 +325,7 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     params.demandMaterialColor = yellow;
     params.partialMaterials    = m_partialMaterials.typedDevicePtr();
     params.realizedMaterials   = m_realizedMaterials.typedDevicePtr();
+    params.instanceMaterialIds = m_instanceMaterialIds.typedDevicePtr();
     params.instanceNormals     = m_realizedNormals.typedDevicePtr();
     params.instanceUVs         = m_realizedUVs.typedDevicePtr();
     params.partialUVs          = m_partialUVs.typedDevicePtr();
@@ -352,6 +354,40 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     }
 
     m_demandLoader->launchPrepare( stream, params.demandContext );
+}
+
+std::optional<uint_t> PbrtScene::findMaterial( const GeometryInstance& instance ) const
+{
+    // Check for loaded diffuse map
+    if( ( instance.material.flags & MaterialFlags::DIFFUSE_MAP ) == MaterialFlags::DIFFUSE_MAP
+        && !m_demandTextureCache->hasDiffuseTextureForFile( instance.diffuseMapFileName ) )
+    {
+        return {};
+    }
+
+    // Check for loaded alpha map
+    if( ( instance.material.flags & MaterialFlags::ALPHA_MAP ) == MaterialFlags::ALPHA_MAP
+        && !m_demandTextureCache->hasAlphaTextureForFile( instance.alphaMapFileName ) )
+    {
+        return {};
+    }
+
+    // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
+    const auto it = std::find_if( m_realizedMaterials.cbegin(), m_realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
+        return instance.material.Ka == entry.Ka                 //
+               && instance.material.Kd == entry.Kd              //
+               && instance.material.Ks == entry.Ks              //
+               && instance.material.Kr == entry.Kr              //
+               && instance.material.phongExp == entry.phongExp  //
+               && ( instance.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+                      == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
+    } );
+    if( it != m_realizedMaterials.cend() )
+    {
+        return { static_cast<uint_t>( std::distance( m_realizedMaterials.cbegin(), it ) ) };
+    }
+
+    return {};
 }
 
 void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
@@ -390,6 +426,14 @@ void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
         // add instance to TLAS instances
         SceneGeometry geom;
         geom.instance                     = removedProxy->createGeometry( m_renderer->getDeviceContext(), stream );
+
+        // check for shared materials
+        if( const std::optional<uint_t> id = findMaterial( geom.instance ); id.has_value() )
+        {
+            ++m_stats.numMaterialsReused;
+            std::cout << "Found reused material " << id.value() << '\n';
+        }
+
         geom.materialId                   = m_materialLoader->add();
         geom.instance.instance.instanceId = geom.materialId;
         geom.instanceIndex                = m_topLevelInstances.size();
@@ -397,7 +441,7 @@ void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
         m_proxyMaterialGeometries[geom.materialId] = geom;
         if( m_options.verboseProxyGeometryResolution )
         {
-            std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex << '\n';
+            std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex << " with proxy material " << geom.materialId << '\n';
         }
         ++m_stats.numProxyMaterialsCreated;
         ++m_stats.numGeometriesRealized;
@@ -654,7 +698,10 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
     }
 
     geom.instance.instance.sbtOffset  = getRealizedMaterialSbtOffset( geom.instance );
-    geom.instance.instance.instanceId = m_realizedMaterials.size();
+    geom.instance.instance.instanceId = m_instanceMaterialIds.size();
+    const uint_t materialId = m_realizedMaterials.size();
+    OTK_ASSERT( geom.instance.instance.instanceId == materialId );
+    m_instanceMaterialIds.push_back( materialId );
     m_realizedMaterials.push_back( geom.instance.material );
     m_realizedNormals.push_back( geom.instance.normals );
     m_realizedUVs.push_back( geom.instance.uvs );
@@ -680,9 +727,11 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
     }
 
     MaterialResolution realized{ MaterialResolution::NONE };
+    const unsigned int MIN_REALIZED{ 16 };
+    unsigned int       realizedCount{};
     for( uint_t id : m_materialLoader->requestedMaterialIds() )
     {
-        if( frameBudgetExceeded() )
+        if( frameBudgetExceeded() && realizedCount > MIN_REALIZED )
         {
             break;
         }
@@ -711,6 +760,7 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
             m_realizedNormals.copyToDeviceAsync( stream );
             m_realizedUVs.copyToDeviceAsync( stream );
             m_realizedMaterials.copyToDeviceAsync( stream );
+            m_instanceMaterialIds.copyToDeviceAsync( stream );
             m_materialLoader->clearRequestedMaterialIds();
             ++m_stats.numMaterialsRealized;
             break;

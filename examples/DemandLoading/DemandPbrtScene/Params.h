@@ -292,8 +292,9 @@ struct Params
     demandLoading::DeviceContext demandContext;
     demandGeometry::Context      demandGeomContext;
     float3                       demandMaterialColor;
-    PartialMaterial*             partialMaterials;   // indexed by materialId
-    PhongMaterial*               realizedMaterials;  // indexed by instanceId
+    PartialMaterial*             partialMaterials;            // indexed by instanceId
+    PhongMaterial*               realizedMaterials;           // indexed by materialId
+    uint_t*                      instanceMaterialIds;         // indexed by instanceId, material id per instance
 
     // An array of pointers to arrays of per-face data, one per geometry instance.
     // If the pointer is nullptr, then the instance has no per-face data.

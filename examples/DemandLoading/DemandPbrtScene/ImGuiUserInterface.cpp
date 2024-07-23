@@ -204,6 +204,7 @@ void ImGuiUserInterface::renderSceneStatistics() const
         ImGui::Text( "Proxy materials created: %u", stats.numProxyMaterialsCreated );
         ImGui::Text( "Partial materials realized: %u", stats.numPartialMaterialsRealized );
         ImGui::Text( "Materials realized: %u", stats.numMaterialsRealized );
+        ImGui::Text( "Materials reused: %u", stats.numMaterialsReused );
         ImGui::TreePop();
         ImGui::Spacing();
     }
