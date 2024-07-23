@@ -1,1 +1,3 @@
 CMakeUserPresets.json 
+.vs
+build*
