@@ -82,10 +82,10 @@ class CoreEXRReader : public ImageSourceBase
     bool readBaseColor( float4& dest ) override;
 
     /// Get tile width (used only for testing).
-    unsigned int getTileWidth() const { return m_tileWidth; }
+    unsigned int getTileWidth() const override { return m_tileWidth; }
 
     /// Get tile height (used only for testing).
-    unsigned int getTileHeight() const { return m_tileHeight; }
+    unsigned int getTileHeight() const override { return m_tileHeight; }
 
     /// Returns the number of tiles that have been read.
     unsigned long long getNumTilesRead() const override { return m_numTilesRead; }
