@@ -208,3 +208,75 @@ TEST_F( TestDemandTextureCache, differentTexturesForSamePath )
     EXPECT_EQ( 1, stats.numAlphaTexturesCreated );
     EXPECT_EQ( 1, stats.numSkyboxTexturesCreated );
 }
+
+TEST_F( TestDemandTextureCache, noTextureInitiallyForPath )
+{
+    const bool diffuseExists{ m_cache->hasDiffuseTextureForFile( m_path ) };
+    const bool alphaExists{ m_cache->hasAlphaTextureForFile( m_path ) };
+    const bool skyboxExists{ m_cache->hasSkyboxTextureForFile( m_path ) };
+
+    EXPECT_FALSE( diffuseExists );
+    EXPECT_FALSE( alphaExists );
+    EXPECT_FALSE( skyboxExists );
+}
+
+TEST_F( TestDemandTextureCache, hasDiffuseTextureForCreatedFile )
+{
+    expectDiffuseTextureCreated();
+    (void)m_cache->createDiffuseTextureFromFile( m_path );
+
+    const bool diffuseExists{ m_cache->hasDiffuseTextureForFile( m_path ) };
+    const bool alphaExists{ m_cache->hasAlphaTextureForFile( m_path ) };
+    const bool skyboxExists{ m_cache->hasSkyboxTextureForFile( m_path ) };
+
+    EXPECT_TRUE( diffuseExists );
+    EXPECT_FALSE( alphaExists );
+    EXPECT_FALSE( skyboxExists );
+}
+
+TEST_F( TestDemandTextureCache, hasAlphaTextureForCreatedFile )
+{
+    expectAlphaTextureCreated();
+    (void)m_cache->createAlphaTextureFromFile( m_path );
+
+    const bool diffuseExists{ m_cache->hasDiffuseTextureForFile( m_path ) };
+    const bool alphaExists{ m_cache->hasAlphaTextureForFile( m_path ) };
+    const bool skyboxExists{ m_cache->hasSkyboxTextureForFile( m_path ) };
+
+    EXPECT_FALSE( diffuseExists );
+    EXPECT_TRUE( alphaExists );
+    EXPECT_FALSE( skyboxExists );
+}
+
+TEST_F( TestDemandTextureCache, hasSkyboxTextureForCreatedFile )
+{
+    expectSkyboxTextureCreated();
+    (void)m_cache->createSkyboxTextureFromFile( m_path );
+
+    const bool diffuseExists{ m_cache->hasDiffuseTextureForFile( m_path ) };
+    const bool alphaExists{ m_cache->hasAlphaTextureForFile( m_path ) };
+    const bool skyboxExists{ m_cache->hasSkyboxTextureForFile( m_path ) };
+
+    EXPECT_FALSE( diffuseExists );
+    EXPECT_FALSE( alphaExists );
+    EXPECT_TRUE( skyboxExists );
+}
+
+TEST_F( TestDemandTextureCache, noTextureForOtherPath )
+{
+    expectDiffuseTextureCreated();
+    expectAlphaTextureCreated();
+    expectSkyboxTextureCreated();
+    (void)m_cache->createDiffuseTextureFromFile( m_path );
+    (void)m_cache->createAlphaTextureFromFile( m_path );
+    (void)m_cache->createSkyboxTextureFromFile( m_path );
+
+    const std::string otherPath{ "other.png" };
+    const bool        diffuseExists{ m_cache->hasDiffuseTextureForFile( otherPath ) };
+    const bool        alphaExists{ m_cache->hasAlphaTextureForFile( otherPath ) };
+    const bool        skyboxExists{ m_cache->hasSkyboxTextureForFile( otherPath ) };
+
+    EXPECT_FALSE( diffuseExists );
+    EXPECT_FALSE( alphaExists );
+    EXPECT_FALSE( skyboxExists );
+}

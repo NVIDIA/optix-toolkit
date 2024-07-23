@@ -46,11 +46,14 @@ class DemandTextureCache
   public:
     virtual ~DemandTextureCache() = default;
 
-    virtual unsigned int createDiffuseTextureFromFile( const std::string& path ) = 0;
+    virtual unsigned int createDiffuseTextureFromFile( const std::string& path )   = 0;
+    virtual bool         hasDiffuseTextureForFile( const std::string& path ) const = 0;
 
-    virtual unsigned int createAlphaTextureFromFile( const std::string& path ) = 0;
+    virtual unsigned int createAlphaTextureFromFile( const std::string& path )   = 0;
+    virtual bool         hasAlphaTextureForFile( const std::string& path ) const = 0;
 
-    virtual unsigned int createSkyboxTextureFromFile( const std::string& path ) = 0;
+    virtual unsigned int createSkyboxTextureFromFile( const std::string& path )   = 0;
+    virtual bool         hasSkyboxTextureForFile( const std::string& path ) const = 0;
 
     virtual DemandTextureCacheStatistics getStatistics() const = 0;
 };
