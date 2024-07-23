@@ -78,6 +78,10 @@ class DemandTextureCacheImpl : public DemandTextureCache
         m_diffuseCache[path] = id;
         return id;
     }
+    bool hasDiffuseTextureForFile( const std::string& path ) const override
+    {
+        return m_diffuseCache.find( path ) != m_diffuseCache.end();
+    }
 
     uint_t createAlphaTextureFromFile( const std::string& path ) override
     {
@@ -93,6 +97,10 @@ class DemandTextureCacheImpl : public DemandTextureCache
         m_alphaCache[path] = id;
         return id;
     }
+    bool hasAlphaTextureForFile( const std::string& path ) const override
+    {
+        return m_alphaCache.find( path ) != m_alphaCache.end();
+    }
 
     uint_t createSkyboxTextureFromFile( const std::string& path ) override
     {
@@ -107,6 +115,10 @@ class DemandTextureCacheImpl : public DemandTextureCache
         const uint_t id = texture.getId();
         m_skyboxCache[path] = id;
         return id;
+    }
+    bool hasSkyboxTextureForFile( const std::string& path ) const override
+    {
+        return m_skyboxCache.find( path ) != m_skyboxCache.end();
     }
 
     DemandTextureCacheStatistics getStatistics() const override { return m_stats; }
