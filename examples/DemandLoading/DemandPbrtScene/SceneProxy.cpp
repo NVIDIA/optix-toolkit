@@ -304,7 +304,7 @@ class ProxyFactoryImpl : public ProxyFactory
     SceneProxyPtr sceneInstance( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex ) override;
     SceneProxyPtr sceneInstanceShape( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex ) override;
 
-    ProxyFactoryStatistics getStatistics() const { return m_stats; }
+    ProxyFactoryStatistics getStatistics() const override { return m_stats; }
 
   private:
     const Options&         m_options;
