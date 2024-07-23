@@ -50,6 +50,14 @@ using namespace otk;
 
 namespace demandLoading {
 
+static std::shared_ptr<demandLoading::Options> configureOptions( std::shared_ptr<demandLoading::Options> options )
+{
+    CUdevice device;
+    OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
+    if( !deviceSupportsSparseTextures( device ) )
+        options->useSparseTextures = false;
+    return options;
+}
 
 DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, std::shared_ptr<Options> options )
     : DemandPageLoaderImpl( std::make_shared<PageTableManager>( options->numPages, options->numPageTableEntries ), requestProcessor, options )
@@ -59,17 +67,13 @@ DemandPageLoaderImpl::DemandPageLoaderImpl( RequestProcessor* requestProcessor, 
 DemandPageLoaderImpl::DemandPageLoaderImpl( std::shared_ptr<PageTableManager> pageTableManager,
                                             RequestProcessor*                 requestProcessor,
                                             std::shared_ptr<Options>          options )
-    : m_options( options )
+    : m_options( configureOptions( options ) )
     , m_deviceMemoryManager( m_options )
     , m_pinnedMemoryPool( new PinnedAllocator(), new RingSuballocator( DEFAULT_ALLOC_SIZE ), DEFAULT_ALLOC_SIZE, m_options->maxPinnedMemory )
     , m_pageTableManager( std::move( pageTableManager ) )
     , m_requestProcessor( requestProcessor )
     , m_pagingSystem( m_options, &m_deviceMemoryManager, &m_pinnedMemoryPool, m_requestProcessor )
 {
-    CUdevice device;
-    OTK_ERROR_CHECK( cuCtxGetDevice( &device ) );
-    if( !deviceSupportsSparseTextures( device ) )
-        m_options->useSparseTextures = false;
 }
 
 unsigned int DemandPageLoaderImpl::allocatePages( unsigned int numPages, bool backed )
