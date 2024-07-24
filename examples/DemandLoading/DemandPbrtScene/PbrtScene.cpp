@@ -104,13 +104,13 @@ static OptixModuleCompileOptions getCompileOptions()
 
 void PbrtScene::realizeInfiniteLights()
 {
-    m_infiniteLights.resize( m_scene->infiniteLights.size() );
+    m_sync.infiniteLights.resize( m_scene->infiniteLights.size() );
     bool first{ true };
     for( size_t i = 0; i < m_scene->infiniteLights.size(); ++i )
     {
         const otk::pbrt::InfiniteLightDefinition& src  = m_scene->infiniteLights[i];
 
-        InfiniteLight& dest = m_infiniteLights[i];
+        InfiniteLight& dest = m_sync.infiniteLights[i];
         dest.color          = make_float3( src.color.x, src.color.y, src.color.z );
         dest.scale          = make_float3( src.scale.x, src.scale.y, src.scale.z );
         // only one skybox texture supported
@@ -225,12 +225,12 @@ void PbrtScene::pushInstance( OptixTraversableHandle handle )
     instance.visibilityMask    = 255U;
     instance.flags             = OPTIX_INSTANCE_FLAG_NONE;
     instance.traversableHandle = handle;
-    m_topLevelInstances.push_back( instance );
+    m_sync.topLevelInstances.push_back( instance );
 }
 
 void PbrtScene::createTopLevelTraversable( CUstream stream )
 {
-    m_topLevelInstances.copyToDeviceAsync( stream );
+    m_sync.topLevelInstances.copyToDeviceAsync( stream );
     if( m_options.sync )
     {
         OTK_CUDA_SYNC_CHECK();
@@ -238,7 +238,7 @@ void PbrtScene::createTopLevelTraversable( CUstream stream )
 
     const uint_t    NUM_BUILD_INPUTS = 1;
     OptixBuildInput inputs[NUM_BUILD_INPUTS]{};
-    otk::BuildInputBuilder( inputs ).instanceArray( m_topLevelInstances, m_topLevelInstances.size() );
+    otk::BuildInputBuilder( inputs ).instanceArray( m_sync.topLevelInstances, m_sync.topLevelInstances.size() );
 
     OptixDeviceContext           context = m_renderer->getDeviceContext();
     const OptixAccelBuildOptions options = { OPTIX_BUILD_FLAG_NONE,        // buildFlags
@@ -288,7 +288,7 @@ void PbrtScene::initialize( CUstream stream )
         OTK_CUDA_SYNC_CHECK();
     }
 
-    m_topLevelInstances.clear();
+    m_sync.topLevelInstances.clear();
     pushInstance( m_proxyInstanceTraversable );
     createTopLevelTraversable( stream );
 }
@@ -323,17 +323,17 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     params.demandGeomContext   = m_geometryLoader->getContext();
     const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
     params.demandMaterialColor = yellow;
-    params.partialMaterials    = m_partialMaterials.typedDevicePtr();
-    params.realizedMaterials   = m_realizedMaterials.typedDevicePtr();
-    params.instanceMaterialIds = m_instanceMaterialIds.typedDevicePtr();
-    params.instanceNormals     = m_realizedNormals.typedDevicePtr();
-    params.instanceUVs         = m_realizedUVs.typedDevicePtr();
-    params.partialUVs          = m_partialUVs.typedDevicePtr();
+    params.partialMaterials    = m_sync.partialMaterials.typedDevicePtr();
+    params.realizedMaterials   = m_sync.realizedMaterials.typedDevicePtr();
+    params.instanceMaterialIds = m_sync.instanceMaterialIds.typedDevicePtr();
+    params.instanceNormals     = m_sync.realizedNormals.typedDevicePtr();
+    params.instanceUVs         = m_sync.realizedUVs.typedDevicePtr();
+    params.partialUVs          = m_sync.partialUVs.typedDevicePtr();
     // Copy lights from the scene description; only need to do this once or if lights change interactively.
     if( params.numDirectionalLights == 0 && !m_scene->distantLights.empty() )
     {
-        m_directionalLights.resize( m_scene->distantLights.size() );
-        std::transform( m_scene->distantLights.begin(), m_scene->distantLights.end(), m_directionalLights.begin(),
+        m_sync.directionalLights.resize( m_scene->distantLights.size() );
+        std::transform( m_scene->distantLights.begin(), m_scene->distantLights.end(), m_sync.directionalLights.begin(),
                         []( const otk::pbrt::DistantLightDefinition& distant ) {
                             const pbrt::Vector3f direction( Normalize( distant.lightToWorld( distant.direction ) ) );
                             return DirectionalLight{ make_float3( direction.x, direction.y, direction.z ),
@@ -341,16 +341,16 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
                                                                   distant.color.y * distant.scale.y,
                                                                   distant.color.z * distant.scale.z ) };
                         } );
-        m_directionalLights.copyToDevice();
-        params.numDirectionalLights = static_cast<uint_t>( m_directionalLights.size() );
-        params.directionalLights    = m_directionalLights.typedDevicePtr();
+        m_sync.directionalLights.copyToDevice();
+        params.numDirectionalLights = static_cast<uint_t>( m_sync.directionalLights.size() );
+        params.directionalLights    = m_sync.directionalLights.typedDevicePtr();
     }
     if( params.numInfiniteLights == 0 && !m_scene->infiniteLights.empty() )
     {
         realizeInfiniteLights();
-        m_infiniteLights.copyToDevice();
-        params.numInfiniteLights = static_cast<uint_t>( m_infiniteLights.size() );
-        params.infiniteLights       = m_infiniteLights.typedDevicePtr();
+        m_sync.infiniteLights.copyToDevice();
+        params.numInfiniteLights = static_cast<uint_t>( m_sync.infiniteLights.size() );
+        params.infiniteLights    = m_sync.infiniteLights.typedDevicePtr();
     }
 
     m_demandLoader->launchPrepare( stream, params.demandContext );
@@ -373,18 +373,19 @@ std::optional<uint_t> PbrtScene::findMaterial( const GeometryInstance& instance 
     }
 
     // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
-    const auto it = std::find_if( m_realizedMaterials.cbegin(), m_realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
-        return instance.material.Ka == entry.Ka                 //
-               && instance.material.Kd == entry.Kd              //
-               && instance.material.Ks == entry.Ks              //
-               && instance.material.Kr == entry.Kr              //
-               && instance.material.phongExp == entry.phongExp  //
-               && ( instance.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
-                      == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
-    } );
-    if( it != m_realizedMaterials.cend() )
+    const auto it =
+        std::find_if( m_sync.realizedMaterials.cbegin(), m_sync.realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
+            return instance.material.Ka == entry.Ka                 //
+                   && instance.material.Kd == entry.Kd              //
+                   && instance.material.Ks == entry.Ks              //
+                   && instance.material.Kr == entry.Kr              //
+                   && instance.material.phongExp == entry.phongExp  //
+                   && ( instance.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+                          == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
+        } );
+    if( it != m_sync.realizedMaterials.cend() )
     {
-        return { static_cast<uint_t>( std::distance( m_realizedMaterials.cbegin(), it ) ) };
+        return { static_cast<uint_t>( std::distance( m_sync.realizedMaterials.cbegin(), it ) ) };
     }
 
     return {};
@@ -438,8 +439,8 @@ void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
             geom.materialId = materialId;
             const uint_t instanceId{ geom.materialId };
             geom.instance.instance.instanceId = instanceId;
-            geom.instanceIndex                = m_topLevelInstances.size();
-            m_topLevelInstances.push_back( geom.instance.instance );
+            geom.instanceIndex                = m_sync.topLevelInstances.size();
+            m_sync.topLevelInstances.push_back( geom.instance.instance );
             m_proxyMaterialGeometries[materialId] = geom;
             if( m_options.verboseProxyGeometryResolution )
             {
@@ -514,9 +515,9 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
     if( realized )
     {
         m_geometryLoader->copyToDeviceAsync( stream );
-        OptixDeviceContext context               = m_renderer->getDeviceContext();
-        m_proxyInstanceTraversable               = m_geometryLoader->createTraversable( context, stream );
-        m_topLevelInstances[0].traversableHandle = m_proxyInstanceTraversable;
+        OptixDeviceContext context{ m_renderer->getDeviceContext() };
+        m_proxyInstanceTraversable                      = m_geometryLoader->createTraversable( context, stream );
+        m_sync.topLevelInstances[0].traversableHandle = m_proxyInstanceTraversable;
     }
 
     return realized;
@@ -626,17 +627,6 @@ uint_t PbrtScene::getRealizedMaterialSbtOffset( const GeometryInstance& instance
     throw std::runtime_error( "Unimplemented primitive type " + std::to_string( +instance.primitive ) );
 }
 
-static demandLoading::TextureDescriptor getTextureDescriptor()
-{
-    demandLoading::TextureDescriptor desc{};
-    desc.addressMode[0]   = CU_TR_ADDRESS_MODE_WRAP;
-    desc.addressMode[1]   = CU_TR_ADDRESS_MODE_WRAP;
-    desc.filterMode       = CU_TR_FILTER_MODE_POINT;
-    desc.mipmapFilterMode = CU_TR_FILTER_MODE_POINT;
-    desc.maxAnisotropy    = 1;
-    return desc;
-}
-
 MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
 {
     auto it = m_proxyMaterialGeometries.find( proxyMaterialId );
@@ -664,11 +654,11 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
                 m_demandTextureCache->createAlphaTextureFromFile( geom.instance.alphaMapFileName );
             geom.instance.material.flags |= MaterialFlags::ALPHA_MAP_ALLOCATED;
             const size_t numProxyMaterials = proxyMaterialId + 1;  // ids are zero based
-            grow( m_partialMaterials, numProxyMaterials );
-            grow( m_partialUVs, numProxyMaterials );
-            m_partialMaterials[proxyMaterialId].alphaTextureId = geom.instance.material.alphaTextureId;
-            m_partialUVs[proxyMaterialId]                      = geom.instance.uvs;
-            m_topLevelInstances[geom.instanceIndex].sbtOffset  = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
+            grow( m_sync.partialMaterials, numProxyMaterials );
+            grow( m_sync.partialUVs, numProxyMaterials );
+            m_sync.partialMaterials[proxyMaterialId].alphaTextureId = geom.instance.material.alphaTextureId;
+            m_sync.partialUVs[proxyMaterialId]                      = geom.instance.uvs;
+            m_sync.topLevelInstances[geom.instanceIndex].sbtOffset  = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
                 std::cout << "Resolved proxy material " << proxyMaterialId << " to partial alpha texture "
@@ -681,8 +671,8 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
         if( flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
         {
             // not strictly necessary, but indicates this partial material has been resolved completely
-            m_partialMaterials[proxyMaterialId].alphaTextureId = 0;
-            m_partialUVs[proxyMaterialId]                      = nullptr;
+            m_sync.partialMaterials[proxyMaterialId].alphaTextureId = 0;
+            m_sync.partialUVs[proxyMaterialId]                      = nullptr;
         }
 
         // diffuse map resolution
@@ -701,14 +691,14 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
     }
 
     geom.instance.instance.sbtOffset  = getRealizedMaterialSbtOffset( geom.instance );
-    geom.instance.instance.instanceId = m_instanceMaterialIds.size();
-    const uint_t materialId = m_realizedMaterials.size();
+    geom.instance.instance.instanceId = m_sync.instanceMaterialIds.size();
+    const uint_t materialId = m_sync.realizedMaterials.size();
     OTK_ASSERT( geom.instance.instance.instanceId == materialId );
-    m_instanceMaterialIds.push_back( materialId );
-    m_realizedMaterials.push_back( geom.instance.material );
-    m_realizedNormals.push_back( geom.instance.normals );
-    m_realizedUVs.push_back( geom.instance.uvs );
-    m_topLevelInstances[geom.instanceIndex]  = geom.instance.instance;
+    m_sync.instanceMaterialIds.push_back( materialId );
+    m_sync.realizedMaterials.push_back( geom.instance.material );
+    m_sync.realizedNormals.push_back( geom.instance.normals );
+    m_sync.realizedUVs.push_back( geom.instance.uvs );
+    m_sync.topLevelInstances[geom.instanceIndex]  = geom.instance.instance;
     m_realizedGeometries[geom.instanceIndex] = geom;
     if( m_options.verboseProxyMaterialResolution )
     {
@@ -753,17 +743,17 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
         case MaterialResolution::NONE:
             break;
         case MaterialResolution::PARTIAL:
-            m_partialMaterials.copyToDeviceAsync( stream );
-            m_partialUVs.copyToDeviceAsync( stream );
+            m_sync.partialMaterials.copyToDeviceAsync( stream );
+            m_sync.partialUVs.copyToDeviceAsync( stream );
             ++m_stats.numPartialMaterialsRealized;
             break;
         case MaterialResolution::FULL:
-            m_partialMaterials.copyToDeviceAsync( stream );
-            m_partialUVs.copyToDeviceAsync( stream );
-            m_realizedNormals.copyToDeviceAsync( stream );
-            m_realizedUVs.copyToDeviceAsync( stream );
-            m_realizedMaterials.copyToDeviceAsync( stream );
-            m_instanceMaterialIds.copyToDeviceAsync( stream );
+            m_sync.partialMaterials.copyToDeviceAsync( stream );
+            m_sync.partialUVs.copyToDeviceAsync( stream );
+            m_sync.realizedNormals.copyToDeviceAsync( stream );
+            m_sync.realizedUVs.copyToDeviceAsync( stream );
+            m_sync.realizedMaterials.copyToDeviceAsync( stream );
+            m_sync.instanceMaterialIds.copyToDeviceAsync( stream );
             m_materialLoader->clearRequestedMaterialIds();
             ++m_stats.numMaterialsRealized;
             break;
