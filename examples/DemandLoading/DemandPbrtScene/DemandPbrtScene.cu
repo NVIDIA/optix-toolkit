@@ -146,6 +146,16 @@ static __forceinline__ __device__ void accumulateValue( int pixel, float3 val )
     params.image[pixel] = makeColor( float3{accVal.x, accVal.y, accVal.z} / accVal.w );
 }
 
+// Show the accumulated value without accumulating anything
+static __forceinline__ __device__ void showAccumulatorValue( int pixel, float3 substituteVal )
+{
+    const Params& params{ PARAMS_VAR_NAME };
+    float4 accVal = params.accumulator[pixel];
+    if( accVal.w > 0.0f )
+        params.image[pixel] = makeColor( float3{accVal.x, accVal.y, accVal.z} / accVal.w );
+    else
+        params.image[pixel] = makeColor( substituteVal );
+}
 
 
 extern "C" __global__ void __raygen__perspectiveCamera()
@@ -267,7 +277,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         if( prd.isBackground )
             accumulateValue( pixel, prd.color );
         else // electric bounding box
-            params.image[pixel] = makeColor( prd.color );
+            showAccumulatorValue( pixel, prd.color );
         return;
     }
 
@@ -276,7 +286,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     {
         if( prd.material == nullptr )
         {
-            params.image[pixel] = makeColor( prd.color );
+            showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
             return;
         }
         PhongMaterial mat = *prd.material;
@@ -289,7 +299,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
             float4 texel = demandLoading::tex2DGrad<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
             if( !isResident )
             {
-                params.image[pixel] = makeColor( prd.color );
+                showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
                 return;
             }
             mat.Kd *= float3{texel.x, texel.y, texel.z};
@@ -308,7 +318,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         float4 texel = demandLoading::tex2D<float4>( PARAMS_VAR_NAME.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, &isResident );
         if( !isResident )
         {
-            params.image[pixel] = makeColor( prd.color );
+            showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
             return;
         }
         sampleColor *= float3{texel.x, texel.y, texel.z};
