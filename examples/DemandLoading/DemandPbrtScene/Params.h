@@ -314,24 +314,24 @@ extern "C" {
 }
 #endif
 
-#if __CUDACC__
 struct RayPayload
 {
-    float rayDistance;
-    float3 normal;
-    float3 color;
-    float2 uv;
-    PhongMaterial* material;
-    unsigned int diffuseTextureId;
-    bool isBackground;
-    float worldSpaceTextureSize;
-    bool discardRay;
+    float                rayDistance;
+    float3               normal;
+    float3               color;
+    float2               uv;
+    const PhongMaterial* material;
+    unsigned int         diffuseTextureId;
+    bool                 isBackground;
+    float                worldSpaceTextureSize;
+    bool                 discardRay;
 };
 
+#if __CUDACC__
 static __forceinline__ __device__ RayPayload* getRayPayload()
 {
-    const unsigned int u0 = optixGetPayload_0();
-    const unsigned int u1 = optixGetPayload_1();
+    const unsigned int       u0   = optixGetPayload_0();
+    const unsigned int       u1   = optixGetPayload_1();
     const unsigned long long uptr = static_cast<unsigned long long>( u0 ) << 32 | u1;
     return reinterpret_cast<RayPayload*>( uptr );
 }
