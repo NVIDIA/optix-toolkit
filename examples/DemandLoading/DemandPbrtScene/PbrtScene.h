@@ -150,18 +150,23 @@ class PbrtScene : public Scene
     size_t                            m_triangleAlphaDiffuseMapHitGroupIndex{};
     size_t                            m_sphereHitGroupIndex{};
     demandLoading::Ticket             m_ticket;
-    otk::SyncVector<OptixInstance>    m_topLevelInstances;
     std::map<uint_t, SceneProxyPtr>   m_sceneProxies;             // indexed by proxy geometry id
     std::map<uint_t, SceneGeometry>   m_proxyMaterialGeometries;  // indexed by proxy material id
     std::map<uint_t, SceneGeometry>   m_realizedGeometries;       // indexed by top level instance index
-    otk::SyncVector<PartialMaterial>  m_partialMaterials;         // indexed by materialId
-    otk::SyncVector<TriangleUVs*>     m_partialUVs;               // indexed by materialId
-    otk::SyncVector<uint_t>           m_instanceMaterialIds;      // indexed by instance id
-    otk::SyncVector<PhongMaterial>    m_realizedMaterials;        // indexed by values in m_instanceMaterialIds
-    otk::SyncVector<TriangleNormals*> m_realizedNormals;          // indexed by instance id, then by primitive index
-    otk::SyncVector<TriangleUVs*>     m_realizedUVs;              // indexed by instance id, then by primitive index
-    otk::SyncVector<DirectionalLight> m_directionalLights;        // defined by the scene
-    otk::SyncVector<InfiniteLight>    m_infiniteLights;           // defined by the scene
+
+    struct SyncState
+    {
+        otk::SyncVector<OptixInstance>    topLevelInstances;    // OptixInstance array for building TLIAS
+        otk::SyncVector<PartialMaterial>  partialMaterials;     // indexed by materialId
+        otk::SyncVector<TriangleUVs*>     partialUVs;           // indexed by materialId
+        otk::SyncVector<uint_t>           instanceMaterialIds;  // indexed by instance id
+        otk::SyncVector<PhongMaterial>    realizedMaterials;    // indexed by values in m_instanceMaterialIds
+        otk::SyncVector<TriangleNormals*> realizedNormals;      // indexed by instance id, then by primitive index
+        otk::SyncVector<TriangleUVs*>     realizedUVs;          // indexed by instance id, then by primitive index
+        otk::SyncVector<DirectionalLight> directionalLights;    // defined by the scene
+        otk::SyncVector<InfiniteLight>    infiniteLights;       // defined by the scene
+    };
+    SyncState m_sync;
 };
 
 }  // namespace demandPbrtScene
