@@ -292,15 +292,21 @@ struct Params
     demandLoading::DeviceContext demandContext;
     demandGeometry::Context      demandGeomContext;
     float3                       demandMaterialColor;
-    PartialMaterial*             partialMaterials;            // indexed by instanceId
-    PhongMaterial*               realizedMaterials;           // indexed by materialId
-    uint_t*                      instanceMaterialIds;         // indexed by instanceId, material id per instance
+    uint_t                       numPartialMaterials;     //
+    PartialMaterial*             partialMaterials;        // indexed by instanceId
+    uint_t                       numRealizedMaterials;    //
+    PhongMaterial*               realizedMaterials;       // indexed by materialId
+    uint_t                       numInstanceMaterialIds;  //
+    uint_t*                      instanceMaterialIds;     // indexed by instanceId, material id per instance
 
     // An array of pointers to arrays of per-face data, one per geometry instance.
     // If the pointer is nullptr, then the instance has no per-face data.
-    TriangleNormals** instanceNormals;  // indexed by instanceId, then by primitive index
-    TriangleUVs**     instanceUVs;      // indexed by instanceId, then by primitive index
-    TriangleUVs**     partialUVs;       // indexed by materialId, then by primitive index
+    uint_t            numInstanceNormals;  //
+    TriangleNormals** instanceNormals;     // indexed by instanceId, then by primitive index
+    uint_t            numInstanceUVs;      //
+    TriangleUVs**     instanceUVs;         // indexed by instanceId, then by primitive index
+    uint_t            numPartialUVs;       //
+    TriangleUVs**     partialUVs;          // indexed by materialId, then by primitive index
 };
 
 #define PARAMS_STRINGIFY_IMPL( x_ ) #x_

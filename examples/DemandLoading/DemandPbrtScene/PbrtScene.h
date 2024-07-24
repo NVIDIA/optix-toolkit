@@ -94,24 +94,24 @@ class PbrtScene : public Scene
   private:
     using Clock = std::chrono::steady_clock;
 
-    void                realizeInfiniteLights();
-    void                setCamera();
-    OptixModule         createModule( const char* optixir, size_t optixirSize );
-    void                createModules();
-    void                createProgramGroups();
-    void                pushInstance( OptixTraversableHandle handle );
-    void                createTopLevelTraversable( CUstream stream );
-    void                setLaunchParams( CUstream stream, Params& params );
+    void                  realizeInfiniteLights();
+    void                  setCamera();
+    OptixModule           createModule( const char* optixir, size_t optixirSize );
+    void                  createModules();
+    void                  createProgramGroups();
+    void                  pushInstance( OptixTraversableHandle handle );
+    void                  createTopLevelTraversable( CUstream stream );
+    void                  setLaunchParams( CUstream stream, Params& params );
     std::optional<uint_t> findMaterial( const GeometryInstance& instance ) const;
-    void                resolveProxyGeometry( CUstream stream, uint_t proxyGeomId );
-    std::vector<uint_t> sortRequestedProxyGeometriesByCameraDistance();
-    bool                resolveRequestedProxyGeometries( CUstream stream );
-    uint_t              getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
-    uint_t              getSphereRealizedMaterialSbtOffset();
-    uint_t              getRealizedMaterialSbtOffset( const GeometryInstance& instance );
-    MaterialResolution  resolveMaterial( uint_t proxyMaterialId );
-    MaterialResolution  resolveRequestedProxyMaterials( CUstream stream );
-    bool                frameBudgetExceeded() const;
+    bool                  resolveProxyGeometry( CUstream stream, uint_t proxyGeomId );
+    std::vector<uint_t>   sortRequestedProxyGeometriesByCameraDistance();
+    bool                  resolveRequestedProxyGeometries( CUstream stream );
+    uint_t                getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
+    uint_t                getSphereRealizedMaterialSbtOffset();
+    uint_t                getRealizedMaterialSbtOffset( const GeometryInstance& instance );
+    MaterialResolution    resolveMaterial( uint_t proxyMaterialId );
+    MaterialResolution    resolveRequestedProxyMaterials( CUstream stream );
+    bool                  frameBudgetExceeded() const;
 
     // Dependencies
     const Options&        m_options;
@@ -133,26 +133,26 @@ class PbrtScene : public Scene
     std::chrono::time_point<Clock> m_frameStart{};
 
     // Scene related data
-    SceneDescriptionPtr               m_scene;
-    SceneStatistics                   m_stats{};
-    otk::DeviceBuffer                 m_tempBuffer;
-    otk::DeviceBuffer                 m_topLevelAccelBuffer;
-    OptixTraversableHandle            m_topLevelTraversable{};
-    OptixTraversableHandle            m_proxyInstanceTraversable{};
-    OptixModule                       m_sceneModule{};
-    OptixModule                       m_phongModule{};
-    OptixModule                       m_triangleModule{};
-    OptixModule                       m_sphereModule{};
-    std::vector<OptixProgramGroup>    m_programGroups;
-    size_t                            m_triangleHitGroupIndex{};
-    size_t                            m_triangleAlphaMapHitGroupIndex{};
-    size_t                            m_triangleDiffuseMapHitGroupIndex{};
-    size_t                            m_triangleAlphaDiffuseMapHitGroupIndex{};
-    size_t                            m_sphereHitGroupIndex{};
-    demandLoading::Ticket             m_ticket;
-    std::map<uint_t, SceneProxyPtr>   m_sceneProxies;             // indexed by proxy geometry id
-    std::map<uint_t, SceneGeometry>   m_proxyMaterialGeometries;  // indexed by proxy material id
-    std::map<uint_t, SceneGeometry>   m_realizedGeometries;       // indexed by top level instance index
+    SceneDescriptionPtr             m_scene;
+    SceneStatistics                 m_stats{};
+    otk::DeviceBuffer               m_tempBuffer;
+    otk::DeviceBuffer               m_topLevelAccelBuffer;
+    OptixTraversableHandle          m_topLevelTraversable{};
+    OptixTraversableHandle          m_proxyInstanceTraversable{};
+    OptixModule                     m_sceneModule{};
+    OptixModule                     m_phongModule{};
+    OptixModule                     m_triangleModule{};
+    OptixModule                     m_sphereModule{};
+    std::vector<OptixProgramGroup>  m_programGroups;
+    size_t                          m_triangleHitGroupIndex{};
+    size_t                          m_triangleAlphaMapHitGroupIndex{};
+    size_t                          m_triangleDiffuseMapHitGroupIndex{};
+    size_t                          m_triangleAlphaDiffuseMapHitGroupIndex{};
+    size_t                          m_sphereHitGroupIndex{};
+    demandLoading::Ticket           m_ticket;
+    std::map<uint_t, SceneProxyPtr> m_sceneProxies;             // indexed by proxy geometry id
+    std::map<uint_t, SceneGeometry> m_proxyMaterialGeometries;  // indexed by proxy material id
+    std::map<uint_t, SceneGeometry> m_realizedGeometries;       // indexed by top level instance index
 
     struct SyncState
     {

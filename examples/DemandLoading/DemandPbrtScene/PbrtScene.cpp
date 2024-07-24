@@ -108,7 +108,7 @@ void PbrtScene::realizeInfiniteLights()
     bool first{ true };
     for( size_t i = 0; i < m_scene->infiniteLights.size(); ++i )
     {
-        const otk::pbrt::InfiniteLightDefinition& src  = m_scene->infiniteLights[i];
+        const otk::pbrt::InfiniteLightDefinition& src = m_scene->infiniteLights[i];
 
         InfiniteLight& dest = m_sync.infiniteLights[i];
         dest.color          = make_float3( src.color.x, src.color.y, src.color.z );
@@ -117,7 +117,7 @@ void PbrtScene::realizeInfiniteLights()
         if( !src.environmentMapName.empty() && first )
         {
             dest.skyboxTextureId = m_demandTextureCache->createSkyboxTextureFromFile( src.environmentMapName );
-            first = false;
+            first                = false;
         }
     }
 }
@@ -316,19 +316,25 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     };
     std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( params.proxyFaceColors ) );
 
-    params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
-    params.sceneEpsilon        = 0.005f;
-    params.usePinholeCamera    = m_options.usePinholeCamera;
-    params.traversable         = m_topLevelTraversable;
-    params.demandGeomContext   = m_geometryLoader->getContext();
-    const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
-    params.demandMaterialColor = yellow;
-    params.partialMaterials    = m_sync.partialMaterials.typedDevicePtr();
-    params.realizedMaterials   = m_sync.realizedMaterials.typedDevicePtr();
-    params.instanceMaterialIds = m_sync.instanceMaterialIds.typedDevicePtr();
-    params.instanceNormals     = m_sync.realizedNormals.typedDevicePtr();
-    params.instanceUVs         = m_sync.realizedUVs.typedDevicePtr();
-    params.partialUVs          = m_sync.partialUVs.typedDevicePtr();
+    params.ambientColor           = make_float3( 0.4f, 0.4f, 0.4f );
+    params.sceneEpsilon           = 0.005f;
+    params.usePinholeCamera       = m_options.usePinholeCamera;
+    params.traversable            = m_topLevelTraversable;
+    params.demandGeomContext      = m_geometryLoader->getContext();
+    const float3 yellow           = make_float3( 1.0f, 1.0f, 0.0 );
+    params.demandMaterialColor    = yellow;
+    params.numPartialMaterials    = static_cast<uint_t>( m_sync.partialMaterials.size() );
+    params.partialMaterials       = m_sync.partialMaterials.typedDevicePtr();
+    params.numRealizedMaterials   = static_cast<uint_t>( m_sync.realizedMaterials.size() );
+    params.realizedMaterials      = m_sync.realizedMaterials.typedDevicePtr();
+    params.numInstanceMaterialIds = static_cast<uint_t>( m_sync.instanceMaterialIds.size() );
+    params.instanceMaterialIds    = m_sync.instanceMaterialIds.typedDevicePtr();
+    params.numInstanceNormals     = static_cast<uint_t>( m_sync.realizedNormals.size() );
+    params.instanceNormals        = m_sync.realizedNormals.typedDevicePtr();
+    params.numInstanceUVs         = static_cast<uint_t>( m_sync.realizedUVs.size() );
+    params.instanceUVs            = m_sync.realizedUVs.typedDevicePtr();
+    params.numPartialUVs          = static_cast<uint_t>( m_sync.partialUVs.size() );
+    params.partialUVs             = m_sync.partialUVs.typedDevicePtr();
     // Copy lights from the scene description; only need to do this once or if lights change interactively.
     if( params.numDirectionalLights == 0 && !m_scene->distantLights.empty() )
     {
@@ -391,8 +397,10 @@ std::optional<uint_t> PbrtScene::findMaterial( const GeometryInstance& instance 
     return {};
 }
 
-void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
+bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
 {
+    bool updateNeeded{};
+
     m_geometryLoader->remove( proxyGeomId );
     auto it = m_sceneProxies.find( proxyGeomId );
     if( it == m_sceneProxies.end() )
@@ -426,30 +434,68 @@ void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
     {
         // add instance to TLAS instances
         SceneGeometry geom;
-        geom.instance                     = removedProxy->createGeometry( m_renderer->getDeviceContext(), stream );
+        geom.instance = removedProxy->createGeometry( m_renderer->getDeviceContext(), stream );
 
         // check for shared materials
         if( const std::optional<uint_t> id = findMaterial( geom.instance ); id.has_value() )
         {
+            // just for completeness's sake, mark the duplicate material's textures as having
+            // been loaded, although we won't use the duplicate material after this.
+            auto markAllocated = [&]( MaterialFlags requested, MaterialFlags allocated ) {
+                MaterialFlags& flags{ geom.instance.material.flags };
+                if( flagSet( flags, requested ) )
+                {
+                    flags |= allocated;
+                }
+            };
+            markAllocated( MaterialFlags::ALPHA_MAP, MaterialFlags::ALPHA_MAP_ALLOCATED );
+            markAllocated( MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED );
+
+            // reuse already realized material
+            OTK_ASSERT( m_phongModule != nullptr );  // should have already been realized
+            const uint_t materialId{ id.value() };
+            const uint_t instanceId{ static_cast<uint_t>( m_sync.instanceMaterialIds.size() ) };
+            geom.materialId                   = materialId;
+            geom.instance.instance.sbtOffset  = getRealizedMaterialSbtOffset( geom.instance );
+            geom.instance.instance.instanceId = instanceId;
+            geom.instanceIndex                = m_sync.topLevelInstances.size();
+            m_sync.instanceMaterialIds.push_back( materialId );
+            m_sync.topLevelInstances.push_back( geom.instance.instance );
+            m_sync.realizedNormals.push_back( geom.instance.normals );
+            m_sync.realizedUVs.push_back( geom.instance.uvs );
+            m_proxyMaterialGeometries[materialId]    = geom;
+            m_realizedGeometries[geom.instanceIndex] = geom;
             ++m_stats.numMaterialsReused;
+
+            if( m_options.verboseProxyGeometryResolution || m_options.verboseProxyMaterialResolution )
+            {
+                std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex
+                          << " with existing material " << materialId << '\n';
+            }
+
+            updateNeeded = true;
         }
+        else
         {
             const uint_t materialId{ m_materialLoader->add() };
-            geom.materialId = materialId;
-            const uint_t instanceId{ geom.materialId };
+            const uint_t instanceId{ materialId };  // use the proxy material id as the instance id
+            geom.materialId                   = materialId;
             geom.instance.instance.instanceId = instanceId;
             geom.instanceIndex                = m_sync.topLevelInstances.size();
             m_sync.topLevelInstances.push_back( geom.instance.instance );
             m_proxyMaterialGeometries[materialId] = geom;
             if( m_options.verboseProxyGeometryResolution )
             {
-                std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex << " with proxy material " << geom.materialId << '\n';
+                std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex
+                          << " with proxy material " << geom.materialId << '\n';
             }
             ++m_stats.numProxyMaterialsCreated;
         }
         ++m_stats.numGeometriesRealized;
     }
     ++m_stats.numProxyGeometriesResolved;
+
+    return updateNeeded;
 }
 
 inline float volume( const OptixAabb& bounds )
@@ -489,9 +535,10 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
         return false;
     }
 
-    const unsigned int MIN_REALIZED = 512;
-    unsigned int realizedCount = 0;
-    bool realized{};
+    const unsigned int MIN_REALIZED  = 512;
+    unsigned int       realizedCount = 0;
+    bool               realized{};
+    bool               updateNeeded{};
     for( uint_t id : sortRequestedProxyGeometriesByCameraDistance() )
     {
         if( frameBudgetExceeded() && realizedCount > MIN_REALIZED )
@@ -500,7 +547,10 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
         }
         ++realizedCount;
 
-        resolveProxyGeometry( stream, id );
+        if( resolveProxyGeometry( stream, id ) )
+        {
+            updateNeeded = true;
+        }
         realized = true;
 
         if( m_resolveOneGeometry )
@@ -513,9 +563,17 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
 
     if( realized )
     {
+        if( updateNeeded )
+        {
+            // we reused a realized material while resolving a proxy geometry
+            m_sync.realizedNormals.copyToDeviceAsync( stream );
+            m_sync.realizedUVs.copyToDeviceAsync( stream );
+            m_sync.instanceMaterialIds.copyToDeviceAsync( stream );
+        }
+
         m_geometryLoader->copyToDeviceAsync( stream );
         OptixDeviceContext context{ m_renderer->getDeviceContext() };
-        m_proxyInstanceTraversable                      = m_geometryLoader->createTraversable( context, stream );
+        m_proxyInstanceTraversable                    = m_geometryLoader->createTraversable( context, stream );
         m_sync.topLevelInstances[0].traversableHandle = m_proxyInstanceTraversable;
     }
 
@@ -691,14 +749,13 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
 
     geom.instance.instance.sbtOffset  = getRealizedMaterialSbtOffset( geom.instance );
     geom.instance.instance.instanceId = m_sync.instanceMaterialIds.size();
-    const uint_t materialId = m_sync.realizedMaterials.size();
-    OTK_ASSERT( geom.instance.instance.instanceId == materialId );
+    const uint_t materialId           = m_sync.realizedMaterials.size();
     m_sync.instanceMaterialIds.push_back( materialId );
     m_sync.realizedMaterials.push_back( geom.instance.material );
     m_sync.realizedNormals.push_back( geom.instance.normals );
     m_sync.realizedUVs.push_back( geom.instance.uvs );
-    m_sync.topLevelInstances[geom.instanceIndex]  = geom.instance.instance;
-    m_realizedGeometries[geom.instanceIndex] = geom;
+    m_sync.topLevelInstances[geom.instanceIndex] = geom.instance.instance;
+    m_realizedGeometries[geom.instanceIndex]     = geom;
     if( m_options.verboseProxyMaterialResolution )
     {
         std::cout
