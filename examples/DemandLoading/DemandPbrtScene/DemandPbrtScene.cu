@@ -141,9 +141,9 @@ static __forceinline__ __device__ float3 sampleDiffuse( float2 xi, float3 N )
 static __forceinline__ __device__ void accumulateValue( int pixel, float3 val )
 {
     const Params& params{ PARAMS_VAR_NAME };
-    float4 accVal = params.accumulator[pixel] + float4{val.x, val.y, val.z, 1.0f};
+    float4        accVal      = params.accumulator[pixel] + float4{ val.x, val.y, val.z, 1.0f };
     params.accumulator[pixel] = accVal;
-    params.image[pixel] = makeColor( float3{accVal.x, accVal.y, accVal.z} / accVal.w );
+    params.image[pixel]       = makeColor( float3{ accVal.x, accVal.y, accVal.z } / accVal.w );
 }
 
 // Show the accumulated value without accumulating anything
@@ -411,24 +411,25 @@ __forceinline__ __device__ float2 sphericalCoordFromRayDirection()
 
 extern "C" __global__ void __miss__backgroundColor()
 {
+    const Params& params{ PARAMS_VAR_NAME };
     if( otk::debugInfoDump(
-            PARAMS_VAR_NAME.debug, []( const uint3& pixel ) { printf( "Miss at [%u, %u]\n", pixel.x, pixel.y ); }, setRayPayload ) )
+            params.debug, []( const uint3& pixel ) { printf( "Miss at [%u, %u]\n", pixel.x, pixel.y ); }, setRayPayload ) )
     {
         return;
     }
 
     float3 background{};
-    if( PARAMS_VAR_NAME.numInfiniteLights > 0 )
+    if( params.numInfiniteLights > 0 )
     {
         bool isResident{};
         bool first{ true };
-        for( uint_t i = 0; i < PARAMS_VAR_NAME.numInfiniteLights; ++i )
+        for( uint_t i = 0; i < params.numInfiniteLights; ++i )
         {
-            const InfiniteLight& light{ PARAMS_VAR_NAME.infiniteLights[i] };
+            const InfiniteLight& light{ params.infiniteLights[i] };
             if( light.skyboxTextureId != 0 && first )
             {
                 const float2 uv = sphericalCoordFromRayDirection();
-                float4 texel = demandLoading::tex2D<float4>( PARAMS_VAR_NAME.demandContext, light.skyboxTextureId, uv.x,
+                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId, uv.x,
                                                              uv.y, &isResident );
                 if( isResident )
                 {
@@ -444,7 +445,7 @@ extern "C" __global__ void __miss__backgroundColor()
     }
     else
     {
-        background = PARAMS_VAR_NAME.background;
+        background = params.background;
     }
 
     getRayPayload()->color = background;
@@ -469,8 +470,9 @@ __device__ const demandLoading::DeviceContext& getDeviceContext()
 __device__ void reportClosestHitNormal( float3 ffNormal )
 {
     // Color the proxy faces by a solid color per face.
-    const float3* colors = demandPbrtScene::PARAMS_VAR_NAME.proxyFaceColors;
-    uint_t        index{};
+    const ::demandPbrtScene::Params& params{ ::demandPbrtScene::PARAMS_VAR_NAME };
+    const float3*                    colors = params.proxyFaceColors;
+    uint_t                           index{};
     if( ffNormal.x > 0.5f )
         index = 0;
     else if( ffNormal.x < -0.5f )
@@ -485,7 +487,7 @@ __device__ void reportClosestHitNormal( float3 ffNormal )
         index = 5;
 
     if( otk::debugInfoDump(
-            demandPbrtScene::PARAMS_VAR_NAME.debug,
+            params.debug,
             [=]( const uint3& launchIndex ) {
                 printf( "Proxy geometry %u at [%u, %u]: N(%g,%g,%g) index %u, C(%g,%g,%g)\n", optixGetAttribute_3(), launchIndex.x, launchIndex.y,
                         ffNormal.x, ffNormal.y, ffNormal.z, index, colors[index].x, colors[index].y, colors[index].z );
@@ -607,11 +609,12 @@ __device__ __forceinline__ float2 getTriangleUVs( TriangleUVs** uvs, const uint_
 // Use UVs from partialMaterial array
 extern "C" __global__ void __anyhit__alphaCutOutPartialMesh()
 {
+    const Params& params{ PARAMS_VAR_NAME };
     const uint_t textureId = getPartialAlphaTextureId();
-    const float2 uv        = getTriangleUVs( PARAMS_VAR_NAME.partialUVs, demandMaterial::app::getMaterialId() );
+    const float2 uv        = getTriangleUVs( params.partialUVs, demandMaterial::app::getMaterialId() );
     bool         isResident{};
-    const float texel = demandLoading::tex2D<float>( PARAMS_VAR_NAME.demandContext, textureId, uv.x, uv.y, &isResident );
-    const bool ignored = isResident && ( texel == 0.0f );
+    const float  texel = demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident );
+    const bool   ignored = isResident && ( texel == 0.0f );
     if( !isResident )
     {
         getRayPayload()->discardRay = true;
@@ -639,11 +642,12 @@ __device__ __forceinline__ uint_t getRealizedAlphaTextureId()
 // Use UVs from realized material array
 extern "C" __global__ void __anyhit__alphaCutOutMesh()
 {
-    const uint_t textureId = getRealizedAlphaTextureId();
-    const float2 uv        = getTriangleUVs( PARAMS_VAR_NAME.instanceUVs, optixGetInstanceId() );
-    bool         isResident{};
-    const float texel = demandLoading::tex2D<float>( PARAMS_VAR_NAME.demandContext, textureId, uv.x, uv.y, &isResident );
-    const bool ignored = isResident && (texel == 0.0f);
+    const Params& params{ PARAMS_VAR_NAME };
+    const uint_t  textureId = getRealizedAlphaTextureId();
+    const float2  uv        = getTriangleUVs( params.instanceUVs, optixGetInstanceId() );
+    bool          isResident{};
+    const float   texel = demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident );
+    const bool    ignored = isResident && (texel == 0.0f);
     if( !isResident )
     {
         getRayPayload()->discardRay = true;
@@ -680,21 +684,22 @@ extern "C" __global__ void __closesthit__texturedMesh()
     float3 vertices[3];
     getTriangleData(vertices, worldNormal);
 
-    const uint_t instanceId = optixGetInstanceId();
-    const float2 uv = getTriangleUVs( PARAMS_VAR_NAME.instanceUVs, instanceId );
+    const Params& params{ PARAMS_VAR_NAME };
+    const uint_t  instanceId = optixGetInstanceId();
+    const float2  uv         = getTriangleUVs( params.instanceUVs, instanceId );
 
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
         return;
 
     RayPayload* prd = getRayPayload();
     prd->diffuseTextureId = getRealizedDiffuseTextureId();
-    prd->material = &PARAMS_VAR_NAME.realizedMaterials[instanceId];
+    prd->material = &params.realizedMaterials[instanceId];
     prd->normal = worldNormal;
     prd->uv = uv;
     prd->rayDistance = optixGetRayTmax();
     prd->color = float3{1.0f, 0.0f, 1.0f};
 
-    float2* uvs = PARAMS_VAR_NAME.instanceUVs[instanceId]->UV;
+    float2* uvs = params.instanceUVs[instanceId]->UV;
     float a = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
     float b = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
     float c = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
