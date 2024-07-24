@@ -41,6 +41,7 @@
 #include <vector_functions.h>
 #include <vector_types.h>
 
+#include <cassert>
 #include <cmath>
 
 namespace demandPbrtScene {
@@ -639,7 +640,13 @@ __device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
     }
 #endif
     const uint_t instanceId{ optixGetInstanceId() };
+    assert( instanceId < params.numInstanceMaterialIds );
     const uint_t materialId{ params.instanceMaterialIds[instanceId] };
+    if( materialId >= params.numRealizedMaterials )
+    {
+        printf( "Requested instance id %u, material id %u, only have %u materials\n", instanceId, materialId, params.numRealizedMaterials );
+    }
+    assert( materialId < params.numRealizedMaterials );
     return realizedMaterials[materialId];
 }
 
