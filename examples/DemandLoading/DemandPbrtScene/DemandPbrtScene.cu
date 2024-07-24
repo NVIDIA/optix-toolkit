@@ -626,28 +626,29 @@ extern "C" __global__ void __anyhit__alphaCutOutPartialMesh()
     }
 }
 
-__device__ __forceinline__ uint_t getRealizedAlphaTextureId()
+__device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
 {
-    PhongMaterial* realizedMaterials = PARAMS_VAR_NAME.realizedMaterials;
+    const PhongMaterial* realizedMaterials = PARAMS_VAR_NAME.realizedMaterials;
 #ifndef NDEBUG
     if( realizedMaterials == nullptr )
     {
         printf( "Parameters realizedMaterials array is nullptr!\n" );
-        return 0xdeadbeefU;
+        static PhongMaterial oops{};
+        return oops;
     }
 #endif
-    return realizedMaterials[optixGetInstanceId()].alphaTextureId;
+    return realizedMaterials[optixGetInstanceId()];
 }
 
 // Use UVs from realized material array
 extern "C" __global__ void __anyhit__alphaCutOutMesh()
 {
     const Params& params{ PARAMS_VAR_NAME };
-    const uint_t  textureId = getRealizedAlphaTextureId();
-    const float2  uv        = getTriangleUVs( params.instanceUVs, optixGetInstanceId() );
+    const uint_t  textureId{ getRealizedMaterial().alphaTextureId };
+    const float2  uv{ getTriangleUVs( params.instanceUVs, optixGetInstanceId() ) };
     bool          isResident{};
-    const float   texel = demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident );
-    const bool    ignored = isResident && (texel == 0.0f);
+    const float   texel{ demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident ) };
+    const bool    ignored{ isResident && (texel == 0.0f) };
     if( !isResident )
     {
         getRayPayload()->discardRay = true;
@@ -665,19 +666,6 @@ extern "C" __global__ void __anyhit__sphere()
     // use PARAMS_VAR_NAME.partialMaterials[demandMaterial::app::getMaterialId()].alphaTextureId to sample alpha texture
 }
 
-__device__ __forceinline__ uint_t getRealizedDiffuseTextureId()
-{
-    const PhongMaterial* realizedMaterials = PARAMS_VAR_NAME.realizedMaterials;
-#ifndef NDEBUG
-    if( realizedMaterials == nullptr )
-    {
-        printf( "Parameters realizedMaterials array is nullptr!\n" );
-        return 0xdeadbeefU;
-    }
-#endif
-    return realizedMaterials[optixGetInstanceId()].diffuseTextureId;
-}
-
 extern "C" __global__ void __closesthit__texturedMesh()
 {
     float3 worldNormal;
@@ -692,12 +680,13 @@ extern "C" __global__ void __closesthit__texturedMesh()
         return;
 
     RayPayload* prd = getRayPayload();
-    prd->diffuseTextureId = getRealizedDiffuseTextureId();
-    prd->material = &params.realizedMaterials[instanceId];
-    prd->normal = worldNormal;
-    prd->uv = uv;
-    prd->rayDistance = optixGetRayTmax();
-    prd->color = float3{1.0f, 0.0f, 1.0f};
+    const PhongMaterial& material{ getRealizedMaterial() };
+    prd->diffuseTextureId = material.diffuseTextureId;
+    prd->material         = &material;
+    prd->normal           = worldNormal;
+    prd->uv               = uv;
+    prd->rayDistance      = optixGetRayTmax();
+    prd->color            = float3{ 1.0f, 0.0f, 1.0f };
 
     float2* uvs = params.instanceUVs[instanceId]->UV;
     float a = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
