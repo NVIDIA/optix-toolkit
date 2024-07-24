@@ -628,7 +628,8 @@ extern "C" __global__ void __anyhit__alphaCutOutPartialMesh()
 
 __device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
 {
-    const PhongMaterial* realizedMaterials = PARAMS_VAR_NAME.realizedMaterials;
+    const Params&        params{ PARAMS_VAR_NAME };
+    const PhongMaterial* realizedMaterials{ params.realizedMaterials };
 #ifndef NDEBUG
     if( realizedMaterials == nullptr )
     {
@@ -637,7 +638,9 @@ __device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
         return oops;
     }
 #endif
-    return realizedMaterials[optixGetInstanceId()];
+    const uint_t instanceId{ optixGetInstanceId() };
+    const uint_t materialId{ params.instanceMaterialIds[instanceId] };
+    return realizedMaterials[materialId];
 }
 
 // Use UVs from realized material array

@@ -432,7 +432,6 @@ void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
         if( const std::optional<uint_t> id = findMaterial( geom.instance ); id.has_value() )
         {
             ++m_stats.numMaterialsReused;
-            std::cout << "Found reused material " << id.value() << '\n';
         }
         {
             const uint_t materialId{ m_materialLoader->add() };
