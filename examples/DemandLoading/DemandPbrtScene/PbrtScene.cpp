@@ -433,17 +433,20 @@ void PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
             ++m_stats.numMaterialsReused;
             std::cout << "Found reused material " << id.value() << '\n';
         }
-
-        geom.materialId                   = m_materialLoader->add();
-        geom.instance.instance.instanceId = geom.materialId;
-        geom.instanceIndex                = m_topLevelInstances.size();
-        m_topLevelInstances.push_back( geom.instance.instance );
-        m_proxyMaterialGeometries[geom.materialId] = geom;
-        if( m_options.verboseProxyGeometryResolution )
         {
-            std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex << " with proxy material " << geom.materialId << '\n';
+            const uint_t materialId{ m_materialLoader->add() };
+            geom.materialId = materialId;
+            const uint_t instanceId{ geom.materialId };
+            geom.instance.instance.instanceId = instanceId;
+            geom.instanceIndex                = m_topLevelInstances.size();
+            m_topLevelInstances.push_back( geom.instance.instance );
+            m_proxyMaterialGeometries[materialId] = geom;
+            if( m_options.verboseProxyGeometryResolution )
+            {
+                std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex << " with proxy material " << geom.materialId << '\n';
+            }
+            ++m_stats.numProxyMaterialsCreated;
         }
-        ++m_stats.numProxyMaterialsCreated;
         ++m_stats.numGeometriesRealized;
     }
     ++m_stats.numProxyGeometriesResolved;
