@@ -156,6 +156,10 @@ class PbrtScene : public Scene
 
     struct SyncState
     {
+        uint_t                            minAlphaTextureId{ ~0U };
+        uint_t                            maxAlphaTextureId{};
+        uint_t                            minDiffuseTextureId{ ~0U };
+        uint_t                            maxDiffuseTextureId{};
         otk::SyncVector<OptixInstance>    topLevelInstances;    // OptixInstance array for building TLIAS
         otk::SyncVector<PartialMaterial>  partialMaterials;     // indexed by materialId
         otk::SyncVector<TriangleUVs*>     partialUVs;           // indexed by materialId

@@ -307,6 +307,11 @@ struct Params
     TriangleUVs**     instanceUVs;         // indexed by instanceId, then by primitive index
     uint_t            numPartialUVs;       //
     TriangleUVs**     partialUVs;          // indexed by materialId, then by primitive index
+
+    uint_t minAlphaTextureId;
+    uint_t maxAlphaTextureId;
+    uint_t minDiffuseTextureId;
+    uint_t maxDiffuseTextureId;
 };
 
 #define PARAMS_STRINGIFY_IMPL( x_ ) #x_
