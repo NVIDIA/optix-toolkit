@@ -121,9 +121,8 @@ class OptixRenderer : public Renderer
     bool                            m_pipelineChanged{ true };
     bool                            m_sbtChanged{ true };
     bool                            m_fireOneDebugDump{};
-
+    bool                            m_clearAccumulator{};
     Accumulator                     m_accumulator;
-    bool                            m_clearAccumulator;
 };
 
 }  // namespace demandPbrtScene

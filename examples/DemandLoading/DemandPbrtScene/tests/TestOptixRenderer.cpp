@@ -245,7 +245,7 @@ TEST_F( TestOptixRenderer, beforeFirstLaunchCreatesPipelineAndPacksSbtRecords )
     auto opacityMaps = Always();
 #endif
     auto compileOptions = AllOf( NotNull(), Not( usesMotionBlur() ), allowAnyTraversableGraph(),
-                                 hasPayloadValueCount( 4 ), hasAttributeValueCount( 4 ),
+                                 hasPayloadValueCount( 3 ), hasAttributeValueCount( 4 ),
                                  hasExceptionFlags( OPTIX_EXCEPTION_FLAG_NONE ), hasParamsName( PARAMS_STRING_NAME ),
                                  hasPrimitiveTypes( OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM | OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE
                                                     | OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE ),

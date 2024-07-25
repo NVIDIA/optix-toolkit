@@ -111,7 +111,7 @@ void OptixRenderer::initializeParamsFromOptions()
 
 void OptixRenderer::createPipeline()
 {
-    const uint_t             maxTraceDepth = 1;
+    const uint_t             maxTraceDepth{ 1 };
     OptixPipelineLinkOptions linkOptions{};
     linkOptions.maxTraceDepth = maxTraceDepth;
     OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineCompileOptions, &linkOptions, m_programGroups.data(),
