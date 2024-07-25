@@ -59,7 +59,6 @@ using OutputBuffer = otk::CUDAOutputBuffer<uchar4>;
 static demandLoading::Options getDemandLoaderOptions()
 {
     demandLoading::Options options{};
-    options.maxRequestedPages = 1024;
     options.numPageTableEntries = 6 * 1024 * 1024;
     return options;
 }
