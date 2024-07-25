@@ -535,8 +535,8 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
         return false;
     }
 
-    const unsigned int MIN_REALIZED  = 512;
-    unsigned int       realizedCount = 0;
+    const unsigned int MIN_REALIZED{ 512 };
+    unsigned int       realizedCount{};
     bool               realized{};
     bool               updateNeeded{};
     for( uint_t id : sortRequestedProxyGeometriesByCameraDistance() )
@@ -775,8 +775,8 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
         return MaterialResolution::NONE;
     }
 
-    MaterialResolution realized{ MaterialResolution::NONE };
-    const unsigned int MIN_REALIZED{ 16 };
+    MaterialResolution resolution{ MaterialResolution::NONE };
+    const unsigned int MIN_REALIZED{ 512 };
     unsigned int       realizedCount{};
     for( uint_t id : m_materialLoader->requestedMaterialIds() )
     {
@@ -785,7 +785,7 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
             break;
         }
 
-        realized = std::max( realized, resolveMaterial( id ) );
+        resolution = std::max( resolution, resolveMaterial( id ) );
 
         if( m_resolveOneMaterial )
         {
@@ -794,7 +794,7 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
         }
     }
 
-    switch( realized )
+    switch( resolution )
     {
         case MaterialResolution::NONE:
             break;
@@ -814,7 +814,7 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
             ++m_stats.numMaterialsRealized;
             break;
     }
-    return realized;
+    return resolution;
 }
 
 bool PbrtScene::frameBudgetExceeded() const
@@ -834,8 +834,8 @@ bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
     m_ticket.wait();
     m_frameStart = Clock::now();
 
-    const bool               realizedGeometry = resolveRequestedProxyGeometries( stream );
     const MaterialResolution realizedMaterial = resolveRequestedProxyMaterials( stream );
+    const bool               realizedGeometry = resolveRequestedProxyGeometries( stream );
 
     if( realizedGeometry || realizedMaterial != MaterialResolution::NONE )
     {
