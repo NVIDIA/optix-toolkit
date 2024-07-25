@@ -102,7 +102,7 @@ class PbrtScene : public Scene
     void                  pushInstance( OptixTraversableHandle handle );
     void                  createTopLevelTraversable( CUstream stream );
     void                  setLaunchParams( CUstream stream, Params& params );
-    std::optional<uint_t> findMaterial( const GeometryInstance& instance ) const;
+    std::optional<uint_t> findResolvedMaterial( const GeometryInstance& instance ) const;
     bool                  resolveProxyGeometry( CUstream stream, uint_t proxyGeomId );
     std::vector<uint_t>   sortRequestedProxyGeometriesByCameraDistance();
     bool                  resolveRequestedProxyGeometries( CUstream stream );

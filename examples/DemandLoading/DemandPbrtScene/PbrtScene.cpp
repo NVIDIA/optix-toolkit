@@ -362,7 +362,7 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     m_demandLoader->launchPrepare( stream, params.demandContext );
 }
 
-std::optional<uint_t> PbrtScene::findMaterial( const GeometryInstance& instance ) const
+std::optional<uint_t> PbrtScene::findResolvedMaterial( const GeometryInstance& instance ) const
 {
     // Check for loaded diffuse map
     if( ( instance.material.flags & MaterialFlags::DIFFUSE_MAP ) == MaterialFlags::DIFFUSE_MAP
@@ -437,7 +437,7 @@ bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
         geom.instance = removedProxy->createGeometry( m_renderer->getDeviceContext(), stream );
 
         // check for shared materials
-        if( const std::optional<uint_t> id = findMaterial( geom.instance ); id.has_value() )
+        if( const std::optional<uint_t> id = findResolvedMaterial( geom.instance ); id.has_value() )
         {
             // just for completeness's sake, mark the duplicate material's textures as having
             // been loaded, although we won't use the duplicate material after this.
