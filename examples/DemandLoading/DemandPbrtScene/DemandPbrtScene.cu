@@ -640,13 +640,21 @@ __device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
     }
 #endif
     const uint_t instanceId{ optixGetInstanceId() };
+#ifndef NDEBUG
+    if( instanceId >= params.numInstanceMaterialIds )
+    {
+        printf( "Requested instance id %u, only have %u instance material ids\n", instanceId, params.numInstanceMaterialIds );
+    }
     assert( instanceId < params.numInstanceMaterialIds );
+#endif
     const uint_t materialId{ params.instanceMaterialIds[instanceId] };
+#ifndef NDEBUG
     if( materialId >= params.numRealizedMaterials )
     {
         printf( "Requested instance id %u, material id %u, only have %u materials\n", instanceId, materialId, params.numRealizedMaterials );
     }
     assert( materialId < params.numRealizedMaterials );
+#endif
     return realizedMaterials[materialId];
 }
 
