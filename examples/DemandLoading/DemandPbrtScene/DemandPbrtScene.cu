@@ -573,16 +573,30 @@ __device__ __forceinline__ float2 interpolateUVs( const TriangleUVs& uv )
 __device__ __forceinline__ uint_t getPartialAlphaTextureId()
 {
     // use PARAMS_VAR_NAME.partialMaterials[demandMaterial::app::getMaterialId()].alphaTextureId to sample alpha texture
-    const uint_t     materialId       = demandMaterial::app::getMaterialId();
-    PartialMaterial* partialMaterials = PARAMS_VAR_NAME.partialMaterials;
+    const uint_t     materialId{ demandMaterial::app::getMaterialId() };
+    const Params&    params{ PARAMS_VAR_NAME };
+    PartialMaterial* partialMaterials{ params.partialMaterials };
 #ifndef NDEBUG
     if( partialMaterials == nullptr )
     {
         printf( "Parameters partialMaterials array is nullptr!\n" );
         return 0xdeadbeefU;
     }
+    if( materialId >= params.numPartialMaterials )
+    {
+        printf( "Material id %u exceeds size %u num partial materials\n", materialId, params.numPartialMaterials );
+    }
+    assert( materialId < params.numPartialMaterials );
 #endif
-    return partialMaterials[materialId].alphaTextureId;
+    const uint_t alphaTextureId = partialMaterials[materialId].alphaTextureId;
+#ifndef NDEBUG
+    if( alphaTextureId < params.minAlphaTextureId || alphaTextureId > params.maxAlphaTextureId )
+    {
+        printf( "Alpha texture id %u out of range [%u, %u]\n", alphaTextureId, params.minAlphaTextureId, params.maxAlphaTextureId );
+    }
+    assert( alphaTextureId >= params.minAlphaTextureId && alphaTextureId <= params.maxAlphaTextureId );
+#endif
+    return alphaTextureId;
 }
 
 __device__ __forceinline__ float2 getTriangleUVs( TriangleUVs** uvs, const uint_t index )
@@ -697,9 +711,18 @@ extern "C" __global__ void __closesthit__texturedMesh()
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
         return;
 
-    RayPayload* prd = getRayPayload();
+    RayPayload*          prd{ getRayPayload() };
     const PhongMaterial& material{ getRealizedMaterial() };
-    prd->diffuseTextureId = material.diffuseTextureId;
+    const uint_t         diffuseTextureId = material.diffuseTextureId;
+#ifndef NDEBUG
+    if( diffuseTextureId < params.minDiffuseTextureId || diffuseTextureId > params.maxDiffuseTextureId )
+    {
+        printf( "Diffuse texture id %u out of range [%u, %u]\n", diffuseTextureId, params.minDiffuseTextureId, params.maxDiffuseTextureId );
+    }
+    assert( diffuseTextureId >= params.minDiffuseTextureId && diffuseTextureId <= params.maxDiffuseTextureId );
+#endif
+
+    prd->diffuseTextureId = diffuseTextureId;
     prd->material         = &material;
     prd->normal           = worldNormal;
     prd->uv               = uv;

@@ -358,6 +358,10 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
         params.numInfiniteLights = static_cast<uint_t>( m_sync.infiniteLights.size() );
         params.infiniteLights    = m_sync.infiniteLights.typedDevicePtr();
     }
+    params.minAlphaTextureId   = m_sync.minAlphaTextureId;
+    params.maxAlphaTextureId   = m_sync.maxAlphaTextureId;
+    params.minDiffuseTextureId = m_sync.minDiffuseTextureId;
+    params.maxDiffuseTextureId = m_sync.maxDiffuseTextureId;
 
     m_demandLoader->launchPrepare( stream, params.demandContext );
 }
@@ -707,8 +711,10 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
         if( flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP )
             && !flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
         {
-            geom.instance.material.alphaTextureId =
-                m_demandTextureCache->createAlphaTextureFromFile( geom.instance.alphaMapFileName );
+            const uint_t alphaTextureId = m_demandTextureCache->createAlphaTextureFromFile( geom.instance.alphaMapFileName );
+            m_sync.minAlphaTextureId              = std::min( alphaTextureId, m_sync.minAlphaTextureId );
+            m_sync.maxAlphaTextureId              = std::max( alphaTextureId, m_sync.maxAlphaTextureId );
+            geom.instance.material.alphaTextureId = alphaTextureId;
             geom.instance.material.flags |= MaterialFlags::ALPHA_MAP_ALLOCATED;
             const size_t numProxyMaterials = proxyMaterialId + 1;  // ids are zero based
             grow( m_sync.partialMaterials, numProxyMaterials );
@@ -736,8 +742,10 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
         if( flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP )
             && !flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
         {
-            geom.instance.material.diffuseTextureId =
-                m_demandTextureCache->createDiffuseTextureFromFile( geom.instance.diffuseMapFileName );
+            const uint_t diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( geom.instance.diffuseMapFileName );
+            m_sync.minDiffuseTextureId              = std::min( diffuseTextureId, m_sync.minDiffuseTextureId );
+            m_sync.maxDiffuseTextureId              = std::max( diffuseTextureId, m_sync.maxDiffuseTextureId );
+            geom.instance.material.diffuseTextureId = diffuseTextureId;
             geom.instance.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
         }
     }
