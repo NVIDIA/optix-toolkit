@@ -52,10 +52,16 @@ target_sources( DemandPbrtSceneKernelCuda
         PhongShade.h
 )
 
+option(DEMANDPBRTSCENE_PBRT_CAMERA "Enable interactive switch to pbrt camera model (WIP)" OFF)
+mark_as_advanced(DEMANDPBRTSCENE_PBRT_CAMERA)
+configure_file(Config.h.in Config.h)
+
 add_library(DemandPbrtSceneImpl STATIC
     Accumulator.h
     Application.h
     Application.cpp
+    Config.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/Config.h
     CudaContext.h
     CudaContext.cpp
     DemandTextureCache.h
@@ -96,8 +102,10 @@ add_library(DemandPbrtSceneImpl STATIC
     UserInterface.h
     UserInterfaceStatistics.h
 )
+source_group("CMake Template Files" REGULAR_EXPRESSION "^.*\.in$")
 set_target_properties(DemandPbrtSceneImpl PROPERTIES FOLDER "Examples/DemandLoading")
 target_include_directories(DemandPbrtSceneImpl PUBLIC .)
+target_include_directories(DemandPbrtSceneImpl PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(DemandPbrtSceneImpl PUBLIC 
     PbrtSceneLoader
     DemandPbrtSceneKernel

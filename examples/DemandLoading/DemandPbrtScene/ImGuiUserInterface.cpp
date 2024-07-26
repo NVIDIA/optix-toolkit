@@ -29,7 +29,6 @@
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
 #include "ImGuiUserInterface.h"
-#include "FrameRate.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -44,6 +43,8 @@
 #include <iomanip>
 #include <utility>
 
+#include "Config.h"
+#include "FrameRate.h"
 #include "Renderer.h"
 #include "Scene.h"
 
@@ -246,7 +247,7 @@ void ImGuiUserInterface::renderOptions()
         if( ImGui::TreeNode( "Rendering Options" ) )
         {
             renderToggleOption( m_options.faceForward, "Face forward" );
-#ifndef NDEBUG
+#ifdef DEMANDPBRTSCENE_PBRT_CAMERA
             renderToggleOption( m_options.usePinholeCamera, "Use pinhole camera, not pbrt camera" );
 #endif
             ImGui::TreePop();
