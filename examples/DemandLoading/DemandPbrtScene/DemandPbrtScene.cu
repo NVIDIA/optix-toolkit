@@ -185,7 +185,9 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
     // Compute ray using look at parameters.
     const float2 d = make_float2( idx.x + rnd( rseed ), idx.y + rnd( rseed ) ) / imageSize * 2.f - 1.f;
-    float3       u, v, w;
+    float3       u;
+    float3       v;
+    float3       w;
     uvwFrame( lookAt, camera, u, v, w );
     const float3 pinholeRayOrigin = lookAt.eye;
     const float3 pinholeRayDir    = otk::normalize( d.x * u + d.y * v + w );
@@ -260,7 +262,8 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     }
 
     RayPayload prd{};
-    unsigned int u0, u1;
+    unsigned int u0;
+    unsigned int u1;
     packPointer( &prd, u0, u1 );
 
     prd.rayDistance = tMax;
