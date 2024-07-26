@@ -50,9 +50,9 @@ enum RayType
 
 enum RenderMode
 {
-    PHONG_SHADING = 0,
-    SHORT_AO,
-    LONG_AO,
+    PRIMARY_RAY = 0,
+    NEAR_AO,
+    DISTANT_AO,
     PATH_TRACING
 };
 
