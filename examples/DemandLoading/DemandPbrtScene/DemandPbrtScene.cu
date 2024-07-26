@@ -167,10 +167,9 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const PerspectiveCamera& camera{ params.camera };
     const float2             imageSize{ static_cast<float>( params.width ), static_cast<float>( params.height ) };
     const uint_t             pixel{ params.width * idx.y + idx.x };
-
-    const int renderMode = params.renderMode;
-    const int subframe = static_cast<int>( params.accumulator[pixel].w );
-    unsigned int rseed = srand( idx.x, idx.y, subframe );
+    const RenderMode         renderMode{ params.renderMode };
+    const int                subframe{ static_cast<int>( params.accumulator[pixel].w ) };
+    unsigned int             rseed{ srand( idx.x, idx.y, subframe ) };
 
     // Compute ray as pbrt would.
     const otk::Transform4 screenToRaster{ otk::scale( imageSize.x, imageSize.y, 1.0f )
@@ -292,7 +291,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     }
 
     // Phong shading
-    if ( renderMode == PRIMARY_RAY )
+    if ( renderMode == RenderMode::PRIMARY_RAY )
     {
         if( prd.material == nullptr )
         {
@@ -322,7 +321,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
     // Path tracing starts out with diffuse color, ambient occlusion with white
     float3 sampleColor = float3{1.0f, 1.0f, 1.0f};
-    if( renderMode == PATH_TRACING && prd.diffuseTextureId != 0xffffffff )
+    if( renderMode == RenderMode::PATH_TRACING && prd.diffuseTextureId != 0xffffffff )
     {
         bool isResident;
         float4 texel = demandLoading::tex2D<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, &isResident );
@@ -335,8 +334,8 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     }
 
     // Ambient Occlusion and Diffuse Path Tracing
-    const float rayTmax = (renderMode == NEAR_AO) ? 128.0f : 1000000.0f;
-    const float maxRayDepth = (renderMode != PATH_TRACING) ? 1 : 3;
+    const float rayTmax = (renderMode == RenderMode::NEAR_AO) ? 128.0f : 1000000.0f;
+    const float maxRayDepth = (renderMode != RenderMode::PATH_TRACING) ? 1 : 3;
 
     for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )
     {
@@ -376,7 +375,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
             sampleColor *= 0.0f;
     }
 
-    if( renderMode == PATH_TRACING )
+    if( renderMode == RenderMode::PATH_TRACING )
     {
         // Background is the light source in path tracing mode
         sampleColor *= params.background;
