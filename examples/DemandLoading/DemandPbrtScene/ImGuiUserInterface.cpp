@@ -149,7 +149,7 @@ void ImGuiUserInterface::renderGeometryCacheStatistics() const
     if( ImGui::TreeNode( "Geometry Cache" ) )
     {
         const auto& stats{ m_stats.geometryCache };
-        ImGui::Text( "Traversables: %u", stats.numTraversables );
+        ImGui::Text( "Meshes: %u", stats.numTraversables );
         ImGui::Text( "Triangles: %u", stats.numTriangles );
         ImGui::Text( "Spheres: %u", stats.numSpheres );
         ImGui::Text( "Normals: %u", stats.numNormals );
@@ -201,7 +201,7 @@ void ImGuiUserInterface::renderSceneStatistics() const
     {
         const auto& stats{ m_stats.scene };
         ImGui::Text( "Proxy geometries resolved: %u", stats.numProxyGeometriesResolved );
-        ImGui::Text( "Geometries realized; %u", stats.numGeometriesRealized );
+        ImGui::Text( "Geometries realized: %u", stats.numGeometriesRealized );
         ImGui::Text( "Proxy materials created: %u", stats.numProxyMaterialsCreated );
         ImGui::Text( "Partial materials realized: %u", stats.numPartialMaterialsRealized );
         ImGui::Text( "Materials realized: %u", stats.numMaterialsRealized );
@@ -250,28 +250,33 @@ void ImGuiUserInterface::renderOptions()
 #ifdef DEMANDPBRTSCENE_PBRT_CAMERA
             renderToggleOption( m_options.usePinholeCamera, "Use pinhole camera, not pbrt camera" );
 #endif
+            if( ImGui::TreeNode( "Render Mode" ) )
+            {
+                int currentRenderMode = m_options.renderMode;
+                ImGui::RadioButton( "Primary ray", &m_options.renderMode, PRIMARY_RAY );
+                ImGui::RadioButton( "Near AO", &m_options.renderMode, NEAR_AO );
+                ImGui::RadioButton( "Distant AO", &m_options.renderMode, DISTANT_AO );
+                ImGui::RadioButton( "Path tracing", &m_options.renderMode, PATH_TRACING );
+                ImGui::TreePop();
+                ImGui::Spacing();
+                if( currentRenderMode != m_options.renderMode )
+                    m_renderer->setClearAccumulator();
+            }
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        if( ImGui::TreeNode( "Render Mode" ) )
+        if( ImGui::TreeNode( "Logging Options" ) )
         {
-            int currentRenderMode = m_options.renderMode;
-            ImGui::RadioButton( "Primary ray", &m_options.renderMode, PRIMARY_RAY );
-            ImGui::RadioButton( "Near AO", &m_options.renderMode, NEAR_AO );
-            ImGui::RadioButton( "Distant AO", &m_options.renderMode, DISTANT_AO );
-            ImGui::RadioButton( "Path tracing", &m_options.renderMode, PATH_TRACING );
-            ImGui::TreePop();
-            ImGui::Spacing();
-            if( currentRenderMode != m_options.renderMode )
-                m_renderer->setClearAccumulator();
-        }
-        if( ImGui::TreeNode( "Debug Options" ) )
-        {
-            renderDebug();
-            renderToggleOption( m_options.verboseProxyGeometryResolution, "Verbose proxy geometry resolution" );
-            renderToggleOption( m_options.verboseProxyMaterialResolution, "Verbose proxy material resolution" );
-            renderToggleOption( m_options.verboseSceneDecomposition, "Verbose scene decomposition" );
-            renderToggleOption( m_options.verboseTextureCreation, "Verbose texture creation" );
+            renderToggleOption( m_options.verboseProxyGeometryResolution, "Proxy geometry resolution" );
+            renderToggleOption( m_options.verboseProxyMaterialResolution, "Proxy material resolution" );
+            renderToggleOption( m_options.verboseSceneDecomposition, "Scene decomposition" );
+            renderToggleOption( m_options.verboseTextureCreation, "Texture creation" );
+            if( ImGui::TreeNode( "Debug Options" ) )
+            {
+                renderDebug();
+                ImGui::TreePop();
+                ImGui::Spacing();
+            }
             ImGui::TreePop();
             ImGui::Spacing();
         }
@@ -376,7 +381,7 @@ void ImGuiUserInterface::printLookAtKeywordValues()
     std::cout << "LookAt\n"                                                              //
               << "    " << eye.x << "    " << eye.y << "    " << eye.z << '\n'           //
               << "    " << lookAt.x << "    " << lookAt.y << "    " << lookAt.z << '\n'  //
-              << "    " << up.x << "    " << up.y << "    " << up.z << '\n';             //
+              << "    " << up.x << "    " << up.y << "    " << up.z << '\n';
 }
 
 void ImGuiUserInterface::togglePause()
