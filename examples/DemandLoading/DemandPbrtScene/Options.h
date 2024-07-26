@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "RenderMode.h"
+
 #include <functional>
 #include <string>
 
@@ -58,7 +60,7 @@ struct Options
     bool        debug{};
     bool        oneShotDebug{};
     int2        debugPixel{};
-    int         renderMode{};
+    RenderMode  renderMode{};
 };
 
 using UsageFn = void( const char* program, const char* message );

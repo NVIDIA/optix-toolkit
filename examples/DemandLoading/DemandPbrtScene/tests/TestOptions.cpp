@@ -38,6 +38,26 @@
 #include <utility>
 #include <vector>
 
+namespace demandPbrtScene {
+
+std::ostream& operator<<( std::ostream& str, RenderMode value )
+{
+    switch( value )
+    {
+        case RenderMode::PRIMARY_RAY:
+            return str << "primary";
+        case RenderMode::NEAR_AO:
+            return str << "near";
+        case RenderMode::DISTANT_AO:
+            return str << "distant";
+        case RenderMode::PATH_TRACING:
+            return str << "path";
+    }
+    return str << "? (" << +value << ')';
+}
+
+}
+
 namespace {
 
 using namespace testing;
@@ -367,4 +387,53 @@ TEST_F( TestOptions, tooLargeDebugPixelY )
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "bad debug pixel value" ) ) ).Times( 1 );
 
     const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--debug=128/384", "--dim=256x256", "scene.pbrt" } );
+}
+
+TEST_F( TestOptions, defaultRenderModePrimaryRay )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt" } );
+
+    EXPECT_EQ( demandPbrtScene::RenderMode::PRIMARY_RAY, options.renderMode );
+}
+
+TEST_F( TestOptions, renderModePrimaryRay )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt", "--render-mode=primary" } );
+
+    EXPECT_EQ( demandPbrtScene::RenderMode::PRIMARY_RAY, options.renderMode );
+}
+
+TEST_F( TestOptions, renderModeNearAmbientOcclusion )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=near", "scene.pbrt" } );
+
+    EXPECT_EQ( demandPbrtScene::RenderMode::NEAR_AO, options.renderMode );
+}
+
+TEST_F( TestOptions, renderModeDistantAmbientOcclusion )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=distant" , "scene.pbrt"} );
+
+    EXPECT_EQ( demandPbrtScene::RenderMode::DISTANT_AO, options.renderMode );
+}
+
+TEST_F( TestOptions, renderModePathTracing )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=path" , "scene.pbrt"} );
+
+    EXPECT_EQ( demandPbrtScene::RenderMode::PATH_TRACING, options.renderMode );
+}
+
+TEST_F( TestOptions, missingRenderMode )
+{
+    EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "missing render mode value" ) ) ).Times( 1 );
+
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=" , "scene.pbrt"} );
+}
+
+TEST_F( TestOptions, unknownRenderMode )
+{
+    EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "bad render mode value: foo" ) ) ).Times( 1 );
+
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=foo" , "scene.pbrt"} );
 }

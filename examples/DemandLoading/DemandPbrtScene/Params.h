@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "RenderMode.h"
+
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 #include <OptiXToolkit/ShaderUtil/DebugLocation.h>
 #include <OptiXToolkit/ShaderUtil/Transform4.h>
@@ -46,14 +48,6 @@ enum RayType
 {
     RAYTYPE_RADIANCE = 0,
     RAYTYPE_COUNT
-};
-
-enum RenderMode
-{
-    PRIMARY_RAY = 0,
-    NEAR_AO,
-    DISTANT_AO,
-    PATH_TRACING
 };
 
 enum class ProgramGroupIndex : uint_t
@@ -275,7 +269,7 @@ struct Params
     float4*                      accumulator;
     uint_t                       width;
     uint_t                       height;
-    int                          renderMode;
+    RenderMode                   renderMode;
     LookAtParams                 lookAt;
     PerspectiveCamera            camera;
     float3                       background;

@@ -252,15 +252,19 @@ void ImGuiUserInterface::renderOptions()
 #endif
             if( ImGui::TreeNode( "Render Mode" ) )
             {
-                int currentRenderMode = m_options.renderMode;
-                ImGui::RadioButton( "Primary ray", &m_options.renderMode, PRIMARY_RAY );
-                ImGui::RadioButton( "Near AO", &m_options.renderMode, NEAR_AO );
-                ImGui::RadioButton( "Distant AO", &m_options.renderMode, DISTANT_AO );
-                ImGui::RadioButton( "Path tracing", &m_options.renderMode, PATH_TRACING );
+                int currentRenderMode{ +m_options.renderMode };
+                int newRenderMode{ currentRenderMode };
+                ImGui::RadioButton( "Primary ray", &newRenderMode, +RenderMode::PRIMARY_RAY );
+                ImGui::RadioButton( "Near AO", &newRenderMode, +RenderMode::NEAR_AO );
+                ImGui::RadioButton( "Distant AO", &newRenderMode, +RenderMode::DISTANT_AO );
+                ImGui::RadioButton( "Path tracing", &newRenderMode, +RenderMode::PATH_TRACING );
                 ImGui::TreePop();
                 ImGui::Spacing();
-                if( currentRenderMode != m_options.renderMode )
+                if( currentRenderMode != newRenderMode )
+                {
+                    m_options.renderMode = static_cast<RenderMode>( newRenderMode );
                     m_renderer->setClearAccumulator();
+                }
             }
             ImGui::TreePop();
             ImGui::Spacing();

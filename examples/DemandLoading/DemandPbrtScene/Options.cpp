@@ -28,6 +28,8 @@
 
 #include "Options.h"
 
+#include "Params.h"
+
 #include <OptiXToolkit/Gui/Window.h>
 
 #include <iostream>
@@ -51,6 +53,11 @@ namespace demandPbrtScene {
         "   --bg=<red>/<green>/<blue>   Set image background color; defaults to black\n"
         "   --warmup=<count>            Render <count> frames before saving to file\n"
         "   --face-forward              Flip the direction of back face normals\n"
+        "   --render-mode=<mode>        Specify the initial rendering mode, where <mode> is one of:\n"
+        "                               primary     Use primary ray only (default)\n"
+        "                               near        Use near ambient occlusion\n"
+        "                               distant     Use distant ambient occlusion\n"
+        "                               path        Use path tracing\n"
         "   --oneshot-geometry          Enable one-shot proxy geometry resolution by keystroke\n"
         "   --oneshot-material          Enable one-shot proxy material resolution by keystroke\n"
         "   --proxy-resolution          Enable verbose logging of resolution of proxy geometries and materials\n"
@@ -208,6 +215,34 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         else if( arg == "--face-forward" )
         {
             options.faceForward = true;
+        }
+        else if( beginsWith( arg, "--render-mode=" ) )
+        {
+            const std::string value{ extractValue( arg ) };
+            if( value.empty() )
+            {
+                usage( argv[0], "missing render mode value" );
+            }
+            else if( value == "primary" )
+            {
+                options.renderMode = RenderMode::PRIMARY_RAY;
+            }
+            else if( value == "near" )
+            {
+                options.renderMode = RenderMode::NEAR_AO;
+            }
+            else if( value == "distant" )
+            {
+                options.renderMode = RenderMode::DISTANT_AO;
+            }
+            else if( value == "path" )
+            {
+                options.renderMode = RenderMode::PATH_TRACING;
+            }
+            else
+            {
+                usage( argv[0], ( "bad render mode value: " + value ).c_str() );
+            }
         }
         else if( arg[0] == '-' )
         {
