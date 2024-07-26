@@ -338,7 +338,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneShape( GeometryLoaderPtr geometryLoader, Sc
     const uint_t                      id    = geometryLoader->add( toOptixAabb( shape.transform( shape.bounds ) ) );
     if( m_options.verboseSceneDecomposition )
     {
-        std::cout << "Added scene shape[" << shapeIndex << "] as proxy " << id << '\n';
+        std::cout << "Added scene shape[" << shapeIndex << "] as proxy id " << id << '\n';
     }
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<ShapeProxy>( m_geometryCache, id, scene, shapeIndex );
@@ -358,7 +358,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstance( GeometryLoaderPtr geometryLoader,
     const uint_t id = geometryLoader->add( toOptixAabb( instance.transform( instance.bounds ) ) );
     if( m_options.verboseSceneDecomposition )
     {
-        std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] as proxy " << id << '\n';
+        std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] as proxy id " << id << '\n';
     }
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<InstanceProxy>( id, scene, instanceIndex );
@@ -373,7 +373,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( GeometryLoaderPtr geometryLo
     if( m_options.verboseSceneDecomposition )
     {
         std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] shape[" << shapeIndex
-                  << "] as proxy " << id << '\n';
+                  << "] as proxy id " << id << '\n';
     }
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<InstanceShapeProxy>( m_geometryCache, id, scene, instanceIndex, shapeIndex );
