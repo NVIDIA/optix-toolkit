@@ -292,7 +292,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     }
 
     // Phong shading
-    if ( renderMode == PHONG_SHADING )
+    if ( renderMode == PRIMARY_RAY )
     {
         if( prd.material == nullptr )
         {
@@ -335,7 +335,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     }
 
     // Ambient Occlusion and Diffuse Path Tracing
-    const float rayTmax = (renderMode == SHORT_AO) ? 128.0f : 1000000.0f;
+    const float rayTmax = (renderMode == NEAR_AO) ? 128.0f : 1000000.0f;
     const float maxRayDepth = (renderMode != PATH_TRACING) ? 1 : 3;
 
     for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )

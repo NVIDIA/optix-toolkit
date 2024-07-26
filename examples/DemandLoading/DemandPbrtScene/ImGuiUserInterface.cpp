@@ -256,10 +256,10 @@ void ImGuiUserInterface::renderOptions()
         if( ImGui::TreeNode( "Render Mode" ) )
         {
             int currentRenderMode = m_options.renderMode;
-            ImGui::RadioButton( "Phong Shading", &m_options.renderMode, PHONG_SHADING );
-            ImGui::RadioButton( "Short AO", &m_options.renderMode, SHORT_AO );
-            ImGui::RadioButton( "Long AO", &m_options.renderMode, LONG_AO );
-            ImGui::RadioButton( "Path Tracing", &m_options.renderMode, PATH_TRACING );
+            ImGui::RadioButton( "Primary ray", &m_options.renderMode, PRIMARY_RAY );
+            ImGui::RadioButton( "Near AO", &m_options.renderMode, NEAR_AO );
+            ImGui::RadioButton( "Distant AO", &m_options.renderMode, DISTANT_AO );
+            ImGui::RadioButton( "Path tracing", &m_options.renderMode, PATH_TRACING );
             ImGui::TreePop();
             ImGui::Spacing();
             if( currentRenderMode != m_options.renderMode )
