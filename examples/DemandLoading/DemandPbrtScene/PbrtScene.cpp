@@ -431,7 +431,8 @@ bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
         }
         if( m_options.verboseProxyGeometryResolution )
         {
-            std::cout << "Resolved proxy geometry " << proxyGeomId << " to " << IdRange{ subProxies } << '\n';
+            std::cout << "Resolved proxy geometry id " << proxyGeomId << " to "
+                      << ( subProxies.size() > 1 ? "ids " : "id " ) << IdRange{ subProxies } << '\n';
         }
     }
     else
@@ -471,10 +472,10 @@ bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
             m_realizedGeometries[geom.instanceIndex] = geom;
             ++m_stats.numMaterialsReused;
 
-            if( m_options.verboseProxyGeometryResolution || m_options.verboseProxyMaterialResolution )
+            if( m_options.verboseProxyGeometryResolution )
             {
-                std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex
-                          << " with existing material " << materialId << '\n';
+                std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
+                          << geom.instanceIndex << " with existing material id " << materialId << '\n';
             }
 
             updateNeeded = true;
@@ -490,8 +491,8 @@ bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
             m_proxyMaterialGeometries[materialId] = geom;
             if( m_options.verboseProxyGeometryResolution )
             {
-                std::cout << "Resolved proxy geometry " << proxyGeomId << " to geometry instance " << geom.instanceIndex
-                          << " with proxy material " << geom.materialId << '\n';
+                std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
+                          << geom.instanceIndex << " with proxy material id " << geom.materialId << '\n';
             }
             ++m_stats.numProxyMaterialsCreated;
         }
@@ -724,7 +725,7 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
             m_sync.topLevelInstances[geom.instanceIndex].sbtOffset  = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
-                std::cout << "Resolved proxy material " << proxyMaterialId << " to partial alpha texture "
+                std::cout << "Resolved proxy material id " << proxyMaterialId << " to partial alpha texture id "
                           << geom.instance.material.alphaTextureId << '\n';
             }
             return MaterialResolution::PARTIAL;
@@ -767,7 +768,7 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
     if( m_options.verboseProxyMaterialResolution )
     {
         std::cout
-            << "Resolved proxy material " << proxyMaterialId << " for instance " << geom.instance.instance.instanceId
+            << "Resolved proxy material id " << proxyMaterialId << " for instance id " << geom.instance.instance.instanceId
             << ( flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ? " with diffuse map" : "" )
             << '\n';
     }
