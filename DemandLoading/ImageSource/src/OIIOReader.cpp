@@ -37,6 +37,8 @@
 #include <mutex>
 #include <vector>
 
+#include "Stopwatch.h"
+
 namespace imageSource {
 
 CUarray_format pixelTypeToArrayFormat( const OIIO::TypeDesc& type )
@@ -186,6 +188,7 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, 
 {
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
 
+    Stopwatch stopwatch;
     OIIO::ImageSpec spec;
     {
         std::lock_guard<std::mutex> guard( m_mutex );
@@ -254,9 +257,9 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, 
             }
         }
     }
-
     {
-        std::lock_guard<std::mutex> guard( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
+        m_totalReadTime += stopwatch.elapsed();
         ++m_numTilesRead;
     }
     return true;
@@ -286,6 +289,7 @@ bool OIIOReader::readMipLevel( char*        dest,
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
     OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read missing mip level" );
 
+    Stopwatch stopwatch;
     OIIO::ImageSpec spec;
     unsigned int    bytesPerPixel;
     {
@@ -314,13 +318,17 @@ bool OIIOReader::readMipLevel( char*        dest,
         const int          numYTiles        = 1 + ( ( spec.height - 1 ) / actualTileHeight );
         const int          numZTiles        = 1 + ( ( spec.depth - 1 ) / actualTileDepth );
 
+        std::lock_guard<std::mutex> guard( m_statsMutex );
         m_numTilesRead += numXTiles * numYTiles * numZTiles;
         m_numBytesRead += numXTiles * numYTiles * numZTiles * actualTileSize;
+        m_totalReadTime += stopwatch.elapsed();
     }
     else
     {
+        std::lock_guard<std::mutex> guard( m_statsMutex );
         m_numTilesRead += 1;
         m_numBytesRead += spec.width * spec.height * spec.depth * bytesPerPixel;
+        m_totalReadTime += stopwatch.elapsed();
     }
     return true;
 }
