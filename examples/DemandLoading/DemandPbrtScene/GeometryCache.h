@@ -62,6 +62,18 @@ class GeometryCache
     virtual GeometryCacheStatistics getStatistics() const = 0;
 };
 
-GeometryCachePtr createGeometryCache();
+class FileSystemInfo
+{
+public:
+    virtual ~FileSystemInfo() = default;
+
+    virtual unsigned long long getSize( const std::string& path ) const = 0;
+};
+
+using FileSystemInfoPtr = std::shared_ptr<FileSystemInfo>;
+
+FileSystemInfoPtr createFileSystemInfo();
+
+GeometryCachePtr createGeometryCache( FileSystemInfoPtr fileSystemInfo );
 
 }  // namespace demandPbrtScene

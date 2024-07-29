@@ -261,6 +261,9 @@ MATCHER_P( hasDeviceTriangleUVs, triangleMesh, "" )
 
 namespace {
 
+constexpr const char*        ARBITRARY_PLY_FILENAME{ "cube-mesh.ply" };
+constexpr unsigned long long ARBITRARY_PLY_FILE_SIZE{ 12031964U };
+
 class MockMeshLoader : public StrictMock<otk::pbrt::MeshLoader>
 {
   public:
@@ -270,6 +273,15 @@ class MockMeshLoader : public StrictMock<otk::pbrt::MeshLoader>
     MOCK_METHOD( void, load, (otk::pbrt::MeshData&), ( override ) );
 };
 
+class MockFileSystemInfo : public StrictMock<FileSystemInfo>
+{
+  public:
+    ~MockFileSystemInfo() override = default;
+
+    MOCK_METHOD( unsigned long long, getSize, (const std::string&), ( const, override ) );
+};
+
+using MockFileSystemInfoPtr = std::shared_ptr<MockFileSystemInfo>;
 using MockMeshLoaderPtr = std::shared_ptr<MockMeshLoader>;
 
 class TestGeometryCache : public Test
@@ -315,8 +327,14 @@ class TestGeometryCache : public Test
             .WillOnce( DoAll( SetArgPointee<9>( m_fakeGeomAS ), Return( OPTIX_SUCCESS ) ) );
     }
 
+    void expectPlyFileSizeReturned()
+    {
+        EXPECT_CALL( *m_fileSystemInfo, getSize( StrEq( ARBITRARY_PLY_FILENAME ) ) ).WillRepeatedly( Return( ARBITRARY_PLY_FILE_SIZE ) );
+    }
+
     CUstream               m_stream{};
-    GeometryCachePtr       m_geometryCache{ createGeometryCache() };
+    MockFileSystemInfoPtr  m_fileSystemInfo{ std::make_shared<MockFileSystemInfo>() };
+    GeometryCachePtr       m_geometryCache{ createGeometryCache( m_fileSystemInfo ) };
     StrictMock<MockOptix>  m_optix;
     OptixDeviceContext     m_fakeContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
     GeometryCacheEntry     m_geom{};
@@ -341,7 +359,7 @@ static otk::pbrt::ShapeDefinition makePlyShape( MockMeshLoaderPtr loader, otk::p
 {
     otk::pbrt::ShapeDefinition shape{};
     shape.type    = "plymesh";
-    shape.plyMesh = otk::pbrt::PlyMeshData{ "cube-mesh.ply", loader };
+    shape.plyMesh = otk::pbrt::PlyMeshData{ ARBITRARY_PLY_FILENAME, loader };
     EXPECT_CALL( *loader, getMeshInfo() ).WillOnce( Return( info ) );
     EXPECT_CALL( *loader, load( _ ) ).WillOnce( SetArgReferee<0>( buffers ) );
     return shape;
@@ -377,6 +395,7 @@ static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPt
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
 {
+    expectPlyFileSizeReturned();
     MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
@@ -403,10 +422,12 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
+    EXPECT_EQ( ARBITRARY_PLY_FILE_SIZE, stats.totalBytesRead );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
 {
+    expectPlyFileSizeReturned();
     MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
@@ -438,6 +459,7 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
 {
+    expectPlyFileSizeReturned();
     MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
@@ -733,6 +755,7 @@ inline bool operator==( const GeometryCacheEntry& lhs, const GeometryCacheEntry&
 
 TEST_F( TestGeometryCache, twoPlyInstancesShareSameGAS )
 {
+    expectPlyFileSizeReturned();
     MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};

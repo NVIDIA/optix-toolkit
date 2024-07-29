@@ -154,6 +154,8 @@ void ImGuiUserInterface::renderGeometryCacheStatistics() const
         ImGui::Text( "Spheres: %u", stats.numSpheres );
         ImGui::Text( "Normals: %u", stats.numNormals );
         ImGui::Text( "UVs: %u", stats.numUVs );
+        ImGui::Text( "Total bytes read: %llu", stats.totalBytesRead );
+        ImGui::Text( "Total read time: %.3f secs", stats.totalReadTime );
         ImGui::TreePop();
         ImGui::Spacing();
     }
