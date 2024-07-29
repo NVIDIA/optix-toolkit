@@ -32,15 +32,40 @@
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 
+#include <chrono>
 #include <cstdint>
+#include <filesystem>
 
 namespace demandPbrtScene {
 
 namespace {
 
+class Stopwatch
+{
+public:
+    Stopwatch()
+        : startTime( std::chrono::high_resolution_clock::now() )
+    {
+    }
+
+    /// Returns the time in seconds since the Stopwatch was constructed.
+    double elapsed() const
+    {
+        using namespace std::chrono;
+        return duration_cast<duration<double>>( high_resolution_clock::now() - startTime ).count();
+    }
+
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+};
+
 class GeometryCacheImpl : public GeometryCache
 {
   public:
+    GeometryCacheImpl( FileSystemInfoPtr fileSystemInfo )
+        : m_fileSystemInfo( fileSystemInfo )
+    {
+    }
     ~GeometryCacheImpl() override = default;
 
     GeometryCacheEntry getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape ) override;
@@ -59,6 +84,7 @@ class GeometryCacheImpl : public GeometryCache
                                  TriangleUVs*           uvs,
                                  const OptixBuildInput& build );
 
+    std::shared_ptr<FileSystemInfo>           m_fileSystemInfo;
     std::map<std::string, GeometryCacheEntry> m_plyCache;
     otk::SyncVector<float3>                   m_vertices;
     otk::SyncVector<std::uint32_t>            m_indices;
@@ -93,7 +119,12 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
     const otk::pbrt::MeshLoaderPtr loader   = plyMesh.loader;
     const otk::pbrt::MeshInfo      meshInfo = loader->getMeshInfo();
     otk::pbrt::MeshData            buffers{};
-    loader->load( buffers );
+    {
+        Stopwatch stopwatch;
+        loader->load( buffers );
+        m_stats.totalReadTime += stopwatch.elapsed();
+    }
+    m_stats.totalBytesRead += m_fileSystemInfo->getSize( plyMesh.fileName );
     m_vertices.resize( meshInfo.numVertices );
     for( int i = 0; i < meshInfo.numVertices; ++i )
     {
@@ -301,11 +332,26 @@ GeometryCacheEntry GeometryCacheImpl::buildTriangleGAS( OptixDeviceContext conte
     return buildGAS( context, stream, GeometryPrimitive::TRIANGLE, triangleNormals, triangleUVs, build );
 }
 
+class FileSystemInfoImpl : public FileSystemInfo
+{
+public:
+    ~FileSystemInfoImpl() override = default;
+  unsigned long long getSize( const std::string& path ) const override
+  {
+      return static_cast<unsigned long long>( std::filesystem::file_size( path ) );
+  }
+};
+
 }  // namespace
 
-GeometryCachePtr createGeometryCache()
+FileSystemInfoPtr createFileSystemInfo()
 {
-    return std::make_shared<GeometryCacheImpl>();
+    return std::make_shared<FileSystemInfoImpl>();
+}
+
+GeometryCachePtr createGeometryCache( FileSystemInfoPtr fileSystemInfo )
+{
+    return std::make_shared<GeometryCacheImpl>(fileSystemInfo);
 }
 
 }  // namespace demandPbrtScene
