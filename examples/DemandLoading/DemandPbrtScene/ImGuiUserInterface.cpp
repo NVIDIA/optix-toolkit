@@ -166,7 +166,7 @@ void ImGuiUserInterface::renderImageCacheStatistics( const char* label, const im
         ImGui::Text( "Num images: %u", stats.numImageSources );
         ImGui::Text( "Num tiles read: %llu", stats.totalTilesRead );
         ImGui::Text( "Num bytes read: %llu", stats.totalBytesRead );
-        ImGui::Text( "Read time: %g secs", stats.totalReadTime );
+        ImGui::Text( "Read time: %.3f secs", stats.totalReadTime );
         ImGui::TreePop();
         ImGui::Spacing();
     }
