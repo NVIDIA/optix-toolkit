@@ -51,6 +51,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
@@ -261,6 +262,18 @@ void PbrtScene::createTopLevelTraversable( CUstream stream )
         OTK_CUDA_SYNC_CHECK();
     }
 }
+;
+static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneDescriptionPtr scene )
+{
+    const auto         asUInt{ []( const size_t value ) { return static_cast<unsigned int>( value ); } };
+    PbrtFileStatistics stats{};
+    stats.fileName           = std::filesystem::path( filePath ).filename().string();
+    stats.numFreeShapes      = asUInt( scene->freeShapes.size() );
+    stats.numObjects         = asUInt( scene->objects.size() );
+    stats.numObjectShapes    = asUInt( scene->objectShapes.size() );
+    stats.numObjectInstances = asUInt( scene->objectInstances.size() );
+    return stats;
+}
 
 void PbrtScene::initialize( CUstream stream )
 {
@@ -269,8 +282,9 @@ void PbrtScene::initialize( CUstream stream )
     if( m_scene->errors > 0 )
         throw std::runtime_error( "Couldn't load scene " + m_options.sceneFile );
 
-    std::cout << "\nScene " << m_options.sceneFile << " loaded: " << m_scene->freeShapes.size() << " free shapes, "
-              << m_scene->objects.size() << " objects, " << m_scene->objectInstances.size() << " instances.\n";
+    m_stats.pbrtFile = getPbrtStatistics( m_options.sceneFile, m_scene );
+    std::cout << "\nScene " << m_options.sceneFile << " loaded: " << m_stats.pbrtFile.numFreeShapes << " free shapes, "
+              << m_stats.pbrtFile.numObjects << " objects, " << m_stats.pbrtFile.numObjectInstances << " instances.\n";
     SceneProxyPtr proxy                = m_proxyFactory->scene( m_geometryLoader, m_scene );
     m_sceneProxies[proxy->getPageId()] = proxy;
     setCamera();

@@ -28,16 +28,28 @@
 
 #pragma once
 
+#include <string>
+
 namespace demandPbrtScene {
+
+struct PbrtFileStatistics
+{
+    std::string  fileName;
+    unsigned int numFreeShapes;
+    unsigned int numObjects;
+    unsigned int numObjectShapes;
+    unsigned int numObjectInstances;
+};
 
 struct SceneStatistics
 {
-    unsigned int numProxyGeometriesResolved;
-    unsigned int numGeometriesRealized;
-    unsigned int numProxyMaterialsCreated;
-    unsigned int numPartialMaterialsRealized;
-    unsigned int numMaterialsRealized;
-    unsigned int numMaterialsReused;
+    PbrtFileStatistics pbrtFile;
+    unsigned int       numProxyGeometriesResolved;
+    unsigned int       numGeometriesRealized;
+    unsigned int       numProxyMaterialsCreated;
+    unsigned int       numPartialMaterialsRealized;
+    unsigned int       numMaterialsRealized;
+    unsigned int       numMaterialsReused;
 };
 
 }  // namespace demandPbrtScene
