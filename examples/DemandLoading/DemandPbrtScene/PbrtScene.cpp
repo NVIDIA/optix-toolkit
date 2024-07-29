@@ -50,6 +50,7 @@
 #include <optix_stubs.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <iterator>
@@ -62,6 +63,29 @@
 #endif
 
 namespace demandPbrtScene {
+
+namespace {
+
+class Stopwatch
+{
+public:
+    Stopwatch()
+        : startTime( std::chrono::high_resolution_clock::now() )
+    {
+    }
+
+    /// Returns the time in seconds since the Stopwatch was constructed.
+    double elapsed() const
+    {
+        using namespace std::chrono;
+        return duration_cast<duration<double>>( high_resolution_clock::now() - startTime ).count();
+    }
+
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
+};
+
+} // namespace
 
 PbrtScene::PbrtScene( const Options&        options,
                       PbrtSceneLoaderPtr    pbrt,
@@ -275,16 +299,25 @@ static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneD
     return stats;
 }
 
+double PbrtScene::parseScene()
+{
+    Stopwatch timer;
+    m_scene = m_sceneLoader->parseFile( m_options.sceneFile );
+    return timer.elapsed();
+}
+
 void PbrtScene::initialize( CUstream stream )
 {
     std::cout << "Reading " << m_options.sceneFile << "...\n";
-    m_scene = m_sceneLoader->parseFile( m_options.sceneFile );
+    const double parseTime = parseScene();
     if( m_scene->errors > 0 )
         throw std::runtime_error( "Couldn't load scene " + m_options.sceneFile );
 
     m_stats.pbrtFile = getPbrtStatistics( m_options.sceneFile, m_scene );
-    std::cout << "\nScene " << m_options.sceneFile << " loaded: " << m_stats.pbrtFile.numFreeShapes << " free shapes, "
-              << m_stats.pbrtFile.numObjects << " objects, " << m_stats.pbrtFile.numObjectInstances << " instances.\n";
+    m_stats.pbrtFile.parseTime= parseTime;
+    std::cout << "\nParsed scene " << m_options.sceneFile << " in " << m_stats.pbrtFile.parseTime
+              << " secs, loaded: " << m_stats.pbrtFile.numFreeShapes << " free shapes, " << m_stats.pbrtFile.numObjects
+              << " objects, " << m_stats.pbrtFile.numObjectInstances << " instances.\n";
     SceneProxyPtr proxy                = m_proxyFactory->scene( m_geometryLoader, m_scene );
     m_sceneProxies[proxy->getPageId()] = proxy;
     setCamera();

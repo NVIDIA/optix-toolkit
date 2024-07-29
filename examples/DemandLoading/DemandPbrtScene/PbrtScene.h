@@ -94,6 +94,7 @@ class PbrtScene : public Scene
   private:
     using Clock = std::chrono::steady_clock;
 
+    double                parseScene();
     void                  realizeInfiniteLights();
     void                  setCamera();
     OptixModule           createModule( const char* optixir, size_t optixirSize );
