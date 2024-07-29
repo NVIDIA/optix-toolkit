@@ -94,21 +94,21 @@ class OIIOReader : public ImageSourceBase
     /// Returns the number of tiles that have been read.
     unsigned long long getNumTilesRead() const override
     {
-        std::unique_lock<std::mutex> lock( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
         return m_numTilesRead;
     };
 
     /// Returns the number of bytes that have been read.
     unsigned long long getNumBytesRead() const override
     {
-        std::unique_lock<std::mutex> lock( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
         return m_numBytesRead;
     };
 
     /// Returns the time in seconds spent reading image tiles.
     double getTotalReadTime() const override
     {
-        std::unique_lock<std::mutex> lock( m_mutex );
+        std::unique_lock<std::mutex> lock( m_statsMutex );
         return m_totalReadTime;
     }
 
@@ -129,6 +129,7 @@ class OIIOReader : public ImageSourceBase
     bool   m_readBaseColor    = false;
     bool   m_baseColorWasRead = false;
 
+    mutable std::mutex m_statsMutex;
     unsigned long long m_numTilesRead  = 0;
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;
