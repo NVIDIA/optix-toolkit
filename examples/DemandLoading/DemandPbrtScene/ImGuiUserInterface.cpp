@@ -200,6 +200,17 @@ void ImGuiUserInterface::renderSceneStatistics() const
     if( ImGui::TreeNode( "Scene" ) )
     {
         const SceneStatistics& stats{ m_stats.scene };
+        const PbrtFileStatistics& pbrtStats{ m_stats.scene.pbrtFile };
+        if( ImGui::TreeNode( "Pbrt" ) )
+        {
+            ImGui::Text( "File: %s", pbrtStats.fileName.c_str() );
+            ImGui::Text( "Free shapes: %u", pbrtStats.numFreeShapes );
+            ImGui::Text( "Objects: %u", pbrtStats.numObjects );
+            ImGui::Text( "Object shapes: %u", pbrtStats.numObjectShapes );
+            ImGui::Text( "Object instances: %u", pbrtStats.numObjectInstances );
+            ImGui::TreePop();
+            ImGui::Spacing();
+        }
         ImGui::Text( "Proxy geometries resolved: %u", stats.numProxyGeometriesResolved );
         ImGui::Text( "Geometries realized: %u", stats.numGeometriesRealized );
         ImGui::Text( "Proxy materials created: %u", stats.numProxyMaterialsCreated );
