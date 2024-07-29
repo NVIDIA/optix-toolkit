@@ -56,6 +56,7 @@ ImGuiUserInterface::ImGuiUserInterface( Options& options, RendererPtr renderer, 
     : m_options( options )
     , m_renderer( std::move( renderer ) )
     , m_scene( std::move( scene ) )
+    , m_paused( m_options.oneShotGeometry || m_options.oneShotMaterial )
 {
 }
 
@@ -256,9 +257,15 @@ void ImGuiUserInterface::renderOptions()
     {
         if( ImGui::TreeNode( "Demand Loading Options" ) )
         {
+            const bool currentOneShotGeometry{ m_options.oneShotGeometry };
+            const bool currentOneShotMaterial{ m_options.oneShotMaterial };
             renderToggleOption( m_options.oneShotGeometry, "One shot geometry" );
             renderToggleOption( m_options.oneShotMaterial, "One shot material" );
             renderToggleOption( m_options.sortProxies, "Sort proxies" );
+            if( currentOneShotGeometry != m_options.oneShotGeometry || currentOneShotMaterial != m_options.oneShotMaterial )
+            {
+                m_paused = m_options.oneShotGeometry || m_options.oneShotMaterial;
+            }
             ImGui::TreePop();
             ImGui::Spacing();
         }
@@ -270,7 +277,7 @@ void ImGuiUserInterface::renderOptions()
 #endif
             if( ImGui::TreeNode( "Render Mode" ) )
             {
-                int currentRenderMode{ +m_options.renderMode };
+                const int currentRenderMode{ +m_options.renderMode };
                 int newRenderMode{ currentRenderMode };
                 ImGui::RadioButton( "Primary ray", &newRenderMode, +RenderMode::PRIMARY_RAY );
                 ImGui::RadioButton( "Near AO", &newRenderMode, +RenderMode::NEAR_AO );
