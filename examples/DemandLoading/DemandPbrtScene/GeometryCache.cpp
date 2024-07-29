@@ -28,6 +28,8 @@
 
 #include "GeometryCache.h"
 
+#include "Stopwatch.h"
+
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
@@ -39,25 +41,6 @@
 namespace demandPbrtScene {
 
 namespace {
-
-class Stopwatch
-{
-public:
-    Stopwatch()
-        : startTime( std::chrono::high_resolution_clock::now() )
-    {
-    }
-
-    /// Returns the time in seconds since the Stopwatch was constructed.
-    double elapsed() const
-    {
-        using namespace std::chrono;
-        return duration_cast<duration<double>>( high_resolution_clock::now() - startTime ).count();
-    }
-
-private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
-};
 
 class GeometryCacheImpl : public GeometryCache
 {
