@@ -32,6 +32,10 @@ namespace demandPbrtScene {
 
 struct ProxyFactoryStatistics
 {
+    unsigned int numSceneProxiesCreated;
+    unsigned int numShapeProxiesCreated;
+    unsigned int numInstanceProxiesCreated;
+    unsigned int numInstanceShapeProxiesCreated;
     unsigned int numGeometryProxiesCreated;
 };
 
