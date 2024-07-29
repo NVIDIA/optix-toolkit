@@ -95,6 +95,7 @@ add_library(DemandPbrtSceneImpl STATIC
     SceneProxy.h
     SceneProxy.cpp
     SceneStatistics.h
+    Stopwatch.h
     Statistics.cpp
     Statistics.h
     Timer.h

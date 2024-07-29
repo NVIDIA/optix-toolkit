@@ -37,6 +37,7 @@
 #include "Renderer.h"
 #include "SceneAdapters.h"
 #include "SceneProxy.h"
+#include "Stopwatch.h"
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -63,29 +64,6 @@
 #endif
 
 namespace demandPbrtScene {
-
-namespace {
-
-class Stopwatch
-{
-public:
-    Stopwatch()
-        : startTime( std::chrono::high_resolution_clock::now() )
-    {
-    }
-
-    /// Returns the time in seconds since the Stopwatch was constructed.
-    double elapsed() const
-    {
-        using namespace std::chrono;
-        return duration_cast<duration<double>>( high_resolution_clock::now() - startTime ).count();
-    }
-
-private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
-};
-
-} // namespace
 
 PbrtScene::PbrtScene( const Options&        options,
                       PbrtSceneLoaderPtr    pbrt,
