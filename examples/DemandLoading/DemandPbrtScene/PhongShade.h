@@ -61,8 +61,7 @@ __forceinline__ __device__ float3 phongShadeDirectionalLight( const float3&     
 
 __forceinline__ __device__ float3 phongShade( const PhongMaterial& mat, float3 const& surfaceNormal, float3 const& rayDir )
 {
-    const float3& ambientColor = PARAMS_VAR_NAME.ambientColor + float3{3.0f,3.0f,3.0f};
-    float3 result = mat.Kd * ambientColor;
+    float3 result = PARAMS_VAR_NAME.ambientColor * mat.Ka;
     {
         // directional light contribution
         const uint_t            numLights = PARAMS_VAR_NAME.numDirectionalLights;
