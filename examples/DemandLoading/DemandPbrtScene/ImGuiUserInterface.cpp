@@ -212,6 +212,7 @@ void ImGuiUserInterface::renderSceneStatistics() const
         if( ImGui::TreeNode( "Pbrt" ) )
         {
             ImGui::Text( "File: %s", pbrtStats.fileName.c_str() );
+            ImGui::Text( "Parse time: %.3f secs", pbrtStats.parseTime );
             ImGui::Text( "Free shapes: %u", pbrtStats.numFreeShapes );
             ImGui::Text( "Objects: %u", pbrtStats.numObjects );
             ImGui::Text( "Object shapes: %u", pbrtStats.numObjectShapes );

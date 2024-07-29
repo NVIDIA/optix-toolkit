@@ -35,6 +35,7 @@ namespace demandPbrtScene {
 struct PbrtFileStatistics
 {
     std::string  fileName;
+    double       parseTime;
     unsigned int numFreeShapes;
     unsigned int numObjects;
     unsigned int numObjectShapes;
