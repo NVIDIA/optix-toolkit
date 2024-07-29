@@ -148,7 +148,7 @@ void ImGuiUserInterface::renderGeometryCacheStatistics() const
 {
     if( ImGui::TreeNode( "Geometry Cache" ) )
     {
-        const auto& stats{ m_stats.geometryCache };
+        const GeometryCacheStatistics& stats{ m_stats.geometryCache };
         ImGui::Text( "Meshes: %u", stats.numTraversables );
         ImGui::Text( "Triangles: %u", stats.numTriangles );
         ImGui::Text( "Spheres: %u", stats.numSpheres );
@@ -199,7 +199,7 @@ void ImGuiUserInterface::renderSceneStatistics() const
 {
     if( ImGui::TreeNode( "Scene" ) )
     {
-        const auto& stats{ m_stats.scene };
+        const SceneStatistics& stats{ m_stats.scene };
         ImGui::Text( "Proxy geometries resolved: %u", stats.numProxyGeometriesResolved );
         ImGui::Text( "Geometries realized: %u", stats.numGeometriesRealized );
         ImGui::Text( "Proxy materials created: %u", stats.numProxyMaterialsCreated );
