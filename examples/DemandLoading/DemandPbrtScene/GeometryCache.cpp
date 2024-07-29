@@ -36,6 +36,8 @@
 
 namespace demandPbrtScene {
 
+namespace {
+
 class GeometryCacheImpl : public GeometryCache
 {
   public:
@@ -63,7 +65,7 @@ class GeometryCacheImpl : public GeometryCache
     otk::SyncVector<float>                    m_radii;
     otk::SyncVector<TriangleNormals>          m_normals;
     otk::SyncVector<TriangleUVs>              m_uvs;
-    GeometryCacheStatistics                        m_stats{};
+    GeometryCacheStatistics                   m_stats{};
 };
 
 GeometryCacheEntry GeometryCacheImpl::getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape )
@@ -230,18 +232,18 @@ GeometryCacheEntry GeometryCacheImpl::buildGAS( OptixDeviceContext     context,
 #endif
 
     ++m_stats.numTraversables;
-    switch (primitive)
+    switch( primitive )
     {
-    case GeometryPrimitive::NONE:
-        break;
-    case GeometryPrimitive::TRIANGLE:
-        m_stats.numTriangles += build.triangleArray.numIndexTriplets;
-        m_stats.numNormals += static_cast<unsigned int>( m_normals.size() * 3 );
-        m_stats.numUVs += static_cast<unsigned int>( m_uvs.size() * 3 );
-        break;
-    case GeometryPrimitive::SPHERE:
-        m_stats.numSpheres += build.sphereArray.numVertices;
-        break;
+        case GeometryPrimitive::NONE:
+            break;
+        case GeometryPrimitive::TRIANGLE:
+            m_stats.numTriangles += build.triangleArray.numIndexTriplets;
+            m_stats.numNormals += static_cast<unsigned int>( m_normals.size() * 3 );
+            m_stats.numUVs += static_cast<unsigned int>( m_uvs.size() * 3 );
+            break;
+        case GeometryPrimitive::SPHERE:
+            m_stats.numSpheres += build.sphereArray.numVertices;
+            break;
     }
 
     return { output.detach(), traversable, primitive, normals, uvs };
@@ -298,6 +300,8 @@ GeometryCacheEntry GeometryCacheImpl::buildTriangleGAS( OptixDeviceContext conte
     static_cast<void>( m_uvs.detach() );
     return buildGAS( context, stream, GeometryPrimitive::TRIANGLE, triangleNormals, triangleUVs, build );
 }
+
+}  // namespace
 
 GeometryCachePtr createGeometryCache()
 {
