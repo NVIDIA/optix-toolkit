@@ -191,7 +191,12 @@ void ImGuiUserInterface::renderProxyFactoryStatistics() const
 {
     if( ImGui::TreeNode( "Proxy Geometry" ) )
     {
-        ImGui::Text( "Proxies created: %u", m_stats.proxyFactory.numGeometryProxiesCreated );
+        const ProxyFactoryStatistics& stats{ m_stats.proxyFactory };
+        ImGui::Text( "Scene proxies created: %u", stats.numSceneProxiesCreated );
+        ImGui::Text( "Shape proxies created: %u", stats.numShapeProxiesCreated );
+        ImGui::Text( "Instance proxies created: %u", stats.numInstanceProxiesCreated );
+        ImGui::Text( "Instance shape proxies created: %u", stats.numInstanceShapeProxiesCreated );
+        ImGui::Text( "Proxies created: %u", stats.numGeometryProxiesCreated );
         ImGui::TreePop();
         ImGui::Spacing();
     }

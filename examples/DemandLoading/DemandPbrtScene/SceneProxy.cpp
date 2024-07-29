@@ -314,6 +314,8 @@ class ProxyFactoryImpl : public ProxyFactory
 
 SceneProxyPtr ProxyFactoryImpl::scene( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene )
 {
+    ++m_stats.numSceneProxiesCreated;
+
     // One free shape, no instances
     if( scene->freeShapes.size() == 1 && scene->objectInstances.empty() )
     {
@@ -340,6 +342,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneShape( GeometryLoaderPtr geometryLoader, Sc
     {
         std::cout << "Added scene shape[" << shapeIndex << "] as proxy id " << id << '\n';
     }
+    ++m_stats.numShapeProxiesCreated;
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<ShapeProxy>( m_geometryCache, id, scene, shapeIndex );
 }
@@ -360,6 +363,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstance( GeometryLoaderPtr geometryLoader,
     {
         std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] as proxy id " << id << '\n';
     }
+    ++m_stats.numInstanceProxiesCreated;
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<InstanceProxy>( id, scene, instanceIndex );
 }
@@ -375,6 +379,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( GeometryLoaderPtr geometryLo
         std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] shape[" << shapeIndex
                   << "] as proxy id " << id << '\n';
     }
+    ++m_stats.numInstanceShapeProxiesCreated;
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<InstanceShapeProxy>( m_geometryCache, id, scene, instanceIndex, shapeIndex );
 }
