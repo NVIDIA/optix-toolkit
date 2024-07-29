@@ -324,6 +324,7 @@ struct RayPayload
     unsigned int diffuseTextureId;
     bool isBackground;
     float worldSpaceTextureSize;
+    bool discardRay;
 };
 
 static __forceinline__ __device__ RayPayload* getRayPayload()

@@ -281,6 +281,12 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         return;
     }
 
+    if( prd.discardRay == true )
+    {
+        showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
+        return;
+    }
+
     // Phong shading
     if ( renderMode == PHONG_SHADING )
     {
@@ -605,7 +611,11 @@ extern "C" __global__ void __anyhit__alphaCutOutPartialMesh()
     const float2 uv        = getTriangleUVs( PARAMS_VAR_NAME.partialUVs, demandMaterial::app::getMaterialId() );
     bool         isResident{};
     const float texel = demandLoading::tex2D<float>( PARAMS_VAR_NAME.demandContext, textureId, uv.x, uv.y, &isResident );
-    const bool ignored = isResident && texel == 0.0f;
+    const bool ignored = isResident && ( texel == 0.0f );
+    if( !isResident )
+    {
+        getRayPayload()->discardRay = true;
+    }
     alphaCutOutDebugInfo( textureId, uv, isResident, texel, ignored );
     if( ignored )
     {
@@ -633,7 +643,11 @@ extern "C" __global__ void __anyhit__alphaCutOutMesh()
     const float2 uv        = getTriangleUVs( PARAMS_VAR_NAME.instanceUVs, optixGetInstanceId() );
     bool         isResident{};
     const float texel = demandLoading::tex2D<float>( PARAMS_VAR_NAME.demandContext, textureId, uv.x, uv.y, &isResident );
-    const bool ignored = isResident && texel == 0.0f;
+    const bool ignored = isResident && (texel == 0.0f);
+    if( !isResident )
+    {
+        getRayPayload()->discardRay = true;
+    }
     alphaCutOutDebugInfo( textureId, uv, isResident, texel, ignored );
     if( ignored )
     {
