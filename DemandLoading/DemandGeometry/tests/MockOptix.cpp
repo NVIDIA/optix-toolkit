@@ -27,13 +27,25 @@ namespace testing {
 
 MockOptix* g_mockOptix{};
 
-// These "empty" definitions are placed here to speed up compilation of clients of the mock class.
+// These definitions are placed here to speed up compilation of clients of the mock class.
 // See <https://google.github.io/googletest/gmock_cook_book.html#making-the-compilation-faster>
-MockOptix::MockOptix() {}
-MockOptix::~MockOptix() {}
+MockOptix::MockOptix()
+{
+    initMockOptix( *this );
+}
+MockOptix::~MockOptix()
+{
+    g_mockOptix = nullptr;
+}
 
 void initMockOptix( MockOptix& mock )
 {
+    // mock OptiX already initialized?
+    if( g_mockOptix != nullptr )
+    {
+        return;
+    }
+
     // zero out any existing function table entries
     g_optixFunctionTable = OptixFunctionTable{};
 
