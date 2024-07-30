@@ -1,10 +1,12 @@
 #include "MaterialResolver.h"
 
-#include "Options.h"
-#include "PbrtScene.h"
-#include "SceneProxy.h"
 #include "DemandTextureCache.h"
+#include "FrameStopwatch.h"
+#include "Options.h"
 #include "ProgramGroups.h"
+#include "SceneGeometry.h"
+#include "SceneProxy.h"
+#include "SceneSyncState.h"
 
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 

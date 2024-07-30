@@ -72,6 +72,9 @@ add_library(DemandPbrtSceneImpl STATIC
     GeometryCache.h
     GeometryCache.cpp
     GeometryCacheStatistics.h
+    GeometryResolver.h
+    GeometryResolver.cpp
+    GeometryResolverStatistics.h
     IdRangePrinter.h
     ImageSourceFactory.h
     ImageSourceFactory.cpp

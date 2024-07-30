@@ -30,6 +30,7 @@
 
 #include "DemandTextureCache.h"
 #include "GeometryCache.h"
+#include "GeometryResolver.h"
 #include "ImageSourceFactory.h"
 #include "MaterialResolver.h"
 #include "ProgramGroups.h"
@@ -81,7 +82,8 @@ Application::Application( int argc, char* argv[] )
     , m_demandTextureCache( createDemandTextureCache( m_demandLoader, m_imageSourceFactory ) )
     , m_programGroups( createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) )
     , m_materialResolver( createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups ) )
-    , m_scene( createScene( m_options, m_pbrt, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_programGroups, m_materialResolver, m_renderer ) )
+    , m_geometryResolver( createGeometryResolver( m_options, m_programGroups, m_geometryLoader, m_proxyFactory, m_demandTextureCache, m_materialResolver) )
+    , m_scene( createScene( m_options, m_pbrt, m_demandTextureCache, m_demandLoader, m_programGroups, m_materialResolver, m_geometryResolver, m_renderer) )
 {
 }
 

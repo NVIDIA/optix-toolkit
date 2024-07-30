@@ -30,11 +30,9 @@
 
 #include <string>
 
-#include "MaterialResolverStatistics.h"
-
 namespace demandPbrtScene {
 
-struct PbrtFileStatistics
+struct SceneStatistics
 {
     std::string  fileName;
     double       parseTime;
@@ -42,13 +40,6 @@ struct PbrtFileStatistics
     unsigned int numObjects;
     unsigned int numObjectShapes;
     unsigned int numObjectInstances;
-};
-
-struct SceneStatistics
-{
-    PbrtFileStatistics pbrtFile;
-    unsigned int       numProxyGeometriesResolved;
-    unsigned int       numGeometriesRealized;
 };
 
 }  // namespace demandPbrtScene

@@ -28,24 +28,16 @@
 
 #pragma once
 
-#include "GeometryCacheStatistics.h"
-#include "GeometryResolverStatistics.h"
-#include "ImageSourceFactoryStatistics.h"
-#include "MaterialResolverStatistics.h"
-#include "ProxyFactoryStatistics.h"
-#include "SceneStatistics.h"
+#include "Dependencies.h"
+#include "SceneProxy.h"
 
 namespace demandPbrtScene {
 
-struct UserInterfaceStatistics
+struct SceneGeometry
 {
-    unsigned int                 numFramesRendered;
-    GeometryCacheStatistics      geometryCache;
-    ImageSourceFactoryStatistics imageSourceFactory;
-    ProxyFactoryStatistics       proxyFactory;
-    GeometryResolverStatistics   geometry;
-    MaterialResolverStats        materials;
-    SceneStatistics              scene;
+    GeometryInstance instance;
+    uint_t           materialId;
+    uint_t           instanceIndex;
 };
 
 }  // namespace demandPbrtScene
