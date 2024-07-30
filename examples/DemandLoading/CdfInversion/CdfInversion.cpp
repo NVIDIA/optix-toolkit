@@ -41,6 +41,7 @@
 #include <OptiXToolkit/ShaderUtil/AliasTable.h>
 #include <OptiXToolkit/ShaderUtil/PdfTable.h>
 #include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
+#include <OptiXToolkit/ShaderUtil/ISummedAreaTable.h>
 
 #include <OptiXToolkit/Gui/Gui.h>
 #include <OptiXToolkit/Gui/glfw3.h>
@@ -88,6 +89,7 @@ class CdfInversionApp : public DemandTextureApp3D
     int m_numRisSamples = 16;
     std::vector<CdfInversionTable> m_emapInversionTables;
     std::vector<AliasTable> m_emapAliasTables;
+    std::vector<ISummedAreaTable> m_emapSummedAreaTables;
 
     void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods ) override;
     void keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods ) override;
@@ -105,6 +107,7 @@ CdfInversionApp::CdfInversionApp( const char* appTitle, unsigned int width, unsi
 
     m_emapInversionTables.resize( m_perDeviceOptixStates.size() );
     m_emapAliasTables.resize( m_perDeviceOptixStates.size() );
+    m_emapSummedAreaTables.resize( m_perDeviceOptixStates.size() );
 }
 
 void CdfInversionApp::initView()
@@ -117,6 +120,7 @@ void CdfInversionApp::cleanupState( PerDeviceOptixState& state )
     OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
     freeCdfInversionTableDevice( m_emapInversionTables[state.device_idx] );
     freeAliasTableDevice( m_emapAliasTables[state.device_idx] );
+    freeISummedAreaTableDevice( m_emapSummedAreaTables[state.device_idx] );
     DemandTextureApp::cleanupState( state );
 }
 
@@ -133,6 +137,8 @@ void CdfInversionApp::initLaunchParams( PerDeviceOptixState& state, unsigned int
     *cit = m_emapInversionTables[ state.device_idx ];
     AliasTable* at = reinterpret_cast<AliasTable*>( &state.params.c[EMAP_ALIAS_TABLE_ID] );
     *at = m_emapAliasTables[ state.device_idx ];
+    ISummedAreaTable* sat = reinterpret_cast<ISummedAreaTable*>( &state.params.c[EMAP_SUMMED_AREA_TABLE_ID] );
+    *sat = m_emapSummedAreaTables[ state.device_idx ];
 }
 
 void CdfInversionApp::createTexture()
@@ -157,7 +163,7 @@ void CdfInversionApp::createTexture()
             m_textureIds.push_back( texture.getId() );
     }
 
-    // Allocate inversion and alias tables on host
+    // Allocate inversion, alias, and summed area tables on host
     int tableWidth = texInfo.width >> m_tableMipLevel;
     int tableHeight = texInfo.height >> m_tableMipLevel;
     CdfInversionTable hostEmapInversionTable{};
@@ -165,6 +171,9 @@ void CdfInversionApp::createTexture()
 
     AliasTable hostEmapAliasTable{};
     allocAliasTableHost( hostEmapAliasTable, (int)(tableWidth * tableHeight) );
+
+    ISummedAreaTable hostEmapSummedAreaTable{};
+    allocISummedAreaTableHost( hostEmapSummedAreaTable, tableWidth, tableHeight );
 
     // Read a mip level and make a pdf from it
     TIMEPOINT imageLoadStart = now();
@@ -192,22 +201,28 @@ void CdfInversionApp::createTexture()
     }
     printf( "Time to make pdf table: %0.4f sec.\n", elapsed( makePdfStart ) );
 
-    // Invert pdf, cdf, and make alias table on host
+    // Make summed area table on host
+    TIMEPOINT makeSummedAreaTableStart = now();
+    initISummedAreaTable( hostEmapSummedAreaTable, pdf );
+    printf( "Time to make summed area table: %0.4f sec.\n", elapsed( makeSummedAreaTableStart ) );
+
+    // Make cdf table on host
     memcpy( hostEmapInversionTable.cdfRows, pdf, tableWidth * tableHeight * sizeof(float) );
-    TIMEPOINT makeCdfStart;
+    TIMEPOINT makeCdfStart = now();
     invertPdf2D( hostEmapInversionTable );
     printf( "Time to make cdf table: %0.4f sec.\n", elapsed( makeCdfStart ) );
 
+    // Invert cdf table on  host
     TIMEPOINT invertCdfStart = now();
     invertCdf2D( hostEmapInversionTable );
     printf( "Time to invert cdf table: %0.4f sec.\n", elapsed( invertCdfStart ) );
 
+    // Make alias table on host
     TIMEPOINT makeAliasTableStart = now();
     makeAliasTable( hostEmapAliasTable, pdf );
     printf( "Time to make alias table: %0.4f sec.\n", elapsed( makeAliasTableStart ) );
 
     // Copy tables to devices
-    // FIXME: The tables should be de-allocated on the device
     for( PerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
@@ -220,6 +235,8 @@ void CdfInversionApp::createTexture()
         copyToDevice( hostEmapInversionTable, m_emapInversionTables[state.device_idx] );
         allocAliasTableDevice( m_emapAliasTables[state.device_idx], tableWidth * tableHeight );
         copyToDevice( hostEmapAliasTable, m_emapAliasTables[state.device_idx] );
+        allocISummedAreaTableDevice( m_emapSummedAreaTables[state.device_idx], tableWidth, tableHeight );
+        copyToDevice( hostEmapSummedAreaTable, m_emapSummedAreaTables[state.device_idx] );
     }
 
     // Free temp host data structures

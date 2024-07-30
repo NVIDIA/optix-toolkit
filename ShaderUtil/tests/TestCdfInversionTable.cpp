@@ -27,7 +27,6 @@
 //
 
 #include <stdio.h>
-#include <OptiXToolkit/ShaderUtil/AliasTable.h>
 #include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
 #include <gtest/gtest.h>
 
