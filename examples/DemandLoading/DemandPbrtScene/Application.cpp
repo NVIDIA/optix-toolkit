@@ -27,6 +27,9 @@
 //
 
 #include "Application.h"
+
+#include <ProgramGroups.h>
+
 #include "GeometryCache.h"
 #include "ImageSourceFactory.h"
 #include "Renderer.h"
@@ -44,8 +47,8 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Gui/BufferMapper.h>
 #include <OptiXToolkit/PbrtSceneLoader/GoogleLogger.h>
-#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/PbrtSceneLoader/PlyReader.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <stdexcept>
@@ -77,13 +80,14 @@ Application::Application( int argc, char* argv[] )
     , m_proxyFactory( createProxyFactory( m_options, m_geometryCache ) )
     , m_renderer( createRenderer( m_options, m_geometryLoader->getNumAttributes() ) )
     , m_demandTextureCache( createDemandTextureCache( m_demandLoader, m_imageSourceFactory ) )
-    , m_scene( createPbrtScene( m_options, m_pbrt, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_renderer ) )
+    , m_programGroups( createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) )
+    , m_scene( createPbrtScene( m_options, m_pbrt, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_programGroups, m_renderer ) )
 {
 }
 
 void Application::initialize()
 {
-    Timer timer;
+    Timer          timer;
     const CUstream stream = m_cuda.getStream();
     m_renderer->initialize( stream );
     m_scene->initialize( stream );

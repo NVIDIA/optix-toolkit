@@ -43,6 +43,7 @@
 #include <ImageSourceFactory.h>
 #include <Options.h>
 #include <Params.h>
+#include <ProgramGroups.h>
 #include <Renderer.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
@@ -404,14 +405,6 @@ class MockSceneLoader : public StrictMock<otk::pbrt::SceneLoader>
     MOCK_METHOD( SceneDescriptionPtr, parseString, ( const std::string& str ), ( override ) );
 };
 
-class MockDemandTexture : public StrictMock<demandLoading::DemandTexture>
-{
-  public:
-    ~MockDemandTexture() override = default;
-
-    MOCK_METHOD( unsigned, getId, (), ( const, override ) );
-};
-
 class MockDemandTextureCache : public StrictMock<DemandTextureCache>
 {
   public:
@@ -438,6 +431,16 @@ class MockMaterialLoader : public StrictMock<demandMaterial::MaterialLoader>
     MOCK_METHOD( void, clearRequestedMaterialIds, (), ( override ) );
     MOCK_METHOD( bool, getRecycleProxyIds, (), ( const, override ) );
     MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
+};
+
+class MockProgramGroups : public StrictMock<ProgramGroups>
+{
+  public:
+    ~MockProgramGroups() override = default;
+
+    MOCK_METHOD( void, cleanup, (), ( override ) );
+    MOCK_METHOD( uint_t, getRealizedMaterialSbtOffset, (const GeometryInstance&), ( override ) );
+    MOCK_METHOD( void, initialize, (), ( override ) );
 };
 
 class MockSceneProxy : public StrictMock<SceneProxy>
@@ -493,15 +496,14 @@ using StrictMockOptix           = StrictMock<MockOptix>;
 using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
 using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
 using MockDemandTextureCachePtr = std::shared_ptr<MockDemandTextureCache>;
-using MockImageSourcePtr        = std::shared_ptr<MockImageSource>;
 using MockMaterialLoaderPtr     = std::shared_ptr<MockMaterialLoader>;
+using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 using MockProxyFactoryPtr       = std::shared_ptr<MockProxyFactory>;
 using MockRendererPtr           = std::shared_ptr<MockRenderer>;
 using MockSceneProxyPtr         = std::shared_ptr<MockSceneProxy>;
 
 using AccelBuildOptionsMatcher = Matcher<const OptixAccelBuildOptions*>;
 using BuildInputMatcher        = Matcher<const OptixBuildInput*>;
-using ProgramGroupDescMatcher  = Matcher<const OptixProgramGroupDesc*>;
 
 BuildInputMatcher oneInstanceIAS( OptixTraversableHandle instance, uint_t sbtOffset, uint_t instanceId )
 {
@@ -543,7 +545,6 @@ class TestPbrtScene : public Test
 
     Expectation expectAccelComputeMemoryUsage( const AccelBuildOptionsMatcher& options, const BuildInputMatcher& buildInput );
     Expectation expectAccelBuild( const AccelBuildOptionsMatcher& options, const BuildInputMatcher& buildInput, OptixTraversableHandle result );
-    Expectation    expectModuleCreated( OptixModule module );
     ExpectationSet expectInitializeCreatesOptixState();
     ExpectationSet expectInitialize();
 
@@ -555,32 +556,23 @@ class TestPbrtScene : public Test
     MockDemandLoaderPtr       m_demandLoader{ std::make_shared<StrictMockDemandLoader>() };
     MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockMaterialLoaderPtr     m_materialLoader{ std::make_shared<MockMaterialLoader>() };
+    MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
     MockRendererPtr           m_renderer{ std::make_shared<MockRenderer>() };
     Options                   m_options{ testOptions() };
     // clang-format off
-    PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_renderer };
+    PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_proxyFactory, m_demandLoader, m_geometryLoader, m_materialLoader, m_programGroups, m_renderer };
     // clang-format on
-    SceneDescriptionPtr            m_sceneDesc{ std::make_shared<otk::pbrt::SceneDescription>() };
-    OptixAabb                      m_sceneBounds{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
-    MockSceneProxyPtr              m_mockSceneProxy{ std::make_shared<MockSceneProxy>() };
-    uint_t                         m_scenePageId{ 6646U };
-    demandGeometry::Context        m_demandGeomContext{ fakeDemandGeometryContext() };
-    demandLoading::DeviceContext   m_demandLoadContext{ fakeDemandLoadingDeviceContext() };
-    OptixTraversableHandle         m_fakeProxyTraversable{ 0xbaddf00dU };
-    OptixTraversableHandle         m_fakeTopLevelTraversable{ 0xf01df01dU };
-    OptixDeviceContext             m_fakeContext{ fakeOptixDeviceContext() };
-    OptixAccelBufferSizes          m_topLevelASSizes{};
-    OptixPipelineCompileOptions    m_pipelineCompileOptions{};
-    OptixModule                    m_sceneModule{ reinterpret_cast<OptixModule>( 0x1111U ) };
-    OptixModule                    m_builtinTriangleModule{ reinterpret_cast<OptixModule>( 0x4444U ) };
-    OptixModule                    m_builtinSphereModule{ reinterpret_cast<OptixModule>( 0x5555U ) };
-    std::vector<OptixProgramGroup> m_fakeProgramGroups{ PG( 111100U ), PG( 2222000U ), PG( 333300U ), PG( 444400U ),
-                                                        PG( 555500U ), PG( 666600U ),  PG( 777700U ) };
-    const char*                    m_proxyGeomIS{ "__intersection__proxyGeometry" };
-    const char*                    m_proxyGeomCH{ "__closesthit__proxyGeometry" };
-    const char*                    m_proxyMatCH{ "__closesthit__proxyMaterial" };
-    const char*                    m_proxyMatMeshAlphaAH{ "__anyhit__alphaCutOutPartialMesh" };
-    const char*                    m_proxyMatSphereAlphaAH{ "__anyhit__sphere" };
+    SceneDescriptionPtr          m_sceneDesc{ std::make_shared<otk::pbrt::SceneDescription>() };
+    OptixAabb                    m_sceneBounds{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
+    MockSceneProxyPtr            m_mockSceneProxy{ std::make_shared<MockSceneProxy>() };
+    uint_t                       m_scenePageId{ 6646U };
+    demandGeometry::Context      m_demandGeomContext{ fakeDemandGeometryContext() };
+    demandLoading::DeviceContext m_demandLoadContext{ fakeDemandLoadingDeviceContext() };
+    OptixTraversableHandle       m_fakeProxyTraversable{ 0xbaddf00dU };
+    OptixTraversableHandle       m_fakeTopLevelTraversable{ 0xf01df01dU };
+    OptixDeviceContext           m_fakeContext{ fakeOptixDeviceContext() };
+    OptixAccelBufferSizes        m_topLevelASSizes{};
+    OptixPipelineCompileOptions  m_pipelineCompileOptions{};
 };
 
 void TestPbrtScene::SetUp()
@@ -628,19 +620,6 @@ Expectation TestPbrtScene::expectAccelBuild( const AccelBuildOptionsMatcher& opt
         .WillOnce( DoAll( SetArgPointee<9>( result ), Return( OPTIX_SUCCESS ) ) );
 }
 
-Expectation TestPbrtScene::expectModuleCreated( OptixModule module )
-{
-    Expectation expect;
-#if OPTIX_VERSION < 70700
-    expect = EXPECT_CALL( m_optix, moduleCreateFromPTX( m_fakeContext, _, _, _, _, _, _, _ ) )
-                 .WillOnce( DoAll( SetArgPointee<7>( module ), Return( OPTIX_SUCCESS ) ) );
-#else
-    expect = EXPECT_CALL( m_optix, moduleCreate( m_fakeContext, _, _, _, _, _, _, _ ) )
-                 .WillOnce( DoAll( SetArgPointee<7>( module ), Return( OPTIX_SUCCESS ) ) );
-#endif
-    return expect;
-}
-
 ExpectationSet TestPbrtScene::expectInitializeCreatesOptixState()
 {
     ExpectationSet expect;
@@ -648,6 +627,7 @@ ExpectationSet TestPbrtScene::expectInitializeCreatesOptixState()
     expect += EXPECT_CALL( *m_mockSceneProxy, getPageId() ).WillOnce( Return( m_scenePageId ) );
     // TODO: Determine why adding this expectation to the set causes a dangling reference to m_mockSceneProxy
     /*expect +=*/EXPECT_CALL( *m_proxyFactory, scene( _, _ ) ).WillOnce( Return( m_mockSceneProxy ) );
+    expect += EXPECT_CALL( *m_programGroups, initialize() );
     // This getter can be called anytime in any order.
     EXPECT_CALL( *m_renderer, getDeviceContext() ).WillRepeatedly( Return( m_fakeContext ) );
     expect += EXPECT_CALL( *m_geometryLoader, setSbtIndex( _ ) ).Times( AtLeast( 1 ) );
@@ -657,18 +637,6 @@ ExpectationSet TestPbrtScene::expectInitializeCreatesOptixState()
     EXPECT_CALL( *m_renderer, getPipelineCompileOptions() ).WillRepeatedly( ReturnRef( m_pipelineCompileOptions ) );
     expect += expectAccelComputeMemoryUsage( _, _ );
     expect += expectAccelBuild( _, _, m_fakeTopLevelTraversable );
-    expect += expectModuleCreated( m_sceneModule );
-    expect += EXPECT_CALL( m_optix, builtinISModuleGet( m_fakeContext, _, _, hasModuleTypeTriangle(), _ ) )
-                  .WillOnce( DoAll( SetArgPointee<4>( m_builtinTriangleModule ), Return( OPTIX_SUCCESS ) ) );
-    expect += EXPECT_CALL( m_optix, builtinISModuleGet( m_fakeContext, _, _, hasModuleTypeSphere(), _ ) )
-                  .WillOnce( DoAll( SetArgPointee<4>( m_builtinSphereModule ), Return( OPTIX_SUCCESS ) ) );
-    expect += EXPECT_CALL( *m_geometryLoader, getISFunctionName() ).WillRepeatedly( Return( m_proxyGeomIS ) );
-    expect += EXPECT_CALL( *m_geometryLoader, getCHFunctionName() ).WillRepeatedly( Return( m_proxyGeomCH ) );
-    expect += EXPECT_CALL( *m_materialLoader, getCHFunctionName() ).WillRepeatedly( Return( m_proxyMatCH ) );
-    expect += EXPECT_CALL( m_optix, programGroupCreate( m_fakeContext, _, m_fakeProgramGroups.size(), _, _, _, _ ) )
-                  .WillOnce( DoAll( SetArrayArgument<6>( m_fakeProgramGroups.begin(), m_fakeProgramGroups.end() ),
-                                    Return( OPTIX_SUCCESS ) ) );
-    expect += EXPECT_CALL( *m_renderer, setProgramGroups( _ ) ).Times( 1 );
     return expect;
 }
 
@@ -691,9 +659,7 @@ class TestPbrtSceneInitialized : public TestPbrtScene
     ExpectationSet expectCreateTopLevelTraversable( const BuildInputMatcher& buildInput,
                                                     OptixTraversableHandle   result,
                                                     const ExpectationSet&    before );
-    ExpectationSet expectProgramGroupAddedAfter( const ProgramGroupDescMatcher& desc, OptixProgramGroup result, const ExpectationSet& before );
-    Expectation expectModuleCreatedAfter( OptixModule module, const ExpectationSet& before );
-    Expectation expectRequestedProxyIdsAfter( std::initializer_list<uint_t> pageIds, const ExpectationSet& before );
+    Expectation    expectRequestedProxyIdsAfter( std::initializer_list<uint_t> pageIds, const ExpectationSet& before );
     Expectation expectRequestedMaterialIdsAfter( std::initializer_list<uint_t> pageIds, const ExpectationSet& before );
     Expectation expectClearRequestedProxyIdsAfter( const ExpectationSet& before );
     Expectation expectClearRequestedMaterialIdsAfter( const ExpectationSet& before );
@@ -716,16 +682,12 @@ class TestPbrtSceneInitialized : public TestPbrtScene
     void             setDistantLightOnSceneDescription();
     void             setInfiniteLightOnSceneDescription();
 
-    std::vector<OptixProgramGroup> m_updatedGroups{ m_fakeProgramGroups };
-    ExpectationSet                 m_init;
-    OptixTraversableHandle         m_fakeUpdatedProxyTraversable{ 0xf00dbad2U };
-    OptixTraversableHandle         m_fakeTriMeshTraversable{ 0xbeefbeefU };
-    OptixTraversableHandle         m_fakeSphereTraversable{ 0x11110000U };
-    OptixModule                    m_phongModule{ reinterpret_cast<OptixModule>( 0x3333U ) };
-    OptixProgramGroup              m_fakePhongProgramGroup{ PG( 8888U ) };
-    OptixProgramGroup              m_fakeAlphaPhongProgramGroup{ PG( 9999U ) };
-    uint_t                         m_fakeMaterialId{ 666U };
-    PhongMaterial                  m_realizedMaterial{
+    ExpectationSet         m_init;
+    OptixTraversableHandle m_fakeUpdatedProxyTraversable{ 0xf00dbad2U };
+    OptixTraversableHandle m_fakeTriMeshTraversable{ 0xbeefbeefU };
+    OptixTraversableHandle m_fakeSphereTraversable{ 0x11110000U };
+    uint_t                 m_fakeMaterialId{ 666U };
+    PhongMaterial          m_realizedMaterial{
         make_float3( 0.1f, 0.2f, 0.3f ),     // Ka
         make_float3( 0.4f, 0.5f, 0.6f ),     // Kd
         make_float3( 0.7f, 0.8f, 0.9f ),     // Ks
@@ -759,34 +721,6 @@ ExpectationSet TestPbrtSceneInitialized::expectCreateTopLevelTraversable( const 
                .After( before )
                .WillOnce( DoAll( SetArgPointee<9>( result ), Return( OPTIX_SUCCESS ) ) );
     return set;
-}
-
-ExpectationSet TestPbrtSceneInitialized::expectProgramGroupAddedAfter( const ProgramGroupDescMatcher& desc,
-                                                                       OptixProgramGroup              result,
-                                                                       const ExpectationSet&          before )
-{
-    m_updatedGroups.push_back( result );
-    ExpectationSet set;
-    set += EXPECT_CALL( m_optix, programGroupCreate( m_fakeContext, desc, 1, _, _, _, _ ) )
-               .After( before )
-               .WillOnce( DoAll( SetArgPointee<6>( result ), Return( OPTIX_SUCCESS ) ) );
-    set += EXPECT_CALL( *m_renderer, setProgramGroups( hasProgramGroupCount( m_updatedGroups.size() ) ) ).Times( 1 ).After( before );
-    return set;
-}
-
-Expectation TestPbrtSceneInitialized::expectModuleCreatedAfter( OptixModule module, const ExpectationSet& before )
-{
-    Expectation expect;
-#if OPTIX_VERSION < 70700
-    expect = EXPECT_CALL( m_optix, moduleCreateFromPTX( m_fakeContext, _, _, _, _, _, _, _ ) )
-                 .After( before )
-                 .WillOnce( DoAll( SetArgPointee<7>( module ), Return( OPTIX_SUCCESS ) ) );
-#else
-    expect = EXPECT_CALL( m_optix, moduleCreate( m_fakeContext, _, _, _, _, _, _, _ ) )
-                 .After( before )
-                 .WillOnce( DoAll( SetArgPointee<7>( module ), Return( OPTIX_SUCCESS ) ) );
-#endif
-    return expect;
 }
 
 Expectation TestPbrtSceneInitialized::expectRequestedProxyIdsAfter( std::initializer_list<uint_t> pageIds, const ExpectationSet& before )
@@ -919,7 +853,6 @@ ExpectationSet TestPbrtSceneInitialized::expectNoMaterialResolvedAfter( const Ex
 #else
     expect += EXPECT_CALL( m_optix, moduleCreate( m_fakeContext, _, _, _, _, _, _, _ ) ).Times( 0 ).After( before );
 #endif
-    expect += EXPECT_CALL( m_optix, programGroupCreate( m_fakeContext, _, _, _, _, _, _ ) ).Times( 0 ).After( before );
     expect += EXPECT_CALL( *m_renderer, setProgramGroups( _ ) ).Times( 0 ).After( before );
     expect += EXPECT_CALL( *m_materialLoader, remove( m_fakeMaterialId ) ).Times( 0 ).After( before );
     return expect;
@@ -1100,39 +1033,14 @@ MATCHER_P( hasLensRadius, value, "" )
 TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
 {
     EXPECT_CALL( *m_sceneLoader, parseFile( m_options.sceneFile ) ).Times( 1 ).WillOnce( Return( m_sceneDesc ) );
-    EXPECT_CALL( *m_mockSceneProxy, getPageId() ).WillOnce( Return( m_scenePageId ) );
     EXPECT_CALL( *m_proxyFactory, scene( static_cast<GeometryLoaderPtr>( m_geometryLoader ), m_sceneDesc ) ).WillOnce( Return( m_mockSceneProxy ) );
+    EXPECT_CALL( *m_mockSceneProxy, getPageId() ).WillOnce( Return( m_scenePageId ) );
     EXPECT_CALL( *m_renderer, getDeviceContext() ).WillRepeatedly( Return( m_fakeContext ) );
     EXPECT_CALL( *m_renderer, getPipelineCompileOptions() ).WillRepeatedly( ReturnRef( m_pipelineCompileOptions ) );
+    EXPECT_CALL( *m_programGroups, initialize() );
     EXPECT_CALL( *m_geometryLoader, setSbtIndex( _ ) ).Times( AtLeast( 1 ) );
     EXPECT_CALL( *m_geometryLoader, copyToDeviceAsync( m_stream ) ).Times( 1 );
     EXPECT_CALL( *m_geometryLoader, createTraversable( m_fakeContext, m_stream ) ).WillOnce( Return( m_fakeProxyTraversable ) );
-    expectModuleCreated( m_sceneModule );
-    EXPECT_CALL( m_optix, builtinISModuleGet( m_fakeContext, NotNull(), Pointee( Eq( m_pipelineCompileOptions ) ),
-                                              AllOf( NotNull(), hasModuleTypeTriangle(), allowsRandomVertexAccess() ), NotNull() ) )
-        .WillOnce( DoAll( SetArgPointee<4>( m_builtinTriangleModule ), Return( OPTIX_SUCCESS ) ) );
-    EXPECT_CALL( m_optix, builtinISModuleGet( m_fakeContext, NotNull(), Pointee( Eq( m_pipelineCompileOptions ) ),
-                                              AllOf( NotNull(), hasModuleTypeSphere(), allowsRandomVertexAccess() ), NotNull() ) )
-        .WillOnce( DoAll( SetArgPointee<4>( m_builtinSphereModule ), Return( OPTIX_SUCCESS ) ) );
-    EXPECT_CALL( *m_geometryLoader, getISFunctionName() ).WillRepeatedly( Return( m_proxyGeomIS ) );
-    EXPECT_CALL( *m_geometryLoader, getCHFunctionName() ).WillRepeatedly( Return( m_proxyGeomCH ) );
-    const char* const proxyMatIS = nullptr;
-    EXPECT_CALL( *m_materialLoader, getCHFunctionName() ).WillRepeatedly( Return( m_proxyMatCH ) );
-    size_t numGroups = m_fakeProgramGroups.size();
-    auto   expectedProgramGroupDescs =
-        AllOf( NotNull(), hasRayGenDesc( numGroups, m_sceneModule, "__raygen__perspectiveCamera" ),
-               hasMissDesc( numGroups, m_sceneModule, "__miss__backgroundColor" ),
-               hasHitGroupISCHDesc( numGroups, m_sceneModule, m_proxyGeomIS, m_sceneModule, m_proxyGeomCH ),
-               hasHitGroupISCHDesc( numGroups, m_builtinTriangleModule, proxyMatIS, m_sceneModule, m_proxyMatCH ),
-               hasHitGroupISAHCHDesc( numGroups, m_builtinTriangleModule, proxyMatIS, m_sceneModule,
-                                      m_proxyMatMeshAlphaAH, m_sceneModule, m_proxyMatCH ),
-               hasHitGroupISCHDesc( numGroups, m_builtinSphereModule, proxyMatIS, m_sceneModule, m_proxyMatCH ),
-               hasHitGroupISAHCHDesc( numGroups, m_builtinSphereModule, proxyMatIS, m_sceneModule,
-                                      m_proxyMatSphereAlphaAH, m_sceneModule, m_proxyMatCH ) );
-    EXPECT_CALL( m_optix, programGroupCreate( m_fakeContext, expectedProgramGroupDescs, m_fakeProgramGroups.size(),
-                                              NotNull(), NotNull(), NotNull(), NotNull() ) )
-        .WillOnce( DoAll( SetArrayArgument<6>( m_fakeProgramGroups.begin(), m_fakeProgramGroups.end() ), Return( OPTIX_SUCCESS ) ) );
-    EXPECT_CALL( *m_renderer, setProgramGroups( _ ) ).Times( 1 );
     auto isIAS =
         AllOf( NotNull(),
                hasInstanceBuildInput( 0, hasAll( hasNumInstances( 1 ),
@@ -1295,7 +1203,6 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchCreatesSkyboxForInfiniteLightsInPa
     expectRequestedMaterialIdsAfter( {}, m_init );
     expectClearRequestedMaterialIdsAfter( m_init );
     const uint_t textureId{ 1234 };
-    //EXPECT_CALL( *m_demandTextureCache, hasSkyboxTextureForFile( path ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_demandTextureCache, createSkyboxTextureFromFile( path ) ).WillOnce( Return( textureId ) );
 
     Params params{};
@@ -1317,11 +1224,7 @@ TEST_F( TestPbrtSceneInitialized, afterLaunchProcessesRequests )
 
 TEST_F( TestPbrtSceneInitialized, cleanupDestroysOptixResources )
 {
-    for( OptixProgramGroup group : m_fakeProgramGroups )
-    {
-        EXPECT_CALL( m_optix, programGroupDestroy( group ) ).After( m_init ).WillOnce( Return( OPTIX_SUCCESS ) );
-    }
-    EXPECT_CALL( m_optix, moduleDestroy( m_sceneModule ) ).After( m_init ).WillOnce( Return( OPTIX_SUCCESS ) );
+    EXPECT_CALL( *m_programGroups, cleanup() );
 
     m_scene.cleanup();
 }
@@ -1599,16 +1502,13 @@ class TestPbrtSceneSecondLaunch : public TestPbrtSceneFirstLaunch
     ~TestPbrtSceneSecondLaunch() override = default;
 
   protected:
-    ExpectationSet expectSecondLaunchCreatesHitGroupAndAccel( const ProgramGroupDescMatcher& hitGroupDesc,
-                                                              const BuildInputMatcher&       buildInput )
+    ExpectationSet expectSecondLaunchCreatesAccel( const BuildInputMatcher& buildInput )
     {
         ExpectationSet second;
         second += expectRequestedProxyIdsAfter( {}, m_first );
         second += expectClearRequestedProxyIdsAfter( m_first );
         second += expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_first );
         second += expectClearRequestedMaterialIdsAfter( m_first );
-        second += expectModuleCreatedAfter( m_phongModule, m_first );
-        appendTo( second, expectProgramGroupAddedAfter( hitGroupDesc, m_fakePhongProgramGroup, m_first ) );
         second += expectMaterialLoaderRemoveAfter( m_fakeMaterialId, m_first );
         appendTo( second, expectCreateTopLevelTraversable( buildInput, m_fakeTopLevelTraversable, m_first ) );
         second += expectGeometryLoaderGetContextAfter( m_first );
@@ -1632,13 +1532,10 @@ TEST_F( TestPbrtSceneSphere, resolveProxyMaterialToPhongMaterial )
 {
     m_first += expectRequestedMaterialIdsAfter( {}, m_init );
     m_first += expectClearRequestedMaterialIdsAfter( m_init );
-    const char* const sphereIS = nullptr;
-    const char* const sphereCH = "__closesthit__sphere";
-    const auto        expectedHitGroupDesc =
-        AllOf( NotNull(), hasHitGroupISCHDesc( 1, m_builtinSphereModule, sphereIS, m_phongModule, sphereCH ) );
     const auto isIAS =
         twoInstanceIAS( m_fakeUpdatedProxyTraversable, m_fakeSphereTraversable, +HitGroupIndex::REALIZED_MATERIAL_START );
-    expectSecondLaunchCreatesHitGroupAndAccel( expectedHitGroupDesc, isIAS );
+    expectSecondLaunchCreatesAccel( isIAS );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).After( m_first ).WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
 
     Params params{};
     EXPECT_TRUE( m_scene.beforeLaunch( m_stream, params ) );
@@ -1658,6 +1555,18 @@ class TestPbrtSceneTriMesh : public TestPbrtSceneSecondLaunch
     ~TestPbrtSceneTriMesh() override = default;
 
   protected:
+    Expectation expectAlphaTextureCreatedAfter( uint_t textureId, const ExpectationSet& before )
+    {
+        return EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( ALPHA_MAP_FILENAME ) ) )
+            .After( before )
+            .WillOnce( Return( textureId ) );
+    }
+    Expectation expectDiffuseTextureCreatedAfter( uint_t textureId, const ExpectationSet& before )
+    {
+        return EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_FILENAME ) ) )
+            .After( before )
+            .WillOnce( Return( textureId ) );
+    }
     GeometryInstance sceneGeometry() override { return proxyMaterialTriMeshGeometry(); }
 };
 
@@ -1667,13 +1576,10 @@ TEST_F( TestPbrtSceneTriMesh, resolveProxyMaterialToPhongMaterial )
 {
     m_first += expectRequestedMaterialIdsAfter( {}, m_init );
     m_first += expectClearRequestedMaterialIdsAfter( m_init );
-    const char* const phongMatIS = nullptr;
-    const char* const phongMatCH = "__closesthit__mesh";
-    const auto        expectedHitGroupDesc =
-        AllOf( NotNull(), hasHitGroupISCHDesc( 1, m_builtinTriangleModule, phongMatIS, m_phongModule, phongMatCH ) );
     const auto isIAS =
         twoInstanceIAS( m_fakeUpdatedProxyTraversable, m_fakeTriMeshTraversable, +HitGroupIndex::REALIZED_MATERIAL_START );
-    expectSecondLaunchCreatesHitGroupAndAccel( expectedHitGroupDesc, isIAS );
+    expectSecondLaunchCreatesAccel( isIAS );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).After( m_first ).WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
 
     Params params{};
     EXPECT_TRUE( m_scene.beforeLaunch( m_stream, params ) );
@@ -1721,17 +1627,14 @@ TEST_F( TestPbrtSceneTriMesh, resolveOneMaterialAfterOneShotFired )
     m_options.oneShotMaterial = true;
     m_first += expectRequestedMaterialIdsAfter( {}, m_init );
     m_first += expectClearRequestedMaterialIdsAfter( m_init );
-    const char* const triMeshIS = nullptr;
-    const char* const triMeshCH = "__closesthit__mesh";
-    const auto        expectedHitGroupDesc =
-        AllOf( NotNull(), hasHitGroupISCHDesc( 1, m_builtinTriangleModule, triMeshIS, m_phongModule, triMeshCH ) );
     const auto isIAS =
         twoInstanceIAS( m_fakeUpdatedProxyTraversable, m_fakeTriMeshTraversable, +HitGroupIndex::REALIZED_MATERIAL_START );
-    ExpectationSet second = expectSecondLaunchCreatesHitGroupAndAccel( expectedHitGroupDesc, isIAS );
+    ExpectationSet second = expectSecondLaunchCreatesAccel( isIAS );
     expectRequestedProxyIdsAfter( {}, second );
     expectClearRequestedProxyIdsAfter( second );
     expectGeometryLoaderGetContextAfter( second );
     expectLaunchPrepareTrueAfter( second );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).After( m_first ).WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
 
     Params params{};
     m_scene.resolveOneMaterial();
@@ -1760,6 +1663,7 @@ class TestPbrtSceneAlphaMapTriMesh : public TestPbrtSceneTriMesh
   protected:
     GeometryInstance sceneGeometry() override;
     ExpectationSet   expectSecondLaunchCreatesAlphaMapForId( uint_t textureId );
+    Expectation      expectNoAlphaTextureExistsAfter( const ExpectationSet& before );
 };
 
 GeometryInstance TestPbrtSceneAlphaMapTriMesh::sceneGeometry()
@@ -1777,14 +1681,21 @@ ExpectationSet TestPbrtSceneAlphaMapTriMesh::expectSecondLaunchCreatesAlphaMapFo
     second += expectClearRequestedProxyIdsAfter( m_first );
     second += expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_first );
     second += expectClearRequestedMaterialIdsAfter( m_first );
-    second +=
-        EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( ALPHA_MAP_FILENAME ) ) ).After( m_first ).WillOnce( Return( textureId ) );
+    second += expectAlphaTextureCreatedAfter( textureId, m_first );
     second += expectGeometryLoaderGetContextAfter( m_first );
     second += expectLaunchPrepareTrueAfter( m_first );
     const auto isAlphaMapIAS = twoInstanceIAS( m_fakeUpdatedProxyTraversable, m_fakeTriMeshTraversable,
                                                +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA, m_fakeMaterialId );
     appendTo( second, expectCreateTopLevelTraversable( isAlphaMapIAS, m_fakeTopLevelTraversable, m_first ) );
     return second;
+}
+
+Expectation TestPbrtSceneAlphaMapTriMesh::expectNoAlphaTextureExistsAfter( const ExpectationSet& before )
+{
+    return EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( ALPHA_MAP_FILENAME ) )
+        .Times( AtMost( 1 ) )
+        .After( before )
+        .WillOnce( Return( false ) );
 }
 
 }  // namespace
@@ -1794,8 +1705,7 @@ TEST_F( TestPbrtSceneAlphaMapTriMesh, resolveProxyMaterialToAlphaMapProxyMateria
     // first launch: resolve geometry
     m_first += expectRequestedMaterialIdsAfter( {}, m_init );
     m_first += expectClearRequestedMaterialIdsAfter( m_init );
-    m_first +=
-        EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( ALPHA_MAP_FILENAME ) ).Times( AtMost( 1 ) ).WillOnce( Return( false ) );
+    m_first += expectNoAlphaTextureExistsAfter( m_init );
     // second launch: resolve alpha material phase 1
     const uint_t textureId{ 8686U };
     expectSecondLaunchCreatesAlphaMapForId( textureId );
@@ -1824,8 +1734,7 @@ TEST_F( TestPbrtSceneAlphaMapTriMesh, resolveProxyAlphaMapMaterialToPhongMateria
     // first launch: resolve geometry
     m_first += expectRequestedMaterialIdsAfter( {}, m_init );
     m_first += expectClearRequestedMaterialIdsAfter( m_init );
-    m_first +=
-        EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( ALPHA_MAP_FILENAME ) ).Times( AtMost( 1 ) ).WillOnce( Return( false ) );
+    m_first += expectNoAlphaTextureExistsAfter( m_init );
     // second launch: resolve alpha material phase 1
     const uint_t   textureId{ 8686U };
     ExpectationSet second = expectSecondLaunchCreatesAlphaMapForId( textureId );
@@ -1834,19 +1743,13 @@ TEST_F( TestPbrtSceneAlphaMapTriMesh, resolveProxyAlphaMapMaterialToPhongMateria
     expectClearRequestedProxyIdsAfter( second );
     expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, second );
     expectClearRequestedMaterialIdsAfter( second );
-    expectModuleCreatedAfter( m_phongModule, second );
-    const char* const triMeshIS = nullptr;
-    const char* const triMeshAH = "__anyhit__alphaCutOutMesh";
-    const char* const triMeshCH = "__closesthit__mesh";
-    auto expectedHitGroupDesc = AllOf( NotNull(), hasHitGroupISAHCHDesc( 1, m_builtinTriangleModule, triMeshIS, m_sceneModule,
-                                                                         triMeshAH, m_phongModule, triMeshCH ) );
-    expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, second );
     expectMaterialLoaderRemoveAfter( m_fakeMaterialId, second );
     expectCreateTopLevelTraversable( twoInstanceIAS( m_fakeUpdatedProxyTraversable, m_fakeTriMeshTraversable,
                                                      +HitGroupIndex::REALIZED_MATERIAL_START ),
                                      m_fakeTopLevelTraversable, second );
     expectGeometryLoaderGetContextAfter( second );
     expectLaunchPrepareTrueAfter( second );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).After( second ).WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
 
     Params params{};
     EXPECT_TRUE( m_scene.beforeLaunch( m_stream, params ) );
@@ -1880,7 +1783,6 @@ class TestPbrtSceneDiffuseMapTriMesh : public TestPbrtSceneTriMesh
 
   protected:
     GeometryInstance sceneGeometry() override;
-    ExpectationSet   expectSecondLaunchCreatesDiffuseMapForId( uint_t textureId, ExpectationSet& second );
 };
 
 GeometryInstance TestPbrtSceneDiffuseMapTriMesh::sceneGeometry()
@@ -1891,13 +1793,6 @@ GeometryInstance TestPbrtSceneDiffuseMapTriMesh::sceneGeometry()
     return geometry;
 }
 
-ExpectationSet TestPbrtSceneDiffuseMapTriMesh::expectSecondLaunchCreatesDiffuseMapForId( uint_t textureId, ExpectationSet& second )
-{
-    second +=
-        EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_FILENAME ) ) ).After( m_first ).WillOnce( Return( textureId ) );
-    return second;
-}
-
 }  // namespace
 
 TEST_F( TestPbrtSceneDiffuseMapTriMesh, resolveProxyMaterialToDiffuseMapMaterial )
@@ -1905,18 +1800,16 @@ TEST_F( TestPbrtSceneDiffuseMapTriMesh, resolveProxyMaterialToDiffuseMapMaterial
     // first launch: resolve geometry
     m_first += expectRequestedMaterialIdsAfter( {}, m_init );
     m_first += expectClearRequestedMaterialIdsAfter( m_init );
-    m_first +=
-        EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_FILENAME ) ) ).Times( AtMost( 1 ) ).WillOnce( Return( false ) );
+    m_first += EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_FILENAME ) ) )
+                   .Times( AtMost( 1 ) )
+                   .WillOnce( Return( false ) );
     // second launch: resolve diffuse material
-    const char* const triMeshIS = nullptr;
-    const char* const triMeshCH = "__closesthit__texturedMesh";
-    const auto        expectedHitGroupDesc =
-        AllOf( NotNull(), hasHitGroupISCHDesc( 1, m_builtinTriangleModule, triMeshIS, m_sceneModule, triMeshCH ) );
     const auto isPhongIAS =
         twoInstanceIAS( m_fakeUpdatedProxyTraversable, m_fakeTriMeshTraversable, +HitGroupIndex::REALIZED_MATERIAL_START );
-    ExpectationSet second = expectSecondLaunchCreatesHitGroupAndAccel( expectedHitGroupDesc, isPhongIAS );
+    ExpectationSet second = expectSecondLaunchCreatesAccel( isPhongIAS );
     const uint_t   textureId{ 8686U };
-    expectSecondLaunchCreatesDiffuseMapForId( textureId, second );
+    second += expectDiffuseTextureCreatedAfter( textureId, m_first );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).After( m_first ).WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
 
     Params params{};
     EXPECT_TRUE( m_scene.beforeLaunch( m_stream, params ) );
@@ -1972,10 +1865,7 @@ void TestPbrtSceneDiffuseAlphaMapTriMesh::expectSecondLaunchCreatesAlphaTextureA
     m_second += expectRequestedProxyIdsAfter( {}, m_first );
     m_second += expectClearRequestedProxyIdsAfter( m_first );
     m_second += expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_first );
-    //m_second +=
-    //    EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( ALPHA_MAP_FILENAME ) ) ).After( m_first ).WillOnce( Return( false ) );
-    m_second +=
-        EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( ALPHA_MAP_FILENAME ) ) ).After( m_first ).WillOnce( Return( textureId ) );
+    m_second += expectAlphaTextureCreatedAfter( textureId, m_first );
     m_second += expectClearRequestedMaterialIdsAfter( m_first );
     m_second += expectGeometryLoaderGetContextAfter( m_first );
     m_second += expectLaunchPrepareTrueAfter( m_first );
@@ -1996,15 +1886,7 @@ void TestPbrtSceneDiffuseAlphaMapTriMesh::expectThirdLaunchCreatesDiffuseTexture
     expectClearRequestedProxyIdsAfter( m_second );
     expectRequestedMaterialIdsAfter( { m_fakeMaterialId }, m_second );
     expectClearRequestedMaterialIdsAfter( m_second );
-    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_FILENAME ) ) ).After( m_second ).WillOnce( Return( textureId ) );
-
-    expectModuleCreatedAfter( m_phongModule, m_second );
-    const char* const triMeshIS = nullptr;
-    const char* const triMeshAH = "__anyhit__alphaCutOutMesh";
-    const char* const triMeshCH = "__closesthit__texturedMesh";
-    const auto expectedHitGroupDesc = AllOf( NotNull(), hasHitGroupISAHCHDesc( 1, m_builtinTriangleModule, triMeshIS, m_sceneModule,
-                                                                               triMeshAH, m_sceneModule, triMeshCH ) );
-    expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_second );
+    expectDiffuseTextureCreatedAfter( textureId, m_second );
     expectMaterialLoaderRemoveAfter( m_fakeMaterialId, m_second );
     const auto isPhongIAS =
         AllOf( NotNull(),
@@ -2036,6 +1918,7 @@ TEST_F( TestPbrtSceneDiffuseAlphaMapTriMesh, resolveProxyMaterialToDiffuseAlphaM
     // third launch: resolve alpha material phase 2
     const uint_t diffuseTextureId{ 2323U };
     expectThirdLaunchCreatesDiffuseTextureProgramGroupAndAccel( diffuseTextureId );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).After( m_second ).WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
 
     Params params{};
     EXPECT_TRUE( m_scene.beforeLaunch( m_stream, params ) );
