@@ -354,7 +354,7 @@ void printUsage( const char* argv0 )
     std::cout << "Mouse:    <LMB>:          pan camera\n";
     std::cout << "          <RMB>:          rotate camera\n\n";
     std::cout << "Keyboard: <ESC>:          exit\n";
-    std::cout << "          1-3:            set render mode (1=MIS,2=EMAP, 3=BSDF)\n";
+    std::cout << "          1-4:            set render mode (1=MIS,2=EMAP, 3=BSDF, 4=SAT)\n";
     std::cout << "          <LEFT>,<RIGHT>: change max depth\n";
     std::cout << "          <UP>,<DOWN>:    change min depth\n";
     std::cout << "          WASD,QE:        pan camera\n";
@@ -393,7 +393,7 @@ int main( int argc, char* argv[] )
         else if( arg == "--launches" && !lastArg )
             numLaunches = atoi( argv[++i] );
         else if( arg == "--render-mode" && !lastArg )
-            renderMode = atoi( argv[++i] ) - 1;
+            renderMode = atoi( argv[++i] );
         else if( arg == "--table-mip-level" && !lastArg )
             tableMipLevel = atoi( argv[++i] );
         else if( arg == "--max-subframes" && !lastArg )
