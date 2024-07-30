@@ -827,6 +827,7 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
             break;
         }
     }
+    m_materialLoader->clearRequestedMaterialIds();
 
     switch( resolution )
     {
@@ -844,7 +845,6 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
             m_sync.realizedUVs.copyToDeviceAsync( stream );
             m_sync.realizedMaterials.copyToDeviceAsync( stream );
             m_sync.instanceMaterialIds.copyToDeviceAsync( stream );
-            m_materialLoader->clearRequestedMaterialIds();
             ++m_stats.numMaterialsRealized;
             break;
     }
