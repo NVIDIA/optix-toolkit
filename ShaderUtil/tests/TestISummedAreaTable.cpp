@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <vector>
 #include <stdio.h>
 #include <OptiXToolkit/ShaderUtil/ISummedAreaTable.h>
 #include <gtest/gtest.h>
@@ -41,6 +42,7 @@ class TestISummedAreaTable : public testing::Test
 
 void TestISummedAreaTable::printTable( ISummedAreaTable& sat )
 {
+    printf("SAT Table:\n");
     for( int j = 0; j < sat.height; ++j )
     {
         for( int i = 0; i < sat.width; ++i )
@@ -49,15 +51,38 @@ void TestISummedAreaTable::printTable( ISummedAreaTable& sat )
         }
         printf( "\n" );
     }
-}
 
-void TestISummedAreaTable::verifyTable( ISummedAreaTable& sat )
-{
+    printf("\nColumn Sums:\n");
     for( int j = 0; j < sat.height; ++j )
     {
         for( int i = 0; i < sat.width; ++i )
         {
-            EXPECT_EQ( sat.val( i, j ), sat.tval( i, j ) );
+            float val = sat.column(i)[j] / static_cast<float>( sat.column(i)[sat.height-1] );
+            printf( "%1.4f ", val );
+        }
+        printf( "\n" );
+    }
+    printf("\n");
+}
+
+void TestISummedAreaTable::verifyTable( ISummedAreaTable& sat )
+{
+    // Check SAT table for consistency
+    for( int j = 1; j < sat.height; ++j )
+    {
+        for( int i = 1; i < sat.width; ++i )
+        {
+            EXPECT_TRUE( sat.val( i, j ) > sat.val( i-1, j ) );
+            EXPECT_TRUE( sat.val( i, j ) > sat.val( i, j-1 ) );
+        }
+    }
+
+    // Check columns for consistency
+    for( int i = 0; i < sat.width; ++i )
+    {
+        for( int j = 1; j < sat.height; ++j )
+        {
+            EXPECT_TRUE( sat.column(i)[j] > sat.column(i)[j-1] );
         }
     }
 }
@@ -66,10 +91,11 @@ TEST_F( TestISummedAreaTable, TestMakeTable )
 {
     float pdf[20] = {1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1};
     ISummedAreaTable sat;
-    allocHost( sat, 5, 4 );
-    init( sat, pdf );
+    allocISummedAreaTableHost( sat, 5, 4 );
+    initISummedAreaTable( sat, pdf );
     //printTable( sat );
-    freeHost( sat );
+    verifyTable( sat );
+    freeISummedAreaTableHost( sat );
 }
 
 TEST_F( TestISummedAreaTable, TestMakeTableSpeed )
@@ -81,10 +107,10 @@ TEST_F( TestISummedAreaTable, TestMakeTableSpeed )
         pdf[i]=1.0f;
 
     ISummedAreaTable sat;
-    allocHost( sat, width, height );
-    init( sat, pdf );
+    allocISummedAreaTableHost( sat, width, height );
+    initISummedAreaTable( sat, pdf );
     printf( "%1.4f\n", static_cast<float>( sat.val( width-1, height-1 ) ) / static_cast<float>( 0xffffffffU ) );
-    freeHost( sat );
+    freeISummedAreaTableHost( sat );
     free(pdf);
 }
 
@@ -97,8 +123,9 @@ TEST_F( TestISummedAreaTable, TestSearchUniform )
         pdf[i]=1.0f;
 
     ISummedAreaTable sat;
-    allocHost( sat, width, height );
-    init( sat, pdf );
+    allocISummedAreaTableHost( sat, width, height );
+    initISummedAreaTable( sat, pdf );
+    verifyTable( sat );
 
     const int gridSize = 11;
     for( int j=0; j<=gridSize; ++j )
@@ -106,13 +133,13 @@ TEST_F( TestISummedAreaTable, TestSearchUniform )
         for( int i=0; i<=gridSize; ++i )
         {
             float2 s = float2{float(i)/gridSize, float(j)/gridSize};
-            float2 t = sampleRect( sat, 0, 0, width-1, height-1, s.x, s.y );
+            float2 t = sampleRect( sat, 0, 0, width-1, height-1, s );
             EXPECT_NEAR( s.x, t.x, EPS );
             EXPECT_NEAR( s.y, t.y, EPS );
         }
     }
 
-    freeHost( sat );
+    freeISummedAreaTableHost( sat );
 }
 
 TEST_F( TestISummedAreaTable, TestSearchNonUniform )
@@ -134,8 +161,8 @@ TEST_F( TestISummedAreaTable, TestSearchNonUniform )
     };
 
     ISummedAreaTable sat;
-    allocHost( sat, width, height );
-    init( sat, pdf );
+    allocISummedAreaTableHost( sat, width, height );
+    initISummedAreaTable( sat, pdf );
     //printTable( sat );
 
     // Sample over full table
@@ -145,7 +172,7 @@ TEST_F( TestISummedAreaTable, TestSearchNonUniform )
         for( int i=0; i<=gridSize; ++i )
         {
             float2 s = float2{float(i)/gridSize, float(j)/gridSize};
-            float2 t = sampleRect( sat, 0, 0, width-1, height-1, s.x, s.y );
+            float2 t = sampleRect( sat, 0, 0, width-1, height-1, s );
             EXPECT_NEAR( s.x/2.0f, t.x, EPS );
             EXPECT_NEAR( s.y/2.0f, t.y, EPS );
         }
@@ -157,12 +184,11 @@ TEST_F( TestISummedAreaTable, TestSearchNonUniform )
         for( int i=0; i<=gridSize; ++i )
         {
             float2 s = float2{float(i)/gridSize, float(j)/gridSize};
-            float2 t = sampleRect( sat, 2, 3, 7, 8, s.x, s.y );
+            float2 t = sampleRect( sat, 2, 3, 7, 8, s );
             EXPECT_NEAR( t.x, 0.2f + (0.5f-0.2f)*s.x, EPS );
             EXPECT_NEAR( t.y, 0.3f + (0.5f-0.3f)*s.y, EPS );
         }
     }
 
-    freeHost( sat );
+    freeISummedAreaTableHost( sat );
 }
-

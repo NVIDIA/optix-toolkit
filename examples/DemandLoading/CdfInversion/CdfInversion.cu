@@ -29,6 +29,7 @@
 #include <OptiXToolkit/ShaderUtil/AliasTable.h>
 #include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
 #include <OptiXToolkit/ShaderUtil/PdfTable.h>
+#include <OptiXToolkit/ShaderUtil/ISummedAreaTable.h>
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/Reservoir.h>
 #include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
@@ -191,6 +192,9 @@ float2 sampleEmap( float2 xi )
         CdfInversionTable* it = getInversionTable();
         AliasTable* at = reinterpret_cast<AliasTable*>( &params.c[EMAP_ALIAS_TABLE_ID] );
         return alias2D( *at, it->width, it->height, xi );
+    #elif emSUMMED_AREA_TABLE
+        ISummedAreaTable* sat = reinterpret_cast<ISummedAreaTable*>( &params.c[EMAP_SUMMED_AREA_TABLE_ID] );
+        return sample( *sat, xi );
     #endif
 }
 
