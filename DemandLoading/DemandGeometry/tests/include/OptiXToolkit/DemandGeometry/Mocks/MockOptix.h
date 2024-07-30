@@ -59,7 +59,7 @@ class MockOptix
     MockOptix();
     virtual ~MockOptix();
 
-    MOCK_METHOD(const char*, getErrorName, ( OptixResult result ));
+    MOCK_METHOD( const char*, getErrorName, ( OptixResult result ) );
     MOCK_METHOD( const char*, getErrorString, ( OptixResult result ) );
     MOCK_METHOD( OptixResult,
                  deviceContextCreate,
