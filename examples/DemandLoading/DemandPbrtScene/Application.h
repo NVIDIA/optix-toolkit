@@ -94,6 +94,7 @@ class Application : public otk::Sample
     ProxyFactoryPtr       m_proxyFactory;
     RendererPtr           m_renderer;
     DemandTextureCachePtr m_demandTextureCache;
+    ProgramGroupsPtr      m_programGroups;
     ScenePtr              m_scene;
     bool                  m_sceneUpdated{};
     Statistics            m_statistics;

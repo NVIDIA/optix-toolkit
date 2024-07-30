@@ -36,6 +36,7 @@ add_executable(TestDemandPbrtSceneImpl
     TestParams.cpp
     TestPbrtAlphaMapImageSource.cpp
     TestPbrtScene.cpp
+    TestProgramGroups.cpp
     TestIdRangePrinter.cpp
     TestSceneAdapters.cpp
     TestSceneProxy.cpp

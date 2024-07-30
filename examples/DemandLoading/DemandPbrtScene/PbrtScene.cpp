@@ -34,6 +34,7 @@
 #include "ImageSourceFactory.h"
 #include "Options.h"
 #include "Params.h"
+#include "ProgramGroups.h"
 #include "Renderer.h"
 #include "SceneAdapters.h"
 #include "SceneProxy.h"
@@ -59,27 +60,25 @@
 #include <stdexcept>
 #include <utility>
 
-#if OPTIX_VERSION < 70700
-#define optixModuleCreate optixModuleCreateFromPTX
-#endif
-
 namespace demandPbrtScene {
 
 PbrtScene::PbrtScene( const Options&        options,
-                      PbrtSceneLoaderPtr    pbrt,
+                      PbrtSceneLoaderPtr    sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
                       ProxyFactoryPtr       proxyFactory,
                       DemandLoaderPtr       demandLoader,
                       GeometryLoaderPtr     geometryLoader,
                       MaterialLoaderPtr     materialLoader,
+                      ProgramGroupsPtr      programGroups,
                       RendererPtr           renderer )
     : m_options( options )
-    , m_sceneLoader( std::move( pbrt ) )
+    , m_sceneLoader( std::move( sceneLoader ) )
     , m_demandTextureCache( std::move( demandTextureCache ) )
     , m_proxyFactory( std::move( proxyFactory ) )
     , m_demandLoader( std::move( demandLoader ) )
     , m_geometryLoader( std::move( geometryLoader ) )
     , m_materialLoader( std::move( materialLoader ) )
+    , m_programGroups( std::move( programGroups ) )
     , m_renderer( std::move( renderer ) )
     , m_interactive( m_options.outFile.empty() )
 {
@@ -88,21 +87,6 @@ PbrtScene::PbrtScene( const Options&        options,
 inline OptixAabb toOptixAabb( const ::pbrt::Bounds3f& bounds )
 {
     return OptixAabb{ bounds.pMin.x, bounds.pMin.y, bounds.pMin.z, bounds.pMax.x, bounds.pMax.y, bounds.pMax.z };
-}
-
-static OptixModuleCompileOptions getCompileOptions()
-{
-    OptixModuleCompileOptions compileOptions{};
-    compileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
-#ifdef NDEBUG
-    bool debugInfo{ false };
-#else
-    bool debugInfo{ true };
-#endif
-    compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 : OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-    compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
-
-    return compileOptions;
 }
 
 void PbrtScene::realizeInfiniteLights()
@@ -157,56 +141,6 @@ void PbrtScene::setCamera()
     toFloat4Transform( camera.worldToCamera.m, sceneCamera.cameraToWorld.GetInverseMatrix() );
     toFloat4Transform( camera.cameraToScreen.m, sceneCamera.cameraToScreen.GetMatrix() );
     m_renderer->setCamera( camera );
-}
-
-OptixModule PbrtScene::createModule( const char* optixir, size_t optixirSize )
-{
-    const OptixModuleCompileOptions    compileOptions{ getCompileOptions() };
-    const OptixPipelineCompileOptions& pipelineCompileOptions{ m_renderer->getPipelineCompileOptions() };
-
-    OptixModule        module;
-    OptixDeviceContext context = m_renderer->getDeviceContext();
-    OTK_ERROR_CHECK_LOG( optixModuleCreate( context, &compileOptions, &pipelineCompileOptions, optixir, optixirSize,
-                                            LOG, &LOG_SIZE, &module ) );
-    return module;
-}
-
-void PbrtScene::createModules()
-{
-    const OptixModuleCompileOptions    compileOptions{ getCompileOptions() };
-    const OptixPipelineCompileOptions& pipelineCompileOptions{ m_renderer->getPipelineCompileOptions() };
-
-    OptixDeviceContext context          = m_renderer->getDeviceContext();
-    auto               getBuiltinModule = [&]( OptixPrimitiveType type ) {
-        OptixModule           module;
-        OptixBuiltinISOptions builtinOptions{};
-        builtinOptions.builtinISModuleType = type;
-        builtinOptions.buildFlags          = OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS;
-        OTK_ERROR_CHECK_LOG( optixBuiltinISModuleGet( context, &compileOptions, &pipelineCompileOptions, &builtinOptions, &module ) );
-        return module;
-    };
-    m_sceneModule    = createModule( DemandPbrtSceneCudaText(), DemandPbrtSceneCudaSize );
-    m_triangleModule = getBuiltinModule( OPTIX_PRIMITIVE_TYPE_TRIANGLE );
-    m_sphereModule   = getBuiltinModule( OPTIX_PRIMITIVE_TYPE_SPHERE );
-}
-
-void PbrtScene::createProgramGroups()
-{
-    OptixProgramGroupOptions options{};
-    m_programGroups.resize( +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS );
-    OptixProgramGroupDesc descs[+ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS]{};
-    const char* const     proxyMaterialCHFunctionName = m_materialLoader->getCHFunctionName();
-    otk::ProgramGroupDescBuilder( descs, m_sceneModule )
-        .raygen( "__raygen__perspectiveCamera" )
-        .miss( "__miss__backgroundColor" )
-        .hitGroupISCH( m_sceneModule, m_geometryLoader->getISFunctionName(), m_sceneModule, m_geometryLoader->getCHFunctionName() )
-        .hitGroupISCH( m_triangleModule, nullptr, m_sceneModule, proxyMaterialCHFunctionName )
-        .hitGroupISAHCH( m_triangleModule, nullptr, m_sceneModule, "__anyhit__alphaCutOutPartialMesh", m_sceneModule, proxyMaterialCHFunctionName )
-        .hitGroupISCH( m_sphereModule, nullptr, m_sceneModule, proxyMaterialCHFunctionName )
-        .hitGroupISAHCH( m_sphereModule, nullptr, m_sceneModule, "__anyhit__sphere", m_sceneModule, proxyMaterialCHFunctionName );
-    OptixDeviceContext context = m_renderer->getDeviceContext();
-    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, descs, m_programGroups.size(), &options, LOG, &LOG_SIZE,
-                                                  m_programGroups.data() ) );
 }
 
 static void identity( float ( &result )[12] )
@@ -264,8 +198,8 @@ void PbrtScene::createTopLevelTraversable( CUstream stream )
         OTK_CUDA_SYNC_CHECK();
     }
 }
-;
-static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneDescriptionPtr scene )
+
+static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneDescriptionPtr scene, double parseTime )
 {
     const auto         asUInt{ []( const size_t value ) { return static_cast<unsigned int>( value ); } };
     PbrtFileStatistics stats{};
@@ -274,40 +208,39 @@ static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneD
     stats.numObjects         = asUInt( scene->objects.size() );
     stats.numObjectShapes    = asUInt( scene->objectShapes.size() );
     stats.numObjectInstances = asUInt( scene->objectInstances.size() );
+    stats.parseTime          = parseTime;
     return stats;
 }
 
-double PbrtScene::parseScene()
+void PbrtScene::parseScene()
 {
+    std::cout << "Reading " << m_options.sceneFile << "...\n";
     Stopwatch timer;
     m_scene = m_sceneLoader->parseFile( m_options.sceneFile );
-    return timer.elapsed();
+    const double parseTime{ timer.elapsed() };
+    if( m_scene->errors > 0 )
+    {
+        throw std::runtime_error( "Couldn't load scene " + m_options.sceneFile );
+    }
+    m_stats.pbrtFile = getPbrtStatistics( m_options.sceneFile, m_scene, parseTime );
+    std::cout << "\nParsed scene " << m_options.sceneFile << " in " << m_stats.pbrtFile.parseTime
+              << " secs, loaded: " << m_stats.pbrtFile.numFreeShapes << " free shapes, " << m_stats.pbrtFile.numObjects
+              << " objects, " << m_stats.pbrtFile.numObjectInstances << " instances.\n";
+
+    SceneProxyPtr proxy{ m_proxyFactory->scene( m_geometryLoader, m_scene ) };
+    m_sceneProxies[proxy->getPageId()] = proxy;
 }
 
 void PbrtScene::initialize( CUstream stream )
 {
-    std::cout << "Reading " << m_options.sceneFile << "...\n";
-    const double parseTime = parseScene();
-    if( m_scene->errors > 0 )
-        throw std::runtime_error( "Couldn't load scene " + m_options.sceneFile );
-
-    m_stats.pbrtFile = getPbrtStatistics( m_options.sceneFile, m_scene );
-    m_stats.pbrtFile.parseTime= parseTime;
-    std::cout << "\nParsed scene " << m_options.sceneFile << " in " << m_stats.pbrtFile.parseTime
-              << " secs, loaded: " << m_stats.pbrtFile.numFreeShapes << " free shapes, " << m_stats.pbrtFile.numObjects
-              << " objects, " << m_stats.pbrtFile.numObjectInstances << " instances.\n";
-    SceneProxyPtr proxy                = m_proxyFactory->scene( m_geometryLoader, m_scene );
-    m_sceneProxies[proxy->getPageId()] = proxy;
+    parseScene();
     setCamera();
 
-    createModules();
-    createProgramGroups();
-    m_renderer->setProgramGroups( m_programGroups );
+    m_programGroups->initialize();
 
     m_geometryLoader->setSbtIndex( +HitGroupIndex::PROXY_GEOMETRY );
     m_geometryLoader->copyToDeviceAsync( stream );
-    OptixDeviceContext context = m_renderer->getDeviceContext();
-    m_proxyInstanceTraversable = m_geometryLoader->createTraversable( context, stream );
+    m_proxyInstanceTraversable = m_geometryLoader->createTraversable( m_renderer->getDeviceContext(), stream );
     if( m_options.sync )
     {
         OTK_CUDA_SYNC_CHECK();
@@ -320,13 +253,7 @@ void PbrtScene::initialize( CUstream stream )
 
 void PbrtScene::cleanup()
 {
-    for( OptixProgramGroup group : m_programGroups )
-    {
-        OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
-    }
-    if( m_phongModule )
-        OTK_ERROR_CHECK( optixModuleDestroy( m_phongModule ) );
-    OTK_ERROR_CHECK( optixModuleDestroy( m_sceneModule ) );
+    m_programGroups->cleanup();
 }
 
 void PbrtScene::setLaunchParams( CUstream stream, Params& params )
@@ -482,11 +409,11 @@ bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
             markAllocated( MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED );
 
             // reuse already realized material
-            OTK_ASSERT( m_phongModule != nullptr );  // should have already been realized
+            //OTK_ASSERT( m_phongModule != nullptr );  // should have already been realized
             const uint_t materialId{ id.value() };
             const uint_t instanceId{ static_cast<uint_t>( m_sync.instanceMaterialIds.size() ) };
             geom.materialId                   = materialId;
-            geom.instance.instance.sbtOffset  = getRealizedMaterialSbtOffset( geom.instance );
+            geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
             geom.instance.instance.instanceId = instanceId;
             geom.instanceIndex                = m_sync.topLevelInstances.size();
             m_sync.instanceMaterialIds.push_back( materialId );
@@ -535,7 +462,7 @@ inline float volume( const OptixAabb& bounds )
 }
 
 
-std::vector<uint_t> PbrtScene::sortRequestedProxyGeometriesByCameraDistance()
+std::vector<uint_t> PbrtScene::sortRequestedProxyGeometriesByVolume()
 {
     std::vector<uint_t> ids{ m_geometryLoader->requestedProxyIds() };
     if( m_options.sortProxies )
@@ -569,7 +496,7 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
     unsigned int       realizedCount{};
     bool               realized{};
     bool               updateNeeded{};
-    for( uint_t id : sortRequestedProxyGeometriesByCameraDistance() )
+    for( uint_t id : sortRequestedProxyGeometriesByVolume() )
     {
         if( frameBudgetExceeded() && realizedCount > MIN_REALIZED )
         {
@@ -608,110 +535,6 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
     }
 
     return realized;
-}
-
-uint_t PbrtScene::getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance )
-{
-    OptixDeviceContext       context = m_renderer->getDeviceContext();
-    OptixProgramGroupOptions options{};
-    OptixProgramGroup        group{};
-    OptixProgramGroupDesc    groupDesc[1]{};
-
-    // triangles with alpha map and diffuse map texture
-    if( flagSet( instance.material.flags, MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
-    {
-        if( m_triangleAlphaDiffuseMapHitGroupIndex == 0 )
-        {
-            otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )             //
-                .hitGroupISAHCH( m_triangleModule, nullptr,                      //
-                                 m_sceneModule, "__anyhit__alphaCutOutMesh",     //
-                                 m_sceneModule, "__closesthit__texturedMesh" );  //
-            OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
-            m_triangleAlphaDiffuseMapHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
-            m_programGroups.push_back( group );
-            m_renderer->setProgramGroups( m_programGroups );
-        }
-        return m_triangleAlphaDiffuseMapHitGroupIndex;
-    }
-
-    // triangles with alpha map texture
-    if( flagSet( instance.material.flags, MaterialFlags::ALPHA_MAP ) )
-    {
-        if( m_triangleAlphaMapHitGroupIndex == 0 )
-        {
-            otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )          //
-                .hitGroupISAHCH( m_triangleModule, nullptr,                   //
-                                 m_sceneModule, "__anyhit__alphaCutOutMesh",  //
-                                 m_phongModule, "__closesthit__mesh" );       //
-            OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
-            m_triangleAlphaMapHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
-            m_programGroups.push_back( group );
-            m_renderer->setProgramGroups( m_programGroups );
-        }
-        return m_triangleAlphaMapHitGroupIndex;
-    }
-
-    // triangles with diffuse map texture
-    if( flagSet( instance.material.flags, MaterialFlags::DIFFUSE_MAP ) )
-    {
-        if( m_triangleDiffuseMapHitGroupIndex == 0 )
-        {
-            otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )           //
-                .hitGroupISCH( m_triangleModule, nullptr,                      //
-                               m_sceneModule, "__closesthit__texturedMesh" );  //
-            OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
-            m_triangleDiffuseMapHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
-            m_programGroups.push_back( group );
-            m_renderer->setProgramGroups( m_programGroups );
-        }
-        return m_triangleDiffuseMapHitGroupIndex;
-    }
-
-    // untextured triangles
-    if( m_triangleHitGroupIndex == 0 )
-    {
-        otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )   //
-            .hitGroupISCH( m_triangleModule, nullptr,              //
-                           m_phongModule, "__closesthit__mesh" );  //
-        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
-        m_triangleHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
-        m_programGroups.push_back( group );
-        m_renderer->setProgramGroups( m_programGroups );
-    }
-    return m_triangleHitGroupIndex;
-}
-
-uint_t PbrtScene::getSphereRealizedMaterialSbtOffset()
-{
-    // untextured sphere
-    if( m_sphereHitGroupIndex == 0 )
-    {
-        const OptixDeviceContext context = m_renderer->getDeviceContext();
-        OptixProgramGroupOptions options{};
-        OptixProgramGroup        group{};
-        OptixProgramGroupDesc    groupDesc[1]{};
-
-        otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )
-            .hitGroupISCH( m_sphereModule, nullptr, m_phongModule, "__closesthit__sphere" );
-        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
-        m_sphereHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
-        m_programGroups.push_back( group );
-        m_renderer->setProgramGroups( m_programGroups );
-    }
-    return m_sphereHitGroupIndex;
-}
-
-uint_t PbrtScene::getRealizedMaterialSbtOffset( const GeometryInstance& instance )
-{
-    if( instance.primitive == GeometryPrimitive::TRIANGLE )
-    {
-        return getTriangleRealizedMaterialSbtOffset( instance );
-    }
-    if( instance.primitive == GeometryPrimitive::SPHERE )
-    {
-        return getSphereRealizedMaterialSbtOffset();
-    }
-    throw std::runtime_error( "Unimplemented primitive type " + std::to_string( +instance.primitive ) );
 }
 
 MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
@@ -776,12 +599,7 @@ MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
         }
     }
 
-    if( m_phongModule == nullptr )
-    {
-        m_phongModule = createModule( PhongMaterialCudaText(), PhongMaterialCudaSize );
-    }
-
-    geom.instance.instance.sbtOffset  = getRealizedMaterialSbtOffset( geom.instance );
+    geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
     geom.instance.instance.instanceId = m_sync.instanceMaterialIds.size();
     const uint_t materialId           = m_sync.realizedMaterials.size();
     m_sync.instanceMaterialIds.push_back( materialId );
@@ -889,17 +707,18 @@ void PbrtScene::afterLaunch( CUstream stream, const Params& params )
 }
 
 ScenePtr createPbrtScene( const Options&        options,
-                          PbrtSceneLoaderPtr    pbrt,
+                          PbrtSceneLoaderPtr    sceneLoader,
                           DemandTextureCachePtr demandTextureCache,
                           ProxyFactoryPtr       proxyFactory,
                           DemandLoaderPtr       demandLoader,
                           GeometryLoaderPtr     geometryLoader,
                           MaterialLoaderPtr     materialLoader,
+                          ProgramGroupsPtr      programGroups,
                           RendererPtr           renderer )
 {
-    return std::make_shared<PbrtScene>( options, std::move( pbrt ), std::move( demandTextureCache ),
-                                        std::move( proxyFactory ), std::move( demandLoader ),
-                                        std::move( geometryLoader ), std::move( materialLoader ), std::move( renderer ) );
+    return std::make_shared<PbrtScene>( options, std::move( sceneLoader ), std::move( demandTextureCache ),
+                                        std::move( proxyFactory ), std::move( demandLoader ), std::move( geometryLoader ),
+                                        std::move( materialLoader ), std::move( programGroups ), std::move( renderer ) );
 }
 
 }  // namespace demandPbrtScene

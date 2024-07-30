@@ -58,12 +58,13 @@ class Scene
 };
 
 ScenePtr createPbrtScene( const Options&        options,
-                          PbrtSceneLoaderPtr    pbrt,
+                          PbrtSceneLoaderPtr    sceneLoader,
                           DemandTextureCachePtr demandTextureCache,
                           ProxyFactoryPtr       proxyFactory,
                           DemandLoaderPtr       demandLoader,
                           GeometryLoaderPtr     geometryLoader,
                           MaterialLoaderPtr     materialLoader,
+                          ProgramGroupsPtr      programGroups,
                           RendererPtr           renderer );
 
 }  // namespace demandPbrtScene

@@ -87,6 +87,8 @@ add_library(DemandPbrtSceneImpl STATIC
     PbrtScene.h
     PbrtScene.cpp
     Primitive.h
+    ProgramGroups.h
+    ProgramGroups.cpp
     ProxyFactoryStatistics.h
     Renderer.h
     Sample.h
