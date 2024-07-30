@@ -424,7 +424,6 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
 TEST_F( TestMaterialResolverRequestedProxyIds, oneShotNotTriggeredDoesNothing )
 {
     m_options.oneShotMaterial = true;
-    const uint_t fakeMaterialId{ 2222 };
     EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).Times( 0 );
     EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 0 );
 

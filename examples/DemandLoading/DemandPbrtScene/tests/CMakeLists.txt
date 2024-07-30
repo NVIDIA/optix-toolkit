@@ -30,6 +30,7 @@ add_executable(TestDemandPbrtSceneImpl
     ParamsPrinters.h
     TestDemandTextureCache.cpp
     TestGeometryCache.cpp
+    TestGeometryResolver.cpp
     TestMatchers.cpp
     TestMaterialResolver.cpp
     TestOptions.cpp

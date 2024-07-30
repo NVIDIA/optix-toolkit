@@ -208,20 +208,20 @@ void ImGuiUserInterface::renderSceneStatistics() const
     if( ImGui::TreeNode( "Scene" ) )
     {
         const SceneStatistics& scene{ m_stats.scene };
-        const PbrtFileStatistics& pbrtFile{ m_stats.scene.pbrtFile };
         if( ImGui::TreeNode( "Pbrt" ) )
         {
-            ImGui::Text( "File: %s", pbrtFile.fileName.c_str() );
-            ImGui::Text( "Parse time: %.3f secs", pbrtFile.parseTime );
-            ImGui::Text( "Free shapes: %u", pbrtFile.numFreeShapes );
-            ImGui::Text( "Objects: %u", pbrtFile.numObjects );
-            ImGui::Text( "Object shapes: %u", pbrtFile.numObjectShapes );
-            ImGui::Text( "Object instances: %u", pbrtFile.numObjectInstances );
+            ImGui::Text( "File: %s", scene.fileName.c_str() );
+            ImGui::Text( "Parse time: %.3f secs", scene.parseTime );
+            ImGui::Text( "Free shapes: %u", scene.numFreeShapes );
+            ImGui::Text( "Objects: %u", scene.numObjects );
+            ImGui::Text( "Object shapes: %u", scene.numObjectShapes );
+            ImGui::Text( "Object instances: %u", scene.numObjectInstances );
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        ImGui::Text( "Proxy geometries resolved: %u", scene.numProxyGeometriesResolved );
-        ImGui::Text( "Geometries realized: %u", scene.numGeometriesRealized );
+        const GeometryResolverStatistics& geometry{ m_stats.geometry };
+        ImGui::Text( "Proxy geometries resolved: %u", geometry.numProxyGeometriesResolved );
+        ImGui::Text( "Geometries realized: %u", geometry.numGeometriesRealized );
         const MaterialResolverStats& materials{ m_stats.materials };
         ImGui::Text( "Proxy materials created: %u", materials.numProxyMaterialsCreated );
         ImGui::Text( "Partial materials realized: %u", materials.numPartialMaterialsRealized );

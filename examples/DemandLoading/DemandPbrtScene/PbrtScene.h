@@ -31,6 +31,7 @@
 #include "Dependencies.h"
 #include "FrameStopwatch.h"
 #include "Scene.h"
+#include "SceneGeometry.h"
 #include "SceneProxy.h"
 #include "SceneSyncState.h"
 
@@ -39,7 +40,6 @@
 
 #include <optix.h>
 
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -48,24 +48,16 @@ namespace demandPbrtScene {
 struct Options;
 struct Params;
 
-struct SceneGeometry
-{
-    GeometryInstance instance;
-    uint_t           materialId;
-    uint_t           instanceIndex;
-};
-
 class PbrtScene : public Scene
 {
   public:
     PbrtScene( const Options&        options,
                PbrtSceneLoaderPtr    sceneLoader,
                DemandTextureCachePtr demandTextureCache,
-               ProxyFactoryPtr       proxyFactory,
                DemandLoaderPtr       demandLoader,
-               GeometryLoaderPtr     geometryLoader,
                ProgramGroupsPtr      programGroups,
                MaterialResolverPtr   materialResolver,
+               GeometryResolverPtr   geometryResolver,
                RendererPtr           renderer );
     ~PbrtScene() override = default;
 
@@ -75,7 +67,7 @@ class PbrtScene : public Scene
     bool beforeLaunch( CUstream stream, Params& params ) override;
     void afterLaunch( CUstream stream, const Params& params ) override;
 
-    void resolveOneGeometry() override { m_resolveOneGeometry = true; }
+    void resolveOneGeometry() override;
     void resolveOneMaterial() override;
 
     SceneStatistics getStatistics() const override { return m_stats; }
@@ -84,27 +76,21 @@ private:
     void                  parseScene();
     void                  realizeInfiniteLights();
     void                  setCamera();
-    void                  pushInstance( OptixTraversableHandle handle );
     void                  createTopLevelTraversable( CUstream stream );
     void                  setLaunchParams( CUstream stream, Params& params );
-    bool                  resolveProxyGeometry( CUstream stream, uint_t proxyGeomId );
-    std::vector<uint_t>   sortRequestedProxyGeometriesByVolume();
-    bool                  resolveRequestedProxyGeometries( CUstream stream );
 
     // Dependencies
     const Options&        m_options;
     PbrtSceneLoaderPtr    m_sceneLoader;
     DemandTextureCachePtr m_demandTextureCache;
-    ProxyFactoryPtr       m_proxyFactory;
     DemandLoaderPtr       m_demandLoader;
-    GeometryLoaderPtr     m_geometryLoader;
     ProgramGroupsPtr      m_programGroups;
     MaterialResolverPtr   m_materialResolver;
+    GeometryResolverPtr   m_geometryResolver;
     RendererPtr           m_renderer;
 
     // Interactive behavior
     bool           m_interactive{};
-    bool           m_resolveOneGeometry{};
     FrameStopwatch m_frameTime;
 
     // Scene related data
@@ -113,9 +99,7 @@ private:
     otk::DeviceBuffer               m_tempBuffer;
     otk::DeviceBuffer               m_topLevelAccelBuffer;
     OptixTraversableHandle          m_topLevelTraversable{};
-    OptixTraversableHandle          m_proxyInstanceTraversable{};
     demandLoading::Ticket           m_ticket;
-    std::map<uint_t, SceneProxyPtr> m_sceneProxies;             // indexed by proxy geometry id
     SceneSyncState                  m_sync;
 };
 

@@ -28,22 +28,17 @@
 
 #include "PbrtScene.h"
 
-#include "DemandPbrtSceneKernelCuda.h"
 #include "DemandTextureCache.h"
-#include "IdRangePrinter.h"
-#include "ImageSourceFactory.h"
+#include "GeometryResolver.h"
 #include "MaterialResolver.h"
 #include "Options.h"
 #include "Params.h"
 #include "ProgramGroups.h"
 #include "Renderer.h"
 #include "SceneAdapters.h"
-#include "SceneProxy.h"
 #include "Stopwatch.h"
 
-#include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
-#include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
@@ -54,12 +49,10 @@
 #include <optix_stubs.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <iterator>
 #include <memory>
-#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -68,20 +61,18 @@ namespace demandPbrtScene {
 PbrtScene::PbrtScene( const Options&        options,
                       PbrtSceneLoaderPtr    sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
-                      ProxyFactoryPtr       proxyFactory,
                       DemandLoaderPtr       demandLoader,
-                      GeometryLoaderPtr     geometryLoader,
                       ProgramGroupsPtr      programGroups,
                       MaterialResolverPtr   materialResolver,
+                      GeometryResolverPtr   geometryResolver,
                       RendererPtr           renderer )
     : m_options( options )
     , m_sceneLoader( std::move( sceneLoader ) )
     , m_demandTextureCache( std::move( demandTextureCache ) )
-    , m_proxyFactory( std::move( proxyFactory ) )
     , m_demandLoader( std::move( demandLoader ) )
-    , m_geometryLoader( std::move( geometryLoader ) )
     , m_programGroups( std::move( programGroups ) )
     , m_materialResolver( std::move( materialResolver ) )
+    , m_geometryResolver( std::move( geometryResolver ) )
     , m_renderer( std::move( renderer ) )
     , m_interactive( m_options.outFile.empty() )
     , m_frameTime( m_interactive )
@@ -147,28 +138,6 @@ void PbrtScene::setCamera()
     m_renderer->setCamera( camera );
 }
 
-static void identity( float ( &result )[12] )
-{
-    const float matrix[12]{
-        1.0f, 0.0f, 0.0f, 0.0f,  //
-        0.0f, 1.0f, 0.0f, 0.0f,  //
-        0.0f, 0.0f, 1.0f, 0.0f   //
-    };
-    std::copy( std::begin( matrix ), std::end( matrix ), std::begin( result ) );
-}
-
-void PbrtScene::pushInstance( OptixTraversableHandle handle )
-{
-    OptixInstance instance;
-    identity( instance.transform );
-    instance.instanceId        = 0;
-    instance.sbtOffset         = +HitGroupIndex::PROXY_GEOMETRY;
-    instance.visibilityMask    = 255U;
-    instance.flags             = OPTIX_INSTANCE_FLAG_NONE;
-    instance.traversableHandle = handle;
-    m_sync.topLevelInstances.push_back( instance );
-}
-
 void PbrtScene::createTopLevelTraversable( CUstream stream )
 {
     m_sync.topLevelInstances.copyToDeviceAsync( stream );
@@ -203,10 +172,10 @@ void PbrtScene::createTopLevelTraversable( CUstream stream )
     }
 }
 
-static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneDescriptionPtr scene, double parseTime )
+static SceneStatistics getSceneStatistics( const std::string& filePath, SceneDescriptionPtr scene, double parseTime )
 {
-    const auto         asUInt{ []( const size_t value ) { return static_cast<unsigned int>( value ); } };
-    PbrtFileStatistics stats{};
+    const auto      asUInt{ []( const size_t value ) { return static_cast<unsigned int>( value ); } };
+    SceneStatistics stats{};
     stats.fileName           = std::filesystem::path( filePath ).filename().string();
     stats.numFreeShapes      = asUInt( scene->freeShapes.size() );
     stats.numObjects         = asUInt( scene->objects.size() );
@@ -214,6 +183,11 @@ static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneD
     stats.numObjectInstances = asUInt( scene->objectInstances.size() );
     stats.parseTime          = parseTime;
     return stats;
+}
+
+void PbrtScene::resolveOneGeometry()
+{
+    m_geometryResolver->resolveOneGeometry();
 }
 
 void PbrtScene::resolveOneMaterial()
@@ -231,32 +205,17 @@ void PbrtScene::parseScene()
     {
         throw std::runtime_error( "Couldn't load scene " + m_options.sceneFile );
     }
-    m_stats.pbrtFile = getPbrtStatistics( m_options.sceneFile, m_scene, parseTime );
-    std::cout << "\nParsed scene " << m_options.sceneFile << " in " << m_stats.pbrtFile.parseTime
-              << " secs, loaded: " << m_stats.pbrtFile.numFreeShapes << " free shapes, " << m_stats.pbrtFile.numObjects
-              << " objects, " << m_stats.pbrtFile.numObjectInstances << " instances.\n";
-
-    SceneProxyPtr proxy{ m_proxyFactory->scene( m_geometryLoader, m_scene ) };
-    m_sceneProxies[proxy->getPageId()] = proxy;
+    m_stats = getSceneStatistics( m_options.sceneFile, m_scene, parseTime );
+    std::cout << "\nParsed scene " << m_options.sceneFile << " in " << m_stats.parseTime << " secs, loaded: " << m_stats.numFreeShapes
+              << " free shapes, " << m_stats.numObjects << " objects, " << m_stats.numObjectInstances << " instances.\n";
 }
 
 void PbrtScene::initialize( CUstream stream )
 {
     parseScene();
     setCamera();
-
     m_programGroups->initialize();
-
-    m_geometryLoader->setSbtIndex( +HitGroupIndex::PROXY_GEOMETRY );
-    m_geometryLoader->copyToDeviceAsync( stream );
-    m_proxyInstanceTraversable = m_geometryLoader->createTraversable( m_renderer->getDeviceContext(), stream );
-    if( m_options.sync )
-    {
-        OTK_CUDA_SYNC_CHECK();
-    }
-
-    m_sync.topLevelInstances.clear();
-    pushInstance( m_proxyInstanceTraversable );
+    m_geometryResolver->initialize( stream, m_renderer->getDeviceContext(), m_scene, m_sync );
     createTopLevelTraversable( stream );
 }
 
@@ -281,7 +240,7 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     params.sceneEpsilon           = 0.005f;
     params.usePinholeCamera       = m_options.usePinholeCamera;
     params.traversable            = m_topLevelTraversable;
-    params.demandGeomContext      = m_geometryLoader->getContext();
+    params.demandGeomContext      = m_geometryResolver->getContext();
     const float3 yellow           = make_float3( 1.0f, 1.0f, 0.0 );
     params.demandMaterialColor    = yellow;
     params.numPartialMaterials    = static_cast<uint_t>( m_sync.partialMaterials.size() );
@@ -327,133 +286,14 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     m_demandLoader->launchPrepare( stream, params.demandContext );
 }
 
-bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
-{
-    bool updateNeeded{};
-
-    m_geometryLoader->remove( proxyGeomId );
-    auto it = m_sceneProxies.find( proxyGeomId );
-    if( it == m_sceneProxies.end() )
-    {
-        throw std::runtime_error( "Proxy geometry " + std::to_string( proxyGeomId ) + " not found" );
-    }
-
-    // Remove proxy from scene proxies map.
-    SceneProxyPtr removedProxy = it->second;
-    m_sceneProxies.erase( proxyGeomId );
-
-    // Add replacement for the proxy to the scene
-    if( removedProxy->isDecomposable() )
-    {
-        static std::vector<uint_t> subProxies;
-        subProxies.clear();
-
-        // get sub-proxies and add to scene
-        for( SceneProxyPtr proxy : removedProxy->decompose( m_geometryLoader, m_proxyFactory ) )
-        {
-            const uint_t id = proxy->getPageId();
-            subProxies.push_back( id );
-            m_sceneProxies[id] = proxy;
-        }
-        if( m_options.verboseProxyGeometryResolution )
-        {
-            std::cout << "Resolved proxy geometry id " << proxyGeomId << " to "
-                      << ( subProxies.size() > 1 ? "ids " : "id " ) << IdRange{ subProxies } << '\n';
-        }
-    }
-    else
-    {
-        // add instance to TLAS instances
-        SceneGeometry geom;
-        geom.instance = removedProxy->createGeometry( m_renderer->getDeviceContext(), stream );
-        updateNeeded  = m_materialResolver->resolveMaterialForGeometry( proxyGeomId, geom, m_sync );
-        ++m_stats.numGeometriesRealized;
-    }
-    ++m_stats.numProxyGeometriesResolved;
-
-    return updateNeeded;
-}
-
-inline float volume( const OptixAabb& bounds )
-{
-    return std::fabs( bounds.maxX - bounds.minX ) * std::fabs( bounds.maxY - bounds.minY )
-           * std::fabs( bounds.maxZ - bounds.minZ );
-}
-
-
-std::vector<uint_t> PbrtScene::sortRequestedProxyGeometriesByVolume()
-{
-    std::vector<uint_t> ids{ m_geometryLoader->requestedProxyIds() };
-    if( m_options.sortProxies )
-    {
-        std::sort( ids.begin(), ids.end(), [this]( const uint_t lhs, const uint_t rhs ) {
-            const float lhsVolume = volume( m_sceneProxies[lhs]->getBounds() );
-            const float rhsVolume = volume( m_sceneProxies[rhs]->getBounds() );
-            return lhsVolume > rhsVolume;
-        } );
-    }
-    return ids;
-}
-
-bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
-{
-    if( m_options.oneShotGeometry && !m_resolveOneGeometry )
-    {
-        return false;
-    }
-
-    const unsigned int MIN_REALIZED{ 512 };
-    unsigned int       realizedCount{};
-    bool               realized{};
-    bool               updateNeeded{};
-    for( uint_t id : sortRequestedProxyGeometriesByVolume() )
-    {
-        if( m_frameTime.expired() && realizedCount > MIN_REALIZED )
-        {
-            break;
-        }
-        ++realizedCount;
-
-        if( resolveProxyGeometry( stream, id ) )
-        {
-            updateNeeded = true;
-        }
-        realized = true;
-
-        if( m_resolveOneGeometry )
-        {
-            m_resolveOneGeometry = false;
-            break;
-        }
-    }
-    m_geometryLoader->clearRequestedProxyIds();
-
-    if( realized )
-    {
-        if( updateNeeded )
-        {
-            // we reused a realized material while resolving a proxy geometry
-            m_sync.realizedNormals.copyToDeviceAsync( stream );
-            m_sync.realizedUVs.copyToDeviceAsync( stream );
-            m_sync.instanceMaterialIds.copyToDeviceAsync( stream );
-        }
-
-        m_geometryLoader->copyToDeviceAsync( stream );
-        OptixDeviceContext context{ m_renderer->getDeviceContext() };
-        m_proxyInstanceTraversable                    = m_geometryLoader->createTraversable( context, stream );
-        m_sync.topLevelInstances[0].traversableHandle = m_proxyInstanceTraversable;
-    }
-
-    return realized;
-}
-
 bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
 {
     m_ticket.wait();
     m_frameTime.start();
 
-    const MaterialResolution realizedMaterial = m_materialResolver->resolveRequestedProxyMaterials( stream, m_frameTime, m_sync );
-    const bool realizedGeometry = resolveRequestedProxyGeometries( stream );
+    const OptixDeviceContext context{ m_renderer->getDeviceContext() };
+    const MaterialResolution realizedMaterial{ m_materialResolver->resolveRequestedProxyMaterials( stream, m_frameTime, m_sync ) };
+    const bool realizedGeometry{ m_geometryResolver->resolveRequestedProxyGeometries( stream, context, m_frameTime, m_sync ) };
 
     if( realizedGeometry || realizedMaterial != MaterialResolution::NONE )
     {
@@ -462,9 +302,10 @@ bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
 
     setLaunchParams( stream, params );
 
-    // Render needed if we changed accels or we still have unresolved proxies.
-    return realizedGeometry || realizedMaterial != MaterialResolution::NONE || !m_sceneProxies.empty()
-           || m_options.oneShotGeometry || m_options.oneShotMaterial || m_ticket.numTasksTotal() > 0;
+    // Render needed if we changed accels or we still have remaining work to do.
+    return realizedGeometry || realizedMaterial != MaterialResolution::NONE  // some proxy was resolved
+           || m_options.oneShotGeometry || m_options.oneShotMaterial         // something is in one shot mode
+           || m_ticket.numTasksTotal() > 0;                                  // some demand loaded data was requested
 }
 
 void PbrtScene::afterLaunch( CUstream stream, const Params& params )
@@ -475,16 +316,20 @@ void PbrtScene::afterLaunch( CUstream stream, const Params& params )
 ScenePtr createScene( const Options&        options,
                       PbrtSceneLoaderPtr    sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
-                      ProxyFactoryPtr       proxyFactory,
                       DemandLoaderPtr       demandLoader,
-                      GeometryLoaderPtr     geometryLoader,
                       ProgramGroupsPtr      programGroups,
                       MaterialResolverPtr   materialResolver,
+                      GeometryResolverPtr   geometryResolver,
                       RendererPtr           renderer )
 {
-    return std::make_shared<PbrtScene>( options, std::move( sceneLoader ), std::move( demandTextureCache ),
-                                        std::move( proxyFactory ), std::move( demandLoader ), std::move( geometryLoader ),
-                                        std::move( programGroups ), std::move( materialResolver ), std::move( renderer ) );
+    return std::make_shared<PbrtScene>( options,                          //
+                                        std::move( sceneLoader ),         //
+                                        std::move( demandTextureCache ),  //
+                                        std::move( demandLoader ),        //
+                                        std::move( programGroups ),       //
+                                        std::move( materialResolver ),    //
+                                        std::move( geometryResolver ),    //
+                                        std::move( renderer ) );
 }
 
 }  // namespace demandPbrtScene

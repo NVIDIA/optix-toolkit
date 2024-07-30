@@ -29,7 +29,6 @@
 #pragma once
 
 #include "Dependencies.h"
-#include "Traversable.h"
 
 #include <optix.h>
 
@@ -46,8 +45,10 @@ struct DebugLocation;
 
 namespace demandPbrtScene {
 
-struct PerspectiveCamera;
+struct LookAtParams;
 struct Options;
+struct PerspectiveCamera;
+
 class Scene;
 
 class Renderer

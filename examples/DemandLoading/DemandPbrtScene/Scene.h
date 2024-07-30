@@ -57,14 +57,12 @@ class Scene
     virtual SceneStatistics getStatistics() const = 0;
 };
 
-ScenePtr createScene( const Options&        options,
-                      PbrtSceneLoaderPtr    sceneLoader,
+ScenePtr createScene( const Options& options,
+                      PbrtSceneLoaderPtr sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
-                      ProxyFactoryPtr       proxyFactory,
-                      DemandLoaderPtr       demandLoader,
-                      GeometryLoaderPtr     geometryLoader,
-                      ProgramGroupsPtr      programGroups,
-                      MaterialResolverPtr   materialResolver,
-                      RendererPtr           renderer );
+                      DemandLoaderPtr demandLoader,
+                      ProgramGroupsPtr programGroups,
+                      MaterialResolverPtr materialResolver,
+                      GeometryResolverPtr geometryResolver, RendererPtr renderer );
 
 }  // namespace demandPbrtScene
