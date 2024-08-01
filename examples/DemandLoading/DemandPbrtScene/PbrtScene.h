@@ -31,6 +31,7 @@
 #include "Dependencies.h"
 #include "Scene.h"
 #include "SceneProxy.h"
+#include "SceneSyncState.h"
 
 #include <OptiXToolkit/DemandLoading/Ticket.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
@@ -140,24 +141,7 @@ class PbrtScene : public Scene
     std::map<uint_t, SceneProxyPtr> m_sceneProxies;             // indexed by proxy geometry id
     std::map<uint_t, SceneGeometry> m_proxyMaterialGeometries;  // indexed by proxy material id
     std::map<uint_t, SceneGeometry> m_realizedGeometries;       // indexed by top level instance index
-
-    struct SyncState
-    {
-        uint_t                            minAlphaTextureId{ ~0U };
-        uint_t                            maxAlphaTextureId{};
-        uint_t                            minDiffuseTextureId{ ~0U };
-        uint_t                            maxDiffuseTextureId{};
-        otk::SyncVector<OptixInstance>    topLevelInstances;    // OptixInstance array for building TLIAS
-        otk::SyncVector<PartialMaterial>  partialMaterials;     // indexed by materialId
-        otk::SyncVector<TriangleUVs*>     partialUVs;           // indexed by materialId
-        otk::SyncVector<uint_t>           instanceMaterialIds;  // indexed by instance id
-        otk::SyncVector<PhongMaterial>    realizedMaterials;    // indexed by values in m_instanceMaterialIds
-        otk::SyncVector<TriangleNormals*> realizedNormals;      // indexed by instance id, then by primitive index
-        otk::SyncVector<TriangleUVs*>     realizedUVs;          // indexed by instance id, then by primitive index
-        otk::SyncVector<DirectionalLight> directionalLights;    // defined by the scene
-        otk::SyncVector<InfiniteLight>    infiniteLights;       // defined by the scene
-    };
-    SyncState m_sync;
+    SceneSyncState                  m_sync;
 };
 
 }  // namespace demandPbrtScene
