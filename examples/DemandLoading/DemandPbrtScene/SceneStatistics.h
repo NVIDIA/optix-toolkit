@@ -30,6 +30,8 @@
 
 #include <string>
 
+#include "MaterialResolverStatistics.h"
+
 namespace demandPbrtScene {
 
 struct PbrtFileStatistics
@@ -47,10 +49,6 @@ struct SceneStatistics
     PbrtFileStatistics pbrtFile;
     unsigned int       numProxyGeometriesResolved;
     unsigned int       numGeometriesRealized;
-    unsigned int       numProxyMaterialsCreated;
-    unsigned int       numPartialMaterialsRealized;
-    unsigned int       numMaterialsRealized;
-    unsigned int       numMaterialsReused;
 };
 
 }  // namespace demandPbrtScene

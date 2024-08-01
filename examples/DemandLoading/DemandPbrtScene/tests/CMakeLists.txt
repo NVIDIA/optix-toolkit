@@ -31,6 +31,7 @@ add_executable(TestDemandPbrtSceneImpl
     TestDemandTextureCache.cpp
     TestGeometryCache.cpp
     TestMatchers.cpp
+    TestMaterialResolver.cpp
     TestOptions.cpp
     TestOptixRenderer.cpp
     TestParams.cpp

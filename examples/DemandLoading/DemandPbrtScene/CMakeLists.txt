@@ -78,6 +78,9 @@ add_library(DemandPbrtSceneImpl STATIC
     ImageSourceFactoryStatistics.h
     ImGuiUserInterface.cpp
     ImGuiUserInterface.h
+    MaterialResolver.h
+    MaterialResolver.cpp
+    MaterialResolverStatistics.h
     Options.h
     Options.cpp
     OptixRenderer.h

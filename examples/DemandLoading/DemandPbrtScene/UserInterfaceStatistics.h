@@ -30,6 +30,7 @@
 
 #include "GeometryCacheStatistics.h"
 #include "ImageSourceFactoryStatistics.h"
+#include "MaterialResolverStatistics.h"
 #include "ProxyFactoryStatistics.h"
 #include "SceneStatistics.h"
 
@@ -41,6 +42,7 @@ struct UserInterfaceStatistics
     GeometryCacheStatistics      geometryCache;
     ImageSourceFactoryStatistics imageSourceFactory;
     ProxyFactoryStatistics       proxyFactory;
+    MaterialResolverStats        materials;
     SceneStatistics              scene;
 };
 
