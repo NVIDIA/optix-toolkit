@@ -82,6 +82,7 @@ PbrtScene::PbrtScene( const Options&        options,
     , m_programGroups( std::move( programGroups ) )
     , m_renderer( std::move( renderer ) )
     , m_interactive( m_options.outFile.empty() )
+    , m_frameTime( m_interactive )
 {
 }
 
@@ -499,7 +500,7 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
     bool               updateNeeded{};
     for( uint_t id : sortRequestedProxyGeometriesByVolume() )
     {
-        if( frameBudgetExceeded() && realizedCount > MIN_REALIZED )
+        if( m_frameTime.expired() && realizedCount > MIN_REALIZED )
         {
             break;
         }
@@ -633,7 +634,7 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
     unsigned int       realizedCount{};
     for( uint_t id : m_materialLoader->requestedMaterialIds() )
     {
-        if( frameBudgetExceeded() && realizedCount > MIN_REALIZED )
+        if( m_frameTime.expired() && realizedCount > MIN_REALIZED )
         {
             break;
         }
@@ -670,22 +671,10 @@ MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
     return resolution;
 }
 
-bool PbrtScene::frameBudgetExceeded() const
-{
-    // infinite frame budget when rendering to a file
-    if( !m_interactive )
-    {
-        return false;
-    }
-
-    const Clock::duration duration = Clock::now() - m_frameStart;
-    return duration > m_frameTime;
-}
-
 bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
 {
     m_ticket.wait();
-    m_frameStart = Clock::now();
+    m_frameTime.start();
 
     const MaterialResolution realizedMaterial = resolveRequestedProxyMaterials( stream );
     const bool               realizedGeometry = resolveRequestedProxyGeometries( stream );

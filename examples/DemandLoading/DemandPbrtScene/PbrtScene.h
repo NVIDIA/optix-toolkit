@@ -29,6 +29,7 @@
 #pragma once
 
 #include "Dependencies.h"
+#include "FrameStopwatch.h"
 #include "Scene.h"
 #include "SceneProxy.h"
 #include "SceneSyncState.h"
@@ -38,7 +39,6 @@
 
 #include <optix.h>
 
-#include <chrono>
 #include <map>
 #include <memory>
 #include <optional>
@@ -94,8 +94,6 @@ class PbrtScene : public Scene
     SceneStatistics getStatistics() const override { return m_stats; }
 
   private:
-    using Clock = std::chrono::steady_clock;
-
     void                  parseScene();
     void                  realizeInfiniteLights();
     void                  setCamera();
@@ -108,7 +106,6 @@ class PbrtScene : public Scene
     bool                  resolveRequestedProxyGeometries( CUstream stream );
     MaterialResolution    resolveMaterial( uint_t proxyMaterialId );
     MaterialResolution    resolveRequestedProxyMaterials( CUstream stream );
-    bool                  frameBudgetExceeded() const;
 
     // Dependencies
     const Options&        m_options;
@@ -122,13 +119,10 @@ class PbrtScene : public Scene
     RendererPtr           m_renderer;
 
     // Interactive behavior
-    bool m_interactive{};
-    bool m_resolveOneGeometry{};
-    bool m_resolveOneMaterial{};
-
-    // desire 60 fps
-    Clock::duration                m_frameTime{ std::chrono::milliseconds( 1000 / 60 ) };
-    std::chrono::time_point<Clock> m_frameStart{};
+    bool           m_interactive{};
+    bool           m_resolveOneGeometry{};
+    bool           m_resolveOneMaterial{};
+    FrameStopwatch m_frameTime;
 
     // Scene related data
     SceneDescriptionPtr             m_scene;
