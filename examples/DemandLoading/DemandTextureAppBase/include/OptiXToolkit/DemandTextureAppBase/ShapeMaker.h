@@ -49,6 +49,7 @@ class ShapeMaker
     static void makeCone( float3 basePoint, float radius, float height, int numSegments, std::vector<Vert>& shape );
     static void makeTorus( float3 center, float radius1, float radius2, int numSegments, std::vector<Vert>& shape );
     static void makeVase( float3 basePoint, float radius1, float radius2, float height, int numSegments, std::vector<Vert>& shape );
+    static void makeBox( float3 corner, float3 dim, std::vector<Vert>& shape );
 
     static void spinZaxis( std::vector<Vert>& silhouette, int numSegments, float3 translation, std::vector<Vert>& shape );
     static Vert rotateSilhouettePoint( const Vert& p, float angle );
