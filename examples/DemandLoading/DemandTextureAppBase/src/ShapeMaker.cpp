@@ -161,6 +161,31 @@ void ShapeMaker::makeVase( float3 basePoint, float radius1, float radius2, float
     ShapeMaker::spinZaxis( silhouette, numSegments, basePoint, shape );
 }
 
+void ShapeMaker::makeBox( float3 corner, float3 dim, std::vector<Vert>& shape )
+{
+    float normals[18] = { -1,0,0, 1,0,0, 0,-1,0, 0,1,0, 0,0,-1, 0,0,1 };
+    float texcos[12] = { 0,0, 1,0, 1,1, 0,0, 1,1, 0,1 };
+    float pos[108] = { 0,0,0, 0,1,1, 0,1,0,  0,0,0, 0,0,1, 0,1,1, 
+                       1,0,0, 1,1,0, 1,1,1,  1,0,0, 1,1,1, 1,0,1,
+                       0,0,0, 1,0,0, 1,0,1,  0,0,0, 1,0,1, 0,0,1, 
+                       0,1,0, 1,1,1, 1,1,0,  0,1,0, 0,1,1, 1,1,1,   
+                       0,0,0, 1,0,0, 1,1,0,  0,0,0, 1,1,0, 0,1,0,
+                       0,0,1, 1,0,1, 1,1,1,  0,0,1, 1,1,1, 0,1,1 };
+
+    for( int face = 0; face < 6; ++face )
+    {
+        for( int vertex = 0; vertex < 6; ++vertex )
+        {
+            float* p = &pos[ face*6*3 + vertex*3 ];
+            float* t = &texcos[ vertex*2 ];
+            float* n = &normals[ face*3 ];
+            Vert v = Vert{ float3{p[0], p[1], p[2]} * dim + corner, float3{n[0], n[1], n[2]}, float2{t[0], t[1]} };
+            shape.push_back( v );
+        }
+    }
+}
+
+
 void ShapeMaker::spinZaxis( std::vector<Vert>& silhouette, int numSegments, float3 translation, std::vector<Vert>& shape )
 {
     // Create surface verts
