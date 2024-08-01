@@ -41,7 +41,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <vector>
 
 namespace demandPbrtScene {
@@ -56,18 +55,6 @@ struct SceneGeometry
     uint_t           instanceIndex;
 };
 
-enum class MaterialResolution
-{
-    NONE    = 0,
-    PARTIAL = 1,
-    FULL    = 2,
-};
-
-inline bool operator<( MaterialResolution lhs, MaterialResolution rhs )
-{
-    return static_cast<int>( lhs ) < static_cast<int>( rhs );
-}
-
 class PbrtScene : public Scene
 {
   public:
@@ -77,8 +64,8 @@ class PbrtScene : public Scene
                ProxyFactoryPtr       proxyFactory,
                DemandLoaderPtr       demandLoader,
                GeometryLoaderPtr     geometryLoader,
-               MaterialLoaderPtr     materialLoader,
                ProgramGroupsPtr      programGroups,
+               MaterialResolverPtr   materialResolver,
                RendererPtr           renderer );
     ~PbrtScene() override = default;
 
@@ -89,23 +76,20 @@ class PbrtScene : public Scene
     void afterLaunch( CUstream stream, const Params& params ) override;
 
     void resolveOneGeometry() override { m_resolveOneGeometry = true; }
-    void resolveOneMaterial() override { m_resolveOneMaterial = true; }
+    void resolveOneMaterial() override;
 
     SceneStatistics getStatistics() const override { return m_stats; }
 
-  private:
+private:
     void                  parseScene();
     void                  realizeInfiniteLights();
     void                  setCamera();
     void                  pushInstance( OptixTraversableHandle handle );
     void                  createTopLevelTraversable( CUstream stream );
     void                  setLaunchParams( CUstream stream, Params& params );
-    std::optional<uint_t> findResolvedMaterial( const GeometryInstance& instance ) const;
     bool                  resolveProxyGeometry( CUstream stream, uint_t proxyGeomId );
     std::vector<uint_t>   sortRequestedProxyGeometriesByVolume();
     bool                  resolveRequestedProxyGeometries( CUstream stream );
-    MaterialResolution    resolveMaterial( uint_t proxyMaterialId );
-    MaterialResolution    resolveRequestedProxyMaterials( CUstream stream );
 
     // Dependencies
     const Options&        m_options;
@@ -114,14 +98,13 @@ class PbrtScene : public Scene
     ProxyFactoryPtr       m_proxyFactory;
     DemandLoaderPtr       m_demandLoader;
     GeometryLoaderPtr     m_geometryLoader;
-    MaterialLoaderPtr     m_materialLoader;
     ProgramGroupsPtr      m_programGroups;
+    MaterialResolverPtr   m_materialResolver;
     RendererPtr           m_renderer;
 
     // Interactive behavior
     bool           m_interactive{};
     bool           m_resolveOneGeometry{};
-    bool           m_resolveOneMaterial{};
     FrameStopwatch m_frameTime;
 
     // Scene related data
@@ -133,8 +116,6 @@ class PbrtScene : public Scene
     OptixTraversableHandle          m_proxyInstanceTraversable{};
     demandLoading::Ticket           m_ticket;
     std::map<uint_t, SceneProxyPtr> m_sceneProxies;             // indexed by proxy geometry id
-    std::map<uint_t, SceneGeometry> m_proxyMaterialGeometries;  // indexed by proxy material id
-    std::map<uint_t, SceneGeometry> m_realizedGeometries;       // indexed by top level instance index
     SceneSyncState                  m_sync;
 };
 

@@ -207,25 +207,26 @@ void ImGuiUserInterface::renderSceneStatistics() const
 {
     if( ImGui::TreeNode( "Scene" ) )
     {
-        const SceneStatistics& stats{ m_stats.scene };
-        const PbrtFileStatistics& pbrtStats{ m_stats.scene.pbrtFile };
+        const SceneStatistics& scene{ m_stats.scene };
+        const PbrtFileStatistics& pbrtFile{ m_stats.scene.pbrtFile };
         if( ImGui::TreeNode( "Pbrt" ) )
         {
-            ImGui::Text( "File: %s", pbrtStats.fileName.c_str() );
-            ImGui::Text( "Parse time: %.3f secs", pbrtStats.parseTime );
-            ImGui::Text( "Free shapes: %u", pbrtStats.numFreeShapes );
-            ImGui::Text( "Objects: %u", pbrtStats.numObjects );
-            ImGui::Text( "Object shapes: %u", pbrtStats.numObjectShapes );
-            ImGui::Text( "Object instances: %u", pbrtStats.numObjectInstances );
+            ImGui::Text( "File: %s", pbrtFile.fileName.c_str() );
+            ImGui::Text( "Parse time: %.3f secs", pbrtFile.parseTime );
+            ImGui::Text( "Free shapes: %u", pbrtFile.numFreeShapes );
+            ImGui::Text( "Objects: %u", pbrtFile.numObjects );
+            ImGui::Text( "Object shapes: %u", pbrtFile.numObjectShapes );
+            ImGui::Text( "Object instances: %u", pbrtFile.numObjectInstances );
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        ImGui::Text( "Proxy geometries resolved: %u", stats.numProxyGeometriesResolved );
-        ImGui::Text( "Geometries realized: %u", stats.numGeometriesRealized );
-        ImGui::Text( "Proxy materials created: %u", stats.numProxyMaterialsCreated );
-        ImGui::Text( "Partial materials realized: %u", stats.numPartialMaterialsRealized );
-        ImGui::Text( "Materials realized: %u", stats.numMaterialsRealized );
-        ImGui::Text( "Materials reused: %u", stats.numMaterialsReused );
+        ImGui::Text( "Proxy geometries resolved: %u", scene.numProxyGeometriesResolved );
+        ImGui::Text( "Geometries realized: %u", scene.numGeometriesRealized );
+        const MaterialResolverStats& materials{ m_stats.materials };
+        ImGui::Text( "Proxy materials created: %u", materials.numProxyMaterialsCreated );
+        ImGui::Text( "Partial materials realized: %u", materials.numPartialMaterialsRealized );
+        ImGui::Text( "Materials realized: %u", materials.numMaterialsRealized );
+        ImGui::Text( "Materials reused: %u", materials.numMaterialsReused );
         ImGui::TreePop();
         ImGui::Spacing();
     }

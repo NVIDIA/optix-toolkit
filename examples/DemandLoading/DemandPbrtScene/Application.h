@@ -95,6 +95,7 @@ class Application : public otk::Sample
     RendererPtr           m_renderer;
     DemandTextureCachePtr m_demandTextureCache;
     ProgramGroupsPtr      m_programGroups;
+    MaterialResolverPtr   m_materialResolver;
     ScenePtr              m_scene;
     bool                  m_sceneUpdated{};
     Statistics            m_statistics;

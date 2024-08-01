@@ -32,6 +32,7 @@
 #include "DemandTextureCache.h"
 #include "IdRangePrinter.h"
 #include "ImageSourceFactory.h"
+#include "MaterialResolver.h"
 #include "Options.h"
 #include "Params.h"
 #include "ProgramGroups.h"
@@ -58,6 +59,7 @@
 #include <filesystem>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -69,8 +71,8 @@ PbrtScene::PbrtScene( const Options&        options,
                       ProxyFactoryPtr       proxyFactory,
                       DemandLoaderPtr       demandLoader,
                       GeometryLoaderPtr     geometryLoader,
-                      MaterialLoaderPtr     materialLoader,
                       ProgramGroupsPtr      programGroups,
+                      MaterialResolverPtr   materialResolver,
                       RendererPtr           renderer )
     : m_options( options )
     , m_sceneLoader( std::move( sceneLoader ) )
@@ -78,8 +80,8 @@ PbrtScene::PbrtScene( const Options&        options,
     , m_proxyFactory( std::move( proxyFactory ) )
     , m_demandLoader( std::move( demandLoader ) )
     , m_geometryLoader( std::move( geometryLoader ) )
-    , m_materialLoader( std::move( materialLoader ) )
     , m_programGroups( std::move( programGroups ) )
+    , m_materialResolver( std::move( materialResolver ) )
     , m_renderer( std::move( renderer ) )
     , m_interactive( m_options.outFile.empty() )
     , m_frameTime( m_interactive )
@@ -214,6 +216,11 @@ static PbrtFileStatistics getPbrtStatistics( const std::string& filePath, SceneD
     return stats;
 }
 
+void PbrtScene::resolveOneMaterial()
+{
+    m_materialResolver->resolveOneMaterial();
+}
+
 void PbrtScene::parseScene()
 {
     std::cout << "Reading " << m_options.sceneFile << "...\n";
@@ -320,41 +327,6 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     m_demandLoader->launchPrepare( stream, params.demandContext );
 }
 
-std::optional<uint_t> PbrtScene::findResolvedMaterial( const GeometryInstance& instance ) const
-{
-    // Check for loaded diffuse map
-    if( ( instance.material.flags & MaterialFlags::DIFFUSE_MAP ) == MaterialFlags::DIFFUSE_MAP
-        && !m_demandTextureCache->hasDiffuseTextureForFile( instance.diffuseMapFileName ) )
-    {
-        return {};
-    }
-
-    // Check for loaded alpha map
-    if( ( instance.material.flags & MaterialFlags::ALPHA_MAP ) == MaterialFlags::ALPHA_MAP
-        && !m_demandTextureCache->hasAlphaTextureForFile( instance.alphaMapFileName ) )
-    {
-        return {};
-    }
-
-    // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
-    const auto it =
-        std::find_if( m_sync.realizedMaterials.cbegin(), m_sync.realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
-            return instance.material.Ka == entry.Ka                 //
-                   && instance.material.Kd == entry.Kd              //
-                   && instance.material.Ks == entry.Ks              //
-                   && instance.material.Kr == entry.Kr              //
-                   && instance.material.phongExp == entry.phongExp  //
-                   && ( instance.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
-                          == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
-        } );
-    if( it != m_sync.realizedMaterials.cend() )
-    {
-        return { static_cast<uint_t>( std::distance( m_sync.realizedMaterials.cbegin(), it ) ) };
-    }
-
-    return {};
-}
-
 bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
 {
     bool updateNeeded{};
@@ -394,62 +366,7 @@ bool PbrtScene::resolveProxyGeometry( CUstream stream, uint_t proxyGeomId )
         // add instance to TLAS instances
         SceneGeometry geom;
         geom.instance = removedProxy->createGeometry( m_renderer->getDeviceContext(), stream );
-
-        // check for shared materials
-        if( const std::optional<uint_t> id = findResolvedMaterial( geom.instance ); id.has_value() )
-        {
-            // just for completeness's sake, mark the duplicate material's textures as having
-            // been loaded, although we won't use the duplicate material after this.
-            auto markAllocated = [&]( MaterialFlags requested, MaterialFlags allocated ) {
-                MaterialFlags& flags{ geom.instance.material.flags };
-                if( flagSet( flags, requested ) )
-                {
-                    flags |= allocated;
-                }
-            };
-            markAllocated( MaterialFlags::ALPHA_MAP, MaterialFlags::ALPHA_MAP_ALLOCATED );
-            markAllocated( MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED );
-
-            // reuse already realized material
-            //OTK_ASSERT( m_phongModule != nullptr );  // should have already been realized
-            const uint_t materialId{ id.value() };
-            const uint_t instanceId{ static_cast<uint_t>( m_sync.instanceMaterialIds.size() ) };
-            geom.materialId                   = materialId;
-            geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
-            geom.instance.instance.instanceId = instanceId;
-            geom.instanceIndex                = m_sync.topLevelInstances.size();
-            m_sync.instanceMaterialIds.push_back( materialId );
-            m_sync.topLevelInstances.push_back( geom.instance.instance );
-            m_sync.realizedNormals.push_back( geom.instance.normals );
-            m_sync.realizedUVs.push_back( geom.instance.uvs );
-            m_proxyMaterialGeometries[materialId]    = geom;
-            m_realizedGeometries[geom.instanceIndex] = geom;
-            ++m_stats.numMaterialsReused;
-
-            if( m_options.verboseProxyGeometryResolution )
-            {
-                std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
-                          << geom.instanceIndex << " with existing material id " << materialId << '\n';
-            }
-
-            updateNeeded = true;
-        }
-        else
-        {
-            const uint_t materialId{ m_materialLoader->add() };
-            const uint_t instanceId{ materialId };  // use the proxy material id as the instance id
-            geom.materialId                   = materialId;
-            geom.instance.instance.instanceId = instanceId;
-            geom.instanceIndex                = m_sync.topLevelInstances.size();
-            m_sync.topLevelInstances.push_back( geom.instance.instance );
-            m_proxyMaterialGeometries[materialId] = geom;
-            if( m_options.verboseProxyGeometryResolution )
-            {
-                std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
-                          << geom.instanceIndex << " with proxy material id " << geom.materialId << '\n';
-            }
-            ++m_stats.numProxyMaterialsCreated;
-        }
+        updateNeeded  = m_materialResolver->resolveMaterialForGeometry( proxyGeomId, geom, m_sync );
         ++m_stats.numGeometriesRealized;
     }
     ++m_stats.numProxyGeometriesResolved;
@@ -476,15 +393,6 @@ std::vector<uint_t> PbrtScene::sortRequestedProxyGeometriesByVolume()
         } );
     }
     return ids;
-}
-
-template <typename Container>
-void grow( Container& container, size_t size )
-{
-    if( container.size() < size )
-    {
-        container.resize( size );
-    }
 }
 
 bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
@@ -539,145 +447,13 @@ bool PbrtScene::resolveRequestedProxyGeometries( CUstream stream )
     return realized;
 }
 
-MaterialResolution PbrtScene::resolveMaterial( uint_t proxyMaterialId )
-{
-    auto it = m_proxyMaterialGeometries.find( proxyMaterialId );
-    if( it == m_proxyMaterialGeometries.end() )
-    {
-        throw std::runtime_error( "Unknown material id " + std::to_string( proxyMaterialId ) );
-    }
-
-    SceneGeometry& geom = it->second;
-    if( geom.materialId != proxyMaterialId )
-    {
-        throw std::runtime_error( "Mismatched material id; expected " + std::to_string( geom.materialId ) + ", got "
-                                  + std::to_string( proxyMaterialId ) );
-    }
-
-    // Only triangle meshes support alpha maps currently.
-    // TODO: support alpha maps on spheres
-    if( geom.instance.primitive == GeometryPrimitive::TRIANGLE )
-    {
-        // phase 1 alpha map resolution
-        if( flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP )
-            && !flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
-        {
-            const uint_t alphaTextureId = m_demandTextureCache->createAlphaTextureFromFile( geom.instance.alphaMapFileName );
-            m_sync.minAlphaTextureId              = std::min( alphaTextureId, m_sync.minAlphaTextureId );
-            m_sync.maxAlphaTextureId              = std::max( alphaTextureId, m_sync.maxAlphaTextureId );
-            geom.instance.material.alphaTextureId = alphaTextureId;
-            geom.instance.material.flags |= MaterialFlags::ALPHA_MAP_ALLOCATED;
-            const size_t numProxyMaterials = proxyMaterialId + 1;  // ids are zero based
-            grow( m_sync.partialMaterials, numProxyMaterials );
-            grow( m_sync.partialUVs, numProxyMaterials );
-            m_sync.partialMaterials[proxyMaterialId].alphaTextureId = geom.instance.material.alphaTextureId;
-            m_sync.partialUVs[proxyMaterialId]                      = geom.instance.uvs;
-            m_sync.topLevelInstances[geom.instanceIndex].sbtOffset  = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
-            if( m_options.verboseProxyMaterialResolution )
-            {
-                std::cout << "Resolved proxy material id " << proxyMaterialId << " to partial alpha texture id "
-                          << geom.instance.material.alphaTextureId << '\n';
-            }
-            return MaterialResolution::PARTIAL;
-        }
-
-        // phase 2 alpha map resolution
-        if( flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
-        {
-            // not strictly necessary, but indicates this partial material has been resolved completely
-            m_sync.partialMaterials[proxyMaterialId].alphaTextureId = 0;
-            m_sync.partialUVs[proxyMaterialId]                      = nullptr;
-        }
-
-        // diffuse map resolution
-        if( flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP )
-            && !flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
-        {
-            const uint_t diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( geom.instance.diffuseMapFileName );
-            m_sync.minDiffuseTextureId              = std::min( diffuseTextureId, m_sync.minDiffuseTextureId );
-            m_sync.maxDiffuseTextureId              = std::max( diffuseTextureId, m_sync.maxDiffuseTextureId );
-            geom.instance.material.diffuseTextureId = diffuseTextureId;
-            geom.instance.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
-        }
-    }
-
-    geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
-    geom.instance.instance.instanceId = m_sync.instanceMaterialIds.size();
-    const uint_t materialId           = m_sync.realizedMaterials.size();
-    m_sync.instanceMaterialIds.push_back( materialId );
-    m_sync.realizedMaterials.push_back( geom.instance.material );
-    m_sync.realizedNormals.push_back( geom.instance.normals );
-    m_sync.realizedUVs.push_back( geom.instance.uvs );
-    m_sync.topLevelInstances[geom.instanceIndex] = geom.instance.instance;
-    m_realizedGeometries[geom.instanceIndex]     = geom;
-    if( m_options.verboseProxyMaterialResolution )
-    {
-        std::cout
-            << "Resolved proxy material id " << proxyMaterialId << " for instance id " << geom.instance.instance.instanceId
-            << ( flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ? " with diffuse map" : "" )
-            << '\n';
-    }
-    m_materialLoader->remove( proxyMaterialId );
-    m_proxyMaterialGeometries.erase( proxyMaterialId );
-    return MaterialResolution::FULL;
-}
-
-MaterialResolution PbrtScene::resolveRequestedProxyMaterials( CUstream stream )
-{
-    if( m_options.oneShotMaterial && !m_resolveOneMaterial )
-    {
-        return MaterialResolution::NONE;
-    }
-
-    MaterialResolution resolution{ MaterialResolution::NONE };
-    const unsigned int MIN_REALIZED{ 512 };
-    unsigned int       realizedCount{};
-    for( uint_t id : m_materialLoader->requestedMaterialIds() )
-    {
-        if( m_frameTime.expired() && realizedCount > MIN_REALIZED )
-        {
-            break;
-        }
-
-        resolution = std::max( resolution, resolveMaterial( id ) );
-
-        if( m_resolveOneMaterial )
-        {
-            m_resolveOneMaterial = false;
-            break;
-        }
-    }
-    m_materialLoader->clearRequestedMaterialIds();
-
-    switch( resolution )
-    {
-        case MaterialResolution::NONE:
-            break;
-        case MaterialResolution::PARTIAL:
-            m_sync.partialMaterials.copyToDeviceAsync( stream );
-            m_sync.partialUVs.copyToDeviceAsync( stream );
-            ++m_stats.numPartialMaterialsRealized;
-            break;
-        case MaterialResolution::FULL:
-            m_sync.partialMaterials.copyToDeviceAsync( stream );
-            m_sync.partialUVs.copyToDeviceAsync( stream );
-            m_sync.realizedNormals.copyToDeviceAsync( stream );
-            m_sync.realizedUVs.copyToDeviceAsync( stream );
-            m_sync.realizedMaterials.copyToDeviceAsync( stream );
-            m_sync.instanceMaterialIds.copyToDeviceAsync( stream );
-            ++m_stats.numMaterialsRealized;
-            break;
-    }
-    return resolution;
-}
-
 bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
 {
     m_ticket.wait();
     m_frameTime.start();
 
-    const MaterialResolution realizedMaterial = resolveRequestedProxyMaterials( stream );
-    const bool               realizedGeometry = resolveRequestedProxyGeometries( stream );
+    const MaterialResolution realizedMaterial = m_materialResolver->resolveRequestedProxyMaterials( stream, m_frameTime, m_sync );
+    const bool realizedGeometry = resolveRequestedProxyGeometries( stream );
 
     if( realizedGeometry || realizedMaterial != MaterialResolution::NONE )
     {
@@ -696,19 +472,19 @@ void PbrtScene::afterLaunch( CUstream stream, const Params& params )
     m_ticket = m_demandLoader->processRequests( stream, params.demandContext );
 }
 
-ScenePtr createPbrtScene( const Options&        options,
-                          PbrtSceneLoaderPtr    sceneLoader,
-                          DemandTextureCachePtr demandTextureCache,
-                          ProxyFactoryPtr       proxyFactory,
-                          DemandLoaderPtr       demandLoader,
-                          GeometryLoaderPtr     geometryLoader,
-                          MaterialLoaderPtr     materialLoader,
-                          ProgramGroupsPtr      programGroups,
-                          RendererPtr           renderer )
+ScenePtr createScene( const Options&        options,
+                      PbrtSceneLoaderPtr    sceneLoader,
+                      DemandTextureCachePtr demandTextureCache,
+                      ProxyFactoryPtr       proxyFactory,
+                      DemandLoaderPtr       demandLoader,
+                      GeometryLoaderPtr     geometryLoader,
+                      ProgramGroupsPtr      programGroups,
+                      MaterialResolverPtr   materialResolver,
+                      RendererPtr           renderer )
 {
     return std::make_shared<PbrtScene>( options, std::move( sceneLoader ), std::move( demandTextureCache ),
                                         std::move( proxyFactory ), std::move( demandLoader ), std::move( geometryLoader ),
-                                        std::move( materialLoader ), std::move( programGroups ), std::move( renderer ) );
+                                        std::move( programGroups ), std::move( materialResolver ), std::move( renderer ) );
 }
 
 }  // namespace demandPbrtScene
