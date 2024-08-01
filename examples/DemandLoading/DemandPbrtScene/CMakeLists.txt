@@ -68,6 +68,7 @@ add_library(DemandPbrtSceneImpl STATIC
     DemandTextureCache.cpp
     Dependencies.h
     FrameRate.h
+    FrameStopwatch.h
     GeometryCache.h
     GeometryCache.cpp
     GeometryCacheStatistics.h
