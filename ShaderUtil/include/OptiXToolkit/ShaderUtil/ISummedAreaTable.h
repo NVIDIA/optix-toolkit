@@ -199,14 +199,14 @@ OTK_INLINE OTK_HOSTDEVICE float findColumnInRect( ISummedAreaTable& sat, int x0,
 }
 
 // Search for a row within a column
-OTK_INLINE OTK_HOSTDEVICE float findRowInColumn( ISummedAreaTable& sat, int row, int y0, int y1, float target )
+OTK_INLINE OTK_HOSTDEVICE float findRowInColumn( ISummedAreaTable& sat, int col, int y0, int y1, float target )
 {
-    if( row < 0 || row >= sat.width )
+    if( col < 0 || col >= sat.width )
         return 0.5f * ( y0 + y1 );
 
     // Get the target sum
     y0--; // Reduce y0 by 1 to search from the start of index y0
-    unsigned int* column = sat.column( row );
+    unsigned int* column = sat.column( col );
     unsigned int a0 = getValSafe( column, y0 );
     unsigned int a1 = getValSafe( column, y1 );
     unsigned int targetSum = a0 + static_cast<unsigned int>( target * ( a1 - a0 ) );
@@ -233,8 +233,8 @@ OTK_INLINE OTK_HOSTDEVICE float findRowInColumn( ISummedAreaTable& sat, int row,
 OTK_INLINE OTK_HOSTDEVICE float2 sampleRect( ISummedAreaTable& sat, int x0, int y0, int x1, int y1, float2 xi )
 {
     float x = findColumnInRect( sat, x0, y0, x1, y1, fminf(xi.x, 0.999999f) );
-    unsigned int row = static_cast<int>( x );
-    float y = findRowInColumn( sat, row, y0, y1, fminf(xi.y, 0.999999f) );
+    unsigned int col = static_cast<int>( x );
+    float y = findRowInColumn( sat, col, y0, y1, fminf(xi.y, 0.999999f) );
     return float2{x / sat.width, y / (sat.height)};
 }
 
