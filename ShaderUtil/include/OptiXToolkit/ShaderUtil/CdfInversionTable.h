@@ -34,8 +34,10 @@
 
 #include <OptiXToolkit/ShaderUtil/Preprocessor.h>
 
-#include <math.h>
 #include <cuda_runtime.h>
+
+#include <math.h>
+#include <cstdlib>
 
 #ifndef CUDA_CHECK
 #define CUDA_CHECK( call )                                                                                                                                                                                                                                                             \
