@@ -27,12 +27,16 @@ include(FetchContent)
 # the entire repository we use a shallow clone of a fork with a recent tag.
 string(TIMESTAMP t1 "%s")
 message(VERBOSE "Finding pbrt...")
+if( POLICY CMP0097 )
+    cmake_policy(SET CMP0097 NEW)
+endif()
 FetchContent_Declare(
   pbrt
   GIT_REPOSITORY https://github.com/MarkLeone/pbrt-v3.git # forked from mmp/pbrt-v3
   GIT_TAG v2023-09-03 # 13d871faae88233b327d04cda24022b8bb0093ee
   GIT_SHALLOW TRUE
   GIT_PROGRESS TRUE
+  GIT_SUBMODULES ""
 )
 FetchContent_Populate(pbrt)
 set(pbrt_api_dir ${pbrt_SOURCE_DIR}/src/core)
