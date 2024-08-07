@@ -26,9 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+
 // This include is needed to avoid a link error
 #include <optix_stubs.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
 
 using namespace demandTextureApp;
 

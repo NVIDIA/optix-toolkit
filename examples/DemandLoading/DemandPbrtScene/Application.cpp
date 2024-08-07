@@ -28,10 +28,10 @@
 
 #include "Application.h"
 
-#include <ProgramGroups.h>
-
+#include "DemandTextureCache.h"
 #include "GeometryCache.h"
 #include "ImageSourceFactory.h"
+#include "ProgramGroups.h"
 #include "Renderer.h"
 #include "Scene.h"
 #include "SceneProxy.h"
@@ -52,8 +52,6 @@
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <stdexcept>
-
-#include "DemandTextureCache.h"
 
 namespace demandPbrtScene {
 

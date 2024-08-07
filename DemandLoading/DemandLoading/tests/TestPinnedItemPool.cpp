@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
-
 #include <OptiXToolkit/Memory/PinnedItemPool.h>
+
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
 

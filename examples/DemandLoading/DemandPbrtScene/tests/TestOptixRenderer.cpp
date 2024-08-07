@@ -28,10 +28,10 @@
 
 #include <OptixRenderer.h>
 
+#include "MockGeometryLoader.h"
+
 #include <Options.h>
 #include <Params.h>
-
-#include "MockGeometryLoader.h"
 
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>

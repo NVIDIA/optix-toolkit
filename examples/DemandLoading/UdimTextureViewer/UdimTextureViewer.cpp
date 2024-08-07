@@ -27,15 +27,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <string>
+#include "UdimTextureViewerKernelCuda.h"
 
-#include <UdimTextureViewerKernelCuda.h>
-
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CascadeImage.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
 
-#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <string>
 
 using namespace demandTextureApp;
 using namespace demandLoading;

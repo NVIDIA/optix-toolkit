@@ -26,11 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "testCommon.h"
+
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+
 #include <optix.h>
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
-
-#include "testCommon.h"
 
 void TestCommon::SetUp()
 {

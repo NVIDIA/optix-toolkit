@@ -30,8 +30,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <PbrtScene.h>
-
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
 #include "MockImageSource.h"
@@ -43,6 +41,7 @@
 #include <ImageSourceFactory.h>
 #include <Options.h>
 #include <Params.h>
+#include <PbrtScene.h>
 #include <ProgramGroups.h>
 #include <Renderer.h>
 
@@ -63,8 +62,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
-
-#include "Matchers.h"
 
 using namespace testing;
 using namespace demandPbrtScene;

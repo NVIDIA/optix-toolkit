@@ -1,15 +1,16 @@
 
 #include "TestSparseVsDenseTextures.h"
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
-#include <algorithm>
-#include <math.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+
 #include <gtest/gtest.h>
 
-#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <algorithm>
+#include <math.h>
 
 class TestSparseVsDenseTextures : public testing::Test
 {

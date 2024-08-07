@@ -27,21 +27,21 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <optix.h>
-#include <optix_stack_size.h>
-#include <optix_stubs.h>
-
-#include <CuOmmBakingViewerKernelCuda.h>
-
 #include "CuOmmBakingApp.h"
+#include "CuOmmBakingViewerKernelCuda.h"
 #include "LaunchParams.h"
-using namespace ommBakingApp;
 
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 
+#include <optix.h>
+#include <optix_stack_size.h>
+#include <optix_stubs.h>
+
 #include <sstream>
+
+using namespace ommBakingApp;
 
 __host__ void launchEvaluateOmmOpacity(
     uint32_t width,

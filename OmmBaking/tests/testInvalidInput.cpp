@@ -29,13 +29,12 @@
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 #include <OptiXToolkit/CuOmmBaking/CuOmmBaking.h>
 
+#include "Util/BakeTexture.h"
 #include "Util/Exception.h"
 #include "Util/Image.h"
 #include "Util/Mesh.h"
 #include "Util/OptiXOmmArray.h"
 #include "Util/OptiXScene.h"
-#include "Util/BakeTexture.h"
-
 #include "testCommon.h"
 
 #include <cuda_runtime.h>

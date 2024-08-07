@@ -28,12 +28,8 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include <cuda_runtime.h>
-
-#include <optix.h>
-#include <optix_function_table_definition.h>
-#include <optix_stack_size.h>
-#include <optix_stubs.h>
+#include "PerDeviceOptixState.h"
+#include "CuOmmBakingApp.h"
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
@@ -43,8 +39,12 @@
 #include <OptiXToolkit/Gui/glfw3.h>
 #include <OptiXToolkit/Util/Logger.h>
 
-#include "PerDeviceOptixState.h"
-#include "CuOmmBakingApp.h"
+#include <cuda_runtime.h>
+
+#include <optix.h>
+#include <optix_function_table_definition.h>
+#include <optix_stack_size.h>
+#include <optix_stubs.h>
 
 #if OPTIX_VERSION < 70700
 #define optixModuleCreate optixModuleCreateFromPTX

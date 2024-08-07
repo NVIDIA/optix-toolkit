@@ -27,13 +27,14 @@
 //
 
 #include "Textures/SparseTexture.h"
+
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
 
 #include <cuda.h>
 
-#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 
 using namespace demandLoading;
 using namespace imageSource;

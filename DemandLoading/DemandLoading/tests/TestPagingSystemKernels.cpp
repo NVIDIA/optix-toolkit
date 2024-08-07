@@ -26,10 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoadingKernelsCuda.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PagingSystemKernels.h"
+
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
 

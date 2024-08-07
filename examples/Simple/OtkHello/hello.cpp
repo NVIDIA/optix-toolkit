@@ -28,7 +28,7 @@
 
 #include "hello.h"
 
-#include <otkHelloKernelCuda.h>
+#include "otkHelloKernelCuda.h"
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>

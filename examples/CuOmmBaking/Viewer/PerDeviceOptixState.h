@@ -29,6 +29,8 @@
 
 #include <OptiXToolkit/CuOmmBaking/CuBuffer.h>
 
+#include <optix.h>
+
 namespace ommBakingApp
 {
 
