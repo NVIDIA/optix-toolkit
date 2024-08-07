@@ -1,4 +1,4 @@
-## Adapted from OWL: https://github.com/owl-project/owl/blob/master/owl/cmake/embed_ptx.cmake 
+## Adapted from OWL: https://github.com/owl-project/owl/blob/master/owl/cmake/embed_ptx.cmake
 ## Copyright 2021 Jefferson Amstutz
 ## SPDX-License-Identifier: Apache-2.0
 
@@ -13,8 +13,7 @@ cmake_minimum_required(VERSION 3.17)
 # CONST             Pass --const to bin2c to generate constant data arrays.
 # RELOCATABLE       Pass -rdc=true to nvcc to generate relocatable PTX/OptiXIR.
 # OPTIXIR           Generate and embed optixir (default.  OptiX programs only.)
-# PTX               Generate and embed PTX 
-# DEBUG             Generate OptiX debug symbols (OptiX IR required). 
+# PTX               Generate and embed PTX
 #
 # Single value arguments:
 # OUTPUT_TARGET     Name of the target that contains the generated C file.
@@ -34,7 +33,7 @@ cmake_minimum_required(VERSION 3.17)
 function(embed_cuda)
   set(EMBED_CUDA_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR})
 
-  set(noArgs CONST RELOCATABLE OPTIXIR PTX DEBUG)
+  set(noArgs CONST RELOCATABLE OPTIXIR PTX)
   set(oneArgs OUTPUT_TARGET CUDA_TARGET FOLDER HEADER)
   set(multiArgs INCLUDES LIBRARIES SOURCES EMBEDDED_SYMBOL_NAMES)
   cmake_parse_arguments(EMBED_CUDA "${noArgs}" "${oneArgs}" "${multiArgs}" ${ARGN})
@@ -104,18 +103,11 @@ function(embed_cuda)
 
   if(EMBED_CUDA_PTX)
     set_property(TARGET ${CUDA_TARGET} PROPERTY CUDA_PTX_COMPILATION ON)
+    target_compile_options(${CUDA_TARGET} PRIVATE $<$<OR:$<CONFIG:RelWithDebInfo>,$<CONFIG:Debug>>:-lineinfo>)
   else()
     set_property(TARGET ${CUDA_TARGET} PROPERTY CUDA_OPTIX_COMPILATION ON)
+    target_compile_options(${CUDA_TARGET} PRIVATE $<$<CONFIG:RelWithDebInfo>:-lineinfo>$<$<CONFIG:Debug>:-g>)
   endif()
-  
-  if(EMBED_CUDA_DEBUG)
-    if(EMBED_CUDA_PTX)
-      set(DEBUG_FLAGS "-lineinfo")
-    else()
-      set(DEBUG_FLAGS "-G") # lineinfo is assumed with -G, not necessary to set
-    endif()
-  endif()
-  target_compile_options(${CUDA_TARGET} PRIVATE ${DEBUG_FLAGS})
 
   if(EMBED_CUDA_RELOCATABLE)
     target_compile_options(${CUDA_TARGET} PRIVATE "-rdc=true")
@@ -126,7 +118,7 @@ function(embed_cuda)
 
   ## Create command to run the bin2c via the CMake script ##
 
-  set(EMBED_CUDA_C_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_CUDA_OUTPUT_TARGET}/${EMBED_CUDA_OUTPUT_TARGET}.c)
+  set(EMBED_CUDA_C_FILE ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_CUDA_OUTPUT_TARGET}/${EMBED_CUDA_OUTPUT_TARGET}-$<CONFIG>.c)
   if(EMBED_CUDA_HEADER)
     set(EMBED_CUDA_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${EMBED_CUDA_OUTPUT_TARGET}/${EMBED_CUDA_HEADER})
   endif()
