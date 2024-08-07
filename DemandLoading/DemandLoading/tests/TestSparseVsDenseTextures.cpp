@@ -3,6 +3,7 @@
 
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>

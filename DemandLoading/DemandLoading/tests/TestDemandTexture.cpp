@@ -36,6 +36,7 @@
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>

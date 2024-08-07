@@ -30,6 +30,7 @@
 #include "DemandLoaderTestKernels.h"
 
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 

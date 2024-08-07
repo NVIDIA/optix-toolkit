@@ -32,6 +32,8 @@
 #include "RequestHandler.h"
 #include "TicketImpl.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+
 namespace demandLoading {
 
 ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )

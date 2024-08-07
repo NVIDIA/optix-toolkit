@@ -28,6 +28,8 @@
 
 #include "DeviceContextImpl.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+
 using namespace otk;
 
 namespace demandLoading {

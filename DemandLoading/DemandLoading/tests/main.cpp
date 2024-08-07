@@ -26,11 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "DemandPageLoaderImpl.h"
 
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
-#include "DemandPageLoaderImpl.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

@@ -36,12 +36,13 @@
 // * Swapping images in a live texture
 //------------------------------------------------------------------------------
 
-#include <TexturePaintingKernelCuda.h>
+#include "CanvasImage.h"
+#include "TexturePaintingKernelCuda.h"
+#include "TexturePaintingParams.h"
+
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
-#include "CanvasImage.h"
-#include "TexturePaintingParams.h"
 
 using namespace demandTextureApp;
 using namespace demandLoading;

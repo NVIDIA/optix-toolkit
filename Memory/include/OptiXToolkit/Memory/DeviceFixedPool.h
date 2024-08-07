@@ -27,6 +27,7 @@
 //
 #pragma once
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/DeviceRingBuffer.h>
 
 #include <vector>
