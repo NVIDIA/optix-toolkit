@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#pragma once
+
 const int BUTTON_SIZE    = 12;
 const int BUTTON_SPACING = 5;
 

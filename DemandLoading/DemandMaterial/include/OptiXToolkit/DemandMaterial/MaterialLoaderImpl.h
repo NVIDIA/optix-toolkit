@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef OTK_DEMAND_MATERIAL_MATERIAL_LOADER_IMPL_H
-#define OTK_DEMAND_MATERIAL_MATERIAL_LOADER_IMPL_H
+
+#pragma once
 
 #include <OptiXToolkit/DemandLoading/Paging.h>
 
@@ -49,5 +49,3 @@ extern "C" __global__ void __closesthit__proxyMaterial()
 }
 
 }  // namespace demandMaterial
-
-#endif

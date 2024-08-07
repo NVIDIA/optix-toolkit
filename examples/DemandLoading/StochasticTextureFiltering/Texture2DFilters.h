@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#pragma once
+
 namespace demandLoading {
 
 /// Get the dimensions of a demand load texture at a given texture coordinate, accounting for udims.

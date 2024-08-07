@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef OTK_ERROR_CUDA_ERROR_CHECK_H
-#define OTK_ERROR_CUDA_ERROR_CHECK_H
+
+#pragma once
 
 #include <cuda_runtime.h>
 
@@ -64,5 +64,3 @@ inline void syncCheck( const char* file, unsigned int line )
 
 /// Synchronize with a CUDA device and then check for errors at the current file and line location.
 #define OTK_CUDA_SYNC_CHECK() ::otk::error::syncCheck( __FILE__, __LINE__ )
-
-#endif

@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef OTK_ERROR_ERROR_CHECK_H
-#define OTK_ERROR_ERROR_CHECK_H
+
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -184,6 +184,4 @@ void checkErrorNoThrow( T result, const char* expr, const char* file, unsigned i
 #else
 #define OTK_ASSERT( expr ) {}
 #define OTK_ASSERT_MSG( expr, msg ) {}
-#endif
-
 #endif
