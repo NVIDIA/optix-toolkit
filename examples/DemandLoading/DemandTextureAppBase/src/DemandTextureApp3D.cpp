@@ -27,7 +27,9 @@
 //
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
+
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 
 // This include is needed to avoid a link error
 #include <optix_stubs.h>
