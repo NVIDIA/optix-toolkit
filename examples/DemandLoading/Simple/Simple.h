@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef SIMPLE_H
-#define SIMPLE_H
+#pragma once
 
 #include <cuda.h>
 
@@ -38,5 +37,3 @@ void launchPageRequester( cudaStream_t                        stream,
                           unsigned int                        pageBegin,
                           unsigned int                        pageEnd,
                           PageTableEntry*                     pageTableEntries );
-
-#endif

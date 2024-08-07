@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef OTK_ERROR_OPTIX_ERROR_CHECK_H
-#define OTK_ERROR_OPTIX_ERROR_CHECK_H
+
+#pragma once
 
 #include <optix.h>
 #include <optix_stubs.h>
@@ -65,7 +65,7 @@ inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, 
 }  // namespace error
 }  // namespace otk
 
-#define OTK_ERROR_CHECK_LOG( call )                                                                                   \
+#define OTK_ERROR_CHECK_LOG( call )                                                                                    \
     do                                                                                                                 \
     {                                                                                                                  \
         char LOG[400];                                                                                                 \
@@ -73,5 +73,3 @@ inline void optixCheckLog( OptixResult res, const char* log, size_t sizeof_log, 
         size_t LOG_SIZE = sizeof( LOG );                                                                               \
         ::otk::error::optixCheckLog( call, LOG, sizeof( LOG ), LOG_SIZE, #call, __FILE__, __LINE__ );                  \
     } while( false )
-
-#endif

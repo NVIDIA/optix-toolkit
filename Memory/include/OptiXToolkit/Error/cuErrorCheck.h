@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef OTK_ERROR_CU_ERROR_CHECK_H
-#define OTK_ERROR_CU_ERROR_CHECK_H
+
+#pragma once
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
@@ -85,5 +85,3 @@ inline void cudaContextCheck( CUcontext expected, const char* file, unsigned int
 
 }  // namespace error
 }  // namespace otk
-
-#endif

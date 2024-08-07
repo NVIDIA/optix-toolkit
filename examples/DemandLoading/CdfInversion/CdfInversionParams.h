@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#pragma once
+
 const int SUBFRAME_ID = 0;
 const int EMAP_ID = 1;
 const int MIP_LEVEL_0_ID = 2;

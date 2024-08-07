@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#pragma once
+
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/DemandTextureAppBase/ShapeMaker.h>
 
@@ -57,4 +59,3 @@ class DemandTextureApp3D : public DemandTextureApp
 };
 
 } // namespace demandTextureApp
-

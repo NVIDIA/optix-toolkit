@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#pragma once
+
 const int MIN_RAY_DEPTH_ID    = 0;
 const int MAX_RAY_DEPTH_ID    = 1;
 const int SUBFRAME_ID         = 2;

@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef OTK_UTIL_LOGGER_H
-#define OTK_UTIL_LOGGER_H
+#pragma once
 
 #include <optix.h>
 
@@ -44,5 +43,3 @@ void setLogger( OptixDeviceContextOptions& options );
 
 }  // namespace util
 }  // namespace otk
-
-#endif
