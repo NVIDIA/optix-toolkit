@@ -27,14 +27,13 @@
 //
 #pragma once
 
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Ticket.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
 #include <OptiXToolkit/Memory/RingSuballocator.h>
-
-#include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
-#include <OptiXToolkit/DemandLoading/Options.h>
-#include <OptiXToolkit/DemandLoading/Ticket.h>
 
 #include <cuda.h>
 

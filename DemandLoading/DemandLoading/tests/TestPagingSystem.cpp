@@ -33,6 +33,7 @@
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>

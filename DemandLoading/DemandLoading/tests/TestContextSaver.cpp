@@ -28,6 +28,8 @@
 
 #include "Util/ContextSaver.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+
 #include <gtest/gtest.h>
 
 #include <cuda.h>

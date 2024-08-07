@@ -32,6 +32,7 @@
 #include "Params.h"
 #include "Scene.h"
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>

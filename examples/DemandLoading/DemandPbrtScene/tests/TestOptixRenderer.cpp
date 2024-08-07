@@ -35,6 +35,7 @@
 
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>

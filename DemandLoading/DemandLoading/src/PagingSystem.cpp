@@ -38,6 +38,7 @@
 #include "Util/Math.h"
 
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <algorithm>
 #include <set>

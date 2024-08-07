@@ -33,6 +33,7 @@
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>

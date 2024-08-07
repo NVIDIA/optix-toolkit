@@ -37,6 +37,7 @@
 
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageHelpers.h>
 
 #include <cuda_fp16.h>

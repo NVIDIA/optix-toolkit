@@ -26,15 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <TestDemandLoadingKernelsCuda.h>
-
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DeferredImageLoadingKernels.h"
+#include "TestDemandLoadingKernelsCuda.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
-#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>

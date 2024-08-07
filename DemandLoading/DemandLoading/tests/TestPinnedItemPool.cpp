@@ -28,6 +28,7 @@
 
 #include <OptiXToolkit/Memory/PinnedItemPool.h>
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
