@@ -35,6 +35,7 @@
 #include "Util/Stopwatch.h"
 
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <cuda.h>

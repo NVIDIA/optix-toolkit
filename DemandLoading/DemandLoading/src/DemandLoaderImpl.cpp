@@ -39,6 +39,7 @@
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CascadeImage.h>
 

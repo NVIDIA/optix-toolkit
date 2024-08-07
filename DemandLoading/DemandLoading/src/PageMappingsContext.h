@@ -28,10 +28,10 @@
 
 #pragma once
 
-#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
-
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>  // for PageMapping
 #include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
+#include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 
 namespace demandLoading {
 

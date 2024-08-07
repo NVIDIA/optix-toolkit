@@ -27,6 +27,8 @@
 //
 
 #include <OptiXToolkit/Util/EXRInputFile.h>
+
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <ImfRgbaFile.h>

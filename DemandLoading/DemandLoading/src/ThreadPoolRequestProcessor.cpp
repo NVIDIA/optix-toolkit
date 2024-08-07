@@ -32,6 +32,7 @@
 #include "RequestHandler.h"
 #include "TicketImpl.h"
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
 namespace demandLoading {

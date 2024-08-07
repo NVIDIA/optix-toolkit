@@ -28,21 +28,20 @@
 
 #pragma once
 
-#include <cstddef>
-#include <vector>
-
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Statistics.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/FixedSuballocator.h>
 #include <OptiXToolkit/Memory/HeapSuballocator.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
 
-#include <OptiXToolkit/DemandLoading/DeviceContext.h>
-#include <OptiXToolkit/DemandLoading/Options.h>
-#include <OptiXToolkit/DemandLoading/Statistics.h>
-#include <OptiXToolkit/DemandLoading/TextureSampler.h>
-
+#include <cstddef>
 #include <memory>
+#include <vector>
 
 namespace demandLoading {
 
