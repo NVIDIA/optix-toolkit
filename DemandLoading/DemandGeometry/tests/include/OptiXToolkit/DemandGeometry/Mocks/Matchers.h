@@ -153,7 +153,7 @@ bool hasEqualValues( ::testing::MatchResultListener* listener, const char* label
 {
     if( expected != actual )
     {
-        *listener << "has " << label << actual << ", expected " << expected;
+        *listener << "has " << label << ' ' << actual << ", expected " << expected;
         return false;
     }
 
