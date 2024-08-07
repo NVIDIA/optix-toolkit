@@ -27,11 +27,12 @@
 //
 #pragma once
 
-
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
+#include <cuda.h>
 #include <vector_types.h>
 
 #include <memory>

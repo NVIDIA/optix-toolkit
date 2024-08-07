@@ -27,6 +27,8 @@
 //
 
 #include <OptiXToolkit/ImageSources/DeviceConstantImage.h>
+
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 namespace imageSources {

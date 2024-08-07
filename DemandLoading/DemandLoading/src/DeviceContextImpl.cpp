@@ -28,6 +28,7 @@
 
 #include "DeviceContextImpl.h"
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
 using namespace otk;

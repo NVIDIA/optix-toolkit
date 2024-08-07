@@ -30,6 +30,7 @@
 
 #include "Stopwatch.h"
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>

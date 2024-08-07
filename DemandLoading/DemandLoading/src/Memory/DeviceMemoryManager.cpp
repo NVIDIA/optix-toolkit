@@ -29,6 +29,8 @@
 #include "DeviceMemoryManager.h"
 #include "DeviceContextImpl.h"
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
+
 using namespace otk;
 
 namespace demandLoading {

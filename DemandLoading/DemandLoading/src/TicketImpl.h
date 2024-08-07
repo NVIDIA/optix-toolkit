@@ -29,6 +29,8 @@
 #pragma once
 
 #include <OptiXToolkit/DemandLoading/Ticket.h>
+
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <cuda.h>

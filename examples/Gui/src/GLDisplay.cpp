@@ -28,6 +28,7 @@
 
 #include <OptiXToolkit/Gui/GLDisplay.h>
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Gui/GLCheck.h>
 

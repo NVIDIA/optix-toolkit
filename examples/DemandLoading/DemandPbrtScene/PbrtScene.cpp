@@ -43,6 +43,7 @@
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>

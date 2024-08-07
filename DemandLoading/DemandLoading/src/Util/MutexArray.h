@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
 #include <condition_variable>

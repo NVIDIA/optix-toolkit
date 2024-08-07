@@ -29,7 +29,9 @@
 
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/ImageSource/EXRReader.h>
 
 #include <cuda.h>
 #include <cuda_fp16.h>

@@ -29,6 +29,7 @@
 #include "Textures/SparseTexture.h"
 #include "Util/ContextSaver.h"
 
+#include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
