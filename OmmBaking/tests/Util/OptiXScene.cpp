@@ -440,9 +440,21 @@ OptixResult OptixOmmScene::buildPipeline( const char* optixirInput, const size_t
 
     // Compile modules
     OptixModuleCompileOptions moduleCompileOptions = {};
-    moduleCompileOptions.maxRegisterCount          = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
-    moduleCompileOptions.optLevel                  = OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-    moduleCompileOptions.debugLevel                = OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
+#ifdef NDEBUG
+    bool debugInfo{ false };
+#else
+    bool debugInfo{ true };
+#endif
+    moduleCompileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 :
+                                                    OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
+#if OPTIX_VERSION >= 70400
+    moduleCompileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
+                                                    OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
+#else
+    moduleCompileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
+                                                    OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
+#endif
+    moduleCompileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
 
     OptixPipelineCompileOptions pipelineCompileOptions      = {};
     pipelineCompileOptions.usesMotionBlur                   = false;
