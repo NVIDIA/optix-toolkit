@@ -30,6 +30,7 @@
 #include <DemandTextureViewerKernelCuda.h>
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/MipMapImageSource.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>

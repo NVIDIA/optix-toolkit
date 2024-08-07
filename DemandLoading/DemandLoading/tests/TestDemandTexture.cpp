@@ -28,7 +28,6 @@
 
 #include "TestSparseTexture.h"
 
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoaderImpl.h"
 #include "Memory/DeviceMemoryManager.h"
 #include "PageTableManager.h"
@@ -37,6 +36,7 @@
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 #include <OptiXToolkit/Memory/MemoryBlockDesc.h>
 

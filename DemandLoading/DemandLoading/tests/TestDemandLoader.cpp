@@ -26,11 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include "DemandLoaderImpl.h"
 #include "DemandLoaderTestKernels.h"
 
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
 
 #include <gmock/gmock.h>

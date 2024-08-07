@@ -26,19 +26,18 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "Textures/SparseTexture.h"
+
 #include "TestSparseTexture.h"
 
 #include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
-
 #include <OptiXToolkit/Memory/Allocators.h>
 #include <OptiXToolkit/Memory/FixedSuballocator.h>
 #include <OptiXToolkit/Memory/HeapSuballocator.h>
 #include <OptiXToolkit/Memory/MemoryPool.h>
-#include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
-
-#include "Textures/SparseTexture.h"
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>
 

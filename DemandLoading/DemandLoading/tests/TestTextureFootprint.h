@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+
 #include <cuda.h>
 #include <cuda_runtime.h>  // for uchar4
 

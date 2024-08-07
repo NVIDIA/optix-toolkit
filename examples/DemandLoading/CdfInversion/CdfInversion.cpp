@@ -26,29 +26,30 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <chrono>
-
-#include <optix_stubs.h> // This include is needed to avoid a link error
-#include <cuda_runtime.h>
-
 #include "CdfInversionParams.h"
 #include "CdfInversionKernelCuda.h"
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
 #include <OptiXToolkit/DemandTextureAppBase/ShapeMaker.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
-#include <OptiXToolkit/ShaderUtil/AliasTable.h>
-#include <OptiXToolkit/ShaderUtil/PdfTable.h>
-#include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
-#include <OptiXToolkit/ShaderUtil/ISummedAreaTable.h>
-
 #include <OptiXToolkit/Gui/Gui.h>
 #include <OptiXToolkit/Gui/glfw3.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ShaderUtil/AliasTable.h>
+#include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
+#include <OptiXToolkit/ShaderUtil/ISummedAreaTable.h>
+#include <OptiXToolkit/ShaderUtil/PdfTable.h>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+
+#include <optix_stubs.h> // This include is needed to avoid a link error
+
+#include <cuda_runtime.h>
+
+#include <chrono>
 
 using namespace demandTextureApp;
 using namespace demandLoading;

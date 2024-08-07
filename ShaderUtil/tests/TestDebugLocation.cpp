@@ -29,7 +29,6 @@
 #include <OptiXToolkit/ShaderUtil/DebugLocation.h>
 
 #include "TestDebugLocation.h"
-
 #include "TestDebugLocationParams.h"
 #include "TestShaderUtilsCuda.h"
 
@@ -42,14 +41,14 @@
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>
 
-#include <gtest/gtest.h>
-
 #include <optix.h>
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
 
 #include <cuda.h>
 #include <vector_types.h>
+
+#include <gtest/gtest.h>
 
 #include <functional>
 #include <sstream>

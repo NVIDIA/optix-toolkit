@@ -24,6 +24,7 @@
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <optix_stubs.h>
 

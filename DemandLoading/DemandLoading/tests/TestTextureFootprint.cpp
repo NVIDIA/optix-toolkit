@@ -26,17 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <OptiXToolkit/Error/cuErrorCheck.h>
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
-#include <OptiXToolkit/Error/optixErrorCheck.h>
+#include "TestTextureFootprint.h"
 
-#include <TextureFootprintCuda.h>
+#include "TextureFootprintCuda.h"
 
 #include <OptiXToolkit/DemandLoading/Texture2DFootprint.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
-
-#include "TestTextureFootprint.h"
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Error/optixErrorCheck.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>

@@ -27,14 +27,13 @@
 //
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
-
-#include <TextureKernelCuda.h>
-
+#include "TextureKernelCuda.h"
 #include "textureKernel.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>

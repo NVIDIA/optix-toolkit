@@ -30,6 +30,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "Matchers.h"
+#include "MockGeometryLoader.h"
+
 #include <GeometryCache.h>
 #include <Options.h>
 #include <Params.h>
@@ -42,9 +45,6 @@
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
-
-#include "Matchers.h"
-#include "MockGeometryLoader.h"
 
 #include <cuda.h>
 

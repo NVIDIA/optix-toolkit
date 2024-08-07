@@ -27,6 +27,7 @@
 //
 
 #include "Textures/DenseTexture.h"
+
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <gtest/gtest.h>

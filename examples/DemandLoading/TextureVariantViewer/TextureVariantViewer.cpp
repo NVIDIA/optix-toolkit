@@ -27,13 +27,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <assert.h>
-
-#include <TextureVariantViewerCuda.h>
+#include "TextureVariantViewerCuda.h"
 
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+
+#include <assert.h>
 
 using namespace demandTextureApp;
 using namespace demandLoading;

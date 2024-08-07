@@ -26,28 +26,25 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-// This include is needed to avoid a link error
-#include <optix_stubs.h>
-
 #include "StochasticTextureFilteringKernel.h"
+#include "StochasticTextureFilteringParams.h"
 
 #include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
 #include <OptiXToolkit/DemandTextureAppBase/ShapeMaker.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
-
-#include <OptiXToolkit/ShaderUtil/ray_cone.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
-#include <OptiXToolkit/Gui/Gui.h>
-#include <OptiXToolkit/Gui/glfw3.h>
-
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
+#include <OptiXToolkit/Gui/Gui.h>
+#include <OptiXToolkit/Gui/glfw3.h>
+#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include "StochasticTextureFilteringParams.h"
+// This include is needed to avoid a link error
+#include <optix_stubs.h>
 
 using namespace otk;
 using namespace demandTextureApp;

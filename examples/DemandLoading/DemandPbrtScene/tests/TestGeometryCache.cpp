@@ -29,6 +29,13 @@
 // gtest has to come before pbrt stuff
 #include <gtest/gtest.h>
 
+#include "Matchers.h"
+#include "MockGeometryLoader.h"
+#include "ParamsPrinters.h"
+
+#include <GeometryCache.h>
+#include <SceneProxy.h>
+
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
@@ -39,13 +46,6 @@
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>
-
-#include <GeometryCache.h>
-#include <SceneProxy.h>
-
-#include "Matchers.h"
-#include "MockGeometryLoader.h"
-#include "ParamsPrinters.h"
 
 #include <optix.h>
 
