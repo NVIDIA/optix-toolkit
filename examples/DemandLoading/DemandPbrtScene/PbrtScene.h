@@ -55,14 +55,12 @@ class PbrtScene : public Scene
                PbrtSceneLoaderPtr    sceneLoader,
                DemandTextureCachePtr demandTextureCache,
                DemandLoaderPtr       demandLoader,
-               ProgramGroupsPtr      programGroups,
                MaterialResolverPtr   materialResolver,
                GeometryResolverPtr   geometryResolver,
                RendererPtr           renderer );
     ~PbrtScene() override = default;
 
     void initialize( CUstream stream ) override;
-    void cleanup() override;
 
     bool beforeLaunch( CUstream stream, Params& params ) override;
     void afterLaunch( CUstream stream, const Params& params ) override;
@@ -84,7 +82,6 @@ private:
     PbrtSceneLoaderPtr    m_sceneLoader;
     DemandTextureCachePtr m_demandTextureCache;
     DemandLoaderPtr       m_demandLoader;
-    ProgramGroupsPtr      m_programGroups;
     MaterialResolverPtr   m_materialResolver;
     GeometryResolverPtr   m_geometryResolver;
     RendererPtr           m_renderer;

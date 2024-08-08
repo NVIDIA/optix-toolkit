@@ -83,7 +83,7 @@ Application::Application( int argc, char* argv[] )
     , m_programGroups( createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) )
     , m_materialResolver( createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups ) )
     , m_geometryResolver( createGeometryResolver( m_options, m_programGroups, m_geometryLoader, m_proxyFactory, m_demandTextureCache, m_materialResolver) )
-    , m_scene( createScene( m_options, m_pbrt, m_demandTextureCache, m_demandLoader, m_programGroups, m_materialResolver, m_geometryResolver, m_renderer) )
+    , m_scene( createScene( m_options, m_pbrt, m_demandTextureCache, m_demandLoader, m_materialResolver, m_geometryResolver, m_renderer) )
 {
 }
 
@@ -92,6 +92,7 @@ void Application::initialize()
     Timer          timer;
     const CUstream stream = m_cuda.getStream();
     m_renderer->initialize( stream );
+    m_programGroups->initialize();
     m_scene->initialize( stream );
     m_statistics.initTime = timer.getSeconds();
 }
@@ -129,7 +130,7 @@ void Application::launch( otk::CUDAOutputBuffer<uchar4>& outputBuffer )
         }
         catch( const std::runtime_error& e )
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            std::cerr << "Error: " << e.what() << '\n';
             abort();
         }
     }
@@ -208,7 +209,7 @@ void Application::runToFile()
 
 void Application::cleanup()
 {
-    m_scene->cleanup();
+    m_programGroups->cleanup();
     m_renderer->cleanup();
     m_statistics.report();
 }

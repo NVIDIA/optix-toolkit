@@ -44,7 +44,6 @@ class Scene
     virtual ~Scene() = default;
 
     virtual void initialize( CUstream stream ) = 0;
-    virtual void cleanup()                     = 0;
 
     virtual bool beforeLaunch( CUstream stream, Params& params )      = 0;
     virtual void afterLaunch( CUstream stream, const Params& params ) = 0;
@@ -61,7 +60,6 @@ ScenePtr createScene( const Options& options,
                       PbrtSceneLoaderPtr sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
                       DemandLoaderPtr demandLoader,
-                      ProgramGroupsPtr programGroups,
                       MaterialResolverPtr materialResolver,
                       GeometryResolverPtr geometryResolver, RendererPtr renderer );
 
