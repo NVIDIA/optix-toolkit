@@ -5,6 +5,7 @@
 #include <MaterialResolver.h>
 
 #include "MockDemandTextureCache.h"
+#include "MockMaterialLoader.h"
 #include "MockProgramGroups.h"
 #include "ParamsPrinters.h"
 
@@ -77,22 +78,6 @@ inline bool operator==( const GeometryInstance& lhs, const GeometryInstance& rhs
 
 namespace {
 
-class MockMaterialLoader : public StrictMock<demandMaterial::MaterialLoader>
-{
-  public:
-    ~MockMaterialLoader() override = default;
-
-    MOCK_METHOD( const char*, getCHFunctionName, (), ( const, override ) );
-    MOCK_METHOD( uint_t, add, (), ( override ) );
-    MOCK_METHOD( void, remove, ( uint_t ), ( override ) );
-    MOCK_METHOD( std::vector<uint_t>, requestedMaterialIds, (), ( const, override ) );
-    MOCK_METHOD( void, clearRequestedMaterialIds, (), ( override ) );
-    MOCK_METHOD( bool, getRecycleProxyIds, (), ( const, override ) );
-    MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
-};
-
-using MockMaterialLoaderPtr     = std::shared_ptr<MockMaterialLoader>;
-
 // This was needed to satisfy gcc instead of constructing from a brace initializer list.
 Options testOptions()
 {
@@ -110,7 +95,7 @@ class TestMaterialResolver : public Test
 
   protected:
     Options                   m_options{ testOptions() };
-    MockMaterialLoaderPtr     m_materialLoader{ std::make_shared<MockMaterialLoader>() };
+    MockMaterialLoaderPtr     m_materialLoader{ createMockMaterialLoader() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MaterialResolverPtr m_resolver{ createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups ) };
