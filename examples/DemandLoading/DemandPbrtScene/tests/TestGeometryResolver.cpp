@@ -1,5 +1,6 @@
 #include <GeometryResolver.h>
 
+#include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
 
 #include <DemandTextureCache.h>
@@ -23,6 +24,7 @@
 using namespace testing;
 using namespace otk::testing;
 using namespace demandPbrtScene;
+using namespace demandPbrtScene::testing;
 
 static OptixDeviceContext fakeOptixDeviceContext()
 {
@@ -30,20 +32,6 @@ static OptixDeviceContext fakeOptixDeviceContext()
 }
 
 namespace {
-
-class MockDemandTextureCache : public StrictMock<DemandTextureCache>
-{
-  public:
-    ~MockDemandTextureCache() override = default;
-
-    MOCK_METHOD( uint_t, createDiffuseTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasDiffuseTextureForFile, ( const std::string& path ), ( const override ) );
-    MOCK_METHOD( uint_t, createAlphaTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasAlphaTextureForFile, (const std::string&), ( const, override ) );
-    MOCK_METHOD( uint_t, createSkyboxTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasSkyboxTextureForFile, (const std::string&), ( const, override ) );
-    MOCK_METHOD( DemandTextureCacheStatistics, getStatistics, (), ( const override ) );
-};
 
 class MockMaterialResolver : public StrictMock<MaterialResolver>
 {
@@ -90,7 +78,6 @@ class MockSceneProxy : public StrictMock<SceneProxy>
     MOCK_METHOD( std::vector<SceneProxyPtr>, decompose, ( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ), ( override ) );
 };
 
-using MockDemandTextureCachePtr = std::shared_ptr<MockDemandTextureCache>;
 using MockMaterialResolverPtr   = std::shared_ptr<MockMaterialResolver>;
 using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 using MockProxyFactoryPtr       = std::shared_ptr<MockProxyFactory>;
@@ -119,7 +106,7 @@ class TestGeometryResolver : public Test
     MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
     MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockProxyFactoryPtr       m_proxyFactory{ std::make_shared<MockProxyFactory>() };
-    MockDemandTextureCachePtr m_demandTextureCache{ std::make_shared<MockDemandTextureCache>() };
+    MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockMaterialResolverPtr   m_materialResolver{ std::make_shared<MockMaterialResolver>() };
     GeometryResolverPtr       m_resolver{
         createGeometryResolver( m_options, m_programGroups, m_geometryLoader, m_proxyFactory, m_demandTextureCache, m_materialResolver ) };

@@ -24,6 +24,7 @@ include(ImageTest)
 
 add_executable(TestDemandPbrtSceneImpl
     Matchers.h
+    MockDemandTextureCache.h
     MockGeometryLoader.h
     MockImageSource.h
     NullCast.h
