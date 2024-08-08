@@ -195,7 +195,7 @@ std::vector<SceneProxyPtr> InstanceProxy::decompose( GeometryLoaderPtr geometryL
     std::vector<SceneProxyPtr> proxies;
     for( uint_t i = 0; i < static_cast<uint_t>( m_scene->objectShapes[m_name].size() ); ++i )
     {
-        proxies.push_back( proxyFactory->sceneInstanceShape( geometryLoader, m_scene, m_instanceIndex, i ) );
+        proxies.push_back( proxyFactory->sceneInstanceShape( m_scene, m_instanceIndex, i ) );
     }
 
     return proxies;
@@ -240,11 +240,11 @@ std::vector<SceneProxyPtr> WholeSceneProxy::decompose( GeometryLoaderPtr geometr
     std::vector<SceneProxyPtr> proxies;
     for( uint_t i = 0; i < static_cast<uint_t>( m_scene->objectInstances.size() ); ++i )
     {
-        proxies.push_back( proxyFactory->sceneInstance( geometryLoader, m_scene, i ) );
+        proxies.push_back( proxyFactory->sceneInstance( m_scene, i ) );
     }
     for( uint_t i = 0; i < static_cast<uint_t>( m_scene->freeShapes.size() ); ++i )
     {
-        proxies.push_back( proxyFactory->sceneShape( geometryLoader, m_scene, i ) );
+        proxies.push_back( proxyFactory->sceneShape( m_scene, i ) );
     }
     return proxies;
 }
@@ -253,7 +253,7 @@ GeometryInstance ShapeProxy::createGeometryFromShape( OptixDeviceContext context
 {
     uint_t            sbtOffset;
     GeometryPrimitive primitive;
-    bool hasUVs = false;
+    bool              hasUVs = false;
     if( shape.type == "trianglemesh" || shape.type == "plymesh" )
     {
         sbtOffset = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE;
@@ -292,52 +292,54 @@ GeometryInstance ShapeProxy::createGeometry( OptixDeviceContext context, CUstrea
 class ProxyFactoryImpl : public ProxyFactory
 {
   public:
-    ProxyFactoryImpl( const Options& options, GeometryCachePtr geometryCache )
+    ProxyFactoryImpl( const Options& options, GeometryLoaderPtr geometryLoader, GeometryCachePtr geometryCache )
         : m_options( options )
+        , m_geometryLoader( std::move( geometryLoader ) )
         , m_geometryCache( std::move( geometryCache ) )
     {
     }
     ~ProxyFactoryImpl() override = default;
 
-    SceneProxyPtr scene( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene ) override;
-    SceneProxyPtr sceneShape( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t shapeIndex ) override;
-    SceneProxyPtr sceneInstance( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex ) override;
-    SceneProxyPtr sceneInstanceShape( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex ) override;
+    SceneProxyPtr scene( SceneDescriptionPtr scene ) override;
+    SceneProxyPtr sceneShape( SceneDescriptionPtr scene, uint_t shapeIndex ) override;
+    SceneProxyPtr sceneInstance( SceneDescriptionPtr scene, uint_t instanceIndex ) override;
+    SceneProxyPtr sceneInstanceShape( SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex ) override;
 
     ProxyFactoryStatistics getStatistics() const override { return m_stats; }
 
   private:
     const Options&         m_options;
+    GeometryLoaderPtr      m_geometryLoader;
     GeometryCachePtr       m_geometryCache;
     ProxyFactoryStatistics m_stats{};
 };
 
-SceneProxyPtr ProxyFactoryImpl::scene( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene )
+SceneProxyPtr ProxyFactoryImpl::scene( SceneDescriptionPtr scene )
 {
     ++m_stats.numSceneProxiesCreated;
 
     // One free shape, no instances
     if( scene->freeShapes.size() == 1 && scene->objectInstances.empty() )
     {
-        return sceneShape( geometryLoader, scene, 0 );
+        return sceneShape( scene, 0 );
     }
 
     // One instance, no free shapes
     if( scene->freeShapes.empty() && scene->objectInstances.size() == 1 )
     {
         const uint_t instanceIndex = 0;
-        return sceneInstance( geometryLoader, scene, instanceIndex );
+        return sceneInstance( scene, instanceIndex );
     }
 
-    const uint_t id = geometryLoader->add( toOptixAabb( scene->bounds ) );
+    const uint_t id = m_geometryLoader->add( toOptixAabb( scene->bounds ) );
     ++m_stats.numGeometryProxiesCreated;
     return std::make_shared<WholeSceneProxy>( id, scene );
 }
 
-SceneProxyPtr ProxyFactoryImpl::sceneShape( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t shapeIndex )
+SceneProxyPtr ProxyFactoryImpl::sceneShape( SceneDescriptionPtr scene, uint_t shapeIndex )
 {
     const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[shapeIndex];
-    const uint_t                      id    = geometryLoader->add( toOptixAabb( shape.transform( shape.bounds ) ) );
+    const uint_t                      id    = m_geometryLoader->add( toOptixAabb( shape.transform( shape.bounds ) ) );
     if( m_options.verboseSceneDecomposition )
     {
         std::cout << "Added scene shape[" << shapeIndex << "] as proxy id " << id << '\n';
@@ -347,7 +349,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneShape( GeometryLoaderPtr geometryLoader, Sc
     return std::make_shared<ShapeProxy>( m_geometryCache, id, scene, shapeIndex );
 }
 
-SceneProxyPtr ProxyFactoryImpl::sceneInstance( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex )
+SceneProxyPtr ProxyFactoryImpl::sceneInstance( SceneDescriptionPtr scene, uint_t instanceIndex )
 {
     const otk::pbrt::ObjectInstanceDefinition& instance = scene->objectInstances[instanceIndex];
     const otk::pbrt::ShapeList&                shapes   = scene->objectShapes[instance.name];
@@ -355,10 +357,10 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstance( GeometryLoaderPtr geometryLoader,
     if( shapes.size() == 1 )
     {
         const uint_t shapeIndex = 0;
-        return sceneInstanceShape( geometryLoader, scene, instanceIndex, shapeIndex );
+        return sceneInstanceShape( scene, instanceIndex, shapeIndex );
     }
 
-    const uint_t id = geometryLoader->add( toOptixAabb( instance.transform( instance.bounds ) ) );
+    const uint_t id = m_geometryLoader->add( toOptixAabb( instance.transform( instance.bounds ) ) );
     if( m_options.verboseSceneDecomposition )
     {
         std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] as proxy id " << id << '\n';
@@ -368,12 +370,12 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstance( GeometryLoaderPtr geometryLoader,
     return std::make_shared<InstanceProxy>( id, scene, instanceIndex );
 }
 
-SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex )
+SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex )
 {
     const otk::pbrt::ObjectInstanceDefinition& instance = scene->objectInstances[instanceIndex];
     const otk::pbrt::ShapeList&                shapes   = scene->objectShapes[instance.name];
     const otk::pbrt::ShapeDefinition&          shape    = shapes[shapeIndex];
-    const uint_t id = geometryLoader->add( toOptixAabb( instance.transform( shape.transform( shape.bounds ) ) ) );
+    const uint_t id = m_geometryLoader->add( toOptixAabb( instance.transform( shape.transform( shape.bounds ) ) ) );
     if( m_options.verboseSceneDecomposition )
     {
         std::cout << "Added instance " << instance.name << "[" << instanceIndex << "] shape[" << shapeIndex
@@ -384,9 +386,9 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( GeometryLoaderPtr geometryLo
     return std::make_shared<InstanceShapeProxy>( m_geometryCache, id, scene, instanceIndex, shapeIndex );
 }
 
-ProxyFactoryPtr createProxyFactory( const Options& options, GeometryCachePtr geometryCache )
+ProxyFactoryPtr createProxyFactory( const Options& options, GeometryLoaderPtr geometryLoader, GeometryCachePtr geometryCache )
 {
-    return std::make_shared<ProxyFactoryImpl>( options, std::move( geometryCache ) );
+    return std::make_shared<ProxyFactoryImpl>( options, std::move( geometryLoader ), std::move( geometryCache ) );
 }
 
 }  // namespace demandPbrtScene

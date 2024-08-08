@@ -40,10 +40,10 @@ class MockProxyFactory : public StrictMock<ProxyFactory>
   public:
     ~MockProxyFactory() override = default;
 
-    MOCK_METHOD( SceneProxyPtr, scene, ( GeometryLoaderPtr, SceneDescriptionPtr ), ( override ) );
-    MOCK_METHOD( SceneProxyPtr, sceneShape, ( GeometryLoaderPtr, SceneDescriptionPtr, uint_t ), ( override ) );
-    MOCK_METHOD( SceneProxyPtr, sceneInstance, ( GeometryLoaderPtr, SceneDescriptionPtr, uint_t ), ( override ) );
-    MOCK_METHOD( SceneProxyPtr, sceneInstanceShape, ( GeometryLoaderPtr, SceneDescriptionPtr, uint_t, uint_t ), ( override ) );
+    MOCK_METHOD( SceneProxyPtr, scene, ( SceneDescriptionPtr ), ( override ) );
+    MOCK_METHOD( SceneProxyPtr, sceneShape, ( SceneDescriptionPtr, uint_t ), ( override ) );
+    MOCK_METHOD( SceneProxyPtr, sceneInstance, ( SceneDescriptionPtr, uint_t ), ( override ) );
+    MOCK_METHOD( SceneProxyPtr, sceneInstanceShape, ( SceneDescriptionPtr, uint_t, uint_t ), ( override ) );
     MOCK_METHOD( ProxyFactoryStatistics, getStatistics, (), ( const override ) );
 };
 
@@ -83,8 +83,8 @@ class TestGeometryResolver : public Test
     // Dependencies
     Options                   m_options{};
     MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
-    MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
-    MockProxyFactoryPtr       m_proxyFactory{ std::make_shared<MockProxyFactory>() };
+    MockGeometryLoaderPtr     m_geometryLoader{ createMockGeometryLoader() };
+    MockProxyFactoryPtr       m_proxyFactory{ createMockProxyFactory() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };
     GeometryResolverPtr       m_resolver{
@@ -126,7 +126,7 @@ void TestGeometryResolverInitialized::SetUp()
     TestGeometryResolver::SetUp();
     m_init = EXPECT_CALL( *m_geometryLoader, setSbtIndex( _ ) );
     m_init += EXPECT_CALL( *m_geometryLoader, copyToDeviceAsync( _ ) );
-    m_init += EXPECT_CALL( *m_proxyFactory, scene( _, _ ) ).WillOnce( Return( m_sceneProxy ) );
+    m_init += EXPECT_CALL( *m_proxyFactory, scene( _ ) ).WillOnce( Return( m_sceneProxy ) );
     m_init += EXPECT_CALL( *m_sceneProxy, getPageId() ).WillOnce( Return( m_proxyPageId ) );
     m_init += EXPECT_CALL( *m_geometryLoader, createTraversable( _, _ ) ).WillOnce( Return( m_fakeProxyTraversable ) );
     m_resolver->initialize( m_stream, m_fakeContext, m_scene, m_sync );
@@ -140,7 +140,7 @@ TEST_F( TestGeometryResolver, initializeCreatesProxyForWholeScene )
     EXPECT_CALL( *m_geometryLoader, copyToDeviceAsync( m_stream ) );
     SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
     MockSceneProxyPtr   proxy{ createMockSceneProxy() };
-    EXPECT_CALL( *m_proxyFactory, scene( static_cast<GeometryLoaderPtr>( m_geometryLoader ), scene ) ).WillOnce( Return( proxy ) );
+    EXPECT_CALL( *m_proxyFactory, scene( scene ) ).WillOnce( Return( proxy ) );
     const uint_t proxyPageId{ 1234 };
     EXPECT_CALL( *proxy, getPageId() ).WillOnce( Return( proxyPageId ) );
     EXPECT_CALL( *m_geometryLoader, createTraversable( m_fakeContext, m_stream ) ).WillOnce( Return( m_fakeProxyTraversable ) );

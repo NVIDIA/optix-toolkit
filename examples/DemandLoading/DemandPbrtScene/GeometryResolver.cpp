@@ -98,7 +98,7 @@ void PbrtGeometryResolver::pushInstance( SceneSyncState& sync, OptixTraversableH
 
 void PbrtGeometryResolver::initialize( CUstream stream, OptixDeviceContext context, const SceneDescriptionPtr& scene, SceneSyncState& sync )
 {
-    SceneProxyPtr proxy{ m_proxyFactory->scene( m_geometryLoader, scene ) };
+    SceneProxyPtr proxy{ m_proxyFactory->scene( scene) };
     m_sceneProxies[proxy->getPageId()] = proxy;
     m_geometryLoader->setSbtIndex( +HitGroupIndex::PROXY_GEOMETRY );
     m_geometryLoader->copyToDeviceAsync( stream );
