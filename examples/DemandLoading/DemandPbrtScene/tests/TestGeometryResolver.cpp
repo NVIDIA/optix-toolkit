@@ -3,6 +3,7 @@
 #include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
+#include "MockProgramGroups.h"
 
 #include <DemandTextureCache.h>
 #include <FrameStopwatch.h>
@@ -34,16 +35,6 @@ static OptixDeviceContext fakeOptixDeviceContext()
 
 namespace {
 
-class MockProgramGroups : public StrictMock<ProgramGroups>
-{
-  public:
-    ~MockProgramGroups() override = default;
-
-    MOCK_METHOD( void, cleanup, (), ( override ) );
-    MOCK_METHOD( uint_t, getRealizedMaterialSbtOffset, (const GeometryInstance&), ( override ) );
-    MOCK_METHOD( void, initialize, (), ( override ) );
-};
-
 class MockProxyFactory : public StrictMock<ProxyFactory>
 {
   public:
@@ -68,7 +59,6 @@ class MockSceneProxy : public StrictMock<SceneProxy>
     MOCK_METHOD( std::vector<SceneProxyPtr>, decompose, ( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ), ( override ) );
 };
 
-using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 using MockProxyFactoryPtr       = std::shared_ptr<MockProxyFactory>;
 using MockSceneProxyPtr         = std::shared_ptr<MockSceneProxy>;
 
@@ -92,7 +82,7 @@ class TestGeometryResolver : public Test
 
     // Dependencies
     Options                   m_options{};
-    MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
+    MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockProxyFactoryPtr       m_proxyFactory{ std::make_shared<MockProxyFactory>() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
