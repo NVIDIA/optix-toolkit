@@ -6,6 +6,7 @@
 
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
+#include "MockMaterialLoader.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
@@ -153,22 +154,7 @@ inline bool operator!=( const DeviceContext& lhs, const DeviceContext& rhs )
 
 namespace {
 
-class MockMaterialLoader : public StrictMock<demandMaterial::MaterialLoader>
-{
-  public:
-    ~MockMaterialLoader() override = default;
-
-    MOCK_METHOD( const char*, getCHFunctionName, (), ( const, override ) );
-    MOCK_METHOD( uint_t, add, (), ( override ) );
-    MOCK_METHOD( void, remove, ( uint_t ), ( override ) );
-    MOCK_METHOD( std::vector<uint_t>, requestedMaterialIds, (), ( const, override ) );
-    MOCK_METHOD( void, clearRequestedMaterialIds, (), ( override ) );
-    MOCK_METHOD( bool, getRecycleProxyIds, (), ( const, override ) );
-    MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
-};
-
 using StrictMockOptix       = StrictMock<MockOptix>;
-using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
 
 using ProgramGroupDescMatcher = Matcher<const OptixProgramGroupDesc*>;
 
@@ -185,7 +171,7 @@ class TestProgramGroups : public Test
 
     StrictMockOptix       m_optix{};
     MockGeometryLoaderPtr m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
-    MockMaterialLoaderPtr m_materialLoader{ std::make_shared<MockMaterialLoader>() };
+    MockMaterialLoaderPtr m_materialLoader{ createMockMaterialLoader() };
     MockRendererPtr       m_renderer{ createMockRenderer() };
     ProgramGroupsPtr      m_programGroups{ createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) };
     OptixPipelineCompileOptions    m_pipelineCompileOptions{};
