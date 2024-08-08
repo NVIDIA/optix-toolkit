@@ -4,6 +4,7 @@
 
 #include <MaterialResolver.h>
 
+#include "MockDemandTextureCache.h"
 #include "ParamsPrinters.h"
 
 #include <DemandTextureCache.h>
@@ -28,6 +29,7 @@ constexpr const char* DIFFUSE_MAP_PATH{ "diffuseMap.png" };
 
 using namespace testing;
 using namespace demandPbrtScene;
+using namespace demandPbrtScene::testing;
 
 namespace demandPbrtScene {
 
@@ -74,20 +76,6 @@ inline bool operator==( const GeometryInstance& lhs, const GeometryInstance& rhs
 
 namespace {
 
-class MockDemandTextureCache : public StrictMock<DemandTextureCache>
-{
-  public:
-    ~MockDemandTextureCache() override = default;
-
-    MOCK_METHOD( uint_t, createDiffuseTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasDiffuseTextureForFile, ( const std::string& path ), ( const override ) );
-    MOCK_METHOD( uint_t, createAlphaTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasAlphaTextureForFile, (const std::string&), ( const, override ) );
-    MOCK_METHOD( uint_t, createSkyboxTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasSkyboxTextureForFile, (const std::string&), ( const, override ) );
-    MOCK_METHOD( DemandTextureCacheStatistics, getStatistics, (), ( const override ) );
-};
-
 class MockMaterialLoader : public StrictMock<demandMaterial::MaterialLoader>
 {
   public:
@@ -112,7 +100,6 @@ class MockProgramGroups : public StrictMock<ProgramGroups>
     MOCK_METHOD( void, initialize, (), ( override ) );
 };
 
-using MockDemandTextureCachePtr = std::shared_ptr<MockDemandTextureCache>;
 using MockMaterialLoaderPtr     = std::shared_ptr<MockMaterialLoader>;
 using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 
@@ -134,7 +121,7 @@ class TestMaterialResolver : public Test
   protected:
     Options                   m_options{ testOptions() };
     MockMaterialLoaderPtr     m_materialLoader{ std::make_shared<MockMaterialLoader>() };
-    MockDemandTextureCachePtr m_demandTextureCache{ std::make_shared<MockDemandTextureCache>() };
+    MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
     MaterialResolverPtr m_resolver{ createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups ) };
     SceneSyncState m_sync{};
@@ -437,7 +424,6 @@ TEST_F( TestMaterialResolverRequestedProxyIds, oneShotNotTriggeredDoesNothing )
 TEST_F( TestMaterialResolverRequestedProxyIds, oneShotTriggeredRequestsProxies )
 {
     m_options.oneShotMaterial = true;
-    const uint_t fakeMaterialId{ 2222 };
     EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
     EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
 

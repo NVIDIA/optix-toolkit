@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include "Matchers.h"
+#include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
@@ -61,8 +62,9 @@
 #include <iterator>
 
 using namespace testing;
-using namespace demandPbrtScene;
 using namespace otk::testing;
+using namespace demandPbrtScene;
+using namespace demandPbrtScene::testing;
 
 using P3 = pbrt::Point3f;
 using V3 = pbrt::Vector3f;
@@ -238,20 +240,6 @@ class MockSceneLoader : public StrictMock<otk::pbrt::SceneLoader>
     MOCK_METHOD( SceneDescriptionPtr, parseString, ( const std::string& str ), ( override ) );
 };
 
-class MockDemandTextureCache : public StrictMock<DemandTextureCache>
-{
-  public:
-    ~MockDemandTextureCache() override = default;
-
-    MOCK_METHOD( uint_t, createDiffuseTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasDiffuseTextureForFile, ( const std::string& path ), ( const override ) );
-    MOCK_METHOD( uint_t, createAlphaTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasAlphaTextureForFile, (const std::string&), ( const, override ) );
-    MOCK_METHOD( uint_t, createSkyboxTextureFromFile, ( const std::string& path ), ( override ) );
-    MOCK_METHOD( bool, hasSkyboxTextureForFile, (const std::string&), ( const, override ) );
-    MOCK_METHOD( DemandTextureCacheStatistics, getStatistics, (), ( const override ) );
-};
-
 class MockGeometryResolver : public StrictMock<GeometryResolver>
 {
   public:
@@ -313,7 +301,6 @@ using StrictMockDemandLoader    = StrictMock<MockDemandLoader>;
 using StrictMockOptix           = StrictMock<MockOptix>;
 using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
 using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
-using MockDemandTextureCachePtr = std::shared_ptr<MockDemandTextureCache>;
 using MockGeometryResolverPtr   = std::shared_ptr<MockGeometryResolver>;
 using MockMaterialResolverPtr   = std::shared_ptr<MockMaterialResolver>;
 using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
@@ -515,7 +502,7 @@ class TestPbrtScene : public Test
     CUstream                  m_stream{};
     StrictMockOptix           m_optix{};
     MockSceneLoaderPtr        m_sceneLoader{ std::make_shared<MockSceneLoader>() };
-    MockDemandTextureCachePtr m_demandTextureCache{ std::make_shared<MockDemandTextureCache>() };
+    MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockDemandLoaderPtr       m_demandLoader{ std::make_shared<StrictMockDemandLoader>() };
     MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
     MockMaterialResolverPtr   m_materialResolver{ std::make_shared<MockMaterialResolver>() };

@@ -39,6 +39,8 @@ class DemandLoader;
 
 namespace demandPbrtScene {
 
+using uint_t = unsigned int;
+
 class ImageSourceFactory;
 
 class DemandTextureCache
@@ -46,14 +48,14 @@ class DemandTextureCache
   public:
     virtual ~DemandTextureCache() = default;
 
-    virtual unsigned int createDiffuseTextureFromFile( const std::string& path )   = 0;
-    virtual bool         hasDiffuseTextureForFile( const std::string& path ) const = 0;
+    virtual uint_t createDiffuseTextureFromFile( const std::string& path )   = 0;
+    virtual bool   hasDiffuseTextureForFile( const std::string& path ) const = 0;
 
-    virtual unsigned int createAlphaTextureFromFile( const std::string& path )   = 0;
-    virtual bool         hasAlphaTextureForFile( const std::string& path ) const = 0;
+    virtual uint_t createAlphaTextureFromFile( const std::string& path )   = 0;
+    virtual bool   hasAlphaTextureForFile( const std::string& path ) const = 0;
 
-    virtual unsigned int createSkyboxTextureFromFile( const std::string& path )   = 0;
-    virtual bool         hasSkyboxTextureForFile( const std::string& path ) const = 0;
+    virtual uint_t createSkyboxTextureFromFile( const std::string& path )   = 0;
+    virtual bool   hasSkyboxTextureForFile( const std::string& path ) const = 0;
 
     virtual DemandTextureCacheStatistics getStatistics() const = 0;
 };
