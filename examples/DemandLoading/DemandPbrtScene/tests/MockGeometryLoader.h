@@ -84,5 +84,10 @@ class MockGeometryLoader : public ::testing::StrictMock<::demandGeometry::Geomet
 
 using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
 
+inline MockGeometryLoaderPtr createMockGeometryLoader()
+{
+    return std::make_shared<MockGeometryLoader>();
+}
+
 }  // namespace testing
 }  // namespace otk
