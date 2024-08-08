@@ -85,17 +85,14 @@ class ProxyFactory
   public:
     virtual ~ProxyFactory() = default;
 
-    virtual SceneProxyPtr scene( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene ) = 0;
-    virtual SceneProxyPtr sceneShape( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t shapeIndex ) = 0;
-    virtual SceneProxyPtr sceneInstance( GeometryLoaderPtr geometryLoader, SceneDescriptionPtr scene, uint_t instanceIndex ) = 0;
-    virtual SceneProxyPtr sceneInstanceShape( GeometryLoaderPtr   geometryLoader,
-                                              SceneDescriptionPtr scene,
-                                              uint_t              instanceIndex,
-                                              uint_t              shapeIndex ) = 0;
+    virtual SceneProxyPtr scene( SceneDescriptionPtr scene )                                                       = 0;
+    virtual SceneProxyPtr sceneShape( SceneDescriptionPtr scene, uint_t shapeIndex )                               = 0;
+    virtual SceneProxyPtr sceneInstance( SceneDescriptionPtr scene, uint_t instanceIndex )                         = 0;
+    virtual SceneProxyPtr sceneInstanceShape( SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex ) = 0;
 
     virtual ProxyFactoryStatistics getStatistics() const = 0;
 };
 
-ProxyFactoryPtr createProxyFactory( const Options& options, GeometryCachePtr geometryCache );
+ProxyFactoryPtr createProxyFactory( const Options& options, GeometryLoaderPtr geometryLoader, GeometryCachePtr geometryCache );
 
 }  // namespace demandPbrtScene

@@ -562,7 +562,7 @@ class TestSceneProxy : public Test
     MockGeometryLoaderPtr  m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockGeometryCachePtr   m_geometryCache{ std::make_shared<MockGeometryCache>() };
     Options                m_options{};
-    ProxyFactoryPtr        m_factory{ createProxyFactory( m_options, m_geometryCache) };
+    ProxyFactoryPtr        m_factory{ createProxyFactory( m_options, m_geometryLoader, m_geometryCache) };
     SceneProxyPtr          m_proxy;
     SceneDescriptionPtr    m_scene;
     OptixDeviceContext     m_fakeContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
@@ -577,7 +577,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleTriangleMesh )
     m_scene = singleTriangleScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy = m_factory->scene( m_scene);
     const Stats stats = m_factory->getStatistics();
 
     ASSERT_TRUE( m_proxy );
@@ -592,7 +592,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMesh )
 {
     m_scene = singleTriangleScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -619,7 +619,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithNormals )
 {
     m_scene = singleTriangleWithNormalsScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -647,7 +647,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithUVs )
 {
     m_scene = singleTriangleWithUVsScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -675,7 +675,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithAlphaMap )
 {
     m_scene = singleTriangleWithAlphaMapScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -706,7 +706,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
 {
     m_scene = singleTriangleWithDiffuseMapScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -738,7 +738,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForMultipleShapes )
     m_scene = twoShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy = m_factory->scene( m_scene);
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -752,7 +752,7 @@ TEST_F( TestSceneProxy, decomposeProxyForMultipleShapes )
     EXPECT_EQ( m_scene->freeShapes[0].bounds, m_scene->freeShapes[1].bounds );
     EXPECT_NE( m_scene->freeShapes[0].transform, m_scene->freeShapes[1].transform );
     ExpectationSet first      = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                   = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                   = m_factory->scene( m_scene);
     const uint_t shape1PageId = 1111;
     const uint_t shape2PageId = 2222;
     expectProxyAdded( m_scene->freeShapes[0], shape1PageId );
@@ -775,7 +775,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSecondMesh )
 {
     m_scene                     = twoShapeScene();
     ExpectationSet first        = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                     = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                     = m_factory->scene( m_scene);
     const uint_t   shape1PageId = 1111;
     const uint_t   shape2PageId = 2222;
     ExpectationSet second;
@@ -809,7 +809,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithSingleShape
     m_scene = singleInstanceSingleShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy = m_factory->scene( m_scene);
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -821,7 +821,7 @@ TEST_F( TestSceneProxy, geometryForSingleInstanceWithSingleShape )
 {
     m_scene = singleInstanceSingleShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->objectShapes["triangle"][0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -852,7 +852,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithMultipleSha
     m_scene = singleInstanceMultipleShapesScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy = m_factory->scene( m_scene);
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -865,7 +865,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceWithMultipleSha
 {
     m_scene                                  = singleInstanceMultipleShapesScene();
     ExpectationSet first                     = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                                  = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                                  = m_factory->scene( m_scene);
     const uint_t                shape1PageId = 1111;
     const uint_t                shape2PageId = 2222;
     const otk::pbrt::ShapeList& objectShapes = m_scene->objectShapes["object"];
@@ -888,7 +888,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceAndSingleFreeSh
     m_scene = singleInstanceSingleShapeSingleFreeShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy = m_factory->scene( m_scene);
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -901,7 +901,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSing
 {
     m_scene                        = singleInstanceSingleShapeSingleFreeShapeScene();
     ExpectationSet first           = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const uint_t shape1PageId      = 1111;
     const uint_t shape2PageId      = 2222;
     expectProxyAddedAfter( m_scene->objectInstances[0], shape1PageId, first );
@@ -928,7 +928,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
 
     m_scene = singleTrianglePlyScene( meshLoader );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
@@ -955,7 +955,7 @@ TEST_F( TestSceneProxy, multipleInstancesSingleShapeGeometry )
 {
     m_scene              = multipleInstancesSingleShape();
     ExpectationSet first = expectProxyBoundsAdded( m_scene->bounds, 1111 );
-    m_proxy              = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy              = m_factory->scene( m_scene);
     expectProxyAddedAfter( m_scene->objectInstances[0], 2222, first );
     expectProxyAddedAfter( m_scene->objectInstances[1], 3333, first );
 
@@ -972,7 +972,7 @@ TEST_F( TestSceneProxy, constructProxyForSingleSphere )
     m_scene = singleSphereScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy = m_factory->scene( m_scene);
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -985,7 +985,7 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
 {
     m_scene = singleSphereScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_geometryLoader, m_scene );
+    m_proxy                        = m_factory->scene( m_scene);
     const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
     float                    expectedTransform[12];
     identity( expectedTransform );
