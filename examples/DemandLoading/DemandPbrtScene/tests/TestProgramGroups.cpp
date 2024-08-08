@@ -170,7 +170,7 @@ class TestProgramGroups : public Test
     ExpectationSet expectInitialize();
 
     StrictMockOptix       m_optix{};
-    MockGeometryLoaderPtr m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
+    MockGeometryLoaderPtr m_geometryLoader{ createMockGeometryLoader() };
     MockMaterialLoaderPtr m_materialLoader{ createMockMaterialLoader() };
     MockRendererPtr       m_renderer{ createMockRenderer() };
     ProgramGroupsPtr      m_programGroups{ createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) };

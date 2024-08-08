@@ -559,7 +559,7 @@ class TestSceneProxy : public Test
 
     CUstream               m_stream{ otk::bit_cast<CUstream>( 0xbaadfeedfeedfeedULL ) };
     uint_t                 m_pageId{ 10 };
-    MockGeometryLoaderPtr  m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
+    MockGeometryLoaderPtr  m_geometryLoader{ createMockGeometryLoader() };
     MockGeometryCachePtr   m_geometryCache{ std::make_shared<MockGeometryCache>() };
     Options                m_options{};
     ProxyFactoryPtr        m_factory{ createProxyFactory( m_options, m_geometryLoader, m_geometryCache) };

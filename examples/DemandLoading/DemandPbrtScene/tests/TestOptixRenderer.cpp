@@ -75,7 +75,7 @@ class TestOptixRenderer : public Test
     ExpectationSet expectLaunchAfter( const ExpectationSet& before );
 
     Options                        m_options{};
-    MockGeometryLoaderPtr          m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
+    MockGeometryLoaderPtr          m_geometryLoader{ createMockGeometryLoader() };
     StrictMockOptix                m_optix{};
     CUstream                       m_stream{};
     uchar4                         m_image[1]{};
