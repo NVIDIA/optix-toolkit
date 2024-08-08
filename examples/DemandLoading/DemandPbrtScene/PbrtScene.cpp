@@ -26,9 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "PbrtScene.h"
+#include "Scene.h"
 
 #include "DemandTextureCache.h"
+#include "FrameStopwatch.h"
 #include "GeometryResolver.h"
 #include "MaterialResolver.h"
 #include "Options.h"
@@ -36,6 +37,7 @@
 #include "ProgramGroups.h"
 #include "Renderer.h"
 #include "SceneAdapters.h"
+#include "SceneSyncState.h"
 #include "Stopwatch.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
@@ -45,6 +47,7 @@
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
+#include <OptiXToolkit/Memory/DeviceBuffer.h>
 
 #include <optix_stubs.h>
 
@@ -57,6 +60,60 @@
 #include <utility>
 
 namespace demandPbrtScene {
+
+namespace {
+
+class PbrtScene : public Scene
+{
+  public:
+    PbrtScene( const Options&        options,
+               PbrtSceneLoaderPtr    sceneLoader,
+               DemandTextureCachePtr demandTextureCache,
+               DemandLoaderPtr       demandLoader,
+               MaterialResolverPtr   materialResolver,
+               GeometryResolverPtr   geometryResolver,
+               RendererPtr           renderer );
+    ~PbrtScene() override = default;
+
+    void initialize( CUstream stream ) override;
+
+    bool beforeLaunch( CUstream stream, Params& params ) override;
+    void afterLaunch( CUstream stream, const Params& params ) override;
+
+    void resolveOneGeometry() override;
+    void resolveOneMaterial() override;
+
+    SceneStatistics getStatistics() const override { return m_stats; }
+
+  private:
+    void parseScene();
+    void realizeInfiniteLights();
+    void setCamera();
+    void createTopLevelTraversable( CUstream stream );
+    void setLaunchParams( CUstream stream, Params& params );
+
+    // Dependencies
+    const Options&        m_options;
+    PbrtSceneLoaderPtr    m_sceneLoader;
+    DemandTextureCachePtr m_demandTextureCache;
+    DemandLoaderPtr       m_demandLoader;
+    MaterialResolverPtr   m_materialResolver;
+    GeometryResolverPtr   m_geometryResolver;
+    RendererPtr           m_renderer;
+
+    // Interactive behavior
+    bool           m_interactive{};
+    FrameStopwatch m_frameTime;
+
+    // Scene related data
+    SceneDescriptionPtr    m_scene;
+    SceneStatistics        m_stats{};
+    otk::DeviceBuffer      m_tempBuffer;
+    otk::DeviceBuffer      m_topLevelAccelBuffer;
+    OptixTraversableHandle m_topLevelTraversable{};
+    demandLoading::Ticket  m_ticket;
+    SceneSyncState         m_sync;
+};
 
 PbrtScene::PbrtScene( const Options&        options,
                       PbrtSceneLoaderPtr    sceneLoader,
@@ -75,11 +132,6 @@ PbrtScene::PbrtScene( const Options&        options,
     , m_interactive( m_options.outFile.empty() )
     , m_frameTime( m_interactive )
 {
-}
-
-inline OptixAabb toOptixAabb( const ::pbrt::Bounds3f& bounds )
-{
-    return OptixAabb{ bounds.pMin.x, bounds.pMin.y, bounds.pMin.z, bounds.pMax.x, bounds.pMax.y, bounds.pMax.z };
 }
 
 void PbrtScene::realizeInfiniteLights()
@@ -304,6 +356,8 @@ void PbrtScene::afterLaunch( CUstream stream, const Params& params )
 {
     m_ticket = m_demandLoader->processRequests( stream, params.demandContext );
 }
+
+}  // namespace
 
 ScenePtr createScene( const Options&        options,
                       PbrtSceneLoaderPtr    sceneLoader,
