@@ -33,6 +33,7 @@
 #include "Matchers.h"
 #include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
+#include "MockMaterialResolver.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
 
@@ -252,17 +253,6 @@ class MockGeometryResolver : public StrictMock<GeometryResolver>
     MOCK_METHOD( bool, resolveRequestedProxyGeometries, (CUstream, OptixDeviceContext, const FrameStopwatch&, SceneSyncState&), ( override ) );
 };
 
-class MockMaterialResolver : public StrictMock<MaterialResolver>
-{
-  public:
-    ~MockMaterialResolver() override = default;
-
-    MOCK_METHOD( MaterialResolverStats, getStatistics, (), ( const, override ) );
-    MOCK_METHOD( bool, resolveMaterialForGeometry, (uint_t, SceneGeometry&, SceneSyncState&), ( override ) );
-    MOCK_METHOD( void, resolveOneMaterial, (), ( override ) );
-    MOCK_METHOD( MaterialResolution, resolveRequestedProxyMaterials, (CUstream, const FrameStopwatch&, SceneSyncState&), ( override ) );
-};
-
 class MockProgramGroups : public StrictMock<ProgramGroups>
 {
   public:
@@ -302,7 +292,6 @@ using StrictMockOptix           = StrictMock<MockOptix>;
 using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
 using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
 using MockGeometryResolverPtr   = std::shared_ptr<MockGeometryResolver>;
-using MockMaterialResolverPtr   = std::shared_ptr<MockMaterialResolver>;
 using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 using MockRendererPtr           = std::shared_ptr<MockRenderer>;
 
@@ -505,7 +494,7 @@ class TestPbrtScene : public Test
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockDemandLoaderPtr       m_demandLoader{ std::make_shared<StrictMockDemandLoader>() };
     MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
-    MockMaterialResolverPtr   m_materialResolver{ std::make_shared<MockMaterialResolver>() };
+    MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };
     MockGeometryResolverPtr   m_geometryResolver{ std::make_shared<MockGeometryResolver>() };
     MockRendererPtr           m_renderer{ std::make_shared<MockRenderer>() };
     Options                   m_options{ testOptions() };
