@@ -5,6 +5,7 @@
 #include <MaterialResolver.h>
 
 #include "MockDemandTextureCache.h"
+#include "MockProgramGroups.h"
 #include "ParamsPrinters.h"
 
 #include <DemandTextureCache.h>
@@ -90,18 +91,7 @@ class MockMaterialLoader : public StrictMock<demandMaterial::MaterialLoader>
     MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
 };
 
-class MockProgramGroups : public StrictMock<ProgramGroups>
-{
-  public:
-    ~MockProgramGroups() override = default;
-
-    MOCK_METHOD( void, cleanup, (), ( override ) );
-    MOCK_METHOD( uint_t, getRealizedMaterialSbtOffset, (const GeometryInstance&), ( override ) );
-    MOCK_METHOD( void, initialize, (), ( override ) );
-};
-
 using MockMaterialLoaderPtr     = std::shared_ptr<MockMaterialLoader>;
-using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 
 // This was needed to satisfy gcc instead of constructing from a brace initializer list.
 Options testOptions()
@@ -122,7 +112,7 @@ class TestMaterialResolver : public Test
     Options                   m_options{ testOptions() };
     MockMaterialLoaderPtr     m_materialLoader{ std::make_shared<MockMaterialLoader>() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
-    MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
+    MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MaterialResolverPtr m_resolver{ createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups ) };
     SceneSyncState m_sync{};
 };

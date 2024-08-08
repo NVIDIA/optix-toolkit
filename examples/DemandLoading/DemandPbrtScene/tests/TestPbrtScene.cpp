@@ -34,6 +34,7 @@
 #include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
+#include "MockProgramGroups.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
 
@@ -253,16 +254,6 @@ class MockGeometryResolver : public StrictMock<GeometryResolver>
     MOCK_METHOD( bool, resolveRequestedProxyGeometries, (CUstream, OptixDeviceContext, const FrameStopwatch&, SceneSyncState&), ( override ) );
 };
 
-class MockProgramGroups : public StrictMock<ProgramGroups>
-{
-  public:
-    ~MockProgramGroups() override = default;
-
-    MOCK_METHOD( void, cleanup, (), ( override ) );
-    MOCK_METHOD( uint_t, getRealizedMaterialSbtOffset, (const GeometryInstance&), ( override ) );
-    MOCK_METHOD( void, initialize, (), ( override ) );
-};
-
 class MockRenderer : public StrictMock<Renderer>
 {
   public:
@@ -292,7 +283,6 @@ using StrictMockOptix           = StrictMock<MockOptix>;
 using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
 using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
 using MockGeometryResolverPtr   = std::shared_ptr<MockGeometryResolver>;
-using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 using MockRendererPtr           = std::shared_ptr<MockRenderer>;
 
 using AccelBuildOptionsMatcher = Matcher<const OptixAccelBuildOptions*>;
@@ -493,7 +483,7 @@ class TestPbrtScene : public Test
     MockSceneLoaderPtr        m_sceneLoader{ std::make_shared<MockSceneLoader>() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockDemandLoaderPtr       m_demandLoader{ std::make_shared<StrictMockDemandLoader>() };
-    MockProgramGroupsPtr      m_programGroups{ std::make_shared<MockProgramGroups>() };
+    MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };
     MockGeometryResolverPtr   m_geometryResolver{ std::make_shared<MockGeometryResolver>() };
     MockRendererPtr           m_renderer{ std::make_shared<MockRenderer>() };
