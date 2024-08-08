@@ -32,6 +32,7 @@
 
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
+#include "MockMeshLoader.h"
 
 #include <GeometryCache.h>
 #include <Options.h>
@@ -55,8 +56,9 @@
 #include <iterator>
 
 using namespace demandPbrtScene;
+using namespace demandPbrtScene::testing;
 using namespace otk::testing;
-using namespace testing;
+using namespace ::testing;
 
 using P2 = pbrt::Point2f;
 using P3 = pbrt::Point3f;
@@ -205,17 +207,6 @@ class MockGeometryCache : public StrictMock<GeometryCache>
 
 using MockGeometryCachePtr = std::shared_ptr<MockGeometryCache>;
 
-class MockMeshLoader : public StrictMock<otk::pbrt::MeshLoader>
-{
-  public:
-    ~MockMeshLoader() override = default;
-
-    MOCK_METHOD( otk::pbrt::MeshInfo, getMeshInfo, (), ( const, override ) );
-    MOCK_METHOD( void, load, (otk::pbrt::MeshData&), ( override ) );
-};
-
-using MockMeshLoaderPtr = std::shared_ptr<MockMeshLoader>;
-
 }  // namespace
 
 static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
@@ -242,8 +233,8 @@ static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader 
 
 TEST( TestSceneConstruction, sceneBoundsSingleTrianglePlyScene )
 {
-    MockMeshLoaderPtr   meshLoader = std::make_shared<MockMeshLoader>();
-    SceneDescriptionPtr scene      = singleTrianglePlyScene( meshLoader );
+    MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
+    SceneDescriptionPtr scene = singleTrianglePlyScene( meshLoader );
 
     const otk::pbrt::ShapeList& shapes = scene->freeShapes;
     EXPECT_EQ( 1U, shapes.size() );
@@ -253,8 +244,8 @@ TEST( TestSceneConstruction, sceneBoundsSingleTrianglePlyScene )
 
 TEST( TestSceneConstruction, meshDataSingleTrianglePlyScene )
 {
-    MockMeshLoaderPtr   meshLoader = std::make_shared<MockMeshLoader>();
-    SceneDescriptionPtr scene      = singleTrianglePlyScene( meshLoader );
+    MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
+    SceneDescriptionPtr scene = singleTrianglePlyScene( meshLoader );
 
     const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[0];
     EXPECT_EQ( std::string{ "plymesh" }, shape.type );
@@ -932,7 +923,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSing
 
 TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
 {
-    MockMeshLoaderPtr meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
     EXPECT_CALL( *meshLoader, getMeshInfo() ).WillOnce( Return( otk::pbrt::MeshInfo() ) );
 
     m_scene = singleTrianglePlyScene( meshLoader );
