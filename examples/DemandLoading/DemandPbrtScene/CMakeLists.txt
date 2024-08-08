@@ -91,7 +91,6 @@ add_library(DemandPbrtSceneImpl STATIC
     Params.h
     PbrtAlphaMapImageSource.h
     PbrtAlphaMapImageSource.cpp
-    PbrtScene.h
     PbrtScene.cpp
     Primitive.h
     ProgramGroups.h

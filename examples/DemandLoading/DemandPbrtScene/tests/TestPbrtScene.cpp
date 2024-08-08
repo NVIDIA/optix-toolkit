@@ -43,9 +43,10 @@
 #include <MaterialResolver.h>
 #include <Options.h>
 #include <Params.h>
-#include <PbrtScene.h>
 #include <ProgramGroups.h>
 #include <Renderer.h>
+#include <Scene.h>
+#include <SceneSyncState.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
@@ -254,12 +255,12 @@ class MockGeometryResolver : public StrictMock<GeometryResolver>
     MOCK_METHOD( bool, resolveRequestedProxyGeometries, (CUstream, OptixDeviceContext, const FrameStopwatch&, SceneSyncState&), ( override ) );
 };
 
-using StrictMockDemandLoader    = StrictMock<MockDemandLoader>;
-using StrictMockOptix           = StrictMock<MockOptix>;
-using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
-using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
-using MockGeometryResolverPtr   = std::shared_ptr<MockGeometryResolver>;
-using MockMaterialResolverPtr   = std::shared_ptr<MockMaterialResolver>;
+using StrictMockDemandLoader  = StrictMock<MockDemandLoader>;
+using StrictMockOptix         = StrictMock<MockOptix>;
+using MockSceneLoaderPtr      = std::shared_ptr<MockSceneLoader>;
+using MockDemandLoaderPtr     = std::shared_ptr<StrictMockDemandLoader>;
+using MockGeometryResolverPtr = std::shared_ptr<MockGeometryResolver>;
+using MockMaterialResolverPtr = std::shared_ptr<MockMaterialResolver>;
 
 using AccelBuildOptionsMatcher = Matcher<const OptixAccelBuildOptions*>;
 using BuildInputMatcher        = Matcher<const OptixBuildInput*>;
@@ -463,9 +464,8 @@ class TestPbrtScene : public Test
     MockGeometryResolverPtr   m_geometryResolver{ std::make_shared<MockGeometryResolver>() };
     MockRendererPtr           m_renderer{ createMockRenderer() };
     Options                   m_options{ testOptions() };
-    // clang-format off
-    PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_demandLoader, m_materialResolver, m_geometryResolver, m_renderer };
-    // clang-format on
+    ScenePtr                  m_scene{
+        createScene( m_options, m_sceneLoader, m_demandTextureCache, m_demandLoader, m_materialResolver, m_geometryResolver, m_renderer ) };
     SceneDescriptionPtr          m_sceneDesc{ std::make_shared<otk::pbrt::SceneDescription>() };
     OptixAabb                    m_sceneBounds{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
     demandGeometry::Context      m_demandGeomContext{ fakeDemandGeometryContext() };
@@ -579,7 +579,7 @@ void TestPbrtSceneInitialized::SetUp()
 {
     TestPbrtScene::SetUp();
     m_init = expectInitialize();
-    m_scene.initialize( m_stream );
+    m_scene->initialize( m_stream );
     EXPECT_CALL( *m_renderer, getDeviceContext() ).WillRepeatedly( Return( m_fakeContext ) );
     EXPECT_CALL( *m_geometryResolver, getContext() ).WillRepeatedly( Return( m_demandGeomContext ) );
 }
@@ -673,7 +673,7 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
                                                 hasWorldToCameraTransform( Inverse( camera.cameraToWorld ) ),
                                                 hasCameraToScreenTransform( camera.cameraToScreen ), hasFov( camera.fov ) ) ) );
 
-    m_scene.initialize( m_stream );
+    m_scene->initialize( m_stream );
 }
 
 TEST_F( TestPbrtScene, initializeSetsDefaultCameraWhenMissingFromScene )
@@ -686,7 +686,7 @@ TEST_F( TestPbrtScene, initializeSetsDefaultCameraWhenMissingFromScene )
                  setCamera( AllOf( hasFov( camera.fov ), hasFocalDistance( camera.focalDistance ),
                                    hasLensRadius( camera.lensRadius ), hasCameraToWorldTransform( camera.cameraToWorld ) ) ) );
 
-    m_scene.initialize( m_stream );
+    m_scene->initialize( m_stream );
 }
 
 TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsInitialParams )
@@ -696,7 +696,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsInitialParams )
     expectNoGeometryResolvedAfter( m_init );
 
     Params params{};
-    m_scene.beforeLaunch( m_stream, params );
+    m_scene->beforeLaunch( m_stream, params );
 
     EXPECT_NE( float3{}, params.ambientColor );
     for( int i = 0; i < 6; ++i )
@@ -720,7 +720,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsDirectionalLightsInParams )
     expectNoGeometryResolvedAfter( m_init );
 
     Params params{};
-    m_scene.beforeLaunch( m_stream, params );
+    m_scene->beforeLaunch( m_stream, params );
 
     ASSERT_EQ( 1, params.numDirectionalLights );
     EXPECT_THAT( params.directionalLights, hasDeviceDirectionalLight( m_expectedDirectionalLight ) );
@@ -734,7 +734,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsInfiniteLightsInParams )
     expectNoGeometryResolvedAfter( m_init );
 
     Params params{};
-    m_scene.beforeLaunch( m_stream, params );
+    m_scene->beforeLaunch( m_stream, params );
 
     ASSERT_EQ( 1, params.numInfiniteLights );
     EXPECT_THAT( params.infiniteLights, hasDeviceInfiniteLight( m_expectedInfiniteLight ) );
@@ -763,7 +763,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchCreatesSkyboxForInfiniteLightsInPa
     EXPECT_CALL( *m_demandTextureCache, createSkyboxTextureFromFile( path ) ).WillOnce( Return( textureId ) );
 
     Params params{};
-    m_scene.beforeLaunch( m_stream, params );
+    m_scene->beforeLaunch( m_stream, params );
 
     ASSERT_EQ( 1, params.numInfiniteLights );
     m_expectedInfiniteLight.skyboxTextureId = textureId;
@@ -776,21 +776,21 @@ TEST_F( TestPbrtSceneInitialized, afterLaunchProcessesRequests )
     Params                params{};
     EXPECT_CALL( *m_demandLoader, processRequests( m_stream, params.demandContext ) ).After( m_init ).WillOnce( Return( ticket ) );
 
-    m_scene.afterLaunch( m_stream, params );
+    m_scene->afterLaunch( m_stream, params );
 }
 
 TEST_F( TestPbrtSceneInitialized, resolveOneMaterialNotifiesMaterialResolver )
 {
     EXPECT_CALL( *m_materialResolver, resolveOneMaterial() ).Times( 1 );
 
-    m_scene.resolveOneMaterial();
+    m_scene->resolveOneMaterial();
 }
 
 TEST_F( TestPbrtSceneInitialized, resolveOneGeometryNotifiesGeometryResolver )
 {
     EXPECT_CALL( *m_geometryResolver, resolveOneGeometry() ).Times( 1 );
 
-    m_scene.resolveOneGeometry();
+    m_scene->resolveOneGeometry();
 }
 
 TEST_F( TestPbrtSceneInitialized, resolvingGeometryUpdatesTopLevel )
@@ -818,7 +818,7 @@ TEST_F( TestPbrtSceneInitialized, resolvingGeometryUpdatesTopLevel )
     expectCreateTopLevelTraversableAfter( isIAS, m_fakeTopLevelTraversable, m_init );
 
     Params params{};
-    m_scene.beforeLaunch( m_stream, params );
+    m_scene->beforeLaunch( m_stream, params );
 }
 
 TEST_F( TestPbrtSceneInitialized, resolvingMaterialUpdatesTopLevel )
@@ -846,5 +846,5 @@ TEST_F( TestPbrtSceneInitialized, resolvingMaterialUpdatesTopLevel )
     expectCreateTopLevelTraversableAfter( isIAS, m_fakeTopLevelTraversable, m_init );
 
     Params params{};
-    m_scene.beforeLaunch( m_stream, params );
+    m_scene->beforeLaunch( m_stream, params );
 }

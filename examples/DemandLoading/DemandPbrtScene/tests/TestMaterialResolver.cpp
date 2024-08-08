@@ -12,8 +12,12 @@
 #include <DemandTextureCache.h>
 #include <FrameStopwatch.h>
 #include <Options.h>
-#include <PbrtScene.h>
+#include <Primitive.h>
 #include <ProgramGroups.h>
+#include <Scene.h>
+#include <SceneGeometry.h>
+#include <SceneProxy.h>
+#include <SceneSyncState.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
