@@ -35,6 +35,7 @@
 #include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
 #include "MockProgramGroups.h"
+#include "MockRenderer.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
 
@@ -254,36 +255,12 @@ class MockGeometryResolver : public StrictMock<GeometryResolver>
     MOCK_METHOD( bool, resolveRequestedProxyGeometries, (CUstream, OptixDeviceContext, const FrameStopwatch&, SceneSyncState&), ( override ) );
 };
 
-class MockRenderer : public StrictMock<Renderer>
-{
-  public:
-    ~MockRenderer() override = default;
-
-    MOCK_METHOD( void, initialize, ( CUstream ), ( override ) );
-    MOCK_METHOD( void, cleanup, (), ( override ) );
-    MOCK_METHOD( const otk::DebugLocation&, getDebugLocation, (), ( const override ) );
-    MOCK_METHOD( const LookAtParams&, getLookAt, (), ( const override ) );
-    MOCK_METHOD( const PerspectiveCamera&, getCamera, (), ( const override ) );
-    MOCK_METHOD( Params&, getParams, (), ( override ) );
-    MOCK_METHOD( OptixDeviceContext, getDeviceContext, (), ( const, override ) );
-    MOCK_METHOD( const OptixPipelineCompileOptions&, getPipelineCompileOptions, (), ( const, override ) );
-    MOCK_METHOD( void, setDebugLocation, (const otk::DebugLocation&), ( override ) );
-    MOCK_METHOD( void, setCamera, (const PerspectiveCamera&), ( override ) );
-    MOCK_METHOD( void, setLookAt, (const LookAtParams&), ( override ) );
-    MOCK_METHOD( void, setProgramGroups, (const std::vector<OptixProgramGroup>&), ( override ) );
-    MOCK_METHOD( void, beforeLaunch, ( CUstream ), ( override ) );
-    MOCK_METHOD( void, launch, (CUstream, uchar4*), ( override ) );
-    MOCK_METHOD( void, afterLaunch, (), ( override ) );
-    MOCK_METHOD( void, fireOneDebugDump, (), ( override ) );
-    MOCK_METHOD( void, setClearAccumulator, (), ( override ) );
-};
-
 using StrictMockDemandLoader    = StrictMock<MockDemandLoader>;
 using StrictMockOptix           = StrictMock<MockOptix>;
 using MockSceneLoaderPtr        = std::shared_ptr<MockSceneLoader>;
 using MockDemandLoaderPtr       = std::shared_ptr<StrictMockDemandLoader>;
 using MockGeometryResolverPtr   = std::shared_ptr<MockGeometryResolver>;
-using MockRendererPtr           = std::shared_ptr<MockRenderer>;
+using MockMaterialResolverPtr   = std::shared_ptr<MockMaterialResolver>;
 
 using AccelBuildOptionsMatcher = Matcher<const OptixAccelBuildOptions*>;
 using BuildInputMatcher        = Matcher<const OptixBuildInput*>;
@@ -486,7 +463,7 @@ class TestPbrtScene : public Test
     MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };
     MockGeometryResolverPtr   m_geometryResolver{ std::make_shared<MockGeometryResolver>() };
-    MockRendererPtr           m_renderer{ std::make_shared<MockRenderer>() };
+    MockRendererPtr           m_renderer{ createMockRenderer() };
     Options                   m_options{ testOptions() };
     // clang-format off
     PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_demandLoader, m_programGroups, m_materialResolver, m_geometryResolver, m_renderer };

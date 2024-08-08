@@ -6,6 +6,7 @@
 
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
+#include "MockRenderer.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
 
@@ -26,6 +27,7 @@
 
 using namespace testing;
 using namespace demandPbrtScene;
+using namespace demandPbrtScene::testing;
 using namespace otk::testing;
 
 inline OptixDeviceContext fakeOptixDeviceContext()
@@ -165,33 +167,8 @@ class MockMaterialLoader : public StrictMock<demandMaterial::MaterialLoader>
     MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
 };
 
-class MockRenderer : public StrictMock<Renderer>
-{
-  public:
-    ~MockRenderer() override = default;
-
-    MOCK_METHOD( void, initialize, ( CUstream ), ( override ) );
-    MOCK_METHOD( void, cleanup, (), ( override ) );
-    MOCK_METHOD( const otk::DebugLocation&, getDebugLocation, (), ( const override ) );
-    MOCK_METHOD( const LookAtParams&, getLookAt, (), ( const override ) );
-    MOCK_METHOD( const PerspectiveCamera&, getCamera, (), ( const override ) );
-    MOCK_METHOD( Params&, getParams, (), ( override ) );
-    MOCK_METHOD( OptixDeviceContext, getDeviceContext, (), ( const, override ) );
-    MOCK_METHOD( const OptixPipelineCompileOptions&, getPipelineCompileOptions, (), ( const, override ) );
-    MOCK_METHOD( void, setDebugLocation, (const otk::DebugLocation&), ( override ) );
-    MOCK_METHOD( void, setCamera, (const PerspectiveCamera&), ( override ) );
-    MOCK_METHOD( void, setLookAt, (const LookAtParams&), ( override ) );
-    MOCK_METHOD( void, setProgramGroups, (const std::vector<OptixProgramGroup>&), ( override ) );
-    MOCK_METHOD( void, beforeLaunch, ( CUstream ), ( override ) );
-    MOCK_METHOD( void, launch, (CUstream, uchar4*), ( override ) );
-    MOCK_METHOD( void, afterLaunch, (), ( override ) );
-    MOCK_METHOD( void, fireOneDebugDump, (), ( override ) );
-    MOCK_METHOD( void, setClearAccumulator, (), ( override ) );
-};
-
 using StrictMockOptix       = StrictMock<MockOptix>;
 using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
-using MockRendererPtr       = std::shared_ptr<MockRenderer>;
 
 using ProgramGroupDescMatcher = Matcher<const OptixProgramGroupDesc*>;
 
@@ -209,7 +186,7 @@ class TestProgramGroups : public Test
     StrictMockOptix       m_optix{};
     MockGeometryLoaderPtr m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockMaterialLoaderPtr m_materialLoader{ std::make_shared<MockMaterialLoader>() };
-    MockRendererPtr       m_renderer{ std::make_shared<MockRenderer>() };
+    MockRendererPtr       m_renderer{ createMockRenderer() };
     ProgramGroupsPtr      m_programGroups{ createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) };
     OptixPipelineCompileOptions    m_pipelineCompileOptions{};
     OptixDeviceContext             m_fakeContext{ fakeOptixDeviceContext() };
