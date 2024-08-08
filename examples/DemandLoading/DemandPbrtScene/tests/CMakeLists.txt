@@ -29,6 +29,7 @@ add_executable(TestDemandPbrtSceneImpl
     MockImageSource.h
     MockMaterialResolver.h
     MockProgramGroups.h
+    MockRenderer.h
     NullCast.h
     ParamsPrinters.h
     TestDemandTextureCache.cpp
