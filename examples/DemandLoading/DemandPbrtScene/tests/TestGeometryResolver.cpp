@@ -2,6 +2,7 @@
 
 #include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
+#include "MockMaterialResolver.h"
 
 #include <DemandTextureCache.h>
 #include <FrameStopwatch.h>
@@ -32,17 +33,6 @@ static OptixDeviceContext fakeOptixDeviceContext()
 }
 
 namespace {
-
-class MockMaterialResolver : public StrictMock<MaterialResolver>
-{
-  public:
-    ~MockMaterialResolver() override = default;
-
-    MOCK_METHOD( MaterialResolverStats, getStatistics, (), ( const, override ) );
-    MOCK_METHOD( bool, resolveMaterialForGeometry, (uint_t, SceneGeometry&, SceneSyncState&), ( override ) );
-    MOCK_METHOD( void, resolveOneMaterial, (), ( override ) );
-    MOCK_METHOD( MaterialResolution, resolveRequestedProxyMaterials, (CUstream, const FrameStopwatch&, SceneSyncState&), ( override ) );
-};
 
 class MockProgramGroups : public StrictMock<ProgramGroups>
 {
@@ -78,7 +68,6 @@ class MockSceneProxy : public StrictMock<SceneProxy>
     MOCK_METHOD( std::vector<SceneProxyPtr>, decompose, ( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ), ( override ) );
 };
 
-using MockMaterialResolverPtr   = std::shared_ptr<MockMaterialResolver>;
 using MockProgramGroupsPtr      = std::shared_ptr<MockProgramGroups>;
 using MockProxyFactoryPtr       = std::shared_ptr<MockProxyFactory>;
 using MockSceneProxyPtr         = std::shared_ptr<MockSceneProxy>;
@@ -107,7 +96,7 @@ class TestGeometryResolver : public Test
     MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockProxyFactoryPtr       m_proxyFactory{ std::make_shared<MockProxyFactory>() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
-    MockMaterialResolverPtr   m_materialResolver{ std::make_shared<MockMaterialResolver>() };
+    MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };
     GeometryResolverPtr       m_resolver{
         createGeometryResolver( m_options, m_programGroups, m_geometryLoader, m_proxyFactory, m_demandTextureCache, m_materialResolver ) };
 
