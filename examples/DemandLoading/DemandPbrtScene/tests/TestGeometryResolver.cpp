@@ -56,7 +56,7 @@ class MockSceneProxy : public StrictMock<SceneProxy>
     MOCK_METHOD( OptixAabb, getBounds, (), ( const, override ) );
     MOCK_METHOD( bool, isDecomposable, (), ( const, override ) );
     MOCK_METHOD( GeometryInstance, createGeometry, ( OptixDeviceContext, CUstream ), ( override ) );
-    MOCK_METHOD( std::vector<SceneProxyPtr>, decompose, ( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ), ( override ) );
+    MOCK_METHOD( std::vector<SceneProxyPtr>, decompose, ( ProxyFactoryPtr proxyFactory ), ( override ) );
 };
 
 using MockProxyFactoryPtr       = std::shared_ptr<MockProxyFactory>;
@@ -215,8 +215,7 @@ TEST_F( TestGeometryResolverInitialized, decomposeProxy )
     const uint_t      childId2{ 2222 };
     MockSceneProxyPtr child1{ createChildProxy( childId1 ) };
     MockSceneProxyPtr child2{ createChildProxy( childId2 ) };
-    EXPECT_CALL( *m_sceneProxy, decompose( static_cast<GeometryLoaderPtr>( m_geometryLoader ),
-                                           static_cast<ProxyFactoryPtr>( m_proxyFactory ) ) )
+    EXPECT_CALL( *m_sceneProxy, decompose( static_cast<ProxyFactoryPtr>( m_proxyFactory ) ) )
         .After( m_init )
         .WillOnce( Return( std::vector<SceneProxyPtr>{ child1, child2 } ) );
     EXPECT_CALL( *m_geometryLoader, clearRequestedProxyIds() ).Times( 1 ).After( m_init );
