@@ -62,7 +62,6 @@ PbrtScene::PbrtScene( const Options&        options,
                       PbrtSceneLoaderPtr    sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
                       DemandLoaderPtr       demandLoader,
-                      ProgramGroupsPtr      programGroups,
                       MaterialResolverPtr   materialResolver,
                       GeometryResolverPtr   geometryResolver,
                       RendererPtr           renderer )
@@ -70,7 +69,6 @@ PbrtScene::PbrtScene( const Options&        options,
     , m_sceneLoader( std::move( sceneLoader ) )
     , m_demandTextureCache( std::move( demandTextureCache ) )
     , m_demandLoader( std::move( demandLoader ) )
-    , m_programGroups( std::move( programGroups ) )
     , m_materialResolver( std::move( materialResolver ) )
     , m_geometryResolver( std::move( geometryResolver ) )
     , m_renderer( std::move( renderer ) )
@@ -214,14 +212,8 @@ void PbrtScene::initialize( CUstream stream )
 {
     parseScene();
     setCamera();
-    m_programGroups->initialize();
     m_geometryResolver->initialize( stream, m_renderer->getDeviceContext(), m_scene, m_sync );
     createTopLevelTraversable( stream );
-}
-
-void PbrtScene::cleanup()
-{
-    m_programGroups->cleanup();
 }
 
 void PbrtScene::setLaunchParams( CUstream stream, Params& params )
@@ -317,7 +309,6 @@ ScenePtr createScene( const Options&        options,
                       PbrtSceneLoaderPtr    sceneLoader,
                       DemandTextureCachePtr demandTextureCache,
                       DemandLoaderPtr       demandLoader,
-                      ProgramGroupsPtr      programGroups,
                       MaterialResolverPtr   materialResolver,
                       GeometryResolverPtr   geometryResolver,
                       RendererPtr           renderer )
@@ -326,7 +317,6 @@ ScenePtr createScene( const Options&        options,
                                         std::move( sceneLoader ),         //
                                         std::move( demandTextureCache ),  //
                                         std::move( demandLoader ),        //
-                                        std::move( programGroups ),       //
                                         std::move( materialResolver ),    //
                                         std::move( geometryResolver ),    //
                                         std::move( renderer ) );

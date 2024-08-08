@@ -34,7 +34,6 @@
 #include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
-#include "MockProgramGroups.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
 #include "SceneAdapters.h"
@@ -460,13 +459,12 @@ class TestPbrtScene : public Test
     MockSceneLoaderPtr        m_sceneLoader{ std::make_shared<MockSceneLoader>() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockDemandLoaderPtr       m_demandLoader{ std::make_shared<StrictMockDemandLoader>() };
-    MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };
     MockGeometryResolverPtr   m_geometryResolver{ std::make_shared<MockGeometryResolver>() };
     MockRendererPtr           m_renderer{ createMockRenderer() };
     Options                   m_options{ testOptions() };
     // clang-format off
-    PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_demandLoader, m_programGroups, m_materialResolver, m_geometryResolver, m_renderer };
+    PbrtScene m_scene{ m_options, m_sceneLoader, m_demandTextureCache, m_demandLoader, m_materialResolver, m_geometryResolver, m_renderer };
     // clang-format on
     SceneDescriptionPtr          m_sceneDesc{ std::make_shared<otk::pbrt::SceneDescription>() };
     OptixAabb                    m_sceneBounds{ -1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 6.0f };
@@ -528,7 +526,6 @@ ExpectationSet TestPbrtScene::expectInitializeCreatesOptixState()
 {
     ExpectationSet expect;
     expect += EXPECT_CALL( *m_sceneLoader, parseFile( _ ) ).WillOnce( Return( m_sceneDesc ) );
-    expect += EXPECT_CALL( *m_programGroups, initialize() );
     // This getter can be called anytime in any order.
     EXPECT_CALL( *m_renderer, getDeviceContext() ).WillRepeatedly( Return( m_fakeContext ) );
     expect += EXPECT_CALL( *m_geometryResolver, initialize( m_stream, _, m_sceneDesc, _ ) )
@@ -652,7 +649,6 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
 {
     EXPECT_CALL( *m_sceneLoader, parseFile( m_options.sceneFile ) ).Times( 1 ).WillOnce( Return( m_sceneDesc ) );
     EXPECT_CALL( *m_renderer, getDeviceContext() ).WillRepeatedly( Return( m_fakeContext ) );
-    EXPECT_CALL( *m_programGroups, initialize() );
     const uint_t fakeInstanceId{ 1964 };
     EXPECT_CALL( *m_geometryResolver, initialize( m_stream, _, m_sceneDesc, _ ) )
         .WillOnce( [=]( CUstream, OptixDeviceContext, const SceneDescriptionPtr&, SceneSyncState& sync ) {
@@ -781,13 +777,6 @@ TEST_F( TestPbrtSceneInitialized, afterLaunchProcessesRequests )
     EXPECT_CALL( *m_demandLoader, processRequests( m_stream, params.demandContext ) ).After( m_init ).WillOnce( Return( ticket ) );
 
     m_scene.afterLaunch( m_stream, params );
-}
-
-TEST_F( TestPbrtSceneInitialized, cleanupDestroysOptixResources )
-{
-    EXPECT_CALL( *m_programGroups, cleanup() );
-
-    m_scene.cleanup();
 }
 
 TEST_F( TestPbrtSceneInitialized, resolveOneMaterialNotifiesMaterialResolver )
