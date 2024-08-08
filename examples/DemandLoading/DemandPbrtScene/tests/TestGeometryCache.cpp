@@ -27,10 +27,12 @@
 //
 
 // gtest has to come before pbrt stuff
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
+#include "MockMeshLoader.h"
 #include "ParamsPrinters.h"
 
 #include <GeometryCache.h>
@@ -51,9 +53,10 @@
 
 #include <type_traits>
 
+using namespace ::testing;
 using namespace demandPbrtScene;
+using namespace demandPbrtScene::testing;
 using namespace otk::testing;
-using namespace testing;
 
 using P2 = pbrt::Point2f;
 using P3 = pbrt::Point3f;
@@ -264,15 +267,6 @@ namespace {
 constexpr const char*        ARBITRARY_PLY_FILENAME{ "cube-mesh.ply" };
 constexpr unsigned long long ARBITRARY_PLY_FILE_SIZE{ 12031964U };
 
-class MockMeshLoader : public StrictMock<otk::pbrt::MeshLoader>
-{
-  public:
-    ~MockMeshLoader() override = default;
-
-    MOCK_METHOD( otk::pbrt::MeshInfo, getMeshInfo, (), ( const, override ) );
-    MOCK_METHOD( void, load, (otk::pbrt::MeshData&), ( override ) );
-};
-
 class MockFileSystemInfo : public StrictMock<FileSystemInfo>
 {
   public:
@@ -282,7 +276,6 @@ class MockFileSystemInfo : public StrictMock<FileSystemInfo>
 };
 
 using MockFileSystemInfoPtr = std::shared_ptr<MockFileSystemInfo>;
-using MockMeshLoaderPtr = std::shared_ptr<MockMeshLoader>;
 
 class TestGeometryCache : public Test
 {
@@ -396,7 +389,7 @@ static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPt
 TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
     otk::pbrt::ShapeDefinition shape           = singleTrianglePlyMesh( meshLoader, buffers, info );
@@ -428,7 +421,7 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
     otk::pbrt::ShapeDefinition shape           = singleTrianglePlyMeshWithNormals( meshLoader, buffers, info );
@@ -460,7 +453,7 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
     otk::pbrt::ShapeDefinition shape           = singleTrianglePlyMeshWithUVs( meshLoader, buffers, info );
@@ -528,7 +521,7 @@ static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithUVs( otk::pbrt::
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
 {
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::ShapeDefinition shape           = singleTriangleTriangleMesh( buffers );
     auto                       expectedOptions = buildAllowsRandomVertexAccess();
@@ -625,7 +618,7 @@ TEST( TestHasDeviceTriangleNormals, allNormalsMatch )
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithNormals )
 {
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::ShapeDefinition shape           = singleTriangleTriangleMeshWithNormals( buffers );
     auto                       expectedOptions = buildAllowsRandomVertexAccess();
@@ -717,7 +710,7 @@ TEST( TestHasDeviceTriangleUVs, allUVsMatch )
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithUVs )
 {
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::ShapeDefinition shape           = singleTriangleTriangleMeshWithUVs( buffers );
     auto                       expectedOptions = buildAllowsRandomVertexAccess();
@@ -756,7 +749,7 @@ inline bool operator==( const GeometryCacheEntry& lhs, const GeometryCacheEntry&
 TEST_F( TestGeometryCache, twoPlyInstancesShareSameGAS )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::MeshData        buffers;
     otk::pbrt::MeshInfo        info{};
     otk::pbrt::ShapeDefinition shape           = singleTrianglePlyMesh( meshLoader, buffers, info );
@@ -797,7 +790,7 @@ static otk::pbrt::ShapeDefinition singleSphere()
 
 TEST_F( TestGeometryCache, constructSphereASForSphere )
 {
-    MockMeshLoaderPtr          meshLoader      = std::make_shared<MockMeshLoader>();
+    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
     otk::pbrt::ShapeDefinition shape           = singleSphere();
     auto                       expectedOptions = buildAllowsRandomVertexAccess();
     std::vector<float3>        centers;
