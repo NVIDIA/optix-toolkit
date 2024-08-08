@@ -67,7 +67,7 @@ class WholeSceneProxy : public SceneProxy
 
     GeometryInstance createGeometry( OptixDeviceContext context, CUstream stream ) override;
 
-    std::vector<SceneProxyPtr> decompose( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ) override;
+    std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr proxyFactory ) override;
 
   private:
     uint_t              m_pageId;
@@ -98,10 +98,7 @@ class ShapeProxy : public SceneProxy
 
     GeometryInstance createGeometry( OptixDeviceContext context, CUstream stream ) override;
 
-    std::vector<SceneProxyPtr> decompose( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ) override
-    {
-        return {};
-    }
+    std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr  ) override { return {}; }
 
   protected:
     uint_t              m_pageId;
@@ -165,7 +162,7 @@ class InstanceProxy : public SceneProxy
 
     GeometryInstance createGeometry( OptixDeviceContext context, CUstream stream ) override;
 
-    std::vector<SceneProxyPtr> decompose( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ) override;
+    std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr proxyFactory ) override;
 
   private:
     uint_t              m_pageId;
@@ -190,7 +187,7 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     return {};
 }
 
-std::vector<SceneProxyPtr> InstanceProxy::decompose( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory )
+std::vector<SceneProxyPtr> InstanceProxy::decompose( ProxyFactoryPtr proxyFactory )
 {
     std::vector<SceneProxyPtr> proxies;
     for( uint_t i = 0; i < static_cast<uint_t>( m_scene->objectShapes[m_name].size() ); ++i )
@@ -235,7 +232,7 @@ GeometryInstance WholeSceneProxy::createGeometry( OptixDeviceContext context, CU
     return {};
 }
 
-std::vector<SceneProxyPtr> WholeSceneProxy::decompose( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory )
+std::vector<SceneProxyPtr> WholeSceneProxy::decompose( ProxyFactoryPtr proxyFactory )
 {
     std::vector<SceneProxyPtr> proxies;
     for( uint_t i = 0; i < static_cast<uint_t>( m_scene->objectInstances.size() ); ++i )

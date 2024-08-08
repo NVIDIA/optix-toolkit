@@ -758,7 +758,7 @@ TEST_F( TestSceneProxy, decomposeProxyForMultipleShapes )
     expectProxyAdded( m_scene->freeShapes[0], shape1PageId );
     expectProxyAdded( m_scene->freeShapes[1], shape2PageId );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_geometryLoader, m_factory );
+    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
 
     ASSERT_FALSE( parts.empty() );
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
@@ -781,7 +781,7 @@ TEST_F( TestSceneProxy, constructTriangleASForSecondMesh )
     ExpectationSet second;
     second += expectProxyAddedAfter( m_scene->freeShapes[0], shape1PageId, first );
     second += expectProxyAddedAfter( m_scene->freeShapes[1], shape2PageId, first );
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_geometryLoader, m_factory );
+    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
     GeometryCacheEntry         entry = expectShapeFromCache( m_scene->freeShapes[1] );
     float                      expectedTransform[12];
     identity( expectedTransform );
@@ -872,7 +872,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceWithMultipleSha
     expectProxyAddedAfter( objectShapes[0], shape1PageId, first );
     expectProxyAddedAfter( objectShapes[1], shape2PageId, first );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_geometryLoader, m_factory );
+    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
 
     ASSERT_FALSE( parts.empty() );
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
@@ -907,7 +907,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSing
     expectProxyAddedAfter( m_scene->objectInstances[0], shape1PageId, first );
     expectProxyAddedAfter( m_scene->freeShapes[0], shape2PageId, first );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_geometryLoader, m_factory );
+    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
 
     ASSERT_EQ( 2U, parts.size() );
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
@@ -959,7 +959,7 @@ TEST_F( TestSceneProxy, multipleInstancesSingleShapeGeometry )
     expectProxyAddedAfter( m_scene->objectInstances[0], 2222, first );
     expectProxyAddedAfter( m_scene->objectInstances[1], 3333, first );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_geometryLoader, m_factory );
+    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
 
     const OptixAabb shape1Bounds{ toOptixAabb( transformBounds( m_scene->objectInstances[0] ) ) };
     const OptixAabb shape2Bounds{ toOptixAabb( transformBounds( m_scene->objectInstances[1] ) ) };

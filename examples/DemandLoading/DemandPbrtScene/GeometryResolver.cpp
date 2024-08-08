@@ -153,7 +153,7 @@ bool PbrtGeometryResolver::resolveProxyGeometry( CUstream stream, OptixDeviceCon
         subProxies.clear();
 
         // get sub-proxies and add to scene
-        for( SceneProxyPtr proxy : removedProxy->decompose( m_geometryLoader, m_proxyFactory ) )
+        for( SceneProxyPtr proxy : removedProxy->decompose( m_proxyFactory ) )
         {
             const uint_t id = proxy->getPageId();
             subProxies.push_back( id );

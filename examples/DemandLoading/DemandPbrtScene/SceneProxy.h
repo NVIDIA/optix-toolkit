@@ -77,7 +77,7 @@ class SceneProxy
     virtual GeometryInstance createGeometry( OptixDeviceContext context, CUstream stream ) = 0;
 
     /// Decomposes a proxy into an array of other proxies.
-    virtual std::vector<SceneProxyPtr> decompose( GeometryLoaderPtr geometryLoader, ProxyFactoryPtr proxyFactory ) = 0;
+    virtual std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr proxyFactory ) = 0;
 };
 
 class ProxyFactory
