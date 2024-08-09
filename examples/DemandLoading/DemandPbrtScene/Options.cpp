@@ -34,6 +34,9 @@ namespace demandPbrtScene {
         "                               near        Use near ambient occlusion\n"
         "                               distant     Use distant ambient occlusion\n"
         "                               path        Use path tracing\n"
+        "   --proxy-granularity=<mode>  Set the granularity of proxy geometry, where <mode> is one of:\n"
+        "                               coarse      Use a single proxy for all Shapes in an Object\n"
+        "                               fine        Use a proxy for each Shape in an Object\n"
         "   --oneshot-geometry          Enable one-shot proxy geometry resolution by keystroke\n"
         "   --oneshot-material          Enable one-shot proxy material resolution by keystroke\n"
         "   --proxy-resolution          Enable verbose logging of resolution of proxy geometries and materials\n"
@@ -49,10 +52,11 @@ namespace demandPbrtScene {
         "   --oneshot-debug             Enable one-shot debug output\n"
         "\n"
         "Interactive keys (case insensitive):\n"
+        "   <Space>                     Toggle pause\n"
         "   D                           Toggle debug mode\n"
         "   G                           Resolve one proxy geometry\n"
         "   M                           Resolve one proxy material\n"
-        "   Q or ESC                    Quit\n"
+        "   Q or <Esc>                  Quit\n"
         ;
     // clang-format on
     exit( 1 );
@@ -70,6 +74,11 @@ inline std::string extractValue( const std::string& text )
 
 Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usage )
 {
+    if( argc < 2 )
+    {
+        usage( argv[0], "missing scene file argument" );
+    }
+
     Options options;
     options.program = argv[0];
 #ifdef NDEBUG
@@ -77,9 +86,8 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
 #else
     options.sync = true;
 #endif
+    options.proxyGranularity = ProxyGranularity::FINE;
 
-    if( argc < 2 )
-        usage( argv[0], "missing scene file argument" );
     for( int i = 1; i < argc; ++i )
     {
         const std::string arg{ argv[i] };
@@ -179,7 +187,7 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         else if( arg == "--verbose-loading" )
         {
             options.verboseLoading = true;
-        }            
+        }
         else if( arg == "--sort-proxies" )
         {
             options.sortProxies = true;
@@ -218,6 +226,26 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
             else
             {
                 usage( argv[0], ( "bad render mode value: " + value ).c_str() );
+            }
+        }
+        else if( beginsWith( arg, "--proxy-granularity=" ) )
+        {
+            const std::string value{ extractValue( arg ) };
+            if( value.empty() )
+            {
+                usage( argv[0], "missing proxy granularity value" );
+            }
+            else if( value == "fine" )
+            {
+                options.proxyGranularity = ProxyGranularity::FINE;
+            }
+            else if( value == "coarse" )
+            {
+                options.proxyGranularity = ProxyGranularity::COARSE;
+            }
+            else
+            {
+                usage( argv[0], ( "bad proxy granularity value: " + value ).c_str() );
             }
         }
         else if( arg[0] == '-' )

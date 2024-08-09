@@ -32,7 +32,21 @@ std::ostream& operator<<( std::ostream& str, RenderMode value )
     return str << "? (" << +value << ')';
 }
 
+std::ostream& operator<<( std::ostream& str, ProxyGranularity value )
+{
+    switch( value )
+    {
+        case ProxyGranularity::NONE:
+            return str << "NONE";
+        case ProxyGranularity::FINE:
+            return str << "FINE";
+        case ProxyGranularity::COARSE:
+            return str << "COARSE";
+    }
+    return str << "? (" << +value << ')';
 }
+
+}  // namespace demandPbrtScene
 
 namespace {
 
@@ -355,14 +369,16 @@ TEST_F( TestOptions, tooLargeDebugPixelX )
 {
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "bad debug pixel value" ) ) ).Times( 1 );
 
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--debug=384/128", "--dim=256x256", "scene.pbrt" } );
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--debug=384/128", "--dim=256x256", "scene.pbrt" } );
 }
 
 TEST_F( TestOptions, tooLargeDebugPixelY )
 {
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "bad debug pixel value" ) ) ).Times( 1 );
 
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--debug=128/384", "--dim=256x256", "scene.pbrt" } );
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--debug=128/384", "--dim=256x256", "scene.pbrt" } );
 }
 
 TEST_F( TestOptions, defaultRenderModePrimaryRay )
@@ -388,14 +404,14 @@ TEST_F( TestOptions, renderModeNearAmbientOcclusion )
 
 TEST_F( TestOptions, renderModeDistantAmbientOcclusion )
 {
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=distant" , "scene.pbrt"} );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=distant", "scene.pbrt" } );
 
     EXPECT_EQ( demandPbrtScene::RenderMode::DISTANT_AO, options.renderMode );
 }
 
 TEST_F( TestOptions, renderModePathTracing )
 {
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=path" , "scene.pbrt"} );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=path", "scene.pbrt" } );
 
     EXPECT_EQ( demandPbrtScene::RenderMode::PATH_TRACING, options.renderMode );
 }
@@ -404,12 +420,51 @@ TEST_F( TestOptions, missingRenderMode )
 {
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "missing render mode value" ) ) ).Times( 1 );
 
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=" , "scene.pbrt"} );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=", "scene.pbrt" } );
 }
 
 TEST_F( TestOptions, unknownRenderMode )
 {
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "bad render mode value: foo" ) ) ).Times( 1 );
 
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=foo" , "scene.pbrt"} );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--render-mode=foo", "scene.pbrt" } );
+}
+
+TEST_F( TestOptions, defaultProxyGranularityFine )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt" } );
+
+    EXPECT_EQ( demandPbrtScene::ProxyGranularity::FINE, options.proxyGranularity );
+}
+
+TEST_F( TestOptions, proxyGranularityFine )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--proxy-granularity=fine", "scene.pbrt" } );
+
+    EXPECT_EQ( demandPbrtScene::ProxyGranularity::FINE, options.proxyGranularity );
+}
+
+TEST_F( TestOptions, proxyGranularityCoarse )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--proxy-granularity=coarse", "scene.pbrt" } );
+
+    EXPECT_EQ( demandPbrtScene::ProxyGranularity::COARSE, options.proxyGranularity );
+}
+
+TEST_F( TestOptions, missingProxyGranularity )
+{
+    EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "missing proxy granularity value" ) ) ).Times( 1 );
+
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--proxy-granularity=", "scene.pbrt" } );
+}
+
+TEST_F( TestOptions, unknownProxyGranularity )
+{
+    EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "bad proxy granularity value: foo" ) ) ).Times( 1 );
+
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--proxy-granularity=foo", "scene.pbrt" } );
 }
