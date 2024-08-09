@@ -231,4 +231,6 @@ TEST_F( TestGeometryResolverInitialized, decomposeProxy )
     const GeometryResolverStatistics stats = m_resolver->getStatistics();
     EXPECT_EQ( 1U, stats.numProxyGeometriesResolved );
     EXPECT_EQ( 0U, stats.numGeometriesRealized );
+    Mock::AllowLeak( child1.get() );
+    Mock::AllowLeak( child2.get() );
 }
