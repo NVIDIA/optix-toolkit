@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "ProxyGranularity.h"
 #include "RenderMode.h"
 
 #include <functional>
@@ -15,28 +16,29 @@ namespace demandPbrtScene {
 
 struct Options
 {
-    std::string program;
-    std::string sceneFile;
-    std::string outFile;
-    int         width{ 768 };
-    int         height{ 512 };
-    float3      background{};
-    int         warmupFrames{ 0 };
-    bool        oneShotGeometry{};
-    bool        oneShotMaterial{};
-    bool        verboseLoading{};
-    bool        verboseProxyGeometryResolution{};
-    bool        verboseProxyMaterialResolution{};
-    bool        verboseSceneDecomposition{};
-    bool        verboseTextureCreation{};
-    bool        sortProxies{};
-    bool        sync{};
-    bool        usePinholeCamera{ true };
-    bool        faceForward{};
-    bool        debug{};
-    bool        oneShotDebug{};
-    int2        debugPixel{};
-    RenderMode  renderMode{};
+    std::string      program;
+    std::string      sceneFile;
+    std::string      outFile;
+    int              width{ 768 };
+    int              height{ 512 };
+    float3           background{};
+    int              warmupFrames{ 0 };
+    bool             oneShotGeometry{};
+    bool             oneShotMaterial{};
+    bool             verboseLoading{};
+    bool             verboseProxyGeometryResolution{};
+    bool             verboseProxyMaterialResolution{};
+    bool             verboseSceneDecomposition{};
+    bool             verboseTextureCreation{};
+    bool             sortProxies{};
+    bool             sync{};
+    bool             usePinholeCamera{ true };
+    bool             faceForward{};
+    bool             debug{};
+    bool             oneShotDebug{};
+    int2             debugPixel{};
+    RenderMode       renderMode{};
+    ProxyGranularity proxyGranularity{};
 };
 
 using UsageFn = void( const char* program, const char* message );

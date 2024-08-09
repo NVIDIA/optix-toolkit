@@ -50,6 +50,7 @@ add_library(DemandPbrtSceneImpl STATIC
     CudaContext.cpp
     DemandTextureCache.h
     DemandTextureCache.cpp
+    DemandTextureCacheStatistics.h
     Dependencies.h
     FrameRate.h
     FrameStopwatch.h
@@ -80,6 +81,8 @@ add_library(DemandPbrtSceneImpl STATIC
     ProgramGroups.h
     ProgramGroups.cpp
     ProxyFactoryStatistics.h
+    ProxyGranularity.h
+    RenderMode.h
     Renderer.h
     Sample.h
     Scene.h
