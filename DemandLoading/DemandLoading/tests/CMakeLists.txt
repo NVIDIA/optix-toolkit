@@ -47,6 +47,7 @@ otk_add_executable( testDemandLoading
   TestTextureInstantiation.cpp
   TestTicket.cpp
   TestTileIndexing.cpp
+  TestWhiteBlackTileCheck.cpp
   SourceDir.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )

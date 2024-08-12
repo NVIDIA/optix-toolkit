@@ -17,10 +17,13 @@ DeviceMemoryManager::DeviceMemoryManager( std::shared_ptr<Options> options )
     : m_options( options )
     , m_samplerPool( new DeviceAllocator(), new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ), SAMPLER_POOL_ALLOC_SIZE )
     , m_deviceContextMemory( new DeviceAllocator(), nullptr )
+    , m_whiteBlackTiles( static_cast<int>( WB_NONE ), otk::TileBlockHandle{0, 0} )
 {
     if( m_options->useSparseTextures )
+    {
         m_tilePool.reset( new TilePool( new TextureTileAllocator(), new HeapSuballocator(),
                                         TextureTileAllocator::getRecommendedAllocationSize(), m_options->maxTexMemPerDevice ) );
+    }
 }
 
 DeviceMemoryManager::~DeviceMemoryManager()

@@ -12,6 +12,8 @@
 
 #include <OptiXToolkit/DemandLoading/TileIndexing.h>
 
+#include "WhiteBlackTileCheck.h"
+
 using namespace otk;
 
 namespace demandLoading {
@@ -38,7 +40,7 @@ void TextureRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
         return;
 
     // Get the TileBlockHandle from the page table if the page is resident
-    TileBlockHandle bh{ 0, 0 };
+    TileBlockHandle bh{0, 0};
     if( resident )
     {
         bh.block = TileBlockDesc( pageEntry );
@@ -55,6 +57,7 @@ void TextureRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageId, TileBlockHandle bh )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
+    DeviceMemoryManager* deviceMemoryManager = m_loader->getDeviceMemoryManager();
 
     // Get the texture sampler.  This is thread safe because the sampler is invariant once it's created,
     // and tile requests never occur before the sampler is created.
@@ -67,24 +70,29 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     unsigned int       tileY;
     unpackTileIndex( sampler, tileIndex, mipLevel, tileX, tileY );
 
+    // A coalesced white/black tile needs new backing storage if replaced by a non white/black tile.
+    bool coalesceWhiteBlackTiles = m_loader->getOptions().coalesceWhiteBlackTiles;
+    if( coalesceWhiteBlackTiles && bh.handle != 0 && deviceMemoryManager->getWhiteBlackTileType(bh) != WB_NONE )
+        bh = TileBlockHandle{0, 0};
+
     // Make sure to have device memory for the tile
     bool useNewBlock = bh.block.isBad();
     if( useNewBlock )
     {
-        bh = m_loader->getDeviceMemoryManager()->allocateTileBlock( TILE_SIZE_IN_BYTES );
+        bh = deviceMemoryManager->allocateTileBlock( TILE_SIZE_IN_BYTES );
         if( bh.block.isBad() )
         {
             // If the allocation failed, set max memory to current size and turn on eviction.
-            m_loader->setMaxTextureMemory( m_loader->getDeviceMemoryManager()->getTextureTileMemory() );
+            m_loader->setMaxTextureMemory( deviceMemoryManager->getTextureTileMemory() );
             return;
         }
     }
 
     // Allocate a transfer buffer.
     TransferBufferDesc transferBuffer = m_loader->allocateTransferBuffer( m_texture->getFillType(), TILE_SIZE_IN_BYTES, stream );
-    if( transferBuffer.memoryBlock.size == 0 )
+    if( transferBuffer.memoryBlock.size == 0 && useNewBlock )
     {
-        m_loader->getDeviceMemoryManager()->freeTileBlock( bh.block );
+        deviceMemoryManager->freeTileBlock( bh.block );
         return;
     }
 
@@ -104,6 +112,33 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
 
     if( satisfied )
     {
+        // Coalesce white/black tiles
+        bool evictable = true;
+        WhiteBlackTileType wbtype = WB_NONE;
+        if( coalesceWhiteBlackTiles && useNewBlock && m_texture->getFillType() == CU_MEMORYTYPE_HOST )
+        {
+            char* tbuff = reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr );
+            const imageSource::TextureInfo& info = m_texture->getInfo();
+            wbtype = classifyTileAsWhiteOrBlack( tbuff, info.format, info.numChannels );
+            if( wbtype != WB_NONE )
+            {
+                evictable = false;
+                if( deviceMemoryManager->getWhiteBlackTileBlock( wbtype ).handle != 0 )
+                {
+                    deviceMemoryManager->freeTileBlock( bh.block );
+                    m_loader->freeTransferBuffer( transferBuffer, stream );
+                    otk::TileBlockHandle cbh = deviceMemoryManager->getWhiteBlackTileBlock( wbtype );
+                    m_texture->mapTile( stream, mipLevel, tileX, tileY, cbh.handle, cbh.block.offset() );
+                    m_loader->setPageTableEntry( pageId, evictable, cbh.block.data );
+                    return;
+                }
+                else
+                {
+                    deviceMemoryManager->setWhiteBlackTileBlock( wbtype, bh );
+                }
+            }
+        }
+
         // Copy data from transfer buffer to the sparse texture on the device
         m_texture->fillTile( stream,
                              mipLevel, tileX, tileY,                                     // Tile to fill
@@ -115,8 +150,12 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
         // Add a mapping for the tile, which will be sent to the device in pushMappings().
         if( useNewBlock )
         {
-            m_loader->setPageTableEntry( pageId, true, static_cast<unsigned long long>( bh.block.data ) );
+            m_loader->setPageTableEntry( pageId, evictable, static_cast<unsigned long long>( bh.block.data ) );
         }
+    }
+    else
+    {
+        deviceMemoryManager->freeTileBlock( bh.block );
     }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
@@ -126,9 +165,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
 
-    const size_t mipTailSize  = m_texture->getMipTailSize();
-
-    // Allocate device texture memory for mip tail.
+    const size_t mipTailSize = m_texture->getMipTailSize();
     DeviceMemoryManager* deviceMemoryManager = m_loader->getDeviceMemoryManager();
 
     // Make sure to have device memory for the tile
@@ -139,7 +176,7 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
         if( bh.block.isBad() )
         {
             // If the allocation failed, set max memory to current size and turn on eviction.
-            m_loader->setMaxTextureMemory( m_loader->getDeviceMemoryManager()->getTextureTileMemory() );
+            m_loader->setMaxTextureMemory( deviceMemoryManager->getTextureTileMemory() );
             return;
         }
     }

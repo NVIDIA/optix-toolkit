@@ -478,4 +478,38 @@ size_t DemandTextureImpl::getMipTailSize()
     return m_mipTailSize; 
 }
 
+unsigned long long DemandTextureImpl::getHash( CUstream stream )
+{
+    if( !m_isInitialized )
+        init();
+
+    // FIXME: Handle non-host fulfilled image types
+    if( m_image->getFillType() != CU_MEMORYTYPE_HOST )
+        return 0ULL;
+
+    // Start hash as checksum of info
+    const unsigned long long m = 1013904223ULL;
+    unsigned long long hash = m_info.width;
+    hash = hash * m + m_info.height;
+    hash = hash * m + m_info.format;
+    hash = hash * m + m_info.numChannels;
+    hash = hash * m + m_info.numMipLevels;
+
+    // Continue with checksum of a coarse mip level.
+    int mipLevel = static_cast<int>( log2f( (m_info.width + m_info.height) / 64.0f ) );
+    mipLevel = std::max( std::min( mipLevel, (int)m_info.numMipLevels-1 ), 0 );
+
+    unsigned int levelWidth = m_info.width >> mipLevel;
+    unsigned int levelHeight = m_info.height >> mipLevel;
+    unsigned int mipLevelSize = levelWidth * levelHeight * imageSource::getBytesPerChannel( m_info.format ) * m_info.numChannels;
+    std::vector<unsigned long long> buffer( ( mipLevelSize + 7 ) / 8 );
+    buffer.back() = 0;
+    m_image->readMipLevel( (char*)buffer.data(), mipLevel, levelWidth, levelHeight, stream );
+
+    for( unsigned int i=0; i<buffer.size(); ++i )
+        hash = hash * m + buffer[i];
+
+    return hash;
+}
+
 }  // namespace demandLoading

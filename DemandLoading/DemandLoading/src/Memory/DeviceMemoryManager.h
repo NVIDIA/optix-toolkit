@@ -16,6 +16,12 @@
 #include <OptiXToolkit/Memory/MemoryPool.h>
 
 #include <cstddef>
+#include <OptiXToolkit/DemandLoading/DeviceContext.h>
+#include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/Statistics.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include "WhiteBlackTileCheck.h"
+
 #include <memory>
 #include <vector>
 
@@ -48,14 +54,37 @@ class DeviceMemoryManager
     void freeTileBlock( const otk::TileBlockDesc& blockDesc )
     {
         OTK_ASSERT( m_tilePool );
+        // Do not free coalesced white/black tiles
+        if( m_options->coalesceWhiteBlackTiles )
+        {
+            TileBlockHandle bh = TileBlockHandle{ getTileBlockHandle( blockDesc ), blockDesc };
+            if( getWhiteBlackTileType( bh ) != WB_NONE )
+                return;
+        }
         m_tilePool->freeTextureTiles( blockDesc );
     }
 
+    /// Return the fixed tile block for a given WhiteBlackTileType. Handle will be 0 if not present.
+    otk::TileBlockHandle getWhiteBlackTileBlock( WhiteBlackTileType wbtype ) { return m_whiteBlackTiles[wbtype]; }
+    /// Set the tile block for a given WhiteBlackTileType.
+    void setWhiteBlackTileBlock( WhiteBlackTileType wbtype, TileBlockHandle bh ) { m_whiteBlackTiles[wbtype] = bh; }
+
+    /// Return the WhiteBlackTileType for a tile.
+    WhiteBlackTileType getWhiteBlackTileType( TileBlockHandle bh )
+    {
+        for( unsigned int i = 0; i < m_whiteBlackTiles.size(); ++i )
+        {
+            if( m_whiteBlackTiles[i] == bh )
+                return static_cast<WhiteBlackTileType>( i );
+        }
+        return WB_NONE;
+    }
+
     /// Get the memory handle associated with the tileBlock.
-    CUmemGenericAllocationHandle getTileBlockHandle( const otk::TileBlockDesc& bh )
+    CUmemGenericAllocationHandle getTileBlockHandle( const otk::TileBlockDesc& blockDesc )
     {
         OTK_ASSERT( m_tilePool );
-        return m_tilePool->getAllocationHandle( bh.arenaId );
+        return m_tilePool->getAllocationHandle( blockDesc.arenaId );
     }
 
     /// Returns true if TileBlocks need to be freed.
@@ -92,6 +121,7 @@ class DeviceMemoryManager
     SamplerPool               m_samplerPool;
     DeviceContextPool         m_deviceContextMemory;
     std::unique_ptr<TilePool> m_tilePool; // null if sparse textures disabled.
+    std::vector<otk::TileBlockHandle> m_whiteBlackTiles;
 
     std::vector<DeviceContext*> m_deviceContextPool;
     std::vector<DeviceContext*> m_deviceContextFreeList;
