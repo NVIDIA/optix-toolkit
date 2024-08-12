@@ -178,6 +178,9 @@ class MockGeometryCache : public StrictMock<GeometryCache>
     ~MockGeometryCache() override = default;
 
     MOCK_METHOD( GeometryCacheEntry, getShape, (OptixDeviceContext, CUstream, const otk::pbrt::ShapeDefinition&), ( override ) );
+    MOCK_METHOD( std::vector<GeometryCacheEntry>,
+                 getObject,
+                 ( OptixDeviceContext context, CUstream stream, const otk::pbrt::ObjectDefinition& object, const otk::pbrt::ShapeList& shapes ) );
     MOCK_METHOD( GeometryCacheStatistics, getStatistics, (), ( const override ) );
 };
 
