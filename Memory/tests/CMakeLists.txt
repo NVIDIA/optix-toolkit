@@ -16,6 +16,7 @@ otk_add_executable( testMemory
   TestHeapSuballocator.cpp
   TestMemoryPool.cpp
   TestRingSuballocator.cpp
+  TestSyncVector.cpp
   TestSyncVectorHeader.cpp
   )
 target_link_libraries( testMemory

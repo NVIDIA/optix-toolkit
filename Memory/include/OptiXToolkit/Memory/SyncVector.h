@@ -123,10 +123,10 @@ class SyncVector
     operator CUdeviceptr() { return m_device; }
 
     /// Resize the host memory to the given number of elements.
-    void resize( size_t size )
-    {
-        m_host.resize( size );
-    }
+    void resize( size_t size ) { m_host.resize( size ); }
+
+    // Set the capacity of the host memory to the given number of elements.
+    void reserve( size_t size ) { m_host.reserve( size ); }
 
     /// Clear the host vector.
     void clear() { m_host.clear(); }
