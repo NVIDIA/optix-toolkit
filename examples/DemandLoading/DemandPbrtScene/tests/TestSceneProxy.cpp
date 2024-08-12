@@ -76,26 +76,26 @@ static otk::pbrt::ShapeDefinition singleTriangleShape()
 
 static SceneDescriptionPtr singleTriangleScene()
 {
-    SceneDescriptionPtr        scene = std::make_shared<otk::pbrt::SceneDescription>();
-    otk::pbrt::ShapeDefinition mesh  = singleTriangleShape();
-    scene->bounds                    = transformBounds( mesh );
+    SceneDescriptionPtr        scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeDefinition mesh{ singleTriangleShape() };
+    scene->bounds = transformBounds( mesh );
     scene->freeShapes.push_back( mesh );
     return scene;
 }
 
 TEST( TestSceneConstruction, sceneBoundsSingleTriangleScene )
 {
-    SceneDescriptionPtr scene = singleTriangleScene();
+    SceneDescriptionPtr scene{ singleTriangleScene() };
 
-    const otk::pbrt::ShapeList& shapes = scene->freeShapes;
+    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape = shapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ shapes[0] };
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
 static SceneDescriptionPtr singleSphereScene()
 {
-    SceneDescriptionPtr scene = std::make_shared<otk::pbrt::SceneDescription>();
+    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
 
     const P3 minPt{ 0.0f, 0.0f, 0.0f };
     const P3 maxPt{ 1.0f, 1.0f, 1.0f };
@@ -124,11 +124,11 @@ static SceneDescriptionPtr singleSphereScene()
 
 TEST( TestSceneConstruction, sceneBoundsSingleSphereScene )
 {
-    SceneDescriptionPtr scene = singleSphereScene();
+    SceneDescriptionPtr scene{ singleSphereScene() };
 
-    const otk::pbrt::ShapeList& shapes = scene->freeShapes;
+    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape = shapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ shapes[0] };
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
@@ -187,7 +187,7 @@ using MockGeometryCachePtr = std::shared_ptr<MockGeometryCache>;
 
 static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
 {
-    SceneDescriptionPtr scene = std::make_shared<otk::pbrt::SceneDescription>();
+    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
     const P3            minPt{ 0.0f, 0.0f, 0.0f };
     const P3            maxPt{ 1.0f, 1.0f, 1.0f };
     const B3            bounds{ minPt, maxPt };
@@ -210,20 +210,20 @@ static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader 
 TEST( TestSceneConstruction, sceneBoundsSingleTrianglePlyScene )
 {
     MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
-    SceneDescriptionPtr scene = singleTrianglePlyScene( meshLoader );
+    SceneDescriptionPtr scene{ singleTrianglePlyScene( meshLoader ) };
 
-    const otk::pbrt::ShapeList& shapes = scene->freeShapes;
+    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape = shapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ shapes[0] };
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
 TEST( TestSceneConstruction, meshDataSingleTrianglePlyScene )
 {
     MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
-    SceneDescriptionPtr scene = singleTrianglePlyScene( meshLoader );
+    SceneDescriptionPtr scene{ singleTrianglePlyScene( meshLoader ) };
 
-    const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( std::string{ "plymesh" }, shape.type );
     EXPECT_EQ( "cube-mesh.ply", shape.plyMesh.fileName );
     EXPECT_EQ( meshLoader, shape.plyMesh.loader );
@@ -231,7 +231,7 @@ TEST( TestSceneConstruction, meshDataSingleTrianglePlyScene )
 
 static SceneDescriptionPtr singleTriangleWithNormalsScene()
 {
-    SceneDescriptionPtr scene = singleTriangleScene();
+    SceneDescriptionPtr scene{ singleTriangleScene() };
     std::vector<P3>     normals{ P3{ 0.1f, 0.2f, 0.3f }, P3{ 0.4f, 0.5f, 0.6f }, P3{ 0.7f, 0.8f, 0.9f } };
     scene->freeShapes[0].triangleMesh.normals = std::move( normals );
     return scene;
@@ -239,18 +239,18 @@ static SceneDescriptionPtr singleTriangleWithNormalsScene()
 
 TEST( TestSceneConstruction, constructSingleTriangleWithNormalsScene )
 {
-    SceneDescriptionPtr scene = singleTriangleWithNormalsScene();
+    SceneDescriptionPtr scene{ singleTriangleWithNormalsScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "trianglemesh", shape.type );
-    const otk::pbrt::TriangleMeshData& mesh = shape.triangleMesh;
+    const otk::pbrt::TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.normals.empty() );
 }
 
 static SceneDescriptionPtr singleTriangleWithUVsScene()
 {
-    SceneDescriptionPtr scene = singleTriangleScene();
+    SceneDescriptionPtr scene{ singleTriangleScene() };
     std::vector<P2>     uvs{ P2{ 0.0f, 0.0f }, P2{ 1.0f, 0.0f }, P2{ 1.0f, 1.0f } };
     scene->freeShapes[0].triangleMesh.uvs = std::move( uvs );
     return scene;
@@ -258,54 +258,54 @@ static SceneDescriptionPtr singleTriangleWithUVsScene()
 
 TEST( TestSceneConstruction, constructSingleTriangleWithUVsScene )
 {
-    SceneDescriptionPtr scene = singleTriangleWithUVsScene();
+    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "trianglemesh", shape.type );
-    const otk::pbrt::TriangleMeshData& mesh = shape.triangleMesh;
+    const otk::pbrt::TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.uvs.empty() );
 }
 
 static SceneDescriptionPtr singleTriangleWithAlphaMapScene()
 {
-    SceneDescriptionPtr scene                      = singleTriangleWithUVsScene();
+    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
     scene->freeShapes[0].material.alphaMapFileName = "alphaMap.png";
     return scene;
 }
 
 TEST( TestSceneConstruction, constructSingleTriangleWithAlphaMapScene )
 {
-    SceneDescriptionPtr scene = singleTriangleWithAlphaMapScene();
+    SceneDescriptionPtr scene{ singleTriangleWithAlphaMapScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_FALSE( shape.material.alphaMapFileName.empty() );
 }
 
 static SceneDescriptionPtr singleTriangleWithDiffuseMapScene()
 {
-    SceneDescriptionPtr        scene = singleTriangleWithUVsScene();
+    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
     scene->freeShapes[0].material.diffuseMapFileName = "diffuse.png";
     return scene;
 }
 
 TEST( TestSceneConstruction, constructSingleDiffuseMapTriangleScene )
 {
-    SceneDescriptionPtr scene = singleTriangleWithDiffuseMapScene();
+    SceneDescriptionPtr scene{ singleTriangleWithDiffuseMapScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape = scene->freeShapes[0];
+    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_FALSE( shape.material.diffuseMapFileName.empty() );
 }
 
 static SceneDescriptionPtr twoShapeScene()
 {
-    otk::pbrt::ShapeDefinition shape1 = translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } );
-    otk::pbrt::ShapeDefinition shape2 = translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } );
+    otk::pbrt::ShapeDefinition shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    otk::pbrt::ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
 
-    SceneDescriptionPtr scene = std::make_shared<otk::pbrt::SceneDescription>();
-    scene->bounds             = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    scene->bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     scene->freeShapes.push_back( shape1 );
     scene->freeShapes.push_back( shape2 );
     return scene;
@@ -313,23 +313,23 @@ static SceneDescriptionPtr twoShapeScene()
 
 TEST( TestSceneConstruction, sceneBoundsTwoShapeScene )
 {
-    SceneDescriptionPtr scene = twoShapeScene();
+    SceneDescriptionPtr scene{ twoShapeScene() };
 
-    const otk::pbrt::ShapeList& shapes = scene->freeShapes;
+    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 2U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape1            = shapes[0];
-    const pbrt::Bounds3f              shape1WorldBounds = transformBounds( shape1 );
+    const otk::pbrt::ShapeDefinition& shape1{ shapes[0] };
+    const pbrt::Bounds3f              shape1WorldBounds{ transformBounds( shape1 ) };
     EXPECT_TRUE( Overlaps( shape1WorldBounds, scene->bounds ) );
-    const otk::pbrt::ShapeDefinition& shape2            = shapes[1];
-    const pbrt::Bounds3f              shape2WorldBounds = transformBounds( shape2 );
+    const otk::pbrt::ShapeDefinition& shape2{ shapes[1] };
+    const pbrt::Bounds3f              shape2WorldBounds{ transformBounds( shape2 ) };
     EXPECT_TRUE( Overlaps( shape2WorldBounds, scene->bounds ) );
     EXPECT_EQ( scene->bounds, Union( shape1WorldBounds, shape2WorldBounds ) );
 }
 
 static SceneDescriptionPtr singleInstanceSingleShapeScene()
 {
-    SceneDescriptionPtr         scene = std::make_shared<otk::pbrt::SceneDescription>();
-    otk::pbrt::ShapeDefinition  shape = singleTriangleShape();
+    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeDefinition  shape{ singleTriangleShape() };
     otk::pbrt::ObjectDefinition object;
     object.bounds                     = transformBounds( shape );
     scene->objects["triangle"]        = object;
@@ -347,19 +347,19 @@ static SceneDescriptionPtr singleInstanceSingleShapeScene()
 
 TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeScene )
 {
-    SceneDescriptionPtr scene = singleInstanceSingleShapeScene();
+    SceneDescriptionPtr scene{ singleInstanceSingleShapeScene() };
 
-    const otk::pbrt::ShapeList& shapes                 = scene->objectShapes["triangle"];
-    pbrt::Bounds3f              expectedInstanceBounds = transformBounds( shapes[0] );
+    const otk::pbrt::ShapeList& shapes{ scene->objectShapes["triangle"] };
+    pbrt::Bounds3f              expectedInstanceBounds{ transformBounds( shapes[0] ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( scene->objectInstances[0].transform( expectedInstanceBounds ), scene->bounds );
 }
 
 static SceneDescriptionPtr singleInstanceMultipleShapesScene()
 {
-    SceneDescriptionPtr         scene  = std::make_shared<otk::pbrt::SceneDescription>();
-    otk::pbrt::ShapeDefinition  shape1 = translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } );
-    otk::pbrt::ShapeDefinition  shape2 = translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } );
+    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeDefinition  shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    otk::pbrt::ShapeDefinition  shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
     otk::pbrt::ObjectDefinition object;
     std::string                 name{ "object" };
     object.bounds               = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
@@ -379,18 +379,18 @@ static SceneDescriptionPtr singleInstanceMultipleShapesScene()
 
 TEST( TestSceneConstruction, sceneBoundsSingleInstanceMultipleShapesScene )
 {
-    SceneDescriptionPtr scene = singleInstanceMultipleShapesScene();
+    SceneDescriptionPtr scene{ singleInstanceMultipleShapesScene() };
 
-    const otk::pbrt::ShapeList& shapes    = scene->objectShapes["object"];
-    pbrt::Bounds3f expectedInstanceBounds = Union( transformBounds( shapes[0] ), transformBounds( shapes[1] ) );
+    const otk::pbrt::ShapeList& shapes{ scene->objectShapes["object"] };
+    pbrt::Bounds3f expectedInstanceBounds{ Union( transformBounds( shapes[0] ), transformBounds( shapes[1] ) ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( scene->objectInstances[0].transform( expectedInstanceBounds ), scene->bounds );
 }
 
 static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
 {
-    SceneDescriptionPtr         scene  = std::make_shared<otk::pbrt::SceneDescription>();
-    otk::pbrt::ShapeDefinition  shape1 = translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } );
+    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeDefinition  shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
     otk::pbrt::ObjectDefinition object;
     object.bounds = transformBounds( shape1 );
     std::string name{ "object" };
@@ -405,7 +405,7 @@ static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
     shapeList.push_back( shape1 );
     scene->objectShapes[name] = shapeList;
 
-    otk::pbrt::ShapeDefinition shape2 = translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } );
+    otk::pbrt::ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
     scene->freeShapes.push_back( shape2 );
     scene->bounds = Union( transformBounds( instance ), transformBounds( shape2 ) );
     return scene;
@@ -413,15 +413,15 @@ static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
 
 TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeSingleFreeShapeScene )
 {
-    SceneDescriptionPtr scene = singleInstanceSingleShapeSingleFreeShapeScene();
+    SceneDescriptionPtr scene{ singleInstanceSingleShapeSingleFreeShapeScene() };
 
-    const otk::pbrt::ShapeList freeShapes = scene->freeShapes;
+    const otk::pbrt::ShapeList freeShapes{ scene->freeShapes };
     ASSERT_FALSE( freeShapes.empty() );
-    const otk::pbrt::ShapeList& instanceShapes = scene->objectShapes["object"];
+    const otk::pbrt::ShapeList& instanceShapes{ scene->objectShapes["object"] };
     ASSERT_FALSE( instanceShapes.empty() );
-    pbrt::Bounds3f expectedInstanceBounds = transformBounds( instanceShapes[0] );
+    pbrt::Bounds3f expectedInstanceBounds{ transformBounds( instanceShapes[0] ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
-    pbrt::Bounds3f expectedFreeShapeBounds = transformBounds( freeShapes[0] );
+    pbrt::Bounds3f expectedFreeShapeBounds{ transformBounds( freeShapes[0] ) };
     EXPECT_TRUE( Overlaps( expectedFreeShapeBounds, scene->bounds ) );
     pbrt::Bounds3f expectedObjectInstanceBounds{ scene->objectInstances[0].transform( expectedInstanceBounds ) };
     EXPECT_TRUE( Overlaps( expectedObjectInstanceBounds, scene->bounds ) )
@@ -430,8 +430,8 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeSingleFreeShape
 
 static SceneDescriptionPtr multipleInstancesSingleShape()
 {
-    SceneDescriptionPtr         scene = std::make_shared<otk::pbrt::SceneDescription>();
-    otk::pbrt::ShapeDefinition  shape = translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } );
+    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeDefinition  shape{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
     otk::pbrt::ObjectDefinition object;
     object.bounds = transformBounds( shape );
     std::string name{ "object" };
@@ -450,20 +450,20 @@ static SceneDescriptionPtr multipleInstancesSingleShape()
     createInstance( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
     createInstance( pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
 
-    const auto& ins1 = scene->objectInstances[0];
-    const auto& ins2 = scene->objectInstances[1];
-    scene->bounds    = Union( transformBounds( ins1 ), transformBounds( ins2 ) );
+    const auto& ins1{ scene->objectInstances[0] };
+    const auto& ins2{ scene->objectInstances[1] };
+    scene->bounds = Union( transformBounds( ins1 ), transformBounds( ins2 ) );
     return scene;
 }
 
 TEST( TestSceneConstruction, sceneBoundsMultipleInstancesSingleShape )
 {
-    SceneDescriptionPtr scene = multipleInstancesSingleShape();
+    SceneDescriptionPtr scene{ multipleInstancesSingleShape() };
 
     ASSERT_TRUE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeList& instanceShapes = scene->objectShapes["object"];
+    const otk::pbrt::ShapeList& instanceShapes{ scene->objectShapes["object"] };
     ASSERT_FALSE( instanceShapes.empty() );
-    pbrt::Bounds3f expectedShapeBounds = transformBounds( instanceShapes[0] );
+    pbrt::Bounds3f expectedShapeBounds{ transformBounds( instanceShapes[0] ) };
     EXPECT_EQ( expectedShapeBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( expectedShapeBounds, scene->objectInstances[1].bounds );
     pbrt::Bounds3f ins1Bounds{ transformBounds( scene->objectInstances[0] ) };
@@ -538,7 +538,7 @@ class TestSceneProxy : public Test
     MockGeometryLoaderPtr  m_geometryLoader{ createMockGeometryLoader() };
     MockGeometryCachePtr   m_geometryCache{ std::make_shared<MockGeometryCache>() };
     Options                m_options{};
-    ProxyFactoryPtr        m_factory{ createProxyFactory( m_options, m_geometryLoader, m_geometryCache) };
+    ProxyFactoryPtr        m_factory{ createProxyFactory( m_options, m_geometryLoader, m_geometryCache ) };
     SceneProxyPtr          m_proxy;
     SceneDescriptionPtr    m_scene;
     OptixDeviceContext     m_fakeContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
@@ -553,13 +553,13 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleTriangleMesh )
     m_scene = singleTriangleScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_scene);
-    const Stats stats = m_factory->getStatistics();
+    m_proxy = m_factory->scene( m_scene );
+    const Stats stats{ m_factory->getStatistics() };
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
     const OptixAabb expectedBounds{ toOptixAabb( m_scene->bounds ) };
-    EXPECT_EQ( expectedBounds, m_proxy->getBounds() ) << expectedBounds << " != " << m_proxy->getBounds();
+    EXPECT_EQ( expectedBounds, m_proxy->getBounds() ) << expectedBounds << " ! " << m_proxy->getBounds();
     EXPECT_FALSE( m_proxy->isDecomposable() );
     EXPECT_EQ( 1, stats.numGeometryProxiesCreated );
 }
@@ -568,15 +568,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMesh )
 {
     m_scene = singleTriangleScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -595,15 +595,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithNormals )
 {
     m_scene = singleTriangleWithNormalsScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -623,15 +623,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithUVs )
 {
     m_scene = singleTriangleWithUVsScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -651,15 +651,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithAlphaMap )
 {
     m_scene = singleTriangleWithAlphaMapScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -682,15 +682,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
 {
     m_scene = singleTriangleWithDiffuseMapScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -714,7 +714,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForMultipleShapes )
     m_scene = twoShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_scene);
+    m_proxy = m_factory->scene( m_scene );
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -727,14 +727,14 @@ TEST_F( TestSceneProxy, decomposeProxyForMultipleShapes )
     m_scene = twoShapeScene();
     EXPECT_EQ( m_scene->freeShapes[0].bounds, m_scene->freeShapes[1].bounds );
     EXPECT_NE( m_scene->freeShapes[0].transform, m_scene->freeShapes[1].transform );
-    ExpectationSet first      = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                   = m_factory->scene( m_scene);
-    const uint_t shape1PageId = 1111;
-    const uint_t shape2PageId = 2222;
+    ExpectationSet first{ expectProxyBoundsAdded( m_scene->bounds, m_pageId ) };
+    m_proxy = m_factory->scene( m_scene );
+    const uint_t shape1PageId{ 1111 };
+    const uint_t shape2PageId{ 2222 };
     expectProxyAdded( m_scene->freeShapes[0], shape1PageId );
     expectProxyAdded( m_scene->freeShapes[1], shape2PageId );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
 
     ASSERT_FALSE( parts.empty() );
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
@@ -749,23 +749,23 @@ TEST_F( TestSceneProxy, decomposeProxyForMultipleShapes )
 
 TEST_F( TestSceneProxy, constructTriangleASForSecondMesh )
 {
-    m_scene                     = twoShapeScene();
-    ExpectationSet first        = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                     = m_factory->scene( m_scene);
-    const uint_t   shape1PageId = 1111;
-    const uint_t   shape2PageId = 2222;
+    m_scene = twoShapeScene();
+    ExpectationSet first{ expectProxyBoundsAdded( m_scene->bounds, m_pageId ) };
+    m_proxy = m_factory->scene( m_scene );
+    const uint_t   shape1PageId{ 1111 };
+    const uint_t   shape2PageId{ 2222 };
     ExpectationSet second;
     second += expectProxyAddedAfter( m_scene->freeShapes[0], shape1PageId, first );
     second += expectProxyAddedAfter( m_scene->freeShapes[1], shape2PageId, first );
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
-    GeometryCacheEntry         entry = expectShapeFromCache( m_scene->freeShapes[1] );
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
+    GeometryCacheEntry         entry{ expectShapeFromCache( m_scene->freeShapes[1] ) };
     float                      expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = -1.0f;
     expectedTransform[7]  = -2.0f;
     expectedTransform[11] = -3.0f;
 
-    const GeometryInstance geom = parts[1]->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ parts[1]->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -785,7 +785,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithSingleShape
     m_scene = singleInstanceSingleShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_scene);
+    m_proxy = m_factory->scene( m_scene );
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -797,15 +797,15 @@ TEST_F( TestSceneProxy, geometryForSingleInstanceWithSingleShape )
 {
     m_scene = singleInstanceSingleShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->objectShapes["triangle"][0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->objectShapes["triangle"][0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( nullptr, entry.devNormals );
@@ -828,7 +828,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithMultipleSha
     m_scene = singleInstanceMultipleShapesScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_scene);
+    m_proxy = m_factory->scene( m_scene );
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -839,22 +839,22 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithMultipleSha
 
 TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceWithMultipleShape )
 {
-    m_scene                                  = singleInstanceMultipleShapesScene();
-    ExpectationSet first                     = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                                  = m_factory->scene( m_scene);
-    const uint_t                shape1PageId = 1111;
-    const uint_t                shape2PageId = 2222;
-    const otk::pbrt::ShapeList& objectShapes = m_scene->objectShapes["object"];
+    m_scene = singleInstanceMultipleShapesScene();
+    ExpectationSet first{ expectProxyBoundsAdded( m_scene->bounds, m_pageId ) };
+    m_proxy = m_factory->scene( m_scene );
+    const uint_t                shape1PageId{ 1111 };
+    const uint_t                shape2PageId{ 2222 };
+    const otk::pbrt::ShapeList& objectShapes{ m_scene->objectShapes["object"] };
     expectProxyAddedAfter( objectShapes[0], shape1PageId, first );
     expectProxyAddedAfter( objectShapes[1], shape2PageId, first );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
 
     ASSERT_FALSE( parts.empty() );
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
     EXPECT_EQ( shape1PageId, parts[0]->getPageId() );
     EXPECT_EQ( shape2PageId, parts[1]->getPageId() );
-    auto transformedBounds = [&]( int index ) { return toOptixAabb( transformBounds( objectShapes[index] ) ); };
+    auto transformedBounds{ [&]( int index ) { return toOptixAabb( transformBounds( objectShapes[index] ) ); } };
     EXPECT_EQ( transformedBounds( 0 ), parts[0]->getBounds() ) << transformedBounds( 0 ) << " != " << parts[0]->getBounds();
     EXPECT_EQ( transformedBounds( 1 ), parts[1]->getBounds() ) << transformedBounds( 1 ) << " != " << parts[1]->getBounds();
 }
@@ -864,7 +864,7 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceAndSingleFreeSh
     m_scene = singleInstanceSingleShapeSingleFreeShapeScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_scene);
+    m_proxy = m_factory->scene( m_scene );
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -875,15 +875,15 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceAndSingleFreeSh
 
 TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSingleFreeShapeScene )
 {
-    m_scene                        = singleInstanceSingleShapeSingleFreeShapeScene();
-    ExpectationSet first           = expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const uint_t shape1PageId      = 1111;
-    const uint_t shape2PageId      = 2222;
+    m_scene = singleInstanceSingleShapeSingleFreeShapeScene();
+    ExpectationSet first{ expectProxyBoundsAdded( m_scene->bounds, m_pageId ) };
+    m_proxy = m_factory->scene( m_scene );
+    const uint_t shape1PageId{ 1111 };
+    const uint_t shape2PageId{ 2222 };
     expectProxyAddedAfter( m_scene->objectInstances[0], shape1PageId, first );
     expectProxyAddedAfter( m_scene->freeShapes[0], shape2PageId, first );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
 
     ASSERT_EQ( 2U, parts.size() );
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
@@ -891,9 +891,9 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSing
     EXPECT_EQ( shape2PageId, parts[1]->getPageId() );
     EXPECT_FALSE( parts[0]->isDecomposable() );
     EXPECT_FALSE( parts[1]->isDecomposable() );
-    const OptixAabb instanceBounds = toOptixAabb( transformBounds( m_scene->objectInstances[0] ) );
+    const OptixAabb instanceBounds{ toOptixAabb( transformBounds( m_scene->objectInstances[0] ) ) };
     EXPECT_EQ( instanceBounds, parts[0]->getBounds() ) << instanceBounds << " != " << parts[0]->getBounds();
-    const OptixAabb freeShapeBounds = toOptixAabb( transformBounds( m_scene->freeShapes[0] ) );
+    const OptixAabb freeShapeBounds{ toOptixAabb( transformBounds( m_scene->freeShapes[0] ) ) };
     EXPECT_EQ( freeShapeBounds, parts[1]->getBounds() ) << freeShapeBounds << " != " << parts[1]->getBounds();
 }
 
@@ -904,15 +904,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
 
     m_scene = singleTrianglePlyScene( meshLoader );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
@@ -929,13 +929,13 @@ TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
 
 TEST_F( TestSceneProxy, multipleInstancesSingleShapeGeometry )
 {
-    m_scene              = multipleInstancesSingleShape();
-    ExpectationSet first = expectProxyBoundsAdded( m_scene->bounds, 1111 );
-    m_proxy              = m_factory->scene( m_scene);
+    m_scene = multipleInstancesSingleShape();
+    ExpectationSet first{ expectProxyBoundsAdded( m_scene->bounds, 1111 ) };
+    m_proxy = m_factory->scene( m_scene );
     expectProxyAddedAfter( m_scene->objectInstances[0], 2222, first );
     expectProxyAddedAfter( m_scene->objectInstances[1], 3333, first );
 
-    std::vector<SceneProxyPtr> parts = m_proxy->decompose( m_factory );
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
 
     const OptixAabb shape1Bounds{ toOptixAabb( transformBounds( m_scene->objectInstances[0] ) ) };
     const OptixAabb shape2Bounds{ toOptixAabb( transformBounds( m_scene->objectInstances[1] ) ) };
@@ -948,7 +948,7 @@ TEST_F( TestSceneProxy, constructProxyForSingleSphere )
     m_scene = singleSphereScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
-    m_proxy = m_factory->scene( m_scene);
+    m_proxy = m_factory->scene( m_scene );
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
@@ -961,15 +961,15 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
 {
     m_scene = singleSphereScene();
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
-    m_proxy                        = m_factory->scene( m_scene);
-    const GeometryCacheEntry entry = expectShapeFromCache( m_scene->freeShapes[0] );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
     float                    expectedTransform[12];
     identity( expectedTransform );
     expectedTransform[3]  = 1.0f;
     expectedTransform[7]  = 2.0f;
     expectedTransform[11] = 3.0f;
 
-    const GeometryInstance geom = m_proxy->createGeometry( m_fakeContext, m_stream );
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
 
     EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
