@@ -793,3 +793,73 @@ TEST_F( TestGeometryCache, constructSphereASForSphere )
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
 }
+
+struct TestObject
+{
+    otk::pbrt::ObjectDefinition      object;
+    std::vector<otk::pbrt::MeshData> buffers;
+    otk::pbrt::ShapeList             shapes;
+    std::vector<float> expectedVertices;
+    std::vector<int>   expectedIndices;
+};
+
+static TestObject twoMeshes()
+{
+    // TODO: give each triangle mesh different transforms
+    TestObject object;
+    object.buffers.push_back( otk::pbrt::MeshData{} );
+    object.buffers.push_back( otk::pbrt::MeshData{} );
+    const auto translateTriangleMesh = [&]( int index, float tx, float ty, float tz ) {
+        auto mesh{ singleTriangleTriangleMesh( object.buffers[index] ) };
+        mesh.transform = ::pbrt::Translate( ::pbrt::Vector3f( tx, ty, tz ) );
+        return mesh;
+    };
+    object.shapes.push_back( translateTriangleMesh( 0, 10.0f, 10.0f, 10.0f ) );
+    object.shapes.push_back( singleTriangleTriangleMesh( object.buffers[1] ) );
+    for( size_t i = 0; i < object.shapes.size(); ++i )
+    {
+        const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
+        for( size_t c = 0; c < vertices.size() / 3; ++c )
+        {
+            ::pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pt = object.shapes[i].transform( pt );
+            object.expectedVertices.push_back( pt.x );
+            object.expectedVertices.push_back( pt.y );
+            object.expectedVertices.push_back( pt.z );
+        }
+        const std::vector<int>& indices{ object.buffers[i].indices };
+        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+    }
+
+    return object;
+}
+
+TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
+{
+    const TestObject object{ twoMeshes() };
+    auto             expectedOptions = buildAllowsRandomVertexAccess();
+    auto             expectedInput =
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( object.expectedVertices ),
+                                                            hasDeviceIndices( object.expectedIndices ), hasSbtFlags( m_expectedFlags ),
+                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) );
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    const std::vector<GeometryCacheEntry> result{
+        m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes ) };
+    const Stats stats = m_geometryCache->getStatistics();
+
+    ASSERT_FALSE( result.empty() );
+    const auto &geom{result[0]};
+    EXPECT_NE( CUdeviceptr{}, geom.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, geom.traversable );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 2, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numSpheres );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 0, stats.numUVs );
+    EXPECT_EQ( 0, stats.totalBytesRead );
+}

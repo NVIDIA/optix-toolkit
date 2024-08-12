@@ -30,6 +30,11 @@ class GeometryCacheImpl : public GeometryCache
 
     GeometryCacheEntry getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape ) override;
 
+    std::vector<GeometryCacheEntry> getObject( OptixDeviceContext                 context,
+                                               CUstream                           stream,
+                                               const otk::pbrt::ObjectDefinition& object,
+                                               const otk::pbrt::ShapeList&        shapes ) override;
+
     GeometryCacheStatistics getStatistics() const override { return m_stats; }
 
   private:
@@ -43,6 +48,12 @@ class GeometryCacheImpl : public GeometryCache
                                  TriangleNormals*       normals,
                                  TriangleUVs*           uvs,
                                  const OptixBuildInput& build );
+    void appendPlyMesh( OptixDeviceContext context, CUstream stream, const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh );
+    void appendTriangleMesh( OptixDeviceContext context, CUstream stream, const pbrt::Transform& transform, const otk::pbrt::TriangleMeshData& mesh );
+    GeometryCacheEntry appendSphere( OptixDeviceContext           context,
+                                     CUstream                     stream,
+                                     const pbrt::Transform&       transform,
+                                     const otk::pbrt::SphereData& sphere );
 
     std::shared_ptr<FileSystemInfo>           m_fileSystemInfo;
     std::map<std::string, GeometryCacheEntry> m_plyCache;
@@ -68,6 +79,24 @@ GeometryCacheEntry GeometryCacheImpl::getShape( OptixDeviceContext context, CUst
     return {};
 }
 
+std::vector<GeometryCacheEntry> GeometryCacheImpl::getObject( OptixDeviceContext                 context,
+                                                              CUstream                           stream,
+                                                              const otk::pbrt::ObjectDefinition& object,
+                                                              const otk::pbrt::ShapeList&        shapes )
+{
+    std::vector<GeometryCacheEntry> entries;
+    m_vertices.clear();
+    m_indices.clear();
+    m_normals.clear();
+    m_uvs.clear();
+    for( const otk::pbrt::ShapeDefinition& shape : shapes )
+    {
+        appendTriangleMesh( context, stream, shape.transform, shape.triangleMesh );
+    }
+    entries.push_back( buildTriangleGAS( context, stream ) );
+    return entries;
+}
+
 GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CUstream stream, const otk::pbrt::PlyMeshData& plyMesh )
 {
     auto it = m_plyCache.find( plyMesh.fileName );
@@ -91,12 +120,10 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
         m_vertices[i] =
             make_float3( buffers.vertexCoords[i * 3 + 0], buffers.vertexCoords[i * 3 + 1], buffers.vertexCoords[i * 3 + 2] );
     }
-    m_vertices.copyToDeviceAsync( stream );
     m_indices.resize( meshInfo.numTriangles * 3U );
     OTK_ASSERT( meshInfo.numTriangles * 3U == buffers.indices.size() );
     std::transform( buffers.indices.begin(), buffers.indices.end(), m_indices.begin(),
                     []( int index ) { return static_cast<std::uint32_t>( index ); } );
-    m_indices.copyToDeviceAsync( stream );
 
     if( meshInfo.numNormals > 0 )
     {
@@ -124,7 +151,6 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
                                                        buffers.normalCoords[idx + 2] );
             }
         }
-        m_normals.copyToDevice();
     }
 
     if( meshInfo.numTextureCoordinates > 0 )
@@ -151,7 +177,6 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
                 m_uvs[face].UV[vert] = make_float2( buffers.uvCoords[idx + 0], buffers.uvCoords[idx + 1] );
             }
         }
-        m_uvs.copyToDevice();
     }
 
     const GeometryCacheEntry result = buildTriangleGAS( context, stream );
@@ -166,11 +191,9 @@ GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext contex
     m_vertices.resize( triangleMesh.points.size() );
     auto toFloat3 = []( const ::pbrt::Point3f& point ) { return make_float3( point.x, point.y, point.z ); };
     std::transform( triangleMesh.points.begin(), triangleMesh.points.end(), m_vertices.begin(), toFloat3 );
-    m_vertices.copyToDeviceAsync( stream );
     m_indices.resize( triangleMesh.indices.size() );
     std::transform( triangleMesh.indices.begin(), triangleMesh.indices.end(), m_indices.begin(),
                     []( const int index ) { return static_cast<std::uint16_t>( index ); } );
-    m_indices.copyToDeviceAsync( stream );
 
     if( !triangleMesh.normals.empty() )
     {
@@ -183,7 +206,6 @@ GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext contex
         for( size_t i = 0; i < m_normals.size(); ++i )
             for( int j = 0; j < 3; ++j )
                 m_normals[i].N[j] = toFloat3( triangleMesh.normals[triangleMesh.indices[i * 3 + j]] );
-        m_normals.copyToDevice();
     }
     if( !triangleMesh.uvs.empty() )
     {
@@ -192,7 +214,6 @@ GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext contex
         for( size_t i = 0; i < m_uvs.size(); ++i )
             for( int vert = 0; vert < 3; ++vert )
                 m_uvs[i].UV[vert] = toFloat2( triangleMesh.uvs[triangleMesh.indices[i * 3 + vert]] );
-        m_uvs.copyToDevice();
     }
 
     return buildTriangleGAS( context, stream );
@@ -240,6 +261,64 @@ GeometryCacheEntry GeometryCacheImpl::buildGAS( OptixDeviceContext     context,
     return { output.detach(), traversable, primitive, normals, uvs };
 }
 
+void GeometryCacheImpl::appendPlyMesh( OptixDeviceContext context, CUstream stream,
+                                       const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh )
+{
+}
+
+void GeometryCacheImpl::appendTriangleMesh( OptixDeviceContext context, CUstream stream,
+                                            const pbrt::Transform& transform,
+                                            const otk::pbrt::TriangleMeshData& triangleMesh )
+{
+    const auto grow{ []( auto& coll, size_t increase ) { coll.reserve( coll.size() + increase ); } };
+    grow( m_vertices, triangleMesh.points.size() );
+    auto toFloat3 = [&]( const ::pbrt::Point3f& point ) {
+        const pbrt::Point3f pt{ transform( point ) };
+        return make_float3( pt.x, pt.y, pt.z );
+    };
+    std::transform( triangleMesh.points.begin(), triangleMesh.points.end(), std::back_inserter( m_vertices ), toFloat3 );
+    grow( m_indices, triangleMesh.indices.size() );
+    std::transform( triangleMesh.indices.begin(), triangleMesh.indices.end(), std::back_inserter( m_indices ),
+                    []( const int index ) { return static_cast<std::uint16_t>( index ); } );
+
+    if( !triangleMesh.normals.empty() )
+    {
+        // When building the GAS, we have the luxury of supplying the vertex array and the
+        // index array, but in the closest hit program, we only have the primitive index,
+        // not the vertex/normal index.  So we size the array of TriangleNormals structures
+        // to the number of primitives and use the index array to select the appropriate normal
+        // for each vertex.
+        grow( m_normals, m_indices.size() / 3 );
+        for( size_t i = 0; i < m_normals.size(); ++i )
+        {
+            TriangleNormals normals;
+            for( int j = 0; j < 3; ++j )
+            {
+                normals.N[j] = toFloat3( transform( triangleMesh.normals[triangleMesh.indices[i * 3 + j]] ) );
+            }
+            m_normals.push_back( normals );
+        }
+    }
+    if( !triangleMesh.uvs.empty() )
+    {
+        auto toFloat2 = []( const pbrt::Point2f& value ) { return make_float2( value.x, value.y ); };
+        grow( m_uvs, m_indices.size() / 3 );
+        for( size_t i = 0; i < m_uvs.size(); ++i )
+        {
+            TriangleUVs uvs;
+            for( int vert = 0; vert < 3; ++vert )
+            {
+                uvs.UV[vert] = toFloat2( triangleMesh.uvs[triangleMesh.indices[i * 3 + vert]] );
+            }
+            m_uvs.push_back( uvs );
+        }
+    }
+}
+
+GeometryCacheEntry GeometryCacheImpl::appendSphere( OptixDeviceContext context, CUstream stream, const pbrt::Transform& transform, const otk::pbrt::SphereData& sphere )
+{
+}
+
 GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUstream stream, const otk::pbrt::SphereData& sphere )
 {
     m_vertices.resize( 1 );
@@ -269,6 +348,11 @@ GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUs
 
 GeometryCacheEntry GeometryCacheImpl::buildTriangleGAS( OptixDeviceContext context, CUstream stream )
 {
+    m_vertices.copyToDeviceAsync( stream );
+    m_indices.copyToDeviceAsync( stream );
+    m_normals.copyToDevice();
+    m_uvs.copyToDevice();
+
     OptixBuildInput build{};
     build.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
 

@@ -16,6 +16,7 @@
 #include <optix.h>
 
 #include <memory>
+#include <vector>
 
 namespace demandPbrtScene {
 
@@ -34,6 +35,11 @@ class GeometryCache
     virtual ~GeometryCache() = default;
 
     virtual GeometryCacheEntry getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape ) = 0;
+
+    virtual std::vector<GeometryCacheEntry> getObject( OptixDeviceContext                 context,
+                                                       CUstream                           stream,
+                                                       const otk::pbrt::ObjectDefinition& object,
+                                                       const otk::pbrt::ShapeList&        shapes ) = 0;
 
     virtual GeometryCacheStatistics getStatistics() const = 0;
 };
