@@ -76,6 +76,7 @@ union TileBlockDesc
     bool         isGood() { return numTiles != 0; }
     bool         isBad() { return numTiles == 0; }
     unsigned int offset() { return tileId * TILE_SIZE_IN_BYTES; }
+    bool operator ==(TileBlockDesc& desc) { return data == desc.data; }
 };
 
 /// Bundle a TileBlockDesc with its handle
@@ -83,6 +84,8 @@ struct TileBlockHandle
 {
     CUmemGenericAllocationHandle handle;
     TileBlockDesc                block;
+
+    bool operator ==(TileBlockHandle& bh) { return ( handle == bh.handle ) && ( block == bh.block ); }
 };
 
 }  // namespace otk

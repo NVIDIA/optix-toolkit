@@ -391,7 +391,7 @@ void DemandTextureApp::initDemandLoading()
     options.maxTexMemPerDevice  = maxTexMem;         // max texture to use before starting eviction (0 is unlimited)
     options.maxPinnedMemory     = 64 * 1024 * 1024;  // max pinned memory to reserve for transfers.
     options.maxThreads          = 0;                 // request threads. (0 is std::thread::hardware_concurrency)
-    options.evictionActive      = true;             // turn on or off eviction
+    options.evictionActive      = true;              // turn on or off eviction
     options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
     options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
 

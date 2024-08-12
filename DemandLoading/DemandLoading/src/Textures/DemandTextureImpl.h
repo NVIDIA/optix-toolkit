@@ -200,6 +200,9 @@ class DemandTextureImpl : public DemandTexture
     /// Return a list of all the variant ids
     const std::vector<unsigned int>& getVariantsIds() { return m_variantTextureIds; }
 
+    /// Compute a hash for the texture
+    unsigned long long getHash( CUstream stream );
+
   private:
     // A mutex guards against concurrent initialization, which can arise when the sampler
     // is requested on multiple devices.  Tiles can be filled concurrently, along with the mip tail.
