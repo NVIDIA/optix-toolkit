@@ -42,6 +42,7 @@ class GeometryCacheImpl : public GeometryCache
     GeometryCacheEntry getTriangleMesh( OptixDeviceContext context, CUstream stream, const otk::pbrt::TriangleMeshData& mesh );
     GeometryCacheEntry getSphere( OptixDeviceContext context, CUstream stream, const otk::pbrt::SphereData& sphere );
     GeometryCacheEntry buildTriangleGAS( OptixDeviceContext context, CUstream stream );
+    GeometryCacheEntry buildSphereGAS( OptixDeviceContext context, CUstream stream );
     GeometryCacheEntry buildGAS( OptixDeviceContext     context,
                                  CUstream               stream,
                                  GeometryPrimitive      primitive,
@@ -50,7 +51,6 @@ class GeometryCacheImpl : public GeometryCache
                                  const OptixBuildInput& build );
     void               appendPlyMesh( const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh );
     void               appendTriangleMesh( const pbrt::Transform& transform, const otk::pbrt::TriangleMeshData& mesh );
-    GeometryCacheEntry appendSphere( const pbrt::Transform& transform, const otk::pbrt::SphereData& sphere );
 
     std::shared_ptr<FileSystemInfo>           m_fileSystemInfo;
     std::map<std::string, GeometryCacheEntry> m_plyCache;
@@ -98,6 +98,15 @@ std::vector<GeometryCacheEntry> GeometryCacheImpl::getObject( OptixDeviceContext
         }
     }
     entries.push_back( buildTriangleGAS( context, stream ) );
+
+    for( const otk::pbrt::ShapeDefinition& shape : shapes )
+    {
+        if( shape.type == "sphere" )
+        {
+            entries.push_back( getSphere( context, stream, shape.sphere ) );
+        }
+    }
+
     return entries;
 }
 
@@ -377,21 +386,8 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
     }
 }
 
-GeometryCacheEntry GeometryCacheImpl::appendSphere(
-    const pbrt::Transform&       transform,
-    const otk::pbrt::SphereData& sphere )
+GeometryCacheEntry GeometryCacheImpl::buildSphereGAS( OptixDeviceContext context, CUstream stream )
 {
-}
-
-GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUstream stream, const otk::pbrt::SphereData& sphere )
-{
-    m_vertices.resize( 1 );
-    m_vertices[0] = make_float3( 0.0f, 0.0f, 0.0f );
-    m_vertices.copyToDeviceAsync( stream );
-    m_radii.resize( 1 );
-    m_radii[0] = sphere.radius;
-    m_radii.copyToDeviceAsync( stream );
-
     OptixBuildInput build{};
     build.type = OPTIX_BUILD_INPUT_TYPE_SPHERES;
 
@@ -408,6 +404,18 @@ GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUs
     spheres.numSbtRecords = 1;
 
     return buildGAS( context, stream, GeometryPrimitive::SPHERE, nullptr, nullptr, build );
+}
+
+GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUstream stream, const otk::pbrt::SphereData& sphere )
+{
+    m_vertices.resize( 1 );
+    m_vertices[0] = make_float3( 0.0f, 0.0f, 0.0f );
+    m_vertices.copyToDeviceAsync( stream );
+    m_radii.resize( 1 );
+    m_radii[0] = sphere.radius;
+    m_radii.copyToDeviceAsync( stream );
+
+    return buildSphereGAS(context, stream);
 }
 
 GeometryCacheEntry GeometryCacheImpl::buildTriangleGAS( OptixDeviceContext context, CUstream stream )
