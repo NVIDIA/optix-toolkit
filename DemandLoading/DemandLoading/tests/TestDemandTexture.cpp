@@ -52,6 +52,7 @@ class TestDemandTexture : public testing::Test
         // and it's provides a PageTableManager that's needed by initSampler().
         demandLoading::Options options{};
         options.useSmallTextureOptimization = true;
+        options.coalesceDuplicateImages = true;
         m_loader.reset( new DemandLoaderImpl( options ) );
     }
 
@@ -447,10 +448,6 @@ TEST_F( TestDemandTexture, TestSparseNonMipmappedTexture )
     OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
-
-
-//-------------------------------------------------------------------------
-
 TEST_F( TestDemandTexture, TestNonOptixTexturing )
 {
     // Skip test if sparse textures not supported
@@ -539,4 +536,38 @@ TEST_F( TestDemandTexture, TestCubicSampling )
     // Free output buffers
     free( hostOutput );
     OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
+}
+
+TEST_F( TestDemandTexture, TestDuplicateTexture )
+{
+    // Skip test if sparse textures not supported
+    if( m_deviceIndex == demandLoading::MAX_DEVICES )
+        return;
+
+    // This initializes the demand loader, and creates a texture managed by the demand loader
+    initManagedTexture( 32, 32, CU_TR_ADDRESS_MODE_CLAMP, FILTER_SMARTBICUBIC, CU_TR_FILTER_MODE_LINEAR );
+
+    // Make two textures from the same image
+    std::shared_ptr<ImageSource> image = std::make_shared<CheckerBoardImage>( 256, 256, 4, true, true );
+    const demandLoading::DemandTexture& baseTex = m_loader->createTexture( image, m_desc );
+    const demandLoading::DemandTexture& copyTex = m_loader->createTexture( image, m_desc );
+
+    // Make a texture that is identical to the textures created earlier
+    std::shared_ptr<ImageSource> image2 = std::make_shared<CheckerBoardImage>( 256, 256, 4, true, true );
+    const demandLoading::DemandTexture& dupeTex = m_loader->createTexture( image2, m_desc );
+
+    // Make a texture that is different from the textures created earlier
+    std::shared_ptr<ImageSource> image3 = std::make_shared<CheckerBoardImage>( 24, 24, 5, true, true );
+    const demandLoading::DemandTexture& nonDupeTex = m_loader->createTexture( image3, m_desc );
+
+    DemandTextureImpl* copyTexPtr = (DemandTextureImpl*)&copyTex;
+    DemandTextureImpl* dupeTexPtr = (DemandTextureImpl*)&dupeTex;
+    DemandTextureImpl* nonDupeTexPtr = (DemandTextureImpl*)&nonDupeTex;
+
+    // Make sure that the duplcate textures are considered to be duplicates.
+    EXPECT_TRUE( copyTexPtr->getMasterTexture() == &baseTex );
+    EXPECT_TRUE( dupeTexPtr->getMasterTexture() == &baseTex );
+
+    // Make sure the non-duplicate texture is not considered to be a duplicate.
+    EXPECT_TRUE( nonDupeTexPtr->getMasterTexture() == nullptr );
 }

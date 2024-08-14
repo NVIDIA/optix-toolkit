@@ -229,25 +229,43 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
                                                            const TextureDescriptor& textureDesc, 
                                                            std::shared_ptr<imageSource::ImageSource>& imageSource )
 {
+    // Check to see if the image source has already been used
     auto imageIt = m_imageToTextureId.find( imageSource.get() );
-    if( imageIt == m_imageToTextureId.end() ) // image was not found. Make a new texture.
-    {
-        if( getOptions().useCascadingTextureSizes )
-        {
-            imageSource::CascadeImage* cascadeImg = new imageSource::CascadeImage( imageSource, CASCADE_BASE );
-            std::shared_ptr<imageSource::ImageSource> cascadeImage( cascadeImg );
-            m_imageToTextureId[imageSource.get()] = textureId;
-            return new DemandTextureImpl( textureId, textureDesc, cascadeImage, this );
-        }
-
-        m_imageToTextureId[imageSource.get()] = textureId;
-        return new DemandTextureImpl( textureId, textureDesc, imageSource, this );
-    }
-    else // image was found. Make a variant texture.
+    if( imageIt != m_imageToTextureId.end() )
     {
         DemandTextureImpl* masterTexture = m_textures[imageIt->second].get();
         return new DemandTextureImpl( textureId, masterTexture, textureDesc, this );
     }
+
+    // Check to see if the image source is identical to another in use.
+    // TODO: Move this to SamplerRequestHandler to keep lazy opening of image files.
+    unsigned long long hash = 0;
+    if( m_options->coalesceDuplicateImages )
+    {
+        hash = imageSource->getHash( (CUstream)0 );
+        auto hashIt = m_hashToTextureId.find( hash );
+        if( hashIt != m_hashToTextureId.end() )
+        {
+            DemandTextureImpl* masterTexture = m_textures[hashIt->second].get();
+            return new DemandTextureImpl( textureId, masterTexture, textureDesc, this );
+        }
+    }
+
+    // Record the textureId for the current image and its hash.
+    m_imageToTextureId[imageSource.get()] = textureId;
+    if( hash )
+        m_hashToTextureId[hash] = textureId;
+
+    // For cascading texture sizes, make a CascadeImage wrapper.
+    if( getOptions().useCascadingTextureSizes )
+    {
+        imageSource::CascadeImage* cascadeImg = new imageSource::CascadeImage( imageSource, CASCADE_BASE );
+        std::shared_ptr<imageSource::ImageSource> cascadeImage( cascadeImg );
+        return new DemandTextureImpl( textureId, textureDesc, cascadeImage, this );
+    }
+
+    // If not using cascading texture sizes, make a texture from the image source directly.
+    return new DemandTextureImpl( textureId, textureDesc, imageSource, this );
 }
 
 unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )

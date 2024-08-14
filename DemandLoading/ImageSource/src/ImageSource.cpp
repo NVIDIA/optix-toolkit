@@ -30,6 +30,40 @@ bool fileExists( const std::string& path )
 
 namespace imageSource {
 
+unsigned long long ImageSource::getHash( CUstream stream )
+{
+    TextureInfo info;
+    open( &info );
+
+    // FIXME: Handle non-host fulfilled image types
+    if( getFillType() != CU_MEMORYTYPE_HOST )
+        return 0ULL;
+
+    // Start hash as checksum of info
+    const unsigned long long m = 1013904223ULL;
+    unsigned long long hash = info.width;
+    hash = hash * m + info.height;
+    hash = hash * m + info.format;
+    hash = hash * m + info.numChannels;
+    hash = hash * m + info.numMipLevels;
+
+    // Continue with checksum of a coarse mip level.
+    int mipLevel = static_cast<int>( log2f( (info.width + info.height) / 64.0f ) );
+    mipLevel = std::max( std::min( mipLevel, (int)info.numMipLevels-1 ), 0 );
+
+    unsigned int levelWidth = info.width >> mipLevel;
+    unsigned int levelHeight = info.height >> mipLevel;
+    unsigned int mipLevelSize = levelWidth * levelHeight * getBytesPerChannel( info.format ) * info.numChannels;
+    std::vector<unsigned long long> buffer( ( mipLevelSize + 7 ) / 8 );
+    buffer.back() = 0;
+    readMipLevel( (char*)buffer.data(), mipLevel, levelWidth, levelHeight, stream );
+
+    for( unsigned int i = 0; i < buffer.size(); ++i )
+        hash = hash * m + buffer[i];
+
+    return hash;
+}
+
 bool ImageSourceBase::readMipTail( char*        dest,
                                    unsigned int mipTailFirstLevel,
                                    unsigned int numMipLevels,
