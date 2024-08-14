@@ -106,7 +106,11 @@ class ImageSource
     /// be zero if the reader does not load tiles from disk, e.g. for procedural textures.
     virtual double getTotalReadTime() const = 0;
 
+    /// Return true if the image has a cascade (larger size) that could be switched to.
     virtual bool hasCascade() const = 0;
+
+    /// Return a hash of the image, using a small mip level.
+    unsigned long long getHash( CUstream stream );
 };
 
 /// Base class for ImageSource with default implementation of readMipTail, etc.

@@ -181,7 +181,8 @@ class DemandLoaderImpl : public DemandLoader
     std::unique_ptr<DemandPageLoaderImpl> m_pageLoader;
 
     std::map<unsigned int, std::unique_ptr<DemandTextureImpl>> m_textures; // demand-loaded textures, indexed by textureId
-    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId;  // lookup from image* to textureId
+    std::map<imageSource::ImageSource*, unsigned int> m_imageToTextureId;  // look up textureId from image*
+    std::map<unsigned long long, unsigned int> m_hashToTextureId; // look up textureId from image hash
 
     SamplerRequestHandler m_samplerRequestHandler;  // Handles requests for texture samplers.
     CascadeRequestHandler m_cascadeRequestHandler;  // Handles cascading texture sizes.
