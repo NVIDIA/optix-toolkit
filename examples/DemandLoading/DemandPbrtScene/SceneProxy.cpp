@@ -124,8 +124,9 @@ GeometryInstance InstanceShapeProxy::createGeometry( OptixDeviceContext context,
 class InstanceProxy : public SceneProxy
 {
   public:
-    InstanceProxy( uint_t pageId, SceneDescriptionPtr scene, uint_t instanceIndex )
-        : m_pageId( pageId )
+    InstanceProxy( const Options& options, uint_t pageId, SceneDescriptionPtr scene, uint_t instanceIndex )
+        : m_options( options )
+        , m_pageId( pageId )
         , m_scene( scene )
         , m_instanceIndex( instanceIndex )
         , m_name( scene->objectInstances[instanceIndex].name )
@@ -141,6 +142,7 @@ class InstanceProxy : public SceneProxy
     std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr proxyFactory ) override;
 
   private:
+    const Options&      m_options;
     uint_t              m_pageId;
     SceneDescriptionPtr m_scene;
     uint_t              m_instanceIndex;
@@ -155,7 +157,18 @@ OptixAabb InstanceProxy::getBounds() const
 
 bool InstanceProxy::isDecomposable() const
 {
-    return m_scene->objectShapes[m_name].size() > 1;
+    const std::vector<otk::pbrt::ShapeDefinition>& shapeDefinitions{ m_scene->objectShapes[m_name] };
+    if( m_options.proxyGranularity == ProxyGranularity::FINE )
+    {
+        return shapeDefinitions.size() > 1;
+    }
+
+    // Decomposable if any of the shapes is different from the first
+    const std::string type{ shapeDefinitions.front().type };
+    auto              begin{ shapeDefinitions.cbegin() };
+    ++begin;
+    return std::any_of( begin, shapeDefinitions.cend(),
+                        [&]( const otk::pbrt::ShapeDefinition& definition ) { return definition.type != type; } );
 }
 
 GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUstream stream )
@@ -340,7 +353,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstance( SceneDescriptionPtr scene, uint_t
     }
     ++m_stats.numInstanceProxiesCreated;
     ++m_stats.numGeometryProxiesCreated;
-    return std::make_shared<InstanceProxy>( id, scene, instanceIndex );
+    return std::make_shared<InstanceProxy>( m_options, id, scene, instanceIndex );
 }
 
 SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex )
