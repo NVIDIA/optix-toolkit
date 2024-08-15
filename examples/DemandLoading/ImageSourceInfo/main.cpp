@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+//
+
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 #include <OptiXToolkit/ImageSources/ImageSources.h>
 
