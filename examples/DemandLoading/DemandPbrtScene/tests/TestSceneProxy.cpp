@@ -93,10 +93,8 @@ TEST( TestSceneConstruction, sceneBoundsSingleTriangleScene )
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
-static SceneDescriptionPtr singleSphereScene()
+static otk::pbrt::ShapeDefinition singleSphereShape()
 {
-    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-
     const P3 minPt{ 0.0f, 0.0f, 0.0f };
     const P3 maxPt{ 1.0f, 1.0f, 1.0f };
     const B3 bounds{ minPt, maxPt };
@@ -115,7 +113,14 @@ static SceneDescriptionPtr singleSphereScene()
     sphere.phiMax = 360.0f;
 
     pbrt::Vector3f             translation{ 1.0f, 2.0f, 3.0f };
-    otk::pbrt::ShapeDefinition shape{ "sphere", Translate( translation ), material, bounds, {}, {}, sphere };
+    return { "sphere", Translate( translation ), material, bounds, {}, {}, sphere };
+}
+
+static SceneDescriptionPtr singleSphereScene()
+{
+    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+
+    otk::pbrt::ShapeDefinition shape{ singleSphereShape() };
     scene->freeShapes.push_back( shape );
     scene->bounds = transformBounds( shape );
 
@@ -493,6 +498,7 @@ class TestSceneProxy : public Test
   protected:
     void SetUp() override
     {
+        m_options.proxyGranularity     = ProxyGranularity::FINE;
         m_accelSizes.tempSizeInBytes   = 1234U;
         m_accelSizes.outputSizeInBytes = 5678U;
     }
@@ -985,4 +991,78 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
     EXPECT_EQ( nullptr, geom.normals );
     EXPECT_EQ( nullptr, geom.uvs );
+}
+
+static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
+{
+    SceneDescriptionPtr  scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeList shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleTriangleShape() );
+    otk::pbrt::ShapeDefinition& shape1{ shapeList[0] };
+    otk::pbrt::ShapeDefinition& shape2{ shapeList[1] };
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    otk::pbrt::ObjectDefinition object;
+    object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    scene->objects["triangle"]        = object;
+    scene->instanceCounts["triangle"] = 1;
+    otk::pbrt::ObjectInstanceDefinition instance;
+    instance.name   = "triangle";
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes["triangle"] = shapeList;
+    scene->bounds                   = transformBounds( instance );
+    return scene;
+}
+
+TEST_F( TestSceneProxy, fineObjectInstanceDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::FINE;
+    m_scene = singleInstanceTwoTriangleShapeScene();
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    EXPECT_TRUE( m_proxy->isDecomposable() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveNotDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene = singleInstanceTwoTriangleShapeScene();
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    EXPECT_FALSE( m_proxy->isDecomposable() );
+}
+
+static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()
+{
+    SceneDescriptionPtr  scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    otk::pbrt::ShapeList shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleSphereShape() );
+    otk::pbrt::ShapeDefinition& shape1{ shapeList[0] };
+    otk::pbrt::ShapeDefinition& shape2{ shapeList[1] };
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    otk::pbrt::ObjectDefinition object;
+    object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    scene->objects["triangle"]        = object;
+    scene->instanceCounts["triangle"] = 1;
+    otk::pbrt::ObjectInstanceDefinition instance;
+    instance.name   = "triangle";
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes["triangle"] = shapeList;
+    scene->bounds                   = transformBounds( instance );
+    return scene;
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceSomeShapesDifferentPrimitiveDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene = singleInstanceOneTriangleOneSphereShapeScene();
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    EXPECT_TRUE( m_proxy->isDecomposable() );
 }
