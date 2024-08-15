@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
 LookAt  0       0       -3
         0       0       0
         0       1       0
