@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
 # Cribbed from https://stackoverflow.com/a/51987470/139855
 #
 # Function print_target_properties can be used to debug issues related to
