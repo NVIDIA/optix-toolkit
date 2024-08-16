@@ -130,7 +130,9 @@ void TestGeometryResolverInitialized::SetUp()
     TestGeometryResolver::SetUp();
     m_init = EXPECT_CALL( *m_geometryLoader, setSbtIndex( _ ) );
     m_init += EXPECT_CALL( *m_geometryLoader, copyToDeviceAsync( _ ) );
-    m_init += EXPECT_CALL( *m_proxyFactory, scene( _ ) ).WillOnce( Return( m_sceneProxy ) );
+    // TODO: why does gmock claim the scene proxy is leaked?
+    // m_init += EXPECT_CALL( *m_proxyFactory, scene( _ ) ).WillOnce( Return( m_sceneProxy ) );
+    EXPECT_CALL( *m_proxyFactory, scene( _ ) ).WillOnce( Return( m_sceneProxy ) );
     m_init += EXPECT_CALL( *m_sceneProxy, getPageId() ).WillOnce( Return( m_proxyPageId ) );
     m_init += EXPECT_CALL( *m_geometryLoader, createTraversable( _, _ ) ).WillOnce( Return( m_fakeProxyTraversable ) );
     m_resolver->initialize( m_stream, m_fakeContext, m_scene, m_sync );
