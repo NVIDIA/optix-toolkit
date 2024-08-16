@@ -93,8 +93,11 @@ class MemoryPool
 
         try
         {
-            for( void* ptr : m_allocations )
-                m_allocator->free( ptr );
+            for( PtrSize ps : m_allocations )
+            {
+                if( m_allocator )
+                    m_allocator->free( ps.ptr );
+            }
             delete m_suballocator;
             delete m_allocator;
 
@@ -145,7 +148,7 @@ class MemoryPool
             void* ptr = m_allocator->allocate( allocSize );
             if( !ptr )
                 return block;
-            m_allocations.push_back( ptr );
+            m_allocations.push_back( PtrSize{ptr, allocSize} );
 
             if( m_allocator->allocationIsHandle() )
             {
@@ -155,7 +158,7 @@ class MemoryPool
             }
             else
             {
-                m_suballocator->track( reinterpret_cast<uint64_t>( m_allocations.back() ), allocSize );
+                m_suballocator->track( reinterpret_cast<uint64_t>( m_allocations.back().ptr ), allocSize );
             }
             block = m_suballocator->alloc( size, alignment );
         }
@@ -200,7 +203,7 @@ class MemoryPool
         unsigned short numTiles = blockGood ? (unsigned short)( block.size / TILE_SIZE_IN_BYTES ) : 0;
 
         CUmemGenericAllocationHandle handle =
-            blockGood ? reinterpret_cast<CUmemGenericAllocationHandle>( m_allocations[arenaId] ) : 0;
+            blockGood ? reinterpret_cast<CUmemGenericAllocationHandle>( m_allocations[arenaId].ptr ) : 0;
 
         return TileBlockHandle{handle, {arenaId, tileId, numTiles}};
     }
@@ -208,7 +211,7 @@ class MemoryPool
     // Get the allocation handle backing a block of texture tiles
     uint64_t getAllocationHandle( unsigned int arenaId )
     {
-        return reinterpret_cast<CUmemGenericAllocationHandle>( m_allocations[arenaId] );
+        return reinterpret_cast<CUmemGenericAllocationHandle>( m_allocations[arenaId].ptr );
     }
 
     /// Free block immediately on the specified stream.
@@ -315,6 +318,37 @@ class MemoryPool
     /// Set the max size (maximum size that the pool will allocate)
     void setMaxSize( uint64_t maxSize ) { m_maxSize = maxSize; }
 
+    /// Reduce the size of the pool by at least rsize, releasing the memory to the OS
+    void releaseMemory( uint64_t rsize, CUstream stream = 0 )
+    {
+        OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+        std::unique_lock<std::mutex> lock( m_mutex );
+        freeStagedBlocks( true );
+
+        for( int i = (int)m_allocations.size() - 1; i >= 0; --i )
+        {
+            // Untrack the end allocation
+            const PtrSize ps = m_allocations[i];
+            if( m_allocator && m_allocator->allocationIsHandle() && m_suballocator )
+            {
+                m_suballocator->untrack( getArenaStartAddress( static_cast<uint64_t>( i ) ), ps.size );
+            }
+            else if( m_suballocator )
+            {
+                m_suballocator->untrack( reinterpret_cast<uint64_t>( ps.ptr ), ps.size );
+            }
+
+            // Free the end allocation
+            if( m_allocator )
+                m_allocator->free( m_allocations[i].ptr );
+            m_allocations.pop_back();
+            if( m_allocations[i].size >= rsize )
+                break;
+            rsize -= m_allocations[i].size;
+        }
+    }
+
+
   private:
     // A memory pool is for a single device or the host, but it must
     // be able to wait on all devices because a pinned memory blocks may have to wait
@@ -326,14 +360,20 @@ class MemoryPool
         CUevent         event;
     };
 
-    CUcontext          m_context;
-    Allocator*         m_allocator;
-    SubAllocator*      m_suballocator;
-    std::vector<void*> m_allocations;
-    uint64_t           m_allocationGranularity;
-    uint64_t           m_maxSize;
-    uint64_t           m_headroom; // Leave at least this much memory unallocated
-    mutable std::mutex m_mutex;
+    struct PtrSize
+    {
+        void* ptr;
+        uint64_t size;
+    };
+
+    CUcontext            m_context;
+    Allocator*           m_allocator;
+    SubAllocator*        m_suballocator;
+    std::vector<PtrSize> m_allocations;
+    uint64_t             m_allocationGranularity;
+    uint64_t             m_maxSize;
+    uint64_t             m_headroom; // Leave at least this much memory unallocated
+    mutable std::mutex   m_mutex;
 
     std::deque<StagedBlock> m_stagedBlocks;
 

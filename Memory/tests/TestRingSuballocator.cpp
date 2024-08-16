@@ -74,3 +74,20 @@ TEST_F( TestRingSuballocator, freeAll )
         EXPECT_TRUE( block.isGood() );
     }
 }
+
+TEST_F( TestRingSuballocator, untrack )
+{
+    ringSuballocator.track( 0, 1024 );
+    ringSuballocator.track( 2048, 1024 );
+    ringSuballocator.track( 4096, 1024 );
+    EXPECT_EQ( static_cast<uint64_t>( 3 * 1024 ), ringSuballocator.freeSpace() );
+
+    ringSuballocator.untrack( 2048, 1024 );
+    EXPECT_EQ( static_cast<uint64_t>( 2 * 1024 ), ringSuballocator.freeSpace() );
+    EXPECT_EQ( static_cast<uint64_t>( 2 * 1024 ), ringSuballocator.trackedSize() );
+
+    ringSuballocator.untrack( 0, 1024 );
+    ringSuballocator.untrack( 4096, 1024 );
+    EXPECT_EQ( 0ULL, ringSuballocator.freeSpace() );
+    EXPECT_EQ( 0ULL, ringSuballocator.trackedSize() );
+}

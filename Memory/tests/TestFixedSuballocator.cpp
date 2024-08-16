@@ -71,3 +71,13 @@ TEST_F( TestFixedSuballocator, allocFree )
     }
     EXPECT_TRUE( suballocator.freeSpace() == suballocator.trackedSize() );
 }
+
+TEST_F( TestFixedSuballocator, untrack )
+{
+    FixedSuballocator suballocator( 64, 64 );
+    suballocator.track( 0, 1024 );
+    suballocator.track( 2048, 1024 );
+
+    suballocator.untrack( 2048, 1024 );
+    EXPECT_EQ( suballocator.trackedSize(), 1024ULL );
+}

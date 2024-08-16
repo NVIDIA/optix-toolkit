@@ -85,3 +85,23 @@ TEST_F( TestBinnedSuballocator, allocFree )
     }
     EXPECT_EQ( suballocator.freeSpace(), numAllocations * 128 );
 }
+
+TEST_F( TestBinnedSuballocator, untrack )
+{
+    std::vector<uint64_t> sizes( {2, 4, 8, 16, 32} );
+    std::vector<uint64_t> chunkItems( {128, 128, 128, 128, 128} );
+    BinnedSuballocatorT   suballocator( sizes, chunkItems );
+    suballocator.track( 0, 1024 );
+    suballocator.track( 2048, 1024 );
+
+    EXPECT_EQ( suballocator.trackedSize(), 2048ULL );
+    EXPECT_EQ( suballocator.freeSpace(), 2048ULL );
+
+    suballocator.alloc( 2, 1 );
+    suballocator.alloc( 8, 1 );
+
+    EXPECT_EQ( suballocator.freeSpace(), 2038ULL );
+
+    suballocator.untrack( 2048, 1024 );
+    EXPECT_EQ( suballocator.trackedSize(), 1024ULL );
+}

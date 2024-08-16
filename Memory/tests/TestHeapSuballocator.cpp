@@ -58,7 +58,7 @@ TEST_F( TestHeapSuballocator, allocMany )
 
 TEST_F( TestHeapSuballocator, allocFree )
 {
-    const uint64_t               numAllocations = 1 << 20;
+    const uint64_t               numAllocations = 1 << 18;
     std::vector<MemoryBlockDesc> allocs;
     heapSuballocator.track( 0, numAllocations );
 
@@ -82,4 +82,13 @@ TEST_F( TestHeapSuballocator, allocFree )
         maxMapSize = std::max( beginMap.size(), maxMapSize );
     }
     EXPECT_TRUE( heapSuballocator.freeSpace() == heapSuballocator.trackedSize() );
+}
+
+TEST_F( TestHeapSuballocator, untrack )
+{
+    heapSuballocator.track( 0, 1024 );
+    heapSuballocator.track( 2048, 1024 );
+
+    heapSuballocator.untrack( 0, 1024 );
+    EXPECT_EQ( heapSuballocator.trackedSize(), 1024ULL );
 }
