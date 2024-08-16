@@ -239,4 +239,5 @@ TEST_F( TestGeometryResolverInitialized, decomposeProxy )
     EXPECT_EQ( 0U, stats.numGeometriesRealized );
     Mock::AllowLeak( child1.get() );
     Mock::AllowLeak( child2.get() );
+    Mock::AllowLeak( m_sceneProxy.get() );
 }
