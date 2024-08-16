@@ -136,6 +136,7 @@ void TestGeometryResolverInitialized::SetUp()
     m_init += EXPECT_CALL( *m_sceneProxy, getPageId() ).WillOnce( Return( m_proxyPageId ) );
     m_init += EXPECT_CALL( *m_geometryLoader, createTraversable( _, _ ) ).WillOnce( Return( m_fakeProxyTraversable ) );
     m_resolver->initialize( m_stream, m_fakeContext, m_scene, m_sync );
+    Mock::AllowLeak( m_sceneProxy.get() );
 }
 
 }  // namespace
@@ -239,5 +240,4 @@ TEST_F( TestGeometryResolverInitialized, decomposeProxy )
     EXPECT_EQ( 0U, stats.numGeometriesRealized );
     Mock::AllowLeak( child1.get() );
     Mock::AllowLeak( child2.get() );
-    Mock::AllowLeak( m_sceneProxy.get() );
 }
