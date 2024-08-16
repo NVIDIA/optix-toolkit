@@ -49,6 +49,10 @@ class RingSuballocator
     /// Free all the arenas
     void freeAll();
 
+    /// Untrack memory that is currently tracked by the suballocator.
+    /// This only works when the RingSuballocator is not being used.
+    void untrack( uint64_t ptr, uint64_t size );
+
     /// Return the total amount of free space
     uint64_t freeSpace() const { return m_freeSpace; }
 
@@ -66,8 +70,8 @@ class RingSuballocator
         uint64_t     numAllocs;
     };
 
-    std::vector<AllocCountArena> arenas;
-    std::deque<unsigned int>     activeArenas;
+    std::vector<AllocCountArena> m_arenas;
+    std::deque<unsigned int>     m_activeArenas;
 
     uint64_t m_arenaSize   = 0;  // The standard size of arenas (larger allocations logically split)
     uint64_t m_trackedSize = 0;  // Total memory tracked by the pool
@@ -83,7 +87,7 @@ inline void RingSuballocator::track( uint64_t ptr, uint64_t size )
     while( size > 0 )
     {
         AllocCountArena newArena = {};
-        newArena.arenaId         = static_cast<unsigned int>( arenas.size() );
+        newArena.arenaId         = static_cast<unsigned int>( m_arenas.size() );
         newArena.isActive        = true;
         newArena.arenaStart      = ptr;
         newArena.arenaSize       = std::min( m_arenaSize, size );
@@ -93,8 +97,8 @@ inline void RingSuballocator::track( uint64_t ptr, uint64_t size )
         ptr += newArena.arenaSize;
         size -= newArena.arenaSize;
 
-        arenas.push_back( newArena );
-        activeArenas.push_back( newArena.arenaId );
+        m_arenas.push_back( newArena );
+        m_activeArenas.push_back( newArena.arenaId );
     }
 }
 
@@ -107,11 +111,11 @@ inline MemoryBlockDesc RingSuballocator::alloc( uint64_t size, uint64_t alignmen
         return MemoryBlockDesc{BAD_ADDR, 0, 0};
 
     // Find the first arena with space to hold the allocation. Should be current or next arena.
-    unsigned int numActiveArenas = static_cast<unsigned int>( activeArenas.size() );
+    unsigned int numActiveArenas = static_cast<unsigned int>( m_activeArenas.size() );
     for( unsigned int i = 0; i < numActiveArenas; ++i )
     {
-        unsigned int     arenaId = activeArenas.front();
-        AllocCountArena& arena   = arenas[arenaId];
+        unsigned int     arenaId = m_activeArenas.front();
+        AllocCountArena& arena   = m_arenas[arenaId];
         uint64_t         ptr     = alignVal( arena.startPos, alignment );
         if( ptr + size <= arena.arenaStart + arena.arenaSize )  // If the allocation fits, return it
         {
@@ -122,11 +126,11 @@ inline MemoryBlockDesc RingSuballocator::alloc( uint64_t size, uint64_t alignmen
         }
         else  // If the allocation does not fit, deactivate the arena and go to the next one
         {
-            activeArenas.pop_front();
+            m_activeArenas.pop_front();
             if( arena.numAllocs == 0 )
             {
                 arena.startPos = arena.arenaStart;
-                activeArenas.push_back( arena.arenaId );
+                m_activeArenas.push_back( arena.arenaId );
             }
             else
             {
@@ -142,7 +146,7 @@ inline MemoryBlockDesc RingSuballocator::alloc( uint64_t size, uint64_t alignmen
 
 inline void RingSuballocator::decrementAllocCount( unsigned int arenaId, unsigned int inc )
 {
-    AllocCountArena& arena = arenas[arenaId];
+    AllocCountArena& arena = m_arenas[arenaId];
     OTK_ASSERT_MSG( inc <= arena.numAllocs, "Too many free operations in RingSuballocator." );
 
     arena.numAllocs -= inc;
@@ -151,17 +155,46 @@ inline void RingSuballocator::decrementAllocCount( unsigned int arenaId, unsigne
         m_freeSpace += ( arena.startPos - arena.arenaStart );
         arena.startPos = arena.arenaStart;
         if( !arena.isActive )
-            activeArenas.push_back( arenaId );
+            m_activeArenas.push_back( arenaId );
         arena.isActive = true;
     }
 }
 
 inline void RingSuballocator::freeAll()
 {
-    for( unsigned int i = 0; i < arenas.size(); ++i )
+    for( unsigned int i = 0; i < m_arenas.size(); ++i )
     {
-        if( arenas[i].numAllocs > 0 )
-            decrementAllocCount( i, static_cast<unsigned int>( arenas[i].numAllocs ) );
+        if( m_arenas[i].numAllocs > 0 )
+            decrementAllocCount( i, static_cast<unsigned int>( m_arenas[i].numAllocs ) );
+    }
+}
+
+inline void RingSuballocator::untrack( uint64_t ptr, uint64_t size )
+{
+    freeAll();
+
+    // Remove arenas in region to untrack
+    for( int id = m_arenas.size() - 1; id >= 0; --id )
+    {
+        const AllocCountArena& arena = m_arenas[id];
+        if( ( ptr <= arena.arenaStart && ptr + size > arena.arenaStart ) ||
+            ( arena.arenaStart <= ptr && arena.arenaStart + arena.arenaSize > ptr ) )
+        {
+            m_arenas[id] = m_arenas.back();
+            m_arenas[id].arenaId = id;
+            m_arenas.pop_back();
+        }
+    }
+
+    // Reset all arenas to active
+    m_activeArenas.clear();
+    m_trackedSize = 0;
+    m_freeSpace = 0;
+    for( unsigned int id = 0; id < m_arenas.size(); ++id )
+    {
+        m_trackedSize += m_arenas[id].arenaSize;
+        m_freeSpace += m_arenas[id].arenaSize;
+        m_activeArenas.push_back( id );
     }
 }
 

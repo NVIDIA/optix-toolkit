@@ -266,3 +266,40 @@ TEST_F( TestMemoryPool, TestAllocObjects )
     EXPECT_TRUE( f[1023].z == 1.0f );
     pool.freeObjects<float4>( f, 1024 );
 }
+
+TEST_F( TestMemoryPool, TestReleaseMemory )
+{
+    MemoryPool<HostAllocator, HeapSuballocator> pool;
+    std::vector<MemoryBlockDesc> blocks;
+
+    // Allocate a bunch of blocks
+    for( int i = 0; i < 1024; ++i )
+    {
+        MemoryBlockDesc block = pool.alloc( 65536, 1 );
+        blocks.push_back( block );
+    }
+    uint64_t trackedSize = pool.trackedSize();
+
+    // Deallocate half the blocks in reverse order
+    for( int i = 0; i < 512; ++i )
+    {
+        pool.free( blocks.back() );
+        blocks.pop_back();
+    }
+
+    // Release memory and check that we are tracking the right amount
+    pool.releaseMemory( trackedSize / 2 );
+    EXPECT_EQ( trackedSize, pool.trackedSize() * 2 );
+
+    // Allocate some more blocks
+    for( int i = 0; i < 512; ++i )
+    {
+        MemoryBlockDesc block = pool.alloc( 65536, 1 );
+        blocks.push_back( block );
+    }
+    EXPECT_EQ( trackedSize, pool.trackedSize() );
+
+    // Release all the memory
+    pool.releaseMemory( trackedSize );
+    EXPECT_EQ( pool.trackedSize(), 0ULL );
+}

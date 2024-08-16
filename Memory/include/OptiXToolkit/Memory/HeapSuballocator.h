@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <map>
 
+#include <stdio.h>
+
 namespace otk {
 
 // HeapSuballocator is used to track free blocks from an address space.
@@ -45,6 +47,9 @@ class HeapSuballocator
 
     /// Free a block. The size must be correct to ensure correctness.
     void free( const MemoryBlockDesc& memBlock );
+
+    /// Untrack memory that is currently tracked by the suballocator.
+    void untrack( uint64_t ptr, uint64_t size );
 
     /// Return the current free space
     uint64_t freeSpace() const { return m_freeSpace; }
@@ -166,6 +171,22 @@ inline void HeapSuballocator::free( const MemoryBlockDesc& memBlock )
         m_beginMap.erase( nextIt );
         m_gteLargestFree = std::max( m_gteLargestFree, prevIt->second );
     }
+}
+
+inline void HeapSuballocator::untrack( uint64_t ptr, uint64_t size )
+{
+    // Remove free blocks that are in the untracked region
+    auto it = m_beginMap.lower_bound( ptr );
+    while( it != m_beginMap.end() && it->first < ( ptr + size ) )
+    {
+        auto eraseIt = it;
+        ++it;
+        m_freeSpace -= eraseIt->second;
+        m_beginMap.erase( eraseIt );
+    }
+
+    // Reduce the tracked size
+    m_trackedSize = ( size <= m_trackedSize ) ? m_trackedSize - size : 0ULL;
 }
 
 inline bool HeapSuballocator::validate()

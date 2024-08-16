@@ -48,6 +48,9 @@ class FixedSuballocator
     /// Free an item from just its pointer
     void freeItem( uint64_t ptr ) { free( MemoryBlockDesc{ptr, m_itemSize, 0} ); }
 
+    /// Untrack memory that is currently tracked by the suballocator.
+    void untrack( uint64_t ptr, uint64_t size );
+
     /// Return the size of items in the pool
     uint64_t itemSize() const { return m_itemSize; }
 
@@ -97,6 +100,24 @@ inline MemoryBlockDesc FixedSuballocator::alloc( uint64_t /*size*/, uint64_t /*a
     }
     m_freeSpace -= m_itemSize;
     return block;
+}
+
+inline void FixedSuballocator::untrack( uint64_t ptr, uint64_t size )
+{
+    // Get rid of items in the untracked region
+    for( int i = (int)m_freeBlocks.size() - 1; i >= 0; --i )
+    {
+        const MemoryBlockDesc& b = m_freeBlocks[i];
+        if( ( ptr >= b.ptr && ptr < b.ptr + b.size ) || ( b.ptr >= ptr && b.ptr < ptr + size ) )
+        {
+            m_freeBlocks[i] = m_freeBlocks.back();
+            m_freeBlocks.pop_back();
+            m_freeSpace -= m_itemSize;
+        }
+    }
+
+    // Reduce the tracked size
+    m_trackedSize = ( size <= m_trackedSize ) ? m_trackedSize - size : 0ULL;
 }
 
 }  // namespace optix

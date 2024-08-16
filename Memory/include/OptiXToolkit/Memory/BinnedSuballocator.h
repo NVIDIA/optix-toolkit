@@ -37,20 +37,20 @@ class BinnedSuballocator
     /// Free a block. The size must be correct to ensure correctness.
     void free( const MemoryBlockDesc& memBlock );
 
+    /// Untrack memory that is currently tracked by the suballocator.
+    void untrack( uint64_t ptr, uint64_t size );
+
     /// Return the total amount of free space
-    uint64_t freeSpace() const { return m_freeSpace; }
+    uint64_t freeSpace();
 
     /// Return the total memory tracked by pool
-    uint64_t trackedSize() const { return m_trackedSize; }
+    uint64_t trackedSize() const { return m_heapSuballocator.trackedSize(); }
 
   protected:
     std::vector<uint64_t>          m_itemSizes;
     std::vector<FixedSuballocator> m_fixedSuballocators;
     std::vector<uint64_t>          m_itemsPerChunk;
     HeapSuballocator               m_heapSuballocator;
-
-    uint64_t m_freeSpace   = 0;
-    uint64_t m_trackedSize = 0;
 };
 
 inline BinnedSuballocator::BinnedSuballocator( const std::vector<uint64_t>& itemSizes, const std::vector<uint64_t>& itemsPerChunk )
@@ -65,8 +65,6 @@ inline BinnedSuballocator::BinnedSuballocator( const std::vector<uint64_t>& item
 
 inline void BinnedSuballocator::track( uint64_t ptr, uint64_t size )
 {
-    m_trackedSize += size;
-    m_freeSpace += size;
     m_heapSuballocator.track( ptr, size );
 }
 
@@ -82,7 +80,6 @@ inline MemoryBlockDesc BinnedSuballocator::alloc( uint64_t size, uint64_t alignm
             MemoryBlockDesc block = m_fixedSuballocators[i].alloc();
             if( block.ptr != BAD_ADDR )
             {
-                m_freeSpace -= block.size;
                 return block;
             }
 
@@ -92,7 +89,6 @@ inline MemoryBlockDesc BinnedSuballocator::alloc( uint64_t size, uint64_t alignm
             {
                 m_fixedSuballocators[i].track( chunk.ptr, chunk.size );
                 block = m_fixedSuballocators[i].alloc();
-                m_freeSpace -= block.size;
             }
             return block;
         }
@@ -100,16 +96,11 @@ inline MemoryBlockDesc BinnedSuballocator::alloc( uint64_t size, uint64_t alignm
 
     // If the allocation size is too big, use the heapSuballocator
     MemoryBlockDesc block = m_heapSuballocator.alloc( size, alignment );
-    if( block.ptr != BAD_ADDR )
-        m_freeSpace -= block.size;
     return block;
 }
 
 inline void BinnedSuballocator::free( const MemoryBlockDesc& block )
 {
-    if( block.ptr != BAD_ADDR )
-        m_freeSpace += block.size;
-
     // First try to free from one of the fixed suballocators, then use heap suballocator
     for( unsigned int i = 0; i < m_itemSizes.size(); ++i )
     {
@@ -121,4 +112,20 @@ inline void BinnedSuballocator::free( const MemoryBlockDesc& block )
     }
     m_heapSuballocator.free( block );
 }
+
+inline void BinnedSuballocator::untrack( uint64_t ptr, uint64_t size )
+{
+    m_heapSuballocator.untrack( ptr, size );
+    for( FixedSuballocator& suballocator : m_fixedSuballocators )
+        suballocator.untrack( ptr, size );
 }
+
+inline uint64_t BinnedSuballocator::freeSpace()
+{
+    uint64_t freeSpace = m_heapSuballocator.freeSpace();
+    for( FixedSuballocator& suballocator : m_fixedSuballocators )
+        freeSpace += suballocator.freeSpace();
+    return freeSpace;
+}
+
+} // namespace otk
