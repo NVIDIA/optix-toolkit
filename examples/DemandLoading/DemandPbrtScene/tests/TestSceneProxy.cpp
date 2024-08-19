@@ -6,6 +6,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "GeometryInstancePrinter.h"
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
 #include "MockMeshLoader.h"

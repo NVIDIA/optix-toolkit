@@ -7,6 +7,7 @@ include(GoogleTest)
 include(ImageTest)
 
 add_executable(TestDemandPbrtSceneImpl
+    GeometryInstancePrinter.h
     Matchers.h
     MockDemandTextureCache.h
     MockGeometryLoader.h

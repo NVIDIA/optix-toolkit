@@ -4,6 +4,7 @@
 
 #include <MaterialResolver.h>
 
+#include "GeometryInstancePrinter.h"
 #include "MockDemandTextureCache.h"
 #include "MockMaterialLoader.h"
 #include "MockProgramGroups.h"
@@ -19,7 +20,6 @@
 #include <SceneProxy.h>
 #include <SceneSyncState.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
@@ -36,49 +36,6 @@ constexpr const char* DIFFUSE_MAP_PATH{ "diffuseMap.png" };
 using namespace testing;
 using namespace demandPbrtScene;
 using namespace demandPbrtScene::testing;
-
-namespace demandPbrtScene {
-
-std::ostream& operator<<( std::ostream& str, GeometryPrimitive value )
-{
-    switch( value )
-    {
-        case GeometryPrimitive::NONE:
-            return str << "NONE";
-        case GeometryPrimitive::TRIANGLE:
-            return str << "TRIANGLE";
-        case GeometryPrimitive::SPHERE:
-            return str << "SPHERE";
-    }
-    return str << "? (" << static_cast<int>( value ) << ')';
-}
-
-std::ostream& operator<<( std::ostream& str, const GeometryInstance& lhs )
-{
-    return str << "GeometryInstance{ " << lhs.accelBuffer  //
-               << ", " << lhs.primitive                    //
-               << ", " << lhs.instance                     //
-               << ", " << lhs.material                     //
-               << ", '" << lhs.diffuseMapFileName << "'"   //
-               << ", '" << lhs.alphaMapFileName << "'"     //
-               << ", " << lhs.normals                      //
-               << ", " << lhs.uvs                          //
-               << " }";
-}
-
-inline bool operator==( const GeometryInstance& lhs, const GeometryInstance& rhs )
-{
-    return lhs.accelBuffer == rhs.accelBuffer                   //
-           && lhs.primitive == rhs.primitive                    //
-           && lhs.instance == rhs.instance                      //
-           && lhs.material == rhs.material                      //
-           && lhs.diffuseMapFileName == rhs.diffuseMapFileName  //
-           && lhs.alphaMapFileName == rhs.alphaMapFileName      //
-           && lhs.normals == rhs.normals                        //
-           && lhs.uvs == rhs.uvs;
-}
-
-}  // namespace demandPbrtScene
 
 namespace {
 
