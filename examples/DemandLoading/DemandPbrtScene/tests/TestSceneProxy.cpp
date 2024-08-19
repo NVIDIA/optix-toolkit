@@ -84,6 +84,24 @@ static SceneDescriptionPtr singleTriangleScene()
     return scene;
 }
 
+namespace otk {
+namespace pbrt {
+
+inline bool operator==( const ObjectDefinition& lhs, const ObjectDefinition& rhs )
+{
+    return lhs.transform == rhs.transform  //
+           && lhs.bounds == rhs.bounds;    //
+}
+
+inline std::ostream& operator<<( std::ostream& str, const ObjectDefinition& value )
+{
+    return str << "ObjectDefinition{ " << value.transform << ", " << value.bounds << " }";
+}
+
+}  // namespace pbrt
+}  // namespace otk
+
+
 TEST( TestSceneConstruction, sceneBoundsSingleTriangleScene )
 {
     SceneDescriptionPtr scene{ singleTriangleScene() };
@@ -1004,15 +1022,16 @@ static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
     otk::pbrt::ShapeDefinition& shape2{ shapeList[1] };
     shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
     otk::pbrt::ObjectDefinition object;
-    object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
-    scene->objects["triangle"]        = object;
-    scene->instanceCounts["triangle"] = 1;
+    object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    std::string name{ "triangle" };
+    scene->objects[name]        = object;
+    scene->instanceCounts[name] = 1;
     otk::pbrt::ObjectInstanceDefinition instance;
-    instance.name   = "triangle";
+    instance.name   = name;
     instance.bounds = transformBounds( object );
     scene->objectInstances.push_back( instance );
-    scene->objectShapes["triangle"] = shapeList;
-    scene->bounds                   = transformBounds( instance );
+    scene->objectShapes[name] = shapeList;
+    scene->bounds             = transformBounds( instance );
     return scene;
 }
 
@@ -1026,6 +1045,16 @@ TEST_F( TestSceneProxy, fineObjectInstanceDecomposable )
     EXPECT_TRUE( m_proxy->isDecomposable() );
 }
 
+TEST_F( TestSceneProxy, fineObjectInstanceCreateGeometryIsError )
+{
+    m_options.proxyGranularity = ProxyGranularity::FINE;
+    m_scene                    = singleInstanceTwoTriangleShapeScene();
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    EXPECT_THROW( m_proxy->createGeometry( m_fakeContext, m_stream ), std::runtime_error );
+}
+
 TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveNotDecomposable )
 {
     m_options.proxyGranularity = ProxyGranularity::COARSE;
@@ -1033,7 +1062,38 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveNotDecomposabl
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
     m_proxy = m_factory->sceneInstance( m_scene, 0 );
 
-    EXPECT_FALSE( m_proxy->isDecomposable() );
+    const bool decomposable{ m_proxy->isDecomposable() };
+    const OptixAabb bounds{ m_proxy->getBounds() };
+
+    EXPECT_FALSE( decomposable );
+    EXPECT_EQ( toOptixAabb( m_scene->bounds ), bounds );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGeometry )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene = singleInstanceTwoTriangleShapeScene();
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+    GeometryCacheEntry triangles{};
+    triangles.accelBuffer = 0xdeadbeefULL;
+    triangles.traversable = m_fakeGeometryAS;
+    triangles.primitive = GeometryPrimitive::TRIANGLE;
+    std::vector<GeometryCacheEntry> entries{ triangles };
+    const std::string&              name{ m_scene->objects.begin()->first };
+    EXPECT_CALL( *m_geometryCache, getObject( m_fakeContext, m_stream, m_scene->objects[name], m_scene->objectShapes[name] ) )
+        .WillOnce( Return( entries ) );
+
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
+
+    EXPECT_EQ( triangles.accelBuffer, geom.accelBuffer );
+    EXPECT_EQ( triangles.primitive, geom.primitive );
+    EXPECT_EQ( triangles.traversable, geom.instance.traversableHandle );
+    EXPECT_EQ( PhongMaterial{}, geom.material );
+    EXPECT_TRUE( geom.diffuseMapFileName.empty() );
+    EXPECT_TRUE( geom.alphaMapFileName.empty() );
+    EXPECT_EQ( triangles.devNormals, geom.normals );
+    EXPECT_EQ( triangles.devUVs, geom.uvs );
 }
 
 static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()
@@ -1059,6 +1119,16 @@ static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()
 }
 
 TEST_F( TestSceneProxy, coarseObjectInstanceSomeShapesDifferentPrimitiveDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene = singleInstanceOneTriangleOneSphereShapeScene();
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    EXPECT_TRUE( m_proxy->isDecomposable() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceSomeShapesDifferentPrimitiveDecomposedMultipleProxies )
 {
     m_options.proxyGranularity = ProxyGranularity::COARSE;
     m_scene = singleInstanceOneTriangleOneSphereShapeScene();
