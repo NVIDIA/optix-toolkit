@@ -82,4 +82,36 @@ inline std::ostream& operator<<( std::ostream& str, const PhongMaterial& val )
         << val.diffuseTextureId << " }";
 }
 
+inline bool operator==( const PrimitiveMaterialRange& lhs, const PrimitiveMaterialRange& rhs )
+{
+    return lhs.primitiveEnd == rhs.primitiveEnd  //
+        && lhs.materialId == rhs.materialId;
+}
+
+inline bool operator!=( const PrimitiveMaterialRange& lhs, const PrimitiveMaterialRange& rhs )
+{
+    return !( lhs == rhs );
+}
+
+inline std::ostream& operator<<( std::ostream& str, const PrimitiveMaterialRange& value )
+{
+    return str << "PrimitiveMaterialRange{ " << value.primitiveEnd << ", " << value.materialId << " }";
+}
+
+inline bool operator==( const MaterialIndex& lhs, const MaterialIndex& rhs )
+{
+    return lhs.numPrimitiveGroups == rhs.numPrimitiveGroups  //
+           && lhs.primitiveMaterialBegin == rhs.primitiveMaterialBegin;
+}
+
+inline bool operator!=( const MaterialIndex& lhs, const MaterialIndex& rhs )
+{
+    return !( lhs == rhs );
+}
+
+inline std::ostream& operator<<( std::ostream& str, const MaterialIndex& value )
+{
+    return str << "MaterialIndex{ " << value.numPrimitiveGroups << ", " << value.primitiveMaterialBegin << " }";
+}
+
 }  // namespace demandPbrtScene

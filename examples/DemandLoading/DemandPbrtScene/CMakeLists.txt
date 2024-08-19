@@ -66,6 +66,8 @@ add_library(DemandPbrtSceneImpl STATIC
     ImageSourceFactoryStatistics.h
     ImGuiUserInterface.cpp
     ImGuiUserInterface.h
+    MaterialBatch.h
+    MaterialBatch.cpp
     MaterialResolver.h
     MaterialResolver.cpp
     MaterialResolverStatistics.h

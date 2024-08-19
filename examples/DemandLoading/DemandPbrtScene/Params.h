@@ -68,13 +68,13 @@ struct DirectionalLight
     float3 color;
 };
 
-inline bool operator==(const DirectionalLight&lhs, const DirectionalLight &rhs)
+inline bool operator==( const DirectionalLight& lhs, const DirectionalLight& rhs )
 {
     return lhs.direction == rhs.direction && lhs.color == rhs.color;
 }
-inline bool operator!=(const DirectionalLight&lhs, const DirectionalLight &rhs)
+inline bool operator!=( const DirectionalLight& lhs, const DirectionalLight& rhs )
 {
-    return !(lhs == rhs);
+    return !( lhs == rhs );
 }
 
 struct InfiniteLight
@@ -90,9 +90,9 @@ inline bool operator==( const InfiniteLight& lhs, const InfiniteLight& rhs )
            && lhs.scale == rhs.scale  //
            && lhs.skyboxTextureId == rhs.skyboxTextureId;
 }
-inline bool operator!=(const InfiniteLight&lhs, const InfiniteLight &rhs)
+inline bool operator!=( const InfiniteLight& lhs, const InfiniteLight& rhs )
 {
-    return !(lhs == rhs);
+    return !( lhs == rhs );
 }
 
 enum class MaterialFlags : uint_t
@@ -238,36 +238,52 @@ struct PerspectiveCamera
     otk::Transform4 cameraToScreen;
 };
 
+struct MaterialIndex
+{
+    uint_t numPrimitiveGroups;      // number of groups of primitives with different materials
+    uint_t primitiveMaterialBegin;  // starting index into PrimitiveMaterialRange array
+};
+
+struct PrimitiveMaterialRange
+{
+    uint_t primitiveEnd;
+    uint_t materialId;
+};
+
 struct Params
 {
-    otk::DebugLocation           debug;
-    uchar4*                      image;
-    float4*                      accumulator;
-    uint_t                       width;
-    uint_t                       height;
-    RenderMode                   renderMode;
-    LookAtParams                 lookAt;
-    PerspectiveCamera            camera;
-    float3                       background;
-    uint_t                       numDirectionalLights;
-    DirectionalLight*            directionalLights;
-    uint_t                       numInfiniteLights;
-    InfiniteLight*               infiniteLights;
-    float3                       ambientColor;
-    float3                       proxyFaceColors[6];
-    float                        sceneEpsilon;
-    bool                         usePinholeCamera;
-    bool                         useFaceForward;
-    OptixTraversableHandle       traversable;
-    demandLoading::DeviceContext demandContext;
-    demandGeometry::Context      demandGeomContext;
-    float3                       demandMaterialColor;
-    uint_t                       numPartialMaterials;     //
-    PartialMaterial*             partialMaterials;        // indexed by instanceId
-    uint_t                       numRealizedMaterials;    //
-    PhongMaterial*               realizedMaterials;       // indexed by materialId
-    uint_t                       numInstanceMaterialIds;  //
-    uint_t*                      instanceMaterialIds;     // indexed by instanceId, material id per instance
+    otk::DebugLocation            debug;
+    uchar4*                       image;
+    float4*                       accumulator;
+    uint_t                        width;
+    uint_t                        height;
+    RenderMode                    renderMode;
+    LookAtParams                  lookAt;
+    PerspectiveCamera             camera;
+    float3                        background;
+    uint_t                        numDirectionalLights;
+    DirectionalLight*             directionalLights;
+    uint_t                        numInfiniteLights;
+    InfiniteLight*                infiniteLights;
+    float3                        ambientColor;
+    float3                        proxyFaceColors[6];
+    float                         sceneEpsilon;
+    bool                          usePinholeCamera;
+    bool                          useFaceForward;
+    OptixTraversableHandle        traversable;
+    demandLoading::DeviceContext  demandContext;
+    demandGeometry::Context       demandGeomContext;
+    float3                        demandMaterialColor;
+    uint_t                        numPartialMaterials;     //
+    PartialMaterial*              partialMaterials;        // indexed by instanceId
+    uint_t                        numRealizedMaterials;    //
+    PhongMaterial*                realizedMaterials;       // indexed by materialId
+    uint_t                        numInstanceMaterialIds;  //
+    uint_t*                       instanceMaterialIds;     // indexed by instanceId, material id per instance
+    uint_t                        numMaterialIndices;      //
+    const MaterialIndex*          materialIndices;         // indexed by instanceId, one entry per instance
+    uint_t                        numPrimitiveMaterials;   // one entry per material group per instance
+    const PrimitiveMaterialRange* primitiveMaterials;      // indexed by MaterialIndex::primitiveMaterialBegin
 
     // An array of pointers to arrays of per-face data, one per geometry instance.
     // If the pointer is nullptr, then the instance has no per-face data.
@@ -291,7 +307,7 @@ struct Params
 
 #if __CUDACC__
 extern "C" {
-    __constant__ Params PARAMS_VAR_NAME;
+__constant__ Params PARAMS_VAR_NAME;
 }
 #endif
 
