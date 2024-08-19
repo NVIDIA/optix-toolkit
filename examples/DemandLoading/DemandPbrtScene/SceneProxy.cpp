@@ -124,8 +124,9 @@ GeometryInstance InstanceShapeProxy::createGeometry( OptixDeviceContext context,
 class InstanceProxy : public SceneProxy
 {
   public:
-    InstanceProxy( const Options& options, uint_t pageId, SceneDescriptionPtr scene, uint_t instanceIndex )
+    InstanceProxy( const Options& options, GeometryCachePtr geometryCache, uint_t pageId, SceneDescriptionPtr scene, uint_t instanceIndex )
         : m_options( options )
+        , m_geometryCache( std::move( geometryCache ) )
         , m_pageId( pageId )
         , m_scene( scene )
         , m_instanceIndex( instanceIndex )
@@ -142,7 +143,11 @@ class InstanceProxy : public SceneProxy
     std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr proxyFactory ) override;
 
   private:
-    const Options&      m_options;
+    // Dependencies
+    const Options&   m_options;
+    GeometryCachePtr m_geometryCache;
+
+    // Proxy data
     uint_t              m_pageId;
     SceneDescriptionPtr m_scene;
     uint_t              m_instanceIndex;
@@ -173,7 +178,41 @@ bool InstanceProxy::isDecomposable() const
 
 GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUstream stream )
 {
-    return {};
+    if( m_options.proxyGranularity == ProxyGranularity::FINE )
+    {
+        throw std::runtime_error( "Attempt to get geometry for decomposable proxy" );
+    }
+
+    const auto                  primitiveForType{ []( const std::string& type ) {
+        if( type == "trianglemesh" || type == "plymesh" )
+            return GeometryPrimitive::TRIANGLE;
+        if( type == "sphere" )
+            return GeometryPrimitive::SPHERE;
+        throw std::runtime_error( "Unknown shape type " + type );
+    } };
+    const otk::pbrt::ShapeList& shapes{ m_scene->objectShapes[m_name] };
+    auto                        it = shapes.begin();
+    const GeometryPrimitive     primitive{ primitiveForType( it->type ) };
+    const auto                  compareShapeType{
+        [=]( const ::otk::pbrt::ShapeDefinition& shape ) { return primitiveForType( shape.type ) != primitive; } };
+    if( std::any_of( ++it, shapes.end(), compareShapeType ) )
+    {
+        throw std::runtime_error( "Attempt to get geometry for decomposable proxy" );
+    }
+
+    std::vector<GeometryCacheEntry> result{ m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes ) };
+    GeometryCacheEntry entry{ result[0] };
+    // TODO: figure out how to convey multiple materials per GAS
+    OptixInstance instance{};
+    instance.traversableHandle = entry.traversable;
+    return { entry.accelBuffer,  //
+             primitive,          //
+             instance /*geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset )*/,  //
+             {} /*geometryMaterial( shape.material, hasUVs )*/,  //
+             {} /*shape.material.diffuseMapFileName*/,           //
+             {} /*shape.material.alphaMapFileName*/,             //
+             entry.devNormals,                                   //
+             entry.devUVs };
 }
 
 std::vector<SceneProxyPtr> InstanceProxy::decompose( ProxyFactoryPtr proxyFactory )
@@ -353,7 +392,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstance( SceneDescriptionPtr scene, uint_t
     }
     ++m_stats.numInstanceProxiesCreated;
     ++m_stats.numGeometryProxiesCreated;
-    return std::make_shared<InstanceProxy>( m_options, id, scene, instanceIndex );
+    return std::make_shared<InstanceProxy>( m_options, m_geometryCache, id, scene, instanceIndex );
 }
 
 SceneProxyPtr ProxyFactoryImpl::sceneInstanceShape( SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex )
