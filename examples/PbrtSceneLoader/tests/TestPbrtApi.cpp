@@ -65,7 +65,7 @@ class MockStartStopLogger : public MockLogger
   public:
     MockStartStopLogger()
     {
-        ExpectationSet start = EXPECT_CALL( *this, start( _ ) ).Times( 1 );
+        ExpectationSet start{ EXPECT_CALL( *this, start( _ ) ).Times( 1 ) };
         EXPECT_CALL( *this, info( _, _, _ ) ).Times( AnyNumber() ).After( start );
         EXPECT_CALL( *this, stop() ).Times( 1 ).After( start );
     }
@@ -209,40 +209,40 @@ TEST_F( TestPbrtApiEmptyScene, emptyObjectShapesMap )
 
 TEST_F( TestPbrtApi, perspectiveCameraToWorldTransform )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         LookAt
             1 2 3 # eye
             4 5 6 # look at
             7 8 9 # up
         Camera "perspective"
-        )pbrt" );
+        )pbrt" ) };
 
-    const PerspectiveCameraDefinition& camera = scene->camera;
+    const PerspectiveCameraDefinition& camera{ scene->camera };
     ASSERT_EQ( ::pbrt::LookAt( Point3( 1.0f, 2.0f, 3.0f ), Point3( 4.0f, 5.0f, 6.0f ), Vector3( 7.0f, 8.0f, 9.0f ) ),
                camera.cameraToWorld );
 }
 
 TEST_F( TestPbrtApi, perspectiveCameraToScreenTransform )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         Camera "perspective"
             "float fov" 44.0
-        )pbrt" );
+        )pbrt" ) };
 
-    const PerspectiveCameraDefinition& camera = scene->camera;
+    const PerspectiveCameraDefinition& camera{ scene->camera };
     ASSERT_EQ( ::pbrt::Perspective( 44.0f, 1e-2f, 1000.f ), camera.cameraToScreen );
 }
 
 TEST_F( TestPbrtApi, lookAtParams )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         LookAt
             1 2 3 # eye
             4 5 6 # look at
             7 8 9 # up
-        )pbrt" );
+        )pbrt" ) };
 
-    const LookAtDefinition& lookAt = scene->lookAt;
+    const LookAtDefinition& lookAt{ scene->lookAt };
     ASSERT_EQ( Point3( 1.0f, 2.0f, 3.0f ), lookAt.eye );
     ASSERT_EQ( Point3( 4.0f, 5.0f, 6.0f ), lookAt.lookAt );
     ASSERT_EQ( Vector3( 7.0f, 8.0f, 9.0f ), lookAt.up );
@@ -250,14 +250,14 @@ TEST_F( TestPbrtApi, lookAtParams )
 
 TEST_F( TestPbrtApi, perspectiveCamera )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         Camera "perspective"
             "float fov" [ 44 ]
             "float focaldistance" [ 3000 ]
             "float lensradius" [ 0.125 ]
-        )pbrt" );
+        )pbrt" ) };
 
-    const PerspectiveCameraDefinition& camera = scene->camera;
+    const PerspectiveCameraDefinition& camera{ scene->camera };
     ASSERT_EQ( 44.0f, camera.fov );
     ASSERT_EQ( 3000.0f, camera.focalDistance );
     ASSERT_EQ( 0.125f, camera.lensRadius );
@@ -265,20 +265,20 @@ TEST_F( TestPbrtApi, perspectiveCamera )
 
 TEST_F( TestPbrtApi, perspectiveCameraHalfFOV )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         Camera "perspective"
             "float halffov" 22
-        )pbrt" );
+        )pbrt" ) };
 
-    const PerspectiveCameraDefinition& camera = scene->camera;
+    const PerspectiveCameraDefinition& camera{ scene->camera };
     ASSERT_EQ( 44.0f, camera.fov );
 }
 
 TEST_F( TestPbrtApi, perspectiveCameraDefaults )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(Camera "perspective")pbrt" );
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(Camera "perspective")pbrt" ) };
 
-    const PerspectiveCameraDefinition& camera = scene->camera;
+    const PerspectiveCameraDefinition& camera{ scene->camera };
     // Default values from pbrt v3 scene description documentation
     ASSERT_EQ( 90.0f, camera.fov );
     ASSERT_EQ( 1.0e30f, camera.focalDistance );
@@ -287,7 +287,7 @@ TEST_F( TestPbrtApi, perspectiveCameraDefaults )
 
 TEST_F( TestPbrtApi, cameraMatrix )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         Translate 10  0  0
         Translate  0 20  0
         Translate  0  0  30
@@ -295,7 +295,7 @@ TEST_F( TestPbrtApi, cameraMatrix )
             "float fov" [ 44 ]
             "float focaldistance" [ 3000 ]
             "float lensradius" [ 0.125 ]
-        )pbrt" );
+        )pbrt" ) };
 
     EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 10.0, 20.0, 30.0 ) ), scene->camera.cameraToWorld );
 }
@@ -304,12 +304,12 @@ TEST_F( TestPbrtApi, sceneBoundsFromSingleMeshAtDefaultPosition )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Shape "plymesh" "string filename" "mesh_00001.ply"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const Bounds3& bounds = scene->bounds;
+    const Bounds3& bounds{ scene->bounds };
     ASSERT_EQ( -1.0f, bounds.pMin.x );
     ASSERT_EQ( -2.0f, bounds.pMin.y );
     ASSERT_EQ( -3.0f, bounds.pMin.z );
@@ -322,13 +322,13 @@ TEST_F( TestPbrtApi, sceneBoundsFromSingleMeshAtTransformedPosition )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Translate 1 2 3
         Shape "plymesh" "string filename" "mesh_00001.ply"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const Bounds3& bounds = scene->bounds;
+    const Bounds3& bounds{ scene->bounds };
     ASSERT_EQ( 0.0f, bounds.pMin.x );
     ASSERT_EQ( 0.0f, bounds.pMin.y );
     ASSERT_EQ( 0.0f, bounds.pMin.z );
@@ -341,15 +341,15 @@ TEST_F( TestPbrtApi, sceneBoundsMultipleMeshes )
 {
     configureMeshOneInfo( 2 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Translate 1 2 3
         Shape "plymesh" "string filename" "mesh_00001.ply"
         Translate -1 -2 -3
         Shape "plymesh" "string filename" "mesh_00001.ply"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const Bounds3& bounds = scene->bounds;
+    const Bounds3& bounds{ scene->bounds };
     ASSERT_EQ( -1.0f, bounds.pMin.x );
     ASSERT_EQ( -2.0f, bounds.pMin.y );
     ASSERT_EQ( -3.0f, bounds.pMin.z );
@@ -362,18 +362,18 @@ TEST_F( TestPbrtApi, freeMeshShape )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Translate 1 2 3
         Shape "plymesh" "string filename" "mesh_00001.ply"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
     EXPECT_EQ( 1U, scene->freeShapes.size() );
     EXPECT_TRUE( scene->objects.empty() );
     EXPECT_TRUE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
     EXPECT_TRUE( scene->instanceCounts.empty() );
-    const ShapeDefinition shape = scene->freeShapes[0];
+    const ShapeDefinition shape{ scene->freeShapes[0] };
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), shape.transform );
 }
 
@@ -381,7 +381,7 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterial )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Texture "color1" "spectrum" "imagemap" "string filename" [ "color1.png" ]
         Texture "color2" "spectrum" "imagemap" "string filename" [ "color2.png" ]
@@ -392,11 +392,11 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterial )
             "texture Kd" [ "color1" ]
             "texture Ks" [ "color2" ]
         Shape "plymesh" "string filename" "mesh_00001.ply"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ShapeList& shapes = scene->freeShapes;
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const ShapeDefinition shape = shapes[0];
+    const ShapeDefinition shape{ shapes[0] };
     EXPECT_EQ( Point3( 1.0f, 2.0f, 3.0f ), shape.material.Ka );
     EXPECT_EQ( Point3( 4.0f, 5.0f, 6.0f ), shape.material.Kd );
     EXPECT_EQ( Point3( 7.0f, 8.0f, 9.0f ), shape.material.Ks );
@@ -408,7 +408,7 @@ TEST_F( TestPbrtApi, freeMeshGetsAlphaTexture )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Texture "texture1"
             "float" "imagemap"
@@ -416,11 +416,11 @@ TEST_F( TestPbrtApi, freeMeshGetsAlphaTexture )
         Shape "plymesh"
             "string filename" "mesh_00001.ply"
             "texture alpha" "texture1"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ShapeList& shapes = scene->freeShapes;
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const ShapeDefinition shape = shapes[0];
+    const ShapeDefinition shape{ shapes[0] };
     EXPECT_THAT( shape.material.alphaMapFileName, EndsWith( "alpha1.png" ) );
 }
 
@@ -428,7 +428,7 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterialCombinedThroughAttributes )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Texture "color1" "spectrum" "imagemap" "string filename" [ "color1.png" ]
         Texture "color2" "spectrum" "imagemap" "string filename" [ "color2.png" ]
@@ -442,11 +442,11 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterialCombinedThroughAttributes )
                 "texture Ks" [ "color2" ]
             Shape "plymesh" "string filename" "mesh_00001.ply"
         AttributeEnd
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ShapeList& shapes = scene->freeShapes;
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const ShapeDefinition shape = shapes[0];
+    const ShapeDefinition shape{ shapes[0] };
     EXPECT_EQ( Point3( 1.0f, 2.0f, 3.0f ), shape.material.Ka );
     EXPECT_EQ( Point3( 4.0f, 5.0f, 6.0f ), shape.material.Kd );
     EXPECT_EQ( Point3( 7.0f, 8.0f, 9.0f ), shape.material.Ks );
@@ -458,7 +458,7 @@ TEST_F( TestPbrtApi, objectGetsShape )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Texture "color1" "spectrum" "imagemap" "string filename" [ "color1.png" ]
         Texture "color2" "spectrum" "imagemap" "string filename" [ "color2.png" ]
@@ -475,17 +475,17 @@ TEST_F( TestPbrtApi, objectGetsShape )
                 Shape "plymesh" "string filename" "mesh_00001.ply"
             ObjectEnd
         AttributeEnd
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ObjectMap& objects = scene->objects;
+    const ObjectMap& objects{ scene->objects };
     EXPECT_EQ( 1U, objects.size() );
     EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_FALSE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
     EXPECT_TRUE( scene->instanceCounts.empty() );
-    const auto it = objects.find( "object1" );
+    const auto it{ objects.find( "object1" ) };
     EXPECT_NE( it, objects.cend() );
-    const ObjectDefinition object1 = it->second;
+    const ObjectDefinition object1{ it->second };
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), object1.transform );
     const Bounds3 shapeBounds{ translate( 1.0f, 2.0f, 3.0f )( m_meshBounds ) };
     EXPECT_TRUE( shapeBounds == object1.bounds ) << shapeBounds << " != " << object1.bounds;
@@ -495,7 +495,7 @@ TEST_F( TestPbrtApi, objectInstance )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         Texture "color1" "spectrum" "imagemap" "string filename" [ "color1.png" ]
         Texture "color2" "spectrum" "imagemap" "string filename" [ "color2.png" ]
@@ -514,16 +514,16 @@ TEST_F( TestPbrtApi, objectInstance )
         AttributeEnd
         Translate 10 10 10
         ObjectInstance "object1"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ObjectInstanceList& instances = scene->objectInstances;
+    const ObjectInstanceList& instances{ scene->objectInstances };
     EXPECT_EQ( 1U, instances.size() );
     EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_FALSE( scene->objectShapes.empty() );
-    const ObjectInstanceCountMap& counts = scene->instanceCounts;
+    const ObjectInstanceCountMap& counts{ scene->instanceCounts };
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
-    const ObjectInstanceDefinition instance = instances[0];
+    const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( translate( 10.0f, 10.0f, 10.0f ), instance.transform );
 }
@@ -532,7 +532,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedShape )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         ObjectBegin "object1"
             AttributeBegin
@@ -541,23 +541,23 @@ TEST_F( TestPbrtApi, objectInstanceTransformedShape )
             AttributeEnd
         ObjectEnd
         ObjectInstance "object1"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ObjectInstanceList& instances = scene->objectInstances;
+    const ObjectInstanceList& instances{ scene->objectInstances };
     EXPECT_EQ( 1U, instances.size() );
     EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_FALSE( scene->objectShapes.empty() );
     EXPECT_FALSE( scene->objectShapes["object1"].empty() );
-    const auto& shape = scene->objectShapes["object1"][0];
+    const auto& shape{ scene->objectShapes["object1"][0] };
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), shape.transform );
     EXPECT_EQ( m_meshBounds, shape.bounds );
-    const ObjectInstanceCountMap& counts = scene->instanceCounts;
+    const ObjectInstanceCountMap& counts{ scene->instanceCounts };
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
-    const ObjectDefinition& object = scene->objects["object1"];
+    const ObjectDefinition& object{ scene->objects["object1"] };
     EXPECT_EQ( pbrt::Transform(), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
-    const ObjectInstanceDefinition instance = instances[0];
+    const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
     EXPECT_EQ( object.transform( object.bounds ), instance.bounds );
@@ -571,7 +571,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedObject )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
         WorldBegin
         AttributeBegin
             ObjectBegin "object1"
@@ -580,23 +580,23 @@ TEST_F( TestPbrtApi, objectInstanceTransformedObject )
             ObjectEnd
         AttributeEnd
         ObjectInstance "object1"
-        WorldEnd)pbrt" );
+        WorldEnd)pbrt" ) };
 
-    const ObjectInstanceList& instances = scene->objectInstances;
+    const ObjectInstanceList& instances{ scene->objectInstances };
     EXPECT_EQ( 1U, instances.size() );
     EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_FALSE( scene->objectShapes.empty() );
     EXPECT_FALSE( scene->objectShapes["object1"].empty() );
-    const auto& shape = scene->objectShapes["object1"][0];
+    const auto& shape{ scene->objectShapes["object1"][0] };
     EXPECT_EQ( pbrt::Transform(), shape.transform );
     EXPECT_EQ( m_meshBounds, shape.bounds );
-    const ObjectInstanceCountMap& counts = scene->instanceCounts;
+    const ObjectInstanceCountMap& counts{ scene->instanceCounts };
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
-    const ObjectDefinition& object = scene->objects["object1"];
+    const ObjectDefinition& object{ scene->objects["object1"] };
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
-    const ObjectInstanceDefinition instance = instances[0];
+    const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
     const Bounds3 expectedInstanceBounds{ object.transform( object.bounds ) };
@@ -619,21 +619,21 @@ TEST_F( TestPbrtApi, objectInstanceTransformedInstance )
         AttributeEnd
         WorldEnd)pbrt" );
 
-    const ObjectInstanceList& instances = scene->objectInstances;
+    const ObjectInstanceList& instances{ scene->objectInstances };
     EXPECT_EQ( 1U, instances.size() );
     EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_FALSE( scene->objectShapes.empty() );
     EXPECT_FALSE( scene->objectShapes["object1"].empty() );
-    const auto& shape = scene->objectShapes["object1"][0];
+    const auto& shape{ scene->objectShapes["object1"][0] };
     EXPECT_EQ( pbrt::Transform(), shape.transform );
     EXPECT_EQ( m_meshBounds, shape.bounds );
-    const ObjectInstanceCountMap& counts = scene->instanceCounts;
+    const ObjectInstanceCountMap& counts{ scene->instanceCounts };
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
-    const ObjectDefinition& object = scene->objects["object1"];
+    const ObjectDefinition& object{ scene->objects["object1"] };
     EXPECT_EQ( pbrt::Transform(), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
-    const ObjectInstanceDefinition instance = instances[0];
+    const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), instance.transform );
     const Bounds3 expectedInstanceBounds{ object.transform( object.bounds ) };
@@ -651,7 +651,7 @@ TEST_F( TestPbrtApi, plyMeshShape )
         WorldEnd)pbrt" );
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape = scene->freeShapes[0];
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     ASSERT_EQ( "plymesh", shape.type );
     ASSERT_THAT( shape.plyMesh.fileName, EndsWith( "mesh_00001.ply" ) );
 }
@@ -683,16 +683,16 @@ TEST_F( TestPbrtApi, triangleMeshShape )
         WorldEnd)pbrt" );
 
     EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape = scene->freeShapes[0];
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "trianglemesh", shape.type );
-    const TriangleMeshData& triMesh = shape.triangleMesh;
+    const TriangleMeshData& triMesh{ shape.triangleMesh };
     EXPECT_EQ( 6U, triMesh.indices.size() );
     EXPECT_EQ( std::vector<int>( { 0, 2, 1, 0, 3, 2 } ), triMesh.indices );
-    const auto p3 = []( float x, float y, float z ) { return Point3( x, y, z ); };
+    const auto p3{ []( float x, float y, float z ) { return Point3( x, y, z ); } };
     EXPECT_EQ( std::vector<Point3>( { p3( 550, 0, 0 ), p3( 0, 0, 0 ), p3( 0, 0, 560 ), p3( 550, 0, 560 ) } ), triMesh.points );
     EXPECT_EQ( std::vector<Point3>( { p3( 0.1f, 0.2f, 0.3f ), p3( 0.4f, 0.5f, 0.6f ), p3( 0.7f, 0.8f, 0.9f ), p3( 1.0f, 1.1f, 1.2f ) } ),
                triMesh.normals );
-    const auto p2 = []( float x, float y ) { return Point2( x, y ); };
+    const auto p2{ []( float x, float y ) { return Point2( x, y ); } };
     EXPECT_EQ( std::vector<Point2>( { p2( 0.1f, 0.2f ), p2( 0.3f, 0.4f ), p2( 0.5f, 0.6f ), p2( 0.7f, 0.8f ) } ),
                triMesh.uvs );
     const Bounds3 expectedBounds{ Point3( 0, 0, 0 ), Point3( 550, 0, 560 ) };
@@ -711,9 +711,9 @@ TEST_F( TestPbrtApi, sphereShape )
         WorldEnd)pbrt" );
 
     EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape = scene->freeShapes[0];
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "sphere", shape.type );
-    const SphereData& sphere = shape.sphere;
+    const SphereData& sphere{ shape.sphere };
     EXPECT_EQ( 2.2f, sphere.radius );
     EXPECT_EQ( 3.3f, sphere.zMin );
     EXPECT_EQ( 4.4f, sphere.zMax );
@@ -730,9 +730,9 @@ TEST_F( TestPbrtApi, sphereShapeDefaults )
         WorldEnd)pbrt" );
 
     EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape = scene->freeShapes[0];
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "sphere", shape.type );
-    const SphereData& sphere = shape.sphere;
+    const SphereData& sphere{ shape.sphere };
     EXPECT_EQ( 1.0f, sphere.radius );
     EXPECT_EQ( -1.0f, sphere.zMin );
     EXPECT_EQ( 1.0f, sphere.zMax );
@@ -757,7 +757,7 @@ TEST_F( TestPbrtApi, triangleMeshMaterial )
         WorldEnd)pbrt" );
 
     EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape = scene->freeShapes[0];
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( Point3( 1.0f, 2.0f, 3.0f ), shape.material.Ka );
 }
 
@@ -865,7 +865,7 @@ TEST_F( TestPbrtApi, distantLightDefaultValues )
         WorldEnd)pbrt" );
 
     ASSERT_EQ( 1U, scene->distantLights.size() );
-    const DistantLightDefinition& light = scene->distantLights[0];
+    const DistantLightDefinition& light{ scene->distantLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
     EXPECT_EQ( ::pbrt::Vector3f( 0.0f, 0.0f, -1.0f ), light.direction );
@@ -889,7 +889,7 @@ TEST_F( TestPbrtApi, distantLightNonDefaultValues )
         WorldEnd)pbrt" );
 
     ASSERT_EQ( 1U, scene->distantLights.size() );
-    const DistantLightDefinition& light = scene->distantLights[0];
+    const DistantLightDefinition& light{ scene->distantLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ), light.direction );
@@ -908,7 +908,7 @@ TEST_F( TestPbrtApi, infiniteLightDefaultValues )
         WorldEnd)pbrt" );
 
     ASSERT_EQ( 1U, scene->infiniteLights.size() );
-    const InfiniteLightDefinition& light = scene->infiniteLights[0];
+    const InfiniteLightDefinition& light{ scene->infiniteLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.scale );
     EXPECT_EQ( 1, light.shadowSamples );
@@ -933,7 +933,7 @@ TEST_F( TestPbrtApi, infiniteLightNonDefaultValues )
         WorldEnd)pbrt" );
 
     ASSERT_EQ( 1U, scene->infiniteLights.size() );
-    const InfiniteLightDefinition& light = scene->infiniteLights[0];
+    const InfiniteLightDefinition& light{ scene->infiniteLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( 15, light.shadowSamples );
@@ -957,7 +957,7 @@ TEST_F( TestPbrtApi, infiniteLightNSamples )
         WorldEnd)pbrt" );
 
     ASSERT_EQ( 1U, scene->infiniteLights.size() );
-    const InfiniteLightDefinition& light = scene->infiniteLights[0];
+    const InfiniteLightDefinition& light{ scene->infiniteLights[0] };
     EXPECT_EQ( 15, light.shadowSamples );
     EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_TRUE( scene->objects.empty() );
@@ -999,7 +999,7 @@ TEST_F( TestPbrtApi, mixMaterialUberTranslucentChoosesUber )
         WorldEnd)pbrt" );
 
     ASSERT_EQ( 1U, scene->freeShapes.size() );
-    const ShapeDefinition& shape = scene->freeShapes[0];
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ), shape.material.Ka );
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), shape.material.Kd );
     EXPECT_NE( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ), shape.material.Ks );
