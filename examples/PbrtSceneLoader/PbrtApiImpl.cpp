@@ -475,7 +475,7 @@ void PbrtApiImpl::objectEnd()
         PBRT_ERROR( "Too many ObjectEnd for ObjectBegin (" + std::to_string( m_boundsStack.size() ) + " in excess)" );
     }
     // if object is empty, current bounds are invalid bounds
-    m_scene->objects[m_currentObjectName] = ObjectDefinition{ m_currentTransform, m_currentBounds };
+    m_scene->objects[m_currentObjectName] = ObjectDefinition{ m_currentObjectName, m_currentTransform, m_currentBounds };
     m_currentObjectName.clear();
     m_currentBounds = m_boundsStack.back();
     m_boundsStack.pop_back();
