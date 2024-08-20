@@ -82,15 +82,15 @@ class TestPbrtApi : public Test
 {
   protected:
     void configureMeshOneInfo( unsigned int numTimes );
-    void expectWarnings(int count);
+    void expectWarnings( int count );
 
     std::shared_ptr<MockMeshInfoReader>  m_mockMeshInfoReader{ std::make_shared<MockMeshInfoReader>() };
     std::shared_ptr<MockStartStopLogger> m_mockLogger{ std::make_shared<StrictMock<MockStartStopLogger>>() };
     std::shared_ptr<MockMeshLoader>      m_mockLoader{ std::make_shared<MockMeshLoader>() };
 
     std::shared_ptr<SceneLoader> m_api{ createSceneLoader( g_programName, m_mockLogger, m_mockMeshInfoReader ) };
-    Bounds3              m_meshBounds{ Point3( -1.0f, -2.0f, -3.0f ), Point3( 4.0f, 5.0f, 6.0f ) };
-    MeshInfo             m_meshInfo{};
+    Bounds3                      m_meshBounds{ Point3( -1.0f, -2.0f, -3.0f ), Point3( 4.0f, 5.0f, 6.0f ) };
+    MeshInfo                     m_meshInfo{};
 };
 
 void TestPbrtApi::configureMeshOneInfo( unsigned numTimes )
@@ -113,7 +113,9 @@ void TestPbrtApi::expectWarnings( int count )
 class TestPbrtApiEmptyScene : public TestPbrtApi
 {
   protected:
-    SceneDescriptionPtr loadEmptyScene() { return m_api->parseString( "" ); }
+    void SetUp() override { m_scene = m_api->parseString( "" ); }
+
+    SceneDescriptionPtr m_scene;
 };
 
 }  // namespace
@@ -164,9 +166,8 @@ TEST_F( TestPbrtApiConstruction, destructorResetsApi )
 
 TEST_F( TestPbrtApiEmptyScene, cameraZeroed )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
+    const PerspectiveCameraDefinition camera{ m_scene->camera };
 
-    const PerspectiveCameraDefinition camera = scene->camera;
     ASSERT_EQ( 0.0f, camera.fov );
     ASSERT_EQ( 0.0f, camera.focalDistance );
     ASSERT_EQ( 0.0f, camera.lensRadius );
@@ -174,9 +175,8 @@ TEST_F( TestPbrtApiEmptyScene, cameraZeroed )
 
 TEST_F( TestPbrtApiEmptyScene, emptySceneInvalidBounds )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
+    const Bounds3 bounds{ m_scene->bounds };
 
-    const Bounds3 bounds = scene->bounds;
     ASSERT_TRUE( bounds.pMin.x > bounds.pMax.x );
     ASSERT_TRUE( bounds.pMin.y > bounds.pMax.y );
     ASSERT_TRUE( bounds.pMin.z > bounds.pMax.z );
@@ -184,37 +184,27 @@ TEST_F( TestPbrtApiEmptyScene, emptySceneInvalidBounds )
 
 TEST_F( TestPbrtApiEmptyScene, emptyObjectMap )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
-
-    ASSERT_TRUE( scene->objects.empty() );
+    ASSERT_TRUE( m_scene->objects.empty() );
 }
 
 TEST_F( TestPbrtApiEmptyScene, emptyFreeShapesList )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
-
-    ASSERT_TRUE( scene->freeShapes.empty() );
+    ASSERT_TRUE( m_scene->freeShapes.empty() );
 }
 
 TEST_F( TestPbrtApiEmptyScene, emptyObjectInstancesList )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
-
-    ASSERT_TRUE( scene->objectInstances.empty() );
+    ASSERT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApiEmptyScene, emptyObjectInstanceCountsMap )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
-
-    ASSERT_TRUE( scene->instanceCounts.empty() );
+    ASSERT_TRUE( m_scene->instanceCounts.empty() );
 }
 
 TEST_F( TestPbrtApiEmptyScene, emptyObjectShapesMap )
 {
-    SceneDescriptionPtr scene = loadEmptyScene();
-
-    ASSERT_TRUE( scene->objectShapes.empty() );
+    ASSERT_TRUE( m_scene->objectShapes.empty() );
 }
 
 TEST_F( TestPbrtApi, perspectiveCameraToWorldTransform )
@@ -880,7 +870,7 @@ TEST_F( TestPbrtApi, distantLightDefaultValues )
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
     EXPECT_EQ( ::pbrt::Vector3f( 0.0f, 0.0f, -1.0f ), light.direction );
     EXPECT_EQ( ::pbrt::Transform(), light.lightToWorld );
-    EXPECT_TRUE( scene->freeShapes.empty());
+    EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_TRUE( scene->objects.empty() );
     EXPECT_TRUE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
@@ -904,7 +894,7 @@ TEST_F( TestPbrtApi, distantLightNonDefaultValues )
     EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ), light.direction );
     EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
-    EXPECT_TRUE( scene->freeShapes.empty());
+    EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_TRUE( scene->objects.empty() );
     EXPECT_TRUE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
@@ -947,9 +937,9 @@ TEST_F( TestPbrtApi, infiniteLightNonDefaultValues )
     EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( 15, light.shadowSamples );
-    EXPECT_THAT( light.environmentMapName, EndsWith( "skybox.png"));
+    EXPECT_THAT( light.environmentMapName, EndsWith( "skybox.png" ) );
     EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
-    EXPECT_TRUE( scene->freeShapes.empty());
+    EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_TRUE( scene->objects.empty() );
     EXPECT_TRUE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
@@ -969,7 +959,7 @@ TEST_F( TestPbrtApi, infiniteLightNSamples )
     ASSERT_EQ( 1U, scene->infiniteLights.size() );
     const InfiniteLightDefinition& light = scene->infiniteLights[0];
     EXPECT_EQ( 15, light.shadowSamples );
-    EXPECT_TRUE( scene->freeShapes.empty());
+    EXPECT_TRUE( scene->freeShapes.empty() );
     EXPECT_TRUE( scene->objects.empty() );
     EXPECT_TRUE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
