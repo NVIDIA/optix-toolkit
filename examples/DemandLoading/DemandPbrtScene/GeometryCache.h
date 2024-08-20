@@ -27,6 +27,7 @@ struct GeometryCacheEntry
     GeometryPrimitive      primitive;    // primitive type stored in this GAS
     TriangleNormals*       devNormals;   // device pointer to per-primitive normals, nullptr if none
     TriangleUVs*           devUVs;       // device pointer to per-primitive texture coordinates, nullptr if none
+    std::vector<uint_t>    primitiveGroupIndices;  // primitive indices that begin each group
 };
 
 class GeometryCache
