@@ -96,6 +96,7 @@ using ShapeList = std::vector<ShapeDefinition>;
 
 struct ObjectDefinition
 {
+    std::string       name;       //
     ::pbrt::Transform transform;  // object to world space transform
     ::pbrt::Bounds3f  bounds;     // object space bounds of transformed shapes in this object
 };

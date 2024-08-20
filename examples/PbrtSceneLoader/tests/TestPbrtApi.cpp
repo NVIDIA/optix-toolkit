@@ -483,9 +483,11 @@ TEST_F( TestPbrtApi, objectGetsShape )
     EXPECT_FALSE( scene->objectShapes.empty() );
     EXPECT_TRUE( scene->objectInstances.empty() );
     EXPECT_TRUE( scene->instanceCounts.empty() );
-    const auto it{ objects.find( "object1" ) };
+    const std::string objectName{ "object1" };
+    const auto        it{ objects.find( objectName ) };
     EXPECT_NE( it, objects.cend() );
     const ObjectDefinition object1{ it->second };
+    EXPECT_EQ( objectName, object1.name );
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), object1.transform );
     const Bounds3 shapeBounds{ translate( 1.0f, 2.0f, 3.0f )( m_meshBounds ) };
     EXPECT_TRUE( shapeBounds == object1.bounds ) << shapeBounds << " != " << object1.bounds;
