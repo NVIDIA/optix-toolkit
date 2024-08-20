@@ -23,7 +23,7 @@ class GeometryCacheImpl : public GeometryCache
 {
   public:
     GeometryCacheImpl( FileSystemInfoPtr fileSystemInfo )
-        : m_fileSystemInfo( fileSystemInfo )
+        : m_fileSystemInfo( std::move( fileSystemInfo ) )
     {
     }
     ~GeometryCacheImpl() override = default;
@@ -52,13 +52,14 @@ class GeometryCacheImpl : public GeometryCache
     void               appendPlyMesh( const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh );
     void               appendTriangleMesh( const pbrt::Transform& transform, const otk::pbrt::TriangleMeshData& mesh );
 
-    std::shared_ptr<FileSystemInfo>           m_fileSystemInfo;
+    FileSystemInfoPtr                         m_fileSystemInfo;
     std::map<std::string, GeometryCacheEntry> m_plyCache;
     otk::SyncVector<float3>                   m_vertices;
     otk::SyncVector<std::uint32_t>            m_indices;
     otk::SyncVector<float>                    m_radii;
     otk::SyncVector<TriangleNormals>          m_normals;
     otk::SyncVector<TriangleUVs>              m_uvs;
+    std::vector<uint_t>                       m_primitiveGroupIndices;
     GeometryCacheStatistics                   m_stats{};
 };
 
@@ -86,6 +87,8 @@ std::vector<GeometryCacheEntry> GeometryCacheImpl::getObject( OptixDeviceContext
     m_indices.clear();
     m_normals.clear();
     m_uvs.clear();
+    m_primitiveGroupIndices.clear();
+
     for( const otk::pbrt::ShapeDefinition& shape : shapes )
     {
         if( shape.type == "trianglemesh" )
@@ -117,6 +120,9 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
     {
         return it->second;
     }
+
+    m_primitiveGroupIndices.clear();
+    m_primitiveGroupIndices.push_back( 0 );
 
     const otk::pbrt::MeshLoaderPtr loader{ plyMesh.loader };
     const otk::pbrt::MeshInfo      meshInfo{ loader->getMeshInfo() };
@@ -204,6 +210,7 @@ GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext contex
     m_indices.clear();
     m_normals.clear();
     m_uvs.clear();
+    m_primitiveGroupIndices.clear();
     appendTriangleMesh( ::pbrt::Transform(), triangleMesh);
     return buildTriangleGAS( context, stream );
 }
@@ -247,7 +254,7 @@ GeometryCacheEntry GeometryCacheImpl::buildGAS( OptixDeviceContext     context,
             break;
     }
 
-    return { output.detach(), traversable, primitive, normals, uvs };
+    return { output.detach(), traversable, primitive, normals, uvs, m_primitiveGroupIndices };
 }
 
 template <typename Container>
@@ -258,6 +265,7 @@ void growContainer( Container& coll, size_t increase )
 
 void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh )
 {
+    m_primitiveGroupIndices.push_back( static_cast<uint_t>( m_vertices.size() / 3U ) );
     const otk::pbrt::MeshLoaderPtr loader{ plyMesh.loader };
     const otk::pbrt::MeshInfo      meshInfo{ loader->getMeshInfo() };
     otk::pbrt::MeshData            buffers{};
@@ -341,6 +349,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const o
 
 void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const otk::pbrt::TriangleMeshData& triangleMesh )
 {
+    m_primitiveGroupIndices.push_back( static_cast<uint_t>( m_vertices.size() / 3U ) );
     growContainer( m_vertices, triangleMesh.points.size() );
     auto toFloat3 = [&]( const ::pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
@@ -414,6 +423,8 @@ GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUs
     m_radii.resize( 1 );
     m_radii[0] = sphere.radius;
     m_radii.copyToDeviceAsync( stream );
+    m_primitiveGroupIndices.clear();
+    m_primitiveGroupIndices.push_back( 0 );
 
     return buildSphereGAS(context, stream);
 }
@@ -467,7 +478,7 @@ FileSystemInfoPtr createFileSystemInfo()
 
 GeometryCachePtr createGeometryCache( FileSystemInfoPtr fileSystemInfo )
 {
-    return std::make_shared<GeometryCacheImpl>( fileSystemInfo );
+    return std::make_shared<GeometryCacheImpl>( std::move( fileSystemInfo ) );
 }
 
 }  // namespace demandPbrtScene
