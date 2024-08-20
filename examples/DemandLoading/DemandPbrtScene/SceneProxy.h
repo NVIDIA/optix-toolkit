@@ -23,14 +23,20 @@
 
 namespace demandPbrtScene {
 
+struct MaterialGroup
+{
+    PhongMaterial material;
+    std::string   diffuseMapFileName;
+    std::string   alphaMapFileName;
+    uint_t        primitiveIndexEnd;
+};
+
 struct GeometryInstance
 {
     CUdeviceptr       accelBuffer;
     GeometryPrimitive primitive;
     OptixInstance     instance;
-    PhongMaterial     material;
-    std::string       diffuseMapFileName;
-    std::string       alphaMapFileName;
+    MaterialGroup     groups;
     TriangleNormals*  devNormals;  // device pointer to per-primitive normals, nullptr if none
     TriangleUVs*      devUVs;      // device pointer to per-vertex UVs, nullptr if none
 };

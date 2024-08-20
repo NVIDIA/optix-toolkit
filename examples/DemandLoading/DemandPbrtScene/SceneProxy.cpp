@@ -74,7 +74,7 @@ class ShapeProxy : public SceneProxy
 
     GeometryInstance createGeometry( OptixDeviceContext context, CUstream stream ) override;
 
-    std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr  ) override { return {}; }
+    std::vector<SceneProxyPtr> decompose( ProxyFactoryPtr ) override { return {}; }
 
   protected:
     uint_t              m_pageId;
@@ -208,10 +208,11 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     return { entry.accelBuffer,  //
              primitive,          //
              instance /*geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset )*/,  //
-             {} /*geometryMaterial( shape.material, hasUVs )*/,  //
-             {} /*shape.material.diffuseMapFileName*/,           //
-             {} /*shape.material.alphaMapFileName*/,             //
-             entry.devNormals,                                   //
+             { {} /*geometryMaterial( shape.material, hasUVs )*/,  //
+               {} /*shape.material.diffuseMapFileName*/,           //
+               {} /*shape.material.alphaMapFileName*/,             //
+               0U },                                               //
+             entry.devNormals,                                     //
              entry.devUVs };
 }
 
@@ -257,7 +258,7 @@ inline PhongMaterial geometryMaterial( const ::otk::pbrt::PlasticMaterial& shape
 
 GeometryInstance WholeSceneProxy::createGeometry( OptixDeviceContext context, CUstream stream )
 {
-    throw std::runtime_error("WholeSceneProxy::createGeometry called");
+    throw std::runtime_error( "WholeSceneProxy::createGeometry called" );
 }
 
 std::vector<SceneProxyPtr> WholeSceneProxy::decompose( ProxyFactoryPtr proxyFactory )
@@ -297,13 +298,14 @@ GeometryInstance ShapeProxy::createGeometryFromShape( OptixDeviceContext context
     }
 
     GeometryCacheEntry entry = m_geometryCache->getShape( context, stream, shape );
-    return { entry.accelBuffer,
-             primitive,
-             geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset ),
-             geometryMaterial( shape.material, hasUVs ),
-             shape.material.diffuseMapFileName,
-             shape.material.alphaMapFileName,
-             entry.devNormals,
+    return { entry.accelBuffer,                                                                             //
+             primitive,                                                                                     //
+             geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset ),  //
+             MaterialGroup{ geometryMaterial( shape.material, hasUVs ),                                     //
+                            shape.material.diffuseMapFileName,                                              //
+                            shape.material.alphaMapFileName,                                                //
+                            0U },                                                                           //
+             entry.devNormals,                                                                              //
              entry.devUVs };
 }
 

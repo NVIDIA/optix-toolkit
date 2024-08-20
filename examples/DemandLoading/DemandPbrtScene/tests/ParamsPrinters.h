@@ -43,7 +43,7 @@ inline std::ostream& operator<<( std::ostream& str, const PartialMaterial& value
 inline std::ostream& operator<<( std::ostream& str, const MaterialFlags val )
 {
     str << "MaterialFlags{ ";
-    bool emitted{false};
+    bool emitted{ false };
     auto emitSep = [&]() -> std::ostream& {
         if( emitted )
         {
@@ -51,7 +51,7 @@ inline std::ostream& operator<<( std::ostream& str, const MaterialFlags val )
         }
         emitted = true;
         return str;
-        };
+    };
     if( flagSet( val, MaterialFlags::ALPHA_MAP ) )
     {
         emitSep() << "AlphaMap";
@@ -77,15 +77,22 @@ inline std::ostream& operator<<( std::ostream& str, const MaterialFlags val )
 
 inline std::ostream& operator<<( std::ostream& str, const PhongMaterial& val )
 {
-    return str << "PhongMaterial{ Ka" << val.Ka << ", Kd" << val.Kd << ", Ks" << val.Ks << ", Kr" << val.Kr << ", exp "
-        << val.phongExp << ", flags " << val.flags << ", alphaTexId " << val.alphaTextureId << ", diffuseTexId "
-        << val.diffuseTextureId << " }";
+    return str << "PhongMaterial{ "                          //
+               << "Ka" << val.Ka                             //
+               << ", Kd" << val.Kd                           //
+               << ", Ks" << val.Ks                           //
+               << ", Kr" << val.Kr                           //
+               << ", exp " << val.phongExp                   //
+               << ", flags " << val.flags                    //
+               << ", alphaTexId " << val.alphaTextureId      //
+               << ", diffuseTexId " << val.diffuseTextureId  //
+               << " }";
 }
 
 inline bool operator==( const PrimitiveMaterialRange& lhs, const PrimitiveMaterialRange& rhs )
 {
     return lhs.primitiveEnd == rhs.primitiveEnd  //
-        && lhs.materialId == rhs.materialId;
+           && lhs.materialId == rhs.materialId;
 }
 
 inline bool operator!=( const PrimitiveMaterialRange& lhs, const PrimitiveMaterialRange& rhs )

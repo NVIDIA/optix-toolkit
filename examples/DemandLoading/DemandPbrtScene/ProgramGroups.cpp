@@ -267,7 +267,7 @@ uint_t PbrtProgramGroups::getRealizedMaterialSbtOffset( const GeometryInstance& 
 
     if( instance.primitive == GeometryPrimitive::TRIANGLE )
     {
-        return getTriangleRealizedMaterialSbtOffset( instance.material.flags );
+        return getTriangleRealizedMaterialSbtOffset( instance.groups.material.flags );
     }
     if( instance.primitive == GeometryPrimitive::SPHERE )
     {
