@@ -180,7 +180,7 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
 {
     if( m_options.proxyGranularity == ProxyGranularity::FINE )
     {
-        throw std::runtime_error( "Attempt to get geometry for decomposable proxy" );
+        throw std::runtime_error( "InstanceProxy::createGeometry called for decomposable proxy" );
     }
 
     const auto                  primitiveForType{ []( const std::string& type ) {
@@ -257,7 +257,7 @@ inline PhongMaterial geometryMaterial( const ::otk::pbrt::PlasticMaterial& shape
 
 GeometryInstance WholeSceneProxy::createGeometry( OptixDeviceContext context, CUstream stream )
 {
-    return {};
+    throw std::runtime_error("WholeSceneProxy::createGeometry called");
 }
 
 std::vector<SceneProxyPtr> WholeSceneProxy::decompose( ProxyFactoryPtr proxyFactory )
