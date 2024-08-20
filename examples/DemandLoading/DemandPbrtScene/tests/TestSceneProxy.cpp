@@ -615,8 +615,8 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMesh )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
 }
 
 TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithNormals )
@@ -642,9 +642,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithNormals )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( entry.devNormals, geom.normals );
-    EXPECT_NE( nullptr, geom.normals );
-    EXPECT_EQ( nullptr, geom.uvs );
+    EXPECT_EQ( entry.devNormals, geom.devNormals );
+    EXPECT_NE( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
 }
 
 TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithUVs )
@@ -670,9 +670,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithUVs )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( entry.devUVs, geom.uvs );
-    EXPECT_NE( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( entry.devUVs, geom.devUVs );
+    EXPECT_NE( nullptr, geom.devUVs );
 }
 
 TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithAlphaMap )
@@ -698,9 +698,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithAlphaMap )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( entry.devUVs, geom.uvs );
-    EXPECT_NE( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( entry.devUVs, geom.devUVs );
+    EXPECT_NE( nullptr, geom.devUVs );
     EXPECT_FALSE( geom.alphaMapFileName.empty() );
     EXPECT_TRUE( geom.diffuseMapFileName.empty() );
     EXPECT_EQ( geom.material.flags, MaterialFlags::ALPHA_MAP );
@@ -729,9 +729,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( entry.devUVs, geom.uvs );
-    EXPECT_NE( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( entry.devUVs, geom.devUVs );
+    EXPECT_NE( nullptr, geom.devUVs );
     EXPECT_TRUE( geom.alphaMapFileName.empty() );
     EXPECT_FALSE( geom.diffuseMapFileName.empty() );
     EXPECT_EQ( geom.material.flags, MaterialFlags::DIFFUSE_MAP );
@@ -804,8 +804,8 @@ TEST_F( TestSceneProxy, constructTriangleASForSecondMesh )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
 }
 
 TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithSingleShape )
@@ -847,8 +847,8 @@ TEST_F( TestSceneProxy, geometryForSingleInstanceWithSingleShape )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
 }
 
 TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleInstanceWithMultipleShape )
@@ -951,8 +951,8 @@ TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
 }
 
 TEST_F( TestSceneProxy, multipleInstancesSingleShapeGeometry )
@@ -1008,8 +1008,8 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
     EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.material.Ka );
     EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.material.Kd );
     EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.material.Ks );
-    EXPECT_EQ( nullptr, geom.normals );
-    EXPECT_EQ( nullptr, geom.uvs );
+    EXPECT_EQ( nullptr, geom.devNormals );
+    EXPECT_EQ( nullptr, geom.devUVs );
 }
 
 static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
@@ -1092,8 +1092,8 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     EXPECT_EQ( PhongMaterial{}, geom.material );
     EXPECT_TRUE( geom.diffuseMapFileName.empty() );
     EXPECT_TRUE( geom.alphaMapFileName.empty() );
-    EXPECT_EQ( triangles.devNormals, geom.normals );
-    EXPECT_EQ( triangles.devUVs, geom.uvs );
+    EXPECT_EQ( triangles.devNormals, geom.devNormals );
+    EXPECT_EQ( triangles.devUVs, geom.devUVs );
 }
 
 static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()

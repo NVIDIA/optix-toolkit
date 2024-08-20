@@ -98,7 +98,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
             grow( m_sync.partialMaterials, numProxyMaterials );
             grow( m_sync.partialUVs, numProxyMaterials );
             m_sync.partialMaterials[proxyMaterialId].alphaTextureId = geom.instance.material.alphaTextureId;
-            m_sync.partialUVs[proxyMaterialId]                      = geom.instance.uvs;
+            m_sync.partialUVs[proxyMaterialId]                      = geom.instance.devUVs;
             m_sync.topLevelInstances[geom.instanceIndex].sbtOffset  = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
@@ -133,8 +133,8 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
     const uint_t materialId           = m_sync.realizedMaterials.size();
     m_sync.instanceMaterialIds.push_back( materialId );
     m_sync.realizedMaterials.push_back( geom.instance.material );
-    m_sync.realizedNormals.push_back( geom.instance.normals );
-    m_sync.realizedUVs.push_back( geom.instance.uvs );
+    m_sync.realizedNormals.push_back( geom.instance.devNormals );
+    m_sync.realizedUVs.push_back( geom.instance.devUVs );
     m_sync.topLevelInstances[geom.instanceIndex] = geom.instance.instance;
     if( m_options.verboseProxyMaterialResolution )
     {
@@ -259,8 +259,8 @@ bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, Scene
         geom.instanceIndex                = syncState.topLevelInstances.size();
         syncState.instanceMaterialIds.push_back( materialId );
         syncState.topLevelInstances.push_back( geom.instance.instance );
-        syncState.realizedNormals.push_back( geom.instance.normals );
-        syncState.realizedUVs.push_back( geom.instance.uvs );
+        syncState.realizedNormals.push_back( geom.instance.devNormals );
+        syncState.realizedUVs.push_back( geom.instance.devUVs );
         m_proxyMaterialGeometries[materialId] = geom;
         ++m_stats.numMaterialsReused;
 

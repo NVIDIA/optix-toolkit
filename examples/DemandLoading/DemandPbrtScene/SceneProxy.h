@@ -31,8 +31,8 @@ struct GeometryInstance
     PhongMaterial     material;
     std::string       diffuseMapFileName;
     std::string       alphaMapFileName;
-    TriangleNormals*  normals;  // nullptr if no per-vertex normals
-    TriangleUVs*      uvs;      // nullptr if no per-vertex UVs
+    TriangleNormals*  devNormals;  // device pointer to per-primitive normals, nullptr if none
+    TriangleUVs*      devUVs;      // device pointer to per-vertex UVs, nullptr if none
 };
 
 class SceneProxy

@@ -244,7 +244,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialPartial
     const uint_t proxyGeomId{ 1111 };
     m_geom.instance.material.flags = MaterialFlags::ALPHA_MAP;
     TriangleUVs* fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
-    m_geom.instance.uvs              = fakeUVs;
+    m_geom.instance.devUVs              = fakeUVs;
     m_geom.instance.alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( _ ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( fakeMaterialId ) );
@@ -274,7 +274,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
     const uint_t proxyGeomId{ 1111 };
     m_geom.instance.material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED;
     TriangleUVs* fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
-    m_geom.instance.uvs              = fakeUVs;
+    m_geom.instance.devUVs              = fakeUVs;
     m_geom.instance.alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( _ ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( fakeMaterialId ) );
@@ -311,8 +311,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
     TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
     TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
     m_geom.instance.material.flags     = MaterialFlags::DIFFUSE_MAP;
-    m_geom.instance.uvs                = fakeUVs;
-    m_geom.instance.normals            = fakeNormals;
+    m_geom.instance.devUVs                = fakeUVs;
+    m_geom.instance.devNormals            = fakeNormals;
     m_geom.instance.diffuseMapFileName = DIFFUSE_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( _ ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( fakeMaterialId ) );

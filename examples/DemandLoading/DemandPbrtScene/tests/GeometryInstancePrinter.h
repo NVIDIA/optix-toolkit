@@ -36,8 +36,8 @@ inline std::ostream& operator<<( std::ostream& str, const GeometryInstance& lhs 
                << ", " << lhs.material                     //
                << ", '" << lhs.diffuseMapFileName << "'"   //
                << ", '" << lhs.alphaMapFileName << "'"     //
-               << ", " << lhs.normals                      //
-               << ", " << lhs.uvs                          //
+               << ", " << lhs.devNormals                   //
+               << ", " << lhs.devUVs                       //
                << " }";
 }
 
@@ -49,8 +49,8 @@ inline bool operator==( const GeometryInstance& lhs, const GeometryInstance& rhs
            && lhs.material == rhs.material                      //
            && lhs.diffuseMapFileName == rhs.diffuseMapFileName  //
            && lhs.alphaMapFileName == rhs.alphaMapFileName      //
-           && lhs.normals == rhs.normals                        //
-           && lhs.uvs == rhs.uvs;
+           && lhs.devNormals == rhs.devNormals                  //
+           && lhs.devUVs == rhs.devUVs;
 }
 
 }  // namespace demandPbrtScene
