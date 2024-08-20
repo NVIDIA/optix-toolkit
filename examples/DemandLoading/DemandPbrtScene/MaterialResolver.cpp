@@ -86,30 +86,30 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
     if( geom.instance.primitive == GeometryPrimitive::TRIANGLE )
     {
         // phase 1 alpha map resolution
-        if( flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP )
-            && !flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
+        if( flagSet( geom.instance.groups.material.flags, MaterialFlags::ALPHA_MAP )
+            && !flagSet( geom.instance.groups.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
         {
-            const uint_t alphaTextureId{ m_demandTextureCache->createAlphaTextureFromFile( geom.instance.alphaMapFileName ) };
-            m_sync.minAlphaTextureId              = std::min( alphaTextureId, m_sync.minAlphaTextureId );
-            m_sync.maxAlphaTextureId              = std::max( alphaTextureId, m_sync.maxAlphaTextureId );
-            geom.instance.material.alphaTextureId = alphaTextureId;
-            geom.instance.material.flags |= MaterialFlags::ALPHA_MAP_ALLOCATED;
+            const uint_t alphaTextureId{ m_demandTextureCache->createAlphaTextureFromFile( geom.instance.groups.alphaMapFileName ) };
+            m_sync.minAlphaTextureId                     = std::min( alphaTextureId, m_sync.minAlphaTextureId );
+            m_sync.maxAlphaTextureId                     = std::max( alphaTextureId, m_sync.maxAlphaTextureId );
+            geom.instance.groups.material.alphaTextureId = alphaTextureId;
+            geom.instance.groups.material.flags |= MaterialFlags::ALPHA_MAP_ALLOCATED;
             const size_t numProxyMaterials{ proxyMaterialId + 1 };  // ids are zero based
             grow( m_sync.partialMaterials, numProxyMaterials );
             grow( m_sync.partialUVs, numProxyMaterials );
-            m_sync.partialMaterials[proxyMaterialId].alphaTextureId = geom.instance.material.alphaTextureId;
+            m_sync.partialMaterials[proxyMaterialId].alphaTextureId = geom.instance.groups.material.alphaTextureId;
             m_sync.partialUVs[proxyMaterialId]                      = geom.instance.devUVs;
             m_sync.topLevelInstances[geom.instanceIndex].sbtOffset  = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
                 std::cout << "Resolved proxy material id " << proxyMaterialId << " to partial alpha texture id "
-                          << geom.instance.material.alphaTextureId << '\n';
+                          << geom.instance.groups.material.alphaTextureId << '\n';
             }
             return MaterialResolution::PARTIAL;
         }
 
         // phase 2 alpha map resolution
-        if( flagSet( geom.instance.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
+        if( flagSet( geom.instance.groups.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
         {
             // not strictly necessary, but indicates this partial material has been resolved completely
             m_sync.partialMaterials[proxyMaterialId].alphaTextureId = 0;
@@ -117,14 +117,15 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
         }
 
         // diffuse map resolution
-        if( flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP )
-            && !flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
+        if( flagSet( geom.instance.groups.material.flags, MaterialFlags::DIFFUSE_MAP )
+            && !flagSet( geom.instance.groups.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
         {
-            const uint_t diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( geom.instance.diffuseMapFileName );
-            m_sync.minDiffuseTextureId              = std::min( diffuseTextureId, m_sync.minDiffuseTextureId );
-            m_sync.maxDiffuseTextureId              = std::max( diffuseTextureId, m_sync.maxDiffuseTextureId );
-            geom.instance.material.diffuseTextureId = diffuseTextureId;
-            geom.instance.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
+            const uint_t diffuseTextureId =
+                m_demandTextureCache->createDiffuseTextureFromFile( geom.instance.groups.diffuseMapFileName );
+            m_sync.minDiffuseTextureId                     = std::min( diffuseTextureId, m_sync.minDiffuseTextureId );
+            m_sync.maxDiffuseTextureId                     = std::max( diffuseTextureId, m_sync.maxDiffuseTextureId );
+            geom.instance.groups.material.diffuseTextureId = diffuseTextureId;
+            geom.instance.groups.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
         }
     }
 
@@ -132,16 +133,17 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
     geom.instance.instance.instanceId = m_sync.instanceMaterialIds.size();
     const uint_t materialId           = m_sync.realizedMaterials.size();
     m_sync.instanceMaterialIds.push_back( materialId );
-    m_sync.realizedMaterials.push_back( geom.instance.material );
+    m_sync.realizedMaterials.push_back( geom.instance.groups.material );
     m_sync.realizedNormals.push_back( geom.instance.devNormals );
     m_sync.realizedUVs.push_back( geom.instance.devUVs );
     m_sync.topLevelInstances[geom.instanceIndex] = geom.instance.instance;
     if( m_options.verboseProxyMaterialResolution )
     {
-        std::cout
-            << "Resolved proxy material id " << proxyMaterialId << " for instance id " << geom.instance.instance.instanceId
-            << ( flagSet( geom.instance.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ? " with diffuse map" : "" )
-            << '\n';
+        std::cout << "Resolved proxy material id " << proxyMaterialId << " for instance id " << geom.instance.instance.instanceId
+                  << ( flagSet( geom.instance.groups.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ?
+                           " with diffuse map" :
+                           "" )
+                  << '\n';
     }
     m_materialLoader->remove( proxyMaterialId );
     m_proxyMaterialGeometries.erase( proxyMaterialId );
@@ -200,15 +202,15 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
 std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const GeometryInstance& instance, SceneSyncState& syncState ) const
 {
     // Check for loaded diffuse map
-    if( flagSet( instance.material.flags, MaterialFlags::DIFFUSE_MAP )
-        && !m_demandTextureCache->hasDiffuseTextureForFile( instance.diffuseMapFileName ) )
+    if( flagSet( instance.groups.material.flags, MaterialFlags::DIFFUSE_MAP )
+        && !m_demandTextureCache->hasDiffuseTextureForFile( instance.groups.diffuseMapFileName ) )
     {
         return {};
     }
 
     // Check for loaded alpha map
-    if( flagSet( instance.material.flags, MaterialFlags::ALPHA_MAP )
-        && !m_demandTextureCache->hasAlphaTextureForFile( instance.alphaMapFileName ) )
+    if( flagSet( instance.groups.material.flags, MaterialFlags::ALPHA_MAP )
+        && !m_demandTextureCache->hasAlphaTextureForFile( instance.groups.alphaMapFileName ) )
     {
         return {};
     }
@@ -216,12 +218,12 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Geometry
     // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
     const auto it =
         std::find_if( syncState.realizedMaterials.cbegin(), syncState.realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
-            return instance.material.Ka == entry.Ka                 //
-                   && instance.material.Kd == entry.Kd              //
-                   && instance.material.Ks == entry.Ks              //
-                   && instance.material.Kr == entry.Kr              //
-                   && instance.material.phongExp == entry.phongExp  //
-                   && ( instance.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+            return instance.groups.material.Ka == entry.Ka                 //
+                   && instance.groups.material.Kd == entry.Kd              //
+                   && instance.groups.material.Ks == entry.Ks              //
+                   && instance.groups.material.Kr == entry.Kr              //
+                   && instance.groups.material.phongExp == entry.phongExp  //
+                   && ( instance.groups.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
                           == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
         } );
     if( it != syncState.realizedMaterials.cend() )
@@ -240,7 +242,7 @@ bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, Scene
         // just for completeness's sake, mark the duplicate material's textures as having
         // been loaded, although we won't use the duplicate material after this.
         const auto markAllocated = [&]( MaterialFlags requested, MaterialFlags allocated ) {
-            MaterialFlags& flags{ geom.instance.material.flags };
+            MaterialFlags& flags{ geom.instance.groups.material.flags };
             if( flagSet( flags, requested ) )
             {
                 flags |= allocated;

@@ -28,29 +28,52 @@ inline std::ostream& operator<<( std::ostream& str, GeometryPrimitive value )
     return str << "? (" << static_cast<int>( value ) << ')';
 }
 
+inline std::ostream& operator<<( std::ostream& str, const MaterialGroup& value )
+{
+    return str << "MaterialGroup{ "                         //
+               << value.material                            //
+               << ", '" << value.diffuseMapFileName << "'"  //
+               << ", '" << value.alphaMapFileName << "'"    //
+               << ", " << value.primitiveIndexEnd << " }";
+}
+
 inline std::ostream& operator<<( std::ostream& str, const GeometryInstance& lhs )
 {
     return str << "GeometryInstance{ " << lhs.accelBuffer  //
                << ", " << lhs.primitive                    //
                << ", " << lhs.instance                     //
-               << ", " << lhs.material                     //
-               << ", '" << lhs.diffuseMapFileName << "'"   //
-               << ", '" << lhs.alphaMapFileName << "'"     //
+               << ", " << lhs.groups                       //
                << ", " << lhs.devNormals                   //
                << ", " << lhs.devUVs                       //
                << " }";
 }
 
-inline bool operator==( const GeometryInstance& lhs, const GeometryInstance& rhs )
+inline bool operator==( const MaterialGroup& lhs, const MaterialGroup& rhs )
 {
-    return lhs.accelBuffer == rhs.accelBuffer                   //
-           && lhs.primitive == rhs.primitive                    //
-           && lhs.instance == rhs.instance                      //
-           && lhs.material == rhs.material                      //
+    return lhs.material == rhs.material                         //
            && lhs.diffuseMapFileName == rhs.diffuseMapFileName  //
            && lhs.alphaMapFileName == rhs.alphaMapFileName      //
-           && lhs.devNormals == rhs.devNormals                  //
+           && lhs.primitiveIndexEnd == rhs.primitiveIndexEnd;
+}
+
+inline bool operator!=( const MaterialGroup& lhs, const MaterialGroup& rhs )
+{
+    return !( lhs == rhs );
+}
+
+inline bool operator==( const GeometryInstance& lhs, const GeometryInstance& rhs )
+{
+    return lhs.accelBuffer == rhs.accelBuffer   //
+           && lhs.primitive == rhs.primitive    //
+           && lhs.instance == rhs.instance      //
+           && lhs.groups == rhs.groups          //
+           && lhs.devNormals == rhs.devNormals  //
            && lhs.devUVs == rhs.devUVs;
+}
+
+inline bool operator!=( const GeometryInstance& lhs, const GeometryInstance& rhs )
+{
+    return !( lhs == rhs );
 }
 
 }  // namespace demandPbrtScene
