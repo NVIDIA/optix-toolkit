@@ -34,9 +34,14 @@ namespace {
 class PbrtMaterialResolver : public MaterialResolver
 {
   public:
-    PbrtMaterialResolver( const Options& options, MaterialLoaderPtr materialLoader, DemandTextureCachePtr demandTextureCache, ProgramGroupsPtr programGroups )
+    PbrtMaterialResolver( const Options&        options,
+                          MaterialLoaderPtr     materialLoader,
+                          MaterialBatchPtr      materialBatch,
+                          DemandTextureCachePtr demandTextureCache,
+                          ProgramGroupsPtr      programGroups )
         : m_options( options )
         , m_materialLoader( std::move( materialLoader ) )
+        , m_materialBatch( std::move( materialBatch ) )
         , m_demandTextureCache( std::move( demandTextureCache ) )
         , m_programGroups( std::move( programGroups ) )
     {
@@ -45,7 +50,7 @@ class PbrtMaterialResolver : public MaterialResolver
 
     void resolveOneMaterial() override { m_resolveOneMaterial = true; }
 
-    bool resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& sceneGeom, SceneSyncState& syncState ) override;
+    bool resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState ) override;
 
     MaterialResolution resolveRequestedProxyMaterials( CUstream stream, const FrameStopwatch& frameTime, SceneSyncState& syncState ) override;
 
@@ -60,6 +65,7 @@ class PbrtMaterialResolver : public MaterialResolver
     // Dependencies
     const Options&        m_options;
     MaterialLoaderPtr     m_materialLoader;
+    MaterialBatchPtr      m_materialBatch;
     DemandTextureCachePtr m_demandTextureCache;
     ProgramGroupsPtr      m_programGroups;
 
@@ -313,10 +319,11 @@ bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const
 
 MaterialResolverPtr createMaterialResolver( const Options&        options,
                                             MaterialLoaderPtr     materialLoader,
+                                            MaterialBatchPtr      materialBatch,
                                             DemandTextureCachePtr demandTextureCache,
                                             ProgramGroupsPtr      programGroups )
 {
-    return std::make_shared<PbrtMaterialResolver>( options, std::move( materialLoader ),
+    return std::make_shared<PbrtMaterialResolver>( options, std::move( materialLoader ), std::move( materialBatch ),
                                                    std::move( demandTextureCache ), std::move( programGroups ) );
 }
 

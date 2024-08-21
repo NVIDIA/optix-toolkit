@@ -12,6 +12,7 @@
 
 #include <DemandTextureCache.h>
 #include <FrameStopwatch.h>
+#include <MaterialBatch.h>
 #include <Options.h>
 #include <Primitive.h>
 #include <ProgramGroups.h>
@@ -40,6 +41,23 @@ using namespace demandPbrtScene;
 using namespace demandPbrtScene::testing;
 
 namespace {
+
+class MockMaterialBatch : public StrictMock<MaterialBatch>
+{
+  public:
+    ~MockMaterialBatch() override = default;
+
+    MOCK_METHOD( void, addMaterialIndex, ( uint_t, uint_t ), ( override ) );
+    MOCK_METHOD( uint_t, addPrimitiveMaterialRange, ( uint_t, uint_t ), ( override ) );
+    MOCK_METHOD( void, setLaunchParams, (CUstream, Params&), ( override ) );
+};
+
+using MockMaterialBatchPtr = std::shared_ptr<MockMaterialBatch>;
+
+inline MockMaterialBatchPtr createMockMaterialBatch()
+{
+    return std::make_shared<MockMaterialBatch>();
+}
 
 inline ListenerPredicate<GeometryInstance> hasMaterialFlags( MaterialFlags value )
 {
@@ -84,10 +102,11 @@ class TestMaterialResolver : public Test
 
   protected:
     Options                   m_options{ testOptions() };
-    MockMaterialLoaderPtr     m_materialLoader{ createMockMaterialLoader() };
+    MockMaterialLoaderPtr     m_loader{ createMockMaterialLoader() };
+    MockMaterialBatchPtr      m_batch{ createMockMaterialBatch() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
-    MaterialResolverPtr m_resolver{ createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups ) };
+    MaterialResolverPtr m_resolver{ createMaterialResolver( m_options, m_loader, m_batch, m_demandTextureCache, m_programGroups ) };
     SceneSyncState m_sync{};
 };
 
@@ -132,7 +151,7 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialForGeometry
 {
     const uint_t proxyGeomId{ 1111U };
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
 
     const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
 
@@ -149,7 +168,7 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeomet
     m_geom.groups.diffuseMapFileName = DIFFUSE_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
 
     const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
 
@@ -166,7 +185,7 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGe
     m_geom.groups.alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( ALPHA_MAP_PATH ) ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
 
     const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
 
@@ -185,7 +204,7 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMateri
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( true ) );
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( ALPHA_MAP_PATH ) ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
 
     const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
 
@@ -217,7 +236,7 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_geom.groups.material = existingMaterial;
-    EXPECT_CALL( *m_materialLoader, add() ).Times( 0 );
+    EXPECT_CALL( *m_loader, add() ).Times( 0 );
     EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( m_geom ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
 
     const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
@@ -231,8 +250,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
 
 TEST_F( TestMaterialResolverRequestedProxyIds, noRequestedProxyMaterials )
 {
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -243,12 +262,12 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
 {
     const uint_t proxyGeomId{ 1111 };
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
-    EXPECT_CALL( *m_materialLoader, remove( proxyMaterialId ) ).Times( 1 );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -272,13 +291,13 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialPartial
     m_geom.groups.alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( _ ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     const uint_t alphaTextureId{ 333 };
     EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( ALPHA_MAP_PATH ) ) ).WillOnce( Return( alphaTextureId ) );
-    EXPECT_CALL( *m_materialLoader, remove( proxyMaterialId ) ).Times( 0 );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 0 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -297,16 +316,16 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
 {
     const uint_t proxyGeomId{ 1111 };
     const uint_t alphaTextureId{ 333 };
-    m_geom.groups.material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED;
+    m_geom.groups.material.flags          = MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED;
     m_geom.groups.material.alphaTextureId = alphaTextureId;
     TriangleUVs* fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
     m_geom.devUVs                  = fakeUVs;
     m_geom.groups.alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( _ ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     m_sync.partialMaterials.resize( proxyMaterialId + 1 );
     m_sync.partialUVs.resize( proxyMaterialId + 1 );
     m_sync.partialMaterials.back().alphaTextureId = alphaTextureId;
@@ -315,8 +334,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
                                        hasAll( hasMaterialFlags( MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED ),
                                                hasAlphaTextureId( alphaTextureId ) ) ) ) )
         .WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
-    EXPECT_CALL( *m_materialLoader, remove( proxyMaterialId ) ).Times( 1 );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -344,9 +363,9 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
     m_geom.groups.diffuseMapFileName = DIFFUSE_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( _ ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_materialLoader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     const uint_t diffuseTextureId{ 333 };
     EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( diffuseTextureId ) );
     m_geom.groups.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
@@ -355,8 +374,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
                                        hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                hasDiffuseTextureId( diffuseTextureId ) ) ) ) )
         .WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
-    EXPECT_CALL( *m_materialLoader, remove( proxyMaterialId ) ).Times( 1 );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -379,8 +398,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
 TEST_F( TestMaterialResolverRequestedProxyIds, oneShotNotTriggeredDoesNothing )
 {
     m_options.oneShotMaterial = true;
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).Times( 0 );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 0 );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).Times( 0 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 0 );
 
     const MaterialResolution result1{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
     const MaterialResolution result2{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
@@ -392,8 +411,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, oneShotNotTriggeredDoesNothing )
 TEST_F( TestMaterialResolverRequestedProxyIds, oneShotTriggeredRequestsProxies )
 {
     m_options.oneShotMaterial = true;
-    EXPECT_CALL( *m_materialLoader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
-    EXPECT_CALL( *m_materialLoader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result1{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
     m_resolver->resolveOneMaterial();
