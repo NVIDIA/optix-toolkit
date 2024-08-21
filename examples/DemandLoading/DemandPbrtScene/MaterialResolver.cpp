@@ -54,6 +54,8 @@ class PbrtMaterialResolver : public MaterialResolver
   private:
     MaterialResolution    resolveMaterial( uint_t proxyMaterialId, SceneSyncState& m_sync );
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, SceneSyncState& syncState ) const;
+    bool resolveGeometryToExistingMaterial( uint_t proxyGeomId, SceneSyncState& syncState, uint_t materialId, const GeometryInstance& geomInstance );
+    bool resolveGeometryToProxyMaterial( uint_t proxyGeomId, SceneSyncState& syncState, const GeometryInstance& geomInstance );
 
     // Dependencies
     const Options&        m_options;
@@ -234,50 +236,52 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Material
     return {};
 }
 
-bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState )
+bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
+                                                              SceneSyncState&         syncState,
+                                                              uint_t                  materialId,
+                                                              const GeometryInstance& geomInstance )
 {
     SceneGeometry geom{};
     geom.instance = geomInstance;
 
-    // check for shared materials
-    if( const std::optional<uint_t> id = findResolvedMaterial( geom.instance.groups, syncState ); id.has_value() )
-    {
-        // just for completeness's sake, mark the duplicate material's textures as having
-        // been loaded, although we won't use the duplicate material after this.
-        const auto markAllocated = [&]( MaterialFlags requested, MaterialFlags allocated ) {
-            MaterialFlags& flags{ geom.instance.groups.material.flags };
-            if( flagSet( flags, requested ) )
-            {
-                flags |= allocated;
-            }
-        };
-        markAllocated( MaterialFlags::ALPHA_MAP, MaterialFlags::ALPHA_MAP_ALLOCATED );
-        markAllocated( MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED );
-
-        // reuse already realized material
-        //OTK_ASSERT( m_phongModule != nullptr );  // should have already been realized
-        const uint_t materialId{ id.value() };
-        const uint_t instanceId{ static_cast<uint_t>( syncState.instanceMaterialIds.size() ) };
-        geom.materialId                   = materialId;
-        geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
-        geom.instance.instance.instanceId = instanceId;
-        geom.instanceIndex                = syncState.topLevelInstances.size();
-        syncState.instanceMaterialIds.push_back( materialId );
-        syncState.topLevelInstances.push_back( geom.instance.instance );
-        syncState.realizedNormals.push_back( geom.instance.devNormals );
-        syncState.realizedUVs.push_back( geom.instance.devUVs );
-        m_proxyMaterialGeometries[materialId] = geom;
-        ++m_stats.numMaterialsReused;
-
-        if( m_options.verboseProxyGeometryResolution )
+    // just for completeness's sake, mark the duplicate material's textures as having
+    // been loaded, although we won't use the duplicate material after this.
+    const auto markAllocated = [&]( MaterialFlags requested, MaterialFlags allocated ) {
+        MaterialFlags& flags{ geom.instance.groups.material.flags };
+        if( flagSet( flags, requested ) )
         {
-            std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
-                      << geom.instanceIndex << " with existing material id " << materialId << '\n';
+            flags |= allocated;
         }
+    };
+    markAllocated( MaterialFlags::ALPHA_MAP, MaterialFlags::ALPHA_MAP_ALLOCATED );
+    markAllocated( MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED );
 
-        return true;
+    // reuse already realized material
+    const uint_t instanceId{ static_cast<uint_t>( syncState.instanceMaterialIds.size() ) };
+    geom.materialId                   = materialId;
+    geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
+    geom.instance.instance.instanceId = instanceId;
+    geom.instanceIndex                = syncState.topLevelInstances.size();
+    syncState.instanceMaterialIds.push_back( materialId );
+    syncState.topLevelInstances.push_back( geom.instance.instance );
+    syncState.realizedNormals.push_back( geom.instance.devNormals );
+    syncState.realizedUVs.push_back( geom.instance.devUVs );
+    m_proxyMaterialGeometries[materialId] = geom;
+    ++m_stats.numMaterialsReused;
+
+    if( m_options.verboseProxyGeometryResolution )
+    {
+        std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id " << geom.instanceIndex
+                  << " with existing material id " << materialId << '\n';
     }
 
+    return true;
+}
+
+bool PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t proxyGeomId, SceneSyncState& syncState, const GeometryInstance& geomInstance )
+{
+    SceneGeometry geom{};
+    geom.instance = geomInstance;
     const uint_t materialId{ m_materialLoader->add() };
     const uint_t instanceId{ materialId };  // use the proxy material id as the instance id
     geom.materialId                   = materialId;
@@ -292,6 +296,17 @@ bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const
     }
     ++m_stats.numProxyMaterialsCreated;
     return false;
+}
+
+bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState )
+{
+    // check for shared materials
+    if( const std::optional<uint_t> id = findResolvedMaterial( geomInstance.groups, syncState ); id.has_value() )
+    {
+        return resolveGeometryToExistingMaterial( proxyGeomId, syncState, id.value(), geomInstance );
+    }
+
+    return resolveGeometryToProxyMaterial( proxyGeomId, syncState, geomInstance );
 }
 
 }  // namespace
