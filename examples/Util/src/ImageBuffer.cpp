@@ -7,6 +7,8 @@
 #include <stb_image_write.h>
 
 #include <cmath>
+
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>

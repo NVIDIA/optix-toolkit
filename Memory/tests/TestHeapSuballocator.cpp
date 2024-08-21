@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <random>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -71,7 +72,9 @@ TEST_F( TestHeapSuballocator, allocFree )
     }
     EXPECT_TRUE( heapSuballocator.freeSpace() == 0 );
 
-    std::random_shuffle( allocs.begin(), allocs.end() );  // worst case
+    std::random_device rng;
+    std::mt19937       urng( rng() );
+    std::shuffle( allocs.begin(), allocs.end(), urng );  // worst case
     //std::reverse( allocs.begin(), allocs.end() ); // best case
 
     const std::map<uint64_t, uint64_t>& beginMap = heapSuballocator.getBeginMap();

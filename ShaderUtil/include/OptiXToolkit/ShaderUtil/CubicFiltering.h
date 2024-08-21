@@ -190,7 +190,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 
     // Return unless we have to blend between levels
     if( filterMode != FILTER_BICUBIC || ml == mipLevel || ml < 0.0f )
-        return;
+        return true;
 
     //-------------------------------------------------------------------------------
     // Sample second level for blending between levels in FILTER_BICUBIC mode
@@ -234,4 +234,5 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         if( dresultdt )
             *dresultdt = levelBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - levelBlend) * *dresultdt;
     }
+    return true;
 }
