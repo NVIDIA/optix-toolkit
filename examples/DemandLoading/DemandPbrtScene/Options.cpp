@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "Options.h"
+#include "DemandPbrtScene/Options.h"
 
-#include "Params.h"
+#include "DemandPbrtScene/Params.h"
 
 #include <OptiXToolkit/Gui/Window.h>
 

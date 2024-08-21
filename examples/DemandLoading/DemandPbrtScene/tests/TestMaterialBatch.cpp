@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <MaterialBatch.h>
+#include <DemandPbrtScene/MaterialBatch.h>
 
 #include "ParamsPrinters.h"
 

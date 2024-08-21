@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "OptixRenderer.h"
+#include "DemandPbrtScene/OptixRenderer.h"
 
-#include "Options.h"
-#include "Params.h"
-#include "Scene.h"
+#include "DemandPbrtScene/Options.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Scene.h"
 
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>

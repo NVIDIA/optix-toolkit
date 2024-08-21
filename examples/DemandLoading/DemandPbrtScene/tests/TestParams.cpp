@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <Params.h>
-
 #include "ParamsPrinters.h"
+
+#include <DemandPbrtScene/Params.h>
 
 #include <gtest/gtest.h>
 

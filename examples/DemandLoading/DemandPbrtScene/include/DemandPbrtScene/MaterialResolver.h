@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "MaterialResolverStatistics.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/MaterialResolverStatistics.h"
 
 #include <cuda.h>
 

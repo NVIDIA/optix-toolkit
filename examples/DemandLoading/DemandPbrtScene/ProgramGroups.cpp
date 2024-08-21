@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "ProgramGroups.h"
+#include "DemandPbrtScene/ProgramGroups.h"
 
-#include "DemandPbrtSceneKernelCuda.h"
-#include "DemandTextureCache.h"
-#include "IdRangePrinter.h"
-#include "ImageSourceFactory.h"
-#include "Options.h"
-#include "Params.h"
-#include "Renderer.h"
-#include "SceneAdapters.h"
-#include "SceneProxy.h"
-#include "Stopwatch.h"
+#include "DemandPbrtScene/DemandTextureCache.h"
+#include "DemandPbrtScene/IdRangePrinter.h"
+#include "DemandPbrtScene/ImageSourceFactory.h"
+#include "DemandPbrtScene/Options.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Renderer.h"
+#include "DemandPbrtScene/SceneAdapters.h"
+#include "DemandPbrtScene/SceneProxy.h"
+#include "DemandPbrtScene/Stopwatch.h"
+
+#include <DemandPbrtSceneKernelCuda.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>

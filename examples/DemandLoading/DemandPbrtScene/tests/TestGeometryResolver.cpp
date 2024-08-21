@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <GeometryResolver.h>
+#include <DemandPbrtScene/GeometryResolver.h>
 
 #include "MockDemandTextureCache.h"
 #include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
 #include "MockProgramGroups.h"
 
-#include <DemandTextureCache.h>
-#include <FrameStopwatch.h>
-#include <MaterialResolver.h>
-#include <Options.h>
-#include <ProgramGroups.h>
-#include <SceneProxy.h>
-#include <SceneSyncState.h>
+#include <DemandPbrtScene/DemandTextureCache.h>
+#include <DemandPbrtScene/FrameStopwatch.h>
+#include <DemandPbrtScene/MaterialResolver.h>
+#include <DemandPbrtScene/Options.h>
+#include <DemandPbrtScene/ProgramGroups.h>
+#include <DemandPbrtScene/SceneProxy.h>
+#include <DemandPbrtScene/SceneSyncState.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>

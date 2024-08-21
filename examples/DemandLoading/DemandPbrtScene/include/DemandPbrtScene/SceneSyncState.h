@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "Params.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/Params.h"
 
 #include <OptiXToolkit/Memory/SyncVector.h>
 

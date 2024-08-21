@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "SceneStatistics.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/SceneStatistics.h"
 
 #include <cuda.h>
 

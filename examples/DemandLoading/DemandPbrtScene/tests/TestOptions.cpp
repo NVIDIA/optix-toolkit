@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <Options.h>
+#include <DemandPbrtScene/Options.h>
 
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "DemandTextureCacheStatistics.h"
+#include "DemandPbrtScene/DemandTextureCacheStatistics.h"
 
 #include <memory>
 #include <string>

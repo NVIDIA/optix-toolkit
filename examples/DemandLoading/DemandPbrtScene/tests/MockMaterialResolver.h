@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <MaterialResolver.h>
+#include <DemandPbrtScene/MaterialResolver.h>
 
 #include <gmock/gmock.h>
 

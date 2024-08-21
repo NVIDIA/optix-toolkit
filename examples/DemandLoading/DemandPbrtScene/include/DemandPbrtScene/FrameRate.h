@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "Timer.h"
+#include "DemandPbrtScene/Timer.h"
 
 #include <numeric>
 #include <vector>

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "Params.h"
+#include "DemandPbrtScene/Params.h"
 
 #include <vector_functions.h>
 

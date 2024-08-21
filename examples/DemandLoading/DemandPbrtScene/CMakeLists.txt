@@ -28,93 +28,97 @@ embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
     SOURCES
         DemandPbrtScene.cu
         PhongMaterial.cu
+    INCLUDES
+        include
     FOLDER Examples/DemandLoading
 )
 target_sources( DemandPbrtSceneKernelCuda
     PRIVATE
-        DeviceTriangles.h
-        PhongShade.h
+        include/DemandPbrtScene/DeviceTriangles.h
+        include/DemandPbrtScene/PhongShade.h
 )
 
 option(DEMANDPBRTSCENE_PBRT_CAMERA "Enable interactive switch to pbrt camera model (WIP)" OFF)
 mark_as_advanced(DEMANDPBRTSCENE_PBRT_CAMERA)
-configure_file(Config.h.in Config.h)
+
+configure_file(include/DemandPbrtScene/Config.h.in include/DemandPbrtScene/Config.h)
 
 add_library(DemandPbrtSceneImpl STATIC
-    Accumulator.h
-    Application.h
     Application.cpp
-    Config.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/Config.h
-    CudaContext.h
     CudaContext.cpp
-    DemandTextureCache.h
     DemandTextureCache.cpp
-    DemandTextureCacheStatistics.h
-    Dependencies.h
-    FrameRate.h
-    FrameStopwatch.h
-    GeometryCache.h
     GeometryCache.cpp
-    GeometryCacheStatistics.h
-    GeometryResolver.h
     GeometryResolver.cpp
-    GeometryResolverStatistics.h
-    IdRangePrinter.h
-    ImageSourceFactory.h
     ImageSourceFactory.cpp
-    ImageSourceFactoryStatistics.h
     ImGuiUserInterface.cpp
-    ImGuiUserInterface.h
-    MaterialBatch.h
     MaterialBatch.cpp
-    MaterialResolver.h
     MaterialResolver.cpp
-    MaterialResolverStatistics.h
-    Options.h
     Options.cpp
-    OptixRenderer.h
     OptixRenderer.cpp
-    Params.h
-    PbrtAlphaMapImageSource.h
     PbrtAlphaMapImageSource.cpp
     PbrtScene.cpp
-    Primitive.h
-    ProgramGroups.h
     ProgramGroups.cpp
-    ProxyFactoryStatistics.h
-    ProxyGranularity.h
-    RenderMode.h
-    Renderer.h
-    Sample.h
-    Scene.h
-    SceneAdapters.h
-    SceneProxy.h
     SceneProxy.cpp
-    SceneStatistics.h
-    SceneSyncState.h
-    Stopwatch.h
     Statistics.cpp
-    Statistics.h
-    Timer.h
-    UserInterface.h
-    UserInterfaceStatistics.h
+    ${CMAKE_CURRENT_BINARY_DIR}/Config.h
+    include/DemandPbrtScene/Accumulator.h
+    include/DemandPbrtScene/Application.h
+    include/DemandPbrtScene/Config.h.in
+    include/DemandPbrtScene/CudaContext.h
+    include/DemandPbrtScene/DemandTextureCache.h
+    include/DemandPbrtScene/DemandTextureCacheStatistics.h
+    include/DemandPbrtScene/Dependencies.h
+    include/DemandPbrtScene/FrameRate.h
+    include/DemandPbrtScene/FrameStopwatch.h
+    include/DemandPbrtScene/GeometryCache.h
+    include/DemandPbrtScene/GeometryCacheStatistics.h
+    include/DemandPbrtScene/GeometryResolver.h
+    include/DemandPbrtScene/GeometryResolverStatistics.h
+    include/DemandPbrtScene/IdRangePrinter.h
+    include/DemandPbrtScene/ImageSourceFactory.h
+    include/DemandPbrtScene/ImageSourceFactoryStatistics.h
+    include/DemandPbrtScene/ImGuiUserInterface.h
+    include/DemandPbrtScene/MaterialBatch.h
+    include/DemandPbrtScene/MaterialResolver.h
+    include/DemandPbrtScene/MaterialResolverStatistics.h
+    include/DemandPbrtScene/Options.h
+    include/DemandPbrtScene/OptixRenderer.h
+    include/DemandPbrtScene/Params.h
+    include/DemandPbrtScene/PbrtAlphaMapImageSource.h
+    include/DemandPbrtScene/Primitive.h
+    include/DemandPbrtScene/ProgramGroups.h
+    include/DemandPbrtScene/ProxyFactoryStatistics.h
+    include/DemandPbrtScene/ProxyGranularity.h
+    include/DemandPbrtScene/RenderMode.h
+    include/DemandPbrtScene/Renderer.h
+    include/DemandPbrtScene/Sample.h
+    include/DemandPbrtScene/Scene.h
+    include/DemandPbrtScene/SceneAdapters.h
+    include/DemandPbrtScene/SceneProxy.h
+    include/DemandPbrtScene/SceneStatistics.h
+    include/DemandPbrtScene/SceneSyncState.h
+    include/DemandPbrtScene/Stopwatch.h
+    include/DemandPbrtScene/Statistics.h
+    include/DemandPbrtScene/Timer.h
+    include/DemandPbrtScene/UserInterface.h
+    include/DemandPbrtScene/UserInterfaceStatistics.h
 )
 source_group("CMake Template Files" REGULAR_EXPRESSION "^.*\.in$")
 set_target_properties(DemandPbrtSceneImpl PROPERTIES FOLDER "Examples/DemandLoading")
-target_include_directories(DemandPbrtSceneImpl PUBLIC .)
-target_include_directories(DemandPbrtSceneImpl PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(DemandPbrtSceneImpl PUBLIC include)
+target_include_directories(DemandPbrtSceneImpl PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
 target_link_libraries(DemandPbrtSceneImpl PUBLIC 
     PbrtSceneLoader
     DemandPbrtSceneKernel
-    OptiXToolkit::DemandMaterial
     OptiXToolkit::DemandGeometry
+    OptiXToolkit::DemandLoading
+    OptiXToolkit::DemandMaterial
     OptiXToolkit::Error
     OptiXToolkit::Gui
     OptiXToolkit::Memory
     OptiXToolkit::OptiXMemory
-    OptiXToolkit::Util
     OptiXToolkit::ShaderUtil
+    OptiXToolkit::Util
     OptiX::OptiX
 )
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <IdRangePrinter.h>
+#include <DemandPbrtScene/IdRangePrinter.h>
 
 #include <gtest/gtest.h>
 

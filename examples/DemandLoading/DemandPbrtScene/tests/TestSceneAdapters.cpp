@@ -6,7 +6,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <SceneAdapters.h>
+#include <DemandPbrtScene/SceneAdapters.h>
 
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 

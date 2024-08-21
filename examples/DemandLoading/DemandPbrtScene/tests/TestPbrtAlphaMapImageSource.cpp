@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <PbrtAlphaMapImageSource.h>
+#include <DemandPbrtScene/PbrtAlphaMapImageSource.h>
 
 #include "MockImageSource.h"
 

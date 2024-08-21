@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <DemandTextureCache.h>
+#include <DemandPbrtScene/DemandTextureCache.h>
 
 #include <gmock/gmock.h>
 

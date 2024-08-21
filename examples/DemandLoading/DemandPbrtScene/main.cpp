@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "Application.h"
-#include "Sample.h"
+#include "DemandPbrtScene/Application.h"
+#include "DemandPbrtScene/Sample.h"
 
 #include <optix_function_table_definition.h>
 
