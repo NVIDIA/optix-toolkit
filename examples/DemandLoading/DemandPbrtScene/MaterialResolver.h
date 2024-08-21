@@ -37,7 +37,7 @@ class MaterialResolver
     virtual void resolveOneMaterial() = 0;
 
     /// Returns true if proxy material is fully resolved and IAS needs to be rebuilt
-    virtual bool resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geom, SceneSyncState& syncState ) = 0;
+    virtual bool resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState ) = 0;
 
     virtual MaterialResolution resolveRequestedProxyMaterials( CUstream              stream,
                                                                const FrameStopwatch& frameTime,
@@ -48,6 +48,7 @@ class MaterialResolver
 
 MaterialResolverPtr createMaterialResolver( const Options&        options,
                                             MaterialLoaderPtr     materialLoader,
+                                            MaterialBatchPtr      materialBatch,
                                             DemandTextureCachePtr demandTextureCache,
                                             ProgramGroupsPtr      programGroups );
 

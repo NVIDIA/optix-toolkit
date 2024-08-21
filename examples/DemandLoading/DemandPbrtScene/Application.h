@@ -71,6 +71,7 @@ class Application : public otk::Sample
     RendererPtr           m_renderer;
     DemandTextureCachePtr m_demandTextureCache;
     ProgramGroupsPtr      m_programGroups;
+    MaterialBatchPtr      m_materialBatch;
     MaterialResolverPtr   m_materialResolver;
     GeometryResolverPtr   m_geometryResolver;
     ScenePtr              m_scene;
