@@ -19,7 +19,7 @@ class MockMaterialResolver : public ::testing::StrictMock<MaterialResolver>
     ~MockMaterialResolver() override = default;
 
     MOCK_METHOD( MaterialResolverStats, getStatistics, (), ( const, override ) );
-    MOCK_METHOD( bool, resolveMaterialForGeometry, (uint_t, SceneGeometry&, SceneSyncState&), ( override ) );
+    MOCK_METHOD( bool, resolveMaterialForGeometry, (uint_t, const GeometryInstance&, SceneSyncState&), ( override ) );
     MOCK_METHOD( void, resolveOneMaterial, (), ( override ) );
     MOCK_METHOD( MaterialResolution, resolveRequestedProxyMaterials, (CUstream, const FrameStopwatch&, SceneSyncState&), ( override ) );
 };
