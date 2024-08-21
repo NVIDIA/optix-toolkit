@@ -172,9 +172,8 @@ bool PbrtGeometryResolver::resolveProxyGeometry( CUstream stream, OptixDeviceCon
     else
     {
         // add instance to TLAS instances
-        SceneGeometry geom;
-        geom.instance = removedProxy->createGeometry( context, stream );
-        updateNeeded  = m_materialResolver->resolveMaterialForGeometry( proxyGeomId, geom, m_sync );
+        const GeometryInstance geom{ removedProxy->createGeometry( context, stream ) };
+        updateNeeded = m_materialResolver->resolveMaterialForGeometry( proxyGeomId, geom, m_sync );
         ++m_stats.numGeometriesRealized;
     }
     ++m_stats.numProxyGeometriesResolved;

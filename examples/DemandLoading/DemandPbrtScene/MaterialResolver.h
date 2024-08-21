@@ -13,8 +13,8 @@ namespace demandPbrtScene {
 
 class FrameStopwatch;
 
+struct GeometryInstance;
 struct Options;
-struct SceneGeometry;
 struct SceneSyncState;
 
 enum class MaterialResolution
@@ -37,7 +37,7 @@ class MaterialResolver
     virtual void resolveOneMaterial() = 0;
 
     /// Returns true if proxy material is fully resolved and IAS needs to be rebuilt
-    virtual bool resolveMaterialForGeometry( uint_t proxyGeomId, SceneGeometry& geom, SceneSyncState& syncState ) = 0;
+    virtual bool resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geom, SceneSyncState& syncState ) = 0;
 
     virtual MaterialResolution resolveRequestedProxyMaterials( CUstream              stream,
                                                                const FrameStopwatch& frameTime,
