@@ -4,22 +4,23 @@
 
 #pragma once
 
-#include <imgui.h>
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
-#include "UserInterface.h"
+#include "DemandPbrtScene/UserInterface.h"
 
-#include "Dependencies.h"
-#include "FrameRate.h"
-#include "Options.h"
-#include "Params.h"
-#include "Sample.h"
-#include "UserInterfaceStatistics.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/FrameRate.h"
+#include "DemandPbrtScene/Options.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Sample.h"
+#include "DemandPbrtScene/UserInterfaceStatistics.h"
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/TrackballCamera.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/ShaderUtil/DebugLocation.h>
+
+#include <imgui.h>
 
 #include <iostream>
 #include <memory>

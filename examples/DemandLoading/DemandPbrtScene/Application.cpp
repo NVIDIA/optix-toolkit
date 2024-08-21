@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "Application.h"
+#include "DemandPbrtScene/Application.h"
 
-#include "DemandTextureCache.h"
-#include "GeometryCache.h"
-#include "GeometryResolver.h"
-#include "ImageSourceFactory.h"
-#include "MaterialBatch.h"
-#include "MaterialResolver.h"
-#include "ProgramGroups.h"
-#include "Renderer.h"
-#include "Scene.h"
-#include "SceneProxy.h"
-#include "Statistics.h"
-#include "UserInterface.h"
-#include "UserInterfaceStatistics.h"
+#include "DemandPbrtScene/DemandTextureCache.h"
+#include "DemandPbrtScene/GeometryCache.h"
+#include "DemandPbrtScene/GeometryResolver.h"
+#include "DemandPbrtScene/ImageSourceFactory.h"
+#include "DemandPbrtScene/MaterialBatch.h"
+#include "DemandPbrtScene/MaterialResolver.h"
+#include "DemandPbrtScene/ProgramGroups.h"
+#include "DemandPbrtScene/Renderer.h"
+#include "DemandPbrtScene/Scene.h"
+#include "DemandPbrtScene/SceneProxy.h"
+#include "DemandPbrtScene/Statistics.h"
+#include "DemandPbrtScene/UserInterface.h"
+#include "DemandPbrtScene/UserInterfaceStatistics.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>

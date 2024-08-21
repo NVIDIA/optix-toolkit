@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "GeometryCacheStatistics.h"
-#include "Params.h"
-#include "Primitive.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/GeometryCacheStatistics.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Primitive.h"
 
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 

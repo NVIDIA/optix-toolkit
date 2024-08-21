@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "GeometryCacheStatistics.h"
-#include "GeometryResolverStatistics.h"
-#include "ImageSourceFactoryStatistics.h"
-#include "MaterialResolverStatistics.h"
-#include "ProxyFactoryStatistics.h"
-#include "SceneStatistics.h"
+#include "DemandPbrtScene/GeometryCacheStatistics.h"
+#include "DemandPbrtScene/GeometryResolverStatistics.h"
+#include "DemandPbrtScene/ImageSourceFactoryStatistics.h"
+#include "DemandPbrtScene/MaterialResolverStatistics.h"
+#include "DemandPbrtScene/ProxyFactoryStatistics.h"
+#include "DemandPbrtScene/SceneStatistics.h"
 
 namespace demandPbrtScene {
 

@@ -11,10 +11,10 @@
 #endif
 #endif
 
-#include "Accumulator.h"
-#include "Dependencies.h"
-#include "Params.h"
-#include "Renderer.h"
+#include "DemandPbrtScene/Accumulator.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Renderer.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>

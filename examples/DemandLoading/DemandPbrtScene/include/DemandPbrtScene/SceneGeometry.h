@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "SceneProxy.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/SceneProxy.h"
 
 namespace demandPbrtScene {
 

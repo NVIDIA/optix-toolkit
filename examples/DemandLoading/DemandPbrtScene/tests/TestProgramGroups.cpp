@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <ProgramGroups.h>
+#include <DemandPbrtScene/ProgramGroups.h>
 
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
 #include "MockMaterialLoader.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
-#include "SceneAdapters.h"
 
-#include <Renderer.h>
-#include <SceneProxy.h>
+#include <DemandPbrtScene/Renderer.h>
+#include <DemandPbrtScene/SceneAdapters.h>
+#include <DemandPbrtScene/SceneProxy.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>

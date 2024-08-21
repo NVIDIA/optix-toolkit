@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ProgramGroups.h>
+#include <DemandPbrtScene/ProgramGroups.h>
 
 #include <gmock/gmock.h>
 

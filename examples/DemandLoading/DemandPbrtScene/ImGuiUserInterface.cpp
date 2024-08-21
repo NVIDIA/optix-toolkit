@@ -4,7 +4,12 @@
 
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
-#include "ImGuiUserInterface.h"
+#include "DemandPbrtScene/ImGuiUserInterface.h"
+
+#include "DemandPbrtScene/Config.h"
+#include "DemandPbrtScene/FrameRate.h"
+#include "DemandPbrtScene/Renderer.h"
+#include "DemandPbrtScene/Scene.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -18,11 +23,6 @@
 
 #include <iomanip>
 #include <utility>
-
-#include "Config.h"
-#include "FrameRate.h"
-#include "Renderer.h"
-#include "Scene.h"
 
 namespace demandPbrtScene {
 

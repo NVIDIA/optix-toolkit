@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "MaterialBatch.h"
+#include "DemandPbrtScene/MaterialBatch.h"
 
-#include "Params.h"
+#include "DemandPbrtScene/Params.h"
 
 #include <OptiXToolkit/Memory/SyncVector.h>
 

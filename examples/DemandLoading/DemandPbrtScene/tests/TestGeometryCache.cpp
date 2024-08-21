@@ -11,8 +11,8 @@
 #include "MockMeshLoader.h"
 #include "ParamsPrinters.h"
 
-#include <GeometryCache.h>
-#include <SceneProxy.h>
+#include <DemandPbrtScene/GeometryCache.h>
+#include <DemandPbrtScene/SceneProxy.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>

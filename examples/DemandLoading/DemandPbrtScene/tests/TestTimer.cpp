@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "Timer.h"
-
-#include <chrono>
-#include <thread>
+#include <DemandPbrtScene/Timer.h>
 
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <chrono>
+#include <thread>
 
 using namespace demandPbrtScene;
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <SceneProxy.h>
+#include <DemandPbrtScene/SceneProxy.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
 

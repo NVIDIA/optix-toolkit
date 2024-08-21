@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <DemandTextureCache.h>
+#include <DemandPbrtScene/DemandTextureCache.h>
 
-#include <Dependencies.h>
-#include <ImageSourceFactory.h>
+#include "MockImageSource.h"
+
+#include <DemandPbrtScene/Dependencies.h>
+#include <DemandPbrtScene/ImageSourceFactory.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <gmock/gmock.h>
-
-#include "MockImageSource.h"
 
 using namespace testing;
 using namespace demandPbrtScene;

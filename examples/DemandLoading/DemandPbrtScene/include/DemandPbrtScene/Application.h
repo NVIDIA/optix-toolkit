@@ -6,12 +6,12 @@
 
 #include <OptiXToolkit/Gui/glad.h>  // Glad insists on being included first.
 
-#include "CudaContext.h"
-#include "Dependencies.h"
-#include "Options.h"
-#include "Params.h"
-#include "Sample.h"
-#include "Statistics.h"
+#include "DemandPbrtScene/CudaContext.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/Options.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Sample.h"
+#include "DemandPbrtScene/Statistics.h"
 
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Memory/SyncVector.h>

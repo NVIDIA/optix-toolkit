@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "RenderMode.h"
+#include "DemandPbrtScene/RenderMode.h"
 
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 #include <OptiXToolkit/ShaderUtil/DebugLocation.h>

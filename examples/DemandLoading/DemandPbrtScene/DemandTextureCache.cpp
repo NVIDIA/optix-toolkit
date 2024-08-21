@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "DemandTextureCache.h"
+#include "DemandPbrtScene/DemandTextureCache.h"
+
+#include "DemandPbrtScene/ImageSourceFactory.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
-
-#include "ImageSourceFactory.h"
 
 #include <map>
 #include <memory>

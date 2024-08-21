@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ProxyGranularity.h"
-#include "RenderMode.h"
+#include "DemandPbrtScene/ProxyGranularity.h"
+#include "DemandPbrtScene/RenderMode.h"
 
 #include <functional>
 #include <string>

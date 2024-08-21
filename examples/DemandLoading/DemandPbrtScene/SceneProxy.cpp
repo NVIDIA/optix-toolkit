@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "SceneProxy.h"
+#include "DemandPbrtScene/SceneProxy.h"
 
-#include "GeometryCache.h"
-#include "Options.h"
-#include "Params.h"
-#include "SceneAdapters.h"
+#include "DemandPbrtScene/GeometryCache.h"
+#include "DemandPbrtScene/Options.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/SceneAdapters.h"
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/Memory/SyncVector.h>

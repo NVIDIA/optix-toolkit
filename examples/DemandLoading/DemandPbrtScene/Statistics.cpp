@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "Statistics.h"
-#include "Timer.h"
+#include "DemandPbrtScene/Statistics.h"
+#include "DemandPbrtScene/Timer.h"
 
 #include <iostream>
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "CudaContext.h"
+#include "DemandPbrtScene/CudaContext.h"
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>

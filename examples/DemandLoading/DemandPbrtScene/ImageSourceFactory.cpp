@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "ImageSourceFactory.h"
+#include "DemandPbrtScene/ImageSourceFactory.h"
 
-#include "Options.h"
-#include "PbrtAlphaMapImageSource.h"
+#include "DemandPbrtScene/Options.h"
+#include "DemandPbrtScene/PbrtAlphaMapImageSource.h"
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/ImageSourceCache.h>

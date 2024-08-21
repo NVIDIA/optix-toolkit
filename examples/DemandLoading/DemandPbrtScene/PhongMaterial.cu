@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "DeviceTriangles.h"
-#include "Params.h"
-#include "PhongShade.h"
+#include "DemandPbrtScene/DeviceTriangles.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/PhongShade.h"
 
 #include <optix.h>
 

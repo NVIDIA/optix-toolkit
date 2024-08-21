@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "GeometryCache.h"
+#include "DemandPbrtScene/GeometryCache.h"
 
-#include "Stopwatch.h"
+#include "DemandPbrtScene/Stopwatch.h"
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>

@@ -11,10 +11,10 @@
 #endif
 #endif
 
-#include "Dependencies.h"
-#include "Params.h"
-#include "Primitive.h"
-#include "ProxyFactoryStatistics.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/Primitive.h"
+#include "DemandPbrtScene/ProxyFactoryStatistics.h"
 
 #include <optix.h>
 

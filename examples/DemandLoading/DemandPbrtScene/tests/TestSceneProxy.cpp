@@ -11,10 +11,10 @@
 #include "MockGeometryLoader.h"
 #include "MockMeshLoader.h"
 
-#include <GeometryCache.h>
-#include <Options.h>
-#include <Params.h>
-#include <SceneProxy.h>
+#include <DemandPbrtScene/GeometryCache.h>
+#include <DemandPbrtScene/Options.h>
+#include <DemandPbrtScene/Params.h>
+#include <DemandPbrtScene/SceneProxy.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>

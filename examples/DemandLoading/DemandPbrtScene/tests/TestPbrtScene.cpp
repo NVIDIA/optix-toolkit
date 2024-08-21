@@ -12,17 +12,17 @@
 #include "MockMaterialResolver.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
-#include "SceneAdapters.h"
 
-#include <DemandTextureCache.h>
-#include <GeometryResolver.h>
-#include <MaterialResolver.h>
-#include <Options.h>
-#include <Params.h>
-#include <ProgramGroups.h>
-#include <Renderer.h>
-#include <Scene.h>
-#include <SceneSyncState.h>
+#include <DemandPbrtScene/DemandTextureCache.h>
+#include <DemandPbrtScene/GeometryResolver.h>
+#include <DemandPbrtScene/MaterialResolver.h>
+#include <DemandPbrtScene/Options.h>
+#include <DemandPbrtScene/Params.h>
+#include <DemandPbrtScene/ProgramGroups.h>
+#include <DemandPbrtScene/Renderer.h>
+#include <DemandPbrtScene/Scene.h>
+#include <DemandPbrtScene/SceneAdapters.h>
+#include <DemandPbrtScene/SceneSyncState.h>
 
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "Dependencies.h"
+#include "DemandPbrtScene/Dependencies.h"
 
 #include <optix.h>
 

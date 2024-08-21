@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ImageSourceFactoryStatistics.h"
+#include "DemandPbrtScene/ImageSourceFactoryStatistics.h"
 
 #include <OptiXToolkit/ImageSource/ImageSourceCache.h>
 

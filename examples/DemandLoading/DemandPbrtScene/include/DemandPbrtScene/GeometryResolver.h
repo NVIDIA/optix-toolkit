@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Dependencies.h"
-#include "GeometryResolverStatistics.h"
+#include "DemandPbrtScene/Dependencies.h"
+#include "DemandPbrtScene/GeometryResolverStatistics.h"
 
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 
