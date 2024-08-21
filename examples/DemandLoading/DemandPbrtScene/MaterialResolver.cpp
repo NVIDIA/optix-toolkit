@@ -53,7 +53,7 @@ class PbrtMaterialResolver : public MaterialResolver
 
   private:
     MaterialResolution    resolveMaterial( uint_t proxyMaterialId, SceneSyncState& m_sync );
-    std::optional<uint_t> findResolvedMaterial( const GeometryInstance& instance, SceneSyncState& syncState ) const;
+    std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, SceneSyncState& syncState ) const;
 
     // Dependencies
     const Options&        m_options;
@@ -199,18 +199,18 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
     return resolution;
 }
 
-std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const GeometryInstance& instance, SceneSyncState& syncState ) const
+std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const MaterialGroup& group, SceneSyncState& syncState ) const
 {
     // Check for loaded diffuse map
-    if( flagSet( instance.groups.material.flags, MaterialFlags::DIFFUSE_MAP )
-        && !m_demandTextureCache->hasDiffuseTextureForFile( instance.groups.diffuseMapFileName ) )
+    if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP )
+        && !m_demandTextureCache->hasDiffuseTextureForFile( group.diffuseMapFileName ) )
     {
         return {};
     }
 
     // Check for loaded alpha map
-    if( flagSet( instance.groups.material.flags, MaterialFlags::ALPHA_MAP )
-        && !m_demandTextureCache->hasAlphaTextureForFile( instance.groups.alphaMapFileName ) )
+    if( flagSet( group.material.flags, MaterialFlags::ALPHA_MAP )
+        && !m_demandTextureCache->hasAlphaTextureForFile( group.alphaMapFileName ) )
     {
         return {};
     }
@@ -218,12 +218,12 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Geometry
     // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
     const auto it =
         std::find_if( syncState.realizedMaterials.cbegin(), syncState.realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
-            return instance.groups.material.Ka == entry.Ka                 //
-                   && instance.groups.material.Kd == entry.Kd              //
-                   && instance.groups.material.Ks == entry.Ks              //
-                   && instance.groups.material.Kr == entry.Kr              //
-                   && instance.groups.material.phongExp == entry.phongExp  //
-                   && ( instance.groups.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+            return group.material.Ka == entry.Ka                 //
+                   && group.material.Kd == entry.Kd              //
+                   && group.material.Ks == entry.Ks              //
+                   && group.material.Kr == entry.Kr              //
+                   && group.material.phongExp == entry.phongExp  //
+                   && ( group.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
                           == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
         } );
     if( it != syncState.realizedMaterials.cend() )
@@ -234,18 +234,18 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Geometry
     return {};
 }
 
-bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geom, SceneSyncState& syncState )
+bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState )
 {
-    SceneGeometry sceneGeom{};
-    sceneGeom.instance = geom;
+    SceneGeometry geom{};
+    geom.instance = geomInstance;
 
     // check for shared materials
-    if( const std::optional<uint_t> id = findResolvedMaterial( geom, syncState ); id.has_value() )
+    if( const std::optional<uint_t> id = findResolvedMaterial( geom.instance.groups, syncState ); id.has_value() )
     {
         // just for completeness's sake, mark the duplicate material's textures as having
         // been loaded, although we won't use the duplicate material after this.
         const auto markAllocated = [&]( MaterialFlags requested, MaterialFlags allocated ) {
-            MaterialFlags& flags{ sceneGeom.instance.groups.material.flags };
+            MaterialFlags& flags{ geom.instance.groups.material.flags };
             if( flagSet( flags, requested ) )
             {
                 flags |= allocated;
@@ -258,21 +258,21 @@ bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const
         //OTK_ASSERT( m_phongModule != nullptr );  // should have already been realized
         const uint_t materialId{ id.value() };
         const uint_t instanceId{ static_cast<uint_t>( syncState.instanceMaterialIds.size() ) };
-        sceneGeom.materialId                   = materialId;
-        sceneGeom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( sceneGeom.instance );
-        sceneGeom.instance.instance.instanceId = instanceId;
-        sceneGeom.instanceIndex                = syncState.topLevelInstances.size();
+        geom.materialId                   = materialId;
+        geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
+        geom.instance.instance.instanceId = instanceId;
+        geom.instanceIndex                = syncState.topLevelInstances.size();
         syncState.instanceMaterialIds.push_back( materialId );
-        syncState.topLevelInstances.push_back( sceneGeom.instance.instance );
-        syncState.realizedNormals.push_back( sceneGeom.instance.devNormals );
-        syncState.realizedUVs.push_back( sceneGeom.instance.devUVs );
-        m_proxyMaterialGeometries[materialId] = sceneGeom;
+        syncState.topLevelInstances.push_back( geom.instance.instance );
+        syncState.realizedNormals.push_back( geom.instance.devNormals );
+        syncState.realizedUVs.push_back( geom.instance.devUVs );
+        m_proxyMaterialGeometries[materialId] = geom;
         ++m_stats.numMaterialsReused;
 
         if( m_options.verboseProxyGeometryResolution )
         {
             std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
-                      << sceneGeom.instanceIndex << " with existing material id " << materialId << '\n';
+                      << geom.instanceIndex << " with existing material id " << materialId << '\n';
         }
 
         return true;
@@ -280,15 +280,15 @@ bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const
 
     const uint_t materialId{ m_materialLoader->add() };
     const uint_t instanceId{ materialId };  // use the proxy material id as the instance id
-    sceneGeom.materialId                   = materialId;
-    sceneGeom.instance.instance.instanceId = instanceId;
-    sceneGeom.instanceIndex                = syncState.topLevelInstances.size();
-    syncState.topLevelInstances.push_back( sceneGeom.instance.instance );
-    m_proxyMaterialGeometries[materialId] = sceneGeom;
+    geom.materialId                   = materialId;
+    geom.instance.instance.instanceId = instanceId;
+    geom.instanceIndex                = syncState.topLevelInstances.size();
+    syncState.topLevelInstances.push_back( geom.instance.instance );
+    m_proxyMaterialGeometries[materialId] = geom;
     if( m_options.verboseProxyGeometryResolution )
     {
-        std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id "
-                  << sceneGeom.instanceIndex << " with proxy material id " << sceneGeom.materialId << '\n';
+        std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id " << geom.instanceIndex
+                  << " with proxy material id " << geom.materialId << '\n';
     }
     ++m_stats.numProxyMaterialsCreated;
     return false;
