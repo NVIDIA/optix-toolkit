@@ -97,7 +97,6 @@ add_library(DemandPbrtSceneImpl STATIC
     Statistics.cpp
     Statistics.h
     Timer.h
-    Traversable.h
     UserInterface.h
     UserInterfaceStatistics.h
 )
