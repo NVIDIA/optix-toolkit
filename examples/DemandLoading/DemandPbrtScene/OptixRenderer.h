@@ -15,7 +15,6 @@
 #include "Dependencies.h"
 #include "Params.h"
 #include "Renderer.h"
-#include "Traversable.h"
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
