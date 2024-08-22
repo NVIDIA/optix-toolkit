@@ -200,20 +200,19 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
         throw std::runtime_error( "Attempt to get geometry for decomposable proxy" );
     }
 
-    std::vector<GeometryCacheEntry> result{ m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes ) };
-    GeometryCacheEntry entry{ result[0] };
+    const GeometryCacheEntry result{ m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes, primitive ) };
     // TODO: figure out how to convey multiple materials per GAS
     OptixInstance instance{};
-    instance.traversableHandle = entry.traversable;
-    return { entry.accelBuffer,  //
-             primitive,          //
+    instance.traversableHandle = result.traversable;
+    return { result.accelBuffer,  //
+             primitive,           //
              instance /*geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset )*/,  //
              { {} /*geometryMaterial( shape.material, hasUVs )*/,  //
                {} /*shape.material.diffuseMapFileName*/,           //
                {} /*shape.material.alphaMapFileName*/,             //
                0U },                                               //
-             entry.devNormals,                                     //
-             entry.devUVs };
+             result.devNormals,                                    //
+             result.devUVs };
 }
 
 std::vector<SceneProxyPtr> InstanceProxy::decompose( ProxyFactoryPtr proxyFactory )

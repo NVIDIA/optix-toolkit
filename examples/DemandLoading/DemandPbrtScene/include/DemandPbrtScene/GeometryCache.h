@@ -37,17 +37,18 @@ class GeometryCache
 
     virtual GeometryCacheEntry getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape ) = 0;
 
-    virtual std::vector<GeometryCacheEntry> getObject( OptixDeviceContext                 context,
-                                                       CUstream                           stream,
-                                                       const otk::pbrt::ObjectDefinition& object,
-                                                       const otk::pbrt::ShapeList&        shapes ) = 0;
+    virtual GeometryCacheEntry getObject( OptixDeviceContext                 context,
+                                          CUstream                           stream,
+                                          const otk::pbrt::ObjectDefinition& object,
+                                          const otk::pbrt::ShapeList&        shapes,
+                                          GeometryPrimitive                  primitive ) = 0;
 
     virtual GeometryCacheStatistics getStatistics() const = 0;
 };
 
 class FileSystemInfo
 {
-public:
+  public:
     virtual ~FileSystemInfo() = default;
 
     virtual unsigned long long getSize( const std::string& path ) const = 0;
