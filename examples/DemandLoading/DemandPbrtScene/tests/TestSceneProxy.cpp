@@ -198,9 +198,13 @@ class MockGeometryCache : public StrictMock<GeometryCache>
     ~MockGeometryCache() override = default;
 
     MOCK_METHOD( GeometryCacheEntry, getShape, (OptixDeviceContext, CUstream, const otk::pbrt::ShapeDefinition&), ( override ) );
-    MOCK_METHOD( std::vector<GeometryCacheEntry>,
+    MOCK_METHOD( GeometryCacheEntry,
                  getObject,
-                 ( OptixDeviceContext context, CUstream stream, const otk::pbrt::ObjectDefinition& object, const otk::pbrt::ShapeList& shapes ) );
+                 ( OptixDeviceContext                 context,
+                   CUstream                           stream,
+                   const otk::pbrt::ObjectDefinition& object,
+                   const otk::pbrt::ShapeList&        shapes,
+                   GeometryPrimitive                  primitive ) );
     MOCK_METHOD( GeometryCacheStatistics, getStatistics, (), ( const override ) );
 };
 
@@ -1075,10 +1079,10 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     triangles.accelBuffer = 0xdeadbeefULL;
     triangles.traversable = m_fakeGeometryAS;
     triangles.primitive   = GeometryPrimitive::TRIANGLE;
-    std::vector<GeometryCacheEntry> entries{ triangles };
-    const std::string&              name{ m_scene->objects.begin()->first };
-    EXPECT_CALL( *m_geometryCache, getObject( m_fakeContext, m_stream, m_scene->objects[name], m_scene->objectShapes[name] ) )
-        .WillOnce( Return( entries ) );
+    const std::string& name{ m_scene->objects.begin()->first };
+    EXPECT_CALL( *m_geometryCache, getObject( m_fakeContext, m_stream, m_scene->objects[name],
+                                              m_scene->objectShapes[name], GeometryPrimitive::TRIANGLE ) )
+        .WillOnce( Return( triangles ) );
 
     const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
 

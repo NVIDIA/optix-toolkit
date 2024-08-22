@@ -313,7 +313,7 @@ class TestGeometryCache : public Test
 
     CUstream               m_stream{};
     MockFileSystemInfoPtr  m_fileSystemInfo{ std::make_shared<MockFileSystemInfo>() };
-    GeometryCachePtr       m_geometryCache{ createGeometryCache( m_fileSystemInfo) };
+    GeometryCachePtr       m_geometryCache{ createGeometryCache( m_fileSystemInfo ) };
     StrictMock<MockOptix>  m_optix;
     OptixDeviceContext     m_fakeContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
     GeometryCacheEntry     m_geom{};
@@ -786,25 +786,25 @@ TEST_F( TestGeometryCache, constructSphereASForSphere )
     std::vector<float>         radii{ shape.sphere.radius };
     const auto                 expectedInput{
         AllOf( NotNull(), hasSphereBuildInput( 0, hasAll( hasDeviceSphereVertices( centers ),
-                                                          hasDeviceSphereSingleRadius( shape.sphere.radius ) ) ) ) };
+                                                                          hasDeviceSphereSingleRadius( shape.sphere.radius ) ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
     m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
     OTK_ERROR_CHECK( cudaDeviceSynchronize() );
-    const Stats stats{ m_geometryCache->getStatistics() };
 
     EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
     EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
     EXPECT_EQ( nullptr, m_geom.devNormals );
     EXPECT_EQ( nullptr, m_geom.devUVs );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 0, stats.numTriangles );
     EXPECT_EQ( 1, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
 }
 
 struct TestObject
@@ -917,25 +917,23 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
-    const std::vector<GeometryCacheEntry> result{
-        m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes ) };
-    const Stats stats{ m_geometryCache->getStatistics() };
+    const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                 GeometryPrimitive::TRIANGLE ) };
 
-    ASSERT_FALSE( result.empty() );
-    const GeometryCacheEntry& geom{ result[0] };
-    EXPECT_NE( CUdeviceptr{}, geom.accelBuffer );
-    EXPECT_EQ( m_fakeGeomAS, geom.traversable );
-    EXPECT_EQ( nullptr, geom.devNormals );
-    EXPECT_EQ( nullptr, geom.devUVs );
+    EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, result.traversable );
+    EXPECT_EQ( nullptr, result.devNormals );
+    EXPECT_EQ( nullptr, result.devUVs );
+    ASSERT_EQ( 2U, result.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    EXPECT_EQ( 1U, result.primitiveGroupIndices[1] );
+    const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 2, stats.numTriangles );
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
     EXPECT_EQ( 0, stats.totalBytesRead );
-    ASSERT_EQ( 2U, geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, geom.primitiveGroupIndices[0] );
-    EXPECT_EQ( 1U, geom.primitiveGroupIndices[1] );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOnePlyMesh )
@@ -953,25 +951,23 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOnePlyMesh )
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
-    const std::vector<GeometryCacheEntry> result{
-        m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes ) };
-    const Stats stats = m_geometryCache->getStatistics();
+    const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                 GeometryPrimitive::TRIANGLE ) };
 
-    ASSERT_FALSE( result.empty() );
-    const GeometryCacheEntry& geom{ result[0] };
-    EXPECT_NE( CUdeviceptr{}, geom.accelBuffer );
-    EXPECT_EQ( m_fakeGeomAS, geom.traversable );
-    EXPECT_EQ( nullptr, geom.devNormals );
-    EXPECT_EQ( nullptr, geom.devUVs );
+    EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, result.traversable );
+    EXPECT_EQ( nullptr, result.devNormals );
+    EXPECT_EQ( nullptr, result.devUVs );
+    ASSERT_EQ( 2U, result.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    EXPECT_EQ( 1U, result.primitiveGroupIndices[1] );
+    const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 2, stats.numTriangles );
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
     EXPECT_EQ( ARBITRARY_PLY_FILE_SIZE, stats.totalBytesRead );
-    ASSERT_EQ( 2U, geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, geom.primitiveGroupIndices[0] );
-    EXPECT_EQ( 1U, geom.primitiveGroupIndices[1] );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOneSphere )
@@ -985,30 +981,45 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOneSphere )
                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedTriangleInput );
     configureAccelBuild( expectedOptions, expectedTriangleInput );
-    const auto expectedSphereInput{
+
+    const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                 GeometryPrimitive::TRIANGLE ) };
+    const Stats              stats{ m_geometryCache->getStatistics() };
+
+    EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, result.traversable );
+    EXPECT_EQ( nullptr, result.devNormals );
+    EXPECT_EQ( nullptr, result.devUVs );
+    ASSERT_EQ( 1U, result.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numSpheres );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 0, stats.numUVs );
+    EXPECT_EQ( 0, stats.totalBytesRead );
+}
+
+TEST_F( TestGeometryCache, constructSphereASForObjectOneTriMeshOneSphere )
+{
+    const TestObject object{ oneTriangleMeshOneSphere() };
+    const auto       expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto       expectedSphereInput{
         AllOf( NotNull(), hasSphereBuildInput( 0, hasAll( hasDeviceSphereVertices( object.expectedSphereCenters ),
-                                                          hasDeviceSphereSingleRadius( object.expectedSphereSingleRadius ) ) ) ) };
+                                                                hasDeviceSphereSingleRadius( object.expectedSphereSingleRadius ) ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedSphereInput );
     configureAccelBuild( expectedOptions, expectedSphereInput );
 
-    const std::vector<GeometryCacheEntry> result{
-        m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes ) };
-    const Stats stats{ m_geometryCache->getStatistics() };
+    const GeometryCacheEntry result{
+        m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes, GeometryPrimitive::SPHERE ) };
 
-    ASSERT_EQ( 2U, result.size() );
-    const GeometryCacheEntry& meshGeom{ result[0] };
-    EXPECT_NE( CUdeviceptr{}, meshGeom.accelBuffer );
-    EXPECT_EQ( m_fakeGeomAS, meshGeom.traversable );
-    EXPECT_EQ( nullptr, meshGeom.devNormals );
-    EXPECT_EQ( nullptr, meshGeom.devUVs );
-    ASSERT_EQ( 1U, meshGeom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, meshGeom.primitiveGroupIndices[0] );
-    const GeometryCacheEntry& sphereGeom{ result[1] };
-    EXPECT_NE( CUdeviceptr{}, sphereGeom.accelBuffer);
-    ASSERT_EQ( 1U, sphereGeom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, sphereGeom.primitiveGroupIndices[0] );
-    EXPECT_EQ( 2, stats.numTraversables );
-    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, result.traversable );
+    ASSERT_EQ( 1U, result.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    const Stats stats{ m_geometryCache->getStatistics() };
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 0, stats.numTriangles );
     EXPECT_EQ( 1, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
