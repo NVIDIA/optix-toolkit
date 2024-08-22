@@ -48,6 +48,7 @@ class MockProxyFactory : public StrictMock<ProxyFactory>
     MOCK_METHOD( SceneProxyPtr, sceneShape, ( SceneDescriptionPtr, uint_t ), ( override ) );
     MOCK_METHOD( SceneProxyPtr, sceneInstance, ( SceneDescriptionPtr, uint_t ), ( override ) );
     MOCK_METHOD( SceneProxyPtr, sceneInstanceShape, ( SceneDescriptionPtr, uint_t, uint_t ), ( override ) );
+    MOCK_METHOD( SceneProxyPtr, sceneInstancePrimitive, ( SceneDescriptionPtr, uint_t, GeometryPrimitive ), ( override ) );
     MOCK_METHOD( ProxyFactoryStatistics, getStatistics, (), ( const override ) );
 };
 

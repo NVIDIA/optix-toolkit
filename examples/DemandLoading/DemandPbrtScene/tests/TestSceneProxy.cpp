@@ -1096,7 +1096,7 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     EXPECT_EQ( triangles.devUVs, geom.devUVs );
 }
 
-static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()
+static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene( const std::string& objectName )
 {
     SceneDescriptionPtr  scene{ std::make_shared<otk::pbrt::SceneDescription>() };
     otk::pbrt::ShapeList shapeList;
@@ -1107,13 +1107,14 @@ static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()
     shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
     otk::pbrt::ObjectDefinition object;
     object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
-    scene->objects["triangle"]        = object;
-    scene->instanceCounts["triangle"] = 1;
+    scene->objects[objectName]        = object;
+    scene->instanceCounts[objectName] = 1;
     otk::pbrt::ObjectInstanceDefinition instance;
-    instance.name   = "triangle";
-    instance.bounds = transformBounds( object );
+    instance.name      = objectName;
+    instance.transform = Translate( ::pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
+    instance.bounds    = transformBounds( object );
     scene->objectInstances.push_back( instance );
-    scene->objectShapes["triangle"] = shapeList;
+    scene->objectShapes[objectName] = shapeList;
     scene->bounds                   = transformBounds( instance );
     return scene;
 }
@@ -1121,19 +1122,37 @@ static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene()
 TEST_F( TestSceneProxy, coarseObjectInstanceSomeShapesDifferentPrimitiveDecomposable )
 {
     m_options.proxyGranularity = ProxyGranularity::COARSE;
-    m_scene                    = singleInstanceOneTriangleOneSphereShapeScene();
+    m_scene                    = singleInstanceOneTriangleOneSphereShapeScene( "triangleSphere" );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
     m_proxy = m_factory->sceneInstance( m_scene, 0 );
 
     EXPECT_TRUE( m_proxy->isDecomposable() );
 }
 
-TEST_F( TestSceneProxy, coarseObjectInstanceSomeShapesDifferentPrimitiveDecomposedMultipleProxies )
+TEST_F( TestSceneProxy, coarseObjectInstanceMultiplePrimitivesDecomposed )
 {
+    const std::string objectName{ "triangleSphere" };
     m_options.proxyGranularity = ProxyGranularity::COARSE;
-    m_scene                    = singleInstanceOneTriangleOneSphereShapeScene();
+    m_scene                    = singleInstanceOneTriangleOneSphereShapeScene( objectName );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
     m_proxy = m_factory->sceneInstance( m_scene, 0 );
+    const auto&                         instance{ m_scene->objectInstances[0] };
+    const uint_t                        childId1{ 1111 };
+    const ::otk::pbrt::ShapeDefinition& shape1{ m_scene->objectShapes[objectName][0] };
+    const OptixAabb shape1Bounds{ toOptixAabb( instance.transform( shape1.transform( shape1.bounds ) ) ) };
+    const uint_t    childId2{ 2222 };
+    const ::otk::pbrt::ShapeDefinition& shape2{ m_scene->objectShapes[objectName][1] };
+    const OptixAabb shape2Bounds{ toOptixAabb( instance.transform( shape2.transform( shape2.bounds ) ) ) };
+    EXPECT_CALL( *m_geometryLoader, add( shape1Bounds ) ).WillOnce( Return( childId1 ) );
+    EXPECT_CALL( *m_geometryLoader, add( shape2Bounds ) ).WillOnce( Return( childId2 ) );
 
-    EXPECT_TRUE( m_proxy->isDecomposable() );
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
+
+    ASSERT_EQ( 2U, parts.size() );
+    const SceneProxyPtr& proxy1{ parts[0] };
+    EXPECT_EQ( childId1, proxy1->getPageId() );
+    EXPECT_EQ( shape1Bounds, proxy1->getBounds() );
+    const SceneProxyPtr& proxy2{ parts[1] };
+    EXPECT_EQ( childId2, proxy2->getPageId() );
+    EXPECT_EQ( shape2Bounds, proxy2->getBounds() );
 }
