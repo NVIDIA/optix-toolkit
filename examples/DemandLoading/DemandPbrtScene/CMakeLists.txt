@@ -60,7 +60,7 @@ add_library(DemandPbrtSceneImpl STATIC
     ProgramGroups.cpp
     SceneProxy.cpp
     Statistics.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/Config.h
+    ${CMAKE_CURRENT_BINARY_DIR}/include/DemandPbrtScene/Config.h
     include/DemandPbrtScene/Accumulator.h
     include/DemandPbrtScene/Application.h
     include/DemandPbrtScene/Config.h.in
