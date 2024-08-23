@@ -93,7 +93,7 @@ textureWeighted( CUtexObject texture, float i, float j, float4 wx, float4 wy, in
 }
 
 /// Compute cubic filtered texture sample based on filterMode.
-template <class TYPE> D_INLINE bool
+template <class TYPE> D_INLINE void
 textureCubic( CUtexObject texture, int texWidth, int texHeight,
               unsigned int filterMode, unsigned int mipmapFilterMode, unsigned int maxAnisotropy,
               float s, float t, float2 ddx, float2 ddy, TYPE* result, TYPE* dresultds, TYPE* dresultdt )
@@ -150,7 +150,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         }
 
         if( cubicBlend <= 0.0f )
-            return true;
+            return;
     }
 
     // Get unnormalized texture coordinates
@@ -190,7 +190,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 
     // Return unless we have to blend between levels
     if( filterMode != FILTER_BICUBIC || ml == mipLevel || ml < 0.0f )
-        return true;
+        return;
 
     //-------------------------------------------------------------------------------
     // Sample second level for blending between levels in FILTER_BICUBIC mode
@@ -234,5 +234,4 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         if( dresultdt )
             *dresultdt = levelBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - levelBlend) * *dresultdt;
     }
-    return true;
 }

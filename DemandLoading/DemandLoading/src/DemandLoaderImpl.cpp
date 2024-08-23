@@ -586,6 +586,7 @@ MemoryPool<PinnedAllocator, RingSuballocator>* DemandLoaderImpl::getPinnedMemory
 
 void DemandLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
+    std::unique_lock<std::mutex> lock( m_mutex );
     m_pageLoader->setMaxTextureMemory( maxMem );
 }
 

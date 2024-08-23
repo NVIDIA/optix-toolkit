@@ -82,7 +82,7 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
         bh = deviceMemoryManager->allocateTileBlock( TILE_SIZE_IN_BYTES );
         if( bh.block.isBad() )
         {
-            // If the allocation failed, set max memory to current size and turn on eviction.
+            // If the allocation failed, set max memory to current size to prevent repeat requests.
             m_loader->setMaxTextureMemory( deviceMemoryManager->getTextureTileMemory() );
             return;
         }

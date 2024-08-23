@@ -102,7 +102,7 @@ class DeviceMemoryManager
     void setMaxTextureTileMemory( size_t maxMemory )
     {
         if( m_tilePool )
-            m_tilePool->setMaxSize( static_cast<uint64_t>( maxMemory ) );
+            m_tilePool->setMaxSize( static_cast<uint64_t>( maxMemory ), true, CUstream{0} );
     }
 
     /// Return the amount of device memory allocated in different pools.
