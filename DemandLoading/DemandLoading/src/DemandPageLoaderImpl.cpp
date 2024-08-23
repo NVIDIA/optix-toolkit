@@ -117,40 +117,56 @@ void DemandPageLoaderImpl::pullRequests( CUstream stream, const DeviceContext& c
 class ResizeTilePoolPredicate : public PageInvalidatorPredicate
 {
   public:
-    ResizeTilePoolPredicate( unsigned int maxArenas )
-        : m_maxArenas( maxArenas )
+    ResizeTilePoolPredicate( DeviceMemoryManager* deviceMemoryManager, unsigned int maxArenas )
+        : m_deviceMemoryManager( deviceMemoryManager ) 
+        , m_maxArenas( maxArenas )
     {
     }
     bool operator()( unsigned int /*pageId*/, unsigned long long pageVal, CUstream /*stream*/ ) override
     {
         TileBlockDesc tileBlock( pageVal );
-        // Note: no need to free the tile block in the deviceMemoryManager because the
-        // arena associated with the block will be discarded.
+        // TODO: verify that we don't have to free the tile block in the deviceMemoryManager
+        // becasue the arena associated with the block will be discarded.
+        // if( tileBlock.arenaId >= m_maxArenas )
+        //    m_deviceMemoryManager->freeTileBlock( pageVal );
         return ( tileBlock.arenaId >= m_maxArenas );
     }
     ~ResizeTilePoolPredicate() override {}
   private:
+    DeviceMemoryManager* m_deviceMemoryManager;
     unsigned int m_maxArenas;
 };
 
 void DemandPageLoaderImpl::setMaxTextureMemory( size_t maxMem )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    unsigned int arenaSize = m_deviceMemoryManager.getTilePoolArenaSize();
+    if( maxMem % arenaSize != 0 )
+        maxMem = maxMem + (arenaSize - maxMem % arenaSize);
     
     unsigned int tilesStartPage = m_options->numPageTableEntries;
     unsigned int tilesEndPage   = m_options->numPages;
     size_t       maxArenas      = maxMem / m_deviceMemoryManager.getTilePoolArenaSize();
 
-    // Resize, deleting tile arenas as needed
+    // Discard tiles from arenas that will be deleted
+    if( m_deviceMemoryManager.getTextureTileMemory() > maxMem )
+    {
+        CUstream stream{0};
+        DeviceContext context = *m_deviceMemoryManager.allocateDeviceContext();
+
+        ResizeTilePoolPredicate* predicate =
+            new ResizeTilePoolPredicate( &m_deviceMemoryManager, static_cast<unsigned int>( maxArenas ) );
+        m_pagesToInvalidate.push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
+        invalidatePages( stream, context );
+        cuStreamSynchronize( stream );
+
+        m_deviceMemoryManager.freeDeviceContext( &context );
+    }
+
+    // Resize tile pool, deleting tile arenas as needed
     m_deviceMemoryManager.setMaxTextureTileMemory( maxMem );
     m_options->maxTexMemPerDevice = maxMem;
-    // If no arenas to delete, just return to avoid slow predicate
-    if( m_deviceMemoryManager.getTextureTileMemory() <= maxMem )
-        return;
-
-    // Schedule tiles from deleted arenas to be discarded
-    ResizeTilePoolPredicate* predicate = new ResizeTilePoolPredicate( static_cast<unsigned int>( maxArenas ) );
-    m_pagesToInvalidate.push_back( InvalidationRange{tilesStartPage, tilesEndPage, predicate} );
 }
 
 void DemandPageLoaderImpl::invalidatePageRange( unsigned int startPage, unsigned int endPage, PageInvalidatorPredicate* predicate )

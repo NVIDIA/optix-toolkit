@@ -132,6 +132,7 @@ class MemoryPool
 
         // Try to fill the request with the suballocator. If it fails, allocate more memory and try again.
         MemoryBlockDesc block = m_suballocator->alloc( size, alignment );
+
         if( ( block.isBad() ) && ( trackedSize() < m_maxSize ) && m_allocator )
         {
             // Make sure there is enough headroom (allocatable space) still on the card
@@ -316,22 +317,31 @@ class MemoryPool
     uint64_t allocationGranularity() const { return m_allocationGranularity; }
 
     /// Set the max size (maximum size that the pool will allocate)
-    void setMaxSize( uint64_t maxSize ) { m_maxSize = maxSize; }
+    void setMaxSize( uint64_t maxSize, bool releaseAllocations, CUstream stream = 0 ) 
+    {
+        uint64_t approxTrackedSize = m_allocations.size() * m_allocationGranularity;
 
-    /// Reduce the size of the pool by at least rsize, releasing the memory to the OS
+        if( maxSize < approxTrackedSize && releaseAllocations )
+            releaseMemory( approxTrackedSize - maxSize, stream );
+        m_maxSize = maxSize;
+    }
+
+    /// Reduce the size of the pool by about rsize, releasing the memory to the OS
     void releaseMemory( uint64_t rsize, CUstream stream = 0 )
     {
         OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
         std::unique_lock<std::mutex> lock( m_mutex );
         freeStagedBlocks( true );
 
-        for( int i = (int)m_allocations.size() - 1; i >= 0; --i )
+        int numAllocationsToRelease = static_cast<int>(rsize / m_allocationGranularity);
+        int idx = (int)m_allocations.size() - 1;
+        while( idx >= 0 && numAllocationsToRelease > 0 )
         {
             // Untrack the end allocation
-            const PtrSize ps = m_allocations[i];
+            const PtrSize ps = m_allocations[idx];
             if( m_allocator && m_allocator->allocationIsHandle() && m_suballocator )
             {
-                m_suballocator->untrack( getArenaStartAddress( static_cast<uint64_t>( i ) ), ps.size );
+                m_suballocator->untrack( getArenaStartAddress( static_cast<uint64_t>( idx ) ), ps.size );
             }
             else if( m_suballocator )
             {
@@ -339,16 +349,15 @@ class MemoryPool
             }
 
             // Free the end allocation
-            if( m_allocator )
-                m_allocator->free( m_allocations[i].ptr );
-            const uint64_t size{ m_allocations[i].size };
             m_allocations.pop_back();
-            if( size >= rsize )
-                break;
-            rsize -= size;
+            if( m_allocator )
+                m_allocator->free( ps.ptr );
+
+            // Decrement counters for next loop iteration
+            numAllocationsToRelease--;
+            idx--;
         }
     }
-
 
   private:
     // A memory pool is for a single device or the host, but it must
