@@ -341,10 +341,11 @@ class MemoryPool
             // Free the end allocation
             if( m_allocator )
                 m_allocator->free( m_allocations[i].ptr );
+            const uint64_t size{ m_allocations[i].size };
             m_allocations.pop_back();
-            if( m_allocations[i].size >= rsize )
+            if( size >= rsize )
                 break;
-            rsize -= m_allocations[i].size;
+            rsize -= size;
         }
     }
 
