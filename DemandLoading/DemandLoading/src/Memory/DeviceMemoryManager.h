@@ -99,11 +99,7 @@ class DeviceMemoryManager
     size_t getTilePoolArenaSize() const { return m_tilePool ? static_cast<size_t>( m_tilePool->allocationGranularity() ) : 2 * 1024 * 1024; }
 
     /// Set the max texture memory
-    void setMaxTextureTileMemory( size_t maxMemory )
-    {
-        if( m_tilePool )
-            m_tilePool->setMaxSize( static_cast<uint64_t>( maxMemory ), true, CUstream{0} );
-    }
+    void setMaxTextureTileMemory( size_t maxMemory );
 
     /// Return the amount of device memory allocated in different pools.
     size_t getSamplerMemory() const { return m_samplerPool.trackedSize(); }
