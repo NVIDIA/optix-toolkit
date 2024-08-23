@@ -69,4 +69,20 @@ void DeviceMemoryManager::freeDeviceContext( DeviceContext* context )
     m_deviceContextFreeList.push_back( m_deviceContextPool[context->poolIndex] );
 }
 
+void DeviceMemoryManager::setMaxTextureTileMemory( size_t maxMemory )
+{
+    if( !m_tilePool )
+        return;
+
+    m_tilePool->setMaxSize( static_cast<uint64_t>( maxMemory ), true, CUstream{0} );
+
+    // Remove references to white/black tiles that were deleted
+    unsigned int numArenas = m_tilePool->numAllocations();
+    for( otk::TileBlockHandle &bh : m_whiteBlackTiles )
+    {
+        if( bh.handle != 0 && bh.block.arenaId >= numArenas )
+            bh = otk::TileBlockHandle{0,0};
+    }
+}
+
 }  // namespace demandLoading

@@ -312,6 +312,9 @@ class MemoryPool
     /// Return the maximum memory that the pool will allocate
     uint64_t maxSize() const { return m_maxSize; }
 
+    /// Return the number of allocations that the pool is tracking
+    uint64_t numAllocations() const { return static_cast<unsigned int>( m_allocations.size() ); }
+
     /// Return the size of chunks that the allocator will allocate.
     /// Also indicates that largest block that the pool can allocate.
     uint64_t allocationGranularity() const { return m_allocationGranularity; }
