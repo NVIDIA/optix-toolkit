@@ -34,6 +34,7 @@
 #include <iterator>
 
 using namespace demandPbrtScene;
+using namespace otk::pbrt;
 using namespace demandPbrtScene::testing;
 using namespace otk::testing;
 using namespace ::testing;
@@ -45,36 +46,36 @@ using B3 = pbrt::Bounds3f;
 using Stats = ProxyFactoryStatistics;
 
 template <typename Thing>
-pbrt::Bounds3f transformBounds( const Thing& thing )
+B3 transformBounds( const Thing& thing )
 {
     return thing.transform( thing.bounds );
 }
 
-static otk::pbrt::ShapeDefinition translatedTriangleShape( const pbrt::Vector3f& translation )
+static ShapeDefinition translatedTriangleShape( const pbrt::Vector3f& translation )
 {
     const P3 minPt{ 0.0f, 0.0f, 0.0f };
     const P3 maxPt{ 1.0f, 1.0f, 1.0f };
     const B3 bounds{ minPt, maxPt };
 
-    otk::pbrt::PlasticMaterial material{};
+    PlasticMaterial material{};
     material.Ka = P3{ 0.1f, 0.2f, 0.3f };
     material.Kd = P3{ 0.4f, 0.5f, 0.6f };
     material.Ks = P3{ 0.7f, 0.8f, 0.9f };
 
     std::vector<P3> vertices{ P3{ 0.0f, 0.0f, 0.0f }, P3{ 1.0f, 0.0f, 0.0f }, P3{ 1.0f, 1.0f, 1.0f } };
 
-    return { "trianglemesh", Translate( translation ), material, bounds, {}, otk::pbrt::TriangleMeshData{ { 0, 1, 2 }, std::move( vertices ) } };
+    return { "trianglemesh", Translate( translation ), material, bounds, {}, TriangleMeshData{ { 0, 1, 2 }, std::move( vertices ) } };
 }
 
-static otk::pbrt::ShapeDefinition singleTriangleShape()
+static ShapeDefinition singleTriangleShape()
 {
     return translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } );
 }
 
 static SceneDescriptionPtr singleTriangleScene()
 {
-    SceneDescriptionPtr        scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeDefinition mesh{ singleTriangleShape() };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     mesh{ singleTriangleShape() };
     scene->bounds = transformBounds( mesh );
     scene->freeShapes.push_back( mesh );
     return scene;
@@ -102,26 +103,26 @@ TEST( TestSceneConstruction, sceneBoundsSingleTriangleScene )
 {
     SceneDescriptionPtr scene{ singleTriangleScene() };
 
-    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape{ shapes[0] };
+    const ShapeDefinition& shape{ shapes[0] };
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
-static otk::pbrt::ShapeDefinition singleSphereShape()
+static ShapeDefinition singleSphereShape()
 {
     const P3 minPt{ 0.0f, 0.0f, 0.0f };
     const P3 maxPt{ 1.0f, 1.0f, 1.0f };
     const B3 bounds{ minPt, maxPt };
 
-    otk::pbrt::PlasticMaterial material{};
+    PlasticMaterial material{};
     material.Ka = P3{ 0.1f, 0.2f, 0.3f };
     material.Kd = P3{ 0.4f, 0.5f, 0.6f };
     material.Ks = P3{ 0.7f, 0.8f, 0.9f };
 
     std::vector<P3> vertices{ P3{ 0.0f, 0.0f, 0.0f }, P3{ 1.0f, 0.0f, 0.0f }, P3{ 1.0f, 1.0f, 1.0f } };
 
-    otk::pbrt::SphereData sphere;
+    SphereData sphere;
     sphere.radius = 1.25f;
     sphere.zMin   = -sphere.radius;
     sphere.zMax   = sphere.radius;
@@ -133,9 +134,9 @@ static otk::pbrt::ShapeDefinition singleSphereShape()
 
 static SceneDescriptionPtr singleSphereScene()
 {
-    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
 
-    otk::pbrt::ShapeDefinition shape{ singleSphereShape() };
+    ShapeDefinition shape{ singleSphereShape() };
     scene->freeShapes.push_back( shape );
     scene->bounds = transformBounds( shape );
 
@@ -146,9 +147,9 @@ TEST( TestSceneConstruction, sceneBoundsSingleSphereScene )
 {
     SceneDescriptionPtr scene{ singleSphereScene() };
 
-    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape{ shapes[0] };
+    const ShapeDefinition& shape{ shapes[0] };
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
@@ -197,14 +198,10 @@ class MockGeometryCache : public StrictMock<GeometryCache>
   public:
     ~MockGeometryCache() override = default;
 
-    MOCK_METHOD( GeometryCacheEntry, getShape, (OptixDeviceContext, CUstream, const otk::pbrt::ShapeDefinition&), ( override ) );
+    MOCK_METHOD( GeometryCacheEntry, getShape, (OptixDeviceContext, CUstream, const ShapeDefinition&), ( override ) );
     MOCK_METHOD( GeometryCacheEntry,
                  getObject,
-                 ( OptixDeviceContext                 context,
-                   CUstream                           stream,
-                   const otk::pbrt::ObjectDefinition& object,
-                   const otk::pbrt::ShapeList&        shapes,
-                   GeometryPrimitive                  primitive ) );
+                 ( OptixDeviceContext context, CUstream stream, const ObjectDefinition& object, const ShapeList& shapes, GeometryPrimitive primitive ) );
     MOCK_METHOD( GeometryCacheStatistics, getStatistics, (), ( const override ) );
 };
 
@@ -214,20 +211,19 @@ using MockGeometryCachePtr = std::shared_ptr<MockGeometryCache>;
 
 static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
 {
-    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
     const P3            minPt{ 0.0f, 0.0f, 0.0f };
     const P3            maxPt{ 1.0f, 1.0f, 1.0f };
     const B3            bounds{ minPt, maxPt };
 
-    otk::pbrt::PlasticMaterial material{};
+    PlasticMaterial material{};
     material.Ka = P3{ 0.1f, 0.2f, 0.3f };
     material.Kd = P3{ 0.4f, 0.5f, 0.6f };
     material.Ks = P3{ 0.7f, 0.8f, 0.9f };
 
-    pbrt::Vector3f             translation{ 1.0f, 2.0f, 3.0f };
-    otk::pbrt::ShapeDefinition mesh{
-        "plymesh", Translate( translation ), material, bounds, otk::pbrt::PlyMeshData{ "cube-mesh.ply", meshLoader },
-        {} };
+    pbrt::Vector3f  translation{ 1.0f, 2.0f, 3.0f };
+    ShapeDefinition mesh{
+        "plymesh", Translate( translation ), material, bounds, PlyMeshData{ "cube-mesh.ply", meshLoader }, {} };
 
     scene->bounds = transformBounds( mesh );
     scene->freeShapes.push_back( mesh );
@@ -239,9 +235,9 @@ TEST( TestSceneConstruction, sceneBoundsSingleTrianglePlyScene )
     MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
     SceneDescriptionPtr scene{ singleTrianglePlyScene( meshLoader ) };
 
-    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 1U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape{ shapes[0] };
+    const ShapeDefinition& shape{ shapes[0] };
     EXPECT_EQ( scene->bounds, transformBounds( shape ) );
 }
 
@@ -250,7 +246,7 @@ TEST( TestSceneConstruction, meshDataSingleTrianglePlyScene )
     MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
     SceneDescriptionPtr scene{ singleTrianglePlyScene( meshLoader ) };
 
-    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( std::string{ "plymesh" }, shape.type );
     EXPECT_EQ( "cube-mesh.ply", shape.plyMesh.fileName );
     EXPECT_EQ( meshLoader, shape.plyMesh.loader );
@@ -269,9 +265,9 @@ TEST( TestSceneConstruction, constructSingleTriangleWithNormalsScene )
     SceneDescriptionPtr scene{ singleTriangleWithNormalsScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "trianglemesh", shape.type );
-    const otk::pbrt::TriangleMeshData& mesh{ shape.triangleMesh };
+    const TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.normals.empty() );
 }
 
@@ -288,9 +284,9 @@ TEST( TestSceneConstruction, constructSingleTriangleWithUVsScene )
     SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_EQ( "trianglemesh", shape.type );
-    const otk::pbrt::TriangleMeshData& mesh{ shape.triangleMesh };
+    const TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.uvs.empty() );
 }
 
@@ -306,7 +302,7 @@ TEST( TestSceneConstruction, constructSingleTriangleWithAlphaMapScene )
     SceneDescriptionPtr scene{ singleTriangleWithAlphaMapScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_FALSE( shape.material.alphaMapFileName.empty() );
 }
 
@@ -322,16 +318,16 @@ TEST( TestSceneConstruction, constructSingleDiffuseMapTriangleScene )
     SceneDescriptionPtr scene{ singleTriangleWithDiffuseMapScene() };
 
     ASSERT_FALSE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeDefinition& shape{ scene->freeShapes[0] };
+    const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_FALSE( shape.material.diffuseMapFileName.empty() );
 }
 
 static SceneDescriptionPtr twoShapeScene()
 {
-    otk::pbrt::ShapeDefinition shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    otk::pbrt::ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
+    ShapeDefinition shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
 
-    SceneDescriptionPtr scene{ std::make_shared<otk::pbrt::SceneDescription>() };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
     scene->bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     scene->freeShapes.push_back( shape1 );
     scene->freeShapes.push_back( shape2 );
@@ -342,30 +338,30 @@ TEST( TestSceneConstruction, sceneBoundsTwoShapeScene )
 {
     SceneDescriptionPtr scene{ twoShapeScene() };
 
-    const otk::pbrt::ShapeList& shapes{ scene->freeShapes };
+    const ShapeList& shapes{ scene->freeShapes };
     EXPECT_EQ( 2U, shapes.size() );
-    const otk::pbrt::ShapeDefinition& shape1{ shapes[0] };
-    const pbrt::Bounds3f              shape1WorldBounds{ transformBounds( shape1 ) };
+    const ShapeDefinition& shape1{ shapes[0] };
+    const B3               shape1WorldBounds{ transformBounds( shape1 ) };
     EXPECT_TRUE( Overlaps( shape1WorldBounds, scene->bounds ) );
-    const otk::pbrt::ShapeDefinition& shape2{ shapes[1] };
-    const pbrt::Bounds3f              shape2WorldBounds{ transformBounds( shape2 ) };
+    const ShapeDefinition& shape2{ shapes[1] };
+    const B3               shape2WorldBounds{ transformBounds( shape2 ) };
     EXPECT_TRUE( Overlaps( shape2WorldBounds, scene->bounds ) );
     EXPECT_EQ( scene->bounds, Union( shape1WorldBounds, shape2WorldBounds ) );
 }
 
 static SceneDescriptionPtr singleInstanceSingleShapeScene()
 {
-    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeDefinition  shape{ singleTriangleShape() };
-    otk::pbrt::ObjectDefinition object;
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape{ singleTriangleShape() };
+    ObjectDefinition    object;
     object.bounds                     = transformBounds( shape );
     scene->objects["triangle"]        = object;
     scene->instanceCounts["triangle"] = 1;
-    otk::pbrt::ObjectInstanceDefinition instance;
+    ObjectInstanceDefinition instance;
     instance.name   = "triangle";
     instance.bounds = transformBounds( object );
     scene->objectInstances.push_back( instance );
-    otk::pbrt::ShapeList shapeList;
+    ShapeList shapeList;
     shapeList.push_back( shape );
     scene->objectShapes["triangle"] = shapeList;
     scene->bounds                   = transformBounds( instance );
@@ -376,27 +372,27 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeScene )
 {
     SceneDescriptionPtr scene{ singleInstanceSingleShapeScene() };
 
-    const otk::pbrt::ShapeList& shapes{ scene->objectShapes["triangle"] };
-    pbrt::Bounds3f              expectedInstanceBounds{ transformBounds( shapes[0] ) };
+    const ShapeList& shapes{ scene->objectShapes["triangle"] };
+    B3               expectedInstanceBounds{ transformBounds( shapes[0] ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( scene->objectInstances[0].transform( expectedInstanceBounds ), scene->bounds );
 }
 
 static SceneDescriptionPtr singleInstanceMultipleShapesScene()
 {
-    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeDefinition  shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    otk::pbrt::ShapeDefinition  shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
-    otk::pbrt::ObjectDefinition object;
-    std::string                 name{ "object" };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ShapeDefinition     shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
+    ObjectDefinition    object;
+    std::string         name{ "object" };
     object.bounds               = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     scene->objects[name]        = object;
     scene->instanceCounts[name] = 1;
-    otk::pbrt::ObjectInstanceDefinition instance;
+    ObjectInstanceDefinition instance;
     instance.name   = name;
     instance.bounds = transformBounds( object );
     scene->objectInstances.push_back( instance );
-    otk::pbrt::ShapeList shapeList;
+    ShapeList shapeList;
     shapeList.push_back( shape1 );
     shapeList.push_back( shape2 );
     scene->objectShapes[name] = shapeList;
@@ -408,31 +404,31 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceMultipleShapesScene )
 {
     SceneDescriptionPtr scene{ singleInstanceMultipleShapesScene() };
 
-    const otk::pbrt::ShapeList& shapes{ scene->objectShapes["object"] };
-    pbrt::Bounds3f expectedInstanceBounds{ Union( transformBounds( shapes[0] ), transformBounds( shapes[1] ) ) };
+    const ShapeList& shapes{ scene->objectShapes["object"] };
+    B3               expectedInstanceBounds{ Union( transformBounds( shapes[0] ), transformBounds( shapes[1] ) ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( scene->objectInstances[0].transform( expectedInstanceBounds ), scene->bounds );
 }
 
 static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
 {
-    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeDefinition  shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    otk::pbrt::ObjectDefinition object;
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ObjectDefinition    object;
     object.bounds = transformBounds( shape1 );
     std::string name{ "object" };
     scene->objects[name]        = object;
     scene->instanceCounts[name] = 1;
-    otk::pbrt::ObjectInstanceDefinition instance;
+    ObjectInstanceDefinition instance;
     instance.name      = name;
     instance.bounds    = transformBounds( object );
     instance.transform = Translate( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
     scene->objectInstances.push_back( instance );
-    otk::pbrt::ShapeList shapeList;
+    ShapeList shapeList;
     shapeList.push_back( shape1 );
     scene->objectShapes[name] = shapeList;
 
-    otk::pbrt::ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
+    ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
     scene->freeShapes.push_back( shape2 );
     scene->bounds = Union( transformBounds( instance ), transformBounds( shape2 ) );
     return scene;
@@ -442,32 +438,32 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeSingleFreeShape
 {
     SceneDescriptionPtr scene{ singleInstanceSingleShapeSingleFreeShapeScene() };
 
-    const otk::pbrt::ShapeList freeShapes{ scene->freeShapes };
+    const ShapeList freeShapes{ scene->freeShapes };
     ASSERT_FALSE( freeShapes.empty() );
-    const otk::pbrt::ShapeList& instanceShapes{ scene->objectShapes["object"] };
+    const ShapeList& instanceShapes{ scene->objectShapes["object"] };
     ASSERT_FALSE( instanceShapes.empty() );
-    pbrt::Bounds3f expectedInstanceBounds{ transformBounds( instanceShapes[0] ) };
+    B3 expectedInstanceBounds{ transformBounds( instanceShapes[0] ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
-    pbrt::Bounds3f expectedFreeShapeBounds{ transformBounds( freeShapes[0] ) };
+    B3 expectedFreeShapeBounds{ transformBounds( freeShapes[0] ) };
     EXPECT_TRUE( Overlaps( expectedFreeShapeBounds, scene->bounds ) );
-    pbrt::Bounds3f expectedObjectInstanceBounds{ scene->objectInstances[0].transform( expectedInstanceBounds ) };
+    B3 expectedObjectInstanceBounds{ scene->objectInstances[0].transform( expectedInstanceBounds ) };
     EXPECT_TRUE( Overlaps( expectedObjectInstanceBounds, scene->bounds ) )
         << expectedObjectInstanceBounds << " not in " << scene->bounds;
 }
 
 static SceneDescriptionPtr multipleInstancesSingleShape()
 {
-    SceneDescriptionPtr         scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeDefinition  shape{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    otk::pbrt::ObjectDefinition object;
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ObjectDefinition    object;
     object.bounds = transformBounds( shape );
     std::string name{ "object" };
     scene->objects[name] = object;
-    otk::pbrt::ShapeList shapeList;
+    ShapeList shapeList;
     shapeList.push_back( shape );
     scene->objectShapes[name] = shapeList;
     const auto createInstance = [&]( const pbrt::Vector3f& translation ) {
-        otk::pbrt::ObjectInstanceDefinition instance;
+        ObjectInstanceDefinition instance;
         instance.name      = name;
         instance.bounds    = transformBounds( object );
         instance.transform = Translate( translation );
@@ -477,8 +473,8 @@ static SceneDescriptionPtr multipleInstancesSingleShape()
     createInstance( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
     createInstance( pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
 
-    const auto& ins1{ scene->objectInstances[0] };
-    const auto& ins2{ scene->objectInstances[1] };
+    const ObjectInstanceDefinition& ins1{ scene->objectInstances[0] };
+    const ObjectInstanceDefinition& ins2{ scene->objectInstances[1] };
     scene->bounds = Union( transformBounds( ins1 ), transformBounds( ins2 ) );
     return scene;
 }
@@ -488,13 +484,13 @@ TEST( TestSceneConstruction, sceneBoundsMultipleInstancesSingleShape )
     SceneDescriptionPtr scene{ multipleInstancesSingleShape() };
 
     ASSERT_TRUE( scene->freeShapes.empty() );
-    const otk::pbrt::ShapeList& instanceShapes{ scene->objectShapes["object"] };
+    const ShapeList& instanceShapes{ scene->objectShapes["object"] };
     ASSERT_FALSE( instanceShapes.empty() );
-    pbrt::Bounds3f expectedShapeBounds{ transformBounds( instanceShapes[0] ) };
+    B3 expectedShapeBounds{ transformBounds( instanceShapes[0] ) };
     EXPECT_EQ( expectedShapeBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( expectedShapeBounds, scene->objectInstances[1].bounds );
-    pbrt::Bounds3f ins1Bounds{ transformBounds( scene->objectInstances[0] ) };
-    pbrt::Bounds3f ins2Bounds{ transformBounds( scene->objectInstances[1] ) };
+    B3 ins1Bounds{ transformBounds( scene->objectInstances[0] ) };
+    B3 ins2Bounds{ transformBounds( scene->objectInstances[1] ) };
     EXPECT_NE( ins1Bounds, ins2Bounds );
     EXPECT_TRUE( Overlaps( ins1Bounds, scene->bounds ) ) << ins1Bounds << " not in " << scene->bounds;
     EXPECT_TRUE( Overlaps( ins2Bounds, scene->bounds ) ) << ins2Bounds << " not in " << scene->bounds;
@@ -522,7 +518,7 @@ class TestSceneProxy : public Test
         m_accelSizes.outputSizeInBytes = 5678U;
     }
 
-    Expectation expectProxyBoundsAdded( const ::pbrt::Bounds3f& bounds, uint_t pageId ) const
+    Expectation expectProxyBoundsAdded( const ::B3& bounds, uint_t pageId ) const
     {
         return EXPECT_CALL( *m_geometryLoader, add( toOptixAabb( bounds ) ) ).WillOnce( Return( pageId ) );
     }
@@ -531,7 +527,7 @@ class TestSceneProxy : public Test
     {
         return expectProxyBoundsAdded( transformBounds( thing ), pageId );
     }
-    Expectation expectProxyBoundsAddedAfter( const ::pbrt::Bounds3f& bounds, uint_t pageId, ExpectationSet before ) const
+    Expectation expectProxyBoundsAddedAfter( const ::B3& bounds, uint_t pageId, ExpectationSet before ) const
     {
         return EXPECT_CALL( *m_geometryLoader, add( toOptixAabb( bounds ) ) ).After( before ).WillOnce( Return( pageId ) );
     }
@@ -541,7 +537,7 @@ class TestSceneProxy : public Test
         return expectProxyBoundsAddedAfter( transformBounds( thing ), pageId, before );
     }
 
-    GeometryCacheEntry expectShapeFromCache( const otk::pbrt::ShapeDefinition& shape )
+    GeometryCacheEntry expectShapeFromCache( const ShapeDefinition& shape )
     {
         GeometryCacheEntry entry{};
         entry.accelBuffer = CUdeviceptr{ 0xf00dbaadf00dbaadULL };
@@ -768,7 +764,9 @@ TEST_F( TestSceneProxy, decomposeProxyForMultipleShapes )
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
     EXPECT_EQ( shape1PageId, parts[0]->getPageId() );
     EXPECT_EQ( shape2PageId, parts[1]->getPageId() );
-    auto transformedBounds = [&]( int index ) { return toOptixAabb( transformBounds( m_scene->freeShapes[index] ) ); };
+    const auto transformedBounds = [&]( int index ) {
+        return toOptixAabb( transformBounds( m_scene->freeShapes[index] ) );
+    };
     const OptixAabb expectedBounds1{ transformedBounds( 0 ) };
     EXPECT_EQ( expectedBounds1, parts[0]->getBounds() ) << expectedBounds1 << " != " << parts[0]->getBounds();
     const OptixAabb expectedBounds2{ transformedBounds( 1 ) };
@@ -870,9 +868,9 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceWithMultipleSha
     m_scene = singleInstanceMultipleShapesScene();
     ExpectationSet first{ expectProxyBoundsAdded( m_scene->bounds, m_pageId ) };
     m_proxy = m_factory->scene( m_scene );
-    const uint_t                shape1PageId{ 1111 };
-    const uint_t                shape2PageId{ 2222 };
-    const otk::pbrt::ShapeList& objectShapes{ m_scene->objectShapes["object"] };
+    const uint_t     shape1PageId{ 1111 };
+    const uint_t     shape2PageId{ 2222 };
+    const ShapeList& objectShapes{ m_scene->objectShapes["object"] };
     expectProxyAddedAfter( objectShapes[0], shape1PageId, first );
     expectProxyAddedAfter( objectShapes[1], shape2PageId, first );
 
@@ -882,7 +880,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceWithMultipleSha
     EXPECT_TRUE( std::none_of( parts.begin(), parts.end(), []( SceneProxyPtr proxy ) { return proxy->isDecomposable(); } ) );
     EXPECT_EQ( shape1PageId, parts[0]->getPageId() );
     EXPECT_EQ( shape2PageId, parts[1]->getPageId() );
-    auto transformedBounds{ [&]( int index ) { return toOptixAabb( transformBounds( objectShapes[index] ) ); } };
+    const auto transformedBounds{ [&]( int index ) { return toOptixAabb( transformBounds( objectShapes[index] ) ); } };
     EXPECT_EQ( transformedBounds( 0 ), parts[0]->getBounds() ) << transformedBounds( 0 ) << " != " << parts[0]->getBounds();
     EXPECT_EQ( transformedBounds( 1 ), parts[1]->getBounds() ) << transformedBounds( 1 ) << " != " << parts[1]->getBounds();
 }
@@ -928,7 +926,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSing
 TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
 {
     MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
-    EXPECT_CALL( *meshLoader, getMeshInfo() ).WillOnce( Return( otk::pbrt::MeshInfo() ) );
+    EXPECT_CALL( *meshLoader, getMeshInfo() ).WillOnce( Return( MeshInfo() ) );
 
     m_scene = singleTrianglePlyScene( meshLoader );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
@@ -1014,19 +1012,19 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
 
 static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
 {
-    SceneDescriptionPtr  scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeList shapeList;
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
     shapeList.push_back( singleTriangleShape() );
     shapeList.push_back( singleTriangleShape() );
-    otk::pbrt::ShapeDefinition& shape1{ shapeList[0] };
-    otk::pbrt::ShapeDefinition& shape2{ shapeList[1] };
+    ShapeDefinition& shape1{ shapeList[0] };
+    ShapeDefinition& shape2{ shapeList[1] };
     shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
-    otk::pbrt::ObjectDefinition object;
+    ObjectDefinition object;
     object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     std::string name{ "triangle" };
     scene->objects[name]        = object;
     scene->instanceCounts[name] = 1;
-    otk::pbrt::ObjectInstanceDefinition instance;
+    ObjectInstanceDefinition instance;
     instance.name   = name;
     instance.bounds = transformBounds( object );
     scene->objectInstances.push_back( instance );
@@ -1098,18 +1096,18 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
 
 static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene( const std::string& objectName )
 {
-    SceneDescriptionPtr  scene{ std::make_shared<otk::pbrt::SceneDescription>() };
-    otk::pbrt::ShapeList shapeList;
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
     shapeList.push_back( singleTriangleShape() );
     shapeList.push_back( singleSphereShape() );
-    otk::pbrt::ShapeDefinition& shape1{ shapeList[0] };
-    otk::pbrt::ShapeDefinition& shape2{ shapeList[1] };
+    ShapeDefinition& shape1{ shapeList[0] };
+    ShapeDefinition& shape2{ shapeList[1] };
     shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
-    otk::pbrt::ObjectDefinition object;
+    ObjectDefinition object;
     object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     scene->objects[objectName]        = object;
     scene->instanceCounts[objectName] = 1;
-    otk::pbrt::ObjectInstanceDefinition instance;
+    ObjectInstanceDefinition instance;
     instance.name      = objectName;
     instance.transform = Translate( ::pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
     instance.bounds    = transformBounds( object );
@@ -1136,13 +1134,13 @@ TEST_F( TestSceneProxy, coarseObjectInstanceMultiplePrimitivesDecomposed )
     m_scene                    = singleInstanceOneTriangleOneSphereShapeScene( objectName );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
     m_proxy = m_factory->sceneInstance( m_scene, 0 );
-    const auto&                         instance{ m_scene->objectInstances[0] };
-    const uint_t                        childId1{ 1111 };
-    const ::otk::pbrt::ShapeDefinition& shape1{ m_scene->objectShapes[objectName][0] };
-    const OptixAabb shape1Bounds{ toOptixAabb( instance.transform( shape1.transform( shape1.bounds ) ) ) };
-    const uint_t    childId2{ 2222 };
-    const ::otk::pbrt::ShapeDefinition& shape2{ m_scene->objectShapes[objectName][1] };
-    const OptixAabb shape2Bounds{ toOptixAabb( instance.transform( shape2.transform( shape2.bounds ) ) ) };
+    const ObjectInstanceDefinition& instance{ m_scene->objectInstances[0] };
+    const uint_t                    childId1{ 1111 };
+    const ::ShapeDefinition&        shape1{ m_scene->objectShapes[objectName][0] };
+    const OptixAabb          shape1Bounds{ toOptixAabb( instance.transform( shape1.transform( shape1.bounds ) ) ) };
+    const uint_t             childId2{ 2222 };
+    const ::ShapeDefinition& shape2{ m_scene->objectShapes[objectName][1] };
+    const OptixAabb          shape2Bounds{ toOptixAabb( instance.transform( shape2.transform( shape2.bounds ) ) ) };
     EXPECT_CALL( *m_geometryLoader, add( shape1Bounds ) ).WillOnce( Return( childId1 ) );
     EXPECT_CALL( *m_geometryLoader, add( shape2Bounds ) ).WillOnce( Return( childId2 ) );
 
