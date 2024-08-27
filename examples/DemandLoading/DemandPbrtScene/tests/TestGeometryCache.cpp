@@ -29,8 +29,9 @@
 
 #include <type_traits>
 
-using namespace ::testing;
 using namespace demandPbrtScene;
+using namespace otk::pbrt;
+using namespace ::testing;
 using namespace demandPbrtScene::testing;
 using namespace otk::testing;
 
@@ -324,7 +325,7 @@ class TestGeometryCache : public Test
 
 }  // namespace
 
-static void singleTrianglePlyData( otk::pbrt::MeshData& buffers, otk::pbrt::MeshInfo& info )
+static void singleTrianglePlyData( MeshData& buffers, MeshInfo& info )
 {
     static std::vector<float> coords{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
     static std::vector<int>   indices{ 0, 1, 2 };
@@ -334,25 +335,23 @@ static void singleTrianglePlyData( otk::pbrt::MeshData& buffers, otk::pbrt::Mesh
     info.numTriangles    = indices.size() / 3;
 }
 
-static otk::pbrt::ShapeDefinition makePlyShape( MockMeshLoaderPtr loader, otk::pbrt::MeshData& buffers, otk::pbrt::MeshInfo& info )
+static ShapeDefinition makePlyShape( MockMeshLoaderPtr loader, MeshData& buffers, MeshInfo& info )
 {
-    otk::pbrt::ShapeDefinition shape{};
-    shape.type    = "plymesh";
-    shape.plyMesh = otk::pbrt::PlyMeshData{ ARBITRARY_PLY_FILENAME, loader };
+    ShapeDefinition shape{};
+    shape.type    = SHAPE_TYPE_PLY_MESH;
+    shape.plyMesh = PlyMeshData{ ARBITRARY_PLY_FILENAME, loader };
     EXPECT_CALL( *loader, getMeshInfo() ).WillOnce( Return( info ) );
     EXPECT_CALL( *loader, load( _ ) ).WillOnce( SetArgReferee<0>( buffers ) );
     return shape;
 }
 
-static otk::pbrt::ShapeDefinition singleTrianglePlyMesh( MockMeshLoaderPtr loader, otk::pbrt::MeshData& buffers, otk::pbrt::MeshInfo& info )
+static ShapeDefinition singleTrianglePlyMesh( MockMeshLoaderPtr loader, MeshData& buffers, MeshInfo& info )
 {
     singleTrianglePlyData( buffers, info );
     return makePlyShape( loader, buffers, info );
 }
 
-static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithNormals( MockMeshLoaderPtr    loader,
-                                                                    otk::pbrt::MeshData& buffers,
-                                                                    otk::pbrt::MeshInfo& info )
+static ShapeDefinition singleTrianglePlyMeshWithNormals( MockMeshLoaderPtr loader, MeshData& buffers, MeshInfo& info )
 {
     singleTrianglePlyData( buffers, info );
     info.numNormals = info.numVertices;
@@ -361,9 +360,7 @@ static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithNormals( MockMeshLoad
     return makePlyShape( loader, buffers, info );
 }
 
-static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPtr    loader,
-                                                                otk::pbrt::MeshData& buffers,
-                                                                otk::pbrt::MeshInfo& info )
+static ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPtr loader, MeshData& buffers, MeshInfo& info )
 {
     singleTrianglePlyData( buffers, info );
     info.numTextureCoordinates = info.numVertices;
@@ -375,16 +372,16 @@ static otk::pbrt::ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPt
 TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::MeshInfo        info{};
-    otk::pbrt::ShapeDefinition shape{ singleTrianglePlyMesh( meshLoader, buffers, info ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMesh( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -409,16 +406,16 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::MeshInfo        info{};
-    otk::pbrt::ShapeDefinition shape{ singleTrianglePlyMeshWithNormals( meshLoader, buffers, info ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMeshWithNormals( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -443,16 +440,16 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::MeshInfo        info{};
-    otk::pbrt::ShapeDefinition shape{ singleTrianglePlyMeshWithUVs( meshLoader, buffers, info ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMeshWithUVs( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -473,7 +470,7 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
     EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
 }
 
-static otk::pbrt::ShapeDefinition singleTriangleTriangleMesh( otk::pbrt::MeshData& buffers )
+static ShapeDefinition singleTriangleTriangleMesh( MeshData& buffers )
 {
     static std::vector<float>         coords{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
     static std::vector<int>           indices{ 0, 1, 2 };
@@ -482,15 +479,15 @@ static otk::pbrt::ShapeDefinition singleTriangleTriangleMesh( otk::pbrt::MeshDat
                                               P3{ coords[6 + 0], coords[6 + 1], coords[6 + 2] } };
     buffers.vertexCoords = coords;
     buffers.indices      = indices;
-    otk::pbrt::ShapeDefinition shape{};
-    shape.type         = "trianglemesh";
-    shape.triangleMesh = otk::pbrt::TriangleMeshData{ indices, points, {}, {} };
+    ShapeDefinition shape{};
+    shape.type         = SHAPE_TYPE_TRIANGLE_MESH;
+    shape.triangleMesh = TriangleMeshData{ indices, points, {}, {} };
     return shape;
 }
 
-static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithNormals( otk::pbrt::MeshData& buffers )
+static ShapeDefinition singleTriangleTriangleMeshWithNormals( MeshData& buffers )
 {
-    otk::pbrt::ShapeDefinition        shape{ singleTriangleTriangleMesh( buffers ) };
+    ShapeDefinition                   shape{ singleTriangleTriangleMesh( buffers ) };
     static const std::vector<float>   coords{ -1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, -1.0f };
     static std::vector<pbrt::Point3f> normals{ P3{ coords[0 + 0], coords[0 + 1], coords[0 + 2] },
                                                P3{ coords[3 + 0], coords[3 + 1], coords[3 + 2] },
@@ -500,9 +497,9 @@ static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithNormals( otk::pb
     return shape;
 }
 
-static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithUVs( otk::pbrt::MeshData& buffers )
+static ShapeDefinition singleTriangleTriangleMeshWithUVs( MeshData& buffers )
 {
-    otk::pbrt::ShapeDefinition        shape{ singleTriangleTriangleMesh( buffers ) };
+    ShapeDefinition                   shape{ singleTriangleTriangleMesh( buffers ) };
     static const std::vector<float>   coords{ -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f };
     static std::vector<pbrt::Point2f> uvs{ P2{ coords[0 + 0], coords[0 + 1] }, P2{ coords[2 + 0], coords[2 + 1] },
                                            P2{ coords[4 + 0], coords[4 + 1] } };
@@ -513,15 +510,15 @@ static otk::pbrt::ShapeDefinition singleTriangleTriangleMeshWithUVs( otk::pbrt::
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
 {
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::ShapeDefinition shape{ singleTriangleTriangleMesh( buffers ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    ShapeDefinition   shape{ singleTriangleTriangleMesh( buffers ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -544,7 +541,7 @@ TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
 
 TEST( TestHasDeviceTriangleNormals, normalsPointerIsNull )
 {
-    otk::pbrt::TriangleMeshData triangleMesh{};
+    TriangleMeshData triangleMesh{};
 
     EXPECT_THAT( nullptr, Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -565,8 +562,7 @@ TEST( TestHasDeviceTriangleNormals, normalsDontMatchFirstVertex )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{
-        { 0, 1, 2 }, {}, { P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
+    const TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, { P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -578,8 +574,7 @@ TEST( TestHasDeviceTriangleNormals, normalsDontMatchSecondVertex )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    otk::pbrt::TriangleMeshData triangleMesh{
-        { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
+    TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -591,8 +586,7 @@ TEST( TestHasDeviceTriangleNormals, normalsDontMatchThirdVertex )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    otk::pbrt::TriangleMeshData triangleMesh{
-        { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 1.0f, 0.0f, 0.0f } } };
+    TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 1.0f, 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
 }
@@ -604,22 +598,21 @@ TEST( TestHasDeviceTriangleNormals, allNormalsMatch )
     actual.resize( 1 );
     actual[0] = expectedNormal();
     actual.copyToDevice();
-    otk::pbrt::TriangleMeshData triangleMesh{
-        { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
+    TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, { P3{ 1.0f, 0.0f, 0.0f }, P3{ 0.0f, 1.0f, 0.0f }, P3{ 0.0f, 0.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), hasDeviceTriangleNormals( &triangleMesh ) );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithNormals )
 {
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::ShapeDefinition shape{ singleTriangleTriangleMeshWithNormals( buffers ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{ AllOf(
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    ShapeDefinition   shape{ singleTriangleTriangleMeshWithNormals( buffers ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{ AllOf(
         NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                     hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                     hasNoPreTransform(), hasNoSbtIndexOffsets(), hasNoOpacityMap() ) ) ) };
+                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -642,7 +635,7 @@ TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithNormals )
 
 TEST( TestHasDeviceTriangleUVs, uvsPointerIsNull )
 {
-    otk::pbrt::TriangleMeshData triangleMesh{};
+    TriangleMeshData triangleMesh{};
 
     EXPECT_THAT( nullptr, Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -663,7 +656,7 @@ TEST( TestHasDeviceTriangleUVs, uvsDontMatchFirstVertex )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 1.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
+    const TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 1.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -675,7 +668,7 @@ TEST( TestHasDeviceTriangleUVs, uvsDontMatchSecondVertex )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 1.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
+    const TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 1.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -687,7 +680,7 @@ TEST( TestHasDeviceTriangleUVs, uvsDontMatchThirdVertex )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 1.0f, 1.0f } } };
+    const TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 1.0f, 1.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
 }
@@ -699,22 +692,22 @@ TEST( TestHasDeviceTriangleUVs, allUVsMatch )
     actual.resize( 1 );
     actual[0] = expectedUV();
     actual.copyToDevice();
-    const otk::pbrt::TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
+    const TriangleMeshData triangleMesh{ { 0, 1, 2 }, {}, {}, { P2{ 1.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } } };
 
     EXPECT_THAT( actual.typedDevicePtr(), hasDeviceTriangleUVs( &triangleMesh ) );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithUVs )
 {
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::ShapeDefinition shape{ singleTriangleTriangleMeshWithUVs( buffers ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    ShapeDefinition   shape{ singleTriangleTriangleMeshWithUVs( buffers ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -738,16 +731,16 @@ TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithUVs )
 TEST_F( TestGeometryCache, twoPlyInstancesShareSameGAS )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::MeshData        buffers;
-    otk::pbrt::MeshInfo        info{};
-    otk::pbrt::ShapeDefinition shape{ singleTrianglePlyMesh( meshLoader, buffers, info ) };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMesh( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                            hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
     m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
@@ -764,29 +757,29 @@ TEST_F( TestGeometryCache, twoPlyInstancesShareSameGAS )
     EXPECT_EQ( 0, stats.numUVs );
 }
 
-static otk::pbrt::ShapeDefinition singleSphere()
+static ShapeDefinition singleSphere()
 {
-    otk::pbrt::SphereData sphere;
+    SphereData sphere;
     sphere.radius = 10.0f;
     sphere.zMin   = -10.0f;
     sphere.zMax   = 10.0f;
     sphere.phiMax = 360.0f;
-    otk::pbrt::ShapeDefinition shape{};
-    shape.type   = "sphere";
+    ShapeDefinition shape{};
+    shape.type   = SHAPE_TYPE_SPHERE;
     shape.sphere = sphere;
     return shape;
 }
 
 TEST_F( TestGeometryCache, constructSphereASForSphere )
 {
-    MockMeshLoaderPtr          meshLoader{ createMockMeshLoader() };
-    otk::pbrt::ShapeDefinition shape{ singleSphere() };
-    const auto                 expectedOptions{ buildAllowsRandomVertexAccess() };
-    std::vector<float3>        centers{ make_float3( 0.0f, 0.0f, 0.0f ) };
-    std::vector<float>         radii{ shape.sphere.radius };
-    const auto                 expectedInput{
+    MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
+    ShapeDefinition     shape{ singleSphere() };
+    const auto          expectedOptions{ buildAllowsRandomVertexAccess() };
+    std::vector<float3> centers{ make_float3( 0.0f, 0.0f, 0.0f ) };
+    std::vector<float>  radii{ shape.sphere.radius };
+    const auto          expectedInput{
         AllOf( NotNull(), hasSphereBuildInput( 0, hasAll( hasDeviceSphereVertices( centers ),
-                                                                          hasDeviceSphereSingleRadius( shape.sphere.radius ) ) ) ) };
+                                                                   hasDeviceSphereSingleRadius( shape.sphere.radius ) ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 
@@ -809,27 +802,27 @@ TEST_F( TestGeometryCache, constructSphereASForSphere )
 
 struct TestObject
 {
-    otk::pbrt::ObjectDefinition      object;
-    std::vector<otk::pbrt::MeshData> buffers;
-    otk::pbrt::ShapeList             shapes;
-    std::vector<float>               expectedVertices;
-    std::vector<int>                 expectedIndices;
-    std::vector<float3>              expectedSphereCenters;
-    float                            expectedSphereSingleRadius;
+    ObjectDefinition      object;
+    std::vector<MeshData> buffers;
+    ShapeList             shapes;
+    std::vector<float>    expectedVertices;
+    std::vector<int>      expectedIndices;
+    std::vector<float3>   expectedSphereCenters;
+    float                 expectedSphereSingleRadius;
 };
 
-static otk::pbrt::ShapeDefinition translateTriangleMesh( TestObject& object, int index, float tx, float ty, float tz )
+static ShapeDefinition translateTriangleMesh( TestObject& object, int index, float tx, float ty, float tz )
 {
-    otk::pbrt::ShapeDefinition mesh{ singleTriangleTriangleMesh( object.buffers[index] ) };
-    mesh.transform = ::pbrt::Translate( ::pbrt::Vector3f( tx, ty, tz ) );
+    ShapeDefinition mesh{ singleTriangleTriangleMesh( object.buffers[index] ) };
+    mesh.transform = Translate( pbrt::Vector3f( tx, ty, tz ) );
     return mesh;
 }
 
 static TestObject twoTriangleMeshes()
 {
     TestObject object;
-    object.buffers.push_back( otk::pbrt::MeshData{} );
-    object.buffers.push_back( otk::pbrt::MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
     object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
     object.shapes.push_back( singleTriangleTriangleMesh( object.buffers[1] ) );
     for( size_t i = 0; i < object.shapes.size(); ++i )
@@ -837,7 +830,7 @@ static TestObject twoTriangleMeshes()
         const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
         for( size_t c = 0; c < vertices.size() / 3; ++c )
         {
-            ::pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
             pt = object.shapes[i].transform( pt );
             object.expectedVertices.push_back( pt.x );
             object.expectedVertices.push_back( pt.y );
@@ -850,12 +843,12 @@ static TestObject twoTriangleMeshes()
     return object;
 }
 
-static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, otk::pbrt::MeshInfo& info )
+static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, MeshInfo& info )
 {
     // TODO: give each triangle mesh different transforms
     TestObject object;
-    object.buffers.push_back( otk::pbrt::MeshData{} );
-    object.buffers.push_back( otk::pbrt::MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
     object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
     object.shapes.push_back( singleTrianglePlyMesh( loader, object.buffers[1], info ) );
 
@@ -864,7 +857,7 @@ static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, otk::pbrt
         const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
         for( size_t c = 0; c < vertices.size() / 3; ++c )
         {
-            ::pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
             pt = object.shapes[i].transform( pt );
             object.expectedVertices.push_back( pt.x );
             object.expectedVertices.push_back( pt.y );
@@ -880,15 +873,15 @@ static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, otk::pbrt
 static TestObject oneTriangleMeshOneSphere()
 {
     TestObject object;
-    object.buffers.push_back( otk::pbrt::MeshData{} );
-    object.buffers.push_back( otk::pbrt::MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
     object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
     object.shapes.push_back( singleSphere() );
     {
         const std::vector<float>& vertices{ object.buffers[0].vertexCoords };
         for( size_t c = 0; c < vertices.size() / 3; ++c )
         {
-            ::pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
             pt = object.shapes[0].transform( pt );
             object.expectedVertices.push_back( pt.x );
             object.expectedVertices.push_back( pt.y );
@@ -939,15 +932,15 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
 TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOnePlyMesh )
 {
     expectPlyFileSizeReturned();
-    MockMeshLoaderPtr   loader{ createMockMeshLoader() };
-    otk::pbrt::MeshInfo info{};
-    const TestObject    object{ oneTriangleMeshOnePlyMesh( loader, info ) };
-    const auto          expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto          expectedInput{
+    MockMeshLoaderPtr loader{ createMockMeshLoader() };
+    MeshInfo          info{};
+    const TestObject  object{ oneTriangleMeshOnePlyMesh( loader, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
         AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( object.expectedVertices ),
-                                                                     hasDeviceIndices( object.expectedIndices ), hasSbtFlags( m_expectedFlags ),
-                                                                     hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                     hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+                                                                   hasDeviceIndices( object.expectedIndices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
     configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
     configureAccelBuild( expectedOptions, expectedInput );
 

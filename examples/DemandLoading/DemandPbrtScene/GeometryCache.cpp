@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <filesystem>
 
+using namespace otk::pbrt;
+
 namespace demandPbrtScene {
 
 namespace {
@@ -28,20 +30,20 @@ class GeometryCacheImpl : public GeometryCache
     }
     ~GeometryCacheImpl() override = default;
 
-    GeometryCacheEntry getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape ) override;
+    GeometryCacheEntry getShape( OptixDeviceContext context, CUstream stream, const ShapeDefinition& shape ) override;
 
-    GeometryCacheEntry getObject( OptixDeviceContext                 context,
-                                  CUstream                           stream,
-                                  const otk::pbrt::ObjectDefinition& object,
-                                  const otk::pbrt::ShapeList&        shapes,
-                                  GeometryPrimitive                  primitive ) override;
+    GeometryCacheEntry getObject( OptixDeviceContext      context,
+                                  CUstream                stream,
+                                  const ObjectDefinition& object,
+                                  const ShapeList&        shapes,
+                                  GeometryPrimitive       primitive ) override;
 
     GeometryCacheStatistics getStatistics() const override { return m_stats; }
 
   private:
-    GeometryCacheEntry getPlyMesh( OptixDeviceContext context, CUstream stream, const otk::pbrt::PlyMeshData& plyMesh );
-    GeometryCacheEntry getTriangleMesh( OptixDeviceContext context, CUstream stream, const otk::pbrt::TriangleMeshData& mesh );
-    GeometryCacheEntry getSphere( OptixDeviceContext context, CUstream stream, const otk::pbrt::SphereData& sphere );
+    GeometryCacheEntry getPlyMesh( OptixDeviceContext context, CUstream stream, const PlyMeshData& plyMesh );
+    GeometryCacheEntry getTriangleMesh( OptixDeviceContext context, CUstream stream, const TriangleMeshData& mesh );
+    GeometryCacheEntry getSphere( OptixDeviceContext context, CUstream stream, const SphereData& sphere );
     GeometryCacheEntry buildTriangleGAS( OptixDeviceContext context, CUstream stream );
     GeometryCacheEntry buildSphereGAS( OptixDeviceContext context, CUstream stream );
     GeometryCacheEntry buildGAS( OptixDeviceContext     context,
@@ -50,9 +52,9 @@ class GeometryCacheImpl : public GeometryCache
                                  TriangleNormals*       normals,
                                  TriangleUVs*           uvs,
                                  const OptixBuildInput& build );
-    void               appendPlyMesh( const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh );
-    void               appendTriangleMesh( const pbrt::Transform& transform, const otk::pbrt::TriangleMeshData& mesh );
-    void               appendSphere( const pbrt::Transform& transform, const otk::pbrt::SphereData& sphereData );
+    void               appendPlyMesh( const pbrt::Transform& transform, const PlyMeshData& plyMesh );
+    void               appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& mesh );
+    void               appendSphere( const pbrt::Transform& transform, const SphereData& sphereData );
 
     FileSystemInfoPtr                         m_fileSystemInfo;
     std::map<std::string, GeometryCacheEntry> m_plyCache;
@@ -65,15 +67,15 @@ class GeometryCacheImpl : public GeometryCache
     GeometryCacheStatistics                   m_stats{};
 };
 
-GeometryCacheEntry GeometryCacheImpl::getShape( OptixDeviceContext context, CUstream stream, const otk::pbrt::ShapeDefinition& shape )
+GeometryCacheEntry GeometryCacheImpl::getShape( OptixDeviceContext context, CUstream stream, const ShapeDefinition& shape )
 {
-    if( shape.type == "plymesh" )
+    if( shape.type == SHAPE_TYPE_PLY_MESH )
         return getPlyMesh( context, stream, shape.plyMesh );
 
-    if( shape.type == "trianglemesh" )
+    if( shape.type == SHAPE_TYPE_TRIANGLE_MESH )
         return getTriangleMesh( context, stream, shape.triangleMesh );
 
-    if( shape.type == "sphere" )
+    if( shape.type == SHAPE_TYPE_SPHERE )
         return getSphere( context, stream, shape.sphere );
 
     return {};
@@ -93,11 +95,11 @@ std::string toString( GeometryPrimitive primitive )
     return "?Unknown (" + std::to_string( static_cast<int>( primitive ) ) + ")";
 }
 
-GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext                 context,
-                                                 CUstream                           stream,
-                                                 const otk::pbrt::ObjectDefinition& object,
-                                                 const otk::pbrt::ShapeList&        shapes,
-                                                 GeometryPrimitive                  primitive )
+GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context,
+                                                 CUstream                stream,
+                                                 const ObjectDefinition& object,
+                                                 const ShapeList&        shapes,
+                                                 GeometryPrimitive       primitive )
 {
     m_vertices.clear();
     m_indices.clear();
@@ -108,13 +110,13 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext             
     switch( primitive )
     {
         case GeometryPrimitive::TRIANGLE:
-            for( const otk::pbrt::ShapeDefinition& shape : shapes )
+            for( const ShapeDefinition& shape : shapes )
             {
-                if( shape.type == "trianglemesh" )
+                if( shape.type == SHAPE_TYPE_TRIANGLE_MESH )
                 {
                     appendTriangleMesh( shape.transform, shape.triangleMesh );
                 }
-                else if( shape.type == "plymesh" )
+                else if( shape.type == SHAPE_TYPE_PLY_MESH )
                 {
                     appendPlyMesh( shape.transform, shape.plyMesh );
                 }
@@ -122,9 +124,9 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext             
             return buildTriangleGAS( context, stream );
 
         case GeometryPrimitive::SPHERE:
-            for( const otk::pbrt::ShapeDefinition& shape : shapes )
+            for( const ShapeDefinition& shape : shapes )
             {
-                if( shape.type == "sphere" )
+                if( shape.type == SHAPE_TYPE_SPHERE )
                 {
                     appendSphere( shape.transform, shape.sphere );
                 }
@@ -138,7 +140,7 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext             
     throw std::runtime_error( "Unknown primitive type " + toString( primitive ) );
 }
 
-GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CUstream stream, const otk::pbrt::PlyMeshData& plyMesh )
+GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CUstream stream, const PlyMeshData& plyMesh )
 {
     const auto it{ m_plyCache.find( plyMesh.fileName ) };
     if( it != m_plyCache.end() )
@@ -149,9 +151,9 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
     m_primitiveGroupBeginIndices.clear();
     m_primitiveGroupBeginIndices.push_back( 0 );
 
-    const otk::pbrt::MeshLoaderPtr loader{ plyMesh.loader };
-    const otk::pbrt::MeshInfo      meshInfo{ loader->getMeshInfo() };
-    otk::pbrt::MeshData            buffers{};
+    const MeshLoaderPtr loader{ plyMesh.loader };
+    const MeshInfo      meshInfo{ loader->getMeshInfo() };
+    MeshData            buffers{};
     {
         Stopwatch stopwatch;
         loader->load( buffers );
@@ -228,7 +230,7 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
     return result;
 }
 
-GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext context, CUstream stream, const otk::pbrt::TriangleMeshData& triangleMesh )
+GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext context, CUstream stream, const TriangleMeshData& triangleMesh )
 {
     // TODO: implement a cache for trianglemesh shapes?
     m_vertices.clear();
@@ -236,7 +238,7 @@ GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext contex
     m_normals.clear();
     m_uvs.clear();
     m_primitiveGroupBeginIndices.clear();
-    appendTriangleMesh( ::pbrt::Transform(), triangleMesh );
+    appendTriangleMesh( pbrt::Transform(), triangleMesh );
     return buildTriangleGAS( context, stream );
 }
 
@@ -288,12 +290,12 @@ void growContainer( Container& coll, size_t increase )
     coll.reserve( coll.size() + increase );
 }
 
-void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const otk::pbrt::PlyMeshData& plyMesh )
+void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const PlyMeshData& plyMesh )
 {
     m_primitiveGroupBeginIndices.push_back( static_cast<uint_t>( m_vertices.size() / 3U ) );
-    const otk::pbrt::MeshLoaderPtr loader{ plyMesh.loader };
-    const otk::pbrt::MeshInfo      meshInfo{ loader->getMeshInfo() };
-    otk::pbrt::MeshData            buffers{};
+    const MeshLoaderPtr loader{ plyMesh.loader };
+    const MeshInfo      meshInfo{ loader->getMeshInfo() };
+    MeshData            buffers{};
     {
         Stopwatch stopwatch;
         loader->load( buffers );
@@ -304,7 +306,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const o
     growContainer( m_vertices, meshInfo.numVertices );
     for( int i = 0; i < meshInfo.numVertices; ++i )
     {
-        ::pbrt::Point3f pt{ buffers.vertexCoords[i * 3 + 0], buffers.vertexCoords[i * 3 + 1], buffers.vertexCoords[i * 3 + 2] };
+        pbrt::Point3f pt{ buffers.vertexCoords[i * 3 + 0], buffers.vertexCoords[i * 3 + 1], buffers.vertexCoords[i * 3 + 2] };
         pt = transform( pt );
         m_vertices.push_back( make_float3( pt.x, pt.y, pt.z ) );
     }
@@ -372,10 +374,10 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const o
     }
 }
 
-void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const otk::pbrt::TriangleMeshData& triangleMesh )
+void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& triangleMesh )
 {
     m_primitiveGroupBeginIndices.push_back( static_cast<uint_t>( m_vertices.size() / 3U ) );
-    auto toFloat3 = [&]( const ::pbrt::Point3f& point ) {
+    auto toFloat3 = [&]( const pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
         return make_float3( pt.x, pt.y, pt.z );
     };
@@ -419,12 +421,12 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
     }
 }
 
-void GeometryCacheImpl::appendSphere( const pbrt::Transform& transform, const otk::pbrt::SphereData& sphere )
+void GeometryCacheImpl::appendSphere( const pbrt::Transform& transform, const SphereData& sphere )
 {
     m_primitiveGroupBeginIndices.push_back( static_cast<unsigned int>( m_vertices.size() ) );
-    const ::pbrt::Point3f center{ transform( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ) ) };
+    const pbrt::Point3f center{ transform( pbrt::Point3f( 0.0f, 0.0f, 0.0f ) ) };
     m_vertices.push_back( make_float3( center.x, center.y, center.z ) );
-    const ::pbrt::Point3f scaledUnitVector{ transform( ::pbrt::Point3f( 1.0f, 0.0f, 0.0f ) ) };
+    const pbrt::Point3f scaledUnitVector{ transform( pbrt::Point3f( 1.0f, 0.0f, 0.0f ) ) };
     m_radii.push_back( scaledUnitVector.x * sphere.radius );
 }
 
@@ -451,12 +453,12 @@ GeometryCacheEntry GeometryCacheImpl::buildSphereGAS( OptixDeviceContext context
     return buildGAS( context, stream, GeometryPrimitive::SPHERE, nullptr, nullptr, build );
 }
 
-GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUstream stream, const otk::pbrt::SphereData& sphere )
+GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUstream stream, const SphereData& sphere )
 {
     m_vertices.clear();
     m_radii.clear();
     m_primitiveGroupBeginIndices.clear();
-    appendSphere( ::pbrt::Transform(), sphere );
+    appendSphere( pbrt::Transform(), sphere );
     return buildSphereGAS( context, stream );
 }
 
