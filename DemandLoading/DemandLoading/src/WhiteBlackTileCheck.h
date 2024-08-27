@@ -84,17 +84,17 @@ inline WhiteBlackTileType classifyTileAsWhiteOrBlack( char* data, CUarray_format
     // half formats
     if( format == CU_AD_FORMAT_HALF )
     {
-        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{0,0,0,0} ) )
+        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{0.f,0.f,0.f,0.f} ) )
             return H4_0000;
-        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{0,0,0,1} ) )
+        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{0.f,0.f,0.f,1.f} ) )
             return H4_0001;
-        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{1,1,1,0} ) )
+        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{1.f,1.f,1.f,0.f} ) )
             return H4_1110;
-        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{1,1,1,1} ) )
+        if( numChannels == 4 && tileHasUniformColor<half4>( (half4*)data, half4{1.f,1.f,1.f,1.f} ) )
             return H4_1111;
-        if( numChannels == 2 && tileHasUniformColor<half2>( (half2*)data, half2{0,0} ) )
+        if( numChannels == 2 && tileHasUniformColor<half2>( (half2*)data, half2{0.f,0.f} ) )
             return H2_00;
-        if( numChannels == 2 && tileHasUniformColor<half2>( (half2*)data, half2{1,1} ) )
+        if( numChannels == 2 && tileHasUniformColor<half2>( (half2*)data, half2{1.f,1.f} ) )
             return H2_11;
         if( numChannels == 1 && tileHasUniformColor<half>( (half*)data, (half)0.0f ) )
             return H_0;
