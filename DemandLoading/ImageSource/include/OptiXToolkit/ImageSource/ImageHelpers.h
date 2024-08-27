@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cuda_fp16.h>
+#include <vector_types.h>
 
 struct half4
 {
