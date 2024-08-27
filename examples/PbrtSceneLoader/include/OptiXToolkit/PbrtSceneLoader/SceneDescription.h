@@ -81,6 +81,10 @@ struct SphereData
     float phiMax;
 };
 
+constexpr const char* SHAPE_TYPE_PLY_MESH{ "plymesh" };
+constexpr const char* SHAPE_TYPE_SPHERE{ "sphere" };
+constexpr const char* SHAPE_TYPE_TRIANGLE_MESH{ "trianglemesh" };
+
 struct ShapeDefinition
 {
     std::string       type;          // "plymesh", "trianglemesh" or "sphere"

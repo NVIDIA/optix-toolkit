@@ -654,7 +654,7 @@ TEST_F( TestPbrtApi, plyMeshShape )
 
     ASSERT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    ASSERT_EQ( "plymesh", shape.type );
+    ASSERT_EQ( SHAPE_TYPE_PLY_MESH, shape.type );
     ASSERT_THAT( shape.plyMesh.fileName, EndsWith( "mesh_00001.ply" ) );
 }
 
@@ -686,7 +686,7 @@ TEST_F( TestPbrtApi, triangleMeshShape )
 
     EXPECT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    EXPECT_EQ( "trianglemesh", shape.type );
+    EXPECT_EQ( SHAPE_TYPE_TRIANGLE_MESH, shape.type );
     const TriangleMeshData& triMesh{ shape.triangleMesh };
     EXPECT_EQ( 6U, triMesh.indices.size() );
     EXPECT_EQ( std::vector<int>( { 0, 2, 1, 0, 3, 2 } ), triMesh.indices );
@@ -714,7 +714,7 @@ TEST_F( TestPbrtApi, sphereShape )
 
     EXPECT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    EXPECT_EQ( "sphere", shape.type );
+    EXPECT_EQ( SHAPE_TYPE_SPHERE, shape.type );
     const SphereData& sphere{ shape.sphere };
     EXPECT_EQ( 2.2f, sphere.radius );
     EXPECT_EQ( 3.3f, sphere.zMin );
@@ -733,7 +733,7 @@ TEST_F( TestPbrtApi, sphereShapeDefaults )
 
     EXPECT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    EXPECT_EQ( "sphere", shape.type );
+    EXPECT_EQ( SHAPE_TYPE_SPHERE, shape.type );
     const SphereData& sphere{ shape.sphere };
     EXPECT_EQ( 1.0f, sphere.radius );
     EXPECT_EQ( -1.0f, sphere.zMin );
