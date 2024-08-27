@@ -137,18 +137,18 @@ void PbrtApiImpl::coordinateSystem( const std::string& name )
     m_coordinateSystems[name] = m_currentTransform;
 }
 
-void PbrtApiImpl::info( std::string text, const char *file, int line ) const
+void PbrtApiImpl::info( std::string text, const char* file, int line ) const
 {
     m_logger->info( std::move( text ), file, line );
 }
 
-void PbrtApiImpl::warning( std::string text, const char *file, int line ) const
+void PbrtApiImpl::warning( std::string text, const char* file, int line ) const
 {
     ++m_scene->warnings;
     m_logger->warning( std::move( text ), file, line );
 }
 
-void PbrtApiImpl::error( std::string text, const char *file, int line ) const
+void PbrtApiImpl::error( std::string text, const char* file, int line ) const
 {
     ++m_scene->errors;
     m_logger->error( std::move( text ), file, line );
@@ -301,7 +301,7 @@ void PbrtApiImpl::transformEnd()
     if( m_transformStack.empty() )
     {
         PBRT_ERROR( "Too many TransformEnd for TransformBegin (" + std::to_string( m_transformStack.size() )
-               + " in excess)" );
+                    + " in excess)" );
         return;
     }
     m_currentTransform = m_transformStack.back();
@@ -377,8 +377,8 @@ void PbrtApiImpl::lightSource( const std::string& name, const ParamSet& params )
         const ::pbrt::Point3f colorScale{ lookupSpectrum( "scale" ) };
         const ::pbrt::Point3f color{ lookupSpectrum( "L" ) };
         const int             shadowSamples = params.FindOneInt( "samples", params.FindOneInt( "nsamples", 1 ) );
-        const std::string mapName = params.FindOneFilename( "mapname", "" );
-        if(shadowSamples != 1)
+        const std::string     mapName       = params.FindOneFilename( "mapname", "" );
+        if( shadowSamples != 1 )
         {
             PBRT_WARNING( R"(LightSource "infinite" "integer samples" not implemented)" );
         }
@@ -426,15 +426,15 @@ void PbrtApiImpl::addShape( ShapeDefinition shape )
 void PbrtApiImpl::shape( const std::string& type, const ParamSet& params )
 {
     requireInWorld( "Shape" );
-    if( type == "plymesh" )
+    if( type == SHAPE_TYPE_PLY_MESH )
     {
         addShape( createPlyMesh( params ) );
     }
-    else if( type == "trianglemesh" )
+    else if( type == SHAPE_TYPE_TRIANGLE_MESH )
     {
         addShape( createTriangleMesh( params ) );
     }
-    else if( type == "sphere" )
+    else if( type == SHAPE_TYPE_SPHERE )
     {
         addShape( createSphere( params ) );
     }
@@ -443,7 +443,7 @@ void PbrtApiImpl::shape( const std::string& type, const ParamSet& params )
     {
 #ifndef NDEBUG
         PBRT_WARNING( "Unsupported shape type " + type );
-#endif        
+#endif
     }
     else
     {
@@ -533,11 +533,11 @@ ShapeDefinition PbrtApiImpl::createPlyMesh( const ::pbrt::ParamSet& params )
 {
     const std::string filename = ::pbrt::ResolveFilename( params.FindOneFilename( "filename", "" ) );
     PBRT_INFO( std::string( "Reading info from " + filename ) );
-    const MeshInfo         info     = m_infoReader->read( filename );
+    const MeshInfo         info = m_infoReader->read( filename );
     const ::pbrt::Bounds3f bounds{ ::pbrt::Point3f( info.minCoord[0], info.minCoord[1], info.minCoord[2] ),
                                    ::pbrt::Point3f( info.maxCoord[0], info.maxCoord[1], info.maxCoord[2] ) };
 
-    return { "plymesh",
+    return { SHAPE_TYPE_PLY_MESH,
              m_currentTransform,
              getShapeMaterial( params ),
              bounds,
@@ -568,8 +568,8 @@ ShapeDefinition PbrtApiImpl::createTriangleMesh( const ::pbrt::ParamSet& params 
     {
         data.uvs.push_back( ::pbrt::Point2f( uvs[i * 2], uvs[i * 2 + 1] ) );
     }
-    return { "trianglemesh",    m_currentTransform, getShapeMaterial( params ), bounds, PlyMeshData{},
-             std::move( data ), SphereData{} };
+    return { SHAPE_TYPE_TRIANGLE_MESH, m_currentTransform, getShapeMaterial( params ), bounds, PlyMeshData{},
+             std::move( data ),        SphereData{} };
 }
 
 ShapeDefinition PbrtApiImpl::createSphere( const ::pbrt::ParamSet& params )
@@ -585,7 +585,7 @@ ShapeDefinition PbrtApiImpl::createSphere( const ::pbrt::ParamSet& params )
     data.zMin   = getSingleFloat( "zmin", -data.radius );
     data.zMax   = getSingleFloat( "zmax", data.radius );
     data.phiMax = getSingleFloat( "phimax", 360.0f );
-    return { "sphere",
+    return { SHAPE_TYPE_SPHERE,
              m_currentTransform,
              getShapeMaterial( params ),
              ::pbrt::Bounds3f{ ::pbrt::Point3f{ data.radius, data.radius, data.radius },
@@ -631,7 +631,10 @@ static bool findParamInSet( const std::string& name, const ::pbrt::ParamSet& par
     return num_values > 0;
 }
 
-bool PbrtApiImpl::findParam( const std::string& name, const PbrtApiImpl::GraphicsState& state, const MaterialDefinition& material, ::pbrt::Point3f& result ) const
+bool PbrtApiImpl::findParam( const std::string&                name,
+                             const PbrtApiImpl::GraphicsState& state,
+                             const MaterialDefinition&         material,
+                             ::pbrt::Point3f&                  result ) const
 {
     if( material.name == "mix" )
     {
@@ -643,8 +646,8 @@ bool PbrtApiImpl::findParam( const std::string& name, const PbrtApiImpl::Graphic
         {
             const MaterialDefinition mat1{ it1->second };
             const MaterialDefinition mat2{ it2->second };
-            const std::string type1{mat1.params.FindOneString("type", std::string{})};
-            const std::string type2{mat2.params.FindOneString("type", std::string{})};
+            const std::string        type1{ mat1.params.FindOneString( "type", std::string{} ) };
+            const std::string        type2{ mat2.params.FindOneString( "type", std::string{} ) };
             if( type1 != "translucent" && type2 == "translucent" )
             {
                 return findParam( name, state, mat1, result );
@@ -661,12 +664,12 @@ bool PbrtApiImpl::findParam( const std::string& name, const GraphicsState& state
         auto it = state.namedMaterials.find( state.currentNamedMaterial );
         if( it != state.namedMaterials.end() )
         {
-            return findParam(name, state, it->second, result);
+            return findParam( name, state, it->second, result );
         }
     }
     if( !state.currentMaterial.name.empty() )
     {
-        return findParam( name, state, state.currentMaterial, result);
+        return findParam( name, state, state.currentMaterial, result );
     }
     return false;
 }
@@ -726,7 +729,7 @@ std::string PbrtApiImpl::findTexture( const std::string& name, const GraphicsSta
             return findTexture( name, state, it->second );
         }
     }
-    if (!state.currentMaterial.name.empty())
+    if( !state.currentMaterial.name.empty() )
     {
         return findTexture( name, state, state.currentMaterial );
     }
