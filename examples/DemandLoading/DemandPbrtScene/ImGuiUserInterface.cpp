@@ -173,6 +173,7 @@ void ImGuiUserInterface::renderProxyFactoryStatistics() const
         ImGui::Text( "Shape proxies created: %u", stats.numShapeProxiesCreated );
         ImGui::Text( "Instance proxies created: %u", stats.numInstanceProxiesCreated );
         ImGui::Text( "Instance shape proxies created: %u", stats.numInstanceShapeProxiesCreated );
+        ImGui::Text( "Instance primitive proxies created: %u", stats.numInstancePrimitiveProxiesCreated );
         ImGui::Text( "Proxies created: %u", stats.numGeometryProxiesCreated );
         ImGui::TreePop();
         ImGui::Spacing();

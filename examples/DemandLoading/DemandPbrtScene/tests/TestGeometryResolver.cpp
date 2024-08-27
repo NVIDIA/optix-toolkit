@@ -48,7 +48,7 @@ class MockProxyFactory : public StrictMock<ProxyFactory>
     MOCK_METHOD( SceneProxyPtr, sceneShape, ( SceneDescriptionPtr, uint_t ), ( override ) );
     MOCK_METHOD( SceneProxyPtr, sceneInstance, ( SceneDescriptionPtr, uint_t ), ( override ) );
     MOCK_METHOD( SceneProxyPtr, sceneInstanceShape, ( SceneDescriptionPtr, uint_t, uint_t ), ( override ) );
-    MOCK_METHOD( SceneProxyPtr, sceneInstancePrimitive, ( SceneDescriptionPtr, uint_t, GeometryPrimitive ), ( override ) );
+    MOCK_METHOD( SceneProxyPtr, sceneInstancePrimitive, ( SceneDescriptionPtr, uint_t, GeometryPrimitive, MaterialFlags ), ( override ) );
     MOCK_METHOD( ProxyFactoryStatistics, getStatistics, (), ( const override ) );
 };
 
@@ -64,8 +64,8 @@ class MockSceneProxy : public StrictMock<SceneProxy>
     MOCK_METHOD( std::vector<SceneProxyPtr>, decompose, ( ProxyFactoryPtr proxyFactory ), ( override ) );
 };
 
-using MockProxyFactoryPtr       = std::shared_ptr<MockProxyFactory>;
-using MockSceneProxyPtr         = std::shared_ptr<MockSceneProxy>;
+using MockProxyFactoryPtr = std::shared_ptr<MockProxyFactory>;
+using MockSceneProxyPtr   = std::shared_ptr<MockSceneProxy>;
 
 inline MockProxyFactoryPtr createMockProxyFactory()
 {

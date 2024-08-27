@@ -67,11 +67,18 @@ class ProxyFactory
   public:
     virtual ~ProxyFactory() = default;
 
-    virtual SceneProxyPtr scene( SceneDescriptionPtr scene )                                                       = 0;
-    virtual SceneProxyPtr sceneShape( SceneDescriptionPtr scene, uint_t shapeIndex )                               = 0;
-    virtual SceneProxyPtr sceneInstance( SceneDescriptionPtr scene, uint_t instanceIndex )                         = 0;
+    virtual SceneProxyPtr scene( SceneDescriptionPtr scene ) = 0;
+
+    virtual SceneProxyPtr sceneShape( SceneDescriptionPtr scene, uint_t shapeIndex ) = 0;
+
+    virtual SceneProxyPtr sceneInstance( SceneDescriptionPtr scene, uint_t instanceIndex ) = 0;
+
     virtual SceneProxyPtr sceneInstanceShape( SceneDescriptionPtr scene, uint_t instanceIndex, uint_t shapeIndex ) = 0;
-    virtual SceneProxyPtr sceneInstancePrimitive( SceneDescriptionPtr scene, uint_t instanceIndex, GeometryPrimitive primitive ) = 0;
+
+    virtual SceneProxyPtr sceneInstancePrimitive( SceneDescriptionPtr scene,
+                                                  uint_t              instanceIndex,
+                                                  GeometryPrimitive   primitive,
+                                                  MaterialFlags       flags ) = 0;
 
     virtual ProxyFactoryStatistics getStatistics() const = 0;
 };

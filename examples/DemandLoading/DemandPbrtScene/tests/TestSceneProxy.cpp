@@ -28,6 +28,7 @@
 #include <cuda.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -43,12 +44,22 @@ using P2 = pbrt::Point2f;
 using P3 = pbrt::Point3f;
 using B3 = pbrt::Bounds3f;
 
-using Stats = ProxyFactoryStatistics;
+constexpr const char* DIFFUSE_MAP_FILENAME{ "diffuse.png" };
+constexpr const char* ALPHA_MAP_FILENAME{ "alpha.png" };
 
 template <typename Thing>
 B3 transformBounds( const Thing& thing )
 {
     return thing.transform( thing.bounds );
+}
+
+static PlasticMaterial expectedMaterial()
+{
+    PlasticMaterial material{};
+    material.Ka = P3{ 0.1f, 0.2f, 0.3f };
+    material.Kd = P3{ 0.4f, 0.5f, 0.6f };
+    material.Ks = P3{ 0.7f, 0.8f, 0.9f };
+    return material;
 }
 
 static ShapeDefinition translatedTriangleShape( const pbrt::Vector3f& translation )
@@ -57,14 +68,14 @@ static ShapeDefinition translatedTriangleShape( const pbrt::Vector3f& translatio
     const P3 maxPt{ 1.0f, 1.0f, 1.0f };
     const B3 bounds{ minPt, maxPt };
 
-    PlasticMaterial material{};
-    material.Ka = P3{ 0.1f, 0.2f, 0.3f };
-    material.Kd = P3{ 0.4f, 0.5f, 0.6f };
-    material.Ks = P3{ 0.7f, 0.8f, 0.9f };
-
     std::vector<P3> vertices{ P3{ 0.0f, 0.0f, 0.0f }, P3{ 1.0f, 0.0f, 0.0f }, P3{ 1.0f, 1.0f, 1.0f } };
 
-    return { "trianglemesh", Translate( translation ), material, bounds, {}, TriangleMeshData{ { 0, 1, 2 }, std::move( vertices ) } };
+    return { SHAPE_TYPE_TRIANGLE_MESH,
+             Translate( translation ),
+             expectedMaterial(),
+             bounds,
+             {},
+             TriangleMeshData{ { 0, 1, 2 }, std::move( vertices ) } };
 }
 
 static ShapeDefinition singleTriangleShape()
@@ -101,7 +112,7 @@ static ShapeDefinition singleSphereShape()
     sphere.phiMax = 360.0f;
 
     pbrt::Vector3f translation{ 1.0f, 2.0f, 3.0f };
-    return { "sphere", Translate( translation ), material, bounds, {}, {}, sphere };
+    return { SHAPE_TYPE_SPHERE, Translate( translation ), material, bounds, {}, {}, sphere };
 }
 
 static SceneDescriptionPtr singleSphereScene()
@@ -115,22 +126,30 @@ static SceneDescriptionPtr singleSphereScene()
     return scene;
 }
 
-static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
+static ShapeDefinition plyMeshShape( MockMeshLoaderPtr meshLoader )
 {
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    const P3            minPt{ 0.0f, 0.0f, 0.0f };
-    const P3            maxPt{ 1.0f, 1.0f, 1.0f };
-    const B3            bounds{ minPt, maxPt };
+    const P3 minPt{ 0.0f, 0.0f, 0.0f };
+    const P3 maxPt{ 1.0f, 1.0f, 1.0f };
+    const B3 bounds{ minPt, maxPt };
 
     PlasticMaterial material{};
     material.Ka = P3{ 0.1f, 0.2f, 0.3f };
     material.Kd = P3{ 0.4f, 0.5f, 0.6f };
     material.Ks = P3{ 0.7f, 0.8f, 0.9f };
 
-    pbrt::Vector3f  translation{ 1.0f, 2.0f, 3.0f };
-    ShapeDefinition mesh{
-        "plymesh", Translate( translation ), material, bounds, PlyMeshData{ "cube-mesh.ply", meshLoader }, {} };
+    pbrt::Vector3f translation{ 1.0f, 2.0f, 3.0f };
+    return { SHAPE_TYPE_PLY_MESH,
+             Translate( translation ),
+             material,
+             bounds,
+             PlyMeshData{ "cube-mesh.ply", meshLoader },
+             {} };
+}
 
+static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
+{
+    ShapeDefinition     mesh{ plyMeshShape( meshLoader ) };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
     scene->bounds = transformBounds( mesh );
     scene->freeShapes.push_back( mesh );
     return scene;
@@ -261,7 +280,7 @@ static SceneDescriptionPtr multipleInstancesSingleShape()
         instance.transform = Translate( translation );
         scene->objectInstances.push_back( instance );
         scene->instanceCounts[name]++;
-        };
+    };
     createInstance( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
     createInstance( pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
 
@@ -282,7 +301,95 @@ static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
     shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
     ObjectDefinition object;
     object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    std::string objectName{ "triangle" };
+    scene->objects[objectName]        = object;
+    scene->instanceCounts[objectName] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name   = objectName;
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes[objectName] = shapeList;
+    scene->bounds                   = transformBounds( instance );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceTriangleMesShapePlyMeshShapeScene( MockMeshLoaderPtr meshLoader )
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( plyMeshShape( meshLoader ) );
+    ShapeDefinition& shape1{ shapeList[0] };
+    ShapeDefinition& shape2{ shapeList[1] };
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    ObjectDefinition object;
+    object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     std::string name{ "triangle" };
+    scene->objects[name]        = object;
+    scene->instanceCounts[name] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name   = name;
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes[name] = shapeList;
+    scene->bounds             = transformBounds( instance );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceTwoTriangleMixedMaterialTypesShapeScene( const std::string& name )
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleTriangleShape() );
+    ShapeDefinition& shape1{ shapeList[0] };
+    ShapeDefinition& shape2{ shapeList[1] };
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    const std::array<P2, 3> uvs{ P2( 0.0f, 0.0f ), P2( 0.0f, 1.0f ), P2( 0.0f, 0.0f ) };
+    // different SBT indices are needed for textured and non-textured shapes
+    std::copy( uvs.begin(), uvs.end(), std::back_inserter( shape1.triangleMesh.uvs ) );
+    shape1.material.alphaMapFileName   = ALPHA_MAP_FILENAME;
+    shape1.material.diffuseMapFileName = DIFFUSE_MAP_FILENAME;
+    ObjectDefinition object;
+    object.bounds               = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    scene->objects[name]        = object;
+    scene->instanceCounts[name] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name   = name;
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes[name] = shapeList;
+    scene->bounds             = transformBounds( instance );
+    return scene;
+}
+
+// different SBT indices are needed for alpha textured and alpha+diffuse textured shapes
+static SceneDescriptionPtr singleInstanceThreeTriangleMixedTextureTypesShapeScene( const std::string& name )
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleTriangleShape() );
+    ShapeDefinition&        shape1{ shapeList[0] };
+    ShapeDefinition&        shape2{ shapeList[1] };
+    ShapeDefinition&        shape3{ shapeList[2] };
+    const std::array<P2, 3> uvs{ P2( 0.0f, 0.0f ), P2( 0.0f, 1.0f ), P2( 0.0f, 0.0f ) };
+
+    std::copy( uvs.begin(), uvs.end(), std::back_inserter( shape1.triangleMesh.uvs ) );
+    shape1.material.alphaMapFileName   = ALPHA_MAP_FILENAME;
+    shape1.material.diffuseMapFileName = DIFFUSE_MAP_FILENAME;
+
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    std::copy( uvs.begin(), uvs.end(), std::back_inserter( shape2.triangleMesh.uvs ) );
+    shape2.material.alphaMapFileName = ALPHA_MAP_FILENAME;
+
+    shape3.transform = Translate( ::pbrt::Vector3f( 2.0f, 2.0f, 2.0f ) );
+    std::copy( uvs.begin(), uvs.end(), std::back_inserter( shape3.triangleMesh.uvs ) );
+    shape3.material.diffuseMapFileName = DIFFUSE_MAP_FILENAME;
+
+    ObjectDefinition object;
+    object.bounds               = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     scene->objects[name]        = object;
     scene->instanceCounts[name] = 1;
     ObjectInstanceDefinition instance;
@@ -361,13 +468,13 @@ inline bool operator==( const ShapeDefinition& lhs, const ShapeDefinition& rhs )
     if( lhs.type != rhs.type )
         return false;
 
-    if( lhs.type == "plymesh" )
+    if( lhs.type == SHAPE_TYPE_PLY_MESH )
         return lhs.plyMesh == rhs.plyMesh;
 
-    if( lhs.type == "trianglemesh" )
+    if( lhs.type == SHAPE_TYPE_TRIANGLE_MESH )
         return lhs.triangleMesh == rhs.triangleMesh;
 
-    if( lhs.type == "sphere" )
+    if( lhs.type == SHAPE_TYPE_SPHERE )
         return lhs.sphere == rhs.sphere;
 
     return false;
@@ -406,7 +513,12 @@ class MockGeometryCache : public StrictMock<GeometryCache>
     MOCK_METHOD( GeometryCacheEntry, getShape, (OptixDeviceContext, CUstream, const ShapeDefinition&), ( override ) );
     MOCK_METHOD( GeometryCacheEntry,
                  getObject,
-                 ( OptixDeviceContext context, CUstream stream, const ObjectDefinition& object, const ShapeList& shapes, GeometryPrimitive primitive ) );
+                 ( OptixDeviceContext      context,
+                   CUstream                stream,
+                   const ObjectDefinition& object,
+                   const ShapeList&        shapes,
+                   GeometryPrimitive       primitive,
+                   MaterialFlags           flags ) );
     MOCK_METHOD( GeometryCacheStatistics, getStatistics, (), ( const override ) );
 };
 
@@ -431,7 +543,7 @@ TEST( TestSceneConstruction, meshDataSingleTrianglePlyScene )
     SceneDescriptionPtr scene{ singleTrianglePlyScene( meshLoader ) };
 
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    EXPECT_EQ( std::string{ "plymesh" }, shape.type );
+    EXPECT_EQ( std::string{ SHAPE_TYPE_PLY_MESH }, shape.type );
     EXPECT_EQ( "cube-mesh.ply", shape.plyMesh.fileName );
     EXPECT_EQ( meshLoader, shape.plyMesh.loader );
 }
@@ -442,7 +554,7 @@ TEST( TestSceneConstruction, constructSingleTriangleWithNormalsScene )
 
     ASSERT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    EXPECT_EQ( "trianglemesh", shape.type );
+    EXPECT_EQ( SHAPE_TYPE_TRIANGLE_MESH, shape.type );
     const TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.normals.empty() );
 }
@@ -453,7 +565,7 @@ TEST( TestSceneConstruction, constructSingleTriangleWithUVsScene )
 
     ASSERT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
-    EXPECT_EQ( "trianglemesh", shape.type );
+    EXPECT_EQ( SHAPE_TYPE_TRIANGLE_MESH, shape.type );
     const TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.uvs.empty() );
 }
@@ -581,7 +693,7 @@ class TestSceneProxy : public Test
         GeometryCacheEntry entry{};
         entry.accelBuffer = CUdeviceptr{ 0xf00dbaadf00dbaadULL };
         entry.traversable = m_fakeGeometryAS;
-        if( shape.type == "trianglemesh" )
+        if( shape.type == SHAPE_TYPE_TRIANGLE_MESH )
         {
             if( !shape.triangleMesh.normals.empty() )
             {
@@ -617,13 +729,13 @@ TEST_F( TestSceneProxy, constructWholeSceneProxyForSingleTriangleMesh )
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
 
     m_proxy = m_factory->scene( m_scene );
-    const Stats stats{ m_factory->getStatistics() };
 
     ASSERT_TRUE( m_proxy );
     EXPECT_EQ( m_pageId, m_proxy->getPageId() );
     const OptixAabb expectedBounds{ toOptixAabb( m_scene->bounds ) };
     EXPECT_EQ( expectedBounds, m_proxy->getBounds() ) << expectedBounds << " ! " << m_proxy->getBounds();
     EXPECT_FALSE( m_proxy->isDecomposable() );
+    const ProxyFactoryStatistics stats{ m_factory->getStatistics() };
     EXPECT_EQ( 1, stats.numGeometryProxiesCreated );
 }
 
@@ -964,10 +1076,7 @@ TEST_F( TestSceneProxy, decomposeWholeSceneProxyForSingleInstanceSingleShapeSing
 
 TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
 {
-    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
-    EXPECT_CALL( *meshLoader, getMeshInfo() ).WillOnce( Return( MeshInfo() ) );
-
-    m_scene = singleTrianglePlyScene( meshLoader );
+    m_scene = singleTrianglePlyScene( createMockMeshLoader() );
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
     m_proxy = m_factory->scene( m_scene );
     const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
@@ -1076,11 +1185,52 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveNotDecomposabl
     expectProxyBoundsAdded( m_scene->bounds, m_pageId );
     m_proxy = m_factory->sceneInstance( m_scene, 0 );
 
-    const bool      decomposable{ m_proxy->isDecomposable() };
-    const OptixAabb bounds{ m_proxy->getBounds() };
+    const bool decomposable{ m_proxy->isDecomposable() };
 
     EXPECT_FALSE( decomposable );
-    EXPECT_EQ( toOptixAabb( m_scene->bounds ), bounds );
+    EXPECT_EQ( toOptixAabb( m_scene->bounds ), m_proxy->getBounds() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceTriangleMeshShapePlyMeshShapeNotDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshInfo          meshInfo{};
+    EXPECT_CALL( *meshLoader, getMeshInfo() ).WillRepeatedly( Return( meshInfo ) );
+    m_scene = singleInstanceTriangleMesShapePlyMeshShapeScene( meshLoader );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    const bool decomposable{ m_proxy->isDecomposable() };
+
+    EXPECT_FALSE( decomposable );
+    EXPECT_EQ( toOptixAabb( m_scene->bounds ), m_proxy->getBounds() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialTypesDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene                    = singleInstanceTwoTriangleMixedMaterialTypesShapeScene( "triangles" );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    const bool decomposable{ m_proxy->isDecomposable() };
+
+    EXPECT_TRUE( decomposable );
+    EXPECT_EQ( toOptixAabb( m_scene->bounds ), m_proxy->getBounds() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialTextureTypesDecomposable )
+{
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene                    = singleInstanceThreeTriangleMixedTextureTypesShapeScene( "triangles" );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+
+    const bool decomposable{ m_proxy->isDecomposable() };
+
+    EXPECT_TRUE( decomposable );
+    EXPECT_EQ( toOptixAabb( m_scene->bounds ), m_proxy->getBounds() );
 }
 
 TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGeometry )
@@ -1094,8 +1244,8 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     triangles.traversable = m_fakeGeometryAS;
     triangles.primitive   = GeometryPrimitive::TRIANGLE;
     const std::string& name{ m_scene->objects.begin()->first };
-    EXPECT_CALL( *m_geometryCache, getObject( m_fakeContext, m_stream, m_scene->objects[name],
-                                              m_scene->objectShapes[name], GeometryPrimitive::TRIANGLE ) )
+    EXPECT_CALL( *m_geometryCache, getObject( m_fakeContext, m_stream, m_scene->objects[name], m_scene->objectShapes[name],
+                                              GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) )
         .WillOnce( Return( triangles ) );
 
     const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
@@ -1103,9 +1253,64 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     EXPECT_EQ( triangles.accelBuffer, geom.accelBuffer );
     EXPECT_EQ( triangles.primitive, geom.primitive );
     EXPECT_EQ( triangles.traversable, geom.instance.traversableHandle );
-    EXPECT_EQ( PhongMaterial{}, geom.groups.material );
+    EXPECT_EQ( MaterialFlags::NONE, geom.groups.material.flags );
     EXPECT_TRUE( geom.groups.diffuseMapFileName.empty() );
     EXPECT_TRUE( geom.groups.alphaMapFileName.empty() );
+    EXPECT_EQ( triangles.devNormals, geom.devNormals );
+    EXPECT_EQ( triangles.devUVs, geom.devUVs );
+}
+
+TEST_F( TestSceneProxy, createSceneInstancePrimitiveProxy )
+{
+    const std::string name{ "triangles" };
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene                    = singleInstanceTwoTriangleMixedMaterialTypesShapeScene( name );
+    const GeometryPrimitive         primitive{ GeometryPrimitive::TRIANGLE };
+    const MaterialFlags             flags{ MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP };
+    const ObjectInstanceDefinition& instance{ m_scene->objectInstances[0] };
+    const ShapeDefinition&          shape{ m_scene->objectShapes[instance.name][0] };
+    const pbrt::Bounds3f            bounds{ instance.transform( shape.transform( shape.bounds ) ) };
+    expectProxyBoundsAdded( bounds, m_pageId );
+
+    m_proxy = m_factory->sceneInstancePrimitive( m_scene, 0, primitive, flags );
+
+    ASSERT_NE( nullptr, m_proxy );
+    EXPECT_EQ( toOptixAabb( bounds ), m_proxy->getBounds() );
+    EXPECT_EQ( m_pageId, m_proxy->getPageId() );
+    const ProxyFactoryStatistics stats{ m_factory->getStatistics() };
+    EXPECT_EQ( 0, stats.numSceneProxiesCreated );
+    EXPECT_EQ( 0, stats.numShapeProxiesCreated );
+    EXPECT_EQ( 0, stats.numInstanceProxiesCreated );
+    EXPECT_EQ( 0, stats.numInstanceShapeProxiesCreated );
+    EXPECT_EQ( 1, stats.numInstancePrimitiveProxiesCreated );
+    EXPECT_EQ( 1, stats.numGeometryProxiesCreated );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialsGeometry )
+{
+    const std::string name{ "triangles" };
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene                    = singleInstanceTwoTriangleMixedMaterialTypesShapeScene( name );
+    const GeometryPrimitive primitive{ GeometryPrimitive::TRIANGLE };
+    const MaterialFlags     flags{ MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP };
+    EXPECT_CALL( *m_geometryLoader, add( _ ) ).WillOnce( Return( m_pageId ) );
+    m_proxy = m_factory->sceneInstancePrimitive( m_scene, 0, primitive, flags );
+    GeometryCacheEntry triangles{};
+    triangles.accelBuffer = 0xdeadbeefULL;
+    triangles.traversable = m_fakeGeometryAS;
+    triangles.primitive   = primitive;
+    EXPECT_CALL( *m_geometryCache,
+                 getObject( m_fakeContext, m_stream, m_scene->objects[name], m_scene->objectShapes[name], primitive, flags ) )
+        .WillOnce( Return( triangles ) );
+
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
+
+    EXPECT_EQ( triangles.accelBuffer, geom.accelBuffer );
+    EXPECT_EQ( triangles.primitive, geom.primitive );
+    EXPECT_EQ( triangles.traversable, geom.instance.traversableHandle );
+    EXPECT_EQ( flags, geom.groups.material.flags );
+    EXPECT_EQ( DIFFUSE_MAP_FILENAME, geom.groups.diffuseMapFileName );
+    EXPECT_EQ( ALPHA_MAP_FILENAME, geom.groups.alphaMapFileName );
     EXPECT_EQ( triangles.devNormals, geom.devNormals );
     EXPECT_EQ( triangles.devUVs, geom.devUVs );
 }
@@ -1146,4 +1351,68 @@ TEST_F( TestSceneProxy, coarseObjectInstanceMultiplePrimitivesDecomposed )
     const SceneProxyPtr& proxy2{ parts[1] };
     EXPECT_EQ( childId2, proxy2->getPageId() );
     EXPECT_EQ( shape2Bounds, proxy2->getBounds() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialTypesDecomposed )
+{
+    const std::string objectName{ "triangleSphere" };
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene                    = singleInstanceTwoTriangleMixedMaterialTypesShapeScene( objectName );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+    const ObjectInstanceDefinition& instance{ m_scene->objectInstances[0] };
+    const uint_t                    childId1{ 1111 };
+    const ::ShapeDefinition&        shape1{ m_scene->objectShapes[objectName][0] };
+    const OptixAabb          shape1Bounds{ toOptixAabb( instance.transform( shape1.transform( shape1.bounds ) ) ) };
+    const uint_t             childId2{ 2222 };
+    const ::ShapeDefinition& shape2{ m_scene->objectShapes[objectName][1] };
+    const OptixAabb          shape2Bounds{ toOptixAabb( instance.transform( shape2.transform( shape2.bounds ) ) ) };
+    EXPECT_CALL( *m_geometryLoader, add( shape1Bounds ) ).WillOnce( Return( childId1 ) );
+    EXPECT_CALL( *m_geometryLoader, add( shape2Bounds ) ).WillOnce( Return( childId2 ) );
+
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
+
+    ASSERT_EQ( 2U, parts.size() );
+    const SceneProxyPtr& proxy1{ parts[0] };
+    EXPECT_EQ( childId1, proxy1->getPageId() );
+    EXPECT_EQ( shape1Bounds, proxy1->getBounds() );
+    const SceneProxyPtr& proxy2{ parts[1] };
+    EXPECT_EQ( childId2, proxy2->getPageId() );
+    EXPECT_EQ( shape2Bounds, proxy2->getBounds() );
+}
+
+TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialTextureTypesDecomposed )
+{
+    const std::string objectName{ "triangleSphere" };
+    m_options.proxyGranularity = ProxyGranularity::COARSE;
+    m_scene                    = singleInstanceThreeTriangleMixedTextureTypesShapeScene( objectName );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->sceneInstance( m_scene, 0 );
+    const ObjectInstanceDefinition& instance{ m_scene->objectInstances[0] };
+    const ShapeList&                shapes{ m_scene->objectShapes[objectName] };
+    const uint_t                    childId1{ 1111 };
+    const ::ShapeDefinition&        shape1{ shapes[0] };
+    const OptixAabb          shape1Bounds{ toOptixAabb( instance.transform( shape1.transform( shape1.bounds ) ) ) };
+    const uint_t             childId2{ 2222 };
+    const ::ShapeDefinition& shape2{ shapes[1] };
+    const OptixAabb          shape2Bounds{ toOptixAabb( instance.transform( shape2.transform( shape2.bounds ) ) ) };
+    const uint_t             childId3{ 3333 };
+    const ShapeDefinition    shape3{ shapes[2] };
+    const OptixAabb          shape3Bounds{ toOptixAabb( instance.transform( shape3.transform( shape3.bounds ) ) ) };
+    EXPECT_CALL( *m_geometryLoader, add( shape1Bounds ) ).WillOnce( Return( childId1 ) );
+    EXPECT_CALL( *m_geometryLoader, add( shape2Bounds ) ).WillOnce( Return( childId2 ) );
+    EXPECT_CALL( *m_geometryLoader, add( shape3Bounds ) ).WillOnce( Return( childId3 ) );
+
+    std::vector<SceneProxyPtr> parts{ m_proxy->decompose( m_factory ) };
+
+    ASSERT_EQ( 3U, parts.size() );
+    const SceneProxyPtr& proxy1{ parts[0] };
+    EXPECT_EQ( childId1, proxy1->getPageId() );
+    EXPECT_EQ( shape1Bounds, proxy1->getBounds() );
+    const SceneProxyPtr& proxy2{ parts[1] };
+    EXPECT_EQ( childId2, proxy2->getPageId() );
+    EXPECT_EQ( shape2Bounds, proxy2->getBounds() );
+    const SceneProxyPtr& proxy3{ parts[2] };
+    EXPECT_EQ( childId3, proxy3->getPageId() );
+    EXPECT_EQ( shape3Bounds, proxy3->getBounds() );
 }
