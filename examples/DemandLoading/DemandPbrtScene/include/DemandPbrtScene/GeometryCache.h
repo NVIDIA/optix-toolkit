@@ -41,7 +41,8 @@ class GeometryCache
                                           CUstream                           stream,
                                           const otk::pbrt::ObjectDefinition& object,
                                           const otk::pbrt::ShapeList&        shapes,
-                                          GeometryPrimitive                  primitive ) = 0;
+                                          GeometryPrimitive                  primitive,
+                                          MaterialFlags                      flags ) = 0;
 
     virtual GeometryCacheStatistics getStatistics() const = 0;
 };

@@ -27,6 +27,9 @@
 
 #include <optix.h>
 
+#include <algorithm>
+#include <array>
+#include <iterator>
 #include <type_traits>
 
 using namespace demandPbrtScene;
@@ -40,6 +43,8 @@ using P3 = pbrt::Point3f;
 using B3 = pbrt::Bounds3f;
 
 using Stats = GeometryCacheStatistics;
+
+constexpr const char* ALPHA_MAP_FILENAME{ "alpha.png" };
 
 inline void PrintTo( const OptixAabb& value, std::ostream* str )
 {
@@ -508,6 +513,160 @@ static ShapeDefinition singleTriangleTriangleMeshWithUVs( MeshData& buffers )
     return shape;
 }
 
+static TriangleNormals expectedNormal()
+{
+    TriangleNormals actual;
+    actual.N[0] = make_float3( 1.0f, 0.0f, 0.0f );
+    actual.N[1] = make_float3( 0.0f, 1.0f, 0.0f );
+    actual.N[2] = make_float3( 0.0f, 0.0f, 1.0f );
+    return actual;
+}
+
+static TriangleUVs expectedUV()
+{
+    TriangleUVs actual;
+    actual.UV[0] = make_float2( 1.0f, 0.0f );
+    actual.UV[1] = make_float2( 0.0f, 1.0f );
+    actual.UV[2] = make_float2( 0.0f, 0.0f );
+    return actual;
+}
+
+static ShapeDefinition singleSphere()
+{
+    SphereData sphere;
+    sphere.radius = 10.0f;
+    sphere.zMin   = -10.0f;
+    sphere.zMax   = 10.0f;
+    sphere.phiMax = 360.0f;
+    ShapeDefinition shape{};
+    shape.type   = SHAPE_TYPE_SPHERE;
+    shape.sphere = sphere;
+    return shape;
+}
+
+namespace {
+
+struct TestObject
+{
+    ObjectDefinition      object;
+    std::vector<MeshData> buffers;
+    ShapeList             shapes;
+    std::vector<float>    expectedVertices;
+    std::vector<int>      expectedIndices;
+    std::vector<float3>   expectedSphereCenters;
+    float                 expectedSphereSingleRadius;
+};
+
+}  // namespace
+
+static ShapeDefinition translateTriangleMesh( TestObject& object, int index, float tx, float ty, float tz )
+{
+    ShapeDefinition mesh{ singleTriangleTriangleMesh( object.buffers[index] ) };
+    mesh.transform = Translate( pbrt::Vector3f( tx, ty, tz ) );
+    return mesh;
+}
+
+static TestObject twoTriangleMeshes()
+{
+    TestObject object;
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
+    object.shapes.push_back( singleTriangleTriangleMesh( object.buffers[1] ) );
+    for( size_t i = 0; i < object.shapes.size(); ++i )
+    {
+        const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
+        for( size_t c = 0; c < vertices.size() / 3; ++c )
+        {
+            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pt = object.shapes[i].transform( pt );
+            object.expectedVertices.push_back( pt.x );
+            object.expectedVertices.push_back( pt.y );
+            object.expectedVertices.push_back( pt.z );
+        }
+        const std::vector<int>& indices{ object.buffers[i].indices };
+        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+    }
+
+    return object;
+}
+
+static TestObject twoTriangleMeshesMixedMaterials()
+{
+    TestObject object;
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
+    object.shapes.push_back( singleTriangleTriangleMesh( object.buffers[1] ) );
+    const std::vector<float>& vertices{ object.buffers[1].vertexCoords };
+    for( size_t c = 0; c < vertices.size() / 3; ++c )
+    {
+        pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+        pt = object.shapes[1].transform( pt );
+        object.expectedVertices.push_back( pt.x );
+        object.expectedVertices.push_back( pt.y );
+        object.expectedVertices.push_back( pt.z );
+    }
+    const std::vector<int>& indices{ object.buffers[1].indices };
+    std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+    object.shapes[1].material.alphaMapFileName = ALPHA_MAP_FILENAME;
+    const std::array<P2, 3> uvs{ P2{ 0.0f, 0.0f }, P2{ 0.0f, 1.0f }, P2{ 0.0f, 0.0f } };
+    object.shapes[1].triangleMesh.uvs.resize( 3 );
+    std::copy( uvs.begin(), uvs.end(), object.shapes[1].triangleMesh.uvs.begin() );
+    return object;
+}
+
+static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, MeshInfo& info )
+{
+    // TODO: give each triangle mesh different transforms
+    TestObject object;
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
+    object.shapes.push_back( singleTrianglePlyMesh( loader, object.buffers[1], info ) );
+
+    for( size_t i = 0; i < object.shapes.size(); ++i )
+    {
+        const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
+        for( size_t c = 0; c < vertices.size() / 3; ++c )
+        {
+            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pt = object.shapes[i].transform( pt );
+            object.expectedVertices.push_back( pt.x );
+            object.expectedVertices.push_back( pt.y );
+            object.expectedVertices.push_back( pt.z );
+        }
+        const std::vector<int>& indices{ object.buffers[i].indices };
+        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+    }
+
+    return object;
+}
+
+static TestObject oneTriangleMeshOneSphere()
+{
+    TestObject object;
+    object.buffers.push_back( MeshData{} );
+    object.buffers.push_back( MeshData{} );
+    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
+    object.shapes.push_back( singleSphere() );
+    const std::vector<float>& vertices{ object.buffers[0].vertexCoords };
+    for( size_t c = 0; c < vertices.size() / 3; ++c )
+    {
+        pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+        pt = object.shapes[0].transform( pt );
+        object.expectedVertices.push_back( pt.x );
+        object.expectedVertices.push_back( pt.y );
+        object.expectedVertices.push_back( pt.z );
+    }
+    const std::vector<int>& indices{ object.buffers[0].indices };
+    std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+    object.expectedSphereCenters.push_back( make_float3( 0.0f, 0.0f, 0.0f ) );
+    object.expectedSphereSingleRadius = object.shapes[1].sphere.radius;
+
+    return object;
+}
+
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
 {
     MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
@@ -544,15 +703,6 @@ TEST( TestHasDeviceTriangleNormals, normalsPointerIsNull )
     TriangleMeshData triangleMesh{};
 
     EXPECT_THAT( nullptr, Not( hasDeviceTriangleNormals( &triangleMesh ) ) );
-}
-
-static TriangleNormals expectedNormal()
-{
-    TriangleNormals actual;
-    actual.N[0] = make_float3( 1.0f, 0.0f, 0.0f );
-    actual.N[1] = make_float3( 0.0f, 1.0f, 0.0f );
-    actual.N[2] = make_float3( 0.0f, 0.0f, 1.0f );
-    return actual;
 }
 
 TEST( TestHasDeviceTriangleNormals, normalsDontMatchFirstVertex )
@@ -638,15 +788,6 @@ TEST( TestHasDeviceTriangleUVs, uvsPointerIsNull )
     TriangleMeshData triangleMesh{};
 
     EXPECT_THAT( nullptr, Not( hasDeviceTriangleUVs( &triangleMesh ) ) );
-}
-
-static TriangleUVs expectedUV()
-{
-    TriangleUVs actual;
-    actual.UV[0] = make_float2( 1.0f, 0.0f );
-    actual.UV[1] = make_float2( 0.0f, 1.0f );
-    actual.UV[2] = make_float2( 0.0f, 0.0f );
-    return actual;
 }
 
 TEST( TestHasDeviceTriangleUVs, uvsDontMatchFirstVertex )
@@ -757,19 +898,6 @@ TEST_F( TestGeometryCache, twoPlyInstancesShareSameGAS )
     EXPECT_EQ( 0, stats.numUVs );
 }
 
-static ShapeDefinition singleSphere()
-{
-    SphereData sphere;
-    sphere.radius = 10.0f;
-    sphere.zMin   = -10.0f;
-    sphere.zMax   = 10.0f;
-    sphere.phiMax = 360.0f;
-    ShapeDefinition shape{};
-    shape.type   = SHAPE_TYPE_SPHERE;
-    shape.sphere = sphere;
-    return shape;
-}
-
 TEST_F( TestGeometryCache, constructSphereASForSphere )
 {
     MockMeshLoaderPtr   meshLoader{ createMockMeshLoader() };
@@ -800,104 +928,6 @@ TEST_F( TestGeometryCache, constructSphereASForSphere )
     EXPECT_EQ( 0, stats.numUVs );
 }
 
-struct TestObject
-{
-    ObjectDefinition      object;
-    std::vector<MeshData> buffers;
-    ShapeList             shapes;
-    std::vector<float>    expectedVertices;
-    std::vector<int>      expectedIndices;
-    std::vector<float3>   expectedSphereCenters;
-    float                 expectedSphereSingleRadius;
-};
-
-static ShapeDefinition translateTriangleMesh( TestObject& object, int index, float tx, float ty, float tz )
-{
-    ShapeDefinition mesh{ singleTriangleTriangleMesh( object.buffers[index] ) };
-    mesh.transform = Translate( pbrt::Vector3f( tx, ty, tz ) );
-    return mesh;
-}
-
-static TestObject twoTriangleMeshes()
-{
-    TestObject object;
-    object.buffers.push_back( MeshData{} );
-    object.buffers.push_back( MeshData{} );
-    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
-    object.shapes.push_back( singleTriangleTriangleMesh( object.buffers[1] ) );
-    for( size_t i = 0; i < object.shapes.size(); ++i )
-    {
-        const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
-        for( size_t c = 0; c < vertices.size() / 3; ++c )
-        {
-            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
-            pt = object.shapes[i].transform( pt );
-            object.expectedVertices.push_back( pt.x );
-            object.expectedVertices.push_back( pt.y );
-            object.expectedVertices.push_back( pt.z );
-        }
-        const std::vector<int>& indices{ object.buffers[i].indices };
-        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
-    }
-
-    return object;
-}
-
-static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, MeshInfo& info )
-{
-    // TODO: give each triangle mesh different transforms
-    TestObject object;
-    object.buffers.push_back( MeshData{} );
-    object.buffers.push_back( MeshData{} );
-    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
-    object.shapes.push_back( singleTrianglePlyMesh( loader, object.buffers[1], info ) );
-
-    for( size_t i = 0; i < object.shapes.size(); ++i )
-    {
-        const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
-        for( size_t c = 0; c < vertices.size() / 3; ++c )
-        {
-            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
-            pt = object.shapes[i].transform( pt );
-            object.expectedVertices.push_back( pt.x );
-            object.expectedVertices.push_back( pt.y );
-            object.expectedVertices.push_back( pt.z );
-        }
-        const std::vector<int>& indices{ object.buffers[i].indices };
-        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
-    }
-
-    return object;
-}
-
-static TestObject oneTriangleMeshOneSphere()
-{
-    TestObject object;
-    object.buffers.push_back( MeshData{} );
-    object.buffers.push_back( MeshData{} );
-    object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
-    object.shapes.push_back( singleSphere() );
-    {
-        const std::vector<float>& vertices{ object.buffers[0].vertexCoords };
-        for( size_t c = 0; c < vertices.size() / 3; ++c )
-        {
-            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
-            pt = object.shapes[0].transform( pt );
-            object.expectedVertices.push_back( pt.x );
-            object.expectedVertices.push_back( pt.y );
-            object.expectedVertices.push_back( pt.z );
-        }
-        const std::vector<int>& indices{ object.buffers[0].indices };
-        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
-    }
-    {
-        object.expectedSphereCenters.push_back( make_float3( 0.0f, 0.0f, 0.0f ) );
-        object.expectedSphereSingleRadius = object.shapes[1].sphere.radius;
-    }
-
-    return object;
-}
-
 TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
 {
     const TestObject object{ twoTriangleMeshes() };
@@ -911,7 +941,7 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
     configureAccelBuild( expectedOptions, expectedInput );
 
     const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
-                                                                 GeometryPrimitive::TRIANGLE ) };
+                                                                 GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) };
 
     EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
@@ -945,7 +975,7 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOnePlyMesh )
     configureAccelBuild( expectedOptions, expectedInput );
 
     const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
-                                                                 GeometryPrimitive::TRIANGLE ) };
+                                                                 GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) };
 
     EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
@@ -976,7 +1006,7 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOneSphere )
     configureAccelBuild( expectedOptions, expectedTriangleInput );
 
     const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
-                                                                 GeometryPrimitive::TRIANGLE ) };
+                                                                 GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) };
     const Stats              stats{ m_geometryCache->getStatistics() };
 
     EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
@@ -993,6 +1023,35 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOneSphere )
     EXPECT_EQ( 0, stats.totalBytesRead );
 }
 
+TEST_F( TestGeometryCache, constructTriangleASForObjectTriMeshMixedMaterials )
+{
+    const TestObject object{ twoTriangleMeshesMixedMaterials() };
+    const auto       expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto expectedTriangleInput{ hasAll( hasDeviceVertexCoords( object.expectedVertices ), hasDeviceIndices( object.expectedIndices ),
+                                              hasSbtFlags( m_expectedFlags ), hasNoPreTransform(),
+                                              hasNoSbtIndexOffsets(), hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) };
+    const auto expectedBuildInputs{ AllOf( NotNull(), hasTriangleBuildInput( 0, expectedTriangleInput ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedBuildInputs );
+    configureAccelBuild( expectedOptions, expectedBuildInputs );
+
+    const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                 GeometryPrimitive::TRIANGLE, MaterialFlags::ALPHA_MAP ) };
+
+    EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, result.traversable );
+    EXPECT_EQ( nullptr, result.devNormals );
+    EXPECT_NE( nullptr, result.devUVs );
+    ASSERT_EQ( 1U, result.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    const Stats stats{ m_geometryCache->getStatistics() };
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 3, stats.numUVs );
+    EXPECT_EQ( 0, stats.numSpheres );
+    EXPECT_EQ( 0, stats.totalBytesRead );
+}
+
 TEST_F( TestGeometryCache, constructSphereASForObjectOneTriMeshOneSphere )
 {
     const TestObject object{ oneTriangleMeshOneSphere() };
@@ -1003,8 +1062,8 @@ TEST_F( TestGeometryCache, constructSphereASForObjectOneTriMeshOneSphere )
     configureAccelComputeMemoryUsage( expectedOptions, expectedSphereInput );
     configureAccelBuild( expectedOptions, expectedSphereInput );
 
-    const GeometryCacheEntry result{
-        m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes, GeometryPrimitive::SPHERE ) };
+    const GeometryCacheEntry result{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                 GeometryPrimitive::SPHERE, MaterialFlags::NONE ) };
 
     EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
     EXPECT_EQ( m_fakeGeomAS, result.traversable );

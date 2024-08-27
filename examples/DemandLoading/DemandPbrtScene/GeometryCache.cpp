@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/GeometryCache.h"
 
+#include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/Stopwatch.h"
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
@@ -11,9 +12,11 @@
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <iterator>
 
 using namespace otk::pbrt;
 
@@ -36,7 +39,8 @@ class GeometryCacheImpl : public GeometryCache
                                   CUstream                stream,
                                   const ObjectDefinition& object,
                                   const ShapeList&        shapes,
-                                  GeometryPrimitive       primitive ) override;
+                                  GeometryPrimitive       primitive,
+                                  MaterialFlags           flags ) override;
 
     GeometryCacheStatistics getStatistics() const override { return m_stats; }
 
@@ -99,7 +103,8 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
                                                  CUstream                stream,
                                                  const ObjectDefinition& object,
                                                  const ShapeList&        shapes,
-                                                 GeometryPrimitive       primitive )
+                                                 GeometryPrimitive       primitive,
+                                                 MaterialFlags           flags )
 {
     m_vertices.clear();
     m_indices.clear();
@@ -112,13 +117,16 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
         case GeometryPrimitive::TRIANGLE:
             for( const ShapeDefinition& shape : shapes )
             {
-                if( shape.type == SHAPE_TYPE_TRIANGLE_MESH )
+                if( shapeMaterialFlags( shape ) == flags )
                 {
-                    appendTriangleMesh( shape.transform, shape.triangleMesh );
-                }
-                else if( shape.type == SHAPE_TYPE_PLY_MESH )
-                {
-                    appendPlyMesh( shape.transform, shape.plyMesh );
+                    if( shape.type == SHAPE_TYPE_TRIANGLE_MESH )
+                    {
+                        appendTriangleMesh( shape.transform, shape.triangleMesh );
+                    }
+                    else if( shape.type == SHAPE_TYPE_PLY_MESH )
+                    {
+                        appendPlyMesh( shape.transform, shape.plyMesh );
+                    }
                 }
             }
             return buildTriangleGAS( context, stream );
@@ -126,14 +134,14 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
         case GeometryPrimitive::SPHERE:
             for( const ShapeDefinition& shape : shapes )
             {
-                if( shape.type == SHAPE_TYPE_SPHERE )
+                if( shapeMaterialFlags( shape ) == flags && shape.type == SHAPE_TYPE_SPHERE )
                 {
                     appendSphere( shape.transform, shape.sphere );
                 }
             }
             return buildSphereGAS( context, stream );
 
-        default:
+        case GeometryPrimitive::NONE:
             break;
     }
 

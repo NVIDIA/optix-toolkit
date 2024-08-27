@@ -12,7 +12,7 @@ namespace demandPbrtScene {
 
 inline void toInstanceTransform( float ( &dest )[12], const ::pbrt::Transform& source )
 {
-    const float (&m)[4][4] = source.GetMatrix().m;
+    const float( &m )[4][4] = source.GetMatrix().m;
 
     for( int row = 0; row < 3; ++row )
     {
@@ -33,4 +33,4 @@ inline void toFloat4Transform( float4 ( &dest )[4], const ::pbrt::Transform& sou
     }
 }
 
-}
+}  // namespace demandPbrtScene

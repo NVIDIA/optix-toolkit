@@ -12,6 +12,7 @@ struct ProxyFactoryStatistics
     unsigned int numShapeProxiesCreated;
     unsigned int numInstanceProxiesCreated;
     unsigned int numInstanceShapeProxiesCreated;
+    unsigned int numInstancePrimitiveProxiesCreated;
     unsigned int numGeometryProxiesCreated;
 };
 
