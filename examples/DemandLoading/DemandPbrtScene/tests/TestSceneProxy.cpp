@@ -81,34 +81,6 @@ static SceneDescriptionPtr singleTriangleScene()
     return scene;
 }
 
-namespace otk {
-namespace pbrt {
-
-inline bool operator==( const ObjectDefinition& lhs, const ObjectDefinition& rhs )
-{
-    return lhs.transform == rhs.transform  //
-           && lhs.bounds == rhs.bounds;    //
-}
-
-inline std::ostream& operator<<( std::ostream& str, const ObjectDefinition& value )
-{
-    return str << "ObjectDefinition{ " << value.transform << ", " << value.bounds << " }";
-}
-
-}  // namespace pbrt
-}  // namespace otk
-
-
-TEST( TestSceneConstruction, sceneBoundsSingleTriangleScene )
-{
-    SceneDescriptionPtr scene{ singleTriangleScene() };
-
-    const ShapeList& shapes{ scene->freeShapes };
-    EXPECT_EQ( 1U, shapes.size() );
-    const ShapeDefinition& shape{ shapes[0] };
-    EXPECT_EQ( scene->bounds, transformBounds( shape ) );
-}
-
 static ShapeDefinition singleSphereShape()
 {
     const P3 minPt{ 0.0f, 0.0f, 0.0f };
@@ -143,18 +115,231 @@ static SceneDescriptionPtr singleSphereScene()
     return scene;
 }
 
-TEST( TestSceneConstruction, sceneBoundsSingleSphereScene )
+static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
 {
-    SceneDescriptionPtr scene{ singleSphereScene() };
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    const P3            minPt{ 0.0f, 0.0f, 0.0f };
+    const P3            maxPt{ 1.0f, 1.0f, 1.0f };
+    const B3            bounds{ minPt, maxPt };
 
-    const ShapeList& shapes{ scene->freeShapes };
-    EXPECT_EQ( 1U, shapes.size() );
-    const ShapeDefinition& shape{ shapes[0] };
-    EXPECT_EQ( scene->bounds, transformBounds( shape ) );
+    PlasticMaterial material{};
+    material.Ka = P3{ 0.1f, 0.2f, 0.3f };
+    material.Kd = P3{ 0.4f, 0.5f, 0.6f };
+    material.Ks = P3{ 0.7f, 0.8f, 0.9f };
+
+    pbrt::Vector3f  translation{ 1.0f, 2.0f, 3.0f };
+    ShapeDefinition mesh{
+        "plymesh", Translate( translation ), material, bounds, PlyMeshData{ "cube-mesh.ply", meshLoader }, {} };
+
+    scene->bounds = transformBounds( mesh );
+    scene->freeShapes.push_back( mesh );
+    return scene;
+}
+
+static SceneDescriptionPtr singleTriangleWithNormalsScene()
+{
+    SceneDescriptionPtr scene{ singleTriangleScene() };
+    std::vector<P3>     normals{ P3{ 0.1f, 0.2f, 0.3f }, P3{ 0.4f, 0.5f, 0.6f }, P3{ 0.7f, 0.8f, 0.9f } };
+    scene->freeShapes[0].triangleMesh.normals = std::move( normals );
+    return scene;
+}
+
+static SceneDescriptionPtr singleTriangleWithUVsScene()
+{
+    SceneDescriptionPtr scene{ singleTriangleScene() };
+    std::vector<P2>     uvs{ P2{ 0.0f, 0.0f }, P2{ 1.0f, 0.0f }, P2{ 1.0f, 1.0f } };
+    scene->freeShapes[0].triangleMesh.uvs = std::move( uvs );
+    return scene;
+}
+
+static SceneDescriptionPtr singleTriangleWithAlphaMapScene()
+{
+    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
+    scene->freeShapes[0].material.alphaMapFileName = "alphaMap.png";
+    return scene;
+}
+
+static SceneDescriptionPtr singleTriangleWithDiffuseMapScene()
+{
+    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
+    scene->freeShapes[0].material.diffuseMapFileName = "diffuse.png";
+    return scene;
+}
+
+static SceneDescriptionPtr twoShapeScene()
+{
+    ShapeDefinition shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
+
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    scene->bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    scene->freeShapes.push_back( shape1 );
+    scene->freeShapes.push_back( shape2 );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceSingleShapeScene()
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape{ singleTriangleShape() };
+    ObjectDefinition    object;
+    object.bounds                     = transformBounds( shape );
+    scene->objects["triangle"]        = object;
+    scene->instanceCounts["triangle"] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name   = "triangle";
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    ShapeList shapeList;
+    shapeList.push_back( shape );
+    scene->objectShapes["triangle"] = shapeList;
+    scene->bounds                   = transformBounds( instance );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceMultipleShapesScene()
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ShapeDefinition     shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
+    ObjectDefinition    object;
+    std::string         name{ "object" };
+    object.bounds               = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    scene->objects[name]        = object;
+    scene->instanceCounts[name] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name   = name;
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    ShapeList shapeList;
+    shapeList.push_back( shape1 );
+    shapeList.push_back( shape2 );
+    scene->objectShapes[name] = shapeList;
+    scene->bounds             = transformBounds( instance );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ObjectDefinition    object;
+    object.bounds = transformBounds( shape1 );
+    std::string name{ "object" };
+    scene->objects[name]        = object;
+    scene->instanceCounts[name] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name      = name;
+    instance.bounds    = transformBounds( object );
+    instance.transform = Translate( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
+    scene->objectInstances.push_back( instance );
+    ShapeList shapeList;
+    shapeList.push_back( shape1 );
+    scene->objectShapes[name] = shapeList;
+
+    ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
+    scene->freeShapes.push_back( shape2 );
+    scene->bounds = Union( transformBounds( instance ), transformBounds( shape2 ) );
+    return scene;
+}
+
+static SceneDescriptionPtr multipleInstancesSingleShape()
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeDefinition     shape{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
+    ObjectDefinition    object;
+    object.bounds = transformBounds( shape );
+    std::string name{ "object" };
+    scene->objects[name] = object;
+    ShapeList shapeList;
+    shapeList.push_back( shape );
+    scene->objectShapes[name] = shapeList;
+    const auto createInstance = [&]( const pbrt::Vector3f& translation ) {
+        ObjectInstanceDefinition instance;
+        instance.name      = name;
+        instance.bounds    = transformBounds( object );
+        instance.transform = Translate( translation );
+        scene->objectInstances.push_back( instance );
+        scene->instanceCounts[name]++;
+        };
+    createInstance( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
+    createInstance( pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
+
+    const ObjectInstanceDefinition& ins1{ scene->objectInstances[0] };
+    const ObjectInstanceDefinition& ins2{ scene->objectInstances[1] };
+    scene->bounds = Union( transformBounds( ins1 ), transformBounds( ins2 ) );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleTriangleShape() );
+    ShapeDefinition& shape1{ shapeList[0] };
+    ShapeDefinition& shape2{ shapeList[1] };
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    ObjectDefinition object;
+    object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    std::string name{ "triangle" };
+    scene->objects[name]        = object;
+    scene->instanceCounts[name] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name   = name;
+    instance.bounds = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes[name] = shapeList;
+    scene->bounds             = transformBounds( instance );
+    return scene;
+}
+
+static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene( const std::string& objectName )
+{
+    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
+    ShapeList           shapeList;
+    shapeList.push_back( singleTriangleShape() );
+    shapeList.push_back( singleSphereShape() );
+    ShapeDefinition& shape1{ shapeList[0] };
+    ShapeDefinition& shape2{ shapeList[1] };
+    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    ObjectDefinition object;
+    object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
+    scene->objects[objectName]        = object;
+    scene->instanceCounts[objectName] = 1;
+    ObjectInstanceDefinition instance;
+    instance.name      = objectName;
+    instance.transform = Translate( ::pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
+    instance.bounds    = transformBounds( object );
+    scene->objectInstances.push_back( instance );
+    scene->objectShapes[objectName] = shapeList;
+    scene->bounds                   = transformBounds( instance );
+    return scene;
+}
+
+static void identity( float ( &result )[12] )
+{
+    static const float matrix[12]{
+        1.0f, 0.0f, 0.0f, 0.0f,  //
+        0.0f, 1.0f, 0.0f, 0.0f,  //
+        0.0f, 0.0f, 1.0f, 0.0f   //
+    };
+    std::copy( std::begin( matrix ), std::end( matrix ), std::begin( result ) );
 }
 
 namespace otk {
 namespace pbrt {
+
+inline bool operator==( const ObjectDefinition& lhs, const ObjectDefinition& rhs )
+{
+    return lhs.transform == rhs.transform  //
+           && lhs.bounds == rhs.bounds;    //
+}
+
+inline std::ostream& operator<<( std::ostream& str, const ObjectDefinition& value )
+{
+    return str << "ObjectDefinition{ " << value.transform << ", " << value.bounds << " }";
+}
 
 inline bool operator==( const PlyMeshData& lhs, const PlyMeshData& rhs )
 {
@@ -191,6 +376,26 @@ inline bool operator==( const ShapeDefinition& lhs, const ShapeDefinition& rhs )
 }  // namespace pbrt
 }  // namespace otk
 
+TEST( TestSceneConstruction, sceneBoundsSingleTriangleScene )
+{
+    SceneDescriptionPtr scene{ singleTriangleScene() };
+
+    const ShapeList& shapes{ scene->freeShapes };
+    EXPECT_EQ( 1U, shapes.size() );
+    const ShapeDefinition& shape{ shapes[0] };
+    EXPECT_EQ( scene->bounds, transformBounds( shape ) );
+}
+
+TEST( TestSceneConstruction, sceneBoundsSingleSphereScene )
+{
+    SceneDescriptionPtr scene{ singleSphereScene() };
+
+    const ShapeList& shapes{ scene->freeShapes };
+    EXPECT_EQ( 1U, shapes.size() );
+    const ShapeDefinition& shape{ shapes[0] };
+    EXPECT_EQ( scene->bounds, transformBounds( shape ) );
+}
+
 namespace {
 
 class MockGeometryCache : public StrictMock<GeometryCache>
@@ -208,27 +413,6 @@ class MockGeometryCache : public StrictMock<GeometryCache>
 using MockGeometryCachePtr = std::shared_ptr<MockGeometryCache>;
 
 }  // namespace
-
-static SceneDescriptionPtr singleTrianglePlyScene( MockMeshLoaderPtr meshLoader )
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    const P3            minPt{ 0.0f, 0.0f, 0.0f };
-    const P3            maxPt{ 1.0f, 1.0f, 1.0f };
-    const B3            bounds{ minPt, maxPt };
-
-    PlasticMaterial material{};
-    material.Ka = P3{ 0.1f, 0.2f, 0.3f };
-    material.Kd = P3{ 0.4f, 0.5f, 0.6f };
-    material.Ks = P3{ 0.7f, 0.8f, 0.9f };
-
-    pbrt::Vector3f  translation{ 1.0f, 2.0f, 3.0f };
-    ShapeDefinition mesh{
-        "plymesh", Translate( translation ), material, bounds, PlyMeshData{ "cube-mesh.ply", meshLoader }, {} };
-
-    scene->bounds = transformBounds( mesh );
-    scene->freeShapes.push_back( mesh );
-    return scene;
-}
 
 TEST( TestSceneConstruction, sceneBoundsSingleTrianglePlyScene )
 {
@@ -252,14 +436,6 @@ TEST( TestSceneConstruction, meshDataSingleTrianglePlyScene )
     EXPECT_EQ( meshLoader, shape.plyMesh.loader );
 }
 
-static SceneDescriptionPtr singleTriangleWithNormalsScene()
-{
-    SceneDescriptionPtr scene{ singleTriangleScene() };
-    std::vector<P3>     normals{ P3{ 0.1f, 0.2f, 0.3f }, P3{ 0.4f, 0.5f, 0.6f }, P3{ 0.7f, 0.8f, 0.9f } };
-    scene->freeShapes[0].triangleMesh.normals = std::move( normals );
-    return scene;
-}
-
 TEST( TestSceneConstruction, constructSingleTriangleWithNormalsScene )
 {
     SceneDescriptionPtr scene{ singleTriangleWithNormalsScene() };
@@ -269,14 +445,6 @@ TEST( TestSceneConstruction, constructSingleTriangleWithNormalsScene )
     EXPECT_EQ( "trianglemesh", shape.type );
     const TriangleMeshData& mesh{ shape.triangleMesh };
     EXPECT_FALSE( mesh.normals.empty() );
-}
-
-static SceneDescriptionPtr singleTriangleWithUVsScene()
-{
-    SceneDescriptionPtr scene{ singleTriangleScene() };
-    std::vector<P2>     uvs{ P2{ 0.0f, 0.0f }, P2{ 1.0f, 0.0f }, P2{ 1.0f, 1.0f } };
-    scene->freeShapes[0].triangleMesh.uvs = std::move( uvs );
-    return scene;
 }
 
 TEST( TestSceneConstruction, constructSingleTriangleWithUVsScene )
@@ -290,13 +458,6 @@ TEST( TestSceneConstruction, constructSingleTriangleWithUVsScene )
     EXPECT_FALSE( mesh.uvs.empty() );
 }
 
-static SceneDescriptionPtr singleTriangleWithAlphaMapScene()
-{
-    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
-    scene->freeShapes[0].material.alphaMapFileName = "alphaMap.png";
-    return scene;
-}
-
 TEST( TestSceneConstruction, constructSingleTriangleWithAlphaMapScene )
 {
     SceneDescriptionPtr scene{ singleTriangleWithAlphaMapScene() };
@@ -306,13 +467,6 @@ TEST( TestSceneConstruction, constructSingleTriangleWithAlphaMapScene )
     EXPECT_FALSE( shape.material.alphaMapFileName.empty() );
 }
 
-static SceneDescriptionPtr singleTriangleWithDiffuseMapScene()
-{
-    SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
-    scene->freeShapes[0].material.diffuseMapFileName = "diffuse.png";
-    return scene;
-}
-
 TEST( TestSceneConstruction, constructSingleDiffuseMapTriangleScene )
 {
     SceneDescriptionPtr scene{ singleTriangleWithDiffuseMapScene() };
@@ -320,18 +474,6 @@ TEST( TestSceneConstruction, constructSingleDiffuseMapTriangleScene )
     ASSERT_FALSE( scene->freeShapes.empty() );
     const ShapeDefinition& shape{ scene->freeShapes[0] };
     EXPECT_FALSE( shape.material.diffuseMapFileName.empty() );
-}
-
-static SceneDescriptionPtr twoShapeScene()
-{
-    ShapeDefinition shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
-
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    scene->bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
-    scene->freeShapes.push_back( shape1 );
-    scene->freeShapes.push_back( shape2 );
-    return scene;
 }
 
 TEST( TestSceneConstruction, sceneBoundsTwoShapeScene )
@@ -349,25 +491,6 @@ TEST( TestSceneConstruction, sceneBoundsTwoShapeScene )
     EXPECT_EQ( scene->bounds, Union( shape1WorldBounds, shape2WorldBounds ) );
 }
 
-static SceneDescriptionPtr singleInstanceSingleShapeScene()
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    ShapeDefinition     shape{ singleTriangleShape() };
-    ObjectDefinition    object;
-    object.bounds                     = transformBounds( shape );
-    scene->objects["triangle"]        = object;
-    scene->instanceCounts["triangle"] = 1;
-    ObjectInstanceDefinition instance;
-    instance.name   = "triangle";
-    instance.bounds = transformBounds( object );
-    scene->objectInstances.push_back( instance );
-    ShapeList shapeList;
-    shapeList.push_back( shape );
-    scene->objectShapes["triangle"] = shapeList;
-    scene->bounds                   = transformBounds( instance );
-    return scene;
-}
-
 TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeScene )
 {
     SceneDescriptionPtr scene{ singleInstanceSingleShapeScene() };
@@ -378,28 +501,6 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeScene )
     EXPECT_EQ( scene->objectInstances[0].transform( expectedInstanceBounds ), scene->bounds );
 }
 
-static SceneDescriptionPtr singleInstanceMultipleShapesScene()
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    ShapeDefinition     shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    ShapeDefinition     shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
-    ObjectDefinition    object;
-    std::string         name{ "object" };
-    object.bounds               = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
-    scene->objects[name]        = object;
-    scene->instanceCounts[name] = 1;
-    ObjectInstanceDefinition instance;
-    instance.name   = name;
-    instance.bounds = transformBounds( object );
-    scene->objectInstances.push_back( instance );
-    ShapeList shapeList;
-    shapeList.push_back( shape1 );
-    shapeList.push_back( shape2 );
-    scene->objectShapes[name] = shapeList;
-    scene->bounds             = transformBounds( instance );
-    return scene;
-}
-
 TEST( TestSceneConstruction, sceneBoundsSingleInstanceMultipleShapesScene )
 {
     SceneDescriptionPtr scene{ singleInstanceMultipleShapesScene() };
@@ -408,30 +509,6 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceMultipleShapesScene )
     B3               expectedInstanceBounds{ Union( transformBounds( shapes[0] ), transformBounds( shapes[1] ) ) };
     EXPECT_EQ( expectedInstanceBounds, scene->objectInstances[0].bounds );
     EXPECT_EQ( scene->objectInstances[0].transform( expectedInstanceBounds ), scene->bounds );
-}
-
-static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    ShapeDefinition     shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    ObjectDefinition    object;
-    object.bounds = transformBounds( shape1 );
-    std::string name{ "object" };
-    scene->objects[name]        = object;
-    scene->instanceCounts[name] = 1;
-    ObjectInstanceDefinition instance;
-    instance.name      = name;
-    instance.bounds    = transformBounds( object );
-    instance.transform = Translate( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
-    scene->objectInstances.push_back( instance );
-    ShapeList shapeList;
-    shapeList.push_back( shape1 );
-    scene->objectShapes[name] = shapeList;
-
-    ShapeDefinition shape2{ translatedTriangleShape( pbrt::Vector3f{ -1.0f, -2.0f, -3.0f } ) };
-    scene->freeShapes.push_back( shape2 );
-    scene->bounds = Union( transformBounds( instance ), transformBounds( shape2 ) );
-    return scene;
 }
 
 TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeSingleFreeShapeScene )
@@ -451,34 +528,6 @@ TEST( TestSceneConstruction, sceneBoundsSingleInstanceSingleShapeSingleFreeShape
         << expectedObjectInstanceBounds << " not in " << scene->bounds;
 }
 
-static SceneDescriptionPtr multipleInstancesSingleShape()
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    ShapeDefinition     shape{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
-    ObjectDefinition    object;
-    object.bounds = transformBounds( shape );
-    std::string name{ "object" };
-    scene->objects[name] = object;
-    ShapeList shapeList;
-    shapeList.push_back( shape );
-    scene->objectShapes[name] = shapeList;
-    const auto createInstance = [&]( const pbrt::Vector3f& translation ) {
-        ObjectInstanceDefinition instance;
-        instance.name      = name;
-        instance.bounds    = transformBounds( object );
-        instance.transform = Translate( translation );
-        scene->objectInstances.push_back( instance );
-        scene->instanceCounts[name]++;
-    };
-    createInstance( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
-    createInstance( pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
-
-    const ObjectInstanceDefinition& ins1{ scene->objectInstances[0] };
-    const ObjectInstanceDefinition& ins2{ scene->objectInstances[1] };
-    scene->bounds = Union( transformBounds( ins1 ), transformBounds( ins2 ) );
-    return scene;
-}
-
 TEST( TestSceneConstruction, sceneBoundsMultipleInstancesSingleShape )
 {
     SceneDescriptionPtr scene{ multipleInstancesSingleShape() };
@@ -494,16 +543,6 @@ TEST( TestSceneConstruction, sceneBoundsMultipleInstancesSingleShape )
     EXPECT_NE( ins1Bounds, ins2Bounds );
     EXPECT_TRUE( Overlaps( ins1Bounds, scene->bounds ) ) << ins1Bounds << " not in " << scene->bounds;
     EXPECT_TRUE( Overlaps( ins2Bounds, scene->bounds ) ) << ins2Bounds << " not in " << scene->bounds;
-}
-
-static void identity( float ( &result )[12] )
-{
-    static const float matrix[12]{
-        1.0f, 0.0f, 0.0f, 0.0f,  //
-        0.0f, 1.0f, 0.0f, 0.0f,  //
-        0.0f, 0.0f, 1.0f, 0.0f   //
-    };
-    std::copy( std::begin( matrix ), std::end( matrix ), std::begin( result ) );
 }
 
 namespace {
@@ -1010,29 +1049,6 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
     EXPECT_EQ( nullptr, geom.devUVs );
 }
 
-static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    ShapeList           shapeList;
-    shapeList.push_back( singleTriangleShape() );
-    shapeList.push_back( singleTriangleShape() );
-    ShapeDefinition& shape1{ shapeList[0] };
-    ShapeDefinition& shape2{ shapeList[1] };
-    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
-    ObjectDefinition object;
-    object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
-    std::string name{ "triangle" };
-    scene->objects[name]        = object;
-    scene->instanceCounts[name] = 1;
-    ObjectInstanceDefinition instance;
-    instance.name   = name;
-    instance.bounds = transformBounds( object );
-    scene->objectInstances.push_back( instance );
-    scene->objectShapes[name] = shapeList;
-    scene->bounds             = transformBounds( instance );
-    return scene;
-}
-
 TEST_F( TestSceneProxy, fineObjectInstanceDecomposable )
 {
     m_options.proxyGranularity = ProxyGranularity::FINE;
@@ -1092,29 +1108,6 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     EXPECT_TRUE( geom.groups.alphaMapFileName.empty() );
     EXPECT_EQ( triangles.devNormals, geom.devNormals );
     EXPECT_EQ( triangles.devUVs, geom.devUVs );
-}
-
-static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene( const std::string& objectName )
-{
-    SceneDescriptionPtr scene{ std::make_shared<SceneDescription>() };
-    ShapeList           shapeList;
-    shapeList.push_back( singleTriangleShape() );
-    shapeList.push_back( singleSphereShape() );
-    ShapeDefinition& shape1{ shapeList[0] };
-    ShapeDefinition& shape2{ shapeList[1] };
-    shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
-    ObjectDefinition object;
-    object.bounds                     = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
-    scene->objects[objectName]        = object;
-    scene->instanceCounts[objectName] = 1;
-    ObjectInstanceDefinition instance;
-    instance.name      = objectName;
-    instance.transform = Translate( ::pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
-    instance.bounds    = transformBounds( object );
-    scene->objectInstances.push_back( instance );
-    scene->objectShapes[objectName] = shapeList;
-    scene->bounds                   = transformBounds( instance );
-    return scene;
 }
 
 TEST_F( TestSceneProxy, coarseObjectInstanceSomeShapesDifferentPrimitiveDecomposable )
