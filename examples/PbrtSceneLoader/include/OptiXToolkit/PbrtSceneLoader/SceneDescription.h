@@ -21,11 +21,11 @@ using MeshLoaderPtr = std::shared_ptr<MeshLoader>;
 
 struct PerspectiveCameraDefinition
 {
-    float             fov;            // field of view in Y axis
-    float             focalDistance;  //
-    float             lensRadius;     //
-    ::pbrt::Transform cameraToWorld;  // camera to world space transform
-    ::pbrt::Transform cameraToScreen; // camera to screen space transform
+    float             fov;             // field of view in Y axis
+    float             focalDistance;   //
+    float             lensRadius;      //
+    ::pbrt::Transform cameraToWorld;   // camera to world space transform
+    ::pbrt::Transform cameraToScreen;  // camera to screen space transform
 };
 
 struct DistantLightDefinition
