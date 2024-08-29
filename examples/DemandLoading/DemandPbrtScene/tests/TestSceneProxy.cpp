@@ -12,6 +12,7 @@
 #include "MockMeshLoader.h"
 
 #include <DemandPbrtScene/GeometryCache.h>
+#include <DemandPbrtScene/MaterialAdapters.h>
 #include <DemandPbrtScene/Options.h>
 #include <DemandPbrtScene/Params.h>
 #include <DemandPbrtScene/SceneProxy.h>
@@ -53,12 +54,35 @@ B3 transformBounds( const Thing& thing )
     return thing.transform( thing.bounds );
 }
 
+static MaterialGroup materialGroupFromPlasticMaterial( const PlasticMaterial& value, uint_t primitiveIndex )
+{
+    MaterialGroup result{};
+    const auto    toFloat3    = []( const P3& pt ) { return make_float3( pt.x, pt.y, pt.z ); };
+    result.material.Ka        = toFloat3( value.Ka );
+    result.material.Kd        = toFloat3( value.Kd );
+    result.material.Ks        = toFloat3( value.Ks );
+    result.alphaMapFileName   = value.alphaMapFileName;
+    result.diffuseMapFileName = value.diffuseMapFileName;
+    result.material.flags     = plasticMaterialFlags( value );
+    result.primitiveIndexEnd  = primitiveIndex;
+    return result;
+}
+
 static PlasticMaterial expectedMaterial()
 {
     PlasticMaterial material{};
     material.Ka = P3{ 0.1f, 0.2f, 0.3f };
     material.Kd = P3{ 0.4f, 0.5f, 0.6f };
     material.Ks = P3{ 0.7f, 0.8f, 0.9f };
+    return material;
+}
+
+static PlasticMaterial expectedSecondMaterial()
+{
+    PlasticMaterial material{};
+    material.Ka = P3{ 0.7f, 0.8f, 0.9f };
+    material.Kd = P3{ 0.4f, 0.5f, 0.6f };
+    material.Ks = P3{ 0.1f, 0.2f, 0.3f };
     return material;
 }
 
@@ -299,6 +323,7 @@ static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
     ShapeDefinition& shape1{ shapeList[0] };
     ShapeDefinition& shape2{ shapeList[1] };
     shape2.transform = Translate( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ) );
+    shape2.material = expectedSecondMaterial();
     ObjectDefinition object;
     object.bounds = Union( transformBounds( shape1 ), transformBounds( shape2 ) );
     std::string objectName{ "triangle" };
@@ -759,9 +784,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMesh )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( nullptr, geom.devUVs );
 }
@@ -786,9 +811,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithNormals )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( entry.devNormals, geom.devNormals );
     EXPECT_NE( nullptr, geom.devNormals );
     EXPECT_EQ( nullptr, geom.devUVs );
@@ -814,9 +839,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithUVs )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( entry.devUVs, geom.devUVs );
     EXPECT_NE( nullptr, geom.devUVs );
@@ -842,15 +867,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithAlphaMap )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( entry.devUVs, geom.devUVs );
     EXPECT_NE( nullptr, geom.devUVs );
-    EXPECT_FALSE( geom.groups.alphaMapFileName.empty() );
-    EXPECT_TRUE( geom.groups.diffuseMapFileName.empty() );
-    EXPECT_EQ( geom.groups.material.flags, MaterialFlags::ALPHA_MAP );
+    EXPECT_FALSE( geom.groups[0].alphaMapFileName.empty() );
+    EXPECT_TRUE( geom.groups[0].diffuseMapFileName.empty() );
+    EXPECT_EQ( geom.groups[0].material.flags, MaterialFlags::ALPHA_MAP );
 }
 
 TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
@@ -873,15 +898,15 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( entry.devUVs, geom.devUVs );
     EXPECT_NE( nullptr, geom.devUVs );
-    EXPECT_TRUE( geom.groups.alphaMapFileName.empty() );
-    EXPECT_FALSE( geom.groups.diffuseMapFileName.empty() );
-    EXPECT_EQ( geom.groups.material.flags, MaterialFlags::DIFFUSE_MAP );
+    EXPECT_TRUE( geom.groups[0].alphaMapFileName.empty() );
+    EXPECT_FALSE( geom.groups[0].diffuseMapFileName.empty() );
+    EXPECT_EQ( geom.groups[0].material.flags, MaterialFlags::DIFFUSE_MAP );
 }
 
 TEST_F( TestSceneProxy, constructWholeSceneProxyForMultipleShapes )
@@ -950,9 +975,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSecondMesh )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( nullptr, geom.devUVs );
 }
@@ -993,9 +1018,9 @@ TEST_F( TestSceneProxy, geometryForSingleInstanceWithSingleShape )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( nullptr, geom.devUVs );
 }
@@ -1094,9 +1119,9 @@ TEST_F( TestSceneProxy, constructTriangleASForSinglePlyMesh )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE, geom.instance.sbtOffset );
     EXPECT_EQ( m_fakeGeometryAS, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( nullptr, geom.devUVs );
 }
@@ -1151,9 +1176,9 @@ TEST_F( TestSceneProxy, constructSphereASForSingleSphere )
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_SPHERE, geom.instance.sbtOffset );
     EXPECT_EQ( entry.traversable, geom.instance.traversableHandle );
     EXPECT_EQ( 255U, geom.instance.visibilityMask );
-    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups.material.Ka );
-    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups.material.Kd );
-    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups.material.Ks );
+    EXPECT_EQ( make_float3( 0.1f, 0.2f, 0.3f ), geom.groups[0].material.Ka );
+    EXPECT_EQ( make_float3( 0.4f, 0.5f, 0.6f ), geom.groups[0].material.Kd );
+    EXPECT_EQ( make_float3( 0.7f, 0.8f, 0.9f ), geom.groups[0].material.Ks );
     EXPECT_EQ( nullptr, geom.devNormals );
     EXPECT_EQ( nullptr, geom.devUVs );
 }
@@ -1233,7 +1258,7 @@ TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialTextureTypesDecomposabl
     EXPECT_EQ( toOptixAabb( m_scene->bounds ), m_proxy->getBounds() );
 }
 
-TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGeometry )
+TEST_F( TestSceneProxy, coarseObjectSamePrimitiveYieldsSingleGeometry )
 {
     m_options.proxyGranularity = ProxyGranularity::COARSE;
     m_scene                    = singleInstanceTwoTriangleShapeScene();
@@ -1243,6 +1268,8 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     triangles.accelBuffer = 0xdeadbeefULL;
     triangles.traversable = m_fakeGeometryAS;
     triangles.primitive   = GeometryPrimitive::TRIANGLE;
+    triangles.primitiveGroupIndices.push_back( 0 );
+    triangles.primitiveGroupIndices.push_back( 1 );
     const std::string& name{ m_scene->objects.begin()->first };
     EXPECT_CALL( *m_geometryCache, getObject( m_fakeContext, m_stream, m_scene->objects[name], m_scene->objectShapes[name],
                                               GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) )
@@ -1253,9 +1280,9 @@ TEST_F( TestSceneProxy, coarseObjectInstanceAllShapesSamePrimitiveYieldsSingleGe
     EXPECT_EQ( triangles.accelBuffer, geom.accelBuffer );
     EXPECT_EQ( triangles.primitive, geom.primitive );
     EXPECT_EQ( triangles.traversable, geom.instance.traversableHandle );
-    EXPECT_EQ( MaterialFlags::NONE, geom.groups.material.flags );
-    EXPECT_TRUE( geom.groups.diffuseMapFileName.empty() );
-    EXPECT_TRUE( geom.groups.alphaMapFileName.empty() );
+    ASSERT_EQ( 2U, geom.groups.size() );
+    EXPECT_EQ( materialGroupFromPlasticMaterial( expectedMaterial(), 0U ), geom.groups[0] );
+    EXPECT_EQ( materialGroupFromPlasticMaterial( expectedSecondMaterial(), 1U ), geom.groups[1] );
     EXPECT_EQ( triangles.devNormals, geom.devNormals );
     EXPECT_EQ( triangles.devUVs, geom.devUVs );
 }
@@ -1299,6 +1326,7 @@ TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialsGeometry )
     triangles.accelBuffer = 0xdeadbeefULL;
     triangles.traversable = m_fakeGeometryAS;
     triangles.primitive   = primitive;
+    triangles.primitiveGroupIndices.push_back( 0 );
     EXPECT_CALL( *m_geometryCache,
                  getObject( m_fakeContext, m_stream, m_scene->objects[name], m_scene->objectShapes[name], primitive, flags ) )
         .WillOnce( Return( triangles ) );
@@ -1308,9 +1336,9 @@ TEST_F( TestSceneProxy, coarseObjectInstanceMixedMaterialsGeometry )
     EXPECT_EQ( triangles.accelBuffer, geom.accelBuffer );
     EXPECT_EQ( triangles.primitive, geom.primitive );
     EXPECT_EQ( triangles.traversable, geom.instance.traversableHandle );
-    EXPECT_EQ( flags, geom.groups.material.flags );
-    EXPECT_EQ( DIFFUSE_MAP_FILENAME, geom.groups.diffuseMapFileName );
-    EXPECT_EQ( ALPHA_MAP_FILENAME, geom.groups.alphaMapFileName );
+    EXPECT_EQ( flags, geom.groups[0].material.flags );
+    EXPECT_EQ( DIFFUSE_MAP_FILENAME, geom.groups[0].diffuseMapFileName );
+    EXPECT_EQ( ALPHA_MAP_FILENAME, geom.groups[0].alphaMapFileName );
     EXPECT_EQ( triangles.devNormals, geom.devNormals );
     EXPECT_EQ( triangles.devUVs, geom.devUVs );
 }

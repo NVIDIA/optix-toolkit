@@ -245,9 +245,14 @@ GeometryInstance InstancePrimitiveProxy::createGeometry( OptixDeviceContext cont
     const GeometryCacheEntry result{
         m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes, m_primitive, m_flags ) };
     // create MaterialGroups for each shape in the GAS
-    const ShapeDefinition& shape{ shapes[0] };  // representative shape in list
-    const MaterialGroup    groups{ materialGroupForMaterial( shape.material, 0U ) };
-    const uint_t           sbtOffset{ proxyMaterialSbtOffsetForPrimitive( m_primitive ) };
+    int                        i{};
+    std::vector<MaterialGroup> groups;
+    for( auto it = shapes.begin(); it != split; ++it )
+    {
+        const ShapeDefinition& shape{ *it };
+        groups.push_back( { materialGroupForMaterial( shape.material, result.primitiveGroupIndices[i++] ) } );
+    }
+    const uint_t sbtOffset{ proxyMaterialSbtOffsetForPrimitive( m_primitive ) };
     return { result.accelBuffer,  //
              m_primitive,         //
              geometryInstance( m_scene->objectInstances[m_instanceIndex].transform, m_pageId, result.traversable, sbtOffset ),  //
@@ -345,7 +350,7 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     }
 
     const ShapeList&        shapes{ m_scene->objectShapes[m_name] };
-    const auto&             shape{ shapes[0] };
+    const ShapeDefinition&  shape{ shapes[0] };
     const GeometryPrimitive primitive{ primitiveForType( shape.type ) };
     const MaterialFlags     flags{ shapeMaterialFlags( shape ) };
     const auto              compareShapes{ [=]( const ShapeDefinition& s ) {
@@ -357,15 +362,31 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     }
 
     const GeometryCacheEntry result{ m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes, primitive, flags ) };
-    // TODO: figure out how to convey multiple materials per GAS
-    const MaterialGroup groups{ materialGroupForMaterial( shape.material, 0U ) };
-    const uint_t        sbtOffset{ proxyMaterialSbtOffsetForPrimitive( primitive ) };
+    // create MaterialGroups for each shape in the GAS
+    int                        i{};
+    std::vector<MaterialGroup> groups;
+    for( const ShapeDefinition& s : shapes )
+    {
+        groups.push_back( { materialGroupForMaterial( s.material, result.primitiveGroupIndices[i++] ) } );
+    }
+    const uint_t sbtOffset{ proxyMaterialSbtOffsetForPrimitive( primitive ) };
     return { result.accelBuffer,  //
              primitive,           //
              geometryInstance( m_scene->objectInstances[m_instanceIndex].transform, m_pageId, result.traversable, sbtOffset ),  //
              groups,             //
              result.devNormals,  //
              result.devUVs };
+
+    //const GeometryCacheEntry result{ m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes, primitive, flags ) };
+    //// TODO: figure out how to convey multiple materials per GAS
+    //const MaterialGroup groups{ materialGroupForMaterial( shape.material, 0U ) };
+    //const uint_t        sbtOffset{ proxyMaterialSbtOffsetForPrimitive( primitive ) };
+    //return { result.accelBuffer,  //
+    //         primitive,           //
+    //         geometryInstance( m_scene->objectInstances[m_instanceIndex].transform, m_pageId, result.traversable, sbtOffset ),  //
+    //         { groups },         //
+    //         result.devNormals,  //
+    //         result.devUVs };
 }
 
 std::vector<SceneProxyPtr> InstanceProxy::decompose( ProxyFactoryPtr proxyFactory )
@@ -437,7 +458,7 @@ GeometryInstance ShapeProxy::createGeometryFromShape( OptixDeviceContext context
     return { entry.accelBuffer,                                                                             //
              primitive,                                                                                     //
              geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset ),  //
-             materialGroupForMaterial( shape.material, 0U ),                                                //
+             { materialGroupForMaterial( shape.material, 0U ) },                                            //
              entry.devNormals,                                                                              //
              entry.devUVs };
 }

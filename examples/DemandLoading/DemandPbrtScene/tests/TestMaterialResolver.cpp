@@ -62,21 +62,21 @@ inline MockMaterialBatchPtr createMockMaterialBatch()
 inline ListenerPredicate<GeometryInstance> hasMaterialFlags( MaterialFlags value )
 {
     return [=]( MatchResultListener* listener, const GeometryInstance& arg ) {
-        return hasEqualValues( listener, "flags", value, arg.groups.material.flags );
+        return hasEqualValues( listener, "flags", value, arg.groups[0].material.flags );
     };
 }
 
 inline ListenerPredicate<GeometryInstance> hasDiffuseTextureId( uint_t value )
 {
     return [=]( MatchResultListener* listener, const GeometryInstance& arg ) {
-        return hasEqualValues( listener, "diffuse texture id", value, arg.groups.material.diffuseTextureId );
+        return hasEqualValues( listener, "diffuse texture id", value, arg.groups[0].material.diffuseTextureId );
     };
 }
 
 inline ListenerPredicate<GeometryInstance> hasAlphaTextureId( uint_t value )
 {
     return [=]( MatchResultListener* listener, const GeometryInstance& arg ) {
-        return hasEqualValues( listener, "alpha texture id", value, arg.groups.material.alphaTextureId );
+        return hasEqualValues( listener, "alpha texture id", value, arg.groups[0].material.alphaTextureId );
     };
 }
 
@@ -125,6 +125,7 @@ void TestMaterialResolverForGeometry::SetUp()
 {
     m_geom.primitive                  = GeometryPrimitive::TRIANGLE;
     m_geom.instance.traversableHandle = 0xbaadbeefU;
+    m_geom.groups.resize( 1 );
 }
 
 class TestMaterialResolverRequestedProxyIds : public TestMaterialResolverForGeometry
@@ -164,8 +165,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialForGeometry
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeometry )
 {
     const uint_t proxyGeomId{ 1111 };
-    m_geom.groups.material.flags     = MaterialFlags::DIFFUSE_MAP;
-    m_geom.groups.diffuseMapFileName = DIFFUSE_MAP_PATH;
+    m_geom.groups[0].material.flags     = MaterialFlags::DIFFUSE_MAP;
+    m_geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
@@ -181,8 +182,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeomet
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGeometry )
 {
     const uint_t proxyGeomId{ 1111 };
-    m_geom.groups.material.flags   = MaterialFlags::ALPHA_MAP;
-    m_geom.groups.alphaMapFileName = ALPHA_MAP_PATH;
+    m_geom.groups[0].material.flags   = MaterialFlags::ALPHA_MAP;
+    m_geom.groups[0].alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( ALPHA_MAP_PATH ) ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
@@ -198,9 +199,9 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGe
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMaterialForGeometry )
 {
     const uint_t proxyGeomId{ 1111 };
-    m_geom.groups.material.flags     = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
-    m_geom.groups.diffuseMapFileName = DIFFUSE_MAP_PATH;
-    m_geom.groups.alphaMapFileName   = ALPHA_MAP_PATH;
+    m_geom.groups[0].material.flags     = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
+    m_geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
+    m_geom.groups[0].alphaMapFileName   = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( true ) );
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( ALPHA_MAP_PATH ) ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
@@ -235,7 +236,7 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
-    m_geom.groups.material = existingMaterial;
+    m_geom.groups[0].material = existingMaterial;
     EXPECT_CALL( *m_loader, add() ).Times( 0 );
     EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( m_geom ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
 
@@ -285,10 +286,10 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
 TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialPartial )
 {
     const uint_t proxyGeomId{ 1111 };
-    m_geom.groups.material.flags = MaterialFlags::ALPHA_MAP;
+    m_geom.groups[0].material.flags = MaterialFlags::ALPHA_MAP;
     TriangleUVs* fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
-    m_geom.devUVs                  = fakeUVs;
-    m_geom.groups.alphaMapFileName = ALPHA_MAP_PATH;
+    m_geom.devUVs                     = fakeUVs;
+    m_geom.groups[0].alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( _ ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
@@ -316,11 +317,11 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
 {
     const uint_t proxyGeomId{ 1111 };
     const uint_t alphaTextureId{ 333 };
-    m_geom.groups.material.flags          = MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED;
-    m_geom.groups.material.alphaTextureId = alphaTextureId;
+    m_geom.groups[0].material.flags          = MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED;
+    m_geom.groups[0].material.alphaTextureId = alphaTextureId;
     TriangleUVs* fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
-    m_geom.devUVs                  = fakeUVs;
-    m_geom.groups.alphaMapFileName = ALPHA_MAP_PATH;
+    m_geom.devUVs                     = fakeUVs;
+    m_geom.groups[0].alphaMapFileName = ALPHA_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( _ ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
@@ -349,7 +350,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
     EXPECT_EQ( +HitGroupIndex::REALIZED_MATERIAL_START, topLevel.sbtOffset );
     EXPECT_EQ( 0U, topLevel.instanceId );
     ASSERT_FALSE( m_sync.realizedMaterials.empty() );
-    EXPECT_EQ( m_geom.groups.material, m_sync.realizedMaterials.back() );
+    EXPECT_EQ( m_geom.groups[0].material, m_sync.realizedMaterials.back() );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
@@ -357,10 +358,10 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
     const uint_t     proxyGeomId{ 1111 };
     TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
     TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
-    m_geom.groups.material.flags     = MaterialFlags::DIFFUSE_MAP;
-    m_geom.devUVs                    = fakeUVs;
-    m_geom.devNormals                = fakeNormals;
-    m_geom.groups.diffuseMapFileName = DIFFUSE_MAP_PATH;
+    m_geom.groups[0].material.flags     = MaterialFlags::DIFFUSE_MAP;
+    m_geom.devUVs                       = fakeUVs;
+    m_geom.devNormals                   = fakeNormals;
+    m_geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
     EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( _ ) ).WillOnce( Return( false ) );
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
@@ -368,8 +369,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     const uint_t diffuseTextureId{ 333 };
     EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( diffuseTextureId ) );
-    m_geom.groups.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
-    m_geom.groups.material.diffuseTextureId = diffuseTextureId;
+    m_geom.groups[0].material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
+    m_geom.groups[0].material.diffuseTextureId = diffuseTextureId;
     EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( hasGeometryInstance(
                                        hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                hasDiffuseTextureId( diffuseTextureId ) ) ) ) )

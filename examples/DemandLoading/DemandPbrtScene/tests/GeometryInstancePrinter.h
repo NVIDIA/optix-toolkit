@@ -37,14 +37,23 @@ inline std::ostream& operator<<( std::ostream& str, const MaterialGroup& value )
                << ", " << value.primitiveIndexEnd << " }";
 }
 
-inline std::ostream& operator<<( std::ostream& str, const GeometryInstance& lhs )
+inline std::ostream& operator<<( std::ostream& str, const GeometryInstance& value )
 {
-    return str << "GeometryInstance{ " << lhs.accelBuffer  //
-               << ", " << lhs.primitive                    //
-               << ", " << lhs.instance                     //
-               << ", " << lhs.groups                       //
-               << ", " << lhs.devNormals                   //
-               << ", " << lhs.devUVs                       //
+    str << "GeometryInstance{ " << value.accelBuffer  //
+        << ", " << value.primitive                    //
+        << ", " << value.instance;
+    str << "[ ";
+    bool first{ true };
+    for( const MaterialGroup& group : value.groups )
+    {
+        if( !first )
+            str << ", ";
+        str << group;
+        first = false;
+    }
+    str << " ]";
+    return str << ", " << value.devNormals  //
+               << ", " << value.devUVs      //
                << " }";
 }
 

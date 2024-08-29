@@ -376,6 +376,7 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForPhongTriangles )
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakePhongProgramGroup, m_init );
     GeometryInstance instance{};
     instance.primitive = GeometryPrimitive::TRIANGLE;
+    instance.groups.resize( 1 );
 
     const uint_t index = m_programGroups->getRealizedMaterialSbtOffset( instance );
 
@@ -393,8 +394,10 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForPhongTrianglesShared )
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakePhongProgramGroup, m_init );
     GeometryInstance instance1{};
     instance1.primitive = GeometryPrimitive::TRIANGLE;
+    instance1.groups.resize( 1 );
     GeometryInstance instance2{};
     instance2.primitive = GeometryPrimitive::TRIANGLE;
+    instance2.groups.resize( 1 );
 
     const uint_t index1 = m_programGroups->getRealizedMaterialSbtOffset( instance1 );
     const uint_t index2 = m_programGroups->getRealizedMaterialSbtOffset( instance2 );
@@ -414,8 +417,9 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForAlphaCutOutTriangles )
                                                                          triMeshAH, m_phongModule, triMeshCH ) );
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_init );
     GeometryInstance instance{};
-    instance.primitive             = GeometryPrimitive::TRIANGLE;
-    instance.groups.material.flags = MaterialFlags::ALPHA_MAP;
+    instance.primitive = GeometryPrimitive::TRIANGLE;
+    instance.groups.resize( 1 );
+    instance.groups[0].material.flags = MaterialFlags::ALPHA_MAP;
 
     const uint_t index = m_programGroups->getRealizedMaterialSbtOffset( instance );
 
@@ -433,11 +437,13 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForAlphaCutOutTrianglesShar
                                                                          triMeshAH, m_phongModule, triMeshCH ) );
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_init );
     GeometryInstance instance1{};
-    instance1.primitive             = GeometryPrimitive::TRIANGLE;
-    instance1.groups.material.flags = MaterialFlags::ALPHA_MAP;
+    instance1.primitive = GeometryPrimitive::TRIANGLE;
+    instance1.groups.resize( 1 );
+    instance1.groups[0].material.flags = MaterialFlags::ALPHA_MAP;
     GeometryInstance instance2{};
-    instance2.primitive             = GeometryPrimitive::TRIANGLE;
-    instance2.groups.material.flags = MaterialFlags::ALPHA_MAP;
+    instance2.primitive = GeometryPrimitive::TRIANGLE;
+    instance2.groups.resize( 1 );
+    instance2.groups[0].material.flags = MaterialFlags::ALPHA_MAP;
 
     const uint_t index1 = m_programGroups->getRealizedMaterialSbtOffset( instance1 );
     const uint_t index2 = m_programGroups->getRealizedMaterialSbtOffset( instance2 );
@@ -456,8 +462,9 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForTexturedTriangles )
         AllOf( NotNull(), hasHitGroupISCHDesc( 1, m_builtinTriangleModule, triMeshIS, m_sceneModule, triMeshCH ) );
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_init );
     GeometryInstance instance{};
-    instance.primitive             = GeometryPrimitive::TRIANGLE;
-    instance.groups.material.flags = MaterialFlags::DIFFUSE_MAP;
+    instance.primitive = GeometryPrimitive::TRIANGLE;
+    instance.groups.resize( 1 );
+    instance.groups[0].material.flags = MaterialFlags::DIFFUSE_MAP;
 
     const uint_t index = m_programGroups->getRealizedMaterialSbtOffset( instance );
 
@@ -474,11 +481,13 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForTexturedTrianglesShared 
         AllOf( NotNull(), hasHitGroupISCHDesc( 1, m_builtinTriangleModule, triMeshIS, m_sceneModule, triMeshCH ) );
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_init );
     GeometryInstance instance1{};
-    instance1.primitive             = GeometryPrimitive::TRIANGLE;
-    instance1.groups.material.flags = MaterialFlags::DIFFUSE_MAP;
+    instance1.primitive = GeometryPrimitive::TRIANGLE;
+    instance1.groups.resize( 1 );
+    instance1.groups[0].material.flags = MaterialFlags::DIFFUSE_MAP;
     GeometryInstance instance2{};
-    instance2.primitive             = GeometryPrimitive::TRIANGLE;
-    instance2.groups.material.flags = MaterialFlags::DIFFUSE_MAP;
+    instance2.primitive = GeometryPrimitive::TRIANGLE;
+    instance2.groups.resize( 1 );
+    instance2.groups[0].material.flags = MaterialFlags::DIFFUSE_MAP;
 
     const uint_t index1 = m_programGroups->getRealizedMaterialSbtOffset( instance1 );
     const uint_t index2 = m_programGroups->getRealizedMaterialSbtOffset( instance2 );
@@ -498,8 +507,9 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForAlphaCutOutTexturedTrian
                                                                                triMeshAH, m_sceneModule, triMeshCH ) );
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_init );
     GeometryInstance instance{};
-    instance.primitive             = GeometryPrimitive::TRIANGLE;
-    instance.groups.material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
+    instance.primitive = GeometryPrimitive::TRIANGLE;
+    instance.groups.resize( 1 );
+    instance.groups[0].material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
 
     const uint_t index = m_programGroups->getRealizedMaterialSbtOffset( instance );
 
@@ -517,11 +527,13 @@ TEST_F( TestProgramGroupsInitialized, requestSbtIndexForAlphaCutOutTexturedTrian
                                                                                triMeshAH, m_sceneModule, triMeshCH ) );
     expectProgramGroupAddedAfter( expectedHitGroupDesc, m_fakeAlphaPhongProgramGroup, m_init );
     GeometryInstance instance1{};
-    instance1.primitive             = GeometryPrimitive::TRIANGLE;
-    instance1.groups.material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
+    instance1.primitive = GeometryPrimitive::TRIANGLE;
+    instance1.groups.resize( 1 );
+    instance1.groups[0].material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
     GeometryInstance instance2{};
-    instance2.primitive             = GeometryPrimitive::TRIANGLE;
-    instance2.groups.material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
+    instance2.primitive = GeometryPrimitive::TRIANGLE;
+    instance2.groups.resize( 1 );
+    instance2.groups[0].material.flags = MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP;
 
     const uint_t index1 = m_programGroups->getRealizedMaterialSbtOffset( instance1 );
     const uint_t index2 = m_programGroups->getRealizedMaterialSbtOffset( instance2 );
