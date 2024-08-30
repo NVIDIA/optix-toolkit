@@ -43,3 +43,5 @@ if(TARGET OptiXToolkit::DemandLoading)
   add_subdirectory(DemandLoading)
 endif()
 
+add_subdirectory(OTKAppBase)
+
