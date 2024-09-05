@@ -62,6 +62,8 @@ struct OTKAppLaunchParams
     unsigned int render_mode; // how to render the scene
     bool interactive_mode;    // whether the application is running in interactive mode
 
+    float4 background_color;
+
     // Extra params that can be used by the application
     float4 c[EXTRA_DATA_SIZE];
     float  f[EXTRA_DATA_SIZE];

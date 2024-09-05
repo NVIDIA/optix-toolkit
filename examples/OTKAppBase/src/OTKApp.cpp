@@ -398,7 +398,7 @@ void OTKApp::initDemandLoading()
     options.evictionActive      = true;              // turn on or off eviction
     options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
     options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
-options.coalesceWhiteBlackTiles = true;
+//options.coalesceWhiteBlackTiles = true;
     for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
