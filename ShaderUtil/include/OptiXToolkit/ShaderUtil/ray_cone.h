@@ -10,6 +10,8 @@
 
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
+using namespace otk;
+
 OTK_DEVICE const static float INV_MAX_ANISOTROPY = 1.0f / 16.0f;
 OTK_DEVICE const static float MAX_CONE_ANGLE = 0.25f;
 
@@ -18,7 +20,6 @@ struct RayCone
     float angle;
     float width;
 };
-
 
 /// Initialize a ray cone for an orthographic camera.
 /// U and V are the semi-axes of the view rectangle, image_dim is the image dimensions in pixels.
@@ -109,10 +110,12 @@ OTK_INLINE OTK_HOSTDEVICE float texFootprintWidth( float rayConeWidth, float dPd
 OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayConeWidth, float3 D, float3 N, float3& dPdx, float3& dPdy,
                                                                    float invMaxAnisotropy = INV_MAX_ANISOTROPY )
 {
-    using namespace otk;
     float DdotN = dot(D, N);
-    dPdx = normalize( D - DdotN * N ) * ( rayConeWidth / fmaxf( fabsf( DdotN ), invMaxAnisotropy ) );
-    dPdy = normalize( cross( D, N ) ) * rayConeWidth;
+    if( DdotN < 0.999f )
+        dPdx = normalize( D - DdotN * N ) * ( rayConeWidth / fmaxf( fabsf( DdotN ), invMaxAnisotropy ) );
+    else
+        dPdx = normalize( cross( N, float3{N.y, N.z, -N.x} ) ) * rayConeWidth;
+    dPdy = normalize( cross( dPdx, N ) ) * rayConeWidth;
 }
 
 /// Pack the ray cone into a 4 byte uint (as two bf16 values).
