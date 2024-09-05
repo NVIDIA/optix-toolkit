@@ -6,6 +6,7 @@
 
 #include <cuda_runtime.h>
 #include <optix.h>
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 
 namespace otkApp
@@ -102,6 +103,14 @@ struct SurfaceTexture
     float ior;
 };
 
+struct OTKAppTriangleHitGroupData
+{
+    SurfaceTexture tex;
+    float4* vertices;
+    float3* normals;
+    float2* tex_coords;
+};
+
 struct SurfaceGeometry
 {
     float3 P, Ng;        // intersection point and geometric normal
@@ -111,12 +120,16 @@ struct SurfaceGeometry
     bool flipped;        // Whether the normal was flipped 
 };
 
-struct OTKAppTriangleHitGroupData
+struct OTKAppRayPayload
 {
-    SurfaceTexture tex;
-    float4* vertices;
-    float3* normals;
-    float2* tex_coords;
+    RayCone rayCone1;
+    RayCone rayCone2;
+    int rayDepth;
+    float rayDistance;
+    bool occluded;
+    SurfaceGeometry geometry;
+    int materialType;
+    void* material;
 };
 
-} // namespace demandTextureApp
+} // namespace otkApp

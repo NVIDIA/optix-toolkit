@@ -56,11 +56,11 @@ static __forceinline__ __device__ void packPointer( void* ptr, unsigned int& i0,
 }
 
 // Get the per-ray data for the current ray
-static __forceinline__ __device__ RayPayload* getRayPayload()
+static __forceinline__ __device__ OTKAppRayPayload* getRayPayload()
 {
     const unsigned int u0 = optixGetPayload_0();
     const unsigned int u1 = optixGetPayload_1();
-    return reinterpret_cast<RayPayload*>( unpackPointer( u0, u1 ) );
+    return reinterpret_cast<OTKAppRayPayload*>( unpackPointer( u0, u1 ) );
 }
 
 // Get triangle barycentrics in a slightly more convenient form than OptiX gives them
@@ -250,6 +250,10 @@ static __forceinline__ __device__ float4 tileDisplayColor( const DeviceContext& 
 {
     using namespace otk;
     if( texture_id < 0 )
+        return make_float4( 0.0f );
+
+    // Early out based on max texture size in tiles
+    if( px.y < y0 || px.y > y0 + 256 || px.x < x0 || px.x > y0 + 612 )
         return make_float4( 0.0f );
 
     // Get the texture sampler

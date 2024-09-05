@@ -19,7 +19,7 @@ std::shared_ptr<imageSource::ImageSource> createImageSource( const std::string& 
         std::vector<float4> colors = { { 1.0f, 1.0f, 1.0f, 0.0f },
                                        { 0.0f, 0.0f, 1.0f, 0.0f },
                                        { 0.0f, 0.5f, 0.0f, 0.0f },
-                                       { 1.0f, 0.0f, .0f, 0.0f },
+                                       { 1.0f, 0.0f, 0.0f, 0.0f },
                                        { 1.0f, 1.0f, 0.0f, 0.0f } };
         return std::make_shared<DeviceMandelbrotImage>( 2048, 2048, /*xmin=*/-2.0, /*ymin=*/-2.0,
                                                         /*xmax=*/2.0, /*ymax=*/2.0,
@@ -30,8 +30,8 @@ std::shared_ptr<imageSource::ImageSource> createImageSource( const std::string& 
         // 2K, 1K, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1 = 13 colors
         std::vector<float4> mipColors = {
             { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f },
-            { 1.0f, 0.0f, .0f, 0.0f },  { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f },
-            { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f }, { 1.0f, 0.0f, .0f, 0.0f },
+            { 1.0f, 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f },
+            { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f, 0.0f },
             { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f },
             { 0.0f, 0.5f, 0.0f, 0.0f },
         };
