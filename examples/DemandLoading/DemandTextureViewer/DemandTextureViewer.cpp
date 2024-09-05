@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+#include <memory>
+#include <stdexcept>
+
 #include <DemandTextureViewerKernelCuda.h>
 
 #include <OptiXToolkit/OTKAppBase/OTKApp.h>
@@ -12,9 +15,6 @@
 #include <OptiXToolkit/ImageSources/ImageSources.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
-
-#include <memory>
-#include <stdexcept>
 
 using namespace otkApp;
 using namespace demandLoading;
@@ -48,6 +48,7 @@ class DemandTextureViewer : public OTKApp
     void           setTextureName( const std::string& textureName ) { m_textureName = textureName; }
     ImageSourcePtr createImageSource();
     void           createTexture() override;
+    void           createScene();
 
   private:
     TextureType         m_textureType{};
@@ -137,7 +138,9 @@ ImageSourcePtr DemandTextureViewer::createImageSource()
     {
         // Assume EXR images are tiled and mipmapped.
         if( endsWith( m_textureName, ".exr" ) )
+        {
             img = createExrImage( m_textureName );
+        }
         else
         {
             img = imageSources::createImageSource( m_textureName );
@@ -166,6 +169,7 @@ ImageSourcePtr DemandTextureViewer::createImageSource()
         m_colorMap         = createColorMap( imageSources::MAX_MANDELBROT_COLORS );
         img = std::make_shared<imageSources::DeviceMandelbrotImage>( 8192, 8192, -2.0, -1.5, 1, 1.5, MAX_ITER, m_colorMap );
     }
+
     if( !img )
     {
         throw std::runtime_error( "Could not create requested texture " + toString( m_textureType )
@@ -186,6 +190,20 @@ void DemandTextureViewer::createTexture()
         if( m_textureIds.empty() )
             m_textureIds.push_back( texture.getId() );
     }
+}
+
+void DemandTextureViewer::createScene()
+{
+    OTKAppTriangleHitGroupData mat{};
+    std::vector<Vert> shape;
+
+    // Square
+    mat.tex = makeSurfaceTex( 0xffffff, 0, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
+    m_materials.push_back( mat );
+    OTKAppShapeMaker::makeAxisPlane( float3{0, 0, 0}, float3{1, 1, 0}, shape );
+    addShapeToScene( shape, m_materials.size() - 1 );
+
+    copyGeometryToDevice();
 }
 
 //------------------------------------------------------------------------------
@@ -213,13 +231,14 @@ void printUsage( const char* program )
 
 int main( int argc, char* argv[] )
 {
-    int                              windowWidth  = 768;
-    int                              windowHeight = 768;
-    std::string                      textureName;
-    std::string                      outFileName;
-    bool                             glInterop = true;
-    bool                             tile{ false };
-    bool                             mipmap{ false };
+    int         windowWidth  = 768;
+    int         windowHeight = 768;
+    std::string textureName;
+    std::string outFileName;
+    bool        glInterop = true;
+    bool        tile{ false };
+    bool        mipmap{ false };
+
     DemandTextureViewer::TextureType textureType{DemandTextureViewer::TEXTURE_NONE};
 
     for( int i = 1; i < argc; ++i )
@@ -269,6 +288,8 @@ int main( int argc, char* argv[] )
     app.setTextureType( textureType );
     app.setTextureName( textureName );
     app.createTexture();
+    app.createScene();
+    app.resetAccumulator();
     app.initOptixPipelines( DemandTextureViewerCudaText(), DemandTextureViewerCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();

@@ -23,6 +23,7 @@ otk_add_library(OTKAppBase STATIC
 #  include/OptiXToolkit/OTKAppBase/OTKApp3D.h
   include/OptiXToolkit/OTKAppBase/OTKAppDeviceUtil.h
   include/OptiXToolkit/OTKAppBase/OTKAppLaunchParams.h
+  include/OptiXToolkit/OTKAppBase/OTKAppOptixPrograms.h
   include/OptiXToolkit/OTKAppBase/OTKAppPerDeviceOptixState.h
   include/OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h
   )

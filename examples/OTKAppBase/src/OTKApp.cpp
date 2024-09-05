@@ -98,77 +98,147 @@ void OTKApp::createContext( OTKAppPerDeviceOptixState& state )
     OTK_ERROR_CHECK( cudaStreamCreate( &state.stream ) );
 }
 
-
 void OTKApp::buildAccel( OTKAppPerDeviceOptixState& state )
 {
-    // The code below creates a single bounding box, suitable for a single object contained in 
-    // [-1,-1,-1] to [1,1,1].  Apps with more complicated geometry should override buildAccel.
+    // Copy vertex data to device
+    void* d_vertices = nullptr;
+    const size_t vertices_size_bytes = m_vertices.size() * sizeof( float4 );
+    OTK_ERROR_CHECK( cudaMalloc( &d_vertices, vertices_size_bytes ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_vertices, m_vertices.data(), vertices_size_bytes, cudaMemcpyHostToDevice ) );
+    state.d_vertices = reinterpret_cast<CUdeviceptr>( d_vertices );
 
+    // Copy material indices to device
+    void* d_material_indices = nullptr;
+    const size_t material_indices_size_bytes = m_material_indices.size() * sizeof( uint32_t );
+    OTK_ERROR_CHECK( cudaMalloc( &d_material_indices, material_indices_size_bytes ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_material_indices, m_material_indices.data(), material_indices_size_bytes, cudaMemcpyHostToDevice ) );
+
+    // Make triangle input flags (one per sbt record).  Here, we are just disabling the anyHit programs
+    std::vector<uint32_t> triangle_input_flags( m_materials.size(), OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT );
+
+    // Make GAS accel build inputs
+    OptixBuildInput triangle_input                           = {};
+    triangle_input.type                                      = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+    triangle_input.triangleArray.vertexFormat                = OPTIX_VERTEX_FORMAT_FLOAT3;
+    triangle_input.triangleArray.vertexStrideInBytes         = static_cast<uint32_t>( sizeof( float4 ) );
+    triangle_input.triangleArray.numVertices                 = static_cast<uint32_t>( m_vertices.size() );
+    triangle_input.triangleArray.vertexBuffers               = &state.d_vertices;
+    triangle_input.triangleArray.flags                       = triangle_input_flags.data();
+    triangle_input.triangleArray.numSbtRecords               = static_cast<uint32_t>( triangle_input_flags.size() );
+    triangle_input.triangleArray.sbtIndexOffsetBuffer        = reinterpret_cast<CUdeviceptr>( d_material_indices );
+    triangle_input.triangleArray.sbtIndexOffsetSizeInBytes   = sizeof( uint32_t );
+    triangle_input.triangleArray.sbtIndexOffsetStrideInBytes = sizeof( uint32_t );
+
+    // Make accel options
     OptixAccelBuildOptions accel_options = {};
     accel_options.buildFlags             = OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
     accel_options.operation              = OPTIX_BUILD_OPERATION_BUILD;
 
-    // AABB build input
-    OptixAabb   aabb = {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f};
-    CUdeviceptr d_aabb_buffer;
-    OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_aabb_buffer ), sizeof( OptixAabb ) ) );
-    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( d_aabb_buffer ), &aabb, sizeof( OptixAabb ), cudaMemcpyHostToDevice ) );
-
-    OptixBuildInput aabb_input = {};
-
-    aabb_input.type                               = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-    aabb_input.customPrimitiveArray.aabbBuffers   = &d_aabb_buffer;
-    aabb_input.customPrimitiveArray.numPrimitives = 1;
-
-    uint32_t aabb_input_flags[1]                  = {OPTIX_GEOMETRY_FLAG_NONE};
-    aabb_input.customPrimitiveArray.flags         = aabb_input_flags;
-    aabb_input.customPrimitiveArray.numSbtRecords = 1;
-
+    // Compute memory usage for accel build
     OptixAccelBufferSizes gas_buffer_sizes;
-    OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &aabb_input, 1, &gas_buffer_sizes ) );
-    CUdeviceptr d_temp_buffer_gas;
-    OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_temp_buffer_gas ), gas_buffer_sizes.tempSizeInBytes ) );
+    const unsigned int num_build_inputs = 1;
+    OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( state.context, &accel_options, &triangle_input, num_build_inputs, &gas_buffer_sizes ) );
 
-    // non-compacted output
-    CUdeviceptr d_buffer_temp_output_gas_and_compacted_size;
+    // Allocate temporary buffer needed for accel build
+    void* d_temp_buffer = nullptr;
+    OTK_ERROR_CHECK( cudaMalloc( &d_temp_buffer, gas_buffer_sizes.tempSizeInBytes ) );
+
+    // Allocate output buffer for (non-compacted) accel build result, and also compactedSize property.
+    void* d_buffer_temp_output_gas_and_compacted_size = nullptr;
     size_t      compactedSizeOffset = roundUp<size_t>( gas_buffer_sizes.outputSizeInBytes, 8ull );
-    OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &d_buffer_temp_output_gas_and_compacted_size ), compactedSizeOffset + 8 ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_buffer_temp_output_gas_and_compacted_size, compactedSizeOffset + 8 ) );
 
+    // Set up the accel build to return the compacted size, so compaction can be run after the build
     OptixAccelEmitDesc emitProperty = {};
     emitProperty.type               = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
-    emitProperty.result = ( CUdeviceptr )( (char*)d_buffer_temp_output_gas_and_compacted_size + compactedSizeOffset );
+    emitProperty.result             = ( CUdeviceptr )( (char*)d_buffer_temp_output_gas_and_compacted_size + compactedSizeOffset );
 
-    OTK_ERROR_CHECK( optixAccelBuild( state.context,
-                                  0,  // CUDA stream
-                                  &accel_options, &aabb_input,
-                                  1,  // num build inputs
-                                  d_temp_buffer_gas, gas_buffer_sizes.tempSizeInBytes, d_buffer_temp_output_gas_and_compacted_size,
-                                  gas_buffer_sizes.outputSizeInBytes, &state.gas_handle,
-                                  &emitProperty,  // emitted property list
-                                  1               // num emitted properties
-                                  ) );
+    // Finally perform the accel build
+    OTK_ERROR_CHECK( optixAccelBuild(
+                state.context,
+                CUstream{0},
+                &accel_options,
+                &triangle_input,
+                num_build_inputs,
+                reinterpret_cast<CUdeviceptr>( d_temp_buffer ),
+                gas_buffer_sizes.tempSizeInBytes,
+                reinterpret_cast<CUdeviceptr>( d_buffer_temp_output_gas_and_compacted_size ),
+                gas_buffer_sizes.outputSizeInBytes,
+                &state.gas_handle,
+                &emitProperty,
+                1
+                ) );
 
-    OTK_ERROR_CHECK( cudaFree( (void*)d_temp_buffer_gas ) );
-    OTK_ERROR_CHECK( cudaFree( (void*)d_aabb_buffer ) );
+    // Delete temporary buffers used for the accel build
+    OTK_ERROR_CHECK( cudaFree( d_temp_buffer ) );
+    OTK_ERROR_CHECK( cudaFree( d_material_indices ) );
 
+    // Copy the size of the compacted GAS accel back from the device
     size_t compacted_gas_size;
-    OTK_ERROR_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof( size_t ), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK( cudaMemcpy( &compacted_gas_size, (void*)emitProperty.result, sizeof(size_t), cudaMemcpyDeviceToHost ) );
 
+    // If compaction reduces the size of the accel, copy to a new buffer and delete the old one
     if( compacted_gas_size < gas_buffer_sizes.outputSizeInBytes )
     {
         OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &state.d_gas_output_buffer ), compacted_gas_size ) );
-
         // use handle as input and output
-        OTK_ERROR_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer,
-                                        compacted_gas_size, &state.gas_handle ) );
-
+        OTK_ERROR_CHECK( optixAccelCompact( state.context, 0, state.gas_handle, state.d_gas_output_buffer, compacted_gas_size, &state.gas_handle ) );
         OTK_ERROR_CHECK( cudaFree( (void*)d_buffer_temp_output_gas_and_compacted_size ) );
     }
     else
     {
-        state.d_gas_output_buffer = d_buffer_temp_output_gas_and_compacted_size;
+        state.d_gas_output_buffer = reinterpret_cast<CUdeviceptr>( d_buffer_temp_output_gas_and_compacted_size );
     }
 }
+
+
+SurfaceTexture OTKApp::makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior )
+{
+    SurfaceTexture tex;
+    tex.emission     = ColorTex{ float3{ 0.0f, 0.0f, 0.0f }, -1 };
+    tex.diffuse      = ColorTex{ float3{ ((kd>>16)&0xff)/255.0f, ((kd>>8)&0xff)/255.0f, ((kd>>0)&0xff)/255.0f }, kdtex };
+    tex.specular     = ColorTex{ float3{ ((ks>>16)&0xff)/255.0f, ((ks>>8)&0xff)/255.0f, ((ks>>0)&0xff)/255.0f }, kstex };
+    tex.transmission = ColorTex{ float3{ ((kt>>16)&0xff)/255.0f, ((kt>>8)&0xff)/255.0f, ((kt>>0)&0xff)/255.0f }, kttex };
+    tex.roughness    = roughness;
+    tex.ior          = ior;
+    return tex;
+}
+
+
+void OTKApp::addShapeToScene( std::vector<Vert>& shape, unsigned int materialId )
+{
+    for( unsigned int i=0; i<shape.size(); ++i )
+    {
+        m_vertices.push_back( make_float4( shape[i].p ) );
+        m_normals.push_back( shape[i].n );
+        m_tex_coords.push_back( shape[i].t );
+        if( i % 3 == 0 )
+            m_material_indices.push_back( materialId );
+    }
+}
+
+
+void OTKApp::copyGeometryToDevice()
+{
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
+    {
+        OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
+
+        // m_vertices copied in buildAccel
+        // m_material_indices copied in createSBT
+        // m_materials copied in createSBT
+
+        // m_normals
+        OTK_ERROR_CHECK( cudaMalloc( &state.d_normals, m_normals.size() * sizeof(float3) ) );
+        OTK_ERROR_CHECK( cudaMemcpy( state.d_normals, m_normals.data(),  m_normals.size() * sizeof(float3), cudaMemcpyHostToDevice ) );
+
+        // m_tex_coords
+        OTK_ERROR_CHECK( cudaMalloc( &state.d_tex_coords, m_tex_coords.size() * sizeof(float2) ) );
+        OTK_ERROR_CHECK( cudaMemcpy( state.d_tex_coords, m_tex_coords.data(),  m_tex_coords.size() * sizeof(float2), cudaMemcpyHostToDevice ) );
+    }
+}
+
+
 
 
 void OTKApp::createModule( OTKAppPerDeviceOptixState& state, const char* moduleCode, size_t codeSize )
@@ -212,7 +282,7 @@ void OTKApp::createProgramGroups( OTKAppPerDeviceOptixState& state )
     OptixProgramGroupDesc miss_prog_group_desc  = {};
     miss_prog_group_desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
     miss_prog_group_desc.miss.module            = state.optixir_module;
-    miss_prog_group_desc.miss.entryFunctionName = "__miss__ms";
+    miss_prog_group_desc.miss.entryFunctionName = "__miss__OTKApp";
     OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.miss_prog_group ) );
@@ -220,11 +290,11 @@ void OTKApp::createProgramGroups( OTKAppPerDeviceOptixState& state )
     OptixProgramGroupDesc hitgroup_prog_group_desc        = {};
     hitgroup_prog_group_desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
     hitgroup_prog_group_desc.hitgroup.moduleCH            = state.optixir_module;
-    hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
+    hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__OTKApp";
     hitgroup_prog_group_desc.hitgroup.moduleAH            = nullptr;
     hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = nullptr;
-    hitgroup_prog_group_desc.hitgroup.moduleIS            = m_scene_is_triangles ? nullptr : state.optixir_module;
-    hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = m_scene_is_triangles ? nullptr : "__intersection__is";
+    hitgroup_prog_group_desc.hitgroup.moduleIS            = nullptr;
+    hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = nullptr;
     OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.hitgroup_prog_group ) );
@@ -260,7 +330,7 @@ void OTKApp::createPipeline( OTKAppPerDeviceOptixState& state )
     uint32_t continuation_stack_size;
     OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stack_sizes, max_trace_depth,
                                              0,  // maxCCDepth
-                                             0,  // maxDCDEpth
+                                             0,  // maxDCDepth
                                              &direct_callable_stack_size_from_traversal,
                                              &direct_callable_stack_size_from_state, &continuation_stack_size ) );
     OTK_ERROR_CHECK( optixPipelineSetStackSize( state.pipeline, direct_callable_stack_size_from_traversal,
@@ -269,41 +339,52 @@ void OTKApp::createPipeline( OTKAppPerDeviceOptixState& state )
                                             ) );
 }
 
-
 void OTKApp::createSBT( OTKAppPerDeviceOptixState& state )
 {
-    CUdeviceptr  raygen_record;
+    // Raygen record
+    void*  d_raygen_record = nullptr;
     const size_t raygen_record_size = sizeof( RayGenSbtRecord );
-    OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &raygen_record ), raygen_record_size ) );
-    RayGenSbtRecord rg_sbt = {};
-    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &rg_sbt ) );
-    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( raygen_record ), &rg_sbt, raygen_record_size, cudaMemcpyHostToDevice ) );
+    OTK_ERROR_CHECK( cudaMalloc( &d_raygen_record, raygen_record_size ) );
+    RayGenSbtRecord raygen_record = {};
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.raygen_prog_group, &raygen_record ) );
+    OTK_ERROR_CHECK( cudaMemcpy( d_raygen_record, &raygen_record, raygen_record_size, cudaMemcpyHostToDevice ) );
 
-    CUdeviceptr miss_record;
-    size_t      miss_record_size = sizeof( MissSbtRecord );
-    OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &miss_record ), miss_record_size ) );
-    MissSbtRecord ms_sbt;
-//    ms_sbt.data.background_color = m_backgroundColor;
-    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &ms_sbt ) );
-    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( miss_record ), &ms_sbt, miss_record_size, cudaMemcpyHostToDevice ) );
+    // Miss record
+    void* d_miss_record = nullptr;
+    const size_t miss_record_size = sizeof( MissSbtRecord );
+    OTK_ERROR_CHECK( cudaMalloc( &d_miss_record, miss_record_size ) );
+    MissSbtRecord miss_record;
+    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &miss_record ) );
+//    miss_record.data.background_color = m_backgroundColor;
+    OTK_ERROR_CHECK( cudaMemcpy( d_miss_record, &miss_record, miss_record_size, cudaMemcpyHostToDevice ) );
 
-    CUdeviceptr hitgroup_record;
-    size_t      hitgroup_record_size = sizeof( HitGroupSbtRecord );
-    OTK_ERROR_CHECK( cudaMalloc( reinterpret_cast<void**>( &hitgroup_record ), hitgroup_record_size ) );
-    HitGroupSbtRecord hg_sbt;
-    hg_sbt.data.texture_id = m_textureIds[0]; 
-    OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hg_sbt ) );
-    OTK_ERROR_CHECK( cudaMemcpy( reinterpret_cast<void*>( hitgroup_record ), &hg_sbt, hitgroup_record_size, cudaMemcpyHostToDevice ) );
+    // Hitgroup records (one for each material)
+    const unsigned int MAT_COUNT = static_cast<unsigned int>( m_materials.size() );
+    void* d_hitgroup_records = nullptr;
+    const size_t hitgroup_record_size = sizeof( TriangleHitGroupSbtRecord );
+    OTK_ERROR_CHECK( cudaMalloc( &d_hitgroup_records, hitgroup_record_size * MAT_COUNT ) );
+    std::vector<TriangleHitGroupSbtRecord> hitgroup_records( MAT_COUNT );
+    for( unsigned int mat_idx = 0; mat_idx < MAT_COUNT; ++mat_idx )
+    {
+        OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.hitgroup_prog_group, &hitgroup_records[mat_idx] ) );
+        OTKAppTriangleHitGroupData* hg_data = &hitgroup_records[mat_idx].data;
+        // Copy material definition, and then fill in device-specific values for vertices, normals, tex_coords
+        *hg_data = m_materials[mat_idx];
+        hg_data->vertices = reinterpret_cast<float4*>( state.d_vertices );
+        hg_data->normals = state.d_normals;
+        hg_data->tex_coords = state.d_tex_coords;
+    }
+    OTK_ERROR_CHECK( cudaMemcpy( d_hitgroup_records, &hitgroup_records[0], hitgroup_record_size * MAT_COUNT, cudaMemcpyHostToDevice ) );
 
-    state.sbt.raygenRecord                = raygen_record;
-    state.sbt.missRecordBase              = miss_record;
-    state.sbt.missRecordStrideInBytes     = sizeof( MissSbtRecord );
+    // Set up SBT
+    state.sbt.raygenRecord                = reinterpret_cast<CUdeviceptr>( d_raygen_record );
+    state.sbt.missRecordBase              = reinterpret_cast<CUdeviceptr>( d_miss_record );
+    state.sbt.missRecordStrideInBytes     = static_cast<uint32_t>( miss_record_size );
     state.sbt.missRecordCount             = 1;
-    state.sbt.hitgroupRecordBase          = hitgroup_record;
-    state.sbt.hitgroupRecordStrideInBytes = sizeof( HitGroupSbtRecord );
-    state.sbt.hitgroupRecordCount         = 1;
+    state.sbt.hitgroupRecordBase          = reinterpret_cast<CUdeviceptr>( d_hitgroup_records );
+    state.sbt.hitgroupRecordStrideInBytes = static_cast<uint32_t>( hitgroup_record_size );
+    state.sbt.hitgroupRecordCount         = MAT_COUNT;
 }
-
 
 void OTKApp::cleanupState( OTKAppPerDeviceOptixState& state )
 {
@@ -398,7 +479,7 @@ void OTKApp::initDemandLoading()
     options.evictionActive      = true;              // turn on or off eviction
     options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
     options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
-//options.coalesceWhiteBlackTiles = true;
+
     for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
@@ -553,7 +634,7 @@ unsigned int OTKApp::performLaunches( )
         // from the device and places them in a queue for processing.  The progress of the batch
         // can be polled using the returned ticket.
         state.ticket = state.demandLoader->processRequests( state.stream, state.params.demand_texture_context );
-        
+
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();
     }
@@ -577,6 +658,7 @@ void OTKApp::startLaunchLoop()
             if( m_subframeId >= m_maxSubframes )
                 continue;
             numFilled = performLaunches();
+
             m_numFilledRequests += numFilled;
             ++m_launchCycles;
             ++m_subframeId;

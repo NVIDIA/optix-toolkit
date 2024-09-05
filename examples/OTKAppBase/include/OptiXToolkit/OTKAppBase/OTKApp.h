@@ -18,8 +18,9 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
 
-#include "OTKAppLaunchParams.h"
-#include "OTKAppPerDeviceOptixState.h"
+#include <OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppLaunchParams.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppPerDeviceOptixState.h>
 
 namespace otkApp
 {
@@ -32,7 +33,6 @@ class OTKApp
 
     // Public functions to initialize the app and start rendering
     void setNumLaunches( int numLaunches ) { m_minLaunches = numLaunches; }
-    void sceneIsTriangles( bool t ) { m_scene_is_triangles = t; }
     void initDemandLoading();
     virtual void createTexture() = 0;
     void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
@@ -44,6 +44,10 @@ class OTKApp
     void useSparseTextures( bool useSparseTextures ) { m_useSparseTextures = useSparseTextures; }
     void useCascadingTextureSizes( bool useCascade ) { m_useCascadingTextureSizes = useCascade; }
     void setMaxSubframes( int maxSubframes ) { m_maxSubframes = maxSubframes; }
+
+    SurfaceTexture makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior );
+    void addShapeToScene( std::vector<Vert>& shape, unsigned int materialId );
+    void copyGeometryToDevice();
 
     // GLFW callbacks
     virtual void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
@@ -92,7 +96,13 @@ class OTKApp
 
     // OptiX states for each device
     std::vector<OTKAppPerDeviceOptixState> m_perDeviceOptixStates;
-    bool m_scene_is_triangles = false;
+
+    // Geometry data for scene
+    std::vector<float4> m_vertices;
+    std::vector<float3> m_normals;
+    std::vector<float2> m_tex_coords;
+    std::vector<uint32_t> m_material_indices;
+    std::vector<OTKAppTriangleHitGroupData> m_materials;
 
     // Demand loading and textures
     std::vector<unsigned int> m_textureIds;
