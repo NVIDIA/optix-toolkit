@@ -4,7 +4,7 @@
 
 #include <DemandTextureViewerKernelCuda.h>
 
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
+#include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/MipMapImageSource.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
@@ -16,7 +16,7 @@
 #include <memory>
 #include <stdexcept>
 
-using namespace demandTextureApp;
+using namespace otkApp;
 using namespace demandLoading;
 
 //------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ using namespace demandLoading;
 
 using ImageSourcePtr = std::shared_ptr<imageSource::ImageSource>;
 
-class DemandTextureViewer : public DemandTextureApp
+class DemandTextureViewer : public OTKApp
 {
   public:
     enum TextureType
@@ -38,7 +38,7 @@ class DemandTextureViewer : public DemandTextureApp
     };
 
     DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop, bool tile, bool mipmap )
-        : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
+        : OTKApp( appTitle, width, height, outFileName, glInterop )
         , m_tile( tile )
         , m_mipmap( mipmap )
     {
@@ -179,7 +179,7 @@ void DemandTextureViewer::createTexture()
     ImageSourcePtr imageSource( createImageSource() );
 
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );

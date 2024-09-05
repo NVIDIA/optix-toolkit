@@ -5,19 +5,19 @@
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
-#include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppLaunchParams.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppDeviceUtil.h>
 
 using namespace demandLoading;
-using namespace demandTextureApp;
-using namespace otk;  // for vec_math operators
+using namespace otkApp;
+using namespace otk;
 
 //------------------------------------------------------------------------------
 // Params - globally visible struct
 //------------------------------------------------------------------------------
 
 extern "C" {
-__constant__ Params params;
+__constant__ OTKAppLaunchParams params;
 }
 
 //------------------------------------------------------------------------------
@@ -65,8 +65,8 @@ extern "C" __global__ void __raygen__rg()
 extern "C" __global__ void __miss__ms()
 {
     // Copy miss color to ray payload
-    MissData* missData = reinterpret_cast<MissData*>( optixGetSbtDataPointer() );
-    getRayPayload()->color = missData->background_color;
+    //OTKAppMissData* missData = reinterpret_cast<OTKAppMissData*>( optixGetSbtDataPointer() );
+    getRayPayload()->color = params.background_color;
 }
 
 extern "C" __global__ void __intersection__is()
@@ -86,7 +86,7 @@ extern "C" __global__ void __intersection__is()
 extern "C" __global__ void __closesthit__ch()
 {
     // The hit group data has the demand texture id.
-    HitGroupData* hitData   = reinterpret_cast<HitGroupData*>( optixGetSbtDataPointer() );
+    OTKAppHitGroupData* hitData   = reinterpret_cast<OTKAppHitGroupData*>( optixGetSbtDataPointer() );
     unsigned int  textureId = hitData->texture_id;
 
     // The hit object is a unit square, so the texture coord is the same as the hit point.
