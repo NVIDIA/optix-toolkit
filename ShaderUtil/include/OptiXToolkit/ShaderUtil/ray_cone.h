@@ -111,7 +111,7 @@ OTK_INLINE OTK_HOSTDEVICE void projectToRayDifferentialsOnSurface( float rayCone
                                                                    float invMaxAnisotropy = INV_MAX_ANISOTROPY )
 {
     float DdotN = dot(D, N);
-    if( DdotN < 0.999f )
+    if( fabsf( DdotN ) < 0.999f )
         dPdx = normalize( D - DdotN * N ) * ( rayConeWidth / fmaxf( fabsf( DdotN ), invMaxAnisotropy ) );
     else
         dPdx = normalize( cross( N, float3{N.y, N.z, -N.x} ) ) * rayConeWidth;
