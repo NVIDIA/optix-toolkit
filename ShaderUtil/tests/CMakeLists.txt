@@ -99,6 +99,7 @@ add_executable(TestShaderUtil
     TestOperators.cpp
     TestPdfTable.cpp
     TestPrinters.cpp
+    TestRayCone.cpp
     TestISummedAreaTable.cpp
     TestTransform4.cpp
 )
