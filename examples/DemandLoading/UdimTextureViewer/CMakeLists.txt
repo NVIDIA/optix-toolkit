@@ -20,7 +20,7 @@ embed_cuda(
     Examples/DemandLoading
   LIBRARIES
     OptiXToolkit::DemandLoading 
-    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::OTKAppBase
     OptiXToolkit::ShaderUtil
   SOURCES
     UdimTextureViewer.cu
@@ -33,7 +33,7 @@ otk_add_executable( udimTextureViewer
 target_link_libraries( udimTextureViewer
   udimTextureViewerKernel
   OptiXToolkit::DemandLoading
-  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::OTKAppBase
   OptiXToolkit::Gui
   OptiXToolkit::ImageSources
   OptiXToolkit::Util

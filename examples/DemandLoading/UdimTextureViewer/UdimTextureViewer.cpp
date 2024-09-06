@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "UdimTextureViewerKernelCuda.h"
-
-#include <OptiXToolkit/DemandLoading/TextureSampler.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
-#include <OptiXToolkit/Error/cudaErrorCheck.h>
-#include <OptiXToolkit/ImageSource/CascadeImage.h>
-#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
-
 #include <string>
 
-using namespace demandTextureApp;
+#include "UdimTextureViewerKernelCuda.h"
+
+#include <OptiXToolkit/OTKAppBase/OTKApp.h>
+#include <OptiXToolkit/DemandLoading/TextureSampler.h>
+#include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+
+using namespace otkApp;
 using namespace demandLoading;
 
 //------------------------------------------------------------------------------
@@ -20,15 +19,16 @@ using namespace demandLoading;
 // Shows how to create and use udim textures.
 //------------------------------------------------------------------------------
 
-class UdimTextureApp : public DemandTextureApp
+class UdimTextureApp : public OTKApp
 {
   public:
     UdimTextureApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-        : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
+        : OTKApp( appTitle, width, height, outFileName, glInterop )
     {
     }
     void setUdimParams( const char* textureName, int texWidth, int texHeight, int udim, int vdim, bool useBaseImage );
     void createTexture() override;
+    void createScene();
 
   private:
     std::string m_textureName;
@@ -70,7 +70,7 @@ void UdimTextureApp::createTexture()
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
         // Create a base texture for all devices
-        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
         {
             OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
             const demandLoading::DemandTexture& baseTexture = state.demandLoader->createTexture( baseImageSource, texDesc );
@@ -124,7 +124,7 @@ void UdimTextureApp::createTexture()
     }
 
     // Create a udim texture for all the devices
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& udimTexture =
@@ -135,13 +135,27 @@ void UdimTextureApp::createTexture()
     }
 }
 
+void UdimTextureApp::createScene()
+{
+    OTKAppTriangleHitGroupData mat{};
+    std::vector<Vert> shape;
+
+    // Square
+    mat.tex = makeSurfaceTex( 0xffffff, 0, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
+    m_materials.push_back( mat );
+    OTKAppShapeMaker::makeAxisPlane( float3{0, 0, 0}, float3{1, 1, 0}, shape );
+    addShapeToScene( shape, m_materials.size() - 1 );
+
+    copyGeometryToDevice();
+}
+
 //------------------------------------------------------------------------------
 // Main function
 //------------------------------------------------------------------------------
 
 void printUsage( const char* argv0 )
 {
-    std::cerr << "\nUsage: " << argv0 << " [options]\n\n";
+    std::cout << "\nUsage: " << argv0 << " [options]\n\n";
     std::cout << "Options:  --texture <mandelbrot|checker|texturefile.exr>, --dim=<width>x<height>, --file <outputfile.ppm>\n";
     std::cout << "          --no-gl-interop, --texdim=<width>x<height>, --udim=<udim>x<vdim>, --base-image, --cascade, --dense\n";
     std::cout << "Keyboard: <ESC>:exit, WASD:pan, QE:zoom, C:recenter\n";
@@ -198,6 +212,8 @@ int main( int argc, char* argv[] )
     app.initDemandLoading();
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
+    app.createScene();
+    app.resetAccumulator();
     app.initOptixPipelines( UdimTextureViewerCudaText(), UdimTextureViewerCudaSize );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
