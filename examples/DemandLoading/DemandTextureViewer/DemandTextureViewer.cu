@@ -17,7 +17,7 @@ __constant__ OTKAppLaunchParams params;
 // OptiX programs
 //------------------------------------------------------------------------------
  
-//#define CAST_RAYS // uncomment to turn on ray casting
+//#define CAST_RAYS // uncomment to turn on ray casting (slower)
 
 extern "C" __global__ void __raygen__rg()
 {
@@ -59,7 +59,7 @@ extern "C" __global__ void __raygen__rg()
     }
     #endif
 
-    // Blend result with tile display color, and put result int output buffer
+    // Blend color with tile display color, and put result in the output buffer
     float4 tcolor = tileDisplayColor( params.demand_texture_context, params.display_texture_id, 10, 10, px );
     color = ( 1.0f - tcolor.w ) * color + tcolor.w * tcolor;
     params.result_buffer[px.y * params.image_dim.x + px.x] = make_color( color );
