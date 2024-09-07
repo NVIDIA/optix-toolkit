@@ -47,7 +47,7 @@ class DemandTextureViewer : public OTKApp
     void           setTextureType( TextureType textureType ) { m_textureType = textureType; }
     void           setTextureName( const std::string& textureName ) { m_textureName = textureName; }
     ImageSourcePtr createImageSource();
-    void           createTexture() override;
+    void           createTexture();
     void           createScene();
 
   private:

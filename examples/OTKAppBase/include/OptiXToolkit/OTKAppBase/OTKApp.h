@@ -34,7 +34,6 @@ class OTKApp
     // Public functions to initialize the app and start rendering
     void setNumLaunches( int numLaunches ) { m_minLaunches = numLaunches; }
     void initDemandLoading();
-    virtual void createTexture() = 0;
     void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
     void startLaunchLoop();
     void cleanup();

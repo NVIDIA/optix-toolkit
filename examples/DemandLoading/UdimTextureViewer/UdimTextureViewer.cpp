@@ -27,7 +27,7 @@ class UdimTextureApp : public OTKApp
     {
     }
     void setUdimParams( const char* textureName, int texWidth, int texHeight, int udim, int vdim, bool useBaseImage );
-    void createTexture() override;
+    void createTexture();
     void createScene();
 
   private:
