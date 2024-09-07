@@ -206,33 +206,6 @@ void makeCameraRayThinLens( CameraFrame camera, float lens_width, uint2 image_di
 // Texture sampling and display
 //------------------------------------------------------------------------------
 
-// Sample demand-load texture, walking up the mip pyramid to find a resident sample
-template <class TYPE> 
-static __forceinline__ __device__ 
-TYPE tex2DGradWalkup( const DeviceContext context, unsigned int texture_id, float x, float y, float2 ddx, float2 ddy, bool* is_resident )
-{
-    const float mipTailSampleWidth = 1.0f / 32.0f;
-    const int   maxWalkup          = 4;
-    bool        resident           = false;
-    TYPE        color;
-
-    for( int i = 0; i < maxWalkup; ++i )
-    {
-        color        = tex2DGradUdimBlend<TYPE>( context, texture_id, x, y, ddx, ddy, &resident );
-        *is_resident = *is_resident && resident;
-        if( resident )
-            return color;
-
-        // Double the texture gradients at each iteration, but request the mip tail the last time.
-        ddx = (i < maxWalkup - 2) ? ddx * 2.0f : float2{ mipTailSampleWidth, 0.0f };
-        ddy = (i < maxWalkup - 2) ? ddy * 2.0f : float2{ 0.0f, mipTailSampleWidth };
-    }
-
-    // If all texture samples fail, return the base color
-    bool baseColorValid = getBaseColor<TYPE>( context, texture_id, color, &resident );
-    return color;
-}
-
 // Sample a ColorTex
 static __forceinline__ __device__ 
 float3 sampleTexture( const DeviceContext context, SurfaceGeometry g, ColorTex tex, bool* is_resident )
@@ -240,7 +213,7 @@ float3 sampleTexture( const DeviceContext context, SurfaceGeometry g, ColorTex t
     using namespace otk;
     if( tex.texid < 0 )
         return tex.color;
-    float4 t = tex2DGradWalkup<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident );
+    float4 t = tex2DGradUdimBlend<float4>( context, tex.texid, g.uv.x, g.uv.y, g.ddx, g.ddy, is_resident );
     return tex.color * float3{t.x, t.y, t.z};
 }
 
