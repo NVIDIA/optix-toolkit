@@ -89,7 +89,7 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
     // Special cases
     if( filename == "checkerboard" )
     {
-        return std::make_shared<CheckerBoardImage>( 2048, 2048, /*squaresPerSide=*/32, /*useMipmaps=*/true );
+        return std::make_shared<CheckerBoardImage>( 8192, 8192, /*squaresPerSide=*/16, /*useMipmaps=*/true );
     }
 
     // Construct ImageSource based on filename extension.
