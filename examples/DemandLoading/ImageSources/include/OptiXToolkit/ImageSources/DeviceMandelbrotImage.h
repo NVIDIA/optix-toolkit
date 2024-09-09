@@ -20,18 +20,13 @@ namespace imageSources {
 class DeviceMandelbrotImage : public imageSource::ImageSourceBase
 {
   public:
-    /// Create a test image with the specified dimensions.
-    DeviceMandelbrotImage( unsigned int               width,
-                           unsigned int               height,
-                           double                     xmin,
-                           double                     ymin,
-                           double                     xmax,
-                           double                     ymax,
-                           int                        maxIterations,
-                           const std::vector<float4>& colors );
+    /// Create a mandelbrot image with the specified dimensions.
+    DeviceMandelbrotImage( unsigned int width, unsigned int height, double xmin, double ymin, double xmax, double ymax );
 
     /// The destructor is virtual.
     ~DeviceMandelbrotImage() override = default;
+
+    void setColors( const std::vector<float4>& colors, int maxIterations );
 
     /// The open method initializes the given image info struct.
     void open( imageSource::TextureInfo* info ) override;

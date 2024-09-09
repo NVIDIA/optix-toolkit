@@ -11,18 +11,11 @@ namespace imageSources {
 
 void launchReadMandelbrotImage( const MandelbrotParams& params, CUstream stream );
 
-DeviceMandelbrotImage::DeviceMandelbrotImage( unsigned int               width,
-                                              unsigned int               height,
-                                              double                     xmin,
-                                              double                     ymin,
-                                              double                     xmax,
-                                              double                     ymax,
-                                              int                        maxIterations,
-                                              const std::vector<float4>& colors )
+DeviceMandelbrotImage::DeviceMandelbrotImage( unsigned int width, unsigned int height, double xmin, double ymin, double xmax, double ymax )
 {
     m_info.width        = width;
     m_info.height       = height;
-    m_info.format       = CU_AD_FORMAT_FLOAT; // float4
+    m_info.format       = CU_AD_FORMAT_FLOAT;
     m_info.numChannels  = 4;
     m_info.numMipLevels = imageSource::calculateNumMipLevels( width, height );
     m_info.isValid      = true;
@@ -38,13 +31,24 @@ DeviceMandelbrotImage::DeviceMandelbrotImage( unsigned int               width,
     m_params.ymin           = ymin;
     m_params.xmax           = xmax;
     m_params.ymax           = ymax;
+    m_params.output_buffer  = nullptr;
+
+    // Set default colors and max iterations
+    std::vector<float4> colors = {
+        {1.0f, 1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.5f, 0.0f, 0.0f},
+        {1.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.0f, 0.0f}
+    };
+    setColors( colors, 512 );
+}
+
+void DeviceMandelbrotImage::setColors( const std::vector<float4>& colors, int maxIterations )
+{
     m_params.max_iterations = maxIterations;
     m_params.num_colors     = std::min( static_cast<int>( colors.size() ), MAX_MANDELBROT_COLORS );
     for( int i = 0; i < m_params.num_colors; ++i )
     {
         m_params.colors[i] = colors[i];
     }
-    m_params.output_buffer = nullptr;
 }
 
 void DeviceMandelbrotImage::open( imageSource::TextureInfo* info )
