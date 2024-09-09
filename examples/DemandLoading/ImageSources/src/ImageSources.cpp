@@ -20,14 +20,7 @@ std::shared_ptr<imageSource::ImageSource> createImageSource( const std::string& 
     }
     if( filename == "constant" )
     {
-        // 2K, 1K, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1 = 13 colors
-        std::vector<float4> mipColors = {
-            { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f },
-            { 1.0f, 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f },
-            { 0.0f, 0.0f, 1.0f, 0.0f }, { 0.0f, 0.5f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f, 0.0f },
-            { 1.0f, 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f },
-            { 0.0f, 0.5f, 0.0f, 0.0f },
-        };
+        std::vector<float4> mipColors = { float4{1.0f, 1.0f, 1.0f, 0.0f} };
         return std::make_shared<DeviceConstantImage>( 2048, 2048, mipColors );
     }
     if( filename == "multichecker" )

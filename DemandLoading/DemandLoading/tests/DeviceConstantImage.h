@@ -18,7 +18,7 @@
 class DeviceConstantImage : public imageSource::ImageSourceBase
 {
   public:
-    /// Create a test image with the specified dimensions.
+    /// Create an image with the specified dimensions.
     DeviceConstantImage( unsigned int width, unsigned int height, const std::vector<float4>& mipColors );
 
     /// The destructor is virtual.
