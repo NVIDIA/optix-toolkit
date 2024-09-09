@@ -51,10 +51,6 @@ void UdimTextureApp::setUdimParams( const char* textureName, int texWidth, int t
 
 void UdimTextureApp::createTexture()
 {
-    const int           iterations = 512;
-    std::vector<float4> colors     = {
-        {1.0f, 1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.5f, 0.0f, 0.0f}, {1.0f, 0.0f, .0f, 0.0f}, {1.0f, 1.0f, 0.0f, 0.0f}};
-
     // Make optional base texture
     int baseTextureId = -1;
     if( m_useBaseImage )
@@ -65,7 +61,7 @@ void UdimTextureApp::createTexture()
         if( !baseImageSource && m_textureName == "checker" )
             baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
         if( !baseImageSource )
-            baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0, iterations, colors ) );
+            baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0 ) );
 
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
@@ -113,7 +109,7 @@ void UdimTextureApp::createTexture()
                 double xmax = -2.0 + 4.0 * ( u + 1.0 ) / m_udim;
                 double ymin = -2.0 + 4.0 * v / m_vdim;
                 double ymax = -2.0 + 4.0 * ( v + 1.0 ) / m_vdim;
-                subImage.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax, iterations, colors ) );
+                subImage.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax ) );
             }
             subImageSources.emplace_back( subImage );
 

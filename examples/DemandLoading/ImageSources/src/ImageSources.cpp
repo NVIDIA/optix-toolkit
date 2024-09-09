@@ -16,14 +16,7 @@ std::shared_ptr<imageSource::ImageSource> createImageSource( const std::string& 
 {
     if( filename == "mandelbrot" )
     {
-        std::vector<float4> colors = { { 1.0f, 1.0f, 1.0f, 0.0f },
-                                       { 0.0f, 0.0f, 1.0f, 0.0f },
-                                       { 0.0f, 0.5f, 0.0f, 0.0f },
-                                       { 1.0f, 0.0f, 0.0f, 0.0f },
-                                       { 1.0f, 1.0f, 0.0f, 0.0f } };
-        return std::make_shared<DeviceMandelbrotImage>( 2048, 2048, /*xmin=*/-2.0, /*ymin=*/-2.0,
-                                                        /*xmax=*/2.0, /*ymax=*/2.0,
-                                                        /*iterations=*/512, colors );
+        return std::make_shared<DeviceMandelbrotImage>( 8192, 8192, -2.0f, -2.0f, 2.0f, 2.0f );
     }
     if( filename == "constant" )
     {
