@@ -163,6 +163,9 @@ const DemandTexture& DemandLoaderImpl::createTexture( std::shared_ptr<imageSourc
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     std::unique_lock<std::mutex> lock( m_mutex );
 
+    // Enable launch of the pullRequests kernel.
+    m_isActive = true;
+
     // Add new texture to the end of the list of textures.  The texture holds a pointer to the
     // image, from which tile data is obtained on demand.
     unsigned int textureId = allocateTexturePages( 1 );
@@ -185,6 +188,9 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Enable launch of the pullRequests kernel.
+    m_isActive = true;
 
     // Allocate demand loader pages for the udim grid
     OTK_ASSERT_MSG( udim * vdim > 0, "Udim and vdim must both be positive." );
@@ -271,6 +277,11 @@ DemandTextureImpl* DemandLoaderImpl::makeTextureOrVariant( unsigned int textureI
 unsigned int DemandLoaderImpl::createResource( unsigned int numPages, ResourceCallback callback, void* callbackContext )
 {
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
+    std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Enable launch of the pullRequests kernel.
+    m_isActive = true;
+
     m_resourceRequestHandlers.emplace_back( new ResourceRequestHandler( callback, callbackContext, this ) );
     const unsigned int startPage = m_pageTableManager->reserveBackedPages( numPages, m_resourceRequestHandlers.back().get() );
     return startPage;
@@ -448,6 +459,12 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
     std::unique_lock<std::mutex> lock( m_mutex );
+
+    // Early exit if no textures or resources have been created.
+    if( !m_isActive )
+    {
+        return Ticket();  // default-constructed Ticket has zero tasks.
+    }
 
     // Create a Ticket that the caller can use to track request processing.
     Ticket ticket = TicketImpl::create( stream );
