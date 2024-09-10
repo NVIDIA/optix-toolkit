@@ -56,9 +56,9 @@ void UdimTextureApp::createTexture()
     if( m_useBaseImage )
     {
         std::shared_ptr<imageSource::ImageSource> baseImageSource;
-        if( m_textureName != "mandelbrot" && m_textureName != "checker" )
+        if( m_textureName != "mandelbrot" && m_textureName != "checkerboard" )
             baseImageSource = createExrImage( m_textureName + ".exr" );
-        if( !baseImageSource && m_textureName == "checker" )
+        if( !baseImageSource && m_textureName == "checkerboard" )
             baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
         if( !baseImageSource )
             baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0 ) );
@@ -86,7 +86,7 @@ void UdimTextureApp::createTexture()
         for( int u = 0; u < m_udim; ++u )
         {
             std::shared_ptr<imageSource::ImageSource> subImage;
-            if( m_textureName != "mandelbrot" && m_textureName != "checker" ) // loading exr images
+            if( m_textureName != "mandelbrot" && m_textureName != "checkerboard" ) // loading exr images
             {
                 int         udimNum      = 10000 + v * 100 + u;
                 std::string subImageName = m_textureName + std::to_string( udimNum ) + ".exr";
@@ -99,7 +99,7 @@ void UdimTextureApp::createTexture()
                 int h         = std::max( 4 << v, ( 4 << u ) / maxAspect );
                 subImage.reset( new imageSources::MultiCheckerImage<float4>( w, h, 4, true ) );
             }
-            if( !subImage && m_textureName == "checker" )
+            if( !subImage && m_textureName == "checkerboard" )
             {
                 subImage.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
             }
@@ -146,18 +146,50 @@ void UdimTextureApp::createScene()
 }
 
 //------------------------------------------------------------------------------
-// Main function
+// Usage
 //------------------------------------------------------------------------------
 
-void printUsage( const char* argv0 )
+void printUsage( const char* program )
 {
-    std::cout << "\nUsage: " << argv0 << " [options]\n\n";
-    std::cout << "Options:  --texture <mandelbrot|checker|texturefile.exr>, --dim=<width>x<height>, --file <outputfile.ppm>\n";
-    std::cout << "          --no-gl-interop, --texdim=<width>x<height>, --udim=<udim>x<vdim>, --base-image, --cascade, --dense\n";
-    std::cout << "Keyboard: <ESC>:exit, WASD:pan, QE:zoom, C:recenter\n";
-    std::cout << "Mouse:    <LMB>:pan, <RMB>:zoom\n" << std::endl;
+    // clang-format off
+    std::cerr << "\nUsage: " << program << " [options]\n"
+        "\n"
+        "Options:\n"
+        "   --texture <texturefile|checkerboard|mandelbrot>    Use texture image file.\n"
+        "   --texdim=<width>x<height>   Texture dimensions.\n"
+        "   --udim=<width>x<height>     UDIM texture dimensions.\n"
+        "   --dense                     Use dense (standard) textures instead of sparse textures.\n"
+        "   --cascade                   Use cascading texture sizes.\n"
+        "   --coalesce-tiles            Coalesce white and black tiles.\n"
+        "   --coalesce-images           Coalesce idendtical images.\n"
+        "   --dim=<width>x<height>      Specify rendering dimensions.\n"
+        "   --file <outputfile>         Render to output file and exit.\n"
+        "   --no-gl-interop             Disable OpenGL interop.\n";
+    // clang-format on
+
     exit(0);
 }
+
+void printKeyCommands()
+{
+    // clang-format off
+    std::cout <<
+        "Keyboard:\n"
+        "   <ESC>:  exit\n"
+        "   WASD:   pan\n"
+        "   QE:     zoom\n"
+        "   C:      recenter\n"
+        "\n"
+        "Mouse:\n"
+        "   <LMB>:  pan\n"
+        "   <RMB>:  zoom\n"
+        "\n";
+    // clang-format on
+}
+
+//------------------------------------------------------------------------------
+// Main function
+//------------------------------------------------------------------------------
 
 int main( int argc, char* argv[] )
 {
@@ -167,13 +199,13 @@ int main( int argc, char* argv[] )
     const char* outFileName  = "";
     bool        glInterop    = true;
 
-    int texWidth = 8192;
-    int texHeight = 8192;
-    int udim = 10;
-    int vdim = 10;
+    int  texWidth = 8192;
+    int  texHeight = 8192;
+    int  udim = 10;
+    int  vdim = 10;
     bool useBaseImage = false;
-    bool useSparseTextures = true;
-    bool cascadingTextureSizes = false;
+
+    demandLoading::Options options{};
 
     for( int i = 1; i < argc; ++i )
     {
@@ -195,17 +227,32 @@ int main( int argc, char* argv[] )
         else if( arg == "--base-image" )
             useBaseImage = true;
         else if( arg == "--dense" )
-            useSparseTextures = false;
+            options.useSparseTextures = false;
         else if( arg == "--cascade" )
-            cascadingTextureSizes = true;
+            options.useCascadingTextureSizes = true;
+        else if( arg == "--coalesce-tiles" )
+            options.coalesceWhiteBlackTiles = true;
+        else if( arg == "--coalesce-images" )
+            options.coalesceDuplicateImages = true;
         else
             printUsage( argv[0] );
     }
 
+    // Set up options for final frame or interactive rendering.
+    bool interactive = strlen( outFileName ) == 0;
+
+    options.maxTexMemPerDevice  = interactive ? 2ULL << 30 : 0ULL;
+    options.maxRequestedPages   = interactive ? 64 : 4096;
+    options.maxStalePages       = options.maxRequestedPages * 2;
+    options.maxInvalidatedPages = options.maxRequestedPages * 2;
+    options.maxStagedPages      = options.maxRequestedPages * 2;
+    options.maxRequestQueueSize = options.maxRequestedPages * 2;
+
+    printKeyCommands();
+
+    // Initialize the app
     UdimTextureApp app( "UDIM Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
-    app.useSparseTextures( useSparseTextures );
-    app.useCascadingTextureSizes( cascadingTextureSizes );
-    app.initDemandLoading();
+    app.initDemandLoading( options );
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
     app.createScene();
