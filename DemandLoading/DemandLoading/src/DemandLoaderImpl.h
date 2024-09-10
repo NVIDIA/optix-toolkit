@@ -175,6 +175,7 @@ class DemandLoaderImpl : public DemandLoader
     mutable std::mutex       m_mutex;
     std::shared_ptr<Options> m_options;
     CUcontext                m_cudaContext;  // The demand loader is for this context
+    bool                     m_isActive = false;  // Controls whether pullRequests kernel is launched.
 
     std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.
     ThreadPoolRequestProcessor            m_requestProcessor;  // Asynchronously processes page requests.
