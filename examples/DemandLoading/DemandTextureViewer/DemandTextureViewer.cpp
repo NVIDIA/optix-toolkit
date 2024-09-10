@@ -92,7 +92,7 @@ void DemandTextureViewer::createScene()
 }
 
 //------------------------------------------------------------------------------
-// Main function
+// Usage
 //------------------------------------------------------------------------------
 
 void printUsage( const char* program )
@@ -111,6 +111,27 @@ void printUsage( const char* program )
 
     exit(0);
 }
+
+void printKeyCommands()
+{
+    // clang-format off
+    std::cout <<
+        "Keyboard:\n"
+        "   <ESC>:  exit\n"
+        "   WASD:   pan\n"
+        "   QE:     zoom\n"
+        "   C:      recenter\n"
+        "\n"
+        "Mouse:\n"
+        "   <LMB>:  pan\n"
+        "   <RMB>:  zoom\n"
+        "\n";
+    // clang-format on
+}
+
+//------------------------------------------------------------------------------
+// Main function
+//------------------------------------------------------------------------------
 
 int main( int argc, char* argv[] )
 {
@@ -144,22 +165,10 @@ int main( int argc, char* argv[] )
             printUsage( argv[0] );
     }
 
-    // clang-format off
-    std::cout <<
-        "Keyboard:\n"
-        "   <ESC>:  exit\n"
-        "   WASD:   pan\n"
-        "   QE:     zoom\n"
-        "   C:      recenter\n"
-        "\n"
-        "Mouse:\n"
-        "   <LMB>:  pan\n"
-        "   <RMB>:  zoom\n"
-        "\n";
-    // clang-format on
+    printKeyCommands();
 
     DemandTextureViewer app( "Demand Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
-    app.initDemandLoading();
+    app.initDemandLoading( demandLoading::Options{} );
     app.createTexture( textureName, tile, mipmap );
     app.createScene();
     app.initOptixPipelines( DemandTextureViewerCudaText(), DemandTextureViewerCudaSize );

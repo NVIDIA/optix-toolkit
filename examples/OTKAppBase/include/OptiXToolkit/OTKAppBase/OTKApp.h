@@ -33,15 +33,13 @@ class OTKApp
 
     // Public functions to initialize the app and start rendering
     void setNumLaunches( int numLaunches ) { m_minLaunches = numLaunches; }
-    void initDemandLoading();
+    void initDemandLoading( demandLoading::Options options );
     void initOptixPipelines( const char* moduleCode, const size_t moduleCodeSize );
     void startLaunchLoop();
     void cleanup();
     void printDemandLoadingStats();
     void resetAccumulator();
     void setMipScale( float scale ) { m_mipScale = scale; }
-    void useSparseTextures( bool useSparseTextures ) { m_useSparseTextures = useSparseTextures; }
-    void useCascadingTextureSizes( bool useCascade ) { m_useCascadingTextureSizes = useCascade; }
     void setMaxSubframes( int maxSubframes ) { m_maxSubframes = maxSubframes; }
 
     SurfaceTexture makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior );

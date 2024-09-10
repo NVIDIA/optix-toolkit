@@ -449,37 +449,8 @@ std::shared_ptr<imageSource::ImageSource> OTKApp::createExrImage( const std::str
 }
 
 
-void OTKApp::initDemandLoading()
+void OTKApp::initDemandLoading( demandLoading::Options options )
 {
-    // Default to final frame rendering. Use all of the device memory available for textures,
-    // and set maxRequests to high values to reduce the total number of launches.
-    unsigned int maxTexMem     = 0;  // unlimited
-    unsigned int maxRequests   = 512;
-    unsigned int maxStalePages = 1024;
-
-    // In interactive mode, reduce the max texture memory to exercise eviction. Set maxRequests to
-    // a low value to keep the system from being bogged down by pullRequests for any single launch.
-    if( isInteractive() )
-    {
-        maxTexMem     = 2ULL * 1024 * 1024 * 1024;
-        maxRequests   = 64;
-        maxStalePages = 128;
-    }
-
-    demandLoading::Options options{};
-    options.maxRequestedPages   = maxRequests;       // max requests to pull from device in pullRequests
-    options.maxFilledPages      = 32768;             // number of slots to push mappings back to device
-    options.maxStalePages       = maxStalePages;     // max stale pages to pull from the device in pullRequests
-    options.maxInvalidatedPages = maxStalePages;     // max slots to push invalidated pages back to device
-    options.maxStagedPages      = maxStalePages;     // max pages to stage for eviction
-    options.maxRequestQueueSize = maxStalePages;     // max size of host-side request queue
-    options.maxTexMemPerDevice  = maxTexMem;         // max texture to use before starting eviction (0 is unlimited)
-    options.maxPinnedMemory     = 64 * 1024 * 1024;  // max pinned memory to reserve for transfers.
-    options.maxThreads          = 0;                 // request threads. (0 is std::thread::hardware_concurrency)
-    options.evictionActive      = true;              // turn on or off eviction
-    options.useSparseTextures   = m_useSparseTextures;  // use sparse or dense textures
-    options.useCascadingTextureSizes = m_useCascadingTextureSizes; // whether to use cascading texture sizes
-
     for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
