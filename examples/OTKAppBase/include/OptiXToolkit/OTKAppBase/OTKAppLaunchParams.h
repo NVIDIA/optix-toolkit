@@ -12,7 +12,7 @@
 namespace otkApp
 {
 
-const unsigned int EXTRA_DATA_SIZE = 8;
+const unsigned int EXTRA_DATA_SIZE = 512;
 
 enum RayType
 {
@@ -66,9 +66,7 @@ struct OTKAppLaunchParams
     float4 background_color;
 
     // Extra params that can be used by the application
-    float4 c[EXTRA_DATA_SIZE];
-    float  f[EXTRA_DATA_SIZE];
-    int    i[EXTRA_DATA_SIZE];
+    char extraData[EXTRA_DATA_SIZE];
 };
 
 
@@ -79,7 +77,7 @@ struct OTKAppRayGenData
 
 struct OTKAppMissData
 {
-    // Handled by raygen
+    // Handled by params
 };
 
 struct OTKAppHitGroupData
