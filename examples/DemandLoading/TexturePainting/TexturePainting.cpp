@@ -15,22 +15,23 @@
 #include "TexturePaintingKernelCuda.h"
 #include "TexturePaintingParams.h"
 
+#include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
-using namespace demandTextureApp;
+using namespace otkApp;
 using namespace demandLoading;
 
-class TexturePaintingApp : public DemandTextureApp
+class TexturePaintingApp : public OTKApp
 {
   public:
     TexturePaintingApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-        : DemandTextureApp( appTitle, width, height, outFileName, glInterop )
+        : OTKApp( appTitle, width, height, outFileName, glInterop )
     {
         m_brush.set( m_brushWidth, m_brushWidth, brushColor( m_brushColorVal, m_brushAlpha ) );
     }
-    void createTexture() override;
+    void createScene();
+    void createTexture();
     void initTexture();
 
     // GLFW callbacks
@@ -58,7 +59,7 @@ class TexturePaintingApp : public DemandTextureApp
     // Texture 
     const demandLoading::DemandTexture* m_texture;
 
-    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
+    void initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices ) override;
     int2 mouseToImageCoords( int mx, int my );
     float4 brushColor( float color, float a );
     void reloadDirtyTiles();
@@ -69,6 +70,20 @@ class TexturePaintingApp : public DemandTextureApp
 // std::min/max requires references to these static members.
 const int TexturePaintingApp::MIN_BRUSH_SIZE;
 const int TexturePaintingApp::MAX_BRUSH_SIZE;
+
+void TexturePaintingApp::createScene()
+{
+    OTKAppTriangleHitGroupData mat{};
+    std::vector<Vert> shape;
+
+    // Square
+    mat.tex = makeSurfaceTex( 0xffffff, 0, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
+    m_materials.push_back( mat );
+    OTKAppShapeMaker::makeAxisPlane( float3{0, 0, 0}, float3{1, 1, 0}, shape );
+    addShapeToScene( shape, m_materials.size() - 1 );
+
+    copyGeometryToDevice();
+}
 
 void TexturePaintingApp::createTexture()
 {
@@ -82,7 +97,7 @@ void TexturePaintingApp::createTexture()
 
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         // Create a single texture that will switch between canvases
@@ -94,7 +109,7 @@ void TexturePaintingApp::createTexture()
 void TexturePaintingApp::initTexture()
 {
     // Initialize the texture samplers for each device (not required, but saves a launch)
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         CUcontext context;
         OTK_ERROR_CHECK( cuStreamGetCtx( state.stream, &context ) );
@@ -161,7 +176,7 @@ void TexturePaintingApp::pollKeys()
 
 void TexturePaintingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
 {
-    DemandTextureApp::keyCallback( window, key, scancode, action, mods );
+    OTKApp::keyCallback( window, key, scancode, action, mods );
     if( action != GLFW_PRESS )
         return;
 
@@ -195,17 +210,18 @@ void TexturePaintingApp::keyCallback( GLFWwindow* window, int32_t key, int32_t s
     }
 }
 
-void TexturePaintingApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
+void TexturePaintingApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices )
 {
-    DemandTextureApp::initLaunchParams( state, numDevices );
+    OTKApp::initLaunchParams( state, numDevices );
 
-    // use extra parameters to tell device about how many canvases and current brush
-    state.params.i[NUM_CANVASES_ID]  = NUM_CANVASES;
-    state.params.i[ACTIVE_CANVAS_ID] = m_activeCanvas;
-    state.params.i[BRUSH_WIDTH_ID]   = m_brush.m_width;
-    state.params.i[BRUSH_HEIGHT_ID]  = m_brush.m_height;
-    state.params.c[BRUSH_COLOR_ID]   = m_brush.m_color;
-    state.params.c[BRUSH_COLOR_ID].w = 1.0f;
+    // Use extra data for params specific to texture painting.
+    TexturePaintingParams* tp = reinterpret_cast<TexturePaintingParams*>( state.params.extraData );
+    tp->numCanvases = NUM_CANVASES;
+    tp->activeCanvas = m_activeCanvas;
+    tp->brushWidth = m_brush.m_width;
+    tp->brushHeight = m_brush.m_height;
+    tp->brushColor = m_brush.m_color;
+    tp->brushColor.w = 1.0f;
 }
 
 int2 TexturePaintingApp::mouseToImageCoords( int mx, int my )
@@ -230,7 +246,7 @@ void TexturePaintingApp::reloadDirtyTiles()
 {
     std::set<int>& dirtyTiles = m_canvases[m_activeCanvas]->getDirtyTiles();
 
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         cudaSetDevice( state.device_idx );
         // For each dirty tile that is resident, have the demand loader reload it. 
@@ -250,7 +266,7 @@ void TexturePaintingApp::clearImage()
 {
     // Clear the current canvas image, and unload all of the resident tiles in the texture.
     m_canvases[m_activeCanvas]->clearImage( m_canvasBackgroundColor ); 
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         cudaSetDevice( state.device_idx );
         state.demandLoader->unloadTextureTiles( m_textureIds[0] );
@@ -263,7 +279,7 @@ void TexturePaintingApp::replaceTexture( unsigned int newCanvasId )
     {
         // Switch the image that the texture is using, and unload all of the resident texture tiles.
         m_activeCanvas = newCanvasId;
-        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
         {
             cudaSetDevice( state.device_idx );
             demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
@@ -273,16 +289,42 @@ void TexturePaintingApp::replaceTexture( unsigned int newCanvasId )
 }
 
 //------------------------------------------------------------------------------
-// Main
+// Usage
 //------------------------------------------------------------------------------
 
-void printUsage( const char* argv0 )
+void printUsage( const char* program )
 {
-    std::cerr << "\nUsage: " << argv0 << " [options]\n\n";
-    std::cout << "Options:  --dim=<width>x<height> --no-gl-interop\n";
-    std::cout << "Keyboard: [1,2,3,4]: set canvas, [x]: clear canvas, [arrow keys]: brush color/size\n";
-    std::cout << "Mouse:    <LMB>: draw, <RMB>: brush color/size\n" << std::endl;
+    // clang-format off
+    std::cerr << "\nUsage: " << program << " [options]\n"
+        "\n"
+        "Options:\n"
+        "   --dim=<width>x<height>   Window dimensions.\n"
+        "   --no-gl-interop          Disable OpenGL interop.\n";
+    // clang-format on
+
+    exit(0);
 }
+
+void printKeyCommands()
+{
+    // clang-format off
+    std::cout <<
+        "Keyboard:\n"
+        "   <ESC>:         exit\n"
+        "   [1,2,3,4]:     set canvas\n"
+        "   [x]:           clear current canvas\n"
+        "   [arrow keys]:  brush color/size\n"
+        "\n"
+        "Mouse:\n"
+        "   <LMB>:  draw\n"
+        "   <RMB>:  brush color/size\n"
+        "\n";
+    // clang-format on
+}
+
+//------------------------------------------------------------------------------
+// Main function
+//------------------------------------------------------------------------------
 
 int main( int argc, char* argv[] )
 {
@@ -290,8 +332,6 @@ int main( int argc, char* argv[] )
     int         windowHeight = 700;
     const char* outFileName  = "";
     bool        glInterop    = true;
-
-    printUsage( argv[0] );
 
     for( int i = 1; i < argc; ++i )
     {
@@ -305,12 +345,15 @@ int main( int argc, char* argv[] )
         else if( arg == "--no-gl-interop" )
             glInterop = false;
         else
-            exit(0);
+            printUsage( argv[0] );
     }
 
+    printKeyCommands();
+
     TexturePaintingApp app( "Texture Painting", windowWidth, windowHeight, outFileName, glInterop );
-    app.initDemandLoading();
+    app.initDemandLoading( demandLoading::Options{} );
     app.createTexture();
+    app.createScene();
     app.initOptixPipelines( TexturePaintingCudaText(), TexturePaintingCudaSize );
     app.initTexture();
     app.startLaunchLoop();

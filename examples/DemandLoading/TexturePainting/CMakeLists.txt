@@ -16,7 +16,7 @@ embed_cuda(
     Examples/DemandLoading
   LIBRARIES
     OptiXToolkit::DemandLoading 
-    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::OTKAppBase
     OptiXToolkit::ShaderUtil
   SOURCES
     TexturePainting.cu
@@ -31,7 +31,7 @@ otk_add_executable( texturePainting
 target_link_libraries( texturePainting
   texturePaintingKernel
   OptiXToolkit::DemandLoading
-  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::OTKAppBase
   OptiXToolkit::Gui
   OptiXToolkit::ImageSources
   OptiXToolkit::Util

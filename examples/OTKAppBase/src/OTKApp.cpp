@@ -554,6 +554,7 @@ void OTKApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int nu
     state.params.projection         = m_projection;
     state.params.lens_width         = m_lens_width;
     state.params.camera.eye         = m_camera.eye();
+    state.params.background_color   = m_backgroundColor;
     m_camera.UVWFrame( state.params.camera.U, state.params.camera.V, state.params.camera.W );
 
     // Make sure a device-side copy of the params has been allocated
