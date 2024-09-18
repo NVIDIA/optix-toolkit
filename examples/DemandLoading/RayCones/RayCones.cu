@@ -6,15 +6,16 @@
 #include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
-#include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
-#include <OptiXToolkit/DemandTextureAppBase/SimpleBsdf.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppLaunchParams.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppDeviceUtil.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppSimpleBsdf.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppOptixPrograms.h>
 
 #include "RayConesParams.h"
 
 using namespace demandLoading;
-using namespace demandTextureApp;
-using namespace otk;  // for vec_math operators
+using namespace otkApp;
+using namespace otk;
 
 OTK_DEVICE const float EPS = 0.0001f;
 OTK_DEVICE const float INF = 1e16f;
@@ -30,7 +31,8 @@ enum RenderModes
     GEOMETRIC_NORMALS,
     TEX_COORDS,
     DDX_LENGTH, 
-    CURVATURE
+    CURVATURE,
+    DIFFUSE_TEXTURE
 };
 
 //------------------------------------------------------------------------------
@@ -38,23 +40,8 @@ enum RenderModes
 //------------------------------------------------------------------------------
 
 extern "C" {
-__constant__ Params params;
+__constant__ OTKAppLaunchParams params;
 }
-
-//------------------------------------------------------------------------------
-// Ray Payload - per ray data for OptiX programs
-//------------------------------------------------------------------------------
-
-struct RayPayload
-{
-    RayCone rayCone1;
-    RayCone rayCone2;
-    SurfaceGeometry geom;
-    const SurfaceTexture* tex;
-    bool occluded;
-    float3 background;
-    int rayDepth;
-};
 
 //------------------------------------------------------------------------------
 // Utility functions
@@ -95,24 +82,24 @@ static __forceinline__ __device__ void makeEyeRay( uint2 px, float2 xi, float2 l
         makeCameraRayThinLens( params.camera, params.lens_width, params.image_dim, lx, float2{px.x + xi.x, px.y + xi.y}, origin, direction );
 }
 
-static __forceinline__ __device__ float4 alternateOutputColor( RayPayload payload )
+static __forceinline__ __device__ float4 alternateOutputColor( OTKAppRayPayload& payload )
 {
     bool resident = false;
-    SurfaceGeometry& geom = payload.geom;
-    const SurfaceTexture* tex = payload.tex;
+    SurfaceGeometry& g = payload.geometry;
+    const SurfaceTexture* tex = (SurfaceTexture*)payload.material;
 
     if( params.render_mode == NORMALS )
-        return 0.5f * float4{geom.N.x, geom.N.y, geom.N.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
+        return 0.5f * float4{g.N.x, g.N.y, g.N.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
     else if( params.render_mode == GEOMETRIC_NORMALS )
-        return 0.5f * float4{geom.Ng.x, geom.Ng.y, geom.Ng.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
+        return 0.5f * float4{g.Ng.x, g.Ng.y, g.Ng.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
     else if( params.render_mode == TEX_COORDS )
-        return float4{geom.uv.x, geom.uv.y, 0.0f, 0.0f};
+        return float4{g.uv.x, g.uv.y, 0.0f, 0.0f};
     else if( params.render_mode == DDX_LENGTH )
-        return float4{ 10.0f * length(geom.ddx), 10.0f * length(geom.ddy), 0.0f, 0.0f };
+        return float4{ 10.0f * length(g.ddx), 10.0f * length(g.ddy), 0.0f, 0.0f };
     else if( params.render_mode == CURVATURE )
-        return float4{maxf(geom.curvature, 0.0f), maxf(-geom.curvature, 0.0f), 0.0f, 0.0f};
+        return float4{maxf(g.curvature, 0.0f), maxf(-g.curvature, 0.0f), 0.0f, 0.0f};
     else if( tex != nullptr ) // diffuse texture
-        return make_float4( sampleTexture( params.demand_texture_context, geom, tex->diffuse, &resident ) );
+        return make_float4( sampleTexture( params.demand_texture_context, g, tex->diffuse, &resident ) );
     return float4{0.0f, 0.0f, 0.0f, 0.0f};
 }
 
@@ -160,10 +147,12 @@ extern "C" __global__ void __raygen__rg()
     uint2 px = getPixelIndex( params.num_devices, params.device_idx );
     if( !pixelInBounds( px, params.image_dim ) )
         return;
-   
+
+    const RayConesParams* rcParams = reinterpret_cast<RayConesParams*>( params.extraData );
+
     // Ray and payload definition
     float3 origin, direction;
-    RayPayload payload{};
+    OTKAppRayPayload payload{};
    
     // Handle alternate output values
     if( params.render_mode != FULL_RENDER )
@@ -177,11 +166,7 @@ extern "C" __global__ void __raygen__rg()
         return;
     }
 
-    const int minDepth   = params.i[MIN_RAY_DEPTH_ID];
-    const int maxDepth   = params.i[MAX_RAY_DEPTH_ID];
-    const int subframeId = params.i[SUBFRAME_ID];
-
-    unsigned int rseed = srand( px.x, px.y, subframeId );
+    unsigned int rseed = srand( px.x, px.y, params.subframe );
     float3 radiance = float3{0.0f, 0.0f, 0.0f};
 
     makeEyeRay( px, float2{rnd(rseed), rnd(rseed)}, float2{rnd(rseed), rnd(rseed)}, origin, direction );
@@ -194,24 +179,27 @@ extern "C" __global__ void __raygen__rg()
     while( true )
     {
         payload.rayDepth = rayDepth;
-        payload.tex = nullptr;
+        payload.material = nullptr;
         traceRay( params.traversable_handle, origin, direction, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+        payload.geometry.ddx *= rcParams->mipScale;
+        payload.geometry.ddy *= rcParams->mipScale;
         if( payload.occluded == false )
         {
-            if( rayDepth >= minDepth )
-                radiance += weight * payload.background;
+            const float4& bg = params.background_color;
+            if( rayDepth >= rcParams->minRayDepth )
+                radiance += weight * float3{bg.x, bg.y, bg.z};
             break;
         }
-        if( rayDepth >= maxDepth )
+        if( rayDepth >= rcParams->maxRayDepth )
             break;
 
         float3 Ke, Kd, Ks, Kt;
         float roughness, ior;
-        bool success = getSurfaceValues( payload.geom, payload.tex, Ke, Kd, Ks, Kt, roughness, ior );
+        bool success = getSurfaceValues( payload.geometry, (SurfaceTexture*)payload.material, Ke, Kd, Ks, Kt, roughness, ior );
         //if( rayDepth > 3 ) payload.rayCone1.setDiffuse(); // clamp cone angle for deeper paths
         //if( rayDepth > 3 ) payload.rayCone2.setDiffuse(); // clamp cone angle for deeper paths
         radiance += weight * Ke;
-        if( payload.geom.flipped && ior != 0.0f )
+        if( payload.geometry.flipped && ior != 0.0f )
             ior = 1.0f / ior;
 
         float3 R, bsdf;
@@ -219,33 +207,33 @@ extern "C" __global__ void __raygen__rg()
 
         // Sample the BSDF
         float2 xi = float2{ rnd(rseed), rnd(rseed) };
-        if( !sampleBsdf( xi, Kd, Ks, Kt, ior, roughness, payload.geom, direction, R ) )
+        if( !sampleBsdf( xi, Kd, Ks, Kt, ior, roughness, payload.geometry, direction, R ) )
             break;
-        bsdf = evalBsdf( Kd, Ks, Kt, ior, roughness, payload.geom, direction, R, prob, payload.geom.curvature );
+        bsdf = evalBsdf( Kd, Ks, Kt, ior, roughness, payload.geometry, direction, R, prob, payload.geometry.curvature );
         
         // Sanity check.  Discard 0 probability and nan samples
         if( !( prob > 0.0f ) || !( dot( bsdf, bsdf ) >= 0.0f ) )
             break;
 
         // Update the ray cone
-        if( params.i[UPDATE_RAY_CONES_ID] )
+        if( rcParams->updateRayCones )
         {
-            bool isTransmission = dot( R, payload.geom.N ) < 0.0f;
+            bool isTransmission = dot( R, payload.geometry.N ) < 0.0f;
             float fs = bsdf.x + bsdf.y + bsdf.z;
-            rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone1 );
-            rayConeScatter( payload.geom.curvature, ior, roughness, isTransmission, fs, payload.rayCone2 );
+            rayConeScatter( payload.geometry.curvature, ior, roughness, isTransmission, fs, payload.rayCone1 );
+            rayConeScatter( payload.geometry.curvature, ior, roughness, isTransmission, fs, payload.rayCone2 );
         }
 
         weight = weight * bsdf * (1.0f / prob);
         rayDepth++;
-        origin = payload.geom.P;
+        origin = payload.geometry.P;
         direction = R;
     }
 
     // Accumulate sample in the accumulation buffer
     unsigned int image_idx = px.y * params.image_dim.x + px.x;
     float4 accum_color = float4{radiance.x, radiance.y, radiance.z, 1.0f};
-    if( subframeId != 0 )
+    if( params.subframe != 0 )
         accum_color += params.accum_buffer[image_idx];
     params.accum_buffer[image_idx] = accum_color;
 
@@ -256,69 +244,3 @@ extern "C" __global__ void __raygen__rg()
     params.result_buffer[image_idx] = make_color( color );
 }
 
-extern "C" __global__ void __miss__ms()
-{
-    const float4 bg = reinterpret_cast<MissData*>( optixGetSbtDataPointer() )->background_color;
-    getRayPayload()->background = float3{bg.x, bg.y, bg.z};
-    getRayPayload()->occluded = false;
-}
-
-extern "C" __global__ void __closesthit__ch()
-{
-    RayPayload* payload = getRayPayload();
-    payload->occluded = true;
-    if( isOcclusionRay() ) // for occlusion query, just return
-        return;
-
-    // Get hit info
-    const TriangleHitGroupData* hg_data = reinterpret_cast<TriangleHitGroupData*>( optixGetSbtDataPointer() );
-    const int vidx = optixGetPrimitiveIndex() * 3;
-    const float3 bary = getTriangleBarycentrics();
-    const float3 D = optixGetWorldRayDirection();
-    const float rayDistance = optixGetRayTmax();
-
-    // Get triangle geometry
-    float4* vertices = &hg_data->vertices[vidx];
-    float3& Va = *reinterpret_cast<float3*>( &vertices[0] );
-    float3& Vb = *reinterpret_cast<float3*>( &vertices[1] );
-    float3& Vc = *reinterpret_cast<float3*>( &vertices[2] );
-    const float3* normals = &hg_data->normals[vidx];
-    const float2* tex_coords = &hg_data->tex_coords[vidx];
-
-    // Compute Surface geometry for hit point
-    SurfaceGeometry& geom = payload->geom;
-    geom.P = bary.x * Va + bary.y * Vb + bary.z * Vc; 
-    geom.Ng = normalize( cross( Vb-Va, Vc-Va ) ); //geometric normal
-    geom.N = normalize( bary.x * normals[0] + bary.y * normals[1] + bary.z * normals[2] ); // shading normal
-    makeOrthoBasis( geom.N, geom.S, geom.T );
-    geom.uv = bary.x * tex_coords[0] + bary.y * tex_coords[1] + bary.z * tex_coords[2];
-    geom.curvature = minTriangleCurvature( Va, Vb, Vc, normals[0], normals[1], normals[2] );
-
-    // Flip normal for local geometry if needed
-    geom.flipped = false;
-    if( dot( D, geom.Ng ) > 0.0f )
-    {
-        geom.Ng *= -1.0f;
-        geom.N *= -1.0f;
-        geom.curvature *= -1.0f;
-        geom.flipped = true;
-    }
-
-    // Get the surface texture
-    payload->tex = &hg_data->tex;
-
-    // pinhole and orthographic camera special case for first hit
-    bool pinholeSpecialCase = (payload->rayDepth == 0) && (payload->rayCone1.angle >= 0); 
-
-    // Propagate the ray cone and construct ray differentials on surface
-    float3 dPdx, dPdy;
-    payload->rayCone1 = propagate( payload->rayCone1, rayDistance );
-    payload->rayCone2 = propagate( payload->rayCone2, rayDistance );
-    if( fabs(payload->rayCone1.width) >= fabs(payload->rayCone2.width) || pinholeSpecialCase ) 
-        projectToRayDifferentialsOnSurface( payload->rayCone1.width, D, geom.N, dPdx, dPdy );
-    else
-        projectToRayDifferentialsOnSurface( payload->rayCone2.width, D, geom.N, dPdx, dPdy );
-    computeTexGradientsForTriangle( Va, Vb, Vc, tex_coords[0], tex_coords[1], tex_coords[2], dPdx, dPdy, geom.ddx, geom.ddy );
-    geom.ddx *= params.f[MIP_SCALE_ID];
-    geom.ddy *= params.f[MIP_SCALE_ID];
-}
