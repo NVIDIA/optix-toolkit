@@ -25,10 +25,13 @@
 namespace otkApp
 {
 
+enum OTKAppUIMode {UI_NONE=0, UI_IMAGEVIEW, UI_FIRSTPERSON};
+
 class OTKApp
 {
   public:
-    OTKApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
+    OTKApp( const char* appTitle, unsigned int width, unsigned int height,
+            const std::string& outFileName, bool glInterop, OTKAppUIMode uiMode );
     virtual ~OTKApp() {}
 
     // Public functions to initialize the app and start rendering
@@ -121,12 +124,13 @@ class OTKApp
     float m_mipScale = 1.0f;
     int m_reset_subframe_threshold = 10;
 
-    // Mouse state
+    // User Interface
     static const int NO_BUTTON = -1;
 
-    double m_mousePrevX  = 0;
-    double m_mousePrevY  = 0;
-    int    m_mouseButton = NO_BUTTON;
+    OTKAppUIMode m_uiMode      = UI_NONE;
+    double       m_mousePrevX  = 0;
+    double       m_mousePrevY  = 0;
+    int          m_mouseButton = NO_BUTTON;
 
     void panCamera( float3 pan );
     void zoomCamera( float zoom );

@@ -23,7 +23,7 @@ class UdimTextureApp : public OTKApp
 {
   public:
     UdimTextureApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-        : OTKApp( appTitle, width, height, outFileName, glInterop )
+        : OTKApp( appTitle, width, height, outFileName, glInterop, UI_IMAGEVIEW )
     {
     }
     void setUdimParams( const char* textureName, int texWidth, int texHeight, int udim, int vdim, bool useBaseImage );

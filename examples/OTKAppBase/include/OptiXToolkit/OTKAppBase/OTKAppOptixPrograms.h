@@ -56,13 +56,15 @@ extern "C" __global__ void __closesthit__OTKApp()
         geom.flipped = true;
     }
 
+    // Must be done before propagating the ray cones, since sign of cone angles may change
+    bool pinholeSpecialCase = (payload->rayDepth == 0) && (payload->rayCone1.angle >= 0);
+
     // Propagate the ray cone
     float3 dPdx, dPdy;
     payload->rayCone1 = propagate( payload->rayCone1, rayDistance );
     payload->rayCone2 = propagate( payload->rayCone2, rayDistance );
 
     // Compute ray differentials on surface
-    bool pinholeSpecialCase = (payload->rayDepth == 0) && (payload->rayCone1.angle >= 0); 
     float rayConeWidth = fabsf( payload->rayCone1.width );
     if( !pinholeSpecialCase )
         rayConeWidth = maxf( rayConeWidth, fabsf( payload->rayCone2.width ) );
@@ -72,5 +74,5 @@ extern "C" __global__ void __closesthit__OTKApp()
     computeTexGradientsForTriangle( Va, Vb, Vc, tex_coords[0], tex_coords[1], tex_coords[2], dPdx, dPdy, geom.ddx, geom.ddy );
 
     // Get the surface texture
-//    payload->tex = &hg_data->tex;
+    payload->material = (void*)&hg_data->tex;
 }

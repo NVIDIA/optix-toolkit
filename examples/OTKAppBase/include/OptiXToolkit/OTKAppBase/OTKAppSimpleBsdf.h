@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppDeviceUtil.h>
 
 using namespace demandLoading;
-using namespace demandTextureApp;
+using namespace otkApp;
 
 OTK_DEVICE const float MIN_ROUGHNESS = 0.0000001f;
 
@@ -30,8 +29,7 @@ float3 evalPhongBsdf( float3 Kd, float3 Ks, float roughness, SurfaceGeometry g, 
     float cosTheta = maxf( 0.0f, dot( refl, R ) );
     float s = 1.0f / roughness; 
     float ps = ( s + 2.0f ) * powf( cosTheta, s ) / ( 2.0f * M_PIf );
-    float correction = 0.5f * ( fabsf( dot( R, g.N ) ) + fabsf( dot( D, g.N ) ) );
-    float3 Fs = Ks * ps / correction;
+    float3 Fs = Ks * ps;
 
     // Calculate the combined probability of sampling this ray when sampling the bsdf
     prob = ( pd * kd / ksum ) + ( ps * ks / ksum );
