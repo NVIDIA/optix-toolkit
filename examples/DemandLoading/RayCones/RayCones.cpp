@@ -5,8 +5,8 @@
 #include "RayConesParams.h"
 #include "RayConesKernelCuda.h"
 
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
-#include <OptiXToolkit/DemandTextureAppBase/ShapeMaker.h>
+#include <OptiXToolkit/OTKAppBase/OTKApp.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
@@ -17,7 +17,7 @@
 #include <optix_stubs.h>
 
 using namespace otk;
-using namespace demandTextureApp;
+using namespace otkApp;
 using namespace demandLoading;
 using namespace imageSource;
 
@@ -25,16 +25,16 @@ using namespace imageSource;
 // RayConesApp
 //------------------------------------------------------------------------------
 
-class RayConesApp : public DemandTextureApp3D
+class RayConesApp : public OTKApp
 {
   public:
     RayConesApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
-    void createTexture() override;
+    void createTexture();
     void initView() override;
     void createScene();
     void setSceneId( int sceneId ) { m_sceneId = sceneId; }
-    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
+    void initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices ) override;
    
   protected:
     std::string m_textureName;
@@ -49,7 +49,7 @@ class RayConesApp : public DemandTextureApp3D
 
 
 RayConesApp::RayConesApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-    : DemandTextureApp3D( appTitle, width, height, outFileName, glInterop )
+    : OTKApp( appTitle, width, height, outFileName, glInterop, UI_FIRSTPERSON )
 {
     m_backgroundColor = float4{1.0f, 1.0f, 1.0f, 0.0f};
     m_projection = Projection::THINLENS;
@@ -65,14 +65,16 @@ void RayConesApp::initView()
         setView( float3{-8.0f, 0.0f, 15.0f}, float3{0.0f, 0.0f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, 30.0f );
 }
 
-void RayConesApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
+void RayConesApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices )
 {
-    DemandTextureApp::initLaunchParams( state, numDevices );
-    state.params.i[MIN_RAY_DEPTH_ID]    = m_minRayDepth;
-    state.params.i[MAX_RAY_DEPTH_ID]    = m_maxRayDepth;
-    state.params.i[SUBFRAME_ID]         = m_subframeId;
-    state.params.i[UPDATE_RAY_CONES_ID] = m_updateRayCones;
-    state.params.f[MIP_SCALE_ID]        = m_mipScale;
+    OTKApp::initLaunchParams( state, numDevices );
+
+    // RayCones specific data
+    RayConesParams* rp = reinterpret_cast<RayConesParams*>( state.params.extraData );
+    rp->minRayDepth = m_minRayDepth;
+    rp->maxRayDepth = m_maxRayDepth;
+    rp->updateRayCones = m_updateRayCones;
+    rp->mipScale = m_mipScale;
 }
 
 void RayConesApp::createTexture()
@@ -85,7 +87,7 @@ void RayConesApp::createTexture()
     
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
@@ -97,7 +99,7 @@ void RayConesApp::createTexture()
 void RayConesApp::createScene()
 {
     const unsigned int NUM_SEGMENTS = 128;
-    TriangleHitGroupData mat{};
+    OTKAppTriangleHitGroupData mat{};
     std::vector<Vert> shape;
 
     // ground plane
@@ -106,7 +108,7 @@ void RayConesApp::createScene()
         // Ground
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -116,18 +118,18 @@ void RayConesApp::createScene()
         // Ground
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // balls
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.0, 10.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xeeeeee, -1, 0xeeeeee, -1, 0.0, 1.5f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{-4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{-4.0f, 0.0f, 3.5f}, 3.5f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -135,42 +137,42 @@ void RayConesApp::createScene()
     if( m_sceneId == 2 )
     {
         // Ground
-        mat.tex = makeSurfaceTex( 0x777777, -1, 0x777777, -1, 0x000000, -1, 0.01, 0.0f );
+        mat.tex = makeSurfaceTex( 0x444444, -1, 0x444444, -1, 0x000000, -1, 0.01, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeAxisPlane( float3{-40, -40, 0}, float3{40, 40, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-40, -40, 0}, float3{40, 40, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // Vases
         mat.tex = makeSurfaceTex( 0xffffff, 0, 0x252525, -1, 0x000000, -1, 0.0001, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 4.5f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 4.5f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 1.0f, 4.0f, 8.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 1.0f, 4.0f, 8.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.5f, 1.5f, 6.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.5f, 1.5f, 6.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
 
         // Vase liners with diffuse material to block negative curvature traps
         mat.tex = makeSurfaceTex( 0x111111, -1, 0x111111, -1, 0x000000, -1, 0.1, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.49f, 2.29f, 4.5f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{7.0f, 0.0f, 0.01f}, 0.49f, 2.29f, 4.5f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.99f, 3.99f, 8.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.99f, 3.99f, 8.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
-        ShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.49f, 1.49f, 6.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{-7.0f, 0.0f, 0.01f}, 0.49f, 1.49f, 6.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
 
         // Spheres
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0xffffff, -1, 0.0, 1.5f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
-        ShapeMaker::makeSphere( float3{1.0f, 7.0f, 3.7f}, 2.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{1.0f, 7.0f, 3.7f}, 2.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -180,25 +182,25 @@ void RayConesApp::createScene()
         // Ground
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x000001, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // sphere
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.001f, 10.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // sphere
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.01, 10.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{0.0f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{0.0f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // sphere
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xffffff, -1, 0x000000, -1, 0.1, 10.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{-5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{-5.5f, 0.0f, 3.5f}, 2.4f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -208,18 +210,18 @@ void RayConesApp::createScene()
         // Ground
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x010101, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // cylinder
         mat.tex = makeSurfaceTex( 0x000000, -1, 0x555555, -1, 0x000000, -1, 0.0, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.5f, 2.5f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.5f, 2.5f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         mat.tex = makeSurfaceTex( 0x555555, -1, 0x333333, -1, 0x000000, -1, 0.01, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.51f, 2.5f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeCylinder( float3{0.0, -5.0f, 0.0f}, 7.51f, 2.5f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -229,18 +231,18 @@ void RayConesApp::createScene()
         // Ground
         mat.tex = makeSurfaceTex( 0x222222, -1, 0x000000, -1, 0x000000, -1, 0.1, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         mat.tex = makeSurfaceTex( 0xeeeeee, 0, 0x000000, -1, 0x000000, -1, 0.1, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{2.0f, 0.0f, 4.5f}, 1.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{2.0f, 0.0f, 4.5f}, 1.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // reflector
         mat.tex = makeSurfaceTex( 0x000000, -1, 0xeeeeee, -1, 0x000000, -1, 0.0, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeSphere( float3{0.0f, 0.0f, 7.5f}, 7.5f, NUM_SEGMENTS, shape, 0.0f, 0.55f );
+        OTKAppShapeMaker::makeSphere( float3{0.0f, 0.0f, 7.5f}, 7.5f, NUM_SEGMENTS, shape, 0.0f, 0.55f );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -250,7 +252,7 @@ void RayConesApp::createScene()
 
 void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
 {
-    DemandTextureApp3D::keyCallback( window, key, scancode, action, mods );
+    OTKApp::keyCallback( window, key, scancode, action, mods );
     if( action != GLFW_PRESS )
         return;
 
@@ -267,7 +269,7 @@ void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode
     } else if( key == GLFW_KEY_MINUS ) {
         m_mipScale *= 2.0f;
     } else if( key == GLFW_KEY_X ) {
-        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
         {
             OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
             state.demandLoader->unloadTextureTiles( m_textureIds[0] );
@@ -350,8 +352,7 @@ int main( int argc, char* argv[] )
     app.setSceneId( sceneId );
     app.initView();
     app.setNumLaunches( numLaunches );
-    app.sceneIsTriangles( true );
-    app.initDemandLoading();
+    app.initDemandLoading( demandLoading::Options{} );
     app.setTextureName( textureName );
     app.createTexture();
     app.createScene();

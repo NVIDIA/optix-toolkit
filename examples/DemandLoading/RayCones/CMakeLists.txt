@@ -16,7 +16,7 @@ embed_cuda(
     Examples/DemandLoading
   LIBRARIES
     OptiXToolkit::DemandLoading 
-    OptiXToolkit::DemandTextureAppBase
+    OptiXToolkit::OTKAppBase
     OptiXToolkit::ShaderUtil
   SOURCES
     RayCones.cu
@@ -30,7 +30,7 @@ target_link_libraries( rayCones
   PUBLIC
   rayConesKernel
   OptiXToolkit::DemandLoading
-  OptiXToolkit::DemandTextureAppBase
+  OptiXToolkit::OTKAppBase
   OptiXToolkit::Gui
   OptiXToolkit::ImageSources
   OptiXToolkit::Util
