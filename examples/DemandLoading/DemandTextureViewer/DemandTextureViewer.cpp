@@ -26,7 +26,7 @@ class DemandTextureViewer : public OTKApp
 {
   public:
     DemandTextureViewer( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-        : OTKApp( appTitle, width, height, outFileName, glInterop )
+        : OTKApp( appTitle, width, height, outFileName, glInterop, UI_IMAGEVIEW )
     {
     }
     void createTexture( const std::string& textureName, bool tile, bool mipmap );

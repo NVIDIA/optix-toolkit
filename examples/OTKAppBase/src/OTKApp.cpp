@@ -49,10 +49,12 @@ using namespace demandLoading;
 namespace otkApp
 {
 
-OTKApp::OTKApp( const char* appName, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
+OTKApp::OTKApp( const char* appName, unsigned int width, unsigned int height,
+                const std::string& outFileName, bool glInterop, OTKAppUIMode uiMode )
     : m_windowWidth( width )
     , m_windowHeight( height )
     , m_outputFileName( outFileName )
+    , m_uiMode( uiMode )
 {
     // Initialize CUDA and OptiX, create per device optix states
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
@@ -355,7 +357,6 @@ void OTKApp::createSBT( OTKAppPerDeviceOptixState& state )
     OTK_ERROR_CHECK( cudaMalloc( &d_miss_record, miss_record_size ) );
     MissSbtRecord miss_record;
     OTK_ERROR_CHECK( optixSbtRecordPackHeader( state.miss_prog_group, &miss_record ) );
-//    miss_record.data.background_color = m_backgroundColor;
     OTK_ERROR_CHECK( cudaMemcpy( d_miss_record, &miss_record, miss_record_size, cudaMemcpyHostToDevice ) );
 
     // Hitgroup records (one for each material)
@@ -515,11 +516,12 @@ void OTKApp::setView( float3 eye, float3 lookAt, float3 up, float fovY )
 {
     float aspectRatio = static_cast<float>( m_windowWidth ) / static_cast<float>( m_windowHeight );
     m_camera = otk::Camera( eye, lookAt, up, fovY, aspectRatio );
-    m_subframeId = 0;
 }
 
 void OTKApp::panCamera( float3 pan )
 {
+    if( dot(pan, pan) == 0.0f )
+        return;
     m_camera.setEye( m_camera.eye() + pan );
     m_camera.setLookAt( m_camera.lookAt() + pan );
     m_subframeId = 0;
@@ -527,6 +529,8 @@ void OTKApp::panCamera( float3 pan )
 
 void OTKApp::zoomCamera( float zoom )
 {
+    if( zoom == 1.0f )
+        return;
     float tanVal = zoom * tanf( m_camera.fovY() * (M_PI / 360.0f) );
     m_camera.setFovY( atanf( tanVal ) * 360.0f / M_PI );
     m_subframeId = 0;
@@ -534,6 +538,8 @@ void OTKApp::zoomCamera( float zoom )
 
 void OTKApp::rotateCamera( float rot )
 {
+    if( rot == 0.0f )
+        return;
     float3 U, V, W;
     m_camera.UVWFrame( U, V, W );
     W = float3{ W.x * cosf(rot) - W.y * sinf(rot), W.x * sinf(rot) + W.y * cosf(rot), W.z };
@@ -551,6 +557,7 @@ void OTKApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int nu
     state.params.display_texture_id = m_textureIds[0];
     state.params.interactive_mode   = isInteractive();
     state.params.render_mode        = m_render_mode;
+    state.params.subframe           = m_subframeId;
     state.params.projection         = m_projection;
     state.params.lens_width         = m_lens_width;
     state.params.camera.eye         = m_camera.eye();
@@ -716,7 +723,7 @@ void OTKApp::saveImage()
  }
 
 //------------------------------------------------------------------------------
-// User Interaction via GLFW
+// User Interaction
 //------------------------------------------------------------------------------
 
 void OTKApp::mouseButtonCallback( GLFWwindow* window, int button, int action, int /*mods*/ )
@@ -730,16 +737,34 @@ void OTKApp::cursorPosCallback( GLFWwindow* /*window*/, double xpos, double ypos
     float dx = static_cast<float>( xpos - m_mousePrevX );
     float dy = static_cast<float>( ypos - m_mousePrevY );
 
-    if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )  // pan camera
+    // Image View
+    if( m_uiMode == UI_IMAGEVIEW )
     {
-        float moveScale = 2.0f * tanf( m_camera.fovY() * M_PIf / 360.0f ) / m_windowHeight;
-        panCamera( float3{ -dx * moveScale, dy * moveScale, 0.0f } );
-    }
-    else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )  // zoom camera
-    {
-        zoomCamera( powf( 1.003f, ( dy - dx ) ) );
+        const float panScale = 2.0f * tanf( m_camera.fovY() * M_PIf / 360.0f ) / m_windowHeight;
+        const float zoomScale = 1.003f;
+
+        if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )
+            panCamera( float3{ -dx * panScale, dy * panScale, 0.0f } );
+        else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )
+            zoomCamera( powf( zoomScale, ( dy - dx ) ) );
     }
 
+    // First Person
+    if( m_uiMode == UI_FIRSTPERSON )
+    {
+        const float panScale = 0.03f;
+        const float rotScale = 0.002f;
+        float3 U, V, W;
+        m_camera.UVWFrame( U, V, W );
+
+        if( m_mouseButton == GLFW_MOUSE_BUTTON_LEFT )
+            panCamera( ( panScale * dx * normalize(U) ) + ( -panScale * dy * float3{0.0f, 1.0f, 0.0f} ) );
+        else if( m_mouseButton == GLFW_MOUSE_BUTTON_RIGHT )
+            rotateCamera( -rotScale * dx );
+    }
+
+    if( m_mouseButton != NO_BUTTON )
+        m_subframeId = 0;
     m_mousePrevX = xpos;
     m_mousePrevY = ypos;
 }
@@ -756,21 +781,38 @@ void OTKApp::windowSizeCallback( GLFWwindow* /*window*/, int32_t width, int32_t 
 
 void OTKApp::pollKeys()
 {
-    const float pan  = 0.003f * ( m_camera.fovY() * M_PIf / 360.0f );
-    const float zoom = 1.003f;
+    GLFWwindow* wnd = m_window;
 
-    if( glfwGetKey( getWindow(), GLFW_KEY_A ) )
-        panCamera( float3{-pan, 0.0f, 0.0f} );
-    if( glfwGetKey( getWindow(), GLFW_KEY_D ) )
-        panCamera( float3{pan, 0.0f, 0.0f} );
-    if( glfwGetKey( getWindow(), GLFW_KEY_S ) )
-        panCamera( float3{0.0f, -pan, 0.0f} );
-    if( glfwGetKey( getWindow(), GLFW_KEY_W ) )
-        panCamera( float3{0.0f, pan, 0.0f} );
-    if( glfwGetKey( getWindow(), GLFW_KEY_Q ) )
+    // Image View
+    if( m_uiMode == UI_IMAGEVIEW )
+    {
+        const float panScale  = 0.003f * ( m_camera.fovY() * M_PIf / 360.0f );
+        const float zoomScale = 1.003f;
+
+        float panx = panScale * ( glfwGetKey( wnd, GLFW_KEY_D ) - glfwGetKey( wnd, GLFW_KEY_A ) );
+        float pany = panScale * ( glfwGetKey( wnd, GLFW_KEY_W ) - glfwGetKey( wnd, GLFW_KEY_S ) );
+        panCamera( float3{panx, pany, 0.0f} );
+
+        float zoom = glfwGetKey( wnd, GLFW_KEY_Q ) ? zoomScale : 1.0f;
+        zoom /= glfwGetKey( wnd, GLFW_KEY_E ) ? zoomScale : 1.0f;
         zoomCamera( zoom );
-    if( glfwGetKey( getWindow(), GLFW_KEY_E ) )
-        zoomCamera( 1.0f / zoom );
+    }
+
+    // First Person
+    if( m_uiMode == UI_FIRSTPERSON )
+    {
+        float3 U, V, W;
+        m_camera.UVWFrame( U, V, W );
+
+        // Assuming Y Up
+        float uPan = 0.04f * ( glfwGetKey( wnd, GLFW_KEY_D ) - glfwGetKey( wnd, GLFW_KEY_A ) );
+        float wPan = 0.04f * ( glfwGetKey( wnd, GLFW_KEY_W ) - glfwGetKey( wnd, GLFW_KEY_S ) );
+        float upPan = 0.01f * ( glfwGetKey( wnd, GLFW_KEY_E ) - glfwGetKey( wnd, GLFW_KEY_Q ) );
+        panCamera( normalize( U ) * uPan + normalize( float3{W.x, W.y, 0.0f} ) * wPan + normalize( m_camera.up() ) * upPan );
+
+        float rot = 0.003f * ( glfwGetKey( wnd, GLFW_KEY_J ) - glfwGetKey( wnd, GLFW_KEY_L ) );
+        rotateCamera( rot );
+    }
 }
 
 void OTKApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/ )
@@ -787,6 +829,10 @@ void OTKApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/,
     else if( key >= GLFW_KEY_0 && key <= GLFW_KEY_9 )
         m_render_mode = key - GLFW_KEY_0;
 }
+
+//------------------------------------------------------------------------------
+// GLFW callbacks
+//------------------------------------------------------------------------------
 
 void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods )
 {

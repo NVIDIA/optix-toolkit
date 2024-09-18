@@ -26,7 +26,7 @@ class TexturePaintingApp : public OTKApp
 {
   public:
     TexturePaintingApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-        : OTKApp( appTitle, width, height, outFileName, glInterop )
+        : OTKApp( appTitle, width, height, outFileName, glInterop, UI_IMAGEVIEW )
     {
         m_brush.set( m_brushWidth, m_brushWidth, brushColor( m_brushColorVal, m_brushAlpha ) );
     }
