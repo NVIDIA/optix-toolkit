@@ -18,6 +18,8 @@
 #include <optional>
 #include <stdexcept>
 
+#include "DemandPbrtScene/MaterialBatch.h"
+
 namespace demandPbrtScene {
 
 template <typename Container>
@@ -59,8 +61,8 @@ class PbrtMaterialResolver : public MaterialResolver
   private:
     MaterialResolution    resolveMaterial( uint_t proxyMaterialId, SceneSyncState& m_sync );
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, SceneSyncState& syncState ) const;
-    bool resolveGeometryToExistingMaterial( uint_t proxyGeomId, SceneSyncState& syncState, uint_t materialId, const GeometryInstance& geomInstance );
-    bool resolveGeometryToProxyMaterial( uint_t proxyGeomId, SceneSyncState& syncState, const GeometryInstance& geomInstance );
+    bool resolveGeometryToExistingMaterial( uint_t proxyGeomId, uint_t materialId, const GeometryInstance& geomInstance, SceneSyncState& syncState );
+    void resolveGeometryToProxyMaterial( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState );
 
     // Dependencies
     const Options&        m_options;
@@ -153,6 +155,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
                            "" )
                   << '\n';
     }
+    m_materialBatch->addPrimitiveMaterialRange( geom.instance.groups[0].primitiveIndexEnd, materialId );
     m_materialLoader->remove( proxyMaterialId );
     m_proxyMaterialGeometries.erase( proxyMaterialId );
     return MaterialResolution::FULL;
@@ -243,9 +246,9 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Material
 }
 
 bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
-                                                              SceneSyncState&         syncState,
                                                               uint_t                  materialId,
-                                                              const GeometryInstance& geomInstance )
+                                                              const GeometryInstance& geomInstance,
+                                                              SceneSyncState&         syncState )
 {
     SceneGeometry geom{};
     geom.instance = geomInstance;
@@ -284,7 +287,7 @@ bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t            
     return true;
 }
 
-bool PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t proxyGeomId, SceneSyncState& syncState, const GeometryInstance& geomInstance )
+void PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState )
 {
     SceneGeometry geom{};
     geom.instance = geomInstance;
@@ -297,22 +300,32 @@ bool PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t proxyGeomId, S
     m_proxyMaterialGeometries[materialId] = geom;
     if( m_options.verboseProxyGeometryResolution )
     {
-        std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id " << geom.instanceIndex
-                  << " with proxy material id " << geom.materialId << '\n';
+        std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance index " << geom.instanceIndex
+                  << " (id " << instanceId << ") with proxy material id " << geom.materialId << '\n';
     }
     ++m_stats.numProxyMaterialsCreated;
-    return false;
 }
 
 bool PbrtMaterialResolver::resolveMaterialForGeometry( uint_t proxyGeomId, const GeometryInstance& geomInstance, SceneSyncState& syncState )
 {
     // check for shared materials
-    if( const std::optional<uint_t> id = findResolvedMaterial( geomInstance.groups[0], syncState ); id.has_value() )
+    bool updateNeeded{};
+    for( const MaterialGroup& group : geomInstance.groups )
     {
-        return resolveGeometryToExistingMaterial( proxyGeomId, syncState, id.value(), geomInstance );
+        if( const std::optional<uint_t> id = findResolvedMaterial( group, syncState ); id.has_value() )
+        {
+            if( resolveGeometryToExistingMaterial( proxyGeomId, id.value(), geomInstance, syncState ) )
+            {
+                updateNeeded = true;
+            }
+        }
+        else
+        {
+            resolveGeometryToProxyMaterial( proxyGeomId, geomInstance, syncState );
+        }
     }
 
-    return resolveGeometryToProxyMaterial( proxyGeomId, syncState, geomInstance );
+    return updateNeeded;
 }
 
 }  // namespace

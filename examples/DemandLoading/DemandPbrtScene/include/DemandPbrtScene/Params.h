@@ -281,7 +281,7 @@ struct Params
     uint_t                        numInstanceMaterialIds;  //
     uint_t*                       instanceMaterialIds;     // indexed by instanceId, material id per instance
     uint_t                        numMaterialIndices;      //
-    const MaterialIndex*          materialIndices;         // indexed by instanceId, one entry per instance
+    const MaterialIndex*          materialIndices;         // indexed by instance index, one entry per instance
     uint_t                        numPrimitiveMaterials;   // one entry per material group per instance
     const PrimitiveMaterialRange* primitiveMaterials;      // indexed by MaterialIndex::primitiveMaterialBegin
 
