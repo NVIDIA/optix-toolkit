@@ -34,6 +34,7 @@
 
 constexpr const char* ALPHA_MAP_PATH{ "alphaMap.png" };
 constexpr const char* DIFFUSE_MAP_PATH{ "diffuseMap.png" };
+constexpr int         ARBITRARY_PRIMITIVE_INDEX_END{ 654 };
 
 using namespace testing;
 using namespace otk::testing;
@@ -41,6 +42,24 @@ using namespace demandPbrtScene;
 using namespace demandPbrtScene::testing;
 
 namespace {
+
+PhongMaterial arbitraryPhongMaterial()
+{
+    PhongMaterial result{};
+    result.Ka       = make_float3( 1.0f, 2.0f, 3.0f );
+    result.Kd       = make_float3( 4.0f, 5.0f, 6.0f );
+    result.Ks       = make_float3( 7.0f, 8.0f, 9.0f );
+    result.Kr       = make_float3( 10.0f, 11.0f, 12.0f );
+    result.phongExp = 13.4f;
+    return result;
+}
+
+PhongMaterial arbitraryOtherPhongMaterial()
+{
+    PhongMaterial result{ arbitraryPhongMaterial() };
+    result.Kd = make_float3( 3.0f, 2.0f, 1.0f );
+    return result;
+}
 
 class MockMaterialBatch : public StrictMock<MaterialBatch>
 {
@@ -125,7 +144,7 @@ void TestMaterialResolverForGeometry::SetUp()
 {
     m_geom.primitive                  = GeometryPrimitive::TRIANGLE;
     m_geom.instance.traversableHandle = 0xbaadbeefU;
-    m_geom.groups.resize( 1 );
+    m_geom.groups.push_back( MaterialGroup{ arbitraryPhongMaterial(), {}, {}, ARBITRARY_PRIMITIVE_INDEX_END } );
 }
 
 class TestMaterialResolverRequestedProxyIds : public TestMaterialResolverForGeometry
@@ -217,17 +236,11 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMateri
 
 TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
 {
-    const uint_t  proxyGeomId{ 1111 };
-    PhongMaterial existingMaterial{};
-    existingMaterial.Ka       = make_float3( 1.0f, 2.0f, 3.0f );
-    existingMaterial.Kd       = make_float3( 4.0f, 5.0f, 6.0f );
-    existingMaterial.Ks       = make_float3( 7.0f, 8.0f, 9.0f );
-    existingMaterial.Kr       = make_float3( 10.0f, 11.0f, 12.0f );
-    existingMaterial.phongExp = 13.4f;
-    const uint_t  existingMaterialId{ 1 };
-    PhongMaterial otherMaterial{ existingMaterial };
-    otherMaterial.Kd = make_float3( 3.0f, 2.0f, 1.0f );
-    const uint_t otherMaterialId{ 0 };
+    const uint_t        proxyGeomId{ 1111 };
+    const PhongMaterial existingMaterial{ arbitraryPhongMaterial() };
+    const uint_t        existingMaterialId{ 1 };
+    const PhongMaterial otherMaterial{ arbitraryOtherPhongMaterial() };
+    const uint_t        otherMaterialId{ 0 };
     m_sync.realizedMaterials.push_back( otherMaterial );
     m_sync.realizedMaterials.push_back( existingMaterial );
     m_sync.instanceMaterialIds.push_back( otherMaterialId );
@@ -269,6 +282,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0 ) ).WillOnce( Return( 1U ) );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -337,6 +351,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
         .WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0 ) ).WillOnce( Return( 1U ) );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -377,6 +392,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
         .WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0 ) ).WillOnce( Return( 1U ) );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
