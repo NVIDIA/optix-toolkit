@@ -5,8 +5,8 @@
 #include "StochasticTextureFilteringKernel.h"
 #include "StochasticTextureFilteringParams.h"
 
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
-#include <OptiXToolkit/DemandTextureAppBase/ShapeMaker.h>
+#include <OptiXToolkit/OTKAppBase/OTKApp.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/Gui.h>
@@ -23,7 +23,7 @@
 #include <optix_stubs.h>
 
 using namespace otk;
-using namespace demandTextureApp;
+using namespace otkApp;
 using namespace demandLoading;
 using namespace imageSource;
 
@@ -31,16 +31,16 @@ using namespace imageSource;
 // StochasticTextureFilteringApp
 //------------------------------------------------------------------------------
 
-class StochasticTextureFilteringApp : public DemandTextureApp3D
+class StochasticTextureFilteringApp : public OTKApp
 {
   public:
     StochasticTextureFilteringApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
-    void createTexture() override;
+    void createTexture();
     void initView() override;
     void createScene();
     void setSceneId( int sceneId ) { m_sceneId = sceneId; }
-    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
+    void initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices ) override;
     void drawGui() override;
 
   protected:
@@ -67,7 +67,7 @@ class StochasticTextureFilteringApp : public DemandTextureApp3D
 
 
 StochasticTextureFilteringApp::StochasticTextureFilteringApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-    : DemandTextureApp3D( appTitle, width, height, outFileName, glInterop )
+    : OTKApp( appTitle, width, height, outFileName, glInterop, UI_FIRSTPERSON )
 {
     m_backgroundColor = float4{1.0f, 1.0f, 1.0f, 0.0f};
     m_projection = Projection::PINHOLE;
@@ -86,29 +86,28 @@ void StochasticTextureFilteringApp::initView()
 }
 
 
-void StochasticTextureFilteringApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
+void StochasticTextureFilteringApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices )
 {
-    // If the GUI state has changed, reset the subframe id.
-    if( state.params.i[PIXEL_FILTER_ID] != static_cast<int>( m_selectedPixelFilterId ) ||
-        state.params.i[TEXTURE_FILTER_ID] != static_cast<int>( m_selectedTextureFilterId ) ||
-        state.params.i[TEXTURE_JITTER_ID] != static_cast<int>( m_selectedTextureJitterId ) ||
-        state.params.f[TEXTURE_FILTER_WIDTH_ID] != m_filterWidth ||
-        state.params.f[TEXTURE_FILTER_STRENGTH_ID] != m_filterStrength ||
-        m_singleSample )
+    StochasticTextureFilteringParams* stp = reinterpret_cast<StochasticTextureFilteringParams*>( state.params.extraData );
+    if( stp->pixelFilterMode != m_selectedPixelFilterId ||
+        stp->textureFilterMode != m_selectedTextureFilterId ||
+        stp->textureJitterMode != m_selectedTextureJitterId ||
+        stp->mipScale != m_mipScale ||
+        stp->textureFilterWidth != m_filterWidth ||
+        stp->textureFilterStrength != m_filterStrength )
+    {
         m_subframeId = 0;
+    }
 
-    DemandTextureApp::initLaunchParams( state, numDevices );
+    OTKApp::initLaunchParams( state, numDevices );
 
-    state.params.i[SUBFRAME_ID]       = m_subframeId;
-    state.params.i[PIXEL_FILTER_ID]   = m_selectedPixelFilterId; 
-    state.params.i[TEXTURE_FILTER_ID] = m_selectedTextureFilterId;
-    state.params.i[TEXTURE_JITTER_ID] = m_selectedTextureJitterId;
-    state.params.i[MOUSEX_ID]         = static_cast<int>( m_mousePrevX );
-    state.params.i[MOUSEY_ID]         = static_cast<int>( m_mousePrevY );
-
-    state.params.f[MIP_SCALE_ID]               = m_mipScale;
-    state.params.f[TEXTURE_FILTER_WIDTH_ID]    = m_filterWidth;
-    state.params.f[TEXTURE_FILTER_STRENGTH_ID] = m_filterStrength;
+    // Stochastic texture filtering specific data
+    stp->pixelFilterMode = m_selectedPixelFilterId;
+    stp->textureFilterMode = m_selectedTextureFilterId;
+    stp->textureJitterMode = m_selectedTextureJitterId;
+    stp->mipScale = m_mipScale;
+    stp->textureFilterWidth = m_filterWidth;
+    stp->textureFilterStrength = m_filterStrength;
 }
 
 void StochasticTextureFilteringApp::createTexture()
@@ -122,7 +121,7 @@ void StochasticTextureFilteringApp::createTexture()
     demandLoading::TextureDescriptor texDesc0 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_POINT );
     demandLoading::TextureDescriptor texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc0 );
@@ -135,7 +134,7 @@ void StochasticTextureFilteringApp::createTexture()
 void StochasticTextureFilteringApp::createScene()
 {
     const unsigned int NUM_SEGMENTS = 128;
-    TriangleHitGroupData mat{};
+    OTKAppTriangleHitGroupData mat{};
     std::vector<Vert> shape;
 
     // ground plane
@@ -143,7 +142,7 @@ void StochasticTextureFilteringApp::createScene()
     {
         mat.tex = makeSurfaceTex( 0x999999, 0, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-100, -100, 0}, float3{100, 100, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-100, -100, 0}, float3{100, 100, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -152,7 +151,7 @@ void StochasticTextureFilteringApp::createScene()
     {
         mat.tex = makeSurfaceTex( 0x999999, 0, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
         m_materials.push_back( mat );
-        ShapeMaker::makeAxisPlane( float3{-10, 0, -10}, float3{10, 0, 10}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-10, 0, -10}, float3{10, 0, 10}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
     }
 
@@ -163,24 +162,24 @@ void StochasticTextureFilteringApp::createScene()
         mat.tex = makeSurfaceTex( 0x222222, -1, 0x111111, -1, 0x000000, -1, 0.01, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeAxisPlane( float3{-40, -40, 0}, float3{40, 40, 0}, shape );
+        OTKAppShapeMaker::makeAxisPlane( float3{-40, -40, 0}, float3{40, 40, 0}, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // Vase
         mat.tex = makeSurfaceTex( 0x999999, 0, 0x111111, -1, 0x000000, -1, 0.0001, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 1.0f, 4.0f, 8.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 1.0f, 4.0f, 8.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
 
-        ShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeSphere( float3{-5.0f, 1.0f, 0.7f}, 0.7f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() - 1 );
 
         // Vase liners with diffuse material to block negative curvature traps
         mat.tex = makeSurfaceTex( 0x111111, -1, 0x111111, -1, 0x000000, -1, 0.1, 0.0f );
         m_materials.push_back( mat );
 
-        ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.99f, 3.99f, 8.0f, NUM_SEGMENTS, shape );
+        OTKAppShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.99f, 3.99f, 8.0f, NUM_SEGMENTS, shape );
         addShapeToScene( shape, m_materials.size() -1 );
     }
 
@@ -201,7 +200,7 @@ void StochasticTextureFilteringApp::mouseButtonCallback( GLFWwindow* window, int
 
 void StochasticTextureFilteringApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
 {
-    DemandTextureApp::keyCallback( window, key, scancode, action, mods );
+    OTKApp::keyCallback( window, key, scancode, action, mods );
     if( action != GLFW_PRESS )
         return;
 
@@ -218,7 +217,7 @@ void StochasticTextureFilteringApp::keyCallback( GLFWwindow* window, int32_t key
     } else if( key == GLFW_KEY_MINUS ) {
         m_mipScale *= 2.0f;
     } else if( key == GLFW_KEY_X ) {
-        for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+        for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
         {
             OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
             state.demandLoader->unloadTextureTiles( m_textureIds[0] );
@@ -340,8 +339,7 @@ int main( int argc, char* argv[] )
     app.setSceneId( sceneId );
     app.initView();
     app.setNumLaunches( numLaunches );
-    app.sceneIsTriangles( true );
-    app.initDemandLoading();
+    app.initDemandLoading( demandLoading::Options{} );
     app.setTextureName( textureName );
     app.createTexture();
     app.createScene();

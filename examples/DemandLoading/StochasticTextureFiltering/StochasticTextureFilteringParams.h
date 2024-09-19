@@ -4,17 +4,6 @@
 
 #pragma once
 
-const int SUBFRAME_ID  = 0;
-const int PIXEL_FILTER_ID = 1;
-const int TEXTURE_FILTER_ID = 2;
-const int TEXTURE_JITTER_ID = 3;
-const int MOUSEX_ID = 4;
-const int MOUSEY_ID = 5;
-
-const int MIP_SCALE_ID = 0;
-const int TEXTURE_FILTER_WIDTH_ID = 1;
-const int TEXTURE_FILTER_STRENGTH_ID = 2;
-
 // clang-format off
 enum        PixelFilterMode                   {pfBOX=0, pfTENT, pfGAUSSIAN, pfPIXELCENTER, pfSIZE};
 const char* PIXEL_FILTER_MODE_NAMES[pfSIZE] = {"Box",   "Tent", "Gaussian", "Pixel Center"};
@@ -27,3 +16,13 @@ enum        TextureJitterMode                   {jmNONE=0, jmBOX, jmTENT, jmGAUS
 const char* TEXTURE_JITTER_MODE_NAMES[jmSIZE] = {"None",   "Box", "Tent", "Gaussian", "EWA 0", "Extend Anisotropy",
                                                  "Unsharp Mask", "Lanczos", "Mitchell", "Cylindrical Lanczos"};
 // clang-format on
+
+struct StochasticTextureFilteringParams
+{
+    unsigned int pixelFilterMode;
+    unsigned int textureFilterMode;
+    unsigned int textureJitterMode;
+    float mipScale;
+    float textureFilterWidth;
+    float textureFilterStrength;
+};
