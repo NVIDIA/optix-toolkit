@@ -90,16 +90,17 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/ProgramGroups.h
     include/DemandPbrtScene/ProxyFactoryStatistics.h
     include/DemandPbrtScene/ProxyGranularity.h
-    include/DemandPbrtScene/RenderMode.h
     include/DemandPbrtScene/Renderer.h
+    include/DemandPbrtScene/RenderMode.h
     include/DemandPbrtScene/Sample.h
     include/DemandPbrtScene/Scene.h
     include/DemandPbrtScene/SceneAdapters.h
+    include/DemandPbrtScene/SceneGeometry.h
     include/DemandPbrtScene/SceneProxy.h
     include/DemandPbrtScene/SceneStatistics.h
     include/DemandPbrtScene/SceneSyncState.h
-    include/DemandPbrtScene/Stopwatch.h
     include/DemandPbrtScene/Statistics.h
+    include/DemandPbrtScene/Stopwatch.h
     include/DemandPbrtScene/Timer.h
     include/DemandPbrtScene/UserInterface.h
     include/DemandPbrtScene/UserInterfaceStatistics.h

@@ -85,9 +85,9 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
     }
 
     SceneGeometry& geom{ it->second };
-    if( geom.materialId != proxyMaterialId )
+    if( geom.materialIds[0] != proxyMaterialId )
     {
-        throw std::runtime_error( "Mismatched material id; expected " + std::to_string( geom.materialId ) + ", got "
+        throw std::runtime_error( "Mismatched material id; expected " + std::to_string( geom.materialIds[0] ) + ", got "
                                   + std::to_string( proxyMaterialId ) );
     }
 
@@ -267,7 +267,7 @@ bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t            
 
     // reuse already realized material
     const uint_t instanceId{ static_cast<uint_t>( syncState.instanceMaterialIds.size() ) };
-    geom.materialId                   = materialId;
+    geom.materialIds.push_back( materialId );
     geom.instance.instance.sbtOffset  = m_programGroups->getRealizedMaterialSbtOffset( geom.instance );
     geom.instance.instance.instanceId = instanceId;
     geom.instanceIndex                = syncState.topLevelInstances.size();
@@ -293,7 +293,7 @@ void PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t proxyGeomId, c
     geom.instance = geomInstance;
     const uint_t materialId{ m_materialLoader->add() };
     const uint_t instanceId{ materialId };  // use the proxy material id as the instance id
-    geom.materialId                   = materialId;
+    geom.materialIds.push_back( materialId );
     geom.instance.instance.instanceId = instanceId;
     geom.instanceIndex                = syncState.topLevelInstances.size();
     syncState.topLevelInstances.push_back( geom.instance.instance );
@@ -301,7 +301,7 @@ void PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t proxyGeomId, c
     if( m_options.verboseProxyGeometryResolution )
     {
         std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance index " << geom.instanceIndex
-                  << " (id " << instanceId << ") with proxy material id " << geom.materialId << '\n';
+                  << " (id " << instanceId << ") with proxy material id " << geom.materialIds[0] << '\n';
     }
     ++m_stats.numProxyMaterialsCreated;
 }
