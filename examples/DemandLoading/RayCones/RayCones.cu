@@ -48,7 +48,7 @@ __constant__ OTKAppLaunchParams params;
 //------------------------------------------------------------------------------
  
 static __forceinline__ __device__
-bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke, float3& Kd, float3& Ks, float3& Kt, float& roughness, float& ior )
+bool getSurfaceValues( SurfaceGeometry geom, const SurfaceTexture* tex, float3& Ke, float3& Kd, float3& Ks, float3& Kt, float& roughness, float& ior )
 {
     if( tex == nullptr )
     {
@@ -61,10 +61,10 @@ bool getSurfaceValues( SurfaceGeometry g, const SurfaceTexture* tex, float3& Ke,
     else
     {
         bool resident = false;
-        Ke = sampleTexture( params.demand_texture_context, g, tex->emission, &resident );
-        Kd = sampleTexture( params.demand_texture_context, g, tex->diffuse, &resident ); 
-        Ks = sampleTexture( params.demand_texture_context, g, tex->specular, &resident ); 
-        Kt = sampleTexture( params.demand_texture_context, g, tex->transmission, &resident ); 
+        Ke = sampleTexture( params.demand_texture_context, geom, tex->emission, &resident );
+        Kd = sampleTexture( params.demand_texture_context, geom, tex->diffuse, &resident );
+        Ks = sampleTexture( params.demand_texture_context, geom, tex->specular, &resident );
+        Kt = sampleTexture( params.demand_texture_context, geom, tex->transmission, &resident );
         roughness = tex->roughness + MIN_ROUGHNESS;
         ior = tex->ior;
         return resident;
@@ -85,21 +85,21 @@ static __forceinline__ __device__ void makeEyeRay( uint2 px, float2 xi, float2 l
 static __forceinline__ __device__ float4 alternateOutputColor( OTKAppRayPayload& payload )
 {
     bool resident = false;
-    SurfaceGeometry& g = payload.geometry;
+    SurfaceGeometry& geom = payload.geometry;
     const SurfaceTexture* tex = (SurfaceTexture*)payload.material;
 
     if( params.render_mode == NORMALS )
-        return 0.5f * float4{g.N.x, g.N.y, g.N.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
+        return 0.5f * float4{geom.N.x, geom.N.y, geom.N.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
     else if( params.render_mode == GEOMETRIC_NORMALS )
-        return 0.5f * float4{g.Ng.x, g.Ng.y, g.Ng.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
+        return 0.5f * float4{geom.Ng.x, geom.Ng.y, geom.Ng.z, 0.0f} + 0.5f * float4{1.0f, 1.0f, 1.0f, 0.0f};
     else if( params.render_mode == TEX_COORDS )
-        return float4{g.uv.x, g.uv.y, 0.0f, 0.0f};
+        return float4{geom.uv.x, geom.uv.y, 0.0f, 0.0f};
     else if( params.render_mode == DDX_LENGTH )
-        return float4{ 10.0f * length(g.ddx), 10.0f * length(g.ddy), 0.0f, 0.0f };
+        return float4{ 10.0f * length(geom.ddx), 10.0f * length(geom.ddy), 0.0f, 0.0f };
     else if( params.render_mode == CURVATURE )
-        return float4{maxf(g.curvature, 0.0f), maxf(-g.curvature, 0.0f), 0.0f, 0.0f};
+        return float4{maxf(geom.curvature, 0.0f), maxf(-geom.curvature, 0.0f), 0.0f, 0.0f};
     else if( tex != nullptr ) // diffuse texture
-        return make_float4( sampleTexture( params.demand_texture_context, g, tex->diffuse, &resident ) );
+        return make_float4( sampleTexture( params.demand_texture_context, geom, tex->diffuse, &resident ) );
     return float4{0.0f, 0.0f, 0.0f, 0.0f};
 }
 
