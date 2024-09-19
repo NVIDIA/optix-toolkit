@@ -7,13 +7,15 @@
 #include "DemandPbrtScene/Dependencies.h"
 #include "DemandPbrtScene/SceneProxy.h"
 
+#include <vector>
+
 namespace demandPbrtScene {
 
 struct SceneGeometry
 {
-    GeometryInstance instance;
-    uint_t           materialId;
-    uint_t           instanceIndex;
+    GeometryInstance    instance;
+    std::vector<uint_t> materialIds;  // one per MaterialGroup
+    uint_t              instanceIndex;
 };
 
 }  // namespace demandPbrtScene

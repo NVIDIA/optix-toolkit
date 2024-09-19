@@ -36,7 +36,7 @@ struct GeometryInstance
     CUdeviceptr                accelBuffer;
     GeometryPrimitive          primitive;
     OptixInstance              instance;
-    std::vector<MaterialGroup> groups;      // {Material,index} for each group
+    std::vector<MaterialGroup> groups;      // {Material,primitiveIndexEnd} for each group
     TriangleNormals*           devNormals;  // device pointer to per-primitive normals, nullptr if none
     TriangleUVs*               devUVs;      // device pointer to per-vertex UVs, nullptr if none
 };
