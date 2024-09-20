@@ -11,14 +11,15 @@
 #include <OptiXToolkit/ShaderUtil/stochastic_filtering.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
-#include <OptiXToolkit/DemandTextureAppBase/LaunchParams.h>
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureAppDeviceUtil.h>
-#include <OptiXToolkit/DemandTextureAppBase/SimpleBsdf.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppLaunchParams.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppDeviceUtil.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppSimpleBsdf.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppOptixPrograms.h>
 
 #include "CdfInversionParams.h"
 
 using namespace demandLoading;
-using namespace demandTextureApp;
+using namespace otkApp;
 using namespace otk; 
 
 OTK_DEVICE const float EPS = 0.0001f;
@@ -41,25 +42,12 @@ enum RenderModes
 //------------------------------------------------------------------------------
 
 extern "C" {
-__constant__ Params params;
+__constant__ OTKAppLaunchParams params;
 }
-
-//------------------------------------------------------------------------------
-// Ray Payload - per ray data for OptiX programs
-//------------------------------------------------------------------------------
 
 struct Ray
 {
     float3 o, d;
-};
-
-struct RayPayload
-{
-    RayCone rayCone;
-    SurfaceGeometry geom;
-    const SurfaceTexture* tex;
-    bool occluded;
-    int rayDepth;
 };
 
 //------------------------------------------------------------------------------
@@ -149,28 +137,22 @@ void evalBsdf( SurfaceGeometry& geom, SurfaceValues& sv, float3 inDirection, flo
         prob = 0.0f;
 }
 
-static __forceinline__ __device__ 
-CdfInversionTable* getInversionTable() 
-{
-    return reinterpret_cast<CdfInversionTable*>( &params.c[EMAP_INVERSION_TABLE_ID] );
-}
-
 static __forceinline__ __device__
 float2 sampleEmap( float2 xi )
 {
+    CdfInversionParams* cdfParams = reinterpret_cast<CdfInversionParams*>( params.extraData );
+
     #ifdef emBIN_SEARCH
-        return sampleCdfBinSearch( *getInversionTable(), xi );
+        return sampleCdfBinSearch( cdfParams->emapCdfInversionTable, xi );
     #elif emLIN_SEARCH
-        return sampleCdfLinSearch( *getInversionTable(), xi );
+        return sampleCdfLinSearch( cdfParams->emapCdfInversionTable, xi );
     #elif emDIRECT_LOOKUP
-        return sampleCdfDirectLookup( *getInversionTable(), xi );
+        return sampleCdfDirectLookup( cdfParams->emapCdfInversionTable, xi );
     #elif emALIAS_TABLE
-        CdfInversionTable* it = getInversionTable();
-        AliasTable* at = reinterpret_cast<AliasTable*>( &params.c[EMAP_ALIAS_TABLE_ID] );
-        return alias2D( *at, it->width, it->height, xi );
+        CdfInversionTable* it = cdfParams->emapCdfInversionTable;
+        return alias2D( cdfParams->emapAliasTable, it->width, it->height, xi );
     #elif emSUMMED_AREA_TABLE
-        ISummedAreaTable* sat = reinterpret_cast<ISummedAreaTable*>( &params.c[EMAP_SUMMED_AREA_TABLE_ID] );
-        return sample( *sat, xi );
+        return sample( cdfParams->emapSummedAraeTable, xi );
     #endif
 }
 
@@ -178,13 +160,14 @@ static __forceinline__ __device__
 float3 evalEmap( float2 uv, float rayConeAngle, bool* isResident, float2 xi )
 {
     // Switch using ray cone and mip level 0
-    if( params.i[MIP_LEVEL_0_ID] )
+    const CdfInversionParams* cdfParams = reinterpret_cast<CdfInversionParams*>( params.extraData );
+    if( cdfParams->useMipLevelZero )
     {
         xi = float2{0.5f, 0.5f};
         rayConeAngle = 0.0f;
     }
 
-    unsigned int texId = params.i[EMAP_ID];
+    unsigned int texId = cdfParams->emapTextureId;
     float2 ddx = float2{rayConeAngle * 0.5f * M_1_PIf, 0.0f};
     float2 ddy = float2{0.0f, rayConeAngle * M_1_PIf};
     float2 texelJitter = tentFilter( xi ); // stochastic cubic filter
@@ -203,14 +186,17 @@ struct DirectionSample
 };
 
 static __forceinline__ __device__
-float3 renderRis( Ray& ray, RayPayload& payload, SurfaceValues& sv, unsigned int rseed )
+float3 renderRis( Ray& ray, OTKAppRayPayload& payload, SurfaceValues& sv, unsigned int rseed )
 {
+    const CdfInversionParams* cdfParams = reinterpret_cast<CdfInversionParams*>( params.extraData );
+    const float emapAverage = cdfParams->emapCdfInversionTable.aveValue;
+
     bool resident;
     float3 scatterDirection, bsdfVal, emapVal;
     float bsdfProb, emapProb, psampled, pdesired, cosTerm, sampleWeight;
     
     // Set up random direction update
-    unsigned int numSamples = params.i[NUM_RIS_SAMPLES];
+    unsigned int numSamples = cdfParams->numRisSamples;
     float2 dxi = float2{ 1.0f / sqrtf(numSamples) + 1.0f / numSamples, 1.0f / numSamples };
     float2 xi = rnd2(rseed);
 
@@ -221,18 +207,18 @@ float3 renderRis( Ray& ray, RayPayload& payload, SurfaceValues& sv, unsigned int
     {
         // Alternately sample BSDF or EMAP
         if( i%2 == 0 )
-            sampleBsdf( payload.geom, sv, ray.d, xi, scatterDirection );
+            sampleBsdf( payload.geometry, sv, ray.d, xi, scatterDirection );
         else
             scatterDirection = uvToVec( sampleEmap( xi ) );
 
         // Compute BSDF and EMAP values
-        cosTerm = maxf( 0.0f, dot(payload.geom.N, scatterDirection) );
-        evalBsdf( payload.geom, sv, ray.d, scatterDirection, bsdfVal, bsdfProb );
-        RayCone rayCone = payload.rayCone;
+        cosTerm = maxf( 0.0f, dot(payload.geometry.N, scatterDirection) );
+        evalBsdf( payload.geometry, sv, ray.d, scatterDirection, bsdfVal, bsdfProb );
+        RayCone rayCone = payload.rayCone1;
         float fs = 0.33333f * (bsdfVal.x + bsdfVal.y + bsdfVal.z);
-        rayConeReflect( payload.geom.curvature, fs, rayCone );
+        rayConeReflect( payload.geometry.curvature, fs, rayCone );
         emapVal = evalEmap( vecToUv(scatterDirection), rayCone.angle, &resident, xi );
-        emapProb = EPS + LUMINANCE( emapVal ) / ( getInversionTable()->aveValue * 4.0f * M_PIf );
+        emapProb = EPS + LUMINANCE( emapVal ) / ( emapAverage * 4.0f * M_PIf );
 
         // Calculate probabilities and update reservoir
         sample = DirectionSample{scatterDirection, bsdfVal * emapVal * cosTerm};
@@ -253,7 +239,7 @@ float3 renderRis( Ray& ray, RayPayload& payload, SurfaceValues& sv, unsigned int
         return float3{0.0f};
 
     // Determine if the direction is occluded
-    traceRay( params.traversable_handle, payload.geom.P, reservoir.y.direction, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+    traceRay( params.traversable_handle, payload.geometry.P, reservoir.y.direction, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
     if( payload.occluded )
         return float3{0.0f};
 
@@ -261,8 +247,11 @@ float3 renderRis( Ray& ray, RayPayload& payload, SurfaceValues& sv, unsigned int
 }
 
 static __forceinline__ __device__
-float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
+float3 renderMis( Ray& ray, OTKAppRayPayload& payload, SurfaceValues& sv, float2 xi )
 {
+    const CdfInversionParams* cdfParams = reinterpret_cast<CdfInversionParams*>( params.extraData );
+    const float emapAverage = cdfParams->emapCdfInversionTable.aveValue;
+
     bool resident;
     float3 scatterDirection, bsdfVal, emapVal;
     float bsdfProb, emapProb, prob;
@@ -277,9 +266,9 @@ float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
     // Choose bsdf or environment map sample
     uint2 px = getPixelIndex( params.num_devices, params.device_idx );
     if( bsdfWeight == 1.0f || bsdfWeight > 0.0f &&
-        ((params.i[SUBFRAME_ID] + px.x + px.y) % 2 == 0) )
+        ((params.subframe + px.x + px.y) % 2 == 0) )
     {
-        sampleBsdf( payload.geom, sv, ray.d, xi, scatterDirection );
+        sampleBsdf( payload.geometry, sv, ray.d, xi, scatterDirection );
     }
     else 
     {
@@ -288,26 +277,26 @@ float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
     }
 
     // Cosine term and backface test
-    float cosTerm = dot(payload.geom.N, scatterDirection);
+    float cosTerm = dot(payload.geometry.N, scatterDirection);
     if( cosTerm < 0.0f )
         return float3{0.0f};
 
     // Evaluate the bsdf
-    evalBsdf( payload.geom, sv, ray.d, scatterDirection, bsdfVal, bsdfProb );
+    evalBsdf( payload.geometry, sv, ray.d, scatterDirection, bsdfVal, bsdfProb );
     if( !(bsdfProb > 0.0f) )
         return float3{0.0f};
 
     // Determine if the direction is occluded
-    traceRay( params.traversable_handle, payload.geom.P, scatterDirection, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+    traceRay( params.traversable_handle, payload.geometry.P, scatterDirection, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
     if( payload.occluded )
         return float3{0.0f};
 
     // Update the ray cone and evaluate environment map
     float fs = 0.33333f * (bsdfVal.x + bsdfVal.y + bsdfVal.z);
-    rayConeReflect( payload.geom.curvature, fs, payload.rayCone );
+    rayConeReflect( payload.geometry.curvature, fs, payload.rayCone1 );
 
-    emapVal = evalEmap( vecToUv(scatterDirection), payload.rayCone.angle, &resident, xi );
-    emapProb = EPS + LUMINANCE( emapVal ) / ( getInversionTable()->aveValue * 4.0f * M_PIf );
+    emapVal = evalEmap( vecToUv(scatterDirection), payload.rayCone1.angle, &resident, xi );
+    emapProb = EPS + LUMINANCE( emapVal ) / ( emapAverage * 4.0f * M_PIf );
     prob = (1.0f - bsdfWeight) * emapProb + bsdfWeight * bsdfProb;
 
     return emapVal * bsdfVal * cosTerm / prob;
@@ -319,31 +308,37 @@ float3 renderMis( Ray& ray, RayPayload& payload, SurfaceValues& sv, float2 xi )
  
 extern "C" __global__ void __raygen__rg()
 {
+    const CdfInversionParams* cdfParams = reinterpret_cast<CdfInversionParams*>( params.extraData );
+
     bool resident;
     uint2 px = getPixelIndex( params.num_devices, params.device_idx );
     if( !pixelInBounds( px, params.image_dim ) )
         return;
 
     // Initialize random number seed and radiance
-    const int subframeId = params.i[SUBFRAME_ID];
+    const int subframeId = params.subframe;
     unsigned int rseed = srand( px.x, px.y, subframeId );
 
     // Ray and payload definition
     Ray ray;
-    RayPayload payload{};
-    makeEyeRay( px, ray.o, ray.d, payload.rayCone, rnd2( rseed ) );
+    OTKAppRayPayload payload{};
+    makeEyeRay( px, ray.o, ray.d, payload.rayCone1, rnd2( rseed ) );
+    payload.rayCone2 = payload.rayCone1;
 
     // Trace ray. If it misses, sample the environment map, otherwise render
     float3 radiance = float3{0.0f, 0.0f, 0.0f};
     traceRay( params.traversable_handle, ray.o, ray.d, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+    payload.geometry.ddx *= cdfParams->mipScale;
+    payload.geometry.ddy *= cdfParams->mipScale;
+
     if( !payload.occluded )
     {
-        radiance = evalEmap( vecToUv( ray.d ), payload.rayCone.angle, &resident, rnd2(rseed) );
+        radiance = evalEmap( vecToUv( ray.d ), payload.rayCone1.angle, &resident, rnd2(rseed) );
     }
     else
     {
         SurfaceValues sv;
-        getSurfaceValues( payload.geom, payload.tex, sv );
+        getSurfaceValues( payload.geometry, (SurfaceTexture*)payload.material, sv );
         float3 colorScale = float3{1.0f, 1.0f, 1.0f};
         float3 scatterDirection;
 
@@ -351,16 +346,16 @@ extern "C" __global__ void __raygen__rg()
         if( sv.roughness <= MIN_ROUGHNESS )
         {
             colorScale = sv.Ks;
-            scatterDirection = reflect( ray.d, payload.geom.N );
-            payload.rayCone = reflect( payload.rayCone, payload.geom.curvature );
-            traceRay( params.traversable_handle, payload.geom.P, scatterDirection, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
+            scatterDirection = reflect( ray.d, payload.geometry.N );
+            payload.rayCone1 = reflect( payload.rayCone1, payload.geometry.curvature );
+            traceRay( params.traversable_handle, payload.geometry.P, scatterDirection, EPS, INF, OPTIX_RAY_FLAG_NONE, &payload );
             ray.d = scatterDirection;
-            getSurfaceValues( payload.geom, payload.tex, sv );
+            getSurfaceValues( payload.geometry, (SurfaceTexture*)payload.material, sv );
         }
 
         if( !payload.occluded )
         {
-            radiance = colorScale * evalEmap( vecToUv(scatterDirection), payload.rayCone.angle, &resident, rnd2(rseed) );
+            radiance = colorScale * evalEmap( vecToUv(scatterDirection), payload.rayCone1.angle, &resident, rnd2(rseed) );
         }
         else
         {
@@ -380,63 +375,4 @@ extern "C" __global__ void __raygen__rg()
 
     accum_color *= ( 1.0f / accum_color.w );
     params.result_buffer[image_idx] = make_color( accum_color );
-}
-
-extern "C" __global__ void __miss__ms()
-{
-    const float4 bg = reinterpret_cast<MissData*>( optixGetSbtDataPointer() )->background_color;
-    getRayPayload()->occluded = false;
-}
-
-extern "C" __global__ void __closesthit__ch()
-{
-    RayPayload* payload = getRayPayload();
-    payload->occluded = true;
-    if( isOcclusionRay() ) // for occlusion query, just return
-        return;
-
-    // Get hit info
-    const TriangleHitGroupData* hg_data = reinterpret_cast<TriangleHitGroupData*>( optixGetSbtDataPointer() );
-    const int vidx = optixGetPrimitiveIndex() * 3;
-    const float3 bary = getTriangleBarycentrics();
-    const float3 D = optixGetWorldRayDirection();
-    const float rayDistance = optixGetRayTmax();
-
-    // Get triangle geometry
-    float4* vertices = &hg_data->vertices[vidx];
-    float3& Va = *reinterpret_cast<float3*>( &vertices[0] );
-    float3& Vb = *reinterpret_cast<float3*>( &vertices[1] );
-    float3& Vc = *reinterpret_cast<float3*>( &vertices[2] );
-    const float3* normals = &hg_data->normals[vidx];
-    const float2* tex_coords = &hg_data->tex_coords[vidx];
-
-    // Compute Surface geometry for hit point
-    SurfaceGeometry& geom = payload->geom;
-    geom.P = bary.x * Va + bary.y * Vb + bary.z * Vc; 
-    geom.Ng = normalize( cross( Vb-Va, Vc-Va ) ); //geometric normal
-    geom.N = normalize( bary.x * normals[0] + bary.y * normals[1] + bary.z * normals[2] ); // shading normal
-    makeOrthoBasis( geom.N, geom.S, geom.T );
-    geom.uv = bary.x * tex_coords[0] + bary.y * tex_coords[1] + bary.z * tex_coords[2];
-    geom.curvature = minTriangleCurvature( Va, Vb, Vc, normals[0], normals[1], normals[2] );
-
-    // Flip normal for local geometry if needed
-    geom.flipped = false;
-    if( dot( D, geom.Ng ) > 0.0f )
-    {
-        geom.Ng *= -1.0f;
-        geom.N *= -1.0f;
-        geom.curvature *= -1.0f;
-        geom.flipped = true;
-    }
-
-    // Get the surface texture
-    payload->tex = &hg_data->tex;
-
-    // Propagate the ray cone and construct ray differentials on surface
-    float3 dPdx, dPdy;
-    payload->rayCone = propagate( payload->rayCone, rayDistance );
-    projectToRayDifferentialsOnSurface( payload->rayCone.width, D, geom.N, dPdx, dPdy );
-    computeTexGradientsForTriangle( Va, Vb, Vc, tex_coords[0], tex_coords[1], tex_coords[2], dPdx, dPdy, geom.ddx, geom.ddy );
-    geom.ddx *= params.f[MIP_SCALE_ID];
-    geom.ddy *= params.f[MIP_SCALE_ID];
 }
