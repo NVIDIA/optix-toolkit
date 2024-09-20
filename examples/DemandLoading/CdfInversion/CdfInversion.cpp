@@ -5,8 +5,8 @@
 #include "CdfInversionParams.h"
 #include "CdfInversionKernelCuda.h"
 
-#include <OptiXToolkit/DemandTextureAppBase/DemandTextureApp3D.h>
-#include <OptiXToolkit/DemandTextureAppBase/ShapeMaker.h>
+#include <OptiXToolkit/OTKAppBase/OTKApp.h>
+#include <OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/Gui.h>
@@ -27,7 +27,7 @@
 
 #include <chrono>
 
-using namespace demandTextureApp;
+using namespace otkApp;
 using namespace demandLoading;
 using namespace imageSource;
 using namespace std::chrono;
@@ -44,19 +44,19 @@ double elapsed( TIMEPOINT start ) { return duration_cast<duration<double>>( now(
 // CdfInversionApp
 //------------------------------------------------------------------------------
 
-class CdfInversionApp : public DemandTextureApp3D
+class CdfInversionApp : public OTKApp
 {
   public:
     CdfInversionApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop );
     void setTextureName( const char* textureName ) { m_textureName = textureName; }
-    void createTexture() override;
+    void createTexture();
     void initView() override;
     void createScene();
-    void initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices ) override;
+    void initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices ) override;
     void setRenderMode( int mode ) { m_render_mode = mode; }
     void setTableMipLevel( int level ) { m_tableMipLevel = level; }
     
-    void cleanupState( PerDeviceOptixState& state ) override;
+    void cleanupState( OTKAppPerDeviceOptixState& state ) override;
     void drawGui() override;
 
   protected:
@@ -74,7 +74,7 @@ class CdfInversionApp : public DemandTextureApp3D
 
 
 CdfInversionApp::CdfInversionApp( const char* appTitle, unsigned int width, unsigned int height, const std::string& outFileName, bool glInterop )
-    : DemandTextureApp3D( appTitle, width, height, outFileName, glInterop )
+    : OTKApp( appTitle, width, height, outFileName, glInterop, UI_FIRSTPERSON )
 {
     m_reset_subframe_threshold = 2;
     m_backgroundColor = float4{1.0f, 1.0f, 1.0f, 0.0f};
@@ -92,30 +92,30 @@ void CdfInversionApp::initView()
     setView( float3{0.0f, 25.0f, 7.0f}, float3{0.0f, 0.0f, 3.0f}, float3{0.0f, 0.0f, 1.0f}, 30.0f );
 }
 
-void CdfInversionApp::cleanupState( PerDeviceOptixState& state )
+void CdfInversionApp::cleanupState( OTKAppPerDeviceOptixState& state )
 {
     OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
     freeCdfInversionTableDevice( m_emapInversionTables[state.device_idx] );
     freeAliasTableDevice( m_emapAliasTables[state.device_idx] );
     freeISummedAreaTableDevice( m_emapSummedAreaTables[state.device_idx] );
-    DemandTextureApp::cleanupState( state );
+    OTKApp::cleanupState( state );
 }
 
-void CdfInversionApp::initLaunchParams( PerDeviceOptixState& state, unsigned int numDevices )
+void CdfInversionApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices )
 {
-    DemandTextureApp::initLaunchParams( state, numDevices );
-    state.params.i[SUBFRAME_ID]      = m_subframeId;
-    state.params.i[EMAP_ID]          = m_textureIds[0];
-    state.params.i[MIP_LEVEL_0_ID]   = m_mipLevel0;
-    state.params.i[NUM_RIS_SAMPLES]  = m_numRisSamples; 
-    state.params.f[MIP_SCALE_ID]     = m_mipScale;
+    OTKApp::initLaunchParams( state, numDevices );
 
-    CdfInversionTable* cit = reinterpret_cast<CdfInversionTable*>( &state.params.c[EMAP_INVERSION_TABLE_ID] );
-    *cit = m_emapInversionTables[ state.device_idx ];
-    AliasTable* at = reinterpret_cast<AliasTable*>( &state.params.c[EMAP_ALIAS_TABLE_ID] );
-    *at = m_emapAliasTables[ state.device_idx ];
-    ISummedAreaTable* sat = reinterpret_cast<ISummedAreaTable*>( &state.params.c[EMAP_SUMMED_AREA_TABLE_ID] );
-    *sat = m_emapSummedAreaTables[ state.device_idx ];
+    // CDF Inversion specific params
+    CdfInversionParams* cdfParams = reinterpret_cast<CdfInversionParams*>( state.params.extraData );
+    cdfParams->emapTextureId = m_textureIds[0];
+    cdfParams->useMipLevelZero = m_mipLevel0;
+    cdfParams->numRisSamples = m_numRisSamples;
+    cdfParams->mipScale = m_mipScale;
+
+    // FIXME: Store these tables directly in the states, instead of copying them over.
+    cdfParams->emapCdfInversionTable = m_emapInversionTables[state.device_idx];
+    cdfParams->emapAliasTable = m_emapAliasTables[state.device_idx];
+    cdfParams->emapSummedAreaTable = m_emapSummedAreaTables[state.device_idx];
 }
 
 void CdfInversionApp::createTexture()
@@ -132,7 +132,7 @@ void CdfInversionApp::createTexture()
     // Make an environment map texture for each device
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_WRAP, FILTER_BILINEAR );
     texDesc.addressMode[1] = CU_TR_ADDRESS_MODE_CLAMP;
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         const demandLoading::DemandTexture& texture = state.demandLoader->createTexture( imageSource, texDesc );
@@ -200,7 +200,7 @@ void CdfInversionApp::createTexture()
     printf( "Time to make alias table: %0.4f sec.\n", elapsed( makeAliasTableStart ) );
 
     // Copy tables to devices
-    for( PerDeviceOptixState& state : m_perDeviceOptixStates )
+    for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         bool allocCdf = true;
@@ -226,35 +226,35 @@ void CdfInversionApp::createTexture()
 void CdfInversionApp::createScene()
 {
     const unsigned int NUM_SEGMENTS = 256;
-    TriangleHitGroupData mat{};
+    OTKAppTriangleHitGroupData mat{};
     std::vector<Vert> shape;
 
     // Ground
     mat.tex = makeSurfaceTex( 0x335533, -1, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
     m_materials.push_back( mat );
-    ShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
+    OTKAppShapeMaker::makeAxisPlane( float3{-80, -80, 0}, float3{80, 80, 0}, shape );
     addShapeToScene( shape, m_materials.size() - 1 );
 
     // ball
     mat.tex = makeSurfaceTex( 0x000000, -1, 0xCCCCCC, -1, 0x000000, -1, 0.00000f, 0.0f );
     m_materials.push_back( mat );
-    ShapeMaker::makeSphere( float3{-3.0f, 4.5f, 0.75f}, 0.75f, NUM_SEGMENTS, shape );
+    OTKAppShapeMaker::makeSphere( float3{-3.0f, 4.5f, 0.75f}, 0.75f, NUM_SEGMENTS, shape );
     addShapeToScene( shape, m_materials.size() - 1 );
 
     // Vases
     mat.tex = makeSurfaceTex( 0x773333, -1, 0x010101, -1, 0x000000, -1, 0.02f, 0.0f );
     m_materials.push_back( mat );
-    ShapeMaker::makeVase( float3{6.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
+    OTKAppShapeMaker::makeVase( float3{6.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
     addShapeToScene( shape, m_materials.size() -1 );
 
     mat.tex = makeSurfaceTex( 0x010101, -1, 0x555566, -1, 0x000000, -1, 0.01f, 0.0f );
     m_materials.push_back( mat );
-    ShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
+    OTKAppShapeMaker::makeVase( float3{0.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
     addShapeToScene( shape, m_materials.size() -1 );
 
     mat.tex = makeSurfaceTex( 0x444444, -1, 0x000000, -1, 0x000000, -1, 0.01f, 0.0f );
     m_materials.push_back( mat );
-    ShapeMaker::makeVase( float3{-6.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
+    OTKAppShapeMaker::makeVase( float3{-6.0f, 0.0f, 0.01f}, 0.5f, 2.3f, 8.0f, NUM_SEGMENTS, shape );
     addShapeToScene( shape, m_materials.size() -1 );
     
     copyGeometryToDevice();
@@ -274,7 +274,7 @@ void CdfInversionApp::mouseButtonCallback( GLFWwindow* window, int button, int a
 
 void CdfInversionApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode, int32_t action, int32_t mods )
 {
-    DemandTextureApp::keyCallback( window, key, scancode, action, mods );
+    OTKApp::keyCallback( window, key, scancode, action, mods );
     if( action != GLFW_PRESS )
         return;
 
@@ -315,7 +315,7 @@ void displayComboBox( const char* title, const char* items[], unsigned int numIt
 
 void CdfInversionApp::drawGui()
 {
-    DemandTextureApp::drawGui();
+    OTKApp::drawGui();
 }
 
 //------------------------------------------------------------------------------
@@ -384,8 +384,7 @@ int main( int argc, char* argv[] )
     app.setTableMipLevel( tableMipLevel );
     app.setRenderMode( renderMode );
     app.setNumLaunches( numLaunches );
-    app.sceneIsTriangles( true );
-    app.initDemandLoading();
+    app.initDemandLoading( demandLoading::Options{} );
     app.setTextureName( textureName );
     app.setMaxSubframes( maxSubframes );
     app.createTexture();
