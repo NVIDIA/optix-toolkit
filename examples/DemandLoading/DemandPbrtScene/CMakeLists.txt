@@ -64,6 +64,7 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/Accumulator.h
     include/DemandPbrtScene/Application.h
     include/DemandPbrtScene/Config.h.in
+    include/DemandPbrtScene/Conversions.h
     include/DemandPbrtScene/CudaContext.h
     include/DemandPbrtScene/DemandTextureCache.h
     include/DemandPbrtScene/DemandTextureCacheStatistics.h

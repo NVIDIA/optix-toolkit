@@ -35,6 +35,7 @@
 constexpr const char* ALPHA_MAP_PATH{ "alphaMap.png" };
 constexpr const char* DIFFUSE_MAP_PATH{ "diffuseMap.png" };
 constexpr int         ARBITRARY_PRIMITIVE_INDEX_END{ 654 };
+constexpr int         ARBITRARY_PRIMITIVE_INDEX_END2{ 765 };
 
 using namespace testing;
 using namespace otk::testing;
@@ -61,13 +62,20 @@ PhongMaterial arbitraryOtherPhongMaterial()
     return result;
 }
 
+PhongMaterial arbitraryThirdPhongMaterial()
+{
+    PhongMaterial result{ arbitraryPhongMaterial() };
+    result.Ka = make_float3( 3.0f, 2.0f, 1.0f );
+    return result;
+}
+
 class MockMaterialBatch : public StrictMock<MaterialBatch>
 {
   public:
     ~MockMaterialBatch() override = default;
 
-    MOCK_METHOD( void, addMaterialIndex, ( uint_t, uint_t, SceneSyncState& ), ( override ) );
-    MOCK_METHOD( uint_t, addPrimitiveMaterialRange, ( uint_t, uint_t, SceneSyncState& ), ( override ) );
+    MOCK_METHOD( void, addMaterialIndex, (uint_t, uint_t, SceneSyncState&), ( override ) );
+    MOCK_METHOD( uint_t, addPrimitiveMaterialRange, (uint_t, uint_t, SceneSyncState&), ( override ) );
 };
 
 using MockMaterialBatchPtr = std::shared_ptr<MockMaterialBatch>;
@@ -178,6 +186,35 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialForGeometry
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( proxyMaterialId, m_sync.topLevelInstances[0].instanceId );
     EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances[0].traversableHandle );
+    ASSERT_FALSE( m_sync.materialIndices.empty() );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
+}
+
+TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialsForCoarseGeometry )
+{
+    const uint_t         proxyGeomId{ 1111U };
+    const uint_t         proxyMaterialId1{ 4444U };
+    const uint_t         proxyMaterialId2{ 5555U };
+    const ExpectationSet firstMaterial{ EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId1 ) ) };
+    EXPECT_CALL( *m_loader, add() ).After( firstMaterial ).WillOnce( Return( proxyMaterialId2 ) );
+    m_geom.groups.push_back( MaterialGroup{ arbitraryOtherPhongMaterial(), {}, {}, ARBITRARY_PRIMITIVE_INDEX_END2 } );
+
+    const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
+
+    EXPECT_FALSE( result );
+    ASSERT_FALSE( m_sync.topLevelInstances.empty() );
+    EXPECT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances[0].traversableHandle );
+    ASSERT_FALSE( m_sync.materialIndices.empty() );
+    EXPECT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 2, 0 } ), m_sync.materialIndices[0] );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 2U, m_sync.primitiveMaterials.size() );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId1 } ), m_sync.primitiveMaterials[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, proxyMaterialId2 } ), m_sync.primitiveMaterials[1] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeometry )
@@ -195,6 +232,11 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeomet
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( proxyMaterialId, m_sync.topLevelInstances[0].instanceId );
     EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances[0].traversableHandle );
+    ASSERT_FALSE( m_sync.materialIndices.empty() );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGeometry )
@@ -212,6 +254,11 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGe
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( proxyMaterialId, m_sync.topLevelInstances[0].instanceId );
     EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances[0].traversableHandle );
+    ASSERT_FALSE( m_sync.materialIndices.empty() );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMaterialForGeometry )
@@ -231,6 +278,11 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMateri
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( proxyMaterialId, m_sync.topLevelInstances[0].instanceId );
     EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances[0].traversableHandle );
+    ASSERT_FALSE( m_sync.materialIndices.empty() );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
@@ -248,7 +300,6 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
-    m_geom.groups[0].material = existingMaterial;
     EXPECT_CALL( *m_loader, add() ).Times( 0 );
     EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( m_geom ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
 
@@ -259,6 +310,87 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
     EXPECT_EQ( 3U, m_sync.topLevelInstances.back().instanceId );
     EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances.back().traversableHandle );
     EXPECT_EQ( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START, m_sync.topLevelInstances.back().sbtOffset );
+}
+
+TEST_F( TestMaterialResolverForGeometry, resolveOneProxyOneSharedMaterialForCoarseGeometry )
+{
+    const uint_t         proxyGeomId{ 1111U };
+    const uint_t         proxyMaterialId1{ 4444U };
+    const uint_t         proxyMaterialId2{ 5555U };
+    const ExpectationSet first{ EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId1 ) ) };
+    EXPECT_CALL( *m_loader, add() ).After( first ).WillOnce( Return( proxyMaterialId2 ) );
+    m_geom.groups.push_back( MaterialGroup{ arbitraryThirdPhongMaterial(), {}, {}, ARBITRARY_PRIMITIVE_INDEX_END2 } );
+    const PhongMaterial existingMaterial{ arbitraryPhongMaterial() };
+    const uint_t        existingMaterialId{ 1 };
+    const PhongMaterial otherExistingMaterial{ arbitraryOtherPhongMaterial() };
+    const uint_t        otherMaterialId{ 0 };
+    m_sync.realizedMaterials.push_back( otherExistingMaterial );
+    m_sync.realizedMaterials.push_back( existingMaterial );
+    m_sync.instanceMaterialIds.push_back( otherMaterialId );
+    m_sync.instanceMaterialIds.push_back( otherMaterialId );
+    m_sync.instanceMaterialIds.push_back( existingMaterialId );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1, 0 } );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1, 1 } );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1, 2 } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, otherMaterialId } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, otherMaterialId } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, existingMaterialId } );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).Times( 0 );
+
+    const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
+
+    EXPECT_FALSE( result );
+    ASSERT_EQ( 4U, m_sync.topLevelInstances.size() );
+    // TODO: instance id is always index into per-GAS data
+    //EXPECT_EQ( 3U, m_sync.topLevelInstances.back().instanceId );
+    ASSERT_EQ( 4U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 2, 3 } ), m_sync.materialIndices[3] );
+    ASSERT_EQ( 5U, m_sync.primitiveMaterials.size() );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId1 } ), m_sync.primitiveMaterials[3] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, proxyMaterialId2 } ), m_sync.primitiveMaterials[4] );
+    EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances.back().traversableHandle );
+}
+
+TEST_F( TestMaterialResolverForGeometry, resolveSharedMaterialsForCoarseGeometry )
+{
+    const uint_t         proxyGeomId{ 1111U };
+    EXPECT_CALL( *m_loader, add() ).Times( 0 );
+    m_geom.groups.push_back( MaterialGroup{ arbitraryOtherPhongMaterial(), {}, {}, ARBITRARY_PRIMITIVE_INDEX_END2 } );
+    const PhongMaterial existingMaterial{ arbitraryPhongMaterial() };
+    const uint_t        existingMaterialIndex{ 0U };
+    const PhongMaterial otherExistingMaterial{ arbitraryOtherPhongMaterial() };
+    const uint_t        otherMaterialIndex{ 1U };
+    m_sync.realizedMaterials.push_back( existingMaterial );
+    m_sync.realizedMaterials.push_back( otherExistingMaterial );
+    m_sync.instanceMaterialIds.push_back( otherMaterialIndex );
+    m_sync.instanceMaterialIds.push_back( otherMaterialIndex );
+    m_sync.instanceMaterialIds.push_back( existingMaterialIndex );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1, 0 } );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1, 1 } );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1, 2 } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, otherMaterialIndex } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, otherMaterialIndex } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, existingMaterialIndex } );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).Times( 2 ).WillRepeatedly( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+
+    const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
+
+    EXPECT_TRUE( result );
+    ASSERT_EQ( 4U, m_sync.topLevelInstances.size() );
+    // TODO: instance id is always index into per-GAS data
+    //EXPECT_EQ( 3U, m_sync.topLevelInstances.back().instanceId );
+    ASSERT_EQ( 4U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 2, 3 } ), m_sync.materialIndices[3] );
+    ASSERT_EQ( 5U, m_sync.primitiveMaterials.size() );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, existingMaterialIndex } ), m_sync.primitiveMaterials[3] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, otherMaterialIndex } ), m_sync.primitiveMaterials[4] );
+    EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances.back().traversableHandle );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, noRequestedProxyMaterials )

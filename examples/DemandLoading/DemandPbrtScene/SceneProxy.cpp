@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/SceneProxy.h"
 
+#include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/GeometryCache.h"
 #include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/Options.h"
@@ -394,7 +395,7 @@ std::vector<SceneProxyPtr> InstanceProxy::decompose( ProxyFactoryPtr proxyFactor
     std::vector<SceneProxyPtr> proxies;
     if( m_options.proxyGranularity == ProxyGranularity::FINE )
     {
-        for( uint_t i = 0; i < static_cast<uint_t>( m_scene->objectShapes[m_name].size() ); ++i )
+        for( uint_t i = 0; i < containerSize( m_scene->objectShapes[m_name] ); ++i )
         {
             proxies.push_back( proxyFactory->sceneInstanceShape( m_scene, m_instanceIndex, i ) );
         }
@@ -426,11 +427,11 @@ GeometryInstance WholeSceneProxy::createGeometry( OptixDeviceContext context, CU
 std::vector<SceneProxyPtr> WholeSceneProxy::decompose( ProxyFactoryPtr proxyFactory )
 {
     std::vector<SceneProxyPtr> proxies;
-    for( uint_t i = 0; i < static_cast<uint_t>( m_scene->objectInstances.size() ); ++i )
+    for( uint_t i = 0; i < containerSize( m_scene->objectInstances ); ++i )
     {
         proxies.push_back( proxyFactory->sceneInstance( m_scene, i ) );
     }
-    for( uint_t i = 0; i < static_cast<uint_t>( m_scene->freeShapes.size() ); ++i )
+    for( uint_t i = 0; i < containerSize( m_scene->freeShapes ); ++i )
     {
         proxies.push_back( proxyFactory->sceneShape( m_scene, i ) );
     }

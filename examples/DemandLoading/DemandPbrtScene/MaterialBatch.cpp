@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/MaterialBatch.h"
 
+#include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/Params.h"
 #include "DemandPbrtScene/SceneSyncState.h"
 
@@ -24,7 +25,7 @@ class MaterialBatchImpl : public MaterialBatch
 
 uint_t MaterialBatchImpl::addPrimitiveMaterialRange( uint_t primitiveIndexEnd, uint_t materialId, SceneSyncState& sync )
 {
-    const uint_t startIndex{ static_cast<uint_t>( sync.primitiveMaterials.size() ) };
+    const uint_t startIndex{ containerSize( sync.primitiveMaterials ) };
     sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ primitiveIndexEnd, materialId } );
     return startIndex;
 }

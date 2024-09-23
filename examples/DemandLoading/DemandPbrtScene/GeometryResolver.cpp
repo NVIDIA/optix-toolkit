@@ -61,7 +61,7 @@ class PbrtGeometryResolver : public GeometryResolver
   private:
     void                pushInstance( SceneSyncState& sync, OptixTraversableHandle handle );
     std::vector<uint_t> sortRequestedProxyGeometriesByVolume();
-    bool resolveProxyGeometry( CUstream stream, OptixDeviceContext context, uint_t proxyGeomId, SceneSyncState& m_sync );
+    bool resolveProxyGeometry( CUstream stream, OptixDeviceContext context, uint_t proxyGeomId, SceneSyncState& sync );
 
     // Dependencies
     const Options&        m_options;
@@ -135,7 +135,7 @@ std::vector<uint_t> PbrtGeometryResolver::sortRequestedProxyGeometriesByVolume()
     return ids;
 }
 
-bool PbrtGeometryResolver::resolveProxyGeometry( CUstream stream, OptixDeviceContext context, uint_t proxyGeomId, SceneSyncState& m_sync )
+bool PbrtGeometryResolver::resolveProxyGeometry( CUstream stream, OptixDeviceContext context, uint_t proxyGeomId, SceneSyncState& sync )
 {
     bool updateNeeded{};
 
@@ -173,7 +173,7 @@ bool PbrtGeometryResolver::resolveProxyGeometry( CUstream stream, OptixDeviceCon
     {
         // add instance to TLAS instances
         const GeometryInstance geom{ removedProxy->createGeometry( context, stream ) };
-        updateNeeded = m_materialResolver->resolveMaterialForGeometry( proxyGeomId, geom, m_sync );
+        updateNeeded = m_materialResolver->resolveMaterialForGeometry( proxyGeomId, geom, sync );
         ++m_stats.numGeometriesRealized;
     }
     ++m_stats.numProxyGeometriesResolved;
