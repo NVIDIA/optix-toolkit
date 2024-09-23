@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/OptixRenderer.h"
 
+#include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/Options.h"
 #include "DemandPbrtScene/Params.h"
 #include "DemandPbrtScene/Scene.h"
@@ -154,11 +155,11 @@ void OptixRenderer::writeSbt()
 {
     m_sbt.raygenRecord                = m_rayGenRecord;
     m_sbt.missRecordBase              = m_missRecord;
-    m_sbt.missRecordStrideInBytes     = static_cast<uint_t>( sizeof( otk::Record<otk::EmptyData> ) );
-    m_sbt.missRecordCount             = static_cast<uint_t>( m_missRecord.size() );
+    m_sbt.missRecordStrideInBytes     = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    m_sbt.missRecordCount             = containerSize( m_missRecord );
     m_sbt.hitgroupRecordBase          = m_hitGroupRecords;
-    m_sbt.hitgroupRecordCount         = static_cast<uint_t>( m_hitGroupRecords.size() );
-    m_sbt.hitgroupRecordStrideInBytes = static_cast<uint_t>( sizeof( otk::Record<otk::EmptyData> ) );
+    m_sbt.hitgroupRecordCount         = containerSize( m_hitGroupRecords );
+    m_sbt.hitgroupRecordStrideInBytes = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
 }
 
 void OptixRenderer::buildShaderBindingTable( CUstream stream )

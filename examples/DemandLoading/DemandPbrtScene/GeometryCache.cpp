@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/GeometryCache.h"
 
+#include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/Stopwatch.h"
 
@@ -336,7 +337,7 @@ void growContainer( Container& coll, size_t increase )
 
 void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const PlyMeshData& plyMesh )
 {
-    m_primitiveGroupBeginIndices.push_back( static_cast<uint_t>( m_vertices.size() / 3U ) );
+    m_primitiveGroupBeginIndices.push_back( containerSize( m_vertices ) / 3U );
     const MeshLoaderPtr loader{ plyMesh.loader };
     const MeshInfo      meshInfo{ loader->getMeshInfo() };
     MeshData            buffers{};
@@ -420,7 +421,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
 
 void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& triangleMesh )
 {
-    m_primitiveGroupBeginIndices.push_back( static_cast<uint_t>( m_vertices.size() / 3U ) );
+    m_primitiveGroupBeginIndices.push_back( containerSize( m_vertices ) / 3U );
     auto toFloat3 = [&]( const pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
         return make_float3( pt.x, pt.y, pt.z );

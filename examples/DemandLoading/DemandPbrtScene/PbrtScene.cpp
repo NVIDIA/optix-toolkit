@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/Scene.h"
 
+#include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
 #include "DemandPbrtScene/GeometryResolver.h"
@@ -263,17 +264,17 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     params.demandGeomContext      = m_geometryResolver->getContext();
     const float3 yellow           = make_float3( 1.0f, 1.0f, 0.0 );
     params.demandMaterialColor    = yellow;
-    params.numPartialMaterials    = static_cast<uint_t>( m_sync.partialMaterials.size() );
+    params.numPartialMaterials    = containerSize( m_sync.partialMaterials );
     params.partialMaterials       = m_sync.partialMaterials.typedDevicePtr();
-    params.numRealizedMaterials   = static_cast<uint_t>( m_sync.realizedMaterials.size() );
+    params.numRealizedMaterials   = containerSize( m_sync.realizedMaterials );
     params.realizedMaterials      = m_sync.realizedMaterials.typedDevicePtr();
-    params.numInstanceMaterialIds = static_cast<uint_t>( m_sync.instanceMaterialIds.size() );
+    params.numInstanceMaterialIds = containerSize( m_sync.instanceMaterialIds );
     params.instanceMaterialIds    = m_sync.instanceMaterialIds.typedDevicePtr();
-    params.numInstanceNormals     = static_cast<uint_t>( m_sync.realizedNormals.size() );
+    params.numInstanceNormals     = containerSize( m_sync.realizedNormals );
     params.instanceNormals        = m_sync.realizedNormals.typedDevicePtr();
-    params.numInstanceUVs         = static_cast<uint_t>( m_sync.realizedUVs.size() );
+    params.numInstanceUVs         = containerSize( m_sync.realizedUVs );
     params.instanceUVs            = m_sync.realizedUVs.typedDevicePtr();
-    params.numPartialUVs          = static_cast<uint_t>( m_sync.partialUVs.size() );
+    params.numPartialUVs          = containerSize( m_sync.partialUVs );
     params.partialUVs             = m_sync.partialUVs.typedDevicePtr();
     // Copy lights from the scene description; only need to do this once or if lights change interactively.
     if( params.numDirectionalLights == 0 && !m_scene->distantLights.empty() )
@@ -288,14 +289,14 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
                                                                   distant.color.z * distant.scale.z ) };
                         } );
         m_sync.directionalLights.copyToDevice();
-        params.numDirectionalLights = static_cast<uint_t>( m_sync.directionalLights.size() );
+        params.numDirectionalLights = containerSize( m_sync.directionalLights );
         params.directionalLights    = m_sync.directionalLights.typedDevicePtr();
     }
     if( params.numInfiniteLights == 0 && !m_scene->infiniteLights.empty() )
     {
         realizeInfiniteLights();
         m_sync.infiniteLights.copyToDevice();
-        params.numInfiniteLights = static_cast<uint_t>( m_sync.infiniteLights.size() );
+        params.numInfiniteLights = containerSize( m_sync.infiniteLights );
         params.infiniteLights    = m_sync.infiniteLights.typedDevicePtr();
     }
     params.minAlphaTextureId   = m_sync.minAlphaTextureId;
