@@ -66,9 +66,8 @@ class MockMaterialBatch : public StrictMock<MaterialBatch>
   public:
     ~MockMaterialBatch() override = default;
 
-    MOCK_METHOD( void, addMaterialIndex, ( uint_t, uint_t ), ( override ) );
-    MOCK_METHOD( uint_t, addPrimitiveMaterialRange, ( uint_t, uint_t ), ( override ) );
-    MOCK_METHOD( void, setLaunchParams, (CUstream, Params&), ( override ) );
+    MOCK_METHOD( void, addMaterialIndex, ( uint_t, uint_t, SceneSyncState& ), ( override ) );
+    MOCK_METHOD( uint_t, addPrimitiveMaterialRange, ( uint_t, uint_t, SceneSyncState& ), ( override ) );
 };
 
 using MockMaterialBatchPtr = std::shared_ptr<MockMaterialBatch>;
@@ -282,7 +281,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
-    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0 ) ).WillOnce( Return( 1U ) );
+    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0, _ ) ).WillOnce( Return( 1U ) );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -351,7 +350,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
         .WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
-    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0 ) ).WillOnce( Return( 1U ) );
+    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0, _ ) ).WillOnce( Return( 1U ) );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
@@ -392,7 +391,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
         .WillOnce( Return( +HitGroupIndex::REALIZED_MATERIAL_START ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
-    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0 ) ).WillOnce( Return( 1U ) );
+    EXPECT_CALL( *m_batch, addPrimitiveMaterialRange( ARBITRARY_PRIMITIVE_INDEX_END, 0, _ ) ).WillOnce( Return( 1U ) );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 

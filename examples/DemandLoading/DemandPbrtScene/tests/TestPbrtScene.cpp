@@ -685,7 +685,12 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsInitialParams )
     EXPECT_EQ( m_demandGeomContext, params.demandGeomContext );
     EXPECT_NE( float3{}, params.demandMaterialColor );
     // no realized materials yet
+    EXPECT_EQ( 0, params.numRealizedMaterials );
     EXPECT_EQ( nullptr, params.realizedMaterials );
+    EXPECT_EQ( 0, params.numMaterialIndices );
+    EXPECT_EQ( nullptr, params.materialIndices );
+    EXPECT_EQ( 0, params.numPrimitiveMaterials );
+    EXPECT_EQ( nullptr, params.primitiveMaterials );
 }
 
 TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsDirectionalLightsInParams )
