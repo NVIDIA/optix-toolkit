@@ -304,7 +304,7 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
         rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy, isResident );
 
     // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
-    if( *isResident == false && sampler->desc.isSparseTexture)
+    if( *isResident == false && sampler->desc.isSparseTexture )
         *isResident = requestTexFootprint2DGrad( *sampler, context.referenceBits, context.residenceBits, x, y, ddx.x, ddx.y, ddy.x, ddy.y, 0.0f, 0.0f );
 
     // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
@@ -322,10 +322,10 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     return rval;
 }
 
-template <class TYPE> D_INLINE TYPE
+template <class Sample> D_INLINE Sample
 tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
 {
-    return tex2DGrad<TYPE>( context, textureId, x, y, ddx, ddy, isResident, float2{0.0f} );
+    return tex2DGrad<Sample>( context, textureId, x, y, ddx, ddy, isResident, float2{0.0f} );
 }
 
 
@@ -342,9 +342,7 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     Sample rval;
     convertType( float4{1.0f, 0.0f, 1.0f, 0.0f}, rval );
     if( *isResident == false )
-    {        
         return rval;
-    }
 
     // Prevent footprint from exceeding min tile width for non-mipmapped textures
     if( sampler && sampler->desc.numMipLevels == 1 )
@@ -360,7 +358,8 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
         if( getBaseColor<Sample>( context, textureId, rval, &baseColorResident ) )
             return rval;
         *isResident = false;
-        return rval;
+        if( !sampler )
+            return rval;
     }
 
     // Jitter the texture coordinate
@@ -368,52 +367,49 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     y = y + (texelJitter.y / sampler->height);
 
 #ifdef SPARSE_TEX_SUPPORT
-    // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
     *isResident = false;
-    if( !context.requestIfResident )
-        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod, isResident );
+    rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod, isResident );
 
-    // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
-    if( !*isResident && sampler->desc.isSparseTexture )
+    // Only request footprint if sample not resident, or doing eviction
+    if( sampler->desc.isSparseTexture && ( context.requestIfResident || !*isResident ) )
         *isResident = requestTexFootprint2DLod( *sampler, context.referenceBits, context.residenceBits, x, y, lod );
-
-    // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
-    if( *isResident && context.requestIfResident )
-        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod ); // non-pedicated texture fetch
 #else
     *isResident = true;
     rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod );
 #endif
 
 #ifdef REQUEST_CASCADE
-    float2 ddx  = make_float2( exp2Lod / sampler->width, 0.0f );
-    float2 ddy  = make_float2( 0.0f, exp2Lod / sampler->height );
-    *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
+    if( lod < 0.0f )
+    {
+        float2 ddx  = make_float2( exp2Lod / sampler->width, 0.0f );
+        float2 ddy  = make_float2( 0.0f, exp2Lod / sampler->height );
+        *isResident = *isResident && !requestCascade( context, textureId, sampler, ddx, ddy );
+    }
 #endif
 
     return rval;
 }
 
-template <class TYPE> D_INLINE TYPE
+template <class Sample> D_INLINE Sample
 tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y, float lod, bool* isResident )
 {
-    return tex2DLod<TYPE>( context, textureId, x, y, lod, isResident, float2{0.0f} );
+    return tex2DLod<Sample>( context, textureId, x, y, lod, isResident, float2{0.0f} );
 }
 
 
 /// Fetch from a demand-loaded texture with the specified identifier, obtained via DemandLoader::createTexture.
 /// The given DeviceContext is typically a launch parameter, obtained via DemandLoader::launchPrepare,
 /// that has been copied to device memory.
-template <class TYPE> D_INLINE TYPE
+template <class Sample> D_INLINE Sample
 tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, bool* isResident, float2 texelJitter )
 {
-    return tex2DLod<TYPE>( context, textureId, x, y, 0.0f, isResident, texelJitter );
+    return tex2DLod<Sample>( context, textureId, x, y, 0.0f, isResident, texelJitter );
 }
 
-template <class TYPE> D_INLINE TYPE
+template <class Sample> D_INLINE Sample
 tex2D( const DeviceContext& context, unsigned int textureId, float x, float y, bool* isResident )
 {
-    return tex2D<TYPE>( context, textureId, x, y, isResident, float2{0.0f} );
+    return tex2D<Sample>( context, textureId, x, y, isResident, float2{0.0f} );
 }
 
 }  // namespace demandLoading
