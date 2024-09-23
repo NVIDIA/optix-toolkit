@@ -22,6 +22,45 @@ using namespace otk::pbrt;
 
 namespace demandPbrtScene {
 
+static std::string toString( GeometryPrimitive primitive )
+{
+    switch( primitive )
+    {
+        case GeometryPrimitive::NONE:
+            return "NONE";
+        case GeometryPrimitive::TRIANGLE:
+            return "TRIANGLE";
+        case GeometryPrimitive::SPHERE:
+            return "SPHERE";
+    }
+    return "?Unknown (" + std::to_string( static_cast<int>( primitive ) ) + ")";
+}
+
+static std::string plyMeshCacheKey( const PlyMeshData& plyMesh )
+{
+    return "plyMesh." + plyMesh.fileName;
+}
+
+static std::string objectPrimitiveCacheKey( const ObjectDefinition& object, GeometryPrimitive primitive, MaterialFlags flags )
+{
+    const auto materialFlagsToString = []( MaterialFlags flags ) {
+        if( flagSet( flags, MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+        {
+            return "diffuse.alpha";
+        }
+        if( flagSet( flags, MaterialFlags::ALPHA_MAP ) )
+        {
+            return "alpha";
+        }
+        if( flagSet( flags, MaterialFlags::DIFFUSE_MAP ) )
+        {
+            return "diffuse";
+        }
+        return "none";
+    };
+    return "object." + object.name + '.' + toString( primitive ) + '.' + materialFlagsToString( flags );
+}
+
 namespace {
 
 class GeometryCacheImpl : public GeometryCache
@@ -45,6 +84,7 @@ class GeometryCacheImpl : public GeometryCache
     GeometryCacheStatistics getStatistics() const override { return m_stats; }
 
   private:
+    GeometryCacheEntry cacheGeometry( const std::string& key, GeometryCacheEntry entry );
     GeometryCacheEntry getPlyMesh( OptixDeviceContext context, CUstream stream, const PlyMeshData& plyMesh );
     GeometryCacheEntry getTriangleMesh( OptixDeviceContext context, CUstream stream, const TriangleMeshData& mesh );
     GeometryCacheEntry getSphere( OptixDeviceContext context, CUstream stream, const SphereData& sphere );
@@ -61,7 +101,7 @@ class GeometryCacheImpl : public GeometryCache
     void               appendSphere( const pbrt::Transform& transform, const SphereData& sphereData );
 
     FileSystemInfoPtr                         m_fileSystemInfo;
-    std::map<std::string, GeometryCacheEntry> m_plyCache;
+    std::map<std::string, GeometryCacheEntry> m_geomCache;
     otk::SyncVector<float3>                   m_vertices;
     otk::SyncVector<std::uint32_t>            m_indices;
     otk::SyncVector<float>                    m_radii;
@@ -85,20 +125,6 @@ GeometryCacheEntry GeometryCacheImpl::getShape( OptixDeviceContext context, CUst
     return {};
 }
 
-std::string toString( GeometryPrimitive primitive )
-{
-    switch( primitive )
-    {
-        case GeometryPrimitive::NONE:
-            return "NONE";
-        case GeometryPrimitive::TRIANGLE:
-            return "TRIANGLE";
-        case GeometryPrimitive::SPHERE:
-            return "SPHERE";
-    }
-    return "?Unknown (" + std::to_string( static_cast<int>( primitive ) ) + ")";
-}
-
 GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context,
                                                  CUstream                stream,
                                                  const ObjectDefinition& object,
@@ -106,6 +132,12 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
                                                  GeometryPrimitive       primitive,
                                                  MaterialFlags           flags )
 {
+    const std::string cacheKey{ objectPrimitiveCacheKey( object, primitive, flags ) };
+    if( const auto it{ m_geomCache.find( cacheKey ) }; it != m_geomCache.end() )
+    {
+        return it->second;
+    }
+
     m_vertices.clear();
     m_indices.clear();
     m_normals.clear();
@@ -129,7 +161,7 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
                     }
                 }
             }
-            return buildTriangleGAS( context, stream );
+            return cacheGeometry( cacheKey, buildTriangleGAS( context, stream ) );
 
         case GeometryPrimitive::SPHERE:
             for( const ShapeDefinition& shape : shapes )
@@ -139,7 +171,7 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
                     appendSphere( shape.transform, shape.sphere );
                 }
             }
-            return buildSphereGAS( context, stream );
+            return cacheGeometry( cacheKey, buildSphereGAS( context, stream ) );
 
         case GeometryPrimitive::NONE:
             break;
@@ -148,10 +180,16 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
     throw std::runtime_error( "Unknown primitive type " + toString( primitive ) );
 }
 
+GeometryCacheEntry GeometryCacheImpl::cacheGeometry( const std::string& key, GeometryCacheEntry entry )
+{
+    m_geomCache[key] = entry;
+    return entry;
+}
+
 GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CUstream stream, const PlyMeshData& plyMesh )
 {
-    const auto it{ m_plyCache.find( plyMesh.fileName ) };
-    if( it != m_plyCache.end() )
+    const std::string cacheKey{ plyMeshCacheKey( plyMesh ) };
+    if( const auto it{ m_geomCache.find( cacheKey ) }; it != m_geomCache.end() )
     {
         return it->second;
     }
@@ -233,9 +271,7 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
         }
     }
 
-    const GeometryCacheEntry result{ buildTriangleGAS( context, stream ) };
-    m_plyCache[plyMesh.fileName] = result;
-    return result;
+    return cacheGeometry( cacheKey, buildTriangleGAS( context, stream ) );
 }
 
 GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext context, CUstream stream, const TriangleMeshData& triangleMesh )

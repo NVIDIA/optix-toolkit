@@ -374,107 +374,6 @@ static ShapeDefinition singleTrianglePlyMeshWithUVs( MockMeshLoaderPtr loader, M
     return makePlyShape( loader, buffers, info );
 }
 
-TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
-{
-    expectPlyFileSizeReturned();
-    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
-    MeshData          buffers;
-    MeshInfo          info{};
-    ShapeDefinition   shape{ singleTrianglePlyMesh( meshLoader, buffers, info ) };
-    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto        expectedInput{
-        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
-    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
-    configureAccelBuild( expectedOptions, expectedInput );
-
-    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
-    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
-    const Stats stats{ m_geometryCache->getStatistics() };
-
-    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
-    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
-    EXPECT_EQ( nullptr, m_geom.devNormals );
-    EXPECT_EQ( nullptr, m_geom.devUVs );
-    EXPECT_EQ( 1, stats.numTraversables );
-    EXPECT_EQ( 1, stats.numTriangles );
-    EXPECT_EQ( 0, stats.numSpheres );
-    EXPECT_EQ( 0, stats.numNormals );
-    EXPECT_EQ( 0, stats.numUVs );
-    EXPECT_EQ( ARBITRARY_PLY_FILE_SIZE, stats.totalBytesRead );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
-}
-
-TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
-{
-    expectPlyFileSizeReturned();
-    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
-    MeshData          buffers;
-    MeshInfo          info{};
-    ShapeDefinition   shape{ singleTrianglePlyMeshWithNormals( meshLoader, buffers, info ) };
-    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto        expectedInput{
-        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
-    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
-    configureAccelBuild( expectedOptions, expectedInput );
-
-    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
-    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
-    const Stats stats{ m_geometryCache->getStatistics() };
-
-    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
-    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
-    EXPECT_NE( nullptr, m_geom.devNormals );
-    EXPECT_THAT( m_geom.devNormals, hasDevicePlyNormals( &buffers ) );
-    EXPECT_EQ( nullptr, m_geom.devUVs );
-    EXPECT_EQ( 1, stats.numTraversables );
-    EXPECT_EQ( 1, stats.numTriangles );
-    EXPECT_EQ( 0, stats.numSpheres );
-    EXPECT_EQ( 3, stats.numNormals );
-    EXPECT_EQ( 0, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
-}
-
-TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
-{
-    expectPlyFileSizeReturned();
-    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
-    MeshData          buffers;
-    MeshInfo          info{};
-    ShapeDefinition   shape{ singleTrianglePlyMeshWithUVs( meshLoader, buffers, info ) };
-    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
-    const auto        expectedInput{
-        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
-                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
-                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
-                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
-    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
-    configureAccelBuild( expectedOptions, expectedInput );
-
-    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
-    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
-    const Stats stats{ m_geometryCache->getStatistics() };
-
-    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
-    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
-    EXPECT_EQ( nullptr, m_geom.devNormals );
-    EXPECT_NE( nullptr, m_geom.devUVs );
-    EXPECT_THAT( m_geom.devUVs, hasDevicePlyUVs( &buffers ) );
-    EXPECT_EQ( 1, stats.numTraversables );
-    EXPECT_EQ( 1, stats.numTriangles );
-    EXPECT_EQ( 0, stats.numNormals );
-    EXPECT_EQ( 3, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
-}
-
 static ShapeDefinition singleTriangleTriangleMesh( MeshData& buffers )
 {
     static std::vector<float>         coords{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
@@ -665,6 +564,107 @@ static TestObject oneTriangleMeshOneSphere()
     object.expectedSphereSingleRadius = object.shapes[1].sphere.radius;
 
     return object;
+}
+
+TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
+{
+    expectPlyFileSizeReturned();
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMesh( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+    const Stats stats{ m_geometryCache->getStatistics() };
+
+    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
+    EXPECT_EQ( nullptr, m_geom.devNormals );
+    EXPECT_EQ( nullptr, m_geom.devUVs );
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numSpheres );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 0, stats.numUVs );
+    EXPECT_EQ( ARBITRARY_PLY_FILE_SIZE, stats.totalBytesRead );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+}
+
+TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
+{
+    expectPlyFileSizeReturned();
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMeshWithNormals( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+    const Stats stats{ m_geometryCache->getStatistics() };
+
+    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
+    EXPECT_NE( nullptr, m_geom.devNormals );
+    EXPECT_THAT( m_geom.devNormals, hasDevicePlyNormals( &buffers ) );
+    EXPECT_EQ( nullptr, m_geom.devUVs );
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numSpheres );
+    EXPECT_EQ( 3, stats.numNormals );
+    EXPECT_EQ( 0, stats.numUVs );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+}
+
+TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
+{
+    expectPlyFileSizeReturned();
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMeshWithUVs( meshLoader, buffers, info ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
+                                                                   hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+                                                                   hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                   hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+    const Stats stats{ m_geometryCache->getStatistics() };
+
+    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
+    EXPECT_EQ( nullptr, m_geom.devNormals );
+    EXPECT_NE( nullptr, m_geom.devUVs );
+    EXPECT_THAT( m_geom.devUVs, hasDevicePlyUVs( &buffers ) );
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 3, stats.numUVs );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
+    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
@@ -957,6 +957,26 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
     EXPECT_EQ( 0, stats.totalBytesRead );
+}
+
+TEST_F( TestGeometryCache, cachesTriangleASForObjectTwoMeshes )
+{
+    const TestObject object{ twoTriangleMeshes() };
+    const auto       expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto       expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( object.expectedVertices ),
+                                                                  hasDeviceIndices( object.expectedIndices ), hasSbtFlags( m_expectedFlags ),
+                                                                  hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                                  hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    const GeometryCacheEntry result1{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                  GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) };
+    const GeometryCacheEntry result2{ m_geometryCache->getObject( m_fakeContext, m_stream, object.object, object.shapes,
+                                                                  GeometryPrimitive::TRIANGLE, MaterialFlags::NONE ) };
+
+    EXPECT_EQ( result1, result2 );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOnePlyMesh )
