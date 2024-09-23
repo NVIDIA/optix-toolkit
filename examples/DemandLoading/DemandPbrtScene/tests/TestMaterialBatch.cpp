@@ -6,6 +6,8 @@
 
 #include "ParamsPrinters.h"
 
+#include <DemandPbrtScene/SceneSyncState.h>
+
 #include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
@@ -31,6 +33,7 @@ class TestMaterialBatch : public Test
 
     CUstream         m_stream{};
     MaterialBatchPtr m_batch{ createMaterialBatch() };
+    SceneSyncState   m_sync;
 };
 
 void TestMaterialBatch::SetUp()
@@ -52,9 +55,12 @@ TEST_F( TestMaterialBatch, addPrimitiveMaterialRange )
 {
     const uint_t materialId{ 111 };
 
-    const uint_t startIndex = m_batch->addPrimitiveMaterialRange( 400, materialId );
+    const uint_t startIndex = m_batch->addPrimitiveMaterialRange( 400, materialId, m_sync );
 
     EXPECT_EQ( 0, startIndex );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 400, m_sync.primitiveMaterials[0].primitiveEnd );
+    EXPECT_EQ( materialId, m_sync.primitiveMaterials[0].materialId );
 }
 
 TEST_F( TestMaterialBatch, addMultiplePrimitiveMaterialRange )
@@ -62,82 +68,25 @@ TEST_F( TestMaterialBatch, addMultiplePrimitiveMaterialRange )
     const uint_t materialId{ 111 };
     const uint_t materialId2{ 222 };
 
-    const uint_t startIndex = m_batch->addPrimitiveMaterialRange( 400, materialId );
-    const uint_t nextIndex  = m_batch->addPrimitiveMaterialRange( 200, materialId2 );
+    const uint_t startIndex = m_batch->addPrimitiveMaterialRange( 400, materialId, m_sync );
+    const uint_t nextIndex  = m_batch->addPrimitiveMaterialRange( 200, materialId2, m_sync );
 
     EXPECT_EQ( 0, startIndex );
     EXPECT_EQ( 1, nextIndex );
-}
-
-ListenerPredicate<const PrimitiveMaterialRange*> hasPrimitiveMaterialRange( uint_t index, uint_t primitiveIndexBegin, uint_t materialId )
-{
-    return [=]( MatchResultListener* listener, const PrimitiveMaterialRange* range ) {
-        return hasEqualValues( listener, "num instances", PrimitiveMaterialRange{ primitiveIndexBegin, materialId }, range[index] );
-    };
-}
-
-MATCHER_P2( hasDevicePrimitiveMaterialRanges, n, predicate, "" )
-{
-    if( arg == nullptr )
-    {
-        *result_listener << "PrimitiveMaterialRange array is nullptr";
-        return false;
-    }
-
-    std::vector<PrimitiveMaterialRange> actualRanges;
-    actualRanges.resize( n );
-    OTK_ERROR_CHECK( cudaMemcpy( actualRanges.data(), arg, sizeof( PrimitiveMaterialRange ) * n, cudaMemcpyDeviceToHost ) );
-    return predicate( result_listener, actualRanges.data() );
-}
-
-TEST_F( TestMaterialBatch, setPrimitiveMaterialRangesInLaunchParams )
-{
-    const uint_t materialId{ 111 };
-    const uint_t materialId2{ 222 };
-    const uint_t startIndex = m_batch->addPrimitiveMaterialRange( 400, materialId );
-    const uint_t nextIndex  = m_batch->addPrimitiveMaterialRange( 200, materialId2 );
-    Params       params{};
-
-    m_batch->setLaunchParams( m_stream, params );
-
-    EXPECT_EQ( 2U, params.numPrimitiveMaterials );
-    EXPECT_NE( nullptr, params.primitiveMaterials );
-    EXPECT_THAT( params.primitiveMaterials,
-                 hasDevicePrimitiveMaterialRanges( 2U, hasAll( hasPrimitiveMaterialRange( startIndex, 400, materialId ),
-                                                               hasPrimitiveMaterialRange( nextIndex, 200, materialId2 ) ) ) );
-}
-
-ListenerPredicate<const MaterialIndex*> hasMaterialIndex( uint_t index, uint_t numGroups, uint_t materialBegin )
-{
-    return [=]( MatchResultListener* listener, const MaterialIndex* indices ) {
-        return hasEqualValues( listener, "num instances", MaterialIndex{ numGroups, materialBegin }, indices[index] );
-    };
-}
-
-MATCHER_P2( hasDeviceMaterialIndices, n, predicate, "" )
-{
-    if( arg == nullptr )
-    {
-        *result_listener << "MaterialIndices array is nullptr";
-        return false;
-    }
-
-    std::vector<MaterialIndex> actualIndices;
-    actualIndices.resize( n );
-    OTK_ERROR_CHECK( cudaMemcpy( actualIndices.data(), arg, sizeof( MaterialIndex ) * n, cudaMemcpyDeviceToHost ) );
-    return predicate( result_listener, actualIndices.data() );
+    ASSERT_FALSE( m_sync.primitiveMaterials.empty() );
+    EXPECT_EQ( 2U, m_sync.primitiveMaterials.size() );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ 400, materialId } ), m_sync.primitiveMaterials[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ 200, materialId2 } ), m_sync.primitiveMaterials[1] );
 }
 
 TEST_F( TestMaterialBatch, addMaterialIndex )
 {
     const uint_t numGroups{ 3U };
     const uint_t materialBegin{ 15U };
-    Params       params{};
 
-    m_batch->addMaterialIndex( numGroups, materialBegin );
+    m_batch->addMaterialIndex( numGroups, materialBegin, m_sync );
 
-    m_batch->setLaunchParams( m_stream, params );
-    EXPECT_EQ( 1U, params.numMaterialIndices );
-    EXPECT_NE( nullptr, params.materialIndices );
-    EXPECT_THAT( params.materialIndices, hasDeviceMaterialIndices( 1U, hasMaterialIndex( 0, numGroups, materialBegin ) ) );
+    ASSERT_FALSE( m_sync.materialIndices.empty() );
+    EXPECT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ numGroups, materialBegin } ), m_sync.materialIndices[0] );
 }

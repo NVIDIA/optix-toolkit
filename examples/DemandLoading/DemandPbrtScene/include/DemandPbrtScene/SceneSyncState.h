@@ -29,6 +29,8 @@ struct SceneSyncState
     otk::SyncVector<TriangleUVs*>     realizedUVs;          // indexed by instance id, then by primitive index
     otk::SyncVector<DirectionalLight> directionalLights;    // defined by the scene
     otk::SyncVector<InfiniteLight>    infiniteLights;       // defined by the scene
+    otk::SyncVector<MaterialIndex>    materialIndices;      // indexed by instanceId, one entry per instance
+    otk::SyncVector<PrimitiveMaterialRange> primitiveMaterials;  // indexed by MaterialIndex::primitiveMaterialBegin; one entry per material group per instance
 };
 
 }  // namespace demandPbrtScene

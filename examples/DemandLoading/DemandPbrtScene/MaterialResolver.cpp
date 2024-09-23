@@ -157,7 +157,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( uint_t proxyMaterialId
                            "" )
                   << '\n';
     }
-    m_materialBatch->addPrimitiveMaterialRange( geom->instance.groups[0].primitiveIndexEnd, materialId );
+    m_materialBatch->addPrimitiveMaterialRange( geom->instance.groups[0].primitiveIndexEnd, materialId, m_sync);
     m_materialLoader->remove( proxyMaterialId );
     m_proxyMaterialGeometries.erase( proxyMaterialId );
     return MaterialResolution::FULL;

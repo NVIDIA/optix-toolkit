@@ -11,6 +11,7 @@
 namespace demandPbrtScene {
 
 struct Params;
+struct SceneSyncState;
 
 using uint_t = unsigned int;
 
@@ -39,9 +40,8 @@ class MaterialBatch
   public:
     virtual ~MaterialBatch() = default;
 
-    virtual uint_t addPrimitiveMaterialRange( uint_t primitiveIndexEnd, uint_t materialId ) = 0;
-    virtual void   addMaterialIndex( uint_t numGroups, uint_t materialBegin )               = 0;
-    virtual void   setLaunchParams( CUstream stream, Params& params )                       = 0;
+    virtual uint_t addPrimitiveMaterialRange( uint_t primitiveIndexEnd, uint_t materialId, SceneSyncState& sync ) = 0;
+    virtual void   addMaterialIndex( uint_t numGroups, uint_t materialBegin, SceneSyncState& sync )               = 0;
 };
 
 using MaterialBatchPtr = std::shared_ptr<MaterialBatch>;
