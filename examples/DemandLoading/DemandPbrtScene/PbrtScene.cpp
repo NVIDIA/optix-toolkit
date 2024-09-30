@@ -21,10 +21,10 @@
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
-#include <OptiXToolkit/Memory/DeviceBuffer.h>
 
 #include <optix_stubs.h>
 
@@ -245,6 +245,20 @@ void PbrtScene::initialize( CUstream stream )
     createTopLevelTraversable( stream );
 }
 
+template <typename T>
+void setSpan( uint_t& numElements, const T*& elements, const otk::SyncVector<T>& container )
+{
+    numElements = containerSize( container );
+    elements    = container.typedDevicePtr();
+}
+
+template <typename T>
+void setSpan( uint_t& numElements, T*& elements, otk::SyncVector<T>& container )
+{
+    numElements = containerSize( container );
+    elements    = container.typedDevicePtr();
+}
+
 void PbrtScene::setLaunchParams( CUstream stream, Params& params )
 {
     static const float3 proxyFaceColors[6] = {
@@ -257,25 +271,20 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     };
     std::copy( std::begin( proxyFaceColors ), std::end( proxyFaceColors ), std::begin( params.proxyFaceColors ) );
 
-    params.ambientColor           = make_float3( 0.4f, 0.4f, 0.4f );
-    params.sceneEpsilon           = 0.005f;
-    params.usePinholeCamera       = m_options.usePinholeCamera;
-    params.traversable            = m_topLevelTraversable;
-    params.demandGeomContext      = m_geometryResolver->getContext();
-    const float3 yellow           = make_float3( 1.0f, 1.0f, 0.0 );
-    params.demandMaterialColor    = yellow;
-    params.numPartialMaterials    = containerSize( m_sync.partialMaterials );
-    params.partialMaterials       = m_sync.partialMaterials.typedDevicePtr();
-    params.numRealizedMaterials   = containerSize( m_sync.realizedMaterials );
-    params.realizedMaterials      = m_sync.realizedMaterials.typedDevicePtr();
-    params.numInstanceMaterialIds = containerSize( m_sync.instanceMaterialIds );
-    params.instanceMaterialIds    = m_sync.instanceMaterialIds.typedDevicePtr();
-    params.numInstanceNormals     = containerSize( m_sync.realizedNormals );
-    params.instanceNormals        = m_sync.realizedNormals.typedDevicePtr();
-    params.numInstanceUVs         = containerSize( m_sync.realizedUVs );
-    params.instanceUVs            = m_sync.realizedUVs.typedDevicePtr();
-    params.numPartialUVs          = containerSize( m_sync.partialUVs );
-    params.partialUVs             = m_sync.partialUVs.typedDevicePtr();
+    params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
+    params.sceneEpsilon        = 0.005f;
+    params.usePinholeCamera    = m_options.usePinholeCamera;
+    params.traversable         = m_topLevelTraversable;
+    params.demandGeomContext   = m_geometryResolver->getContext();
+    const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
+    params.demandMaterialColor = yellow;
+    setSpan( params.numPartialMaterials, params.partialMaterials, m_sync.partialMaterials );
+    setSpan( params.numRealizedMaterials, params.realizedMaterials, m_sync.realizedMaterials );
+    setSpan( params.numMaterialIndices, params.materialIndices, m_sync.materialIndices );
+    setSpan( params.numPrimitiveMaterials, params.primitiveMaterials, m_sync.primitiveMaterials );
+    setSpan( params.numInstanceNormals, params.instanceNormals, m_sync.realizedNormals );
+    setSpan( params.numInstanceUVs, params.instanceUVs, m_sync.realizedUVs );
+    setSpan( params.numPartialUVs, params.partialUVs, m_sync.partialUVs );
     // Copy lights from the scene description; only need to do this once or if lights change interactively.
     if( params.numDirectionalLights == 0 && !m_scene->distantLights.empty() )
     {
@@ -289,15 +298,13 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
                                                                   distant.color.z * distant.scale.z ) };
                         } );
         m_sync.directionalLights.copyToDevice();
-        params.numDirectionalLights = containerSize( m_sync.directionalLights );
-        params.directionalLights    = m_sync.directionalLights.typedDevicePtr();
+        setSpan( params.numDirectionalLights, params.directionalLights, m_sync.directionalLights );
     }
     if( params.numInfiniteLights == 0 && !m_scene->infiniteLights.empty() )
     {
         realizeInfiniteLights();
         m_sync.infiniteLights.copyToDevice();
-        params.numInfiniteLights = containerSize( m_sync.infiniteLights );
-        params.infiniteLights    = m_sync.infiniteLights.typedDevicePtr();
+        setSpan( params.numInfiniteLights, params.infiniteLights, m_sync.infiniteLights );
     }
     params.minAlphaTextureId   = m_sync.minAlphaTextureId;
     params.maxAlphaTextureId   = m_sync.maxAlphaTextureId;

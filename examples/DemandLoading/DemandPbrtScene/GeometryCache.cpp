@@ -108,7 +108,7 @@ class GeometryCacheImpl : public GeometryCache
     otk::SyncVector<float>                    m_radii;
     otk::SyncVector<TriangleNormals>          m_normals;
     otk::SyncVector<TriangleUVs>              m_uvs;
-    std::vector<uint_t>                       m_primitiveGroupBeginIndices;
+    std::vector<uint_t>                       m_primitiveGroupEndIndices;
     GeometryCacheStatistics                   m_stats{};
 };
 
@@ -143,7 +143,7 @@ GeometryCacheEntry GeometryCacheImpl::getObject( OptixDeviceContext      context
     m_indices.clear();
     m_normals.clear();
     m_uvs.clear();
-    m_primitiveGroupBeginIndices.clear();
+    m_primitiveGroupEndIndices.clear();
 
     switch( primitive )
     {
@@ -199,7 +199,7 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
     m_indices.clear();
     m_normals.clear();
     m_uvs.clear();
-    m_primitiveGroupBeginIndices.clear();
+    m_primitiveGroupEndIndices.clear();
     appendPlyMesh( pbrt::Transform(), plyMesh );
     return cacheGeometry( cacheKey, buildTriangleGAS( context, stream ) );
 }
@@ -211,7 +211,7 @@ GeometryCacheEntry GeometryCacheImpl::getTriangleMesh( OptixDeviceContext contex
     m_indices.clear();
     m_normals.clear();
     m_uvs.clear();
-    m_primitiveGroupBeginIndices.clear();
+    m_primitiveGroupEndIndices.clear();
     appendTriangleMesh( pbrt::Transform(), triangleMesh );
     return buildTriangleGAS( context, stream );
 }
@@ -255,7 +255,7 @@ GeometryCacheEntry GeometryCacheImpl::buildGAS( OptixDeviceContext     context,
             break;
     }
 
-    return { output.detach(), traversable, primitive, normals, uvs, m_primitiveGroupBeginIndices };
+    return { output.detach(), traversable, primitive, normals, uvs, m_primitiveGroupEndIndices };
 }
 
 template <typename Container>
@@ -266,7 +266,6 @@ void growContainer( Container& coll, size_t increase )
 
 void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const PlyMeshData& plyMesh )
 {
-    m_primitiveGroupBeginIndices.push_back( containerSize( m_vertices ) / 3U );
     const MeshLoaderPtr loader{ plyMesh.loader };
     const MeshInfo      meshInfo{ loader->getMeshInfo() };
     MeshData            buffers{};
@@ -287,6 +286,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
     growContainer( m_indices, meshInfo.numTriangles * 3U );
     std::transform( buffers.indices.begin(), buffers.indices.end(), std::back_inserter( m_indices ),
                     []( int index ) { return static_cast<std::uint32_t>( index ); } );
+    m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / 3U );
 
     const size_t numTriangles{ m_indices.size() / 3 };
     if( meshInfo.numNormals > 0 )
@@ -350,7 +350,6 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
 
 void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& triangleMesh )
 {
-    m_primitiveGroupBeginIndices.push_back( containerSize( m_vertices ) / 3U );
     auto toFloat3 = [&]( const pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
         return make_float3( pt.x, pt.y, pt.z );
@@ -359,6 +358,7 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
     growContainer( m_indices, triangleMesh.indices.size() );
     std::transform( triangleMesh.indices.begin(), triangleMesh.indices.end(), std::back_inserter( m_indices ),
                     []( const int index ) { return static_cast<std::uint32_t>( index ); } );
+    m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / 3U );
 
     const size_t numTriangles{ triangleMesh.indices.size() / 3 };
     if( !triangleMesh.normals.empty() )
@@ -397,9 +397,9 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
 
 void GeometryCacheImpl::appendSphere( const pbrt::Transform& transform, const SphereData& sphere )
 {
-    m_primitiveGroupBeginIndices.push_back( static_cast<unsigned int>( m_vertices.size() ) );
     const pbrt::Point3f center{ transform( pbrt::Point3f( 0.0f, 0.0f, 0.0f ) ) };
     m_vertices.push_back( make_float3( center.x, center.y, center.z ) );
+    m_primitiveGroupEndIndices.push_back( containerSize( m_vertices ) );
     const pbrt::Point3f scaledUnitVector{ transform( pbrt::Point3f( 1.0f, 0.0f, 0.0f ) ) };
     m_radii.push_back( scaledUnitVector.x * sphere.radius );
 }
@@ -431,7 +431,7 @@ GeometryCacheEntry GeometryCacheImpl::getSphere( OptixDeviceContext context, CUs
 {
     m_vertices.clear();
     m_radii.clear();
-    m_primitiveGroupBeginIndices.clear();
+    m_primitiveGroupEndIndices.clear();
     appendSphere( pbrt::Transform(), sphere );
     return buildSphereGAS( context, stream );
 }

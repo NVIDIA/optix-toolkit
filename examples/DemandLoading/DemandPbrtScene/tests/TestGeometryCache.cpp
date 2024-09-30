@@ -412,6 +412,33 @@ static ShapeDefinition singleTriangleTriangleMeshWithUVs( MeshData& buffers )
     return shape;
 }
 
+static ShapeDefinition twoTriangleTriangleMesh( MeshData& buffers )
+{
+    static const std::vector<float> coords{
+        0.0f, 0.0f, 0.0f,  //
+        1.0f, 0.0f, 0.0f,  //
+        1.0f, 1.0f, 1.0f,  //
+        0.0f, 0.0f, 0.0f,  //
+        0.0f, 1.0f, 0.0f,  //
+        1.0f, 1.0f, 0.0f,  //
+    };
+    static const std::vector<int>           indices{ 0, 1, 2, 3, 4, 5 };
+    static const std::vector<pbrt::Point3f> points{
+        P3{ coords[0 * 3 + 0], coords[0 * 3 + 1], coords[0 * 3 + 2] },  // (0,0,0)
+        P3{ coords[1 * 3 + 0], coords[1 * 3 + 1], coords[1 * 3 + 2] },  // (1,0,0)
+        P3{ coords[2 * 3 + 0], coords[2 * 3 + 1], coords[2 * 3 + 2] },  // (1,1,1)
+        P3{ coords[3 * 3 + 0], coords[3 * 3 + 1], coords[3 * 3 + 2] },  // (0,0,0)
+        P3{ coords[4 * 3 + 0], coords[4 * 3 + 1], coords[4 * 3 + 2] },  // (0,1,0)
+        P3{ coords[5 * 3 + 0], coords[5 * 3 + 1], coords[5 * 3 + 2] },  // (1,1,0)
+    };
+    buffers.vertexCoords = coords;
+    buffers.indices      = indices;
+    ShapeDefinition shape{};
+    shape.type         = SHAPE_TYPE_TRIANGLE_MESH;
+    shape.triangleMesh = TriangleMeshData{ indices, points, {}, {} };
+    return shape;
+}
+
 static TriangleNormals expectedNormal()
 {
     TriangleNormals actual;
@@ -596,8 +623,8 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
     EXPECT_EQ( ARBITRARY_PLY_FILE_SIZE, stats.totalBytesRead );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1, m_geom.primitiveGroupEndIndices[0] );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
@@ -630,8 +657,8 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 3, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
@@ -663,13 +690,12 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
     EXPECT_EQ( 1, stats.numTriangles );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 3, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
 {
-    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
     MeshData          buffers;
     ShapeDefinition   shape{ singleTriangleTriangleMesh( buffers ) };
     const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
@@ -694,8 +720,38 @@ TEST_F( TestGeometryCache, constructTriangleASForTriangleMesh )
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
+}
+
+TEST_F( TestGeometryCache, constructTriangleASForTwoTriangleMesh )
+{
+    MeshData          buffers;
+    ShapeDefinition   shape{ twoTriangleTriangleMesh( buffers ) };
+    const auto        expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto        expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( buffers.vertexCoords ),
+            hasDeviceIndices( buffers.indices ), hasSbtFlags( m_expectedFlags ),
+            hasNoPreTransform(), hasNoSbtIndexOffsets(),
+            hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getShape( m_fakeContext, m_stream, shape );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+    const Stats stats{ m_geometryCache->getStatistics() };
+
+    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
+    EXPECT_EQ( nullptr, m_geom.devNormals );
+    EXPECT_EQ( nullptr, m_geom.devUVs );
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 2, stats.numTriangles );
+    EXPECT_EQ( 0, stats.numSpheres );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 0, stats.numUVs );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 2U, m_geom.primitiveGroupEndIndices[0] );
 }
 
 TEST( TestHasDeviceTriangleNormals, normalsPointerIsNull )
@@ -779,8 +835,8 @@ TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithNormals )
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 3, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
 }
 
 TEST( TestHasDeviceTriangleUVs, uvsPointerIsNull )
@@ -865,8 +921,8 @@ TEST_F( TestGeometryCache, constructTriangleASForTriangleMeshWithUVs )
     EXPECT_EQ( 0, stats.numSpheres );
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 3, stats.numUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
 }
 
 TEST_F( TestGeometryCache, twoPlyInstancesShareSameGAS )
@@ -918,8 +974,8 @@ TEST_F( TestGeometryCache, constructSphereASForSphere )
     EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
     EXPECT_EQ( nullptr, m_geom.devNormals );
     EXPECT_EQ( nullptr, m_geom.devUVs );
-    ASSERT_EQ( 1U, m_geom.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0, m_geom.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
     const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 0, stats.numTriangles );
@@ -947,9 +1003,9 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectTwoMeshes )
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
     EXPECT_EQ( nullptr, result.devNormals );
     EXPECT_EQ( nullptr, result.devUVs );
-    ASSERT_EQ( 2U, result.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
-    EXPECT_EQ( 1U, result.primitiveGroupIndices[1] );
+    ASSERT_EQ( 2U, result.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, result.primitiveGroupEndIndices[0] );
+    EXPECT_EQ( 2U, result.primitiveGroupEndIndices[1] );
     const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 2, stats.numTriangles );
@@ -1001,9 +1057,9 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOnePlyMesh )
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
     EXPECT_EQ( nullptr, result.devNormals );
     EXPECT_EQ( nullptr, result.devUVs );
-    ASSERT_EQ( 2U, result.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
-    EXPECT_EQ( 1U, result.primitiveGroupIndices[1] );
+    ASSERT_EQ( 2U, result.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, result.primitiveGroupEndIndices[0] );
+    EXPECT_EQ( 2U, result.primitiveGroupEndIndices[1] );
     const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 2, stats.numTriangles );
@@ -1033,8 +1089,8 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectOneTriMeshOneSphere )
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
     EXPECT_EQ( nullptr, result.devNormals );
     EXPECT_EQ( nullptr, result.devUVs );
-    ASSERT_EQ( 1U, result.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, result.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, result.primitiveGroupEndIndices[0] );
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 1, stats.numTriangles );
     EXPECT_EQ( 0, stats.numSpheres );
@@ -1061,8 +1117,8 @@ TEST_F( TestGeometryCache, constructTriangleASForObjectTriMeshMixedMaterials )
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
     EXPECT_EQ( nullptr, result.devNormals );
     EXPECT_NE( nullptr, result.devUVs );
-    ASSERT_EQ( 1U, result.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, result.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, result.primitiveGroupEndIndices[0] );
     const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 1, stats.numTriangles );
@@ -1087,8 +1143,8 @@ TEST_F( TestGeometryCache, constructSphereASForObjectOneTriMeshOneSphere )
 
     EXPECT_NE( CUdeviceptr{}, result.accelBuffer );
     EXPECT_EQ( m_fakeGeomAS, result.traversable );
-    ASSERT_EQ( 1U, result.primitiveGroupIndices.size() );
-    EXPECT_EQ( 0U, result.primitiveGroupIndices[0] );
+    ASSERT_EQ( 1U, result.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, result.primitiveGroupEndIndices[0] );
     const Stats stats{ m_geometryCache->getStatistics() };
     EXPECT_EQ( 1, stats.numTraversables );
     EXPECT_EQ( 0, stats.numTriangles );

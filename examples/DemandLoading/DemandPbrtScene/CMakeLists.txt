@@ -51,7 +51,6 @@ add_library(DemandPbrtSceneImpl STATIC
     GeometryResolver.cpp
     ImageSourceFactory.cpp
     ImGuiUserInterface.cpp
-    MaterialBatch.cpp
     MaterialResolver.cpp
     Options.cpp
     OptixRenderer.cpp
@@ -80,7 +79,6 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/ImageSourceFactoryStatistics.h
     include/DemandPbrtScene/ImGuiUserInterface.h
     include/DemandPbrtScene/MaterialAdapters.h
-    include/DemandPbrtScene/MaterialBatch.h
     include/DemandPbrtScene/MaterialResolver.h
     include/DemandPbrtScene/MaterialResolverStatistics.h
     include/DemandPbrtScene/Options.h

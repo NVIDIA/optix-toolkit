@@ -8,7 +8,6 @@
 #include "DemandPbrtScene/GeometryCache.h"
 #include "DemandPbrtScene/GeometryResolver.h"
 #include "DemandPbrtScene/ImageSourceFactory.h"
-#include "DemandPbrtScene/MaterialBatch.h"
 #include "DemandPbrtScene/MaterialResolver.h"
 #include "DemandPbrtScene/ProgramGroups.h"
 #include "DemandPbrtScene/Renderer.h"
@@ -58,8 +57,7 @@ Application::Application( int argc, char* argv[] )
     , m_renderer( createRenderer( m_options, m_geometryLoader->getNumAttributes() ) )
     , m_demandTextureCache( createDemandTextureCache( m_demandLoader, m_imageSourceFactory ) )
     , m_programGroups( createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) )
-    , m_materialBatch( createMaterialBatch() )
-    , m_materialResolver( createMaterialResolver( m_options, m_materialLoader, m_materialBatch, m_demandTextureCache, m_programGroups ) )
+    , m_materialResolver( createMaterialResolver( m_options, m_materialLoader, m_demandTextureCache, m_programGroups) )
     , m_geometryResolver( createGeometryResolver( m_options, m_programGroups, m_geometryLoader, m_proxyFactory, m_demandTextureCache, m_materialResolver ) )
     , m_scene( createScene( m_options, m_pbrt, m_demandTextureCache, m_demandLoader, m_materialResolver, m_geometryResolver, m_renderer ) )
 {

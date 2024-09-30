@@ -48,7 +48,6 @@ class MaterialResolver
 
 MaterialResolverPtr createMaterialResolver( const Options&        options,
                                             MaterialLoaderPtr     materialLoader,
-                                            MaterialBatchPtr      materialBatch,
                                             DemandTextureCachePtr demandTextureCache,
                                             ProgramGroupsPtr      programGroups );
 

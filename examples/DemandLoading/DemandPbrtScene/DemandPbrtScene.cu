@@ -432,6 +432,52 @@ extern "C" __global__ void __miss__backgroundColor()
 
 }  // namespace demandPbrtScene
 
+namespace demandPbrtScene {
+
+__device__ __forceinline__ uint_t getMaterialId( const Params& params, uint_t instanceId )
+{
+#ifndef NDEBUG
+    if(instanceId >= params.numMaterialIndices)
+    {
+        printf( "Instance id %u exceeds number of MaterialIndex entries %u\n", instanceId, params.numMaterialIndices);
+        assert( instanceId < params.numMaterialIndices );
+    }
+#endif
+    const MaterialIndex groups{ params.materialIndices[instanceId] };
+    const uint_t        primIdx{ optixGetPrimitiveIndex() };
+    uint_t              matIdx{ groups.primitiveMaterialBegin };
+    for( uint_t i = 0; i < groups.numPrimitiveGroups; ++i )
+    {
+#ifndef NDEBUG
+        if( matIdx >= params.numPrimitiveMaterials )
+        {
+            printf( "Material index %u exceeds number of PrimitiveMaterialRange entries %u\n", matIdx, params.numPrimitiveMaterials );
+            assert( matIdx < params.numPrimitiveMaterials );
+        }
+#endif
+        const PrimitiveMaterialRange& group{ params.primitiveMaterials[matIdx] };
+        if( primIdx < group.primitiveEnd )
+        {
+            return group.materialId;
+        }
+        ++matIdx;
+    }
+#ifndef NDEBUG
+    printf( "Requested material for instance id %u, primitive index %u not found in MaterialIndex{%u, %u}\n",
+        instanceId, primIdx, groups.numPrimitiveGroups, groups.primitiveMaterialBegin );
+    matIdx = groups.primitiveMaterialBegin;
+    for( uint_t i = 0; i < groups.numPrimitiveGroups; ++i )
+    {
+        const PrimitiveMaterialRange& group{ params.primitiveMaterials[matIdx] };
+        printf( "    %u PrimitiveMaterialRange[%u]{%u, %u}\n", instanceId, matIdx, group.primitiveEnd, group.materialId );
+    }
+    assert( false );
+#endif
+    return ~0U;
+}
+
+}  // namespace demandPbrtScene
+
 namespace demandGeometry {
 namespace app {
 
@@ -492,7 +538,7 @@ __device__ __forceinline__ const demandLoading::DeviceContext& getDeviceContext(
 
 __device__ __forceinline__ unsigned int getMaterialId()
 {
-    return optixGetInstanceId();
+    return demandPbrtScene::getMaterialId( demandPbrtScene::PARAMS_VAR_NAME, optixGetInstanceId() );
 }
 
 __device__ __forceinline__ bool proxyMaterialDebugInfo( unsigned int pageId, bool isResident )
@@ -550,9 +596,9 @@ __device__ __forceinline__ float2 interpolateUVs( const TriangleUVs& uv )
 __device__ __forceinline__ uint_t getPartialAlphaTextureId()
 {
     // use PARAMS_VAR_NAME.partialMaterials[demandMaterial::app::getMaterialId()].alphaTextureId to sample alpha texture
-    const uint_t     materialId{ demandMaterial::app::getMaterialId() };
-    const Params&    params{ PARAMS_VAR_NAME };
-    PartialMaterial* partialMaterials{ params.partialMaterials };
+    const uint_t           materialId{ demandMaterial::app::getMaterialId() };
+    const Params&          params{ PARAMS_VAR_NAME };
+    const PartialMaterial* partialMaterials{ params.partialMaterials };
 #ifndef NDEBUG
     if( partialMaterials == nullptr )
     {
@@ -630,19 +676,11 @@ __device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
         return oops;
     }
 #endif
-    const uint_t instanceId{ optixGetInstanceId() };
-#ifndef NDEBUG
-    if( instanceId >= params.numInstanceMaterialIds )
-    {
-        printf( "Requested instance id %u, only have %u instance material ids\n", instanceId, params.numInstanceMaterialIds );
-    }
-    assert( instanceId < params.numInstanceMaterialIds );
-#endif
-    const uint_t materialId{ params.instanceMaterialIds[instanceId] };
+    const uint_t materialId{ demandMaterial::app::getMaterialId() };
 #ifndef NDEBUG
     if( materialId >= params.numRealizedMaterials )
     {
-        printf( "Requested instance id %u, material id %u, only have %u materials\n", instanceId, materialId, params.numRealizedMaterials );
+        printf( "Material id %u exceeds %u num realized materials\n", materialId, params.numRealizedMaterials );
     }
     assert( materialId < params.numRealizedMaterials );
 #endif
