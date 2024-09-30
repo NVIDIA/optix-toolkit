@@ -251,7 +251,7 @@ GeometryInstance InstancePrimitiveProxy::createGeometry( OptixDeviceContext cont
     for( auto it = shapes.begin(); it != split; ++it )
     {
         const ShapeDefinition& shape{ *it };
-        groups.push_back( { materialGroupForMaterial( shape.material, result.primitiveGroupIndices[i++] ) } );
+        groups.push_back( { materialGroupForMaterial( shape.material, result.primitiveGroupEndIndices[i++] ) } );
     }
     const uint_t sbtOffset{ proxyMaterialSbtOffsetForPrimitive( m_primitive ) };
     return { result.accelBuffer,  //
@@ -368,7 +368,7 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     std::vector<MaterialGroup> groups;
     for( const ShapeDefinition& s : shapes )
     {
-        groups.push_back( { materialGroupForMaterial( s.material, result.primitiveGroupIndices[i++] ) } );
+        groups.push_back( { materialGroupForMaterial( s.material, result.primitiveGroupEndIndices[i++] ) } );
     }
     const uint_t sbtOffset{ proxyMaterialSbtOffsetForPrimitive( primitive ) };
     return { result.accelBuffer,  //
@@ -456,10 +456,11 @@ GeometryInstance ShapeProxy::createGeometryFromShape( OptixDeviceContext context
     }
 
     const GeometryCacheEntry entry = m_geometryCache->getShape( context, stream, shape );
+    OTK_ASSERT( entry.primitiveGroupEndIndices.size() == 1U );
     return { entry.accelBuffer,                                                                             //
              primitive,                                                                                     //
              geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset ),  //
-             { materialGroupForMaterial( shape.material, 0U ) },                                            //
+             { materialGroupForMaterial( shape.material, entry.primitiveGroupEndIndices[0] ) },             //
              entry.devNormals,                                                                              //
              entry.devUVs };
 }

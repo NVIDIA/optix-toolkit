@@ -262,9 +262,9 @@ struct Params
     PerspectiveCamera             camera;
     float3                        background;
     uint_t                        numDirectionalLights;
-    DirectionalLight*             directionalLights;
+    const DirectionalLight*       directionalLights;
     uint_t                        numInfiniteLights;
-    InfiniteLight*                infiniteLights;
+    const InfiniteLight*          infiniteLights;
     float3                        ambientColor;
     float3                        proxyFaceColors[6];
     float                         sceneEpsilon;
@@ -275,11 +275,9 @@ struct Params
     demandGeometry::Context       demandGeomContext;
     float3                        demandMaterialColor;
     uint_t                        numPartialMaterials;     //
-    PartialMaterial*              partialMaterials;        // indexed by instanceId
+    const PartialMaterial*        partialMaterials;        // indexed by instanceId
     uint_t                        numRealizedMaterials;    //
-    PhongMaterial*                realizedMaterials;       // indexed by materialId
-    uint_t                        numInstanceMaterialIds;  //
-    uint_t*                       instanceMaterialIds;     // indexed by instanceId, material id per instance
+    const PhongMaterial*          realizedMaterials;       // indexed by materialId
     uint_t                        numMaterialIndices;      //
     const MaterialIndex*          materialIndices;         // indexed by instanceId, one entry per instance
     uint_t                        numPrimitiveMaterials;   // one entry per material group per instance
