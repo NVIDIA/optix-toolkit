@@ -92,6 +92,7 @@ textureWeighted( CUtexObject texture, float i, float j, float4 wx, float4 wy, in
     return t0 + t1 + t2 + t3;
 }
 
+
 /// Compute cubic filtered texture sample based on filterMode.
 template <class TYPE> D_INLINE void
 textureCubic( CUtexObject texture, int texWidth, int texHeight,
@@ -100,6 +101,8 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 {
     // General gradient size fixes
     fixGradients( ddx, ddy, texWidth, texHeight, filterMode );
+    s -= floorf( s );
+    t -= floorf( t );
 
     // Determine the blend between linear and cubic filtering based on the filter mode
     float pixelSpan = getPixelSpan( ddx, ddy, texWidth, texHeight );
@@ -123,8 +126,15 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
             cubicBlend = floorf( cubicBlend + 0.5f );
     }
 
+
     int mipLevelWidth = max(texWidth >> mipLevel, 1);
     int mipLevelHeight = max(texHeight >> mipLevel, 1);
+
+    // Get unnormalized texture coordinates
+    float ts = s * mipLevelWidth - 0.5f;
+    float tt = t * mipLevelHeight - 0.5f;
+    float i = floorf( ts );
+    float j = floorf( tt );
 
     // Linear Sampling
     if( cubicBlend < 1.0f )
@@ -135,29 +145,23 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
             *result = ::tex2DGrad<TYPE>( texture, s, t, ddx, ddy );
         }
 
-        // Do a central difference along ddx, ddy
-        if( dresultds )
+        if( dresultds || dresultdt )
         {
-            TYPE t1 = ::tex2DGrad<TYPE>( texture, s + ddx.x, t + ddx.y, ddx, ddy );
-            TYPE t2 = ::tex2DGrad<TYPE>( texture, s - ddx.x, t - ddx.y, ddx, ddy );
-            *dresultds = ( t1 - t2 ) / ( 2.0f * length( ddx ) );
-        }
-        if( dresultdt )
-        {
-            TYPE t1 = ::tex2DGrad<TYPE>( texture, s + ddy.x, t + ddy.y, ddx, ddy );
-            TYPE t2 = ::tex2DGrad<TYPE>( texture, s - ddy.x, t - ddy.y, ddx, ddy );
-            *dresultdt = ( t1 - t2 ) / ( 2.0f * length( ddy ) );
+            // FIXME: What about wrap modes?
+            TYPE t00 = ::tex2DGrad<TYPE>( texture, (i+0.5f)/mipLevelWidth, (j+0.5f)/mipLevelHeight, ddx, ddy );
+            TYPE t10 = ::tex2DGrad<TYPE>( texture, (i+1.5f)/mipLevelWidth, (j+0.5f)/mipLevelHeight, ddx, ddy );
+            TYPE t01 = ::tex2DGrad<TYPE>( texture, (i+0.5f)/mipLevelWidth, (j+1.5f)/mipLevelHeight, ddx, ddy );
+            TYPE t11 = ::tex2DGrad<TYPE>( texture, (i+1.5f)/mipLevelWidth, (j+1.5f)/mipLevelHeight, ddx, ddy );
+
+            if( dresultds )
+                *dresultds = (lerp(t10, t11, tt-j) - lerp(t00, t01, tt-j)) * mipLevelWidth;
+            if( dresultdt )
+                *dresultdt = (lerp(t01, t11, ts-i) - lerp(t00, t10, ts-i)) * mipLevelHeight;
         }
 
         if( cubicBlend <= 0.0f )
             return;
     }
-
-    // Get unnormalized texture coordinates
-    float ts = s * mipLevelWidth - 0.5f;
-    float tt = t * mipLevelHeight - 0.5f;
-    float i = floorf( ts );
-    float j = floorf( tt );
 
     // Do cubic sampling
     if( result )
@@ -178,14 +182,11 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         wy = cubicDerivativeWeights(tt - j);
         TYPE drdt = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) * mipLevelHeight;
 
-        // Rotate cubic derivatives to align with ddx and ddy, and blend with linear derivatives computed earlier
-        float a = atan2f( ddx.y, ddx.x );
         if( dresultds )
-            *dresultds = cubicBlend * ( drds * cosf( a ) + drdt * sinf( a ) ) + (1.0f - cubicBlend) * *dresultds;
+            *dresultds = cubicBlend * drds + ( 1.0f - cubicBlend ) * *dresultds;
 
-        float b = atan2f( ddy.y, ddy.x );
         if( dresultdt )
-            *dresultdt = cubicBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - cubicBlend) * *dresultdt;
+            *dresultdt = cubicBlend * drdt + ( 1.0f - cubicBlend ) * *dresultdt;
     }
 
     // Return unless we have to blend between levels
@@ -225,13 +226,10 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         wy = cubicDerivativeWeights(tt - j);
         TYPE drdt = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) * mipLevelHeight;
 
-        // Rotate cubic derivatives to align with ddx and ddy, and blend with linear derivatives computed earlier
-        float a = atan2f( ddx.y, ddx.x );
         if( dresultds )
-            *dresultds = levelBlend * ( drds * cosf( a ) + drdt * sinf( a ) ) + (1.0f - levelBlend) * *dresultds;
+            *dresultds = cubicBlend * drds + ( 1.0f - cubicBlend ) * *dresultds;
 
-        float b = atan2f( ddy.y, ddy.x );
         if( dresultdt )
-            *dresultdt = levelBlend * ( drds * cosf( b ) + drdt * sinf( b ) ) + (1.0f - levelBlend) * *dresultdt;
+            *dresultds = cubicBlend * drdt + ( 1.0f - cubicBlend ) * *dresultdt;
     }
 }
