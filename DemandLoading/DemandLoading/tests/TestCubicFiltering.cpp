@@ -50,8 +50,8 @@ class TestCubicFiltering : public testing::Test
     int inputImageHeight;
 
     // Output image parameters that will be used by both OIIO and DemandLoading
-    int width = 512;
-    int height = 512;
+    int width = 256;
+    int height = 256;
     float2 uv00, uv11;
     float2 ddx, ddy;
     unsigned int filterMode;
@@ -197,6 +197,7 @@ void TestCubicFiltering::makeOIIOImages()
         }
     }
 
+    scaleAndBiasImage( oiioImage, float4{imageScale, imageScale, imageScale, imageScale}, float4{0.0f, 0.0f, 0.0f, 0.0f} );
     scaleAndBiasImage( oiioDerivativeImage, float4{derivativeScale/inputImageWidth, derivativeScale/inputImageHeight, 1.0f, 1.0f}, 
                        float4{0.5f, 0.5f, 0.5f, 0.5f} );
 }
@@ -264,7 +265,7 @@ void TestCubicFiltering::makeDemandTextureImages()
         ticket.wait();
 
         totalRequests += ticket.numTasksTotal();
-        printf( "Launch %d: %d requests.\n", launchNum, ticket.numTasksTotal() );
+        //printf( "Launch %d: %d requests.\n", launchNum, ticket.numTasksTotal() );
     }
 
     size_t imageSize = width * height * sizeof(float4);
@@ -274,6 +275,7 @@ void TestCubicFiltering::makeDemandTextureImages()
     OTK_ERROR_CHECK( cudaMemcpy( (void*)demandTextureDerivativeImage.data(), (void*)devDerivativeImage, imageSize, cudaMemcpyDeviceToHost ) );
     OTK_ERROR_CHECK( cuMemFree( devDerivativeImage ) );
 
+    scaleAndBiasImage( demandTextureImage, float4{imageScale, imageScale, imageScale, imageScale}, float4{0.0f, 0.0f, 0.0f, 0.0f} );
     scaleAndBiasImage( demandTextureDerivativeImage, float4{derivativeScale/inputImageWidth, derivativeScale/inputImageHeight, 1.0f, 1.0f}, 
                        float4{0.5f, 0.5f, 0.5f, 0.5f} );
 }
@@ -322,16 +324,11 @@ void TestCubicFiltering::writeImages( const char* fileName )
 
 void TestCubicFiltering::runTest()
 {
-printf("A\n");
     makeDemandTextureImages();
-printf("B\n");
     makeOIIOImages();
-printf("C\n");
     makeDiffImages();
     rmseImages = imageDiff( oiioImage, demandTextureImage );
     rmseDerivativeImages = imageDiff( oiioDerivativeImage, demandTextureDerivativeImage );
-    scaleAndBiasImage( oiioImage, float4{imageScale, imageScale, imageScale, imageScale}, float4{0.0f, 0.0f, 0.0f, 0.0f} );
-    scaleAndBiasImage( demandTextureImage, float4{imageScale, imageScale, imageScale, imageScale}, float4{0.0f, 0.0f, 0.0f, 0.0f} );
 }
 
 //------------------------------------------------------------------------------
@@ -347,149 +344,160 @@ void TestCubicFiltering::makeTestImage()
 
 //------------------------------------------------------------------------------
 
-TEST_F( TestCubicFiltering, bilinearLvl0 )
+TEST_F( TestCubicFiltering, mip0 )
 {
     imageFileName = "testImage.exr";
     uv00 = float2{0.48f, 0.48f};
     uv11 = float2{0.53f, 0.53f};
     ddx = float2{1.0f/128, 0.0f};
     ddy = float2{0.0f, 1.0f/128};
-    filterMode = OIIO::TextureOpt::InterpBilinear;
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
+    filterMode = OIIO::TextureOpt::InterpBilinear;
     imageScale = 1.0f;
     derivativeScale = 0.5f;
-    diffImageScale = 50.0f;
-
+    diffImageScale = 1.0f;
     runTest();
-    writeImages( "image_bilinearLvl0.ppm" );
-}
+    writeImages( "image_mip0_bilinear.ppm" );
 
-TEST_F( TestCubicFiltering, bilinearLvl0Horizontal )
-{
-    imageFileName = "testImage.exr";
-    uv00 = float2{0.40f, 0.40f};
-    uv11 = float2{0.60f, 0.60f};
-    ddx = float2{0.08f, 0.00f};
-    ddy = float2{0.0f, 0.01f};
-    filterMode = OIIO::TextureOpt::InterpBilinear;
-    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
-
-    imageScale = 10.0f;
+    imageScale = 2.0f;
     derivativeScale = 1.0f;
-    diffImageScale = 2.0f;
-
+    filterMode = OIIO::TextureOpt::InterpBicubic;
     runTest();
-    writeImages( "image_bilinearLvl0Horizontal.ppm" );
+    writeImages( "image_mip0_bicubic.ppm" );
 }
 
-TEST_F( TestCubicFiltering, bilinearLvl0Diagonal )
-{
-    imageFileName = "testImage.exr";
-    uv00 = float2{0.4f, 0.4f};
-    uv11 = float2{0.6f, 0.6f};
-    ddx = float2{0.08f, 0.08f};
-    ddy = float2{0.005f, -0.005f};
-    filterMode = OIIO::TextureOpt::InterpBilinear;
-    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
-
-    imageScale = 10.0f;
-    derivativeScale = 1.0f;
-    diffImageScale = 2.0f;
-
-    runTest();
-    writeImages( "image_bilinearLvl0Diagonal.ppm" );
-}
-
-TEST_F( TestCubicFiltering, bilinearMidMip )
+TEST_F( TestCubicFiltering, mip3 )
 {
     imageFileName = "testImage.exr";
     uv00 = float2{0.4f, 0.4f};
     uv11 = float2{0.7f, 0.7f};
     ddx = float2{0.08f, 0.08f};
     ddy = float2{0.08f, -0.08f};
-    filterMode = OIIO::TextureOpt::InterpBilinear;
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
+    filterMode = OIIO::TextureOpt::InterpBilinear;
     imageScale = 200.0f;
-    derivativeScale = 200.0f;
-    diffImageScale = 2.0f;
-
+    derivativeScale = 400.0f;
+    diffImageScale = 1.0f;
     runTest();
-    writeImages( "image_bilinearMidMip.ppm" );
+    writeImages( "image_mip3_bilinear.ppm" );
+
+    filterMode = OIIO::TextureOpt::InterpBicubic;
+    imageScale = 350.0f;
+    derivativeScale = 2000.0f;
+    diffImageScale = 1.0f;
+    runTest();
+    writeImages( "image_mip3_bicubic.ppm" );
 }
 
-TEST_F( TestCubicFiltering, bilinearMidMip2 )
+TEST_F( TestCubicFiltering, mip4 )
 {
     imageFileName = "testImage.exr";
     uv00 = float2{0.3f, 0.3f};
     uv11 = float2{0.8f, 0.8f};
     ddx = float2{0.16f, 0.16f};
     ddy = float2{0.16f, -0.16f};
-    filterMode = OIIO::TextureOpt::InterpBilinear;
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
-    imageScale = 500.0f;
-    derivativeScale = 1000.0f;
-    diffImageScale = 2.0f;
-
+    filterMode = OIIO::TextureOpt::InterpBilinear;
+    imageScale = 700.0f;
+    derivativeScale = 2500.0f;
+    diffImageScale = 1.0f;
     runTest();
-    writeImages( "image_bilinearMidMip2.ppm" );
+    writeImages( "image_mip4_bilinear.ppm" );
 }
 
+TEST_F( TestCubicFiltering, mip0Horizontal )
+{
+    imageFileName = "testImage.exr";
+    uv00 = float2{0.40f, 0.40f};
+    uv11 = float2{0.60f, 0.60f};
+    ddx = float2{0.08f, 0.00f};
+    ddy = float2{0.0f, 0.007f};
+    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
-TEST_F( TestCubicFiltering, smartBicubicNoMip )
+    filterMode = OIIO::TextureOpt::InterpBilinear;
+    imageScale = 7.0f;
+    derivativeScale = 1.0f;
+    diffImageScale = 1.0f;
+    runTest();
+    writeImages( "image_mip0horizontal_bilinear.ppm" );
+}
+
+TEST_F( TestCubicFiltering, mip0Diagonal )
+{
+    imageFileName = "testImage.exr";
+    uv00 = float2{0.40f, 0.40f};
+    uv11 = float2{0.60f, 0.60f};
+    ddx = float2{0.05f, 0.05f};
+    ddy = float2{-0.005f, 0.005f};
+    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+
+    filterMode = OIIO::TextureOpt::InterpBilinear;
+    imageScale = 7.0f;
+    derivativeScale = 1.0f;
+    diffImageScale = 1.0f;
+    runTest();
+    writeImages( "image_mip0digonal_bilinear.ppm" );
+}
+
+TEST_F( TestCubicFiltering, smartBicubic )
 {
     imageFileName = "testImage.exr";
     uv00 = float2{0.48f, 0.48f};
     uv11 = float2{0.53f, 0.53f};
-    ddx = float2{1.0f/1000, 0.0f};
-    ddy = float2{0.0f, 1.0f/1000};
-    filterMode = OIIO::TextureOpt::InterpSmartBicubic;
+    ddx = float2{0.0f, 0.0f};
+    ddy = float2{0.0f, 0.0f};
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
+    filterMode = OIIO::TextureOpt::InterpSmartBicubic;
     imageScale = 2.0f;
     derivativeScale = 1.0f;
-    diffImageScale = 50.0f;
-
+    diffImageScale = 1.0f;
     runTest();
-    writeImages( "image_smartBicubicNoMip.ppm" );
-}
+    writeImages( "image_smartBicubicMip0.ppm" );
 
-/*
-TEST_F( TestCubicFiltering, smartBicubicNoMipHorizontal )
-{
-    imageFileName = "testImage.exr";
-    uv00 = float2{0.45f, 0.45f};
-    uv11 = float2{0.55f, 0.55f};
-    ddx = float2{0.05f, 0.05f};
-    ddy = float2{0.0f, 0.0f};
     filterMode = OIIO::TextureOpt::InterpSmartBicubic;
-    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
-
-    imageScale = 5.0f;
+    imageScale = 2.0f;
     derivativeScale = 1.0f;
-    diffImageScale = 2.0f;
-
+    diffImageScale = 1.0f;
+    ddx = float2{0.014f, 0.0f};
+    ddy = float2{0.0f, 0.014f};
     runTest();
-    writeImages( "image_smartBicubicNoMipHorizontal.ppm" );
+    writeImages( "image_smartBicubicMip0.5.ppm" );
+
+    filterMode = OIIO::TextureOpt::InterpSmartBicubic;
+    imageScale = 2.0f;
+    derivativeScale = 1.0f;
+    diffImageScale = 1.0f;
+    ddx = float2{0.016f, 0.0f};
+    ddy = float2{0.0f, 0.016f};
+    runTest();
+    writeImages( "image_smartBicubicMip1.ppm" );
 }
 
-TEST_F( TestCubicFiltering, smartBicubicNoMipDiagonal )
+TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
 {
     imageFileName = "testImage.exr";
-    uv00 = float2{0.45f, 0.45f};
-    uv11 = float2{0.55f, 0.55f};
-    ddx = float2{1.0f/90, 1.0f/90};
-    ddy = float2{1.0f/128, -1.0f/128};
-    filterMode = OIIO::TextureOpt::InterpBilinear;
+    uv00 = float2{0.46f, 0.46f};
+    uv11 = float2{0.54f, 0.54f};
+    ddx = float2{0.005f, -0.005f};
+    ddy = float2{0.00f, 0.00f};
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
-    imageScale = 1.0f;
+    filterMode = OIIO::TextureOpt::InterpSmartBicubic;
+    imageScale = 2.0f;
     derivativeScale = 1.0f;
     diffImageScale = 2.0f;
 
-    runTest();
-    writeImages( "image_smartBicubicNoMipDiagonal.ppm" );
+    char imgName[512];
+    for( float dd = 0.005f; dd < 0.03f; dd += 0.001f )
+    {
+        sprintf( imgName, "image_smartBicubicAnisotropic%02d.ppm", (int)(dd*1000));
+        ddx = float2{0.007f, -0.007f};
+        ddy = float2{dd, dd};
+        runTest();
+        writeImages( imgName );
+    }
 }
-*/
