@@ -195,83 +195,12 @@ GeometryCacheEntry GeometryCacheImpl::getPlyMesh( OptixDeviceContext context, CU
         return it->second;
     }
 
+    m_vertices.clear();
+    m_indices.clear();
+    m_normals.clear();
+    m_uvs.clear();
     m_primitiveGroupBeginIndices.clear();
-    m_primitiveGroupBeginIndices.push_back( 0 );
-
-    const MeshLoaderPtr loader{ plyMesh.loader };
-    const MeshInfo      meshInfo{ loader->getMeshInfo() };
-    MeshData            buffers{};
-    {
-        Stopwatch stopwatch;
-        loader->load( buffers );
-        m_stats.totalReadTime += stopwatch.elapsed();
-    }
-    m_stats.totalBytesRead += m_fileSystemInfo->getSize( plyMesh.fileName );
-    m_vertices.resize( meshInfo.numVertices );
-    for( int i = 0; i < meshInfo.numVertices; ++i )
-    {
-        m_vertices[i] =
-            make_float3( buffers.vertexCoords[i * 3 + 0], buffers.vertexCoords[i * 3 + 1], buffers.vertexCoords[i * 3 + 2] );
-    }
-    m_indices.resize( meshInfo.numTriangles * 3U );
-    OTK_ASSERT( meshInfo.numTriangles * 3U == buffers.indices.size() );
-    std::transform( buffers.indices.begin(), buffers.indices.end(), m_indices.begin(),
-                    []( int index ) { return static_cast<std::uint32_t>( index ); } );
-
-    if( meshInfo.numNormals > 0 )
-    {
-        if( meshInfo.numNormals != meshInfo.numVertices )
-        {
-            throw std::runtime_error( "Expected " + std::to_string( meshInfo.numVertices ) + " vertex normals, got "
-                                      + std::to_string( meshInfo.numNormals ) );
-        }
-
-        // When building the GAS, we have the luxury of supplying the vertex array and the
-        // index array, but in the closest hit program, we only have the primitive index,
-        // not the vertex/normal index.  So we size the array of TriangleNormals structures
-        // to the number of primitives and use the index array to select the appropriate normal
-        // for each vertex.
-        //
-        m_normals.resize( m_indices.size() / 3 );
-        for( size_t face = 0; face < m_normals.size(); ++face )
-        {
-            for( size_t vert = 0; vert < 3; ++vert )
-            {
-                // 3 coords per vertex
-                // 3 vertices per face, 3 indices per face
-                const int idx           = buffers.indices[face * 3 + vert] * 3;
-                m_normals[face].N[vert] = make_float3( buffers.normalCoords[idx + 0], buffers.normalCoords[idx + 1],
-                                                       buffers.normalCoords[idx + 2] );
-            }
-        }
-    }
-
-    if( meshInfo.numTextureCoordinates > 0 )
-    {
-        if( meshInfo.numTextureCoordinates != meshInfo.numVertices )
-        {
-            throw std::runtime_error( "Expected " + std::to_string( meshInfo.numVertices )
-                                      + " vertex texture coordinates, got " + std::to_string( meshInfo.numTextureCoordinates ) );
-        }
-
-        // When building the GAS, we have the luxury of supplying the vertex array and the
-        // index array, but in the closest hit program, we only have the primitive index,
-        // not the vertex/normal/uv index.  So we size the array of TriangleUVs structures
-        // to the number of primitives and use the index array to select the appropriate normal
-        // for each vertex.
-        m_uvs.resize( m_indices.size() / 3 );
-        for( size_t face = 0; face < m_uvs.size(); ++face )
-        {
-            for( size_t vert = 0; vert < 3; ++vert )
-            {
-                // 2 coords per vertex
-                // 3 vertices per face, 3 indices per face
-                const int idx        = buffers.indices[face * 3 + vert] * 2;
-                m_uvs[face].UV[vert] = make_float2( buffers.uvCoords[idx + 0], buffers.uvCoords[idx + 1] );
-            }
-        }
-    }
-
+    appendPlyMesh( pbrt::Transform(), plyMesh );
     return cacheGeometry( cacheKey, buildTriangleGAS( context, stream ) );
 }
 
