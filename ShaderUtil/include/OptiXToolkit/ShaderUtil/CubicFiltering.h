@@ -104,31 +104,29 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     s -= floorf( s );
     t -= floorf( t );
 
-    // Determine the blend between linear and cubic filtering based on the filter mode
+    // Determine the blend between linear and cubic filtering
     float pixelSpan = getPixelSpan( ddx, ddy, texWidth, texHeight );
-    float cubicBlend = 0.0f;
     float ml = 0.0f;
     int mipLevel = 0;
 
-    if( filterMode == FILTER_BICUBIC ) 
+    float cubicBlend = ( filterMode == FILTER_BICUBIC ) ? 1.0f : 0.0f;
+    if( filterMode == FILTER_SMARTBICUBIC && pixelSpan <= 2.0f )
     {
-        cubicBlend = 1.0f;
+        cubicBlend = fminf( ( 2.0f - pixelSpan ), 1.0f );
+    }
+
+    // Get mip level if needed
+    if( dresultds || dresultdt || filterMode == FILTER_BICUBIC )
+    {
         ml = getMipLevel( ddx, ddy, texWidth, texHeight, 1.0f / maxAnisotropy );
         if( mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
             ml = fmaxf( 0.0f, ceilf( ml - 0.5f ) );
-        mipLevel = ceilf( ml );
+        mipLevel = floorf( ml );
         mipLevel = max( mipLevel, 0 );
     }
-    else if( filterMode == FILTER_SMARTBICUBIC && pixelSpan <= 0.5f ) 
-    {
-        cubicBlend = fminf( -1.0f - log2f( pixelSpan ), 1.0f );
-        if( mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
-            cubicBlend = floorf( cubicBlend + 0.5f );
-    }
 
-
-    int mipLevelWidth = max(texWidth >> mipLevel, 1);
-    int mipLevelHeight = max(texHeight >> mipLevel, 1);
+    int mipLevelWidth = max( texWidth >> mipLevel , 1);
+    int mipLevelHeight = max( texHeight >> mipLevel , 1);
 
     // Get unnormalized texture coordinates
     float ts = s * mipLevelWidth - 0.5f;
@@ -140,7 +138,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     if( cubicBlend < 1.0f )
     {
         // Don't do bilinear sample for result unless cubicBlend is 0.
-        if( cubicBlend <= 0.0f && result )
+        if( result )
         {
             *result = ::tex2DGrad<TYPE>( texture, s, t, ddx, ddy );
         }
@@ -148,15 +146,29 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         if( dresultds || dresultdt )
         {
             // FIXME: What about wrap modes?
-            TYPE t00 = ::tex2DGrad<TYPE>( texture, (i+0.5f)/mipLevelWidth, (j+0.5f)/mipLevelHeight, ddx, ddy );
-            TYPE t10 = ::tex2DGrad<TYPE>( texture, (i+1.5f)/mipLevelWidth, (j+0.5f)/mipLevelHeight, ddx, ddy );
-            TYPE t01 = ::tex2DGrad<TYPE>( texture, (i+0.5f)/mipLevelWidth, (j+1.5f)/mipLevelHeight, ddx, ddy );
-            TYPE t11 = ::tex2DGrad<TYPE>( texture, (i+1.5f)/mipLevelWidth, (j+1.5f)/mipLevelHeight, ddx, ddy );
-
+            float ii = (ts-i > 0.5f) ? i+0.5f : i;
+            float jj = (tt-j > 0.5f) ? j+0.5f : j;
+            TYPE t00 = ::tex2DGrad<TYPE>( texture, (ii+0.5f)/mipLevelWidth, (jj+0.5f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
+            TYPE t10 = ::tex2DGrad<TYPE>( texture, (ii+1.0f)/mipLevelWidth, (jj+0.5f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
+            TYPE t01 = ::tex2DGrad<TYPE>( texture, (ii+0.5f)/mipLevelWidth, (jj+1.0f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
+            TYPE t11 = ::tex2DGrad<TYPE>( texture, (ii+1.0f)/mipLevelWidth, (jj+1.0f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
             if( dresultds )
-                *dresultds = (lerp(t10, t11, tt-j) - lerp(t00, t01, tt-j)) * mipLevelWidth;
+                *dresultds = (lerp(t10, t11, 2.0f*(tt-jj)) - lerp(t00, t01, 2.0f*(tt-jj)));
             if( dresultdt )
-                *dresultdt = (lerp(t01, t11, ts-i) - lerp(t00, t10, ts-i)) * mipLevelHeight;
+                *dresultdt = (lerp(t01, t11, 2.0f*(ts-ii)) - lerp(t00, t10, 2.0f*(ts-ii)));
+
+            /*
+            float ii = (ts-i > 0.5f) ? i+0.5f : i;
+            float jj = (tt-j > 0.5f) ? j+0.5f : j;
+            TYPE t00 = ::tex2DGrad<TYPE>( texture, (ii+0.5f)/mipLevelWidth, t, ddx, ddy ) * mipLevelWidth;
+            TYPE t10 = ::tex2DGrad<TYPE>( texture, (ii+1.0f)/mipLevelWidth, t, ddx, ddy ) * mipLevelWidth;
+            TYPE t01 = ::tex2DGrad<TYPE>( texture, s, (jj+0.5f)/mipLevelHeight, ddx, ddy ) * mipLevelHeight;
+            TYPE t11 = ::tex2DGrad<TYPE>( texture, s, (jj+1.0f)/mipLevelHeight, ddx, ddy ) * mipLevelHeight;
+            if( dresultds )
+                *dresultds = (t10-t00) * 2.0f;
+            if( dresultdt )
+                *dresultdt = (t11-t01) * 2.0f;
+            */
         }
 
         if( cubicBlend <= 0.0f )
@@ -166,10 +178,10 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     // Do cubic sampling
     if( result )
     {
-        // Blend between cubic and linear weights
-        float4 wx = cubicBlend * cubicWeights(ts - i) + (1.0f - cubicBlend) * linearWeights(ts - i);
-        float4 wy = cubicBlend * cubicWeights(tt - j) + (1.0f - cubicBlend) * linearWeights(tt - j);
-        *result = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight );
+        float4 wx = cubicWeights(ts - i);
+        float4 wy = cubicWeights(tt - j);
+        TYPE res = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight );
+        *result = lerp( res, *result, 1.0f-cubicBlend );
     }
     if( dresultds || dresultdt )
     {
@@ -183,10 +195,10 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         TYPE drdt = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) * mipLevelHeight;
 
         if( dresultds )
-            *dresultds = cubicBlend * drds + ( 1.0f - cubicBlend ) * *dresultds;
+            *dresultds = lerp( *dresultds, drds, cubicBlend );
 
         if( dresultdt )
-            *dresultdt = cubicBlend * drdt + ( 1.0f - cubicBlend ) * *dresultdt;
+            *dresultdt = lerp( *dresultdt, drdt, cubicBlend );
     }
 
     // Return unless we have to blend between levels
@@ -197,7 +209,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     // Sample second level for blending between levels in FILTER_BICUBIC mode
 
     // Get unnormalized texture coordinates
-    mipLevel--;
+    mipLevel++;
     mipLevelWidth = max(texWidth >> mipLevel, 1);
     mipLevelHeight = max(texHeight >> mipLevel, 1);
     ts = s * mipLevelWidth - 0.5f;
@@ -205,7 +217,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     i = floorf( ts );
     j = floorf( tt );
 
-    float levelBlend = 1.0f - (ml - mipLevel);
+    float levelBlend = (mipLevel-ml);
 
     // Do cubic sampling
     if( result )
@@ -213,7 +225,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         // Blend between cubic and linear weights
         float4 wx = cubicWeights(ts - i);
         float4 wy = cubicWeights(tt - j);
-        *result = levelBlend * textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) + (1.0f - levelBlend) * *result;
+        *result = lerp( textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ), *result, levelBlend );
     }
     if( dresultds || dresultdt )
     {
@@ -227,9 +239,9 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         TYPE drdt = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) * mipLevelHeight;
 
         if( dresultds )
-            *dresultds = cubicBlend * drds + ( 1.0f - cubicBlend ) * *dresultds;
+            *dresultds = lerp( drds, *dresultds, levelBlend );
 
         if( dresultdt )
-            *dresultds = cubicBlend * drdt + ( 1.0f - cubicBlend ) * *dresultdt;
+            *dresultdt = lerp( drdt, *dresultdt, levelBlend );
     }
 }
