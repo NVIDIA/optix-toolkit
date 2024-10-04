@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "instance-cube.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+
+    Include "light-sources.pbrt"
+
+    ObjectBegin "shapes"
+        Include "cube-geom.pbrt"
+        "rgb Kd" [ 0 0 1 ]  # blue
+
+        Translate 1 1 0
+        Shape "sphere"
+            "float radius" 0.5
+        "rgb Kd" [ 1 0 0 ]  # red
+    ObjectEnd
+
+    AttributeBegin
+        Translate -0.5 -0.5 0
+        ObjectInstance "shapes"
+    AttributeEnd
+WorldEnd
