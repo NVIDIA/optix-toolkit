@@ -59,6 +59,14 @@ pbrtImageTest(instance-cube0 0 instance-cube.pbrt)
 pbrtImageTest(instance-cube1 1 instance-cube.pbrt)
 pbrtImageTest(instance-cube2 2 instance-cube.pbrt)
 
+# Render object instance with multiple shapes:
+# trianglemesh, plymesh, trianglemesh+plymesh, trianglemesh+sphere
+pbrtImageTest(instance-plymesh 3 instance-plymesh.pbrt)
+pbrtImageTest(instance-trimesh 3 instance-trimesh.pbrt)
+pbrtImageTest(instance-mixed-mesh 3 instance-mixed-mesh.pbrt)
+pbrtImageTest(instance-sphere-plymesh 3 instance-sphere-plymesh.pbrt)
+pbrtImageTest(instance-sphere-trimesh 3 instance-sphere-trimesh.pbrt)
+
 # PNG textures require OpenImageIO
 if(OTK_USE_OIIO)
     # Render cube with opaque everywhere alpha map
