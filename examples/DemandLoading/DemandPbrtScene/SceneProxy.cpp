@@ -377,17 +377,6 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
              groups,             //
              result.devNormals,  //
              result.devUVs };
-
-    //const GeometryCacheEntry result{ m_geometryCache->getObject( context, stream, m_scene->objects[m_name], shapes, primitive, flags ) };
-    //// TODO: figure out how to convey multiple materials per GAS
-    //const MaterialGroup groups{ materialGroupForMaterial( shape.material, 0U ) };
-    //const uint_t        sbtOffset{ proxyMaterialSbtOffsetForPrimitive( primitive ) };
-    //return { result.accelBuffer,  //
-    //         primitive,           //
-    //         geometryInstance( m_scene->objectInstances[m_instanceIndex].transform, m_pageId, result.traversable, sbtOffset ),  //
-    //         { groups },         //
-    //         result.devNormals,  //
-    //         result.devUVs };
 }
 
 std::vector<SceneProxyPtr> InstanceProxy::decompose( ProxyFactoryPtr proxyFactory )
