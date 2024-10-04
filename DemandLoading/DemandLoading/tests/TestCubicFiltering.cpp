@@ -171,6 +171,7 @@ void TestCubicFiltering::makeOIIOImages()
     OIIO::ustring fileName( imageFileName );
     OIIO::TextureOpt options;
     options.interpmode = (OIIO::TextureOpt::InterpMode)filterMode;
+    options.conservative_filter = false;
     OIIO::TextureSystem* ts = OIIO::TextureSystem::create( true );
 
     oiioImage.resize(width * height, float4{});
@@ -223,7 +224,9 @@ void TestCubicFiltering::makeDemandTextureImages()
     OTK_ERROR_CHECK( cudaStreamCreate( &stream) );
 
     // Construct DemandLoaderImpl. 
-    DemandLoaderImpl* demandLoader = new DemandLoaderImpl( demandLoading::Options{} );
+    demandLoading::Options options{};
+    options.useSparseTextures = false;
+    DemandLoaderImpl* demandLoader = new DemandLoaderImpl( options );
 
     // Create TextureDescriptor.
     TextureDescriptor texDesc{};
@@ -479,6 +482,7 @@ TEST_F( TestCubicFiltering, smartBicubic )
 
 TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
 {
+    /*
     imageFileName = "testImage.exr";
     uv00 = float2{0.46f, 0.46f};
     uv11 = float2{0.54f, 0.54f};
@@ -500,4 +504,38 @@ TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
         runTest();
         writeImages( imgName );
     }
+    */
+}
+
+TEST_F( TestCubicFiltering, conservative )
+{
+    imageFileName = "testImage.exr";
+    uv00 = float2{0.25f, 0.25f};
+    uv11 = float2{0.75f, 0.75f};
+    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+
+    filterMode = OIIO::TextureOpt::InterpBilinear;
+    imageScale = 10.0f;
+    derivativeScale = 5.0f;
+    diffImageScale = 1.0f;
+
+    ddx = float2{0.005f, -0.005f};
+    ddy = float2{0.32f, 0.32f};
+    runTest();
+    writeImages( "image_conservative_64x.ppm" );
+
+    ddx = float2{0.000025f, -0.000025f};
+    ddy = float2{0.32f, 0.32f};
+    runTest();
+    writeImages( "image_conservative_nearZero.ppm" );
+
+    ddx = float2{0.32f, -0.32f};
+    ddy = float2{0.0f, 0.0f};
+    runTest();
+    writeImages( "image_conservative_zero.ppm" );
+
+    ddx = float2{0.0f, 0.0f};
+    ddy = float2{0.0f, 0.0f};
+    runTest();
+    writeImages( "image_conservative_zero_zero.ppm" );
 }

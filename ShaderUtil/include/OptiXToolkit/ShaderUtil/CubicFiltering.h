@@ -47,32 +47,43 @@ D_INLINE float getPixelSpan( float2 ddx, float2 ddy, float width, float height )
     return fmaxf( pixelSpanX, pixelSpanY ) + 1.0e-8f;
 }
 
-D_INLINE void fixGradients( float2& ddx, float2& ddy, int width, int height, int filterMode )
+D_INLINE void fixGradients( float2& ddx, float2& ddy, int width, int height, int filterMode, bool conservative )
 {
-    const float invAnisotropy = 1.0f / 16.0f;
-    const float minCubicVal   = 1.0f / 131072.0f;
-    float minVal = ( filterMode <= FILTER_BILINEAR ) ? 0.5f / fmaxf(width, height) : minCubicVal;
+    const float invAnisotropy = 1.0f / 16.0f; // FIXME: This should come from the texture
+    const float invAniso2 = invAnisotropy * invAnisotropy;
+    const float minVal = 0.99f / fmaxf(width, height);
 
     // Check if gradients are large enough
     float ddx2 = dot( ddx, ddx );
     float ddy2 = dot( ddy, ddy );
     if( ddx2 > minVal*minVal && ddy2 > minVal*minVal )
-        return;
+    {
+        if( conservative || ( ddx2 >= invAniso2 * ddy2 && ddy2 >= invAniso2 * ddx2 ) )
+            return;
+    }
 
     // Fix zero gradients
-    if( ddx2 + ddy2 == 0.0f )
+    if( ddx2 == 0.0f )
         ddx = float2{ minVal, 0.0f };
-    else if( ddx2 == 0.0f )
-        ddx = float2{ ddy.y, -ddy.x } * invAnisotropy;
-
     if( ddy2 == 0.0f )
-        ddy = float2{ -ddx.y, ddx.x } * invAnisotropy;
+        ddy = float2{ 0.0f, minVal };
 
     // Fix short gradients
     if( dot( ddx, ddx ) < minVal*minVal )
         ddx *= minVal / length( ddx );
     if( dot( ddy, ddy ) < minVal*minVal )
         ddy *= minVal / length( ddy );
+
+    // Fix anisotropy for non-conservative filtering
+    if( conservative )
+        return;
+
+    ddx2 = dot( ddx, ddx );
+    ddy2 = dot( ddy, ddy );
+    if( ddx2 * invAniso2 > ddy2 )
+        ddx *= sqrtf( ddy2 / ( ddx2 * invAniso2 ) );
+    if( ddy2 * invAniso2 > ddx2 )
+        ddy *= sqrtf( ddx2 / ( ddy2 * invAniso2 ) );
 }
 
 template <class TYPE> D_INLINE TYPE
@@ -100,7 +111,8 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
               float s, float t, float2 ddx, float2 ddy, TYPE* result, TYPE* dresultds, TYPE* dresultdt )
 {
     // General gradient size fixes
-    fixGradients( ddx, ddy, texWidth, texHeight, filterMode );
+    bool conservative = false;
+    fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservative );
     s -= floorf( s );
     t -= floorf( t );
 
@@ -124,7 +136,6 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         mipLevel = floorf( ml );
         mipLevel = max( mipLevel, 0 );
     }
-
     int mipLevelWidth = max( texWidth >> mipLevel , 1);
     int mipLevelHeight = max( texHeight >> mipLevel , 1);
 
