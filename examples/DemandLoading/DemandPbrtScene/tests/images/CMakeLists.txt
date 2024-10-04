@@ -7,14 +7,14 @@ include(ImageTest)
 image_test_get_resource_dir(resourceDir DemandPbrtScene)
 
 function(pbrtImageTest name warmup scene)
-    cmake_parse_arguments(pbrtImageTest "" "" "RESOURCES" ${ARGN})
+    cmake_parse_arguments(pbrtImageTest "" "" "RESOURCES;OPTIONS" ${ARGN})
     if(NOT pbrtImageTest_RESOURCES)
         set(pbrtImageTest_RESOURCES "")
     endif()
     add_image_test(DemandPbrtScene ${name}
         FOLDER Examples/DemandLoading/Tests
         RESOURCES ${scene} ${pbrtImageTest_RESOURCES}
-        ARGS --bg=0.3,0.3,0.3 --warmup=${warmup} ${resourceDir}/${scene})
+        ARGS --bg=0.3,0.3,0.3 --warmup=${warmup} ${resourceDir}/${scene} ${pbrtImageTest_OPTIONS})
 endfunction()
 
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")
@@ -66,6 +66,14 @@ pbrtImageTest(instance-trimesh 3 instance-trimesh.pbrt)
 pbrtImageTest(instance-mixed-mesh 3 instance-mixed-mesh.pbrt)
 pbrtImageTest(instance-sphere-plymesh 3 instance-sphere-plymesh.pbrt)
 pbrtImageTest(instance-sphere-trimesh 3 instance-sphere-trimesh.pbrt)
+
+# Render object instance with multiple shapes and coarse granularity:
+# trianglemesh, plymesh, trianglemesh+plymesh, trianglemesh+sphere
+pbrtImageTest(coarse-instance-plymesh 3 instance-plymesh.pbrt OPTIONS --proxy-granularity=coarse)
+pbrtImageTest(coarse-instance-trimesh 3 instance-trimesh.pbrt OPTIONS --proxy-granularity=coarse)
+pbrtImageTest(coarse-instance-mixed-mesh 3 instance-mixed-mesh.pbrt OPTIONS --proxy-granularity=coarse)
+pbrtImageTest(coarse-instance-sphere-plymesh 3 instance-sphere-plymesh.pbrt OPTIONS --proxy-granularity=coarse)
+pbrtImageTest(coarse-instance-sphere-trimesh 3 instance-sphere-trimesh.pbrt OPTIONS --proxy-granularity=coarse)
 
 # PNG textures require OpenImageIO
 if(OTK_USE_OIIO)
