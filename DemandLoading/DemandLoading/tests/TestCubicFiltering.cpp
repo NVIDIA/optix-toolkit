@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include "SourceDir.h"  // generated from SourceDir.h.in
+
 #include "TestSparseTexture.h"
 
 #include "DemandLoaderImpl.h"
@@ -356,7 +358,7 @@ void TestCubicFiltering::makeTestImage()
 
 TEST_F( TestCubicFiltering, mip0 )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.48f, 0.48f};
     uv11 = float2{0.53f, 0.53f};
     ddx = float2{1.0f/128, 0.0f};
@@ -379,7 +381,7 @@ TEST_F( TestCubicFiltering, mip0 )
 
 TEST_F( TestCubicFiltering, mip3 )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.4f, 0.4f};
     uv11 = float2{0.7f, 0.7f};
     ddx = float2{0.08f, 0.08f};
@@ -413,7 +415,7 @@ TEST_F( TestCubicFiltering, mip3 )
 
 TEST_F( TestCubicFiltering, mip4 )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.3f, 0.3f};
     uv11 = float2{0.8f, 0.8f};
     ddx = float2{0.16f, 0.16f};
@@ -430,7 +432,7 @@ TEST_F( TestCubicFiltering, mip4 )
 
 TEST_F( TestCubicFiltering, mip0Horizontal )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.40f, 0.40f};
     uv11 = float2{0.60f, 0.60f};
     ddx = float2{0.08f, 0.00f};
@@ -447,7 +449,7 @@ TEST_F( TestCubicFiltering, mip0Horizontal )
 
 TEST_F( TestCubicFiltering, mip0Diagonal )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.40f, 0.40f};
     uv11 = float2{0.60f, 0.60f};
     ddx = float2{0.05f, 0.05f};
@@ -464,7 +466,7 @@ TEST_F( TestCubicFiltering, mip0Diagonal )
 
 TEST_F( TestCubicFiltering, smartBicubic )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.48f, 0.48f};
     uv11 = float2{0.53f, 0.53f};
     ddx = float2{0.0f, 0.0f};
@@ -500,7 +502,7 @@ TEST_F( TestCubicFiltering, smartBicubic )
 TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
 {
     /*
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.46f, 0.46f};
     uv11 = float2{0.54f, 0.54f};
     ddx = float2{0.005f, -0.005f};
@@ -526,7 +528,7 @@ TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
 
 TEST_F( TestCubicFiltering, nonConservative )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.25f, 0.25f};
     uv11 = float2{0.75f, 0.75f};
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
@@ -560,7 +562,7 @@ TEST_F( TestCubicFiltering, nonConservative )
 
 TEST_F( TestCubicFiltering, closest )
 {
-    imageFileName = "testImage.exr";
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
     uv00 = float2{0.25f, 0.25f};
     uv11 = float2{0.75f, 0.75f};
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
