@@ -69,7 +69,8 @@ struct TextureSampler
     unsigned int hasCascade   : 1;
     unsigned int filterMode   : 2;
     unsigned int numChannelTextures : 5;
-    unsigned int pad          : 20;
+    unsigned int conservativeFilter : 1;
+    unsigned int pad          : 19;
 };
 
 // Indexing related to base colors

@@ -107,12 +107,11 @@ textureWeighted( CUtexObject texture, float i, float j, float4 wx, float4 wy, in
 /// Compute cubic filtered texture sample based on filterMode.
 template <class TYPE> D_INLINE void
 textureCubic( CUtexObject texture, int texWidth, int texHeight,
-              unsigned int filterMode, unsigned int mipmapFilterMode, unsigned int maxAnisotropy,
+              unsigned int filterMode, unsigned int mipmapFilterMode, unsigned int maxAnisotropy, bool conservativeFiltering,
               float s, float t, float2 ddx, float2 ddy, TYPE* result, TYPE* dresultds, TYPE* dresultdt )
 {
     // General gradient size fixes
-    bool conservative = false;
-    fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservative );
+    fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservativeFiltering );
     s -= floorf( s );
     t -= floorf( t );
 
@@ -145,7 +144,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     float i = floorf( ts );
     float j = floorf( tt );
 
-    // Linear Sampling
+    // Linear and point sampling
     if( cubicBlend < 1.0f )
     {
         // Don't do bilinear sample for result unless cubicBlend is 0.
@@ -154,7 +153,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
             *result = ::tex2DGrad<TYPE>( texture, s, t, ddx, ddy );
         }
 
-        if( dresultds || dresultdt )
+        if( filterMode != FILTER_POINT && ( dresultds || dresultdt ) )
         {
             // FIXME: What about wrap modes?
             float ii = (ts-i > 0.5f) ? i+0.5f : i;
