@@ -176,6 +176,8 @@ void TestCubicFiltering::makeOIIOImages()
     if( mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
         options.mipmode = OIIO::TextureOpt::MipModeOneLevel;
     options.interpmode = (OIIO::TextureOpt::InterpMode) filterMode;
+    options.swrap = OIIO::TextureOpt::WrapPeriodic;
+    options.twrap = OIIO::TextureOpt::WrapPeriodic;
     
     options.conservative_filter = conservativeFilter;
     OIIO::TextureSystem* ts = OIIO::TextureSystem::create( true );
@@ -239,8 +241,8 @@ void TestCubicFiltering::makeDemandTextureImages()
 
     // Create TextureDescriptor.
     TextureDescriptor texDesc{};
-    texDesc.addressMode[0]   = CU_TR_ADDRESS_MODE_BORDER;
-    texDesc.addressMode[1]   = CU_TR_ADDRESS_MODE_BORDER;
+    texDesc.addressMode[0]   = CU_TR_ADDRESS_MODE_WRAP;
+    texDesc.addressMode[1]   = CU_TR_ADDRESS_MODE_WRAP;
     texDesc.filterMode       = filterMode;
     texDesc.mipmapFilterMode = (CUfilter_mode)mipmapFilterMode;
     texDesc.maxAnisotropy    = 16;
@@ -586,4 +588,21 @@ TEST_F( TestCubicFiltering, closest )
     ddy = float2{0.08f, 0.160f};
     runTest();
     writeImages( "image_mip3_linear_closest_anisotropic.ppm" );
+}
+
+TEST_F( TestCubicFiltering, wrap )
+{
+    imageFileName = getSourceDir() + "/Textures/onePoint.exr";
+    uv00 = float2{0.0f, 0.0f};
+    uv11 = float2{1.0f, 1.0f};
+    ddx = float2{0.3f, 1.3f};
+    ddy = float2{-0.07f, 0.07f};
+    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+
+    filterMode = OIIO::TextureOpt::InterpBilinear;
+    imageScale = 1000.0f;
+    derivativeScale = 2000.0f;
+    diffImageScale = 1.0f;
+    runTest();
+    writeImages( "image_wrap.ppm" );
 }

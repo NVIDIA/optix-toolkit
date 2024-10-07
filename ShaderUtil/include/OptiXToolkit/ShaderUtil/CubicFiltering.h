@@ -112,8 +112,6 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 {
     // General gradient size fixes
     fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservativeFiltering );
-    s -= floorf( s );
-    t -= floorf( t );
 
     // Determine the blend between linear and cubic filtering
     float pixelSpan = getPixelSpan( ddx, ddy, texWidth, texHeight );
@@ -155,30 +153,21 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 
         if( filterMode != FILTER_POINT && ( dresultds || dresultdt ) )
         {
-            // FIXME: What about wrap modes?
             float ii = (ts-i > 0.5f) ? i+0.5f : i;
             float jj = (tt-j > 0.5f) ? j+0.5f : j;
-            TYPE t00 = ::tex2DGrad<TYPE>( texture, (ii+0.5f)/mipLevelWidth, (jj+0.5f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
-            TYPE t10 = ::tex2DGrad<TYPE>( texture, (ii+1.0f)/mipLevelWidth, (jj+0.5f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
-            TYPE t01 = ::tex2DGrad<TYPE>( texture, (ii+0.5f)/mipLevelWidth, (jj+1.0f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
-            TYPE t11 = ::tex2DGrad<TYPE>( texture, (ii+1.0f)/mipLevelWidth, (jj+1.0f)/mipLevelHeight, ddx, ddy ) * mipLevelWidth * 2.0f;
+            float s0 = (ii+0.5f) / mipLevelWidth;
+            float s1 = (ii+1.0f) / mipLevelWidth;
+            float t0 = (jj+0.5f) / mipLevelHeight;
+            float t1 = (jj+1.0f) / mipLevelHeight;
+
+            TYPE t00 = ::tex2DGrad<TYPE>( texture, s0, t0, ddx, ddy ) * mipLevelWidth * 2.0f;
+            TYPE t10 = ::tex2DGrad<TYPE>( texture, s1, t0, ddx, ddy ) * mipLevelWidth * 2.0f;
+            TYPE t01 = ::tex2DGrad<TYPE>( texture, s0, t1, ddx, ddy ) * mipLevelHeight * 2.0f;
+            TYPE t11 = ::tex2DGrad<TYPE>( texture, s1, t1, ddx, ddy ) * mipLevelHeight * 2.0f;
             if( dresultds )
                 *dresultds = (lerp(t10, t11, 2.0f*(tt-jj)) - lerp(t00, t01, 2.0f*(tt-jj)));
             if( dresultdt )
                 *dresultdt = (lerp(t01, t11, 2.0f*(ts-ii)) - lerp(t00, t10, 2.0f*(ts-ii)));
-
-            /*
-            float ii = (ts-i > 0.5f) ? i+0.5f : i;
-            float jj = (tt-j > 0.5f) ? j+0.5f : j;
-            TYPE t00 = ::tex2DGrad<TYPE>( texture, (ii+0.5f)/mipLevelWidth, t, ddx, ddy ) * mipLevelWidth;
-            TYPE t10 = ::tex2DGrad<TYPE>( texture, (ii+1.0f)/mipLevelWidth, t, ddx, ddy ) * mipLevelWidth;
-            TYPE t01 = ::tex2DGrad<TYPE>( texture, s, (jj+0.5f)/mipLevelHeight, ddx, ddy ) * mipLevelHeight;
-            TYPE t11 = ::tex2DGrad<TYPE>( texture, s, (jj+1.0f)/mipLevelHeight, ddx, ddy ) * mipLevelHeight;
-            if( dresultds )
-                *dresultds = (t10-t00) * 2.0f;
-            if( dresultdt )
-                *dresultdt = (t11-t01) * 2.0f;
-            */
         }
 
         if( cubicBlend <= 0.0f )
@@ -212,7 +201,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     }
 
     // Return unless we have to blend between levels
-    if( filterMode != FILTER_BICUBIC || ml == mipLevel || ml < 0.0f )
+    if( filterMode != FILTER_BICUBIC || mipmapFilterMode == FILTER_POINT || ml == mipLevel || ml <= 0.0f )
         return;
 
     //-------------------------------------------------------------------------------
