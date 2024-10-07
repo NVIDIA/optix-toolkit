@@ -56,6 +56,7 @@ class TestCubicFiltering : public testing::Test
     float2 ddx, ddy;
     unsigned int filterMode;
     unsigned int mipmapFilterMode;
+    bool conservativeFilter = true;
 
     float imageScale = 1.0f;
     float derivativeScale = 1.0f;
@@ -170,8 +171,11 @@ void TestCubicFiltering::makeOIIOImages()
 {
     OIIO::ustring fileName( imageFileName );
     OIIO::TextureOpt options;
-    options.interpmode = (OIIO::TextureOpt::InterpMode)filterMode;
-    options.conservative_filter = false;
+    if( mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
+        options.mipmode = OIIO::TextureOpt::MipModeOneLevel;
+    options.interpmode = (OIIO::TextureOpt::InterpMode) filterMode;
+    
+    options.conservative_filter = conservativeFilter;
     OIIO::TextureSystem* ts = OIIO::TextureSystem::create( true );
 
     oiioImage.resize(width * height, float4{});
@@ -185,11 +189,14 @@ void TestCubicFiltering::makeOIIOImages()
             float y = 1.0f - ( j + 0.5f ) / height;
             float s = mix( uv00.x, uv11.x, x );
             float t = mix( uv00.y, uv11.y, y );
-            
-            float pxVal[4];
-            float pxDrds[4];
-            float pxDrdt[4];
-            ts->texture( fileName, options, s, t, ddx.x, ddx.y, ddy.x, ddy.y, 4, pxVal, pxDrds, pxDrdt );
+
+            float pxVal[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            float pxDrds[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            float pxDrdt[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            if( filterMode != OIIO::TextureOpt::InterpClosest )
+                ts->texture( fileName, options, s, t, ddx.x, ddx.y, ddy.x, ddy.y, 4, pxVal, pxDrds, pxDrdt );
+            else
+                ts->texture( fileName, options, s, t, ddx.x, ddx.y, ddy.x, ddy.y, 4, pxVal );
 
             // Combine derivative images
             int pixelId = ( height - 1 - j ) * width + i;
@@ -392,6 +399,16 @@ TEST_F( TestCubicFiltering, mip3 )
     diffImageScale = 1.0f;
     runTest();
     writeImages( "image_mip3_bicubic.ppm" );
+
+    uv00 = float2{0.2f, 0.2f};
+    uv11 = float2{0.9f, 0.9f};
+    filterMode = OIIO::TextureOpt::InterpBicubic;
+    imageScale = 500.0f;
+    derivativeScale = 2000.0f;
+    diffImageScale = 1.0f;
+    ddx = float2{0.32f, 0.32f};
+    runTest();
+    writeImages( "image_mip3_bicubic_anisotropic.ppm" );
 }
 
 TEST_F( TestCubicFiltering, mip4 )
@@ -507,12 +524,13 @@ TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
     */
 }
 
-TEST_F( TestCubicFiltering, conservative )
+TEST_F( TestCubicFiltering, nonConservative )
 {
     imageFileName = "testImage.exr";
     uv00 = float2{0.25f, 0.25f};
     uv11 = float2{0.75f, 0.75f};
     mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    conservativeFilter = false;
 
     filterMode = OIIO::TextureOpt::InterpBilinear;
     imageScale = 10.0f;
@@ -522,20 +540,48 @@ TEST_F( TestCubicFiltering, conservative )
     ddx = float2{0.005f, -0.005f};
     ddy = float2{0.32f, 0.32f};
     runTest();
-    writeImages( "image_conservative_64x.ppm" );
+    writeImages( "image_nonConservative_64x.ppm" );
 
     ddx = float2{0.000025f, -0.000025f};
     ddy = float2{0.32f, 0.32f};
     runTest();
-    writeImages( "image_conservative_nearZero.ppm" );
+    writeImages( "image_nonConservative_nearZero.ppm" );
 
     ddx = float2{0.32f, -0.32f};
     ddy = float2{0.0f, 0.0f};
     runTest();
-    writeImages( "image_conservative_zero.ppm" );
+    writeImages( "image_nonConservative_zero.ppm" );
 
     ddx = float2{0.0f, 0.0f};
     ddy = float2{0.0f, 0.0f};
     runTest();
-    writeImages( "image_conservative_zero_zero.ppm" );
+    writeImages( "image_nonConservative_zero_zero.ppm" );
+}
+
+TEST_F( TestCubicFiltering, closest )
+{
+    imageFileName = "testImage.exr";
+    uv00 = float2{0.25f, 0.25f};
+    uv11 = float2{0.75f, 0.75f};
+    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+
+    filterMode = OIIO::TextureOpt::InterpClosest;
+    imageScale = 100.0f;
+    derivativeScale = 400.0f;
+    diffImageScale = 1.0f;
+
+    ddx = float2{0.040f, 0.0f};
+    ddy = float2{0.0f, 0.040f};
+    runTest();
+    writeImages( "image_mip3_linear_closest.ppm" );
+
+    mipmapFilterMode = CU_TR_FILTER_MODE_POINT;
+    runTest();
+    writeImages( "image_mip3_closest_closest.ppm" );
+
+    mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    ddx = float2{0.040f, 0.0f};
+    ddy = float2{0.08f, 0.160f};
+    runTest();
+    writeImages( "image_mip3_linear_closest_anisotropic.ppm" );
 }

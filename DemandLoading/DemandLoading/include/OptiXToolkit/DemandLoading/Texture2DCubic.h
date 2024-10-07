@@ -88,7 +88,7 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     }
 #endif
 
-    textureCubic( texture, texWidth, texHeight, filterMode, mipmapFilterMode, maxAnisotropy,
+    textureCubic( texture, texWidth, texHeight, filterMode, mipmapFilterMode, maxAnisotropy, sampler->conservativeFilter,
                   s, t, ddx, ddy, result, dresultds, dresultdt );
     return resident;
 }
