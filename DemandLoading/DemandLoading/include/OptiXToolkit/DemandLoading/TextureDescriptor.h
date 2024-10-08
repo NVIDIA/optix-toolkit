@@ -29,6 +29,9 @@ struct TextureDescriptor
 
     /// CUDA texture flags.  Use 0 to enable trilinear optimization (off by default).
     unsigned int flags = CU_TRSF_DISABLE_TRILINEAR_OPTIMIZATION;
+
+    // Apply conservative filtering (overblur to prevent aliasing for very anisotropic samples).
+    bool conservativeFilter = true;
 };
 
 inline CUfilter_mode toCudaFilterMode( unsigned int mode )
@@ -43,7 +46,8 @@ inline bool operator==( const TextureDescriptor& adesc, const TextureDescriptor&
            && adesc.filterMode == bdesc.filterMode              //
            && adesc.mipmapFilterMode == bdesc.mipmapFilterMode  //
            && adesc.maxAnisotropy == bdesc.maxAnisotropy        //
-           && adesc.flags == bdesc.flags;
+           && adesc.flags == bdesc.flags                        //
+           && adesc.conservativeFilter == bdesc.conservativeFilter;
 }
 
 inline bool operator!=( const TextureDescriptor& lhs, const TextureDescriptor& rhs )

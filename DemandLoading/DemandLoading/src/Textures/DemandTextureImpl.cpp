@@ -238,6 +238,7 @@ void DemandTextureImpl::initSampler()
     m_sampler.hasCascade = m_image->hasCascade();
     m_sampler.cascadeLevel = static_cast<unsigned short>( getCascadeLevel( m_sampler.width, m_sampler.height ) );
     m_sampler.filterMode = m_descriptor.filterMode;
+    m_sampler.conservativeFilter = m_descriptor.conservativeFilter;
 }
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const
