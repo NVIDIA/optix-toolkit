@@ -7,6 +7,7 @@
 /// \file CubicFiltering.h
 /// Device-side functions for cubic filtering and sampling derivatives from a texture.
 
+using namespace otk;
 #include <OptiXToolkit/ShaderUtil/TextureUtil.h>
 
 D_INLINE float4 cubicWeights( float x )

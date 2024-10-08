@@ -7,10 +7,19 @@
 /// \file Texture2DCubic.h 
 /// Device-side functions for cubic filtering and sampling derivatives from a texture.
 
-#include <OptiXToolkit/DemandLoading/Texture2DExtended.h>
+#include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/ShaderUtil/CubicFiltering.h>
 
 namespace demandLoading {
+
+D_INLINE void separateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
+{
+    newx = wrapTexCoord( x, wrapMode ) * udim;
+    xidx = static_cast<unsigned int>( floorf( newx ) );
+    xidx = (xidx < udim) ? xidx : 0; // fix problem that happens with -0.000
+    newx -= floorf( newx );
+}
 
 /// Fetch from a demand-loaded texture with the specified textureId. Results are computed and stored
 /// in the non-null locations pointed to by result, dresultds, and dresultdt. Filter based on the 
@@ -138,8 +147,8 @@ textureUdim( const DeviceContext& context, unsigned int textureId, float s, floa
         {
             float        subs, subt;
             unsigned int sidx, tidx;
-            wrapAndSeparateUdimCoord( s, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, subs, sidx );
-            wrapAndSeparateUdimCoord( t, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, subt, tidx );
+            separateUdimCoord( s, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, subs, sidx );
+            separateUdimCoord( t, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, subt, tidx );
 
             textureId = bsmp->udimStartPage + ( tidx * bsmp->udim + sidx ) * bsmp->numChannelTextures;
             s = subs;
