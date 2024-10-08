@@ -246,6 +246,7 @@ void TestCubicFiltering::makeDemandTextureImages()
     texDesc.filterMode       = filterMode;
     texDesc.mipmapFilterMode = (CUfilter_mode)mipmapFilterMode;
     texDesc.maxAnisotropy    = 16;
+    texDesc.conservativeFilter = false;
 
     // Create a texture for the textureName
     std::shared_ptr<imageSource::ImageSource> image = imageSource::createImageSource( imageFileName.c_str() );
