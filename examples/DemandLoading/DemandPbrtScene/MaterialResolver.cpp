@@ -163,9 +163,6 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     geom->instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( geom->instance );
     const uint_t materialId{ containerSize( sync.realizedMaterials ) };
     sync.realizedMaterials.push_back( group.material );
-    sync.realizedNormals.push_back( geom->instance.devNormals );
-    sync.realizedUVs.push_back( geom->instance.devUVs );
-    sync.topLevelInstances[geom->instanceIndex] = geom->instance.instance;
     const uint_t materialIndex{ geom->instance.instance.instanceId };
     sync.primitiveMaterials[sync.materialIndices[materialIndex].primitiveMaterialBegin + index].materialId = materialId;
     if( m_options.verboseProxyMaterialResolution )
@@ -208,6 +205,9 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( std::vector<uint_t>& r
     MaterialResolution  result{ MaterialResolution::NONE };
     std::vector<uint_t> resolvedMaterialIds;
     resolvedMaterialIds.reserve( geom->instance.groups.size() );
+    sync.realizedNormals.push_back( geom->instance.devNormals );
+    sync.realizedUVs.push_back( geom->instance.devUVs );
+    sync.topLevelInstances[geom->instanceIndex] = geom->instance.instance;
     for( size_t i = 0; i < geom->instance.groups.size(); ++i )
     {
         result = std::max( result, resolveMaterialGroup( requestedMaterials, sync, geom, i, resolvedMaterialIds ) );
