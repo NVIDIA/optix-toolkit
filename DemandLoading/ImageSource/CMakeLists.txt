@@ -76,7 +76,6 @@ if( OTK_USE_OPENEXR )
         )
         target_compile_definitions( ImageSource PUBLIC
             OPTIX_SAMPLE_USE_CORE_EXR
-            OTK_IMF_NAMESPACE=Imf_3_1
         )
         if(NOT MSVC)
             # Silence 'ISO C++ prohibits anonymous structs' warning in OpenEXR header.
