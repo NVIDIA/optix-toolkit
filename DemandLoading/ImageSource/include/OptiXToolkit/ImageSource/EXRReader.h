@@ -10,14 +10,16 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
+#include <ImfNamespace.h>
+
 #include <iosfwd>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-// Forward declarations of OpenEXR classes.
-namespace OTK_IMF_NAMESPACE
+// Forward declarations of OpenEXR classes.  (Not sure why this can't use "namespace Imf".)
+namespace OPENEXR_IMF_INTERNAL_NAMESPACE
 {
     class FrameBuffer;
     class InputFile;
@@ -102,8 +104,8 @@ class EXRReader : public ImageSourceBase
     std::string m_firstChannelName{"R"};
     std::string m_filename;
 
-    std::unique_ptr<OTK_IMF_NAMESPACE::TiledInputFile> m_tiledInputFile;
-    std::unique_ptr<OTK_IMF_NAMESPACE::InputFile>      m_inputFile;
+    std::unique_ptr<Imf::TiledInputFile> m_tiledInputFile;
+    std::unique_ptr<Imf::InputFile>      m_inputFile;
 
     TextureInfo        m_info{};
     unsigned int       m_pixelType;
@@ -117,7 +119,7 @@ class EXRReader : public ImageSourceBase
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;
 
-    void setupFrameBuffer( OTK_IMF_NAMESPACE::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride );
+    void setupFrameBuffer( Imf::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride );
     void readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY );
     void readScanlineData( char* dest );
 };
