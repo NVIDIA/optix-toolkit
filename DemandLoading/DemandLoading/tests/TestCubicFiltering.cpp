@@ -307,8 +307,10 @@ void TestCubicFiltering::makeDiffImages()
 
 void TestCubicFiltering::writeImages( const char* fileName )
 {
-#define COMBINED_IMAGES
-#ifndef COMBINED_IMAGES // Separate images
+(void)fileName;
+
+//#define SEPARATE_IMAGES
+#ifdef SEPARATE_IMAGES
     writePPM( "image_A_OIIO.ppm", (float*)oiioImage.data(), width, height, 4 );
     writePPM( "image_B_DemandTexture.ppm", (float*)demandTextureImage.data(), width, height, 4 );
     writePPM( "image_C_Diff.ppm", (float*)diffImage.data(), width, height, 4 );
@@ -318,6 +320,7 @@ void TestCubicFiltering::writeImages( const char* fileName )
     writePPM( "imageDerivative_C_Diff.ppm", (float*)diffDerivativeImage.data(), width, height, 4 );
 #endif
 
+//#define COMBINED_IMAGES
 #ifdef COMBINED_IMAGES
     int combinedWidth = width * 3 + 2;
     int combinedHeight = height * 2 + 1;
