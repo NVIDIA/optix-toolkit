@@ -117,12 +117,13 @@ void Application::launch( otk::CUDAOutputBuffer<uchar4>& outputBuffer )
 void Application::updateStats( const UserInterfacePtr& ui )
 {
     ++m_stats.numFrames;
-    UserInterfaceStatistics stats;
+    UserInterfaceStatistics stats{};
     stats.numFramesRendered  = m_stats.numFrames;
     stats.geometryCache      = m_geometryCache->getStatistics();
     stats.imageSourceFactory = m_imageSourceFactory->getStatistics();
     stats.proxyFactory       = m_proxyFactory->getStatistics();
     stats.materials          = m_materialResolver->getStatistics();
+    stats.geometry           = m_geometryResolver->getStatistics();
     stats.scene              = m_scene->getStatistics();
     ui->setStatistics( stats );
 }
