@@ -15,10 +15,3 @@ __host__ void launchWrapTestKernel( cudaTextureObject_t texture, float4* output,
 
 __host__ void launchTextureDrawKernel( CUstream stream, demandLoading::DeviceContext& context, unsigned int textureId,
                                        float4* output, int width, int height );
-
-__host__ void launchCubicTextureDrawKernel( CUstream stream, demandLoading::DeviceContext& context, unsigned int textureId,
-                                            float4* output, int width, int height, float2 ddx, float2 ddy );
-
-__host__ void launchCubicTextureSubimageDrawKernel( CUstream stream, demandLoading::DeviceContext& context,
-                                                    unsigned int textureId, float4* image, float4* drdsImage, int width, int height,
-                                                    float2 uv00, float2 uv11, float2 ddx, float2 ddy );

@@ -488,7 +488,7 @@ TEST_F( TestDemandTexture, TestNonOptixTexturing )
     OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
-
+#if OTK_USE_OIIO
 TEST_F( TestDemandTexture, TestCubicSampling )
 {
     // Skip test if sparse textures not supported
@@ -537,6 +537,7 @@ TEST_F( TestDemandTexture, TestCubicSampling )
     free( hostOutput );
     OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
+#endif  // OTK_USE_OIIO
 
 TEST_F( TestDemandTexture, TestDuplicateTexture )
 {
