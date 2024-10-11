@@ -26,7 +26,6 @@ otk_add_executable( testDemandLoading
   DeviceConstantImageKernels.cu
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
-  TestCubicFiltering.cpp
   TestContextSaver.cpp
   TestDemandLoader.cpp
   TestDemandPageLoader.cpp
@@ -52,6 +51,14 @@ otk_add_executable( testDemandLoading
   SourceDir.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/SourceDir.h
   )
+
+if( OTK_USE_OIIO )
+  target_sources( testDemandLoading PRIVATE
+    TestCubicFiltering.cpp
+    TestCubicFiltering.cu
+    TestCubicFiltering.h
+  )
+endif()
 
 source_group( "CUDA Files" REGULAR_EXPRESSION ".*\.cu" )
 

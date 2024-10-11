@@ -9,7 +9,7 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
-#include "TestSparseTexture.h"
+#include "TestCubicFiltering.h"
 
 #include "DemandLoaderImpl.h"
 #include "Memory/DeviceMemoryManager.h"
