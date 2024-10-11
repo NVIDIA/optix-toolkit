@@ -437,9 +437,9 @@ namespace demandPbrtScene {
 __device__ __forceinline__ uint_t getMaterialId( const Params& params, uint_t instanceId )
 {
 #ifndef NDEBUG
-    if(instanceId >= params.numMaterialIndices)
+    if( instanceId >= params.numMaterialIndices )
     {
-        printf( "Instance id %u exceeds number of MaterialIndex entries %u\n", instanceId, params.numMaterialIndices);
+        printf( "Instance id %u exceeds number of MaterialIndex entries %u\n", instanceId, params.numMaterialIndices );
         assert( instanceId < params.numMaterialIndices );
     }
 #endif
@@ -692,10 +692,18 @@ extern "C" __global__ void __anyhit__alphaCutOutMesh()
 {
     const Params& params{ PARAMS_VAR_NAME };
     const uint_t  textureId{ getRealizedMaterial().alphaTextureId };
-    const float2  uv{ getTriangleUVs( params.instanceUVs, optixGetInstanceId() ) };
-    bool          isResident{};
-    const float   texel{ demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident ) };
-    const bool    ignored{ isResident && (texel == 0.0f) };
+    const uint_t  instanceId{ optixGetInstanceId() };
+#ifndef NDEBUG
+    if( instanceId >= params.numInstanceUVs )
+    {
+        printf( "Instance id %u exceeds numInstanceUVs %u\n", instanceId, params.numInstanceUVs );
+        assert( instanceId < params.numInstanceUVs );
+    }
+#endif
+    const float2 uv{ getTriangleUVs( params.instanceUVs, instanceId ) };
+    bool         isResident{};
+    const float  texel{ demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident ) };
+    const bool   ignored{ isResident && ( texel == 0.0f ) };
     if( !isResident )
     {
         getRayPayload()->discardRay = true;
@@ -721,6 +729,13 @@ extern "C" __global__ void __closesthit__texturedMesh()
 
     const Params& params{ PARAMS_VAR_NAME };
     const uint_t  instanceId = optixGetInstanceId();
+#ifndef NDEBUG
+    if( instanceId >= params.numInstanceUVs )
+    {
+        printf( "Instance id %u exceeds numInstanceUVs %u\n", instanceId, params.numInstanceUVs );
+        assert( instanceId < params.numInstanceUVs );
+    }
+#endif
     const float2  uv         = getTriangleUVs( params.instanceUVs, instanceId );
 
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
