@@ -224,8 +224,6 @@ bool PbrtGeometryResolver::resolveRequestedProxyGeometries( CUstream            
             // we reused a realized material while resolving a proxy geometry
             sync.realizedNormals.copyToDeviceAsync( stream );
             sync.realizedUVs.copyToDeviceAsync( stream );
-            sync.materialIndices.copyToDeviceAsync( stream );
-            sync.primitiveMaterials.copyToDeviceAsync( stream );
         }
         sync.materialIndices.copyToDeviceAsync( stream );
         sync.primitiveMaterials.copyToDeviceAsync( stream );
