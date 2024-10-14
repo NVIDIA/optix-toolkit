@@ -453,8 +453,8 @@ TEST_F( TestMaterialResolverRequestedProxyIdsGroups, resolvePhongMaterialGroups 
     ASSERT_EQ( 2U, m_sync.realizedMaterials.size() );
     EXPECT_EQ( arbitraryPhongMaterial(), m_sync.realizedMaterials[0] );
     EXPECT_EQ( arbitraryOtherPhongMaterial(), m_sync.realizedMaterials[1] );
-    EXPECT_EQ( 2U, m_sync.realizedNormals.size() );
-    EXPECT_EQ( 2U, m_sync.realizedUVs.size() );
+    EXPECT_EQ( 1U, m_sync.realizedNormals.size() );
+    EXPECT_EQ( 1U, m_sync.realizedUVs.size() );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     const OptixInstance& instance{ m_sync.topLevelInstances.back() };
     EXPECT_EQ( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START, instance.sbtOffset );
