@@ -10,6 +10,8 @@
 
 #include <vector_functions.h>
 
+#include <cassert>
+
 using namespace otk;  // for vec_math operators
 
 namespace demandPbrtScene {
@@ -27,7 +29,16 @@ extern "C" __global__ void __closesthit__mesh()
 
     RayPayload* prd = getRayPayload();
     prd->diffuseTextureId = 0xffffffff;
-    prd->material = &PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
+    const Params& params{ PARAMS_VAR_NAME };
+    const uint_t  instanceId{ optixGetInstanceId() };
+#ifndef NDEBUG
+    if( instanceId >= params.numRealizedMaterials )
+    {
+        printf( "Instance id %u exceeds numRealizedMaterials %u\n", instanceId, params.numRealizedMaterials );
+        assert( instanceId < params.numRealizedMaterials );
+    }
+#endif
+    prd->material = &params.realizedMaterials[instanceId];
     prd->normal = worldNormal;
     prd->rayDistance = optixGetRayTmax();
     prd->color = float3{1.0f, 0.0f, 1.0f};
@@ -77,7 +88,16 @@ extern "C" __global__ void __closesthit__sphere()
 
     RayPayload* prd = getRayPayload();
     prd->diffuseTextureId = 0xffffffff;
-    prd->material = &PARAMS_VAR_NAME.realizedMaterials[optixGetInstanceId()];
+    const Params& params{ PARAMS_VAR_NAME };
+    const uint_t  instanceId{ optixGetInstanceId() };
+#ifndef NDEBUG
+    if( instanceId >= params.numRealizedMaterials )
+    {
+        printf( "Instance id %u exceeds numRealizedMaterials %u\n", instanceId, params.numRealizedMaterials );
+        assert( instanceId < params.numRealizedMaterials );
+    }
+#endif
+    prd->material = &params.realizedMaterials[instanceId];
     prd->normal = worldNormal;
     prd->rayDistance = optixGetRayTmax();
     prd->color = float3{1.0f, 0.0f, 1.0f};

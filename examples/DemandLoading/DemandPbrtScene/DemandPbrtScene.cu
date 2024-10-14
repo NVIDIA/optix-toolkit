@@ -458,6 +458,9 @@ __device__ __forceinline__ uint_t getMaterialId( const Params& params, uint_t in
         const PrimitiveMaterialRange& group{ params.primitiveMaterials[matIdx] };
         if( primIdx < group.primitiveEnd )
         {
+#ifndef NDEBUG
+            assert( group.materialId > 0 );
+#endif
             return group.materialId;
         }
         ++matIdx;
