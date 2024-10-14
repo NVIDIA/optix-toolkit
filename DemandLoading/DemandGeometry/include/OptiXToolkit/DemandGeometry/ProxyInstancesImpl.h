@@ -15,6 +15,8 @@
 
 #include <optix.h>
 
+#include <cassert>
+
 namespace demandGeometry {
 
 template <typename T>
@@ -47,6 +49,9 @@ extern "C" __global__ void __closesthit__electricBoundingBox()
     const uint_t pageId = optixGetAttribute_3();
 
     bool isResident{};
+#ifndef NDEBUG
+    assert( pageId > 0 );
+#endif
     const unsigned long long pageTableEntry = demandLoading::pagingMapOrRequest( app::getDeviceContext(), pageId, &isResident );
     // We don't actually care about the value of isResident or pageTableEntry.
 

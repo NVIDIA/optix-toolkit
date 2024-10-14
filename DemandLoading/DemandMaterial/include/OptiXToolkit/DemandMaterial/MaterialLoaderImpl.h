@@ -6,6 +6,8 @@
 
 #include <OptiXToolkit/DemandLoading/Paging.h>
 
+#include <cassert>
+
 namespace demandMaterial {
 
 namespace app {
@@ -20,6 +22,9 @@ extern "C" __global__ void __closesthit__proxyMaterial()
 {
     const unsigned int pageId = app::getMaterialId();
     bool               isResident{};
+#ifndef NDEBUG
+    assert( pageId > 0 );
+#endif
     const unsigned long long pageTableEntry = demandLoading::pagingMapOrRequest( app::getDeviceContext(), pageId, &isResident );
     app::reportClosestHit( pageId, isResident );
 }
