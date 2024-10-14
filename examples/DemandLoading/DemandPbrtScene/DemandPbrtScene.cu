@@ -7,8 +7,8 @@
 #include "DemandPbrtScene/PhongShade.h"
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
-#include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
+#include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <optix.h>
 
@@ -79,27 +79,28 @@ static __forceinline__ __device__ float2 concentricMapping( float2 u )
 {
     float a = 2.0f * u.x - 1.0f;
     float b = 2.0f * u.y - 1.0f;
-    if ( b == 0.0f ) b = 1.0f;
+    if( b == 0.0f )
+        b = 1.0f;
     float r, phi;
 
-    if ( a * a > b * b )
+    if( a * a > b * b )
     {
-        r = a;
+        r   = a;
         phi = ( M_PIf / 4.0f ) * ( b / a );
     }
     else
     {
-        r = b;
+        r   = b;
         phi = ( M_PIf / 2.0f ) - ( M_PIf / 4.0f ) * ( a / b );
     }
-    return float2{r * cos( phi ), r * sin( phi )};
+    return float2{ r * cos( phi ), r * sin( phi ) };
 }
 
 // Make an orthonormal basis from unit length vector N.
 static __forceinline__ __device__ void makeOrthoBasis( float3 N, float3& S, float3& T )
 {
     using namespace otk;
-    S = ( fabsf( N.x ) + fabsf( N.y ) > fabsf( N.z ) ) ? float3{-N.y, N.x, 0.0f} : float3{0.0f, -N.z, N.y};
+    S = ( fabsf( N.x ) + fabsf( N.y ) > fabsf( N.z ) ) ? float3{ -N.y, N.x, 0.0f } : float3{ 0.0f, -N.z, N.y };
     S = normalize( S );
     T = cross( S, N );
 }
@@ -126,9 +127,9 @@ static __forceinline__ __device__ void accumulateValue( int pixel, float3 val )
 static __forceinline__ __device__ void showAccumulatorValue( int pixel, float3 substituteVal )
 {
     const Params& params{ PARAMS_VAR_NAME };
-    float4 accVal = params.accumulator[pixel];
+    const float4  accVal{ params.accumulator[pixel] };
     if( accVal.w > 0.0f )
-        params.image[pixel] = makeColor( float3{accVal.x, accVal.y, accVal.z} / accVal.w );
+        params.image[pixel] = makeColor( float3{ accVal.x, accVal.y, accVal.z } / accVal.w );
     else
         params.image[pixel] = makeColor( substituteVal );
 }
@@ -174,7 +175,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const uint_t        missSbtIndex = RAYTYPE_RADIANCE;
 
     const bool usePinhole{ params.usePinholeCamera };
-    if( otk::atDebugIndex( params.debug, idx )  )
+    if( otk::atDebugIndex( params.debug, idx ) )
     {
         if( usePinhole )
         {
@@ -235,96 +236,97 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         }
     }
 
-    RayPayload prd{};
+    RayPayload   prd{};
     unsigned int u0;
     unsigned int u1;
     packPointer( &prd, u0, u1 );
 
     prd.rayDistance = tMax;
-    float3 rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
-    float3 rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
-    RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{params.width, params.height}, rayDirection );
+    float3  rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
+    float3  rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
+    RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
-                sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr(u0), attr(u1) );
-    rayCone = propagate(rayCone, prd.rayDistance);
+                sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
+    rayCone       = propagate( rayCone, prd.rayDistance );
     rayCone.angle = MAX_CONE_ANGLE;
 
     // Render background and electric bounding boxes
-    if( otk::dot(prd.normal, prd.normal) == 0.0f )
+    if( otk::dot( prd.normal, prd.normal ) == 0.0f )
     {
         if( prd.isBackground )
             accumulateValue( pixel, prd.color );
-        else // electric bounding box
+        else  // electric bounding box
             showAccumulatorValue( pixel, prd.color );
         return;
     }
 
-    if( prd.discardRay == true )
+    if( prd.discardRay )
     {
-        showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
+        showAccumulatorValue( pixel, float3{ 1.0f, 1.0f, 0.0f } );
         return;
     }
 
     // Phong shading
-    if ( renderMode == RenderMode::PRIMARY_RAY )
+    if( renderMode == RenderMode::PRIMARY_RAY )
     {
         if( prd.material == nullptr )
         {
-            showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
+            showAccumulatorValue( pixel, float3{ 1.0f, 1.0f, 0.0f } );
             return;
         }
-        PhongMaterial mat = *prd.material;
+        PhongMaterial mat{ *prd.material };
         if( prd.diffuseTextureId != 0xffffffff )
         {
-            bool isResident;
-            float dd = rayCone.width / prd.worldSpaceTextureSize;
-            float2 ddx = float2{ dd, 0.0f };
-            float2 ddy = float2{ 0.0f, dd };
-            float4 texel = demandLoading::tex2DGrad<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
+            const float  dd{ rayCone.width / prd.worldSpaceTextureSize };
+            const float2 ddx{ dd, 0.0f };
+            const float2 ddy{ 0.0f, dd };
+            bool         isResident{};
+            const float4 texel{ demandLoading::tex2DGrad<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x,
+                                                                  prd.uv.y, ddx, ddy, &isResident ) };
             if( !isResident )
             {
-                showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
+                showAccumulatorValue( pixel, float3{ 1.0f, 1.0f, 0.0f } );
                 return;
             }
-            mat.Kd *= float3{texel.x, texel.y, texel.z};
+            mat.Kd *= float3{ texel.x, texel.y, texel.z };
         }
 
-        float3 color = phongShade( mat, prd.normal, rayDirection );
+        const float3 color{ phongShade( mat, prd.normal, rayDirection ) };
         accumulateValue( pixel, color );
         return;
     }
 
     // Path tracing starts out with diffuse color, ambient occlusion with white
-    float3 sampleColor = float3{1.0f, 1.0f, 1.0f};
+    float3 sampleColor = float3{ 1.0f, 1.0f, 1.0f };
     if( renderMode == RenderMode::PATH_TRACING && prd.diffuseTextureId != 0xffffffff )
     {
         bool isResident;
         float4 texel = demandLoading::tex2D<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, &isResident );
         if( !isResident )
         {
-            showAccumulatorValue( pixel, float3{1.0f, 1.0f, 0.0f} );
+            showAccumulatorValue( pixel, float3{ 1.0f, 1.0f, 0.0f } );
             return;
         }
-        sampleColor *= float3{texel.x, texel.y, texel.z};
+        sampleColor *= float3{ texel.x, texel.y, texel.z };
     }
 
     // Ambient Occlusion and Diffuse Path Tracing
-    const float rayTmax = (renderMode == RenderMode::NEAR_AO) ? 128.0f : 1000000.0f;
-    const float maxRayDepth = (renderMode != RenderMode::PATH_TRACING) ? 1 : 3;
+    const float rayTmax     = ( renderMode == RenderMode::NEAR_AO ) ? 128.0f : 1000000.0f;
+    const float maxRayDepth = ( renderMode != RenderMode::PATH_TRACING ) ? 1 : 3;
 
     for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )
     {
         // Compute ray scatter direction
         rayOrigin = rayOrigin + prd.rayDistance * rayDirection;
-        if( otk::dot(prd.normal, rayDirection) > 0.0f )
+        if( otk::dot( prd.normal, rayDirection ) > 0.0f )
             prd.normal = -prd.normal;
-        rayDirection = sampleDiffuse( float2{rnd(rseed), rnd(rseed)}, prd.normal );
+        rayDirection = sampleDiffuse( float2{ rnd( rseed ), rnd( rseed ) }, prd.normal );
 
         // Trace ray
         prd.rayDistance = rayTmax;
-        optixTrace( params.traversable, rayOrigin, rayDirection, tMin, rayTmax, rayTime, OptixVisibilityMask( 255 ), flags,
-                    sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
-        rayCone = propagate( rayCone, prd.rayDistance );
+        optixTrace( params.traversable, rayOrigin, rayDirection, tMin, rayTmax, rayTime, OptixVisibilityMask( 255 ),
+                    flags, sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
+        rayCone       = propagate( rayCone, prd.rayDistance );
         rayCone.angle = MAX_CONE_ANGLE;
 
         // Ray hit sky, break
@@ -334,19 +336,20 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         // Multiply by diffuse color
         if( prd.diffuseTextureId != 0xffffffff )
         {
-            bool isResident;
-            float dd = rayCone.width / prd.worldSpaceTextureSize;
-            float2 ddx = float2{ dd, 0.0f };
-            float2 ddy = float2{ 0.0f, dd };
-            float4 texel = demandLoading::tex2DGrad<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x, prd.uv.y, ddx, ddy, &isResident );
+            bool   isResident;
+            float  dd    = rayCone.width / prd.worldSpaceTextureSize;
+            float2 ddx   = float2{ dd, 0.0f };
+            float2 ddy   = float2{ 0.0f, dd };
+            float4 texel = demandLoading::tex2DGrad<float4>( params.demandContext, prd.diffuseTextureId, prd.uv.x,
+                                                             prd.uv.y, ddx, ddy, &isResident );
             if( isResident )
             {
-                sampleColor *= float3{texel.x, texel.y, texel.z};
+                sampleColor *= float3{ texel.x, texel.y, texel.z };
             }
         }
 
         // Max depth reached. Make sample black.
-        if ( rayDepth == maxRayDepth - 1 )
+        if( rayDepth == maxRayDepth - 1 )
             sampleColor *= 0.0f;
     }
 
@@ -358,8 +361,8 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     else
     {
         // Tint sample color for ambient occlusion modes
-        float x = sampleColor.x;
-        sampleColor = (1.0f - x) * float3{0.0f, 0.0f, 0.3f} + x * float3{1.0f, 1.0f, 0.9f};
+        float x     = sampleColor.x;
+        sampleColor = ( 1.0f - x ) * float3{ 0.0f, 0.0f, 0.3f } + x * float3{ 1.0f, 1.0f, 0.9f };
     }
 
     accumulateValue( pixel, sampleColor );
@@ -407,8 +410,7 @@ extern "C" __global__ void __miss__backgroundColor()
             if( light.skyboxTextureId != 0 && first )
             {
                 const float2 uv = sphericalCoordFromRayDirection();
-                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId, uv.x,
-                                                             uv.y, &isResident );
+                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId, uv.x, uv.y, &isResident );
                 if( isResident )
                 {
                     background += light.color * light.scale * make_float3( texel.x, texel.y, texel.z );
@@ -426,7 +428,7 @@ extern "C" __global__ void __miss__backgroundColor()
         background = params.background;
     }
 
-    getRayPayload()->color = background;
+    getRayPayload()->color        = background;
     getRayPayload()->isBackground = true;
 }
 
@@ -458,16 +460,13 @@ __device__ __forceinline__ uint_t getMaterialId( const Params& params, uint_t in
         const PrimitiveMaterialRange& group{ params.primitiveMaterials[matIdx] };
         if( primIdx < group.primitiveEnd )
         {
-#ifndef NDEBUG
-            assert( group.materialId > 0 );
-#endif
             return group.materialId;
         }
         ++matIdx;
     }
 #ifndef NDEBUG
     printf( "Requested material for instance id %u, primitive index %u not found in MaterialIndex{%u, %u}\n",
-        instanceId, primIdx, groups.numPrimitiveGroups, groups.primitiveMaterialBegin );
+            instanceId, primIdx, groups.numPrimitiveGroups, groups.primitiveMaterialBegin );
     matIdx = groups.primitiveMaterialBegin;
     for( uint_t i = 0; i < groups.numPrimitiveGroups; ++i )
     {
@@ -516,15 +515,16 @@ __device__ void reportClosestHitNormal( float3 ffNormal )
     if( otk::debugInfoDump(
             params.debug,
             [=]( const uint3& launchIndex ) {
-                printf( "Proxy geometry %u at [%u, %u]: N(%g,%g,%g) index %u, C(%g,%g,%g)\n", optixGetAttribute_3(), launchIndex.x, launchIndex.y,
-                        ffNormal.x, ffNormal.y, ffNormal.z, index, colors[index].x, colors[index].y, colors[index].z );
+                printf( "Proxy geometry %u at [%u, %u]: N(%g,%g,%g) index %u, C(%g,%g,%g)\n", optixGetAttribute_3(),
+                        launchIndex.x, launchIndex.y, ffNormal.x, ffNormal.y, ffNormal.z, index, colors[index].x,
+                        colors[index].y, colors[index].z );
             },
             demandPbrtScene::setRayPayload ) )
     {
         return;
     }
 
-    demandPbrtScene::getRayPayload()->color = colors[index];
+    demandPbrtScene::getRayPayload()->color       = colors[index];
     demandPbrtScene::getRayPayload()->rayDistance = optixGetRayTmax();
 }
 
@@ -541,7 +541,12 @@ __device__ __forceinline__ const demandLoading::DeviceContext& getDeviceContext(
 
 __device__ __forceinline__ unsigned int getMaterialId()
 {
-    return demandPbrtScene::getMaterialId( demandPbrtScene::PARAMS_VAR_NAME, optixGetInstanceId() );
+    const demandPbrtScene::uint_t instanceId{ optixGetInstanceId() };
+    const demandPbrtScene::uint_t materialId{ demandPbrtScene::getMaterialId( demandPbrtScene::PARAMS_VAR_NAME, instanceId ) };
+#ifndef NDEBUG
+    assert( materialId > 0 );
+#endif
+    return materialId;
 }
 
 __device__ __forceinline__ bool proxyMaterialDebugInfo( unsigned int pageId, bool isResident )
@@ -651,11 +656,11 @@ __device__ __forceinline__ float2 getTriangleUVs( TriangleUVs** uvs, const uint_
 extern "C" __global__ void __anyhit__alphaCutOutPartialMesh()
 {
     const Params& params{ PARAMS_VAR_NAME };
-    const uint_t textureId = getPartialAlphaTextureId();
-    const float2 uv        = getTriangleUVs( params.partialUVs, demandMaterial::app::getMaterialId() );
-    bool         isResident{};
-    const float  texel = demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident );
-    const bool   ignored = isResident && ( texel == 0.0f );
+    const uint_t  textureId = getPartialAlphaTextureId();
+    const float2  uv        = getTriangleUVs( params.partialUVs, demandMaterial::app::getMaterialId() );
+    bool          isResident{};
+    const float   texel   = demandLoading::tex2D<float>( params.demandContext, textureId, uv.x, uv.y, &isResident );
+    const bool    ignored = isResident && ( texel == 0.0f );
     if( !isResident )
     {
         getRayPayload()->discardRay = true;
@@ -667,7 +672,7 @@ extern "C" __global__ void __anyhit__alphaCutOutPartialMesh()
     }
 }
 
-__device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
+__device__ __forceinline__ const PhongMaterial& getRealizedMaterial()
 {
     const Params&        params{ PARAMS_VAR_NAME };
     const PhongMaterial* realizedMaterials{ params.realizedMaterials };
@@ -679,7 +684,8 @@ __device__ __forceinline__ const PhongMaterial &getRealizedMaterial()
         return oops;
     }
 #endif
-    const uint_t materialId{ demandMaterial::app::getMaterialId() };
+    const uint_t instanceId{ optixGetInstanceId() };
+    const uint_t materialId{ getMaterialId( params, instanceId ) };
 #ifndef NDEBUG
     if( materialId >= params.numRealizedMaterials )
     {
@@ -728,7 +734,7 @@ extern "C" __global__ void __closesthit__texturedMesh()
 {
     float3 worldNormal;
     float3 vertices[3];
-    getTriangleData(vertices, worldNormal);
+    getTriangleData( vertices, worldNormal );
 
     const Params& params{ PARAMS_VAR_NAME };
     const uint_t  instanceId = optixGetInstanceId();
@@ -739,7 +745,7 @@ extern "C" __global__ void __closesthit__texturedMesh()
         assert( instanceId < params.numInstanceUVs );
     }
 #endif
-    const float2  uv         = getTriangleUVs( params.instanceUVs, instanceId );
+    const float2 uv = getTriangleUVs( params.instanceUVs, instanceId );
 
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
         return;
@@ -762,11 +768,11 @@ extern "C" __global__ void __closesthit__texturedMesh()
     prd->rayDistance      = optixGetRayTmax();
     prd->color            = float3{ 1.0f, 0.0f, 1.0f };
 
-    float2* uvs = params.instanceUVs[instanceId]->UV;
-    float a = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
-    float b = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
-    float c = otk::length(uvs[2]-uvs[0]) / otk::length(vertices[2]-vertices[0]);
-    prd->worldSpaceTextureSize = (a+b+c) / 3.0f;
+    float2* uvs                = params.instanceUVs[instanceId]->UV;
+    float   a                  = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    float   b                  = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    float   c                  = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    prd->worldSpaceTextureSize = ( a + b + c ) / 3.0f;
 }
 
 }  // namespace demandPbrtScene
