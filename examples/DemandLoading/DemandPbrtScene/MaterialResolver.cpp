@@ -130,7 +130,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             grow( sync.partialUVs, numProxyMaterials );
             sync.partialMaterials[groupMaterialId].alphaTextureId = group.material.alphaTextureId;
             sync.partialUVs[groupMaterialId]                      = geom->instance.devUVs;
-            sync.topLevelInstances[geom->instanceIndex].sbtOffset = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
+            geom->instance.instance.sbtOffset                     = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
                 std::cout << "Resolved proxy material id " << groupMaterialId << " to partial alpha texture id "
@@ -205,13 +205,13 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( std::vector<uint_t>& r
     MaterialResolution  result{ MaterialResolution::NONE };
     std::vector<uint_t> resolvedMaterialIds;
     resolvedMaterialIds.reserve( geom->instance.groups.size() );
-    sync.realizedNormals.push_back( geom->instance.devNormals );
-    sync.realizedUVs.push_back( geom->instance.devUVs );
-    sync.topLevelInstances[geom->instanceIndex] = geom->instance.instance;
     for( size_t i = 0; i < geom->instance.groups.size(); ++i )
     {
         result = std::max( result, resolveMaterialGroup( requestedMaterials, sync, geom, i, resolvedMaterialIds ) );
     }
+    sync.realizedNormals.push_back( geom->instance.devNormals );
+    sync.realizedUVs.push_back( geom->instance.devUVs );
+    sync.topLevelInstances[geom->instanceIndex] = geom->instance.instance;
     for( uint_t materialId : resolvedMaterialIds )
     {
         if( auto it = m_proxyMaterialGeometries.find( materialId ); it != m_proxyMaterialGeometries.end() )
