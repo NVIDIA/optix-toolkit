@@ -98,10 +98,10 @@ struct ShapeDefinition
 
 using ShapeList = std::vector<ShapeDefinition>;
 
+// Note: object definitions do not have a transform; only object instances.
 struct ObjectDefinition
 {
     std::string       name;       //
-    ::pbrt::Transform transform;  // object to world space transform
     ::pbrt::Bounds3f  bounds;     // object space bounds of transformed shapes in this object
 };
 

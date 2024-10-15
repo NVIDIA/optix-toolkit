@@ -493,7 +493,6 @@ TEST_F( TestPbrtApi, objectGetsShape )
     EXPECT_NE( it, objects.cend() );
     const ObjectDefinition object1{ it->second };
     EXPECT_EQ( objectName, object1.name );
-    EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), object1.transform );
     const Bounds3 shapeBounds{ translate( 1.0f, 2.0f, 3.0f )( m_meshBounds ) };
     EXPECT_TRUE( shapeBounds == object1.bounds ) << shapeBounds << " != " << object1.bounds;
 }
@@ -562,12 +561,11 @@ TEST_F( TestPbrtApi, objectInstanceTransformedShape )
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
     const ObjectDefinition& object{ scene->objects["object1"] };
-    EXPECT_EQ( pbrt::Transform(), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
-    EXPECT_EQ( object.transform( object.bounds ), instance.bounds );
+    EXPECT_EQ( object.bounds, instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
     const Bounds3 expectedInstanceBounds{ shape.transform( m_meshBounds ) };
     EXPECT_EQ( expectedInstanceBounds, instance.bounds ) << expectedInstanceBounds << " != " << instance.bounds;
@@ -601,13 +599,11 @@ TEST_F( TestPbrtApi, objectInstanceTransformedObject )
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
     const ObjectDefinition& object{ scene->objects["object1"] };
-    EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
-    const Bounds3 expectedInstanceBounds{ object.transform( object.bounds ) };
-    EXPECT_EQ( expectedInstanceBounds, instance.bounds );
+    EXPECT_EQ( object.bounds , instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
 }
 
@@ -638,13 +634,11 @@ TEST_F( TestPbrtApi, objectInstanceTransformedInstance )
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
     const ObjectDefinition& object{ m_scene->objects["object1"] };
-    EXPECT_EQ( pbrt::Transform(), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), instance.transform );
-    const Bounds3 expectedInstanceBounds{ object.transform( object.bounds ) };
-    EXPECT_EQ( expectedInstanceBounds, instance.bounds );
+    EXPECT_EQ( object.bounds, instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), m_scene->bounds );
 }
 
@@ -1012,4 +1006,57 @@ TEST_F( TestPbrtApi, mixMaterialUberTranslucentChoosesUber )
     EXPECT_NE( Point3( 0.0f, 0.0f, 0.0f ), shape.material.Ks );
     EXPECT_THAT( shape.material.alphaMapFileName, EndsWith( "Aesculus_hippocastanum_lf_01_su_co_fr-alpha.png" ) );
     EXPECT_THAT( shape.material.diffuseMapFileName, EndsWith( "Aesculus_hippocastanum_lf_01_su_co_fr-diffuse.png" ) );
+}
+
+TEST_F( TestPbrtApi, sceneInstanceBounds )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
+        WorldBegin
+            AttributeBegin
+                ObjectBegin "shapes"
+                    Shape "trianglemesh"
+                        "point P" [
+                            -0.5   -0.5   -0.5  +0.5   -0.5   -0.5  # 1
+                            +0.5   +0.5   -0.5  -0.5   +0.5   -0.5  # 3
+                            -0.5   -0.5   +0.5  +0.5   -0.5   +0.5  # 5
+                            +0.5   +0.5   +0.5  -0.5   +0.5   +0.5  # 7
+                        ]
+                        "integer indices" [
+                            2   1   0   0   3   2   6   5   1   1   2   6
+                            7   4   5   5   6   7   3   0   4   4   7   3
+                            6   2   3   3   7   6   1   5   4   4   0   1
+                        ]
+
+                    Translate 1 1 0
+                    Shape "trianglemesh"
+                        "point P" [
+                            -0.5   -0.5   -0.5  +0.5   -0.5   -0.5  # 1
+                            +0.5   +0.5   -0.5  -0.5   +0.5   -0.5  # 3
+                            -0.5   -0.5   +0.5  +0.5   -0.5   +0.5  # 5
+                            +0.5   +0.5   +0.5  -0.5   +0.5   +0.5  # 7
+                        ]
+                        "integer indices" [
+                            2   1   0   0   3   2   6   5   1   1   2   6
+                            7   4   5   5   6   7   3   0   4   4   7   3
+                            6   2   3   3   7   6   1   5   4   4   0   1
+                        ]
+                ObjectEnd
+            AttributeEnd
+            AttributeBegin
+                Translate -0.5 -0.5 0
+                ObjectInstance "shapes"
+            AttributeEnd
+        WorldEnd
+        )pbrt" ) };
+
+    const Bounds3 expectedObjectBounds{ Point3{ -0.5f, -0.5f, -0.5f }, Point3{ 1.5f, 1.5f, 0.5f } };
+    EXPECT_EQ( expectedObjectBounds, scene->objects["shapes"].bounds );
+    const ObjectInstanceDefinition& instance{ scene->objectInstances[0] };
+    ASSERT_EQ( "shapes", instance.name );
+    const Bounds3 expectedSceneBounds{ Translate( Vector3{ -0.5f, -0.5f, 0.0f } )( expectedObjectBounds ) };
+    EXPECT_EQ( expectedSceneBounds, instance.transform( instance.bounds ) );
+    EXPECT_EQ( expectedSceneBounds, scene->bounds );
+    ASSERT_FALSE( scene->objectInstances.empty() );
+    const ShapeList& shapes{ scene->objectShapes["shapes"] };
+    ASSERT_EQ( 2U, shapes.size() );
 }
