@@ -302,7 +302,7 @@ TEST_F( TestPbrtApi, cameraMatrix )
             "float lensradius" [ 0.125 ]
         )pbrt" ) };
 
-    EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 10.0, 20.0, 30.0 ) ), scene->camera.cameraToWorld );
+    EXPECT_EQ( ::pbrt::Translate( Vector3( 10.0, 20.0, 30.0 ) ), scene->camera.cameraToWorld );
 }
 
 TEST_F( TestPbrtApi, sceneBoundsFromSingleMeshAtDefaultPosition )
@@ -873,9 +873,9 @@ TEST_F( TestPbrtApi, distantLightDefaultValues )
 
     ASSERT_EQ( 1U, m_scene->distantLights.size() );
     const DistantLightDefinition& light{ m_scene->distantLights[0] };
-    EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.scale );
-    EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
-    EXPECT_EQ( ::pbrt::Vector3f( 0.0f, 0.0f, -1.0f ), light.direction );
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), light.scale );
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), light.color );
+    EXPECT_EQ( Vector3( 0.0f, 0.0f, -1.0f ), light.direction );
     EXPECT_EQ( ::pbrt::Transform(), light.lightToWorld );
     EXPECT_TRUE( m_scene->freeShapes.empty() );
     EXPECT_TRUE( m_scene->objects.empty() );
@@ -897,10 +897,10 @@ TEST_F( TestPbrtApi, distantLightNonDefaultValues )
 
     ASSERT_EQ( 1U, m_scene->distantLights.size() );
     const DistantLightDefinition& light{ m_scene->distantLights[0] };
-    EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
-    EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
-    EXPECT_EQ( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ), light.direction );
-    EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
+    EXPECT_EQ( Point3( 10.0f, 20.0f, 30.0f ), light.scale );
+    EXPECT_EQ( Point3( 0.5f, 0.6f, 0.7f ), light.color );
+    EXPECT_EQ( Vector3( 1.0f, 1.0f, 1.0f ), light.direction );
+    EXPECT_EQ( ::pbrt::Translate( Vector3( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
     EXPECT_TRUE( m_scene->freeShapes.empty() );
     EXPECT_TRUE( m_scene->objects.empty() );
     EXPECT_TRUE( m_scene->objectShapes.empty() );
@@ -916,8 +916,8 @@ TEST_F( TestPbrtApi, infiniteLightDefaultValues )
 
     ASSERT_EQ( 1U, m_scene->infiniteLights.size() );
     const InfiniteLightDefinition& light{ m_scene->infiniteLights[0] };
-    EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
-    EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.scale );
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), light.color );
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), light.scale );
     EXPECT_EQ( 1, light.shadowSamples );
     EXPECT_EQ( "", light.environmentMapName );
     EXPECT_TRUE( m_scene->freeShapes.empty() );
@@ -941,11 +941,11 @@ TEST_F( TestPbrtApi, infiniteLightNonDefaultValues )
 
     ASSERT_EQ( 1U, m_scene->infiniteLights.size() );
     const InfiniteLightDefinition& light{ m_scene->infiniteLights[0] };
-    EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
-    EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
+    EXPECT_EQ( Point3( 10.0f, 20.0f, 30.0f ), light.scale );
+    EXPECT_EQ( Point3( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( 15, light.shadowSamples );
     EXPECT_THAT( light.environmentMapName, EndsWith( "skybox.png" ) );
-    EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
+    EXPECT_EQ( ::pbrt::Translate( Vector3( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
     EXPECT_TRUE( m_scene->freeShapes.empty() );
     EXPECT_TRUE( m_scene->objects.empty() );
     EXPECT_TRUE( m_scene->objectShapes.empty() );
@@ -1007,9 +1007,9 @@ TEST_F( TestPbrtApi, mixMaterialUberTranslucentChoosesUber )
 
     ASSERT_EQ( 1U, m_scene->freeShapes.size() );
     const ShapeDefinition& shape{ m_scene->freeShapes[0] };
-    EXPECT_EQ( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ), shape.material.Ka );
-    EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), shape.material.Kd );
-    EXPECT_NE( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ), shape.material.Ks );
+    EXPECT_EQ( Point3( 0.0f, 0.0f, 0.0f ), shape.material.Ka );
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), shape.material.Kd );
+    EXPECT_NE( Point3( 0.0f, 0.0f, 0.0f ), shape.material.Ks );
     EXPECT_THAT( shape.material.alphaMapFileName, EndsWith( "Aesculus_hippocastanum_lf_01_su_co_fr-alpha.png" ) );
     EXPECT_THAT( shape.material.diffuseMapFileName, EndsWith( "Aesculus_hippocastanum_lf_01_su_co_fr-diffuse.png" ) );
 }
