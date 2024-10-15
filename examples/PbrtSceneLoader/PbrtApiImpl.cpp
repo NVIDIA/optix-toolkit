@@ -476,7 +476,7 @@ void PbrtApiImpl::objectEnd()
         PBRT_ERROR( "Too many ObjectEnd for ObjectBegin (" + std::to_string( m_boundsStack.size() ) + " in excess)" );
     }
     // if object is empty, current bounds are invalid bounds
-    m_scene->objects[m_currentObjectName] = ObjectDefinition{ m_currentObjectName, m_currentTransform, m_currentBounds };
+    m_scene->objects[m_currentObjectName] = ObjectDefinition{ m_currentObjectName, m_currentBounds };
     m_currentObjectName.clear();
     m_currentBounds = m_boundsStack.back();
     m_boundsStack.pop_back();
@@ -509,7 +509,7 @@ void PbrtApiImpl::objectInstance( const std::string& name )
     }
 
     ++m_scene->instanceCounts[name];
-    ::pbrt::Bounds3f objectBounds = it->second.transform( it->second.bounds );
+    ::pbrt::Bounds3f objectBounds{ it->second.bounds };
     m_scene->objectInstances.emplace_back( ObjectInstanceDefinition{ name, m_currentTransform, objectBounds } );
     const ::pbrt::Bounds3f instanceBounds{ m_currentTransform( objectBounds ) };
     m_currentBounds = Union( m_currentBounds, instanceBounds );

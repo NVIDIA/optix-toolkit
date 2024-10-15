@@ -232,7 +232,7 @@ static SceneDescriptionPtr singleInstanceSingleShapeScene()
     scene->instanceCounts["triangle"] = 1;
     ObjectInstanceDefinition instance;
     instance.name   = "triangle";
-    instance.bounds = transformBounds( object );
+    instance.bounds = object.bounds;
     scene->objectInstances.push_back( instance );
     ShapeList shapeList;
     shapeList.push_back( shape );
@@ -253,7 +253,7 @@ static SceneDescriptionPtr singleInstanceMultipleShapesScene()
     scene->instanceCounts[name] = 1;
     ObjectInstanceDefinition instance;
     instance.name   = name;
-    instance.bounds = transformBounds( object );
+    instance.bounds = object.bounds;
     scene->objectInstances.push_back( instance );
     ShapeList shapeList;
     shapeList.push_back( shape1 );
@@ -274,8 +274,8 @@ static SceneDescriptionPtr singleInstanceSingleShapeSingleFreeShapeScene()
     scene->instanceCounts[name] = 1;
     ObjectInstanceDefinition instance;
     instance.name      = name;
-    instance.bounds    = transformBounds( object );
     instance.transform = Translate( pbrt::Vector3f( -5.0f, -10.0f, -15.0f ) );
+    instance.bounds    = object.bounds;
     scene->objectInstances.push_back( instance );
     ShapeList shapeList;
     shapeList.push_back( shape1 );
@@ -301,8 +301,8 @@ static SceneDescriptionPtr multipleInstancesSingleShape()
     const auto createInstance = [&]( const pbrt::Vector3f& translation ) {
         ObjectInstanceDefinition instance;
         instance.name      = name;
-        instance.bounds    = transformBounds( object );
         instance.transform = Translate( translation );
+        instance.bounds    = object.bounds;
         scene->objectInstances.push_back( instance );
         scene->instanceCounts[name]++;
     };
@@ -332,7 +332,7 @@ static SceneDescriptionPtr singleInstanceTwoTriangleShapeScene()
     scene->instanceCounts[objectName] = 1;
     ObjectInstanceDefinition instance;
     instance.name   = objectName;
-    instance.bounds = transformBounds( object );
+    instance.bounds = object.bounds;
     scene->objectInstances.push_back( instance );
     scene->objectShapes[objectName] = shapeList;
     scene->bounds                   = transformBounds( instance );
@@ -355,7 +355,7 @@ static SceneDescriptionPtr singleInstanceTriangleMesShapePlyMeshShapeScene( Mock
     scene->instanceCounts[name] = 1;
     ObjectInstanceDefinition instance;
     instance.name   = name;
-    instance.bounds = transformBounds( object );
+    instance.bounds = object.bounds;
     scene->objectInstances.push_back( instance );
     scene->objectShapes[name] = shapeList;
     scene->bounds             = transformBounds( instance );
@@ -382,7 +382,7 @@ static SceneDescriptionPtr singleInstanceTwoTriangleMixedMaterialTypesShapeScene
     scene->instanceCounts[name] = 1;
     ObjectInstanceDefinition instance;
     instance.name   = name;
-    instance.bounds = transformBounds( object );
+    instance.bounds = object.bounds;
     scene->objectInstances.push_back( instance );
     scene->objectShapes[name] = shapeList;
     scene->bounds             = transformBounds( instance );
@@ -420,7 +420,7 @@ static SceneDescriptionPtr singleInstanceThreeTriangleMixedTextureTypesShapeScen
     scene->instanceCounts[name] = 1;
     ObjectInstanceDefinition instance;
     instance.name   = name;
-    instance.bounds = transformBounds( object );
+    instance.bounds = object.bounds;
     scene->objectInstances.push_back( instance );
     scene->objectShapes[name] = shapeList;
     scene->bounds             = transformBounds( instance );
@@ -443,7 +443,7 @@ static SceneDescriptionPtr singleInstanceOneTriangleOneSphereShapeScene( const s
     ObjectInstanceDefinition instance;
     instance.name      = objectName;
     instance.transform = Translate( ::pbrt::Vector3f( 10.0f, 10.0f, 10.0f ) );
-    instance.bounds    = transformBounds( object );
+    instance.bounds    = instance.transform( object.bounds );
     scene->objectInstances.push_back( instance );
     scene->objectShapes[objectName] = shapeList;
     scene->bounds                   = transformBounds( instance );
@@ -465,13 +465,13 @@ namespace pbrt {
 
 inline bool operator==( const ObjectDefinition& lhs, const ObjectDefinition& rhs )
 {
-    return lhs.transform == rhs.transform  //
-           && lhs.bounds == rhs.bounds;    //
+    return lhs.name == rhs.name          //
+           && lhs.bounds == rhs.bounds;  //
 }
 
 inline std::ostream& operator<<( std::ostream& str, const ObjectDefinition& value )
 {
-    return str << "ObjectDefinition{ " << value.transform << ", " << value.bounds << " }";
+    return str << "ObjectDefinition{ '" << value.name << "', " << value.bounds << " }";
 }
 
 inline bool operator==( const PlyMeshData& lhs, const PlyMeshData& rhs )
