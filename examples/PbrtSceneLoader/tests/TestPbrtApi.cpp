@@ -81,6 +81,7 @@ class TestPbrtApiConstruction : public Test
 class TestPbrtApi : public Test
 {
   protected:
+    void parseScene( const char* text );
     void configureMeshOneInfo( unsigned int numTimes );
     void expectWarnings( int count );
 
@@ -91,7 +92,13 @@ class TestPbrtApi : public Test
     std::shared_ptr<SceneLoader> m_api{ createSceneLoader( g_programName, m_mockLogger, m_mockMeshInfoReader ) };
     Bounds3                      m_meshBounds{ Point3( -1.0f, -2.0f, -3.0f ), Point3( 4.0f, 5.0f, 6.0f ) };
     MeshInfo                     m_meshInfo{};
+    SceneDescriptionPtr          m_scene;
 };
+
+void TestPbrtApi::parseScene( const char* text )
+{
+    m_scene = m_api->parseString( text );
+}
 
 void TestPbrtApi::configureMeshOneInfo( unsigned numTimes )
 {
@@ -113,9 +120,7 @@ void TestPbrtApi::expectWarnings( int count )
 class TestPbrtApiEmptyScene : public TestPbrtApi
 {
   protected:
-    void SetUp() override { m_scene = m_api->parseString( "" ); }
-
-    SceneDescriptionPtr m_scene;
+    void SetUp() override { parseScene( "" ); }
 };
 
 }  // namespace
@@ -610,7 +615,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedInstance )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
         ObjectBegin "object1"
             Shape "plymesh" "string filename" "mesh_00001.ply"
@@ -621,18 +626,18 @@ TEST_F( TestPbrtApi, objectInstanceTransformedInstance )
         AttributeEnd
         WorldEnd)pbrt" );
 
-    const ObjectInstanceList& instances{ scene->objectInstances };
+    const ObjectInstanceList& instances{ m_scene->objectInstances };
     EXPECT_EQ( 1U, instances.size() );
-    EXPECT_TRUE( scene->freeShapes.empty() );
-    EXPECT_FALSE( scene->objectShapes.empty() );
-    EXPECT_FALSE( scene->objectShapes["object1"].empty() );
-    const auto& shape{ scene->objectShapes["object1"][0] };
+    EXPECT_TRUE( m_scene->freeShapes.empty() );
+    EXPECT_FALSE( m_scene->objectShapes.empty() );
+    EXPECT_FALSE( m_scene->objectShapes["object1"].empty() );
+    const auto& shape{ m_scene->objectShapes["object1"][0] };
     EXPECT_EQ( pbrt::Transform(), shape.transform );
     EXPECT_EQ( m_meshBounds, shape.bounds );
-    const ObjectInstanceCountMap& counts{ scene->instanceCounts };
+    const ObjectInstanceCountMap& counts{ m_scene->instanceCounts };
     EXPECT_FALSE( counts.empty() );
     EXPECT_EQ( 1U, counts.find( "object1" )->second );
-    const ObjectDefinition& object{ scene->objects["object1"] };
+    const ObjectDefinition& object{ m_scene->objects["object1"] };
     EXPECT_EQ( pbrt::Transform(), object.transform );
     EXPECT_EQ( shape.transform( m_meshBounds ), object.bounds );
     const ObjectInstanceDefinition instance{ instances[0] };
@@ -640,27 +645,27 @@ TEST_F( TestPbrtApi, objectInstanceTransformedInstance )
     EXPECT_EQ( translate( 1.0f, 2.0f, 3.0f ), instance.transform );
     const Bounds3 expectedInstanceBounds{ object.transform( object.bounds ) };
     EXPECT_EQ( expectedInstanceBounds, instance.bounds );
-    EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
+    EXPECT_EQ( instance.transform( instance.bounds ), m_scene->bounds );
 }
 
 TEST_F( TestPbrtApi, plyMeshShape )
 {
     configureMeshOneInfo( 1 );
 
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
         Shape "plymesh" "string filename" "mesh_00001.ply"
         WorldEnd)pbrt" );
 
-    ASSERT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape{ scene->freeShapes[0] };
+    ASSERT_FALSE( m_scene->freeShapes.empty() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
     ASSERT_EQ( SHAPE_TYPE_PLY_MESH, shape.type );
     ASSERT_THAT( shape.plyMesh.fileName, EndsWith( "mesh_00001.ply" ) );
 }
 
 TEST_F( TestPbrtApi, triangleMeshShape )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Shape "trianglemesh"
                 "integer indices" [0 2 1 0 3 2]
@@ -684,8 +689,8 @@ TEST_F( TestPbrtApi, triangleMeshShape )
                 ]
         WorldEnd)pbrt" );
 
-    EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape{ scene->freeShapes[0] };
+    EXPECT_FALSE( m_scene->freeShapes.empty() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
     EXPECT_EQ( SHAPE_TYPE_TRIANGLE_MESH, shape.type );
     const TriangleMeshData& triMesh{ shape.triangleMesh };
     EXPECT_EQ( 6U, triMesh.indices.size() );
@@ -703,7 +708,7 @@ TEST_F( TestPbrtApi, triangleMeshShape )
 
 TEST_F( TestPbrtApi, sphereShape )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Shape "sphere"
                 "float radius" 2.2
@@ -712,8 +717,8 @@ TEST_F( TestPbrtApi, sphereShape )
                 "float phimax" 5.5
         WorldEnd)pbrt" );
 
-    EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape{ scene->freeShapes[0] };
+    EXPECT_FALSE( m_scene->freeShapes.empty() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
     EXPECT_EQ( SHAPE_TYPE_SPHERE, shape.type );
     const SphereData& sphere{ shape.sphere };
     EXPECT_EQ( 2.2f, sphere.radius );
@@ -726,13 +731,13 @@ TEST_F( TestPbrtApi, sphereShape )
 
 TEST_F( TestPbrtApi, sphereShapeDefaults )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Shape "sphere"
         WorldEnd)pbrt" );
 
-    EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape{ scene->freeShapes[0] };
+    EXPECT_FALSE( m_scene->freeShapes.empty() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
     EXPECT_EQ( SHAPE_TYPE_SPHERE, shape.type );
     const SphereData& sphere{ shape.sphere };
     EXPECT_EQ( 1.0f, sphere.radius );
@@ -745,7 +750,7 @@ TEST_F( TestPbrtApi, sphereShapeDefaults )
 
 TEST_F( TestPbrtApi, triangleMeshMaterial )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Shape "trianglemesh"
                 "integer indices" [0 2 1 0 3 2]
@@ -758,8 +763,8 @@ TEST_F( TestPbrtApi, triangleMeshMaterial )
                 "rgb Ka" [ 1 2 3 ]
         WorldEnd)pbrt" );
 
-    EXPECT_FALSE( scene->freeShapes.empty() );
-    const ShapeDefinition& shape{ scene->freeShapes[0] };
+    EXPECT_FALSE( m_scene->freeShapes.empty() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
     EXPECT_EQ( Point3( 1.0f, 2.0f, 3.0f ), shape.material.Ka );
 }
 
@@ -796,7 +801,7 @@ TEST_F( TestPbrtApi, stateResetForEachParse )
 TEST_F( TestPbrtApi, emptyObjectInstancesAreDropped )
 {
     EXPECT_CALL( *m_mockLogger, warning( ContainsRegex( "Skipping instances of empty object" ), _, _ ) ).Times( 1 );
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             # add a non-empty shape
             Shape "trianglemesh"
@@ -821,16 +826,16 @@ TEST_F( TestPbrtApi, emptyObjectInstancesAreDropped )
 
         WorldEnd)pbrt" );
 
-    EXPECT_EQ( 1U, scene->freeShapes.size() );
-    EXPECT_EQ( scene->freeShapes[0].bounds, scene->bounds );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    EXPECT_EQ( 1U, m_scene->freeShapes.size() );
+    EXPECT_EQ( m_scene->freeShapes[0].bounds, m_scene->bounds );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, emptyShapesAreDropped )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             # add a non-empty shape
             Shape "trianglemesh"
@@ -852,35 +857,35 @@ TEST_F( TestPbrtApi, emptyShapesAreDropped )
 
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->freeShapes.size() );
-    EXPECT_EQ( scene->freeShapes[0].bounds, scene->bounds );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    EXPECT_EQ( m_scene->freeShapes[0].bounds, m_scene->bounds );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, distantLightDefaultValues )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             LightSource "distant"
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->distantLights.size() );
-    const DistantLightDefinition& light{ scene->distantLights[0] };
+    ASSERT_EQ( 1U, m_scene->distantLights.size() );
+    const DistantLightDefinition& light{ m_scene->distantLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
     EXPECT_EQ( ::pbrt::Vector3f( 0.0f, 0.0f, -1.0f ), light.direction );
     EXPECT_EQ( ::pbrt::Transform(), light.lightToWorld );
-    EXPECT_TRUE( scene->freeShapes.empty() );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    EXPECT_TRUE( m_scene->freeShapes.empty() );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, distantLightNonDefaultValues )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Translate 100 200 300
             LightSource "distant"
@@ -890,41 +895,41 @@ TEST_F( TestPbrtApi, distantLightNonDefaultValues )
                 "point to"      [   0       0       0   ]
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->distantLights.size() );
-    const DistantLightDefinition& light{ scene->distantLights[0] };
+    ASSERT_EQ( 1U, m_scene->distantLights.size() );
+    const DistantLightDefinition& light{ m_scene->distantLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( ::pbrt::Vector3f( 1.0f, 1.0f, 1.0f ), light.direction );
     EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
-    EXPECT_TRUE( scene->freeShapes.empty() );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    EXPECT_TRUE( m_scene->freeShapes.empty() );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, infiniteLightDefaultValues )
 {
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             LightSource "infinite"
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->infiniteLights.size() );
-    const InfiniteLightDefinition& light{ scene->infiniteLights[0] };
+    ASSERT_EQ( 1U, m_scene->infiniteLights.size() );
+    const InfiniteLightDefinition& light{ m_scene->infiniteLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.color );
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), light.scale );
     EXPECT_EQ( 1, light.shadowSamples );
     EXPECT_EQ( "", light.environmentMapName );
-    EXPECT_TRUE( scene->freeShapes.empty() );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    EXPECT_TRUE( m_scene->freeShapes.empty() );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, infiniteLightNonDefaultValues )
 {
     expectWarnings( 1 );
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Translate 100 200 300
             LightSource "infinite"
@@ -934,23 +939,23 @@ TEST_F( TestPbrtApi, infiniteLightNonDefaultValues )
                 "string mapname" "skybox.png"
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->infiniteLights.size() );
-    const InfiniteLightDefinition& light{ scene->infiniteLights[0] };
+    ASSERT_EQ( 1U, m_scene->infiniteLights.size() );
+    const InfiniteLightDefinition& light{ m_scene->infiniteLights[0] };
     EXPECT_EQ( ::pbrt::Point3f( 10.0f, 20.0f, 30.0f ), light.scale );
     EXPECT_EQ( ::pbrt::Point3f( 0.5f, 0.6f, 0.7f ), light.color );
     EXPECT_EQ( 15, light.shadowSamples );
     EXPECT_THAT( light.environmentMapName, EndsWith( "skybox.png" ) );
     EXPECT_EQ( ::pbrt::Translate( ::pbrt::Vector3f( 100.0f, 200.0f, 300.0f ) ), light.lightToWorld );
-    EXPECT_TRUE( scene->freeShapes.empty() );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    EXPECT_TRUE( m_scene->freeShapes.empty() );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, infiniteLightNSamples )
 {
     expectWarnings( 1 );
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Translate 100 200 300
             LightSource "infinite"
@@ -958,19 +963,19 @@ TEST_F( TestPbrtApi, infiniteLightNSamples )
                 "string mapname" "skybox.png"
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->infiniteLights.size() );
-    const InfiniteLightDefinition& light{ scene->infiniteLights[0] };
+    ASSERT_EQ( 1U, m_scene->infiniteLights.size() );
+    const InfiniteLightDefinition& light{ m_scene->infiniteLights[0] };
     EXPECT_EQ( 15, light.shadowSamples );
-    EXPECT_TRUE( scene->freeShapes.empty() );
-    EXPECT_TRUE( scene->objects.empty() );
-    EXPECT_TRUE( scene->objectShapes.empty() );
-    EXPECT_TRUE( scene->objectInstances.empty() );
+    EXPECT_TRUE( m_scene->freeShapes.empty() );
+    EXPECT_TRUE( m_scene->objects.empty() );
+    EXPECT_TRUE( m_scene->objectShapes.empty() );
+    EXPECT_TRUE( m_scene->objectInstances.empty() );
 }
 
 TEST_F( TestPbrtApi, mixMaterialUberTranslucentChoosesUber )
 {
     configureMeshOneInfo( 1 );
-    SceneDescriptionPtr scene = m_api->parseString( R"pbrt(
+    parseScene( R"pbrt(
         WorldBegin
             Texture "Aesculus_hippocastanum_lf_01_su_co_fr_color" "spectrum" "imagemap"
                 "string filename" [ "textures/Aesculus_hippocastanum_lf_01_su_co_fr-diffuse.png" ]
@@ -1000,8 +1005,8 @@ TEST_F( TestPbrtApi, mixMaterialUberTranslucentChoosesUber )
                 "texture shadowalpha" "Aesculus_hippocastanum_lf_01_su_co_fr_alpha"
         WorldEnd)pbrt" );
 
-    ASSERT_EQ( 1U, scene->freeShapes.size() );
-    const ShapeDefinition& shape{ scene->freeShapes[0] };
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
     EXPECT_EQ( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ), shape.material.Ka );
     EXPECT_EQ( ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ), shape.material.Kd );
     EXPECT_NE( ::pbrt::Point3f( 0.0f, 0.0f, 0.0f ), shape.material.Ks );
