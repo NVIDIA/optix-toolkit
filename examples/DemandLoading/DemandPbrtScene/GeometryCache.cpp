@@ -21,6 +21,8 @@
 
 using namespace otk::pbrt;
 
+constexpr size_t VERTS_PER_TRI{ 3U };
+
 namespace demandPbrtScene {
 
 static std::string toString( GeometryPrimitive primitive )
@@ -247,8 +249,8 @@ GeometryCacheEntry GeometryCacheImpl::buildGAS( OptixDeviceContext     context,
             break;
         case GeometryPrimitive::TRIANGLE:
             m_stats.numTriangles += build.triangleArray.numIndexTriplets;
-            m_stats.numNormals += static_cast<unsigned int>( m_normals.size() * 3 );
-            m_stats.numUVs += static_cast<unsigned int>( m_uvs.size() * 3 );
+            m_stats.numNormals += static_cast<unsigned int>( m_normals.size() * VERTS_PER_TRI );
+            m_stats.numUVs += static_cast<unsigned int>( m_uvs.size() * VERTS_PER_TRI );
             break;
         case GeometryPrimitive::SPHERE:
             m_stats.numSpheres += build.sphereArray.numVertices;
@@ -279,16 +281,17 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
     growContainer( m_vertices, meshInfo.numVertices );
     for( int i = 0; i < meshInfo.numVertices; ++i )
     {
-        pbrt::Point3f pt{ buffers.vertexCoords[i * 3 + 0], buffers.vertexCoords[i * 3 + 1], buffers.vertexCoords[i * 3 + 2] };
+        pbrt::Point3f pt{ buffers.vertexCoords[i * VERTS_PER_TRI + 0], buffers.vertexCoords[i * VERTS_PER_TRI + 1],
+                          buffers.vertexCoords[i * VERTS_PER_TRI + 2] };
         pt = transform( pt );
         m_vertices.push_back( make_float3( pt.x, pt.y, pt.z ) );
     }
-    growContainer( m_indices, meshInfo.numTriangles * 3U );
+    growContainer( m_indices, meshInfo.numTriangles * VERTS_PER_TRI );
     std::transform( buffers.indices.begin(), buffers.indices.end(), std::back_inserter( m_indices ),
                     []( int index ) { return static_cast<std::uint32_t>( index ); } );
-    m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / 3U );
+    m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / VERTS_PER_TRI );
 
-    const size_t numTriangles{ m_indices.size() / 3 };
+    const size_t numTriangles{ m_indices.size() / VERTS_PER_TRI };
     if( meshInfo.numNormals > 0 )
     {
         if( meshInfo.numNormals != meshInfo.numVertices )
@@ -307,11 +310,11 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
         for( size_t face = 0; face < numTriangles; ++face )
         {
             TriangleNormals normals;
-            for( size_t vert = 0; vert < 3; ++vert )
+            for( size_t vert = 0; vert < VERTS_PER_TRI; ++vert )
             {
                 // 3 coords per vertex
                 // 3 vertices per face, 3 indices per face
-                const int idx{ buffers.indices[face * 3 + vert] * 3 };
+                const int idx{ buffers.indices[face * VERTS_PER_TRI + vert] * 3 };
                 normals.N[vert] = make_float3( buffers.normalCoords[idx + 0], buffers.normalCoords[idx + 1],
                                                buffers.normalCoords[idx + 2] );
             }
@@ -336,11 +339,11 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
         for( size_t face = 0; face < numTriangles; ++face )
         {
             TriangleUVs uvs;
-            for( size_t vert = 0; vert < 3; ++vert )
+            for( size_t vert = 0; vert < VERTS_PER_TRI; ++vert )
             {
                 // 2 coords per vertex
                 // 3 vertices per face, 3 indices per face
-                const int idx{ buffers.indices[face * 3 + vert] * 2 };
+                const int idx{ buffers.indices[face * VERTS_PER_TRI + vert] * 2 };
                 uvs.UV[vert] = make_float2( buffers.uvCoords[idx + 0], buffers.uvCoords[idx + 1] );
             }
             m_uvs.push_back( uvs );
@@ -350,18 +353,19 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
 
 void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& triangleMesh )
 {
-    const auto toFloat3{ [&]( const pbrt::Point3f& point ) {
+    const auto   toFloat3{ [&]( const pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
         return make_float3( pt.x, pt.y, pt.z );
     } };
+    const uint_t indexOffset{ toUInt( m_vertices.size() ) };
     growContainer( m_vertices, triangleMesh.points.size() );
     std::transform( triangleMesh.points.begin(), triangleMesh.points.end(), std::back_inserter( m_vertices ), toFloat3 );
     growContainer( m_indices, triangleMesh.indices.size() );
     std::transform( triangleMesh.indices.begin(), triangleMesh.indices.end(), std::back_inserter( m_indices ),
-                    []( const int index ) { return static_cast<std::uint32_t>( index ); } );
-    m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / 3U );
+                    [=]( const int index ) { return static_cast<std::uint32_t>( index + indexOffset ); } );
+    m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / VERTS_PER_TRI );
 
-    const size_t numTriangles{ triangleMesh.indices.size() / 3 };
+    const size_t numTriangles{ triangleMesh.indices.size() / VERTS_PER_TRI };
     if( !triangleMesh.normals.empty() )
     {
         // When building the GAS, we have the luxury of supplying the vertex array and the
@@ -373,9 +377,9 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
         for( size_t i = 0; i < numTriangles; ++i )
         {
             TriangleNormals normals;
-            for( int j = 0; j < 3; ++j )
+            for( int j = 0; j < VERTS_PER_TRI; ++j )
             {
-                normals.N[j] = toFloat3( transform( triangleMesh.normals[triangleMesh.indices[i * 3 + j]] ) );
+                normals.N[j] = toFloat3( transform( triangleMesh.normals[triangleMesh.indices[i * VERTS_PER_TRI + j]] ) );
             }
             m_normals.push_back( normals );
         }
@@ -387,9 +391,9 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
         for( size_t i = 0; i < numTriangles; ++i )
         {
             TriangleUVs uvs;
-            for( int vert = 0; vert < 3; ++vert )
+            for( int vert = 0; vert < VERTS_PER_TRI; ++vert )
             {
-                uvs.UV[vert] = toFloat2( triangleMesh.uvs[triangleMesh.indices[i * 3 + vert]] );
+                uvs.UV[vert] = toFloat2( triangleMesh.uvs[triangleMesh.indices[i * VERTS_PER_TRI + vert]] );
             }
             m_uvs.push_back( uvs );
         }
@@ -454,7 +458,7 @@ GeometryCacheEntry GeometryCacheImpl::buildTriangleGAS( OptixDeviceContext conte
     triangles.numVertices      = m_vertices.size();
     triangles.vertexFormat     = OPTIX_VERTEX_FORMAT_FLOAT3;
     triangles.indexBuffer      = m_indices.detach();
-    triangles.numIndexTriplets = m_indices.size() / 3;
+    triangles.numIndexTriplets = m_indices.size() / VERTS_PER_TRI;
     triangles.indexFormat      = OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
     const uint_t flags         = OPTIX_GEOMETRY_FLAG_NONE;
     triangles.flags            = &flags;
