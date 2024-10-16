@@ -278,6 +278,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
     }
     m_stats.totalBytesRead += m_fileSystemInfo->getSize( plyMesh.fileName );
 
+    const uint_t indexOffset{ toUInt( m_vertices.size() ) };
     growContainer( m_vertices, meshInfo.numVertices );
     for( int i = 0; i < meshInfo.numVertices; ++i )
     {
@@ -288,7 +289,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
     }
     growContainer( m_indices, meshInfo.numTriangles * VERTS_PER_TRI );
     std::transform( buffers.indices.begin(), buffers.indices.end(), std::back_inserter( m_indices ),
-                    []( int index ) { return static_cast<std::uint32_t>( index ); } );
+                    [=]( int index ) { return static_cast<std::uint32_t>( index + indexOffset ); } );
     m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / VERTS_PER_TRI );
 
     const size_t numTriangles{ m_indices.size() / VERTS_PER_TRI };
