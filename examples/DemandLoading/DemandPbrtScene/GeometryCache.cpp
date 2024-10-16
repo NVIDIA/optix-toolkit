@@ -350,10 +350,11 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
 
 void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& triangleMesh )
 {
-    auto toFloat3 = [&]( const pbrt::Point3f& point ) {
+    const auto toFloat3{ [&]( const pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
         return make_float3( pt.x, pt.y, pt.z );
-    };
+    } };
+    growContainer( m_vertices, triangleMesh.points.size() );
     std::transform( triangleMesh.points.begin(), triangleMesh.points.end(), std::back_inserter( m_vertices ), toFloat3 );
     growContainer( m_indices, triangleMesh.indices.size() );
     std::transform( triangleMesh.indices.begin(), triangleMesh.indices.end(), std::back_inserter( m_indices ),
@@ -381,7 +382,7 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
     }
     if( !triangleMesh.uvs.empty() )
     {
-        auto toFloat2 = []( const pbrt::Point2f& value ) { return make_float2( value.x, value.y ); };
+        const auto toFloat2{ []( const pbrt::Point2f& value ) { return make_float2( value.x, value.y ); } };
         growContainer( m_uvs, numTriangles );
         for( size_t i = 0; i < numTriangles; ++i )
         {
