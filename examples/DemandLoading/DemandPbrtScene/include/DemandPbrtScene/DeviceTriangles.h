@@ -34,17 +34,19 @@ static __forceinline__ __device__ void setRayPayload( const float3 &p )
 
 static __device__ void getTriangleData( float3 ( &vertices )[3], float3& worldNormal )
 {
-    const uint_t                 primIdx     = optixGetPrimitiveIndex();
-    const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
-    const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
+    const Params&                params{ PARAMS_VAR_NAME };
+    const uint_t                 instanceId{ optixGetInstanceId() };
+    const uint_t                 primIdx{ optixGetPrimitiveIndex() };
+    const OptixTraversableHandle gas{ optixGetGASTraversableHandle() };
+    const uint_t                 sbtGASIndex{ optixGetSbtGASIndex() };
     optixGetTriangleVertexData( gas, primIdx, sbtGASIndex, 0.f, vertices );
 
-    if( PARAMS_VAR_NAME.instanceNormals != nullptr && PARAMS_VAR_NAME.instanceNormals[optixGetInstanceId()] != nullptr )
+    if( params.instanceNormals != nullptr && params.instanceNormals[instanceId] != nullptr )
     {
-        TriangleNormals normals = PARAMS_VAR_NAME.instanceNormals[optixGetInstanceId()][primIdx];
-        float2          uv      = optixGetTriangleBarycentrics();
-        const float3    uDir( normals.N[1] - normals.N[0] );
-        const float3    vDir( normals.N[2] - normals.N[0] );
+        const TriangleNormals& normals{ params.instanceNormals[instanceId][primIdx] };
+        const float2           uv{ optixGetTriangleBarycentrics() };
+        const float3           uDir( normals.N[1] - normals.N[0] );
+        const float3           vDir( normals.N[2] - normals.N[0] );
         worldNormal = optixTransformNormalFromObjectToWorldSpace( normals.N[0] + uDir * uv.x + vDir * uv.y );
         worldNormal = otk::normalize( worldNormal );
     }
@@ -52,10 +54,10 @@ static __device__ void getTriangleData( float3 ( &vertices )[3], float3& worldNo
     {
         const float3 p12( vertices[1] - vertices[0] );
         const float3 p13( vertices[2] - vertices[0] );
-        const float3 objectNormal = otk::cross( p12, p13 );
+        const float3 objectNormal{ otk::cross( p12, p13 ) };
         worldNormal               = otk::normalize( optixTransformNormalFromObjectToWorldSpace( objectNormal ) );
     }
-    if( PARAMS_VAR_NAME.useFaceForward && optixIsBackFaceHit() )
+    if( params.useFaceForward && optixIsBackFaceHit() )
     {
         worldNormal = -worldNormal;
     }
@@ -67,14 +69,15 @@ static __forceinline__ __device__ bool triMeshMaterialDebugInfo( const float3 ve
     return debugInfoDump(
         params.debug,
         [&]( const uint3& launchIndex ) {
-            const uint_t                 primIdx     = optixGetPrimitiveIndex();
-            const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
-            const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
-            const bool                   front       = optixIsFrontFaceHit();
-            const bool                   back        = optixIsBackFaceHit();
-            if( params.instanceNormals != nullptr && params.instanceNormals[optixGetInstanceId()] != nullptr )
+            const uint_t                 instanceId{ optixGetInstanceId() };
+            const uint_t                 primIdx{ optixGetPrimitiveIndex() };
+            const OptixTraversableHandle gas{ optixGetGASTraversableHandle() };
+            const uint_t                 sbtGASIndex{ optixGetSbtGASIndex() };
+            const bool                   front{ optixIsFrontFaceHit() };
+            const bool                   back{ optixIsBackFaceHit() };
+            if( params.instanceNormals != nullptr && params.instanceNormals[instanceId] != nullptr )
             {
-                TriangleNormals normals = params.instanceNormals[optixGetInstanceId()][primIdx];
+                const TriangleNormals& normals{ params.instanceNormals[instanceId][primIdx] };
                 printf(                                                            //
                     "[%u, %u]: prim: %u, GAS index: %u, GAS: %llx, F: %s B: %s\n"  //
                     "    P0: [%g,%g,%g], P1: [%g,%g,%g], P2: [%g,%g,%g],\n"        //
@@ -93,8 +96,8 @@ static __forceinline__ __device__ bool triMeshMaterialDebugInfo( const float3 ve
             else
             {
                 printf(                                                                               //
-                    "[%u, %u]: prim: %u, GAS index: %u, GAS: %llx, F: %s B: %s "                      //
-                    "P0: [%g,%g,%g], P1: [%g,%g,%g], P2: [%g,%g,%g], uv: (%g, %g), N: [%g,%g,%g]\n",  //
+                    "[%u, %u]: prim: %u, GAS index: %u, GAS: %llx, F: %s B: %s\n"                      //
+                    "    P0: [%g,%g,%g], P1: [%g,%g,%g], P2: [%g,%g,%g], uv: (%g, %g), N: [%g,%g,%g]\n",  //
                     launchIndex.x, launchIndex.y, primIdx, sbtGASIndex, gas, front ? "yes" : "no", back ? "yes" : "no",  //
                     vertices[0].x, vertices[0].y, vertices[0].z,    //
                     vertices[1].x, vertices[1].y, vertices[1].z,    //
@@ -102,8 +105,20 @@ static __forceinline__ __device__ bool triMeshMaterialDebugInfo( const float3 ve
                     uv.x, uv.y,                                     //
                     worldNormal.x, worldNormal.y, worldNormal.z );  //
             }
-            printf("Material: %d\n", optixGetInstanceId());
-            const PhongMaterial& mat{params.realizedMaterials[optixGetInstanceId()]};
+            const MaterialIndex&   matIdx{ params.materialIndices[instanceId] };
+            PrimitiveMaterialRange matRange{};
+            for( uint_t i = 0; i < matIdx.numPrimitiveGroups; ++i )
+            {
+                if( primIdx < params.primitiveMaterials[i + matIdx.primitiveMaterialBegin].primitiveEnd )
+                {
+                    matRange = params.primitiveMaterials[i];
+                    break;
+                }
+            }
+            printf( "Instance id: %u, MaterialIndex{%u, %u}, PrimitiveMaterial{%u, %u}\n", instanceId,  //
+                    matIdx.numPrimitiveGroups, matIdx.primitiveMaterialBegin,                           //
+                    matRange.primitiveEnd, matRange.materialId );
+            const PhongMaterial& mat{params.realizedMaterials[matRange.materialId]};
             printf(
                 "    Ka: (%g, %g, %g), "                         //
                 "Kd: (%g, %g, %g), "                             //

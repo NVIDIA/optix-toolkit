@@ -25,7 +25,9 @@ extern "C" __global__ void __closesthit__mesh()
     float2 uv = optixGetTriangleBarycentrics();
 
     if( triMeshMaterialDebugInfo( vertices, worldNormal, uv ) )
+    {
         return;
+    }
 
     RayPayload* prd = getRayPayload();
     prd->diffuseTextureId = 0xffffffff;
@@ -38,7 +40,19 @@ extern "C" __global__ void __closesthit__mesh()
         assert( instanceId < params.numRealizedMaterials );
     }
 #endif
-    prd->material = &params.realizedMaterials[instanceId];
+    const uint_t                  primIdx{ optixGetPrimitiveIndex() };
+    const MaterialIndex&          matIdx{ params.materialIndices[instanceId] };
+    uint_t                        materialId{};
+    const PrimitiveMaterialRange* matRange{ &params.primitiveMaterials[matIdx.primitiveMaterialBegin] };
+    for( uint_t i = 0; i < matIdx.numPrimitiveGroups; ++i )
+    {
+        if( primIdx < matRange[i].primitiveEnd )
+        {
+            materialId = matRange[i].materialId;
+            break;
+        }
+    }
+    prd->material    = &params.realizedMaterials[materialId];
     prd->normal = worldNormal;
     prd->rayDistance = optixGetRayTmax();
     prd->color = float3{1.0f, 0.0f, 1.0f};

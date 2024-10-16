@@ -737,7 +737,7 @@ extern "C" __global__ void __closesthit__texturedMesh()
     getTriangleData( vertices, worldNormal );
 
     const Params& params{ PARAMS_VAR_NAME };
-    const uint_t  instanceId = optixGetInstanceId();
+    const uint_t  instanceId{ optixGetInstanceId() };
 #ifndef NDEBUG
     if( instanceId >= params.numInstanceUVs )
     {
