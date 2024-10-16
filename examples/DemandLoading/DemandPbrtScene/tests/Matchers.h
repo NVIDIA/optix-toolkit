@@ -125,7 +125,7 @@ inline ::otk::testing::OptixTriangleBuildInputPredicate hasDeviceVertexCoords( c
 }
 
 template <typename T>
-inline ::otk::testing::OptixTriangleBuildInputPredicate hasDeviceIndices( const std::vector<T>& expectedIndices )
+inline ::otk::testing::OptixTriangleBuildInputPredicate hasDeviceIndices( const std::vector<T>& expected )
 {
     return [&]( ::testing::MatchResultListener* result_listener, const OptixBuildInputTriangleArray& triangles ) {
         bool result    = true;
@@ -134,10 +134,10 @@ inline ::otk::testing::OptixTriangleBuildInputPredicate hasDeviceIndices( const 
                 *result_listener << "; ";
             return result_listener;
         };
-        if( triangles.numIndexTriplets * 3 != expectedIndices.size() )
+        if( triangles.numIndexTriplets * 3 != expected.size() )
         {
             *separator() << " has index triplet count " << triangles.numIndexTriplets << ", expected "
-                         << expectedIndices.size() / 3;
+                         << expected.size() / 3;
             result = false;
         }
         if( triangles.indexFormat != OPTIX_INDICES_FORMAT_UNSIGNED_INT3 )
@@ -159,28 +159,21 @@ inline ::otk::testing::OptixTriangleBuildInputPredicate hasDeviceIndices( const 
         if( !result )
             return result;
 
-        std::vector<uint3> actualIndices;
-        actualIndices.resize( expectedIndices.size() );
-        OTK_ERROR_CHECK( cudaMemcpy( actualIndices.data(), otk::bit_cast<void*>( triangles.indexBuffer ),
+        constexpr size_t VERTS_PER_TRI{3U};
+        std::vector<uint3> actual;
+        actual.resize( expected.size() / VERTS_PER_TRI );
+        OTK_ERROR_CHECK( cudaMemcpy( actual.data(), otk::bit_cast<void*>( triangles.indexBuffer ),
                                      sizeof( uint3 ) * triangles.numIndexTriplets, cudaMemcpyDeviceToHost ) );
         for( unsigned int i = 0; i < triangles.numIndexTriplets; ++i )
         {
-            if( actualIndices[i].x != expectedIndices[i * 3 + 0] )
+            if( actual[i].x != expected[i * 3 + 0]         //
+                || actual[i].y != ( expected )[i * 3 + 1]  //
+                || actual[i].z != ( expected )[i * 3 + 2] )
             {
-                *separator() << " triangle[" << i << "] has index[0] " << actualIndices[i].x << ", expected "
-                             << expectedIndices[i * 3 + 0];
-                result = false;
-            }
-            if( actualIndices[i].y != ( expectedIndices )[i * 3 + 1] )
-            {
-                *separator() << " triangle[" << i << "] has index[1] " << actualIndices[i].y << ", expected "
-                             << expectedIndices[i * 3 + 1];
-                result = false;
-            }
-            if( actualIndices[i].z != ( expectedIndices )[i * 3 + 2] )
-            {
-                *separator() << " triangle[" << i << "] has index[2] " << actualIndices[i].z << ", expected "
-                             << expectedIndices[i * 3 + 2];
+                *separator() << " triangle[" << i << "] has indices ["                   //
+                             << actual[i].x << ',' << actual[i].y << ',' << actual[i].z  //
+                             << "], expected ["                                          //
+                             << expected[i * 3 + 0] << ',' << expected[i * 3 + 1] << ',' << expected[i * 3 + 2] << "]";
                 result = false;
             }
         }
