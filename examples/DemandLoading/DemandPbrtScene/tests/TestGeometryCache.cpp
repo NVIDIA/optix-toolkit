@@ -11,6 +11,7 @@
 #include "MockMeshLoader.h"
 #include "ParamsPrinters.h"
 
+#include <DemandPbrtScene/Conversions.h>
 #include <DemandPbrtScene/GeometryCache.h>
 #include <DemandPbrtScene/SceneProxy.h>
 
@@ -30,6 +31,7 @@
 #include <algorithm>
 #include <array>
 #include <iterator>
+#include <numeric>
 #include <type_traits>
 
 using namespace demandPbrtScene;
@@ -44,7 +46,11 @@ using B3 = pbrt::Bounds3f;
 
 using Stats = GeometryCacheStatistics;
 
-constexpr const char* ALPHA_MAP_FILENAME{ "alpha.png" };
+constexpr const char*        ALPHA_MAP_FILENAME{ "alpha.png" };
+constexpr const char*        ARBITRARY_PLY_FILENAME{ "cube-mesh.ply" };
+constexpr unsigned long long ARBITRARY_PLY_FILE_SIZE{ 12031964U };
+constexpr size_t             VERTS_PER_TRI{ 3U };
+constexpr size_t             COORDS_PER_VERT{ 3U };
 
 inline void PrintTo( const OptixAabb& value, std::ostream* str )
 {
@@ -184,7 +190,7 @@ MATCHER_P( hasDevicePlyUVs, buffers, "" )
     return result;
 }
 
-ListenerPredicate<OptixBuildInputSphereArray> hasDeviceSphereVertices( const std::vector<float3>& expectedVertices )
+static ListenerPredicate<OptixBuildInputSphereArray> hasDeviceSphereVertices( const std::vector<float3>& expectedVertices )
 {
     return [&]( MatchResultListener* listener, const OptixBuildInputSphereArray& spheres ) {
         std::vector<float3> actualVertices;
@@ -250,9 +256,6 @@ MATCHER_P( hasDeviceTriangleUVs, triangleMesh, "" )
 }
 
 namespace {
-
-constexpr const char*        ARBITRARY_PLY_FILENAME{ "cube-mesh.ply" };
-constexpr unsigned long long ARBITRARY_PLY_FILE_SIZE{ 12031964U };
 
 class MockFileSystemInfo : public StrictMock<FileSystemInfo>
 {
@@ -326,6 +329,17 @@ class TestGeometryCache : public Test
     OptixAccelBufferSizes  m_accelSizes{};
     OptixTraversableHandle m_fakeGeomAS{ 0xfeedf00dU };
     std::vector<uint_t>    m_expectedFlags;
+};
+
+struct TestObject
+{
+    ObjectDefinition      object;
+    std::vector<MeshData> buffers;
+    ShapeList             shapes;
+    std::vector<float>    expectedVertices;
+    std::vector<int>      expectedIndices;
+    std::vector<float3>   expectedSphereCenters;
+    float                 expectedSphereSingleRadius;
 };
 
 }  // namespace
@@ -470,21 +484,6 @@ static ShapeDefinition singleSphere()
     return shape;
 }
 
-namespace {
-
-struct TestObject
-{
-    ObjectDefinition      object;
-    std::vector<MeshData> buffers;
-    ShapeList             shapes;
-    std::vector<float>    expectedVertices;
-    std::vector<int>      expectedIndices;
-    std::vector<float3>   expectedSphereCenters;
-    float                 expectedSphereSingleRadius;
-};
-
-}  // namespace
-
 static ShapeDefinition translateTriangleMesh( TestObject& object, int index, float tx, float ty, float tz )
 {
     ShapeDefinition mesh{ singleTriangleTriangleMesh( object.buffers[index] ) };
@@ -498,20 +497,22 @@ static TestObject twoTriangleMeshes()
     object.buffers.push_back( MeshData{} );
     object.buffers.push_back( MeshData{} );
     object.shapes.push_back( translateTriangleMesh( object, 0, 10.0f, 10.0f, 10.0f ) );
-    object.shapes.push_back( singleTriangleTriangleMesh( object.buffers[1] ) );
+    object.shapes.push_back( translateTriangleMesh( object, 1, 0.0f, 0.0f, 0.0f ) );
     for( size_t i = 0; i < object.shapes.size(); ++i )
     {
+        const int                 vertexStart{ static_cast<int>( object.expectedVertices.size() / VERTS_PER_TRI ) };
         const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
-        for( size_t c = 0; c < vertices.size() / 3; ++c )
+        for( size_t c = 0; c < vertices.size() / VERTS_PER_TRI; ++c )
         {
-            pbrt::Point3f pt{ vertices[c * 3 + 0], vertices[c * 3 + 1], vertices[c * 3 + 2] };
+            pbrt::Point3f pt{ vertices[c * VERTS_PER_TRI + 0], vertices[c * VERTS_PER_TRI + 1], vertices[c * VERTS_PER_TRI + 2] };
             pt = object.shapes[i].transform( pt );
             object.expectedVertices.push_back( pt.x );
             object.expectedVertices.push_back( pt.y );
             object.expectedVertices.push_back( pt.z );
         }
         const std::vector<int>& indices{ object.buffers[i].indices };
-        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+        std::transform( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ),
+                        [=]( uint_t index ) { return index + vertexStart; } );
     }
 
     return object;
@@ -591,6 +592,24 @@ static TestObject oneTriangleMeshOneSphere()
     object.expectedSphereSingleRadius = object.shapes[1].sphere.radius;
 
     return object;
+}
+
+TEST( TestConstructTestObject, twoTriangleMeshes )
+{
+    const TestObject object{ twoTriangleMeshes() };
+
+    EXPECT_EQ( 2U, object.buffers.size() );
+    EXPECT_EQ( 2U, object.shapes.size() );
+    const size_t expectedNumTriangles{ std::accumulate( object.shapes.begin(), object.shapes.end(), 0U,
+                                                        []( size_t value, const otk::pbrt::ShapeDefinition& shape ) {
+                                                            return value + shape.triangleMesh.indices.size() / VERTS_PER_TRI;
+                                                        } ) };
+    EXPECT_EQ( expectedNumTriangles * VERTS_PER_TRI * COORDS_PER_VERT, object.expectedVertices.size() );
+    for( size_t i = 0; i < object.expectedIndices.size(); ++i )
+    {
+        const int index{ object.expectedIndices[i] };
+        EXPECT_LT( index * VERTS_PER_TRI, object.expectedVertices.size() ) << '[' << i << ']';
+    }
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
