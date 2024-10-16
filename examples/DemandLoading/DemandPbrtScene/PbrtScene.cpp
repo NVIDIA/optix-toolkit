@@ -33,6 +33,7 @@
 #include <filesystem>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <stdexcept>
 #include <utility>
 
@@ -206,7 +207,10 @@ static SceneStatistics getSceneStatistics( const std::string& filePath, SceneDes
     stats.fileName           = std::filesystem::path( filePath ).filename().string();
     stats.numFreeShapes      = asUInt( scene->freeShapes.size() );
     stats.numObjects         = asUInt( scene->objects.size() );
-    stats.numObjectShapes    = asUInt( scene->objectShapes.size() );
+    stats.numObjectShapes    = asUInt( std::accumulate( scene->objectShapes.begin(), scene->objectShapes.end(), 0U,
+                                                        []( std::size_t val, const otk::pbrt::ObjectShapeMap::value_type& it ) {
+                                                         return val + it.second.size();
+                                                     } ) );
     stats.numObjectInstances = asUInt( scene->objectInstances.size() );
     stats.parseTime          = parseTime;
     return stats;
