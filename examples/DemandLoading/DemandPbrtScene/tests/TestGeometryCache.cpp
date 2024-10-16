@@ -31,7 +31,6 @@
 #include <algorithm>
 #include <array>
 #include <iterator>
-#include <numeric>
 #include <type_traits>
 
 using namespace demandPbrtScene;
@@ -554,6 +553,7 @@ static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, MeshInfo&
 
     for( size_t i = 0; i < object.shapes.size(); ++i )
     {
+        const int                 vertexStart{ static_cast<int>( object.expectedVertices.size() / VERTS_PER_TRI ) };
         const std::vector<float>& vertices{ object.buffers[i].vertexCoords };
         for( size_t c = 0; c < vertices.size() / 3; ++c )
         {
@@ -564,7 +564,8 @@ static TestObject oneTriangleMeshOnePlyMesh( MockMeshLoaderPtr loader, MeshInfo&
             object.expectedVertices.push_back( pt.z );
         }
         const std::vector<int>& indices{ object.buffers[i].indices };
-        std::copy( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ) );
+        std::transform( indices.cbegin(), indices.cend(), std::back_inserter( object.expectedIndices ),
+                        [=]( uint_t index ) { return index + vertexStart; } );
     }
 
     return object;
@@ -600,16 +601,40 @@ TEST( TestConstructTestObject, twoTriangleMeshes )
 
     EXPECT_EQ( 2U, object.buffers.size() );
     EXPECT_EQ( 2U, object.shapes.size() );
-    const size_t expectedNumTriangles{ std::accumulate( object.shapes.begin(), object.shapes.end(), 0U,
-                                                        []( size_t value, const otk::pbrt::ShapeDefinition& shape ) {
-                                                            return value + shape.triangleMesh.indices.size() / VERTS_PER_TRI;
-                                                        } ) };
+    const size_t expectedNumTriangles{ 2U };
     EXPECT_EQ( expectedNumTriangles * VERTS_PER_TRI * COORDS_PER_VERT, object.expectedVertices.size() );
     for( size_t i = 0; i < object.expectedIndices.size(); ++i )
     {
         const int index{ object.expectedIndices[i] };
         EXPECT_LT( index * VERTS_PER_TRI, object.expectedVertices.size() ) << '[' << i << ']';
     }
+    EXPECT_EQ( 6U, object.expectedIndices.size() );
+    const std::array<uint_t, 6> expectedIndices{ 0, 1, 2, 3, 4, 5 };
+    EXPECT_TRUE( std::equal( expectedIndices.begin(), expectedIndices.begin(), object.expectedIndices.begin() ) );
+}
+
+TEST( TestConstructTestObject, oneTriangleMeshOnePlyMesh )
+{
+    MockMeshLoaderPtr loader{ createMockMeshLoader() };
+    MeshInfo          info{};
+
+    const TestObject object{ oneTriangleMeshOnePlyMesh( loader, info ) };
+    static_cast<void>( loader->getMeshInfo() );
+    MeshData meshData{};
+    loader->load( meshData );
+
+    EXPECT_EQ( 2U, object.buffers.size() );
+    EXPECT_EQ( 2U, object.shapes.size() );
+    const size_t expectedNumTriangles{ 2U };
+    EXPECT_EQ( expectedNumTriangles * VERTS_PER_TRI * COORDS_PER_VERT, object.expectedVertices.size() );
+    for( size_t i = 0; i < object.expectedIndices.size(); ++i )
+    {
+        const int index{ object.expectedIndices[i] };
+        EXPECT_LT( index * VERTS_PER_TRI, object.expectedVertices.size() ) << '[' << i << ']';
+    }
+    EXPECT_EQ( 6U, object.expectedIndices.size() );
+    const std::array<uint_t, 6> expectedIndices{ 0, 1, 2, 3, 4, 5 };
+    EXPECT_TRUE( std::equal( expectedIndices.begin(), expectedIndices.end(), object.expectedIndices.begin() ) );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMesh )
