@@ -351,9 +351,9 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     }
 
     const ShapeList&        shapes{ m_scene->objectShapes[m_name] };
-    const ShapeDefinition&  shape{ shapes[0] };
-    const GeometryPrimitive primitive{ primitiveForType( shape.type ) };
-    const MaterialFlags     flags{ shapeMaterialFlags( shape ) };
+    const ShapeDefinition&  firstShape{ shapes[0] };
+    const GeometryPrimitive primitive{ primitiveForType( firstShape.type ) };
+    const MaterialFlags     flags{ shapeMaterialFlags( firstShape ) };
     const auto              compareShapes{ [=]( const ShapeDefinition& s ) {
         return primitiveForType( s.type ) != primitive || shapeMaterialFlags( s ) != flags;
     } };
