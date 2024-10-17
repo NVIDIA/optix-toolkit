@@ -582,7 +582,7 @@ SceneProxyPtr ProxyFactoryImpl::sceneInstancePrimitive( SceneDescriptionPtr scen
     }
     ++m_stats.numInstancePrimitiveProxiesCreated;
     ++m_stats.numGeometryProxiesCreated;
-    return std::make_shared<InstancePrimitiveProxy>( m_options, std::move( m_geometryCache ), id, toOptixAabb( bounds ),
+    return std::make_shared<InstancePrimitiveProxy>( m_options, m_geometryCache, id, toOptixAabb( bounds ),
                                                      std::move( scene ), instanceIndex, primitive, flags );
 }
 
