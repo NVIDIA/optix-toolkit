@@ -406,8 +406,11 @@ void GeometryCacheImpl::appendSphere( const pbrt::Transform& transform, const Sp
     const pbrt::Point3f center{ transform( pbrt::Point3f( 0.0f, 0.0f, 0.0f ) ) };
     m_vertices.push_back( make_float3( center.x, center.y, center.z ) );
     m_primitiveGroupEndIndices.push_back( containerSize( m_vertices ) );
-    const pbrt::Point3f scaledUnitVector{ transform( pbrt::Point3f( 1.0f, 0.0f, 0.0f ) ) };
-    m_radii.push_back( scaledUnitVector.x * sphere.radius );
+    pbrt::Matrix4x4 scale;
+    pbrt::Vector3f translate;
+    pbrt::Quaternion rotate;
+    pbrt::AnimatedTransform::Decompose(transform.GetMatrix(), &translate, &rotate, &scale);
+    m_radii.push_back( scale.m[0][0] * sphere.radius ); // use X scale factor only
 }
 
 GeometryCacheEntry GeometryCacheImpl::buildSphereGAS( OptixDeviceContext context, CUstream stream )
