@@ -463,6 +463,7 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     // Early exit if no textures or resources have been created.
     if( !m_isActive )
     {
+	getDeviceMemoryManager()->freeDeviceContext( const_cast<DeviceContext*>( &context ) );
         return Ticket();  // default-constructed Ticket has zero tasks.
     }
 
