@@ -44,6 +44,10 @@ On most Linux systems the necessary packages can be installed using the followin
 ```
 sudo apt-get install libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev mesa-common-dev
 ```
+Under Rocky linux, the following packages must be installed to build the GL-based OTK examples:
+```
+sudo dnf install libXcursor-devel libXi-devel libXinerama-devel libXrandr-devel mesa-libGLU-devel pkg-config
+```
 
 ## Specifying the Location of the OptiX SDK
 
