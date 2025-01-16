@@ -8,6 +8,10 @@
 
 #include <optix.h>
 
+#if __CUDA_ARCH__ >= 600
+#define SPARSE_TEX_SUPPORT true
+#endif
+
 using namespace demandLoading;
 
 extern "C" {
