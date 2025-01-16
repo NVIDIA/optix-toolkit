@@ -9,6 +9,10 @@
 
 #include "TestSparseTexture.h"
 
+#if __CUDA_ARCH__ >= 600
+#define SPARSE_TEX_SUPPORT true
+#endif
+
 using namespace demandLoading;
 
 __global__ static void sparseTextureKernel( cudaTextureObject_t texture, float4* output, int width, int height, float lod )
