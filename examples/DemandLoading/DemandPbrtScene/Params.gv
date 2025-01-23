@@ -1,0 +1,62 @@
+digraph g {
+fontname="Helvetica,Arial,sans-serif"
+node [fontname="Courier"]
+edge [fontname="Helvetica,Arial,sans-serif"]
+graph [
+rankdir = "LR"
+];
+node [
+fontsize = "16"
+shape = "ellipse"
+];
+edge [
+];
+"instanceId" [
+label = "instanceId | <f0> 2"
+shape = "record"
+];
+"materialIndices" [
+label = "materialIndices | 0: &lt;N0, B0&gt; | 1: &lt;N1, B1&gt;  | <f2> 2: &lt;N2, B2&gt; | 3: &lt;N3, B3&gt;"
+shape = "record"
+];
+"instanceNormals" [
+label = "instanceNormals | 0: ... | 1: ... | <f2> 2: ... | 3: ..."
+shape = "record"
+];
+"instanceUVs" [
+label = "instanceUVs | 0: ... | 1: ... | <f2> 2: ... | 3: ..."
+shape = "record"
+];
+"GAS 2 Normals" [
+label = "GAS 2 Normals | <f0> 0: ... | 1: ... | 2: ... | 3: ... | 4: ... | 5: ..."
+shape = "record"
+];
+"GAS 2 UVs" [
+label = "GAS 2 UVs | <f0> 0: ... | 1: ... | 2: ... | 3: ... | 4: ... | 5: ..."
+shape = "record"
+];
+"partialUVs" [
+label = "partialUVs | 0: ... | 1: ... | <f2> 2: ... | 3: ..."
+shape = "record"
+];
+"primitiveMaterials" [
+label = "primitiveMaterials | 0: ... | .... | <f0> B2+0: &lt;E0,M0&gt; | <f1> B2+1: &lt;E1,M1&gt; | ... | <f2> B2+N2-1: &lt;E2,M2&gt;"
+shape = "record"
+];
+"realizedMaterials" [
+label = "realizedMaterials | ... | <f0> M0: ... | .... | <f1> M1: ... | ... | <f2> M2: ... | ..."
+shape = "record"
+];
+
+"primitiveMaterials":f0 -> "realizedMaterials":f0 [id = 8];
+"primitiveMaterials":f1 -> "realizedMaterials":f1 [id = 9];
+"primitiveMaterials":f2 -> "realizedMaterials":f2 [id = 10];
+"materialIndices":f2 -> "primitiveMaterials":f0 [id = 7];
+"instanceId":f0 -> "materialIndices":f2 [id = 0];
+"instanceId":f0 -> "instanceNormals":f2 [id = 1];
+"instanceId":f0 -> "instanceUVs":f2 [id = 2, label="     "];
+"instanceNormals":f2 -> "GAS 2 Normals":f0 [id = 3];
+"instanceUVs":f2 -> "GAS 2 UVs":f0 [id = 4];
+"instanceId":f0 -> "partialUVs":f2 [id = 5];
+"partialUVs":f2 -> "GAS 2 UVs":f0 [id = 6];
+}

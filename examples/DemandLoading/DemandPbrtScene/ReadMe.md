@@ -141,3 +141,5 @@ entry gives a range of primitive indices in the GAS associated with a material i
 
 The `realizedMaterials` array, indexed by a material id, holds the material parameters
 for the simple material model used in the sample.
+
+![Params](Params.png)
