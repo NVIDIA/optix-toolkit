@@ -89,3 +89,55 @@ cached based on the filename.  (Pbrt parsing always returns absolute paths for r
 filenames.)  When multiple instances of an object in a pbrt scene occur and they reference
 the same PLY file, only a single geometry acceleration structure is used for the underlying
 mesh.  No attempt was made to identify duplicate inline triangle meshes.
+
+## Scene Graph Organization
+
+The sample supports two methods of scene organization into acceleration structures.  The first
+creates acceleration structures that correspond directly to the `Shape` elements in the pbrt
+scene description.  Each `Shape` corresponds one-to-one with a geometry acceleration structure
+(GAS).  In this method, a pbrt `Object` is one or more GASes, one per `Shape` in the `Object`.
+This is the default scene graph organization and can be explicitly selected with the command-line
+argument `--proxy-granularity=fine`.
+
+The second method groups as many `Shape` elements for an `Object` as possible into as few
+GASes as necessary to represent the object.  There are some constraints that prevent combining
+different shapes together into a single GAS.  For instance, a GAS must contain primitives all
+of the same type, so a sphere shape cannot be combined with a triangle mesh shape.  All primitives
+in a GAS must share the same set of OptiX programs, so if some triangles use an alpha cutout texture
+map and some triangles do not, then they will belong to separate GASes.  This method of scene
+organization can be selected with the `--proxy-granularity=coarse` command-line argument.
+
+There is no support for switching the scene graph organization dynamically.
+
+## Launch Parameter Scene Data
+
+The OptiX programs used by the sample use the launch parameters structure, `Params`, to access
+all necessary secondary data not stored in the GASes.  This includes per-vertex data such as
+normals and texture coordinates as well as all material data.
+
+All GASes are held inside an Instance Acceleration Strucure (IAS) and associated with an
+instance id.  The instance id is used as the primary index into the following arrays:
+
+- `instanceNormals`
+- `instanceUVs`
+- `partialUVs`
+- `partialMaterials`
+- `materialIndices`
+
+The `Normals` and `UVs` arrays hold pointers to arrays of the additional per-vertex data
+associated with the GAS.  The per-vertex data arrays are indexed by the primitive index within
+the GAS to obtain the necessary data.
+
+The `partialMaterials` array is used to obtain the alpha cutout map texture id for geometry
+resolved to an alpha cutout map, but not yet fully intersected.  If the cutout is such that
+rays never intersect the actual surface, then materials and textures for the surface are
+never loaded.
+
+The `materialIndices` array is used to find the number of material groups associated with
+a GAS.  Each entry in the array gives the number of material groups in the GAS and the starting
+index into the `primitiveMaterials` array.  The `primitiveMaterials` array contains one
+`PrimitiveMaterialRange` entry for each material group in the GAS.  Each `PrimitiveMaterialRange`
+entry gives a range of primitive indices in the GAS associated with a material index.
+
+The `realizedMaterials` array, indexed by a material id, holds the material parameters
+for the simple material model used in the sample.
