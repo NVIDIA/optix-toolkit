@@ -768,10 +768,10 @@ extern "C" __global__ void __closesthit__texturedMesh()
     prd->rayDistance      = optixGetRayTmax();
     prd->color            = float3{ 1.0f, 0.0f, 1.0f };
 
-    float2* uvs                = params.instanceUVs[instanceId]->UV;
-    float   a                  = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
-    float   b                  = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
-    float   c                  = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    const float2* uvs          = params.instanceUVs[instanceId][optixGetPrimitiveIndex()].UV;
+    const float   a            = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    const float   b            = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    const float   c            = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
     prd->worldSpaceTextureSize = ( a + b + c ) / 3.0f;
 }
 
