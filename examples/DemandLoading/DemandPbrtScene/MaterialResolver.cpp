@@ -133,8 +133,9 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             geom->instance.instance.sbtOffset                     = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
-                std::cout << "Resolved proxy material id " << groupMaterialId << " to partial alpha texture id "
-                          << group.material.alphaTextureId << '\n';
+                std::cout << "Resolved proxy material id " << groupMaterialId << " for instance id "
+                          << geom->instance.instance.instanceId << ", material group " << index
+                          << " to partial alpha texture id " << group.material.alphaTextureId << '\n';
             }
             ++m_stats.numPartialMaterialsRealized;
             return MaterialResolution::PARTIAL;
@@ -168,9 +169,12 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     if( m_options.verboseProxyMaterialResolution )
     {
         std::cout << "Resolved proxy material id " << groupMaterialId << " for instance id "
-                  << geom->instance.instance.instanceId << ", material group " << index
-                  << ( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ? " with diffuse map" : "" )
-                  << '\n';
+                  << geom->instance.instance.instanceId << ", material group " << index;
+        if (flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
+        {
+            std::cout << " with diffuse texture id " << group.material.diffuseTextureId;
+        }
+        std::cout << '\n';
     }
     m_materialLoader->remove( groupMaterialId );
     resolvedMaterialIds.push_back( groupMaterialId );
