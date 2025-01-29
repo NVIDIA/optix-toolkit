@@ -29,10 +29,10 @@ extern "C" __global__ void __closesthit__mesh()
         return;
     }
 
-    RayPayload* prd = getRayPayload();
+    RayPayload* prd       = getRayPayload();
     prd->diffuseTextureId = 0xffffffff;
-    const Params& params{ PARAMS_VAR_NAME };
-    const uint_t  instanceId{ optixGetInstanceId() };
+    const Params&                 params{ PARAMS_VAR_NAME };
+    const uint_t                  instanceId{ optixGetInstanceId() };
     const uint_t                  primIdx{ optixGetPrimitiveIndex() };
     const MaterialIndex&          matIdx{ params.materialIndices[instanceId] };
     uint_t                        materialId{};
@@ -53,9 +53,9 @@ extern "C" __global__ void __closesthit__mesh()
     }
 #endif
     prd->material    = &params.realizedMaterials[materialId];
-    prd->normal = worldNormal;
+    prd->normal      = worldNormal;
     prd->rayDistance = optixGetRayTmax();
-    prd->color = float3{1.0f, 0.0f, 1.0f};
+    prd->color       = float3{ 1.0f, 0.0f, 1.0f };
 }
 
 static __forceinline__ __device__ bool sphereMaterialDebugInfo( const float4& q, const float3& worldNormal )
@@ -100,10 +100,10 @@ extern "C" __global__ void __closesthit__sphere()
     if( sphereMaterialDebugInfo( q, worldNormal ) )
         return;
 
-    RayPayload* prd = getRayPayload();
+    RayPayload* prd       = getRayPayload();
     prd->diffuseTextureId = 0xffffffff;
-    const Params& params{ PARAMS_VAR_NAME };
-    const uint_t  instanceId{ optixGetInstanceId() };
+    const Params&                 params{ PARAMS_VAR_NAME };
+    const uint_t                  instanceId{ optixGetInstanceId() };
     const MaterialIndex&          matIdx{ params.materialIndices[instanceId] };
     uint_t                        materialId{};
     const PrimitiveMaterialRange* matRange{ &params.primitiveMaterials[matIdx.primitiveMaterialBegin] };
@@ -122,10 +122,10 @@ extern "C" __global__ void __closesthit__sphere()
         assert( materialId < params.numRealizedMaterials );
     }
 #endif
-    prd->material = &params.realizedMaterials[materialId];
-    prd->normal = worldNormal;
+    prd->material    = &params.realizedMaterials[materialId];
+    prd->normal      = worldNormal;
     prd->rayDistance = optixGetRayTmax();
-    prd->color = float3{1.0f, 0.0f, 1.0f};
+    prd->color       = float3{ 1.0f, 0.0f, 1.0f };
 }
 
 }  // namespace demandPbrtScene
