@@ -33,13 +33,6 @@ extern "C" __global__ void __closesthit__mesh()
     prd->diffuseTextureId = 0xffffffff;
     const Params& params{ PARAMS_VAR_NAME };
     const uint_t  instanceId{ optixGetInstanceId() };
-#ifndef NDEBUG
-    if( instanceId >= params.numRealizedMaterials )
-    {
-        printf( "Instance id %u exceeds numRealizedMaterials %u\n", instanceId, params.numRealizedMaterials );
-        assert( instanceId < params.numRealizedMaterials );
-    }
-#endif
     const uint_t                  primIdx{ optixGetPrimitiveIndex() };
     const MaterialIndex&          matIdx{ params.materialIndices[instanceId] };
     uint_t                        materialId{};
@@ -52,6 +45,13 @@ extern "C" __global__ void __closesthit__mesh()
             break;
         }
     }
+#ifndef NDEBUG
+    if( materialId >= params.numRealizedMaterials )
+    {
+        printf( "Material id %u exceeds numRealizedMaterials %u\n", materialId, params.numRealizedMaterials );
+        assert( materialId < params.numRealizedMaterials );
+    }
+#endif
     prd->material    = &params.realizedMaterials[materialId];
     prd->normal = worldNormal;
     prd->rayDistance = optixGetRayTmax();
