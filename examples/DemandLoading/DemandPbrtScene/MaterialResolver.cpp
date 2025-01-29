@@ -165,6 +165,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     const uint_t materialId{ containerSize( sync.realizedMaterials ) };
     sync.realizedMaterials.push_back( group.material );
     const uint_t materialIndex{ geom->instance.instance.instanceId };
+    OTK_ASSERT( materialIndex < sync.materialIndices.size() );
     sync.primitiveMaterials[sync.materialIndices[materialIndex].primitiveMaterialBegin + index].materialId = materialId;
     if( m_options.verboseProxyMaterialResolution )
     {
@@ -213,8 +214,11 @@ MaterialResolution PbrtMaterialResolver::resolveMaterial( std::vector<uint_t>& r
     {
         result = std::max( result, resolveMaterialGroup( requestedMaterials, sync, geom, i, resolvedMaterialIds ) );
     }
-    sync.realizedNormals.push_back( geom->instance.devNormals );
-    sync.realizedUVs.push_back( geom->instance.devUVs );
+    const uint_t index{ geom->instance.instance.instanceId };
+    grow( sync.realizedNormals, index + 1 );
+    grow( sync.realizedUVs, index + 1 );
+    sync.realizedNormals[index]                 = geom->instance.devNormals;
+    sync.realizedUVs[index]                     = geom->instance.devUVs;
     sync.topLevelInstances[geom->instanceIndex] = geom->instance.instance;
     for( uint_t materialId : resolvedMaterialIds )
     {
@@ -335,8 +339,14 @@ bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t            
 
     // reuse already realized material
     geom->materialIds.push_back( materialIndex );
-    syncState.realizedNormals.push_back( geom->instance.devNormals );
-    syncState.realizedUVs.push_back( geom->instance.devUVs );
+    OTK_ASSERT( materialIndex < syncState.materialIndices.size() );
+    const uint_t index{ geom->instance.instance.instanceId };
+    grow( syncState.realizedNormals, index + 1 );
+    grow( syncState.realizedUVs, index + 1 );
+    OTK_ASSERT( index < syncState.realizedNormals.size() );
+    OTK_ASSERT( index < syncState.realizedUVs.size() );
+    syncState.realizedNormals[index] = geom->instance.devNormals;
+    syncState.realizedUVs[index] = geom->instance.devUVs;
     syncState.primitiveMaterials.push_back( PrimitiveMaterialRange{ group.primitiveIndexEnd, materialIndex } );
     m_proxyMaterialGeometries[materialIndex] = geom;
     ++m_stats.numMaterialsReused;
