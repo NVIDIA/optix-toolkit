@@ -275,7 +275,7 @@ struct Params
     demandGeometry::Context       demandGeomContext;
     float3                        demandMaterialColor;
     uint_t                        numPartialMaterials;     //
-    const PartialMaterial*        partialMaterials;        // indexed by instanceId
+    const PartialMaterial*        partialMaterials;        // indexed by materialId
     uint_t                        numRealizedMaterials;    //
     const PhongMaterial*          realizedMaterials;       // indexed by materialId
     uint_t                        numMaterialIndices;      //
