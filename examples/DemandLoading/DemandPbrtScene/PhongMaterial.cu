@@ -104,14 +104,25 @@ extern "C" __global__ void __closesthit__sphere()
     prd->diffuseTextureId = 0xffffffff;
     const Params& params{ PARAMS_VAR_NAME };
     const uint_t  instanceId{ optixGetInstanceId() };
-#ifndef NDEBUG
-    if( instanceId >= params.numRealizedMaterials )
+    const MaterialIndex&          matIdx{ params.materialIndices[instanceId] };
+    uint_t                        materialId{};
+    const PrimitiveMaterialRange* matRange{ &params.primitiveMaterials[matIdx.primitiveMaterialBegin] };
+    for( uint_t i = 0; i < matIdx.numPrimitiveGroups; ++i )
     {
-        printf( "Instance id %u exceeds numRealizedMaterials %u\n", instanceId, params.numRealizedMaterials );
-        assert( instanceId < params.numRealizedMaterials );
+        if( primIdx < matRange[i].primitiveEnd )
+        {
+            materialId = matRange[i].materialId;
+            break;
+        }
+    }
+#ifndef NDEBUG
+    if( materialId >= params.numRealizedMaterials )
+    {
+        printf( "Material id %u exceeds numRealizedMaterials %u\n", materialId, params.numRealizedMaterials );
+        assert( materialId < params.numRealizedMaterials );
     }
 #endif
-    prd->material = &params.realizedMaterials[instanceId];
+    prd->material = &params.realizedMaterials[materialId];
     prd->normal = worldNormal;
     prd->rayDistance = optixGetRayTmax();
     prd->color = float3{1.0f, 0.0f, 1.0f};
