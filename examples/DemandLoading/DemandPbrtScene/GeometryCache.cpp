@@ -292,7 +292,7 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
                     [=]( int index ) { return static_cast<std::uint32_t>( index + indexOffset ); } );
     m_primitiveGroupEndIndices.push_back( containerSize( m_indices ) / VERTS_PER_TRI );
 
-    const size_t numTriangles{ m_indices.size() / VERTS_PER_TRI };
+    const size_t numTriangles{ buffers.indices.size() / VERTS_PER_TRI };
     if( meshInfo.numNormals > 0 )
     {
         if( meshInfo.numNormals != meshInfo.numVertices )
