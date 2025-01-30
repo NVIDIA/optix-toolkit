@@ -78,6 +78,7 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/ImageSourceFactory.h
     include/DemandPbrtScene/ImageSourceFactoryStatistics.h
     include/DemandPbrtScene/ImGuiUserInterface.h
+    include/DemandPbrtScene/JsonStatisticsPrinter.h
     include/DemandPbrtScene/MaterialAdapters.h
     include/DemandPbrtScene/MaterialResolver.h
     include/DemandPbrtScene/MaterialResolverStatistics.h

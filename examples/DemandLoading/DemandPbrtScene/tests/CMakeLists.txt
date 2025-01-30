@@ -22,6 +22,7 @@ add_executable(TestDemandPbrtSceneImpl
     TestDemandTextureCache.cpp
     TestGeometryCache.cpp
     TestGeometryResolver.cpp
+    TestJsonStatisticsPrinter.cpp
     TestMatchers.cpp
     TestMaterialResolver.cpp
     TestOptions.cpp
