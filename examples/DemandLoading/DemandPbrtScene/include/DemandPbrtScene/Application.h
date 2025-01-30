@@ -75,7 +75,6 @@ class Application : public otk::Sample
     GeometryResolverPtr   m_geometryResolver;
     ScenePtr              m_scene;
     bool                  m_sceneUpdated{};
-    Statistics            m_statistics;
 };
 
 }  // namespace demandPbrtScene
