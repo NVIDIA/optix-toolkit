@@ -35,9 +35,14 @@ endfunction()
 # ALLOWED_PERCENTAGE arg    The percentage of pixels required for the images to be considered different.  The default is 3.
 # DISABLED                  Mark the test as DISABLED with CTest
 # RESOURCES arg0...argN     List of additional resource files to be copied to target's resource directory.
+# RESOURCE_TARGET           The name of the target that ensures resources are copied.  Defaults to ${target}ImageTestResources
+# RESOURCE_DIR_NAME         The name of the subdirectory containing the resources.  Defaults to ${target}.
 #
 function(add_image_test target name)
-    cmake_parse_arguments(IMGTEST "DISABLED" "DIFF_THRESHOLD;ALLOWED_PERCENTAGE;FOLDER" "RESOURCES;ARGS" ${ARGN})
+    cmake_parse_arguments(IMGTEST "DISABLED" "DIFF_THRESHOLD;ALLOWED_PERCENTAGE;FOLDER;RESOURCE_TARGET;RESOURCE_DIR_NAME" "RESOURCES;ARGS" ${ARGN})
+    if(IMGTEST_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "Unknown arguments to add_image_test: ${IMGTEST_UNPARSED_ARGUMENTS}")
+    endif()
     if(NOT IMGTEST_DIFF_THRESHOLD)
         set(IMGTEST_DIFF_THRESHOLD 1)
     endif()
@@ -78,35 +83,41 @@ function(add_image_test target name)
 
     # Set up an image test resources target to ensure that gold images (and other
     # test resources) are always copied to the build directory when changed.
-    set(resource_target "${target}ImageTestResources")
-    if(NOT TARGET ${resource_target})
-        add_custom_target(${resource_target})
+    if(NOT IMGTEST_RESOURCE_TARGET)
+        set(IMGTEST_RESOURCE_TARGET "${target}ImageTestResources")
+    endif()
+    if(NOT TARGET ${IMGTEST_RESOURCE_TARGET})
+        add_custom_target(${IMGTEST_RESOURCE_TARGET})
         if(IMGTEST_FOLDER)
-            set_property(TARGET ${resource_target} PROPERTY FOLDER ${IMGTEST_FOLDER})
+            set_property(TARGET ${IMGTEST_RESOURCE_TARGET} PROPERTY FOLDER ${IMGTEST_FOLDER})
         endif()
-        set_property(TARGET ${resource_target} PROPERTY EXCLUDE_FROM_ALL FALSE)
+        set_property(TARGET ${IMGTEST_RESOURCE_TARGET} PROPERTY EXCLUDE_FROM_ALL FALSE)
         source_group("Gold Images" REGULAR_EXPRESSION "gold-.*\\.png")
     elseif(IMGTEST_FOLDER)
-        get_property(existing_folder TARGET ${resource_target} PROPERTY FOLDER)
+        get_property(existing_folder TARGET ${IMGTEST_RESOURCE_TARGET} PROPERTY FOLDER)
         if(NOT "${existing_folder}" STREQUAL "${IMGTEST_FOLDER}")
             message(FATAL "Conflicting FOLDER set for different image tests on target ${target}: '${existing_folder}' and '${IMGTEST_FOLDER}'")
         endif()
     endif()
-    set_property(TARGET ${resource_target} APPEND PROPERTY SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${gold_name}")
+    set_property(TARGET ${IMGTEST_RESOURCE_TARGET} APPEND PROPERTY SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${gold_name}")
     add_custom_command(
         OUTPUT "${gold_dir}/${gold_name}"
         MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/${gold_name}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${gold_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${gold_name}" "${gold_dir}"
     )
-    image_test_get_resource_dir(resource_dir ${target})
+    if(NOT IMGTEST_RESOURCE_DIR_NAME)
+        set(IMGTEST_RESOURCE_DIR_NAME ${target})
+    endif()
+    image_test_get_resource_dir(resource_dir ${IMGTEST_RESOURCE_DIR_NAME})
     foreach(resource ${IMGTEST_RESOURCES})
-        set_property(TARGET ${resource_target} APPEND PROPERTY SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${resource}")
+        set_property(TARGET ${IMGTEST_RESOURCE_TARGET} APPEND PROPERTY SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${resource}")
+        get_filename_component(dir ${resource} DIRECTORY)
         add_custom_command(
             OUTPUT "${resource_dir}/${resource}"
             MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/${resource}"
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${resource_dir}"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${resource}" "${resource_dir}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${resource_dir}/${dir}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${resource}" "${resource_dir}/${dir}"
         )
     endforeach()
 endfunction()
