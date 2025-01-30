@@ -70,7 +70,7 @@ void Application::initialize()
     m_renderer->initialize( stream );
     m_programGroups->initialize();
     m_scene->initialize( stream );
-    m_statistics.initTime = timer.getSeconds();
+    m_stats.initTime = timer.getSeconds();
 }
 
 unsigned int Application::getCudaDeviceIndex()
@@ -188,7 +188,7 @@ void Application::cleanup()
 {
     m_programGroups->cleanup();
     m_renderer->cleanup();
-    m_statistics.report();
+    m_stats.report();
 }
 
 }  // namespace demandPbrtScene
