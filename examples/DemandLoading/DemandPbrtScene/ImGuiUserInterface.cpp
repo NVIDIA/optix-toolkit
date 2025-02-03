@@ -8,6 +8,7 @@
 
 #include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/FrameRate.h"
+#include "DemandPbrtScene/JsonStatisticsPrinter.h"
 #include "DemandPbrtScene/Renderer.h"
 #include "DemandPbrtScene/Scene.h"
 
@@ -22,6 +23,8 @@
 #include <GLFW/glfw3.h>
 
 #include <iomanip>
+#include <filesystem>
+#include <fstream>
 #include <utility>
 
 namespace demandPbrtScene {
@@ -399,6 +402,22 @@ void ImGuiUserInterface::togglePause()
     m_options.oneShotMaterial = m_paused;
 }
 
+void ImGuiUserInterface::dumpStats() const
+{
+    std::filesystem::path file{ "DemandPbrtSceneStatistics.json" };
+    if( exists( file ) )
+    {
+        std::filesystem::path candidate{ file };
+        for( int i = 1; exists( candidate ); ++i )
+        {
+            candidate.replace_filename( file.filename().string() + '-' + std::to_string( i ) );
+        }
+        file = candidate;
+    }
+    std::ofstream stats( file );
+    stats << Json( m_stats );
+}
+
 bool ImGuiUserInterface::beforeLaunch( OutputBuffer& output )
 {
     glfwPollEvents();
@@ -529,6 +548,10 @@ void ImGuiUserInterface::handleKey( GLFWwindow* window, int32_t key, int32_t sca
                     m_debugLocationChanged = true;
                     handled                = true;
                 }
+                break;
+
+            case GLFW_KEY_S:
+                dumpStats();
                 break;
 
             case GLFW_KEY_G:  // resolve one geometry
