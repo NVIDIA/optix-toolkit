@@ -1,5 +1,6 @@
 #include <DemandPbrtScene/JsonStatisticsPrinter.h>
 
+#include <DemandPbrtScene/Options.h>
 #include <DemandPbrtScene/UserInterfaceStatistics.h>
 
 #include <gtest/gtest.h>
@@ -15,7 +16,7 @@ class TestJsonStatisticsPrinter : public testing::Test
 
     std::ostringstream                       m_output;
     demandPbrtScene::UserInterfaceStatistics m_stats{};
-    std::string                              expected;
+    std::string                              m_expectedStatsJson;
 };
 
 void TestJsonStatisticsPrinter::SetUp()
@@ -52,7 +53,7 @@ void TestJsonStatisticsPrinter::SetUp()
     m_stats.scene.numObjectInstances = 28;
 
     // If this is a string literal inside EXPECT_EQ it fails to compile on msvc due to the fileName JSON value escapes.
-    expected =
+    m_expectedStatsJson =
         // clang-format off
         R"json({)json"
         R"json("numFramesRendered":1234,)json"
@@ -99,7 +100,7 @@ TEST_F(TestJsonStatisticsPrinter, printMutableStatistics)
 {
     m_output << demandPbrtScene::Json( m_stats );
 
-    EXPECT_EQ( expected, m_output.str() );
+    EXPECT_EQ( m_expectedStatsJson, m_output.str() );
 }
 
 TEST_F(TestJsonStatisticsPrinter, printConstStatistics)
@@ -108,5 +109,93 @@ TEST_F(TestJsonStatisticsPrinter, printConstStatistics)
 
     m_output << demandPbrtScene::Json( stats );
 
-    EXPECT_EQ( expected, m_output.str() );
+    EXPECT_EQ( m_expectedStatsJson, m_output.str() );
+}
+
+TEST_F( TestJsonStatisticsPrinter, renderModePrimaryRay )
+{
+    m_output << demandPbrtScene::Json( demandPbrtScene::RenderMode::PRIMARY_RAY );
+
+    EXPECT_EQ( R"json("primary ray")json", m_output.str() );
+    //PRIMARY_RAY = 0,
+    //    NEAR_AO,
+    //    DISTANT_AO,
+    //    PATH_TRACING
+}
+
+TEST_F( TestJsonStatisticsPrinter, renderModeNearAmbientOcclusion )
+{
+    m_output << demandPbrtScene::Json( demandPbrtScene::RenderMode::NEAR_AO );
+
+    EXPECT_EQ( R"json("near ambient occlusion")json", m_output.str() );
+}
+
+TEST_F( TestJsonStatisticsPrinter, renderModeDistantAmbientOcclusion )
+{
+    m_output << demandPbrtScene::Json( demandPbrtScene::RenderMode::DISTANT_AO );
+
+    EXPECT_EQ( R"json("distant ambient occlusion")json", m_output.str() );
+}
+
+TEST_F( TestJsonStatisticsPrinter, renderModePathTracing )
+{
+    m_output << demandPbrtScene::Json( demandPbrtScene::RenderMode::PATH_TRACING );
+
+    EXPECT_EQ( R"json("path tracing")json", m_output.str() );
+}
+
+TEST_F(TestJsonStatisticsPrinter, printOptions)
+{
+    demandPbrtScene::Options options{};
+    options.program = "DemandPbrtScene";
+    options.sceneFile = "scene.pbrt";
+    options.outFile = "out.png";
+    options.background = make_float3(1.0, 2.0, 3.0);
+    options.warmupFrames = 4;
+    options.oneShotGeometry = true;
+    options.oneShotMaterial = true;
+    options.verboseLoading = true;
+    options.verboseProxyGeometryResolution = true;
+    options.verboseProxyMaterialResolution = true;
+    options.verboseSceneDecomposition = true;
+    options.verboseTextureCreation = true;
+    options.sortProxies = true;
+    options.sync = true;
+    options.usePinholeCamera = true;
+    options.faceForward = true;
+    options.debug = true;
+    options.oneShotDebug = true;
+    options.debugPixel = make_int2(5, 6);
+    options.renderMode = demandPbrtScene::RenderMode::PATH_TRACING;
+    options.proxyGranularity = demandPbrtScene::ProxyGranularity::COARSE;
+
+    m_output << demandPbrtScene::Json(options);
+
+    // clang-format off
+    EXPECT_EQ(R"json({)json"
+        R"json("program":"DemandPbrtScene",)json"
+        R"json("sceneFile":"scene.pbrt",)json"
+        R"json("outFile":"out.png",)json"
+        R"json("width":768,)json"
+        R"json("height":512,)json"
+        R"json("background":[1,2,3],)json"
+        R"json("warmupFrames":4,)json"
+        R"json("oneShotGeometry":true,)json"
+        R"json("oneShotMaterial":true,)json"
+        R"json("verboseLoading":true,)json"
+        R"json("verboseProxyGeometryResolution":true,)json"
+        R"json("verboseProxyMaterialResolution":true,)json"
+        R"json("verboseSceneDecomposition":true,)json"
+        R"json("verboseTextureCreation":true,)json"
+        R"json("sortProxies":true,)json"
+        R"json("sync":true,)json"
+        R"json("usePinholeCamera":true,)json"
+        R"json("faceForward":true,)json"
+        R"json("debug":true,)json"
+        R"json("oneShotDebug":true,)json"
+        R"json("debugPixel":[5,6],)json"
+        R"json("renderMode":"path tracing",)json"
+        R"json("proxyGranularity":"coarse")json"
+        R"json(})json", m_output.str());
+    // clang-format on
 }
