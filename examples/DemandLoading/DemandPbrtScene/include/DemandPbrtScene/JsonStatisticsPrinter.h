@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <DemandPbrtScene/Options.h>
 #include <DemandPbrtScene/UserInterfaceStatistics.h>
 
 #include <ostream>
@@ -15,15 +16,15 @@ template <typename Stats>
 struct Json
 {
     Json( const Stats& value )
-        : stats( value )
+        : value( value )
     {
     }
 
-    const Stats& stats;
+    const Stats& value;
 };
 
-#define DUMP_JSON_MEMBER( name_ ) str << '"' << #name_ << R"json(":)json" << json.stats.name_
-#define DUMP_JSON_OBJECT( name_ ) str << '"' << #name_ << R"json(":)json" << Json( json.stats.name_ )
+#define DUMP_JSON_MEMBER( name_ ) str << '"' << #name_ << R"json(":)json" << json.value.name_
+#define DUMP_JSON_OBJECT( name_ ) str << '"' << #name_ << R"json(":)json" << Json( json.value.name_ )
 
 inline std::ostream& operator<<( std::ostream& str, const Json<GeometryCacheStatistics>& json )
 {
@@ -96,7 +97,7 @@ inline std::ostream& operator<<( std::ostream& str, const Json<MaterialResolverS
 
 inline std::ostream& operator<<( std::ostream& str, const Json<std::string>& json )
 {
-    std::string quoted{ json.stats };
+    std::string quoted{ json.value };
     for( auto pos = quoted.find( '\\' ); pos != std::string::npos; pos = quoted.find( '\\', pos + 2 ) )
     {
         quoted.insert( pos, "\\" );
@@ -131,6 +132,86 @@ inline std::ostream& operator<<( std::ostream& str, const Json<UserInterfaceStat
     DUMP_JSON_OBJECT( geometry ) << ',';
     DUMP_JSON_OBJECT( materials ) << ',';
     DUMP_JSON_OBJECT( scene );
+    str << '}';
+    return str;
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Json<float3>& json )
+{
+    return str << '[' << json.value.x << ',' << json.value.y << ',' << json.value.z << ']';
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Json<int2>& json )
+{
+    return str << '[' << json.value.x << ',' << json.value.y << ']';
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Json<RenderMode>& json )
+{
+    switch( json.value )
+    {
+        case RenderMode::PRIMARY_RAY:
+            return str << R"json("primary ray")json";
+
+        case RenderMode::NEAR_AO:
+            return str << R"json("near ambient occlusion")json";
+
+        case RenderMode::DISTANT_AO:
+            return str << R"json("distant ambient occlusion")json";
+
+        case RenderMode::PATH_TRACING:
+            return str << R"json("path tracing")json";
+    }
+    return str << R"json("?unknown ()json" << std::to_string( static_cast<int>( json.value ) ) << R"json()")json";
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Json<ProxyGranularity>& json )
+{
+    switch( json.value )
+    {
+        case ProxyGranularity::NONE:
+            return str << R"json("none")json";
+
+        case ProxyGranularity::FINE:
+            return str << R"json("fine")json";
+
+        case ProxyGranularity::COARSE:
+            return str << R"json("coarse")json";
+    }
+    return str << R"json("?unknown ()json" << std::to_string( static_cast<int>( json.value ) ) << R"json()")json";
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Json<bool>& json )
+{
+    return str << ( json.value ? "true" : "false" );
+}
+
+inline std::ostream& operator<<( std::ostream& str, const Json<Options>& json )
+{
+    str << '{';
+    DUMP_JSON_OBJECT( program ) << ',';
+    DUMP_JSON_OBJECT( sceneFile ) << ',';
+    DUMP_JSON_OBJECT( outFile ) << ',';
+    DUMP_JSON_MEMBER( width ) << ',';
+    DUMP_JSON_MEMBER( height ) << ',';
+    DUMP_JSON_OBJECT( background ) << ',';
+    DUMP_JSON_MEMBER( warmupFrames ) << ',';
+    DUMP_JSON_OBJECT( oneShotGeometry ) << ',';
+    DUMP_JSON_OBJECT( oneShotMaterial ) << ',';
+    DUMP_JSON_OBJECT( verboseLoading ) << ',';
+    DUMP_JSON_OBJECT( verboseProxyGeometryResolution ) << ',';
+    DUMP_JSON_OBJECT( verboseProxyMaterialResolution ) << ',';
+    DUMP_JSON_OBJECT( verboseSceneDecomposition ) << ',';
+    DUMP_JSON_OBJECT( verboseTextureCreation ) << ',';
+    DUMP_JSON_OBJECT( sortProxies ) << ',';
+    DUMP_JSON_OBJECT( sync ) << ',';
+    DUMP_JSON_OBJECT( usePinholeCamera ) << ',';
+    DUMP_JSON_OBJECT( faceForward ) << ',';
+    DUMP_JSON_OBJECT( debug ) << ',';
+    DUMP_JSON_OBJECT( oneShotDebug ) << ',';
+    DUMP_JSON_OBJECT( debugPixel ) << ',';
+    DUMP_JSON_OBJECT( renderMode ) << ',';
+    DUMP_JSON_OBJECT( proxyGranularity );
     str << '}';
     return str;
 }

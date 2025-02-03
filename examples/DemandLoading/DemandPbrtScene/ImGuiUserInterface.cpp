@@ -415,7 +415,13 @@ void ImGuiUserInterface::dumpStats() const
         file = candidate;
     }
     std::ofstream stats( file );
+    stats << '{';
+    stats << R"json("options":)json";
+    stats << Json( m_options );
+    stats << ',';
+    stats << R"json("statistics":)json";
     stats << Json( m_stats );
+    stats << '}';
 }
 
 bool ImGuiUserInterface::beforeLaunch( OutputBuffer& output )
