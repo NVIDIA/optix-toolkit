@@ -89,6 +89,7 @@ class ImGuiUserInterface : public UserInterface
     void displayOutput( otk::CUDAOutputBuffer<uchar4>& output );
     void printLookAtKeywordValues();
     void togglePause();
+    void dumpStats() const;
 
     static void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
     static void cursorPosCallback( GLFWwindow* window, double xpos, double ypos );

@@ -14,12 +14,12 @@ namespace demandPbrtScene {
 template <typename Stats>
 struct Json
 {
-    Json( Stats& value )
+    Json( const Stats& value )
         : stats( value )
     {
     }
 
-    Stats& stats;
+    const Stats& stats;
 };
 
 #define DUMP_JSON_MEMBER( name_ ) str << '"' << #name_ << R"json(":)json" << json.stats.name_

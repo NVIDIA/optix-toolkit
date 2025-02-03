@@ -6,46 +6,54 @@
 
 #include <sstream>
 
-TEST(TestJsonStatisticsPrinter, printStatistics)
+namespace {
+
+class TestJsonStatisticsPrinter : public testing::Test
 {
-    std::ostringstream output;
-    demandPbrtScene::UserInterfaceStatistics stats{};
-    stats.numFramesRendered = 1234;
-    stats.geometryCache.numTraversables = 1;
-    stats.geometryCache.numTriangles= 2;
-    stats.geometryCache.numSpheres = 3;
-    stats.geometryCache.numNormals = 4;
-    stats.geometryCache.numUVs = 5;
-    stats.geometryCache.totalBytesRead = 6U;
-    stats.geometryCache.totalReadTime = 7.0;
-    stats.imageSourceFactory.fileSources.numImageSources = 8;
-    stats.imageSourceFactory.fileSources.totalTilesRead = 9;
-    stats.imageSourceFactory.fileSources.totalBytesRead = 10;
-    stats.imageSourceFactory.fileSources.totalReadTime = 11;
-    stats.proxyFactory.numSceneProxiesCreated = 12;
-    stats.proxyFactory.numShapeProxiesCreated = 13;
-    stats.proxyFactory.numInstanceProxiesCreated = 14;
-    stats.proxyFactory.numInstanceShapeProxiesCreated = 15;
-    stats.proxyFactory.numInstancePrimitiveProxiesCreated = 16;
-    stats.proxyFactory.numGeometryProxiesCreated = 17;
-    stats.geometry.numProxyGeometriesResolved = 18;
-    stats.geometry.numGeometriesRealized = 19;
-    stats.materials.numPartialMaterialsRealized = 20;
-    stats.materials.numMaterialsRealized = 21;
-    stats.materials.numMaterialsReused = 22;
-    stats.materials.numProxyMaterialsCreated = 23;
-    stats.scene.fileName = R"path(C:\scenes\"scene".pbrt)path";
-    stats.scene.parseTime = 24;
-    stats.scene.numFreeShapes = 25;
-    stats.scene.numObjects = 26;
-    stats.scene.numObjectShapes = 27;
-    stats.scene.numObjectInstances = 28;
+  protected:
+    void SetUp() override;
 
-    output << demandPbrtScene::Json( stats );
+    std::ostringstream                       m_output;
+    demandPbrtScene::UserInterfaceStatistics m_stats{};
+    std::string                              expected;
+};
 
-    // clang-format off
+void TestJsonStatisticsPrinter::SetUp()
+{
+    m_stats.numFramesRendered = 1234;
+    m_stats.geometryCache.numTraversables = 1;
+    m_stats.geometryCache.numTriangles= 2;
+    m_stats.geometryCache.numSpheres = 3;
+    m_stats.geometryCache.numNormals = 4;
+    m_stats.geometryCache.numUVs = 5;
+    m_stats.geometryCache.totalBytesRead = 6U;
+    m_stats.geometryCache.totalReadTime = 7.0;
+    m_stats.imageSourceFactory.fileSources.numImageSources = 8;
+    m_stats.imageSourceFactory.fileSources.totalTilesRead = 9;
+    m_stats.imageSourceFactory.fileSources.totalBytesRead = 10;
+    m_stats.imageSourceFactory.fileSources.totalReadTime = 11;
+    m_stats.proxyFactory.numSceneProxiesCreated = 12;
+    m_stats.proxyFactory.numShapeProxiesCreated = 13;
+    m_stats.proxyFactory.numInstanceProxiesCreated = 14;
+    m_stats.proxyFactory.numInstanceShapeProxiesCreated = 15;
+    m_stats.proxyFactory.numInstancePrimitiveProxiesCreated = 16;
+    m_stats.proxyFactory.numGeometryProxiesCreated = 17;
+    m_stats.geometry.numProxyGeometriesResolved = 18;
+    m_stats.geometry.numGeometriesRealized = 19;
+    m_stats.materials.numPartialMaterialsRealized = 20;
+    m_stats.materials.numMaterialsRealized = 21;
+    m_stats.materials.numMaterialsReused = 22;
+    m_stats.materials.numProxyMaterialsCreated = 23;
+    m_stats.scene.fileName = R"path(C:\scenes\"scene".pbrt)path";
+    m_stats.scene.parseTime = 24;
+    m_stats.scene.numFreeShapes = 25;
+    m_stats.scene.numObjects = 26;
+    m_stats.scene.numObjectShapes = 27;
+    m_stats.scene.numObjectInstances = 28;
+
     // If this is a string literal inside EXPECT_EQ it fails to compile on msvc due to the fileName JSON value escapes.
-    constexpr const char*expected{
+    expected =
+        // clang-format off
         R"json({)json"
         R"json("numFramesRendered":1234,)json"
         R"json("geometryCache":{"numTraversables":1,"numTriangles":2,"numSpheres":3,"numNormals":4,"numUVs":5,"totalBytesRead":6,"totalReadTime":7},)json"
@@ -56,32 +64,49 @@ TEST(TestJsonStatisticsPrinter, printStatistics)
         R"json("skyboxSources":{"numImageSources":0,"totalTilesRead":0,"totalBytesRead":0,"totalReadTime":0})json"
         R"json(},)json"
         R"json("proxyFactory":{)json"
-        R"json("numSceneProxiesCreated":12,)json"
-        R"json("numShapeProxiesCreated":13,)json"
-        R"json("numInstanceProxiesCreated":14,)json"
-        R"json("numInstanceShapeProxiesCreated":15,)json"
-        R"json("numInstancePrimitiveProxiesCreated":16,)json"
-        R"json("numGeometryProxiesCreated":17)json"
+            R"json("numSceneProxiesCreated":12,)json"
+            R"json("numShapeProxiesCreated":13,)json"
+            R"json("numInstanceProxiesCreated":14,)json"
+            R"json("numInstanceShapeProxiesCreated":15,)json"
+            R"json("numInstancePrimitiveProxiesCreated":16,)json"
+            R"json("numGeometryProxiesCreated":17)json"
         R"json(},)json"
         R"json("geometry":{)json"
-        R"json("numProxyGeometriesResolved":18,)json"
-        R"json("numGeometriesRealized":19)json"
+            R"json("numProxyGeometriesResolved":18,)json"
+            R"json("numGeometriesRealized":19)json"
         R"json(},)json"
         R"json("materials":{)json"
-        R"json("numPartialMaterialsRealized":20,)json"
-        R"json("numMaterialsRealized":21,)json"
-        R"json("numMaterialsReused":22,)json"
-        R"json("numProxyMaterialsCreated":23)json"
+            R"json("numPartialMaterialsRealized":20,)json"
+            R"json("numMaterialsRealized":21,)json"
+            R"json("numMaterialsReused":22,)json"
+            R"json("numProxyMaterialsCreated":23)json"
         R"json(},)json"
         R"json("scene":{)json"
-        R"json("fileName":"C:\\scenes\\\"scene\".pbrt",)json"
-        R"json("parseTime":24,)json"
-        R"json("numFreeShapes":25,)json"
-        R"json("numObjects":26,)json"
-        R"json("numObjectShapes":27,)json"
-        R"json("numObjectInstances":28)json"
+            R"json("fileName":"C:\\scenes\\\"scene\".pbrt",)json"
+            R"json("parseTime":24,)json"
+            R"json("numFreeShapes":25,)json"
+            R"json("numObjects":26,)json"
+            R"json("numObjectShapes":27,)json"
+            R"json("numObjectInstances":28)json"
         R"json(})json"
-        R"json(})json"};
+        R"json(})json";
     // clang-format on
-    EXPECT_EQ( expected, output.str() );
+}
+
+}  // namespace
+
+TEST_F(TestJsonStatisticsPrinter, printMutableStatistics)
+{
+    m_output << demandPbrtScene::Json( m_stats );
+
+    EXPECT_EQ( expected, m_output.str() );
+}
+
+TEST_F(TestJsonStatisticsPrinter, printConstStatistics)
+{
+    const demandPbrtScene::UserInterfaceStatistics stats{ m_stats };
+
+    m_output << demandPbrtScene::Json( stats );
+
+    EXPECT_EQ( expected, m_output.str() );
 }
