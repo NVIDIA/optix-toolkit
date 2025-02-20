@@ -30,17 +30,6 @@ D_INLINE float4 cubicDerivativeWeights( float x )
     return weight;
 }
 
-D_INLINE float4 linearWeights( float x )
-{
-    return float4{ 0.0f, 1.0f-x, x, 0.0f };
-}
-
-D_INLINE float4 linearDerivativeWeights( float x )
-{
-    return float4{ x-1.0f, -x, 1.0f-x, x } * 0.5f; // finite difference
-    //return float4{ 0.0f, -0.5f, 0.5f, 0.0f }; // actual linear derivative
-}
-
 D_INLINE float getPixelSpan( float2 ddx, float2 ddy, float width, float height )
 {
     float pixelSpanX = fmaxf( fabsf( ddx.x ), fabsf( ddy.x ) ) * width;
@@ -143,15 +132,16 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
     float i = floorf( ts );
     float j = floorf( tt );
 
-    // Linear and point sampling
+    // Bilinear and point sampling
     if( cubicBlend < 1.0f )
     {
-        // Don't do bilinear sample for result unless cubicBlend is 0.
+        // Get bilinear sample
         if( result )
         {
             *result = ::tex2DGrad<TYPE>( texture, s, t, ddx, ddy );
         }
 
+        // Do software interpolation on half pixel width grid (to line up with both coarse and fine mip levels)
         if( filterMode != FILTER_POINT && ( dresultds || dresultdt ) )
         {
             float ii = (ts-i > 0.5f) ? i+0.5f : i;
@@ -175,7 +165,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
             return;
     }
 
-    // Do cubic sampling
+    // Cubic filtering for result
     if( result )
     {
         float4 wx = cubicWeights(ts - i);
@@ -183,9 +173,9 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         TYPE res = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight );
         *result = lerp( res, *result, 1.0f-cubicBlend );
     }
+    // Cubic filtering for derivatives
     if( dresultds || dresultdt )
     {
-        // Get axis aligned cubic derivatives
         float4 wx = cubicDerivativeWeights(ts - i);
         float4 wy = cubicWeights(tt - j);
         TYPE drds = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) * mipLevelWidth;
@@ -206,7 +196,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         return;
 
     //-------------------------------------------------------------------------------
-    // Sample second level for blending between levels in FILTER_BICUBIC mode
+    // Sample second mip level for FILTER_BICUBIC mode
 
     // Get unnormalized texture coordinates
     mipLevel++;
@@ -219,17 +209,16 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 
     float levelBlend = (mipLevel-ml);
 
-    // Do cubic sampling
+    // Cubic filtering for result
     if( result )
     {
-        // Blend between cubic and linear weights
         float4 wx = cubicWeights(ts - i);
         float4 wy = cubicWeights(tt - j);
         *result = lerp( textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ), *result, levelBlend );
     }
+    // Cubic filtering for derivatives
     if( dresultds || dresultdt )
     {
-        // Get axis aligned cubic derivatives
         float4 wx = cubicDerivativeWeights(ts - i);
         float4 wy = cubicWeights(tt - j);
         TYPE drds = textureWeighted<TYPE>( texture, i, j, wx, wy, mipLevel, mipLevelWidth, mipLevelHeight ) * mipLevelWidth;
