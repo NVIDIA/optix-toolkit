@@ -115,8 +115,8 @@ void OTKApp::buildAccel( OTKAppPerDeviceOptixState& state )
     OTK_ERROR_CHECK( cudaMalloc( &d_material_indices, material_indices_size_bytes ) );
     OTK_ERROR_CHECK( cudaMemcpy( d_material_indices, m_material_indices.data(), material_indices_size_bytes, cudaMemcpyHostToDevice ) );
 
-    // Make triangle input flags (one per sbt record).  Here, we are just disabling the anyHit programs
-    std::vector<uint32_t> triangle_input_flags( m_materials.size(), OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT );
+    // Make triangle input flags (one per sbt record). 
+    std::vector<uint32_t> triangle_input_flags( m_materials.size(), m_optixGeometryFlags );
 
     // Make GAS accel build inputs
     OptixBuildInput triangle_input                           = {};
@@ -275,28 +275,28 @@ void OTKApp::createProgramGroups( OTKAppPerDeviceOptixState& state )
 
     OptixProgramGroupDesc raygen_prog_group_desc    = {};  //
     raygen_prog_group_desc.kind                     = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    raygen_prog_group_desc.raygen.module            = state.optixir_module;
-    raygen_prog_group_desc.raygen.entryFunctionName = "__raygen__rg";
+    raygen_prog_group_desc.raygen.module            = (m_raygenName) ? state.optixir_module : nullptr;
+    raygen_prog_group_desc.raygen.entryFunctionName = m_raygenName;
     OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &raygen_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.raygen_prog_group ) );
 
     OptixProgramGroupDesc miss_prog_group_desc  = {};
     miss_prog_group_desc.kind                   = OPTIX_PROGRAM_GROUP_KIND_MISS;
-    miss_prog_group_desc.miss.module            = state.optixir_module;
-    miss_prog_group_desc.miss.entryFunctionName = "__miss__OTKApp";
+    miss_prog_group_desc.miss.module            = (m_missName) ? state.optixir_module : nullptr;
+    miss_prog_group_desc.miss.entryFunctionName = m_missName;
     OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &miss_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.miss_prog_group ) );
 
     OptixProgramGroupDesc hitgroup_prog_group_desc        = {};
     hitgroup_prog_group_desc.kind                         = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-    hitgroup_prog_group_desc.hitgroup.moduleCH            = state.optixir_module;
-    hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__OTKApp";
-    hitgroup_prog_group_desc.hitgroup.moduleAH            = nullptr;
-    hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = nullptr;
-    hitgroup_prog_group_desc.hitgroup.moduleIS            = nullptr;
-    hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = nullptr;
+    hitgroup_prog_group_desc.hitgroup.moduleCH            = (m_closestHitName) ? state.optixir_module : nullptr;
+    hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = m_closestHitName;
+    hitgroup_prog_group_desc.hitgroup.moduleAH            = (m_anyhitName) ? state.optixir_module : nullptr;
+    hitgroup_prog_group_desc.hitgroup.entryFunctionNameAH = m_anyhitName;
+    hitgroup_prog_group_desc.hitgroup.moduleIS            = (m_intersectName) ? state.optixir_module : nullptr;;
+    hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = m_intersectName;
     OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( state.context, &hitgroup_prog_group_desc,
                                               1,  // num program groups
                                               &program_group_options, log, &sizeof_log, &state.hitgroup_prog_group ) );
@@ -554,7 +554,7 @@ void OTKApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int nu
     state.params.traversable_handle = state.gas_handle;
     state.params.device_idx         = state.device_idx;
     state.params.num_devices        = numDevices;
-    state.params.display_texture_id = m_textureIds[0];
+    state.params.display_texture_id = (m_textureIds.size() > 0) ? m_textureIds[0] : 0;
     state.params.interactive_mode   = isInteractive();
     state.params.render_mode        = m_render_mode;
     state.params.subframe           = m_subframeId;
@@ -587,7 +587,8 @@ unsigned int OTKApp::performLaunches( )
 
         // Call launchPrepare to synchronize new texture samplers and texture info to device memory,
         // and allocate device memory for the demand texture context.
-        state.demandLoader->launchPrepare( state.stream, state.params.demand_texture_context );
+        if( state.demandLoader )
+            state.demandLoader->launchPrepare( state.stream, state.params.demand_texture_context );
 
         // Finish initialization of the launch params.
         state.params.result_buffer = m_outputBuffer->map();
@@ -602,7 +603,7 @@ unsigned int OTKApp::performLaunches( )
         OTK_ERROR_CHECK( optixLaunch( state.pipeline,  // OptiX pipeline
                                   state.stream,    // Stream for launch and demand loading
                                   reinterpret_cast<CUdeviceptr>( state.d_params ),  // Launch params
-                                  sizeof( state.params ),                                 // Param size in bytes
+                                  sizeof( state.params ),                           // Param size in bytes
                                   &state.sbt,                                       // Shader binding table
                                   state.params.image_dim.x,                         // Launch width
                                   launchHeight,                                     // Launch height
@@ -612,7 +613,8 @@ unsigned int OTKApp::performLaunches( )
         // Begin to process demand load requests. This asynchronously pulls a batch of requests 
         // from the device and places them in a queue for processing.  The progress of the batch
         // can be polled using the returned ticket.
-        state.ticket = state.demandLoader->processRequests( state.stream, state.params.demand_texture_context );
+        if( state.demandLoader )
+            state.ticket = state.demandLoader->processRequests( state.stream, state.params.demand_texture_context );
 
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();
