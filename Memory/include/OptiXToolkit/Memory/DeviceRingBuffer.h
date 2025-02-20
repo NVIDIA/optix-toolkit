@@ -16,7 +16,6 @@ namespace otk {
 
 const unsigned long long BAD_ALLOC        = 0xFFFFFFFFFFFFFFFFULL;
 const unsigned int       WARP_SIZE        = 32;
-const unsigned int       INTERLEAVE_BYTES = 4;
 
 enum AllocMode
 {
@@ -30,6 +29,39 @@ __forceinline__ __device__ unsigned int getLaneId()
     asm volatile( "mov.u32 %0, %%laneid;" : "=r"( ret ) );
     return ret;
 }
+
+__forceinline__ __device__ unsigned int warpPrefixScan( unsigned int val )
+{
+    const unsigned int laneId = getLaneId();
+    unsigned int sum = 0;
+
+    if( __activemask() == 0xFFFFFFFFU )
+    {
+        const unsigned int mask = __activemask();
+        sum = val;
+        unsigned int v = __shfl_up_sync( mask, sum, 1 );
+        sum += ( laneId >= 1 ) ? v : 0;
+        v = __shfl_up_sync( mask, sum, 2 );
+        sum += ( laneId >= 2 ) ? v : 0;
+        v = __shfl_up_sync( mask, sum, 4 );
+        sum += ( laneId >= 4 ) ? v : 0;
+        v = __shfl_up_sync( mask, sum, 8 );
+        sum += ( laneId >= 8 ) ? v : 0;
+        v = __shfl_up_sync( mask, sum, 16 );
+        sum += ( laneId >= 16 ) ? v : 0;
+        return sum;
+    }
+
+    const unsigned int mask = __activemask();
+    for( int i = 0; i < WARP_SIZE; ++i )
+    {
+        unsigned int v = __shfl_sync( mask, val, i );
+        if( ( i <= laneId ) && ( ( mask >> i ) & 1 ) )
+            sum += v;
+    }
+
+    return sum;
+}
 #endif
 
 struct DeviceRingBuffer
@@ -38,13 +70,15 @@ struct DeviceRingBuffer
     unsigned long long  buffSize;   // Size of the buffer in bytes. must be power of 2.
     unsigned long long* nextStart;  // Offset of the next allocation (% buffSize).
     AllocMode           allocMode;  // Allocation mode
+    unsigned int        interleaveBytes;  // interleave bytes for WARP_INTERLEAVE mode
 
 #ifndef __CUDACC__
     /// Initialize the ring buffer
-    void init( unsigned long long buffSize_, AllocMode allocMode_ )
+    void init( unsigned long long buffSize_, AllocMode allocMode_, unsigned int interleaveBytes_ = 4 )
     {
         allocMode = allocMode_;
         buffSize  = buffSize_;
+        interleaveBytes = interleaveBytes_;
         OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), buffSize ) );
         OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &nextStart ), sizeof( unsigned long long ) ) );
         clear( 0 );
@@ -84,6 +118,12 @@ struct DeviceRingBuffer
         return buffer + ( handle & ( buffSize - 1 ) );
     }
 
+    __forceinline__ __device__ int memLeft( unsigned long long handle )
+    {
+        int rval = (int)( (handle + buffSize) - atomicAdd( nextStart, 0 ) );
+        return rval;
+    }
+
     /// Calling free is not required for DeviceRingBuffer, but the call checks to see
     /// if the buffer has overflowed (memory was reallocated before being freed).
     __forceinline__ __device__ bool free( unsigned long long handle )
@@ -120,22 +160,33 @@ struct DeviceRingBuffer
     }
 
     // Implementation of Warp-based memory allocation
-    __forceinline__ __device__ char* allocW( unsigned long long allocSize, unsigned long long* handle )
+    __forceinline__ __device__ char* allocW( unsigned int allocSizeInBytes, unsigned long long* handle )
     {
         const unsigned int activeMask = __activemask();
-        const unsigned int leadLane   = __ffs( activeMask ) - 1;
+        const unsigned int lastLane   = 31 - __clz( activeMask );
         const unsigned int laneId     = getLaneId();
 
-        unsigned long long ptrBase = 0ULL;
-        if( laneId == leadLane )
-            ptrBase = reinterpret_cast<unsigned long long>( allocT( allocSize * WARP_SIZE, handle ) );
-        ptrBase = __shfl_sync( activeMask, ptrBase, leadLane );
+        // WARP_INTERLEAVED and WARP_BASE_POINTER
+        unsigned int totalAllocSizeInBytes = allocSizeInBytes * WARP_SIZE;
+        unsigned int allocOffset = (allocMode == WARP_INTERLEAVED) ? interleaveBytes * laneId : 0;
 
-        if( allocMode == WARP_INTERLEAVED )
-            ptrBase += INTERLEAVE_BYTES * laneId;
-        else if ( allocMode == WARP_NON_INTERLEAVED )
-            ptrBase += allocSize * laneId;
-        return reinterpret_cast<char*>( ptrBase );
+        if( allocMode == WARP_NON_INTERLEAVED )
+        {
+            totalAllocSizeInBytes = warpPrefixScan( allocSizeInBytes );
+            allocOffset = totalAllocSizeInBytes - allocSizeInBytes;
+        }
+
+        // Get the base pointer
+        char* ptr = nullptr;
+        if( laneId == lastLane )
+        {
+            ptr = allocT( totalAllocSizeInBytes, handle );
+        }
+        *handle = __shfl_sync( activeMask, *handle, lastLane );
+
+        // Return the pointer for this lane
+        ptr = (char*) __shfl_sync( activeMask, (unsigned long long)ptr, lastLane );
+        return ptr + allocOffset;
     }
 #endif
 };
