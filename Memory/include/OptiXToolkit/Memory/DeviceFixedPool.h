@@ -22,6 +22,7 @@ struct DeviceFixedPool
     unsigned int numItemGroups;   // Total number of item groups. Must be a power of 2.
     unsigned int itemSize;        // The item size in bytes.
     AllocMode    allocMode;       // Which allocation mode
+    unsigned int interleaveBytes; // interleave bytes for WARP_INTERLEAVE mode
 
     unsigned int* nextItemGroupId;     // Index of the next item group to be allocated (allows 2^32 allocs per launch)
     unsigned int* discardItemGroupId;  // Index where next freed item group should be placed
@@ -30,12 +31,13 @@ struct DeviceFixedPool
 #ifndef __CUDACC__
 
     /// Allocate buffers and initialize the pool
-    void init( unsigned int itemSize_, unsigned int numItems, AllocMode allocMode_ )
+    void init( unsigned int itemSize_, unsigned int numItems, AllocMode allocMode_, unsigned int interleaveBytes_ = 4 )
     {
         itemSize                  = itemSize_;
         allocMode                 = allocMode_;
         size_t ws                 = ( allocMode == THREAD_BASED ) ? 1 : WARP_SIZE;
         numItemGroups             = numItems / ws;
+        interleaveBytes           = interleaveBytes_;
         size_t itemGroupsBuffSize = numItemGroups * sizeof( char* );
 
         OTK_ERROR_CHECK( cuMemAlloc( reinterpret_cast<CUdeviceptr*>( &buffer ), static_cast<size_t>( itemSize ) * numItems ) );
@@ -65,10 +67,9 @@ struct DeviceFixedPool
     /// Clear the allocator
     void clear( CUstream stream )
     {
-        OTK_ERROR_CHECK(
-            cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextItemGroupId ), 0, 2 * sizeof( unsigned int ), stream ) );
+        OTK_ERROR_CHECK( cuMemsetD8Async( reinterpret_cast<CUdeviceptr>( nextItemGroupId ), 0, 2 * sizeof( unsigned int ), stream ) );
         OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( itemGroups ), reinterpret_cast<CUdeviceptr>( itemGroupsCopy ),
-                                              numItemGroups * sizeof( char* ), stream ) );
+                                        numItemGroups * sizeof( char* ), stream ) );
     }
 
 #endif // Host functions
@@ -95,7 +96,7 @@ struct DeviceFixedPool
             ptrBase = __shfl_sync( activeMask, ptrBase, leadLane );
 
             if( allocMode == WARP_INTERLEAVED )
-                ptrBase += INTERLEAVE_BYTES * laneId;
+                ptrBase += interleaveBytes * laneId;
             else if ( allocMode == WARP_NON_INTERLEAVED )
                 ptrBase += itemSize * laneId;
             return reinterpret_cast<char*>( ptrBase );
@@ -124,7 +125,7 @@ struct DeviceFixedPool
             {
                 unsigned long long ptrBase = reinterpret_cast<unsigned long long>( ptr );
                 if( allocMode == WARP_INTERLEAVED )
-                    ptrBase -= INTERLEAVE_BYTES * laneId;
+                    ptrBase -= interleaveBytes * laneId;
                 else if( allocMode == WARP_NON_INTERLEAVED )
                     ptrBase -= itemSize * laneId;
 
