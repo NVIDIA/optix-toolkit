@@ -49,6 +49,14 @@ class OTKApp
     void addShapeToScene( std::vector<Vert>& shape, unsigned int materialId );
     void copyGeometryToDevice();
 
+    // Specify the OptiX program names
+    void setRaygenProgram( const char* raygenName ) { m_raygenName = raygenName; }
+    void setMissProgram( const char* missName ) { m_missName = missName; }
+    void setClosestHitProgram( const char* closestHitName ) { m_closestHitName = closestHitName; }
+    void setIntersectionProgram( const char* intersectName ) { m_intersectName = intersectName; }
+    void setAnyhitProgram( const char* anyhitName ) { m_anyhitName = anyhitName; }
+    void setOptixGeometryFlags( unsigned int flags ) { m_optixGeometryFlags = flags; }
+
     // GLFW callbacks
     virtual void mouseButtonCallback( GLFWwindow* window, int button, int action, int mods );
     virtual void cursorPosCallback( GLFWwindow* window, double xpos, double ypos );
@@ -135,6 +143,15 @@ class OTKApp
     void panCamera( float3 pan );
     void zoomCamera( float zoom );
     void rotateCamera( float rot );
+
+    // OptiX program names
+    const char* m_raygenName = "__raygen__rg";
+    const char* m_missName = "__miss__OTKApp";
+    const char* m_closestHitName = "__closesthit__OTKApp";
+    const char* m_anyhitName = nullptr;
+    const char* m_intersectName = nullptr;
+
+    unsigned int m_optixGeometryFlags = OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
 };
 
 void setGLFWCallbacks( OTKApp* app );
