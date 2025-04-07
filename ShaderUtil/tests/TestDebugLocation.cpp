@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <iomanip>
 #include <sstream>
 #include <vector>
 

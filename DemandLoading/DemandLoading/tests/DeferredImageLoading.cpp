@@ -21,6 +21,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <iomanip>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
