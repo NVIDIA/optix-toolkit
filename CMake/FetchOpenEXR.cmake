@@ -57,7 +57,7 @@ else()
   FetchContent_Declare(
     Imath
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
-    GIT_TAG v3.1.7
+    GIT_TAG v3.1.12
     GIT_SHALLOW TRUE
     FIND_PACKAGE_ARGS 3.1
   )
@@ -83,7 +83,7 @@ else()
   FetchContent_Declare(
     OpenEXR
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
-    GIT_TAG v3.1.7
+    GIT_TAG v3.3.2
     GIT_SHALLOW TRUE
     FIND_PACKAGE_ARGS 3.1
   )
