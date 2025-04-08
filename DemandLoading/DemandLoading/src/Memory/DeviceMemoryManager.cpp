@@ -77,7 +77,7 @@ void DeviceMemoryManager::setMaxTextureTileMemory( size_t maxMemory )
     m_tilePool->setMaxSize( static_cast<uint64_t>( maxMemory ), true, CUstream{0} );
 
     // Remove references to white/black tiles that were deleted
-    unsigned int numArenas = m_tilePool->numAllocations();
+    uint64_t numArenas = m_tilePool->numAllocations();
     for( otk::TileBlockHandle &bh : m_whiteBlackTiles )
     {
         if( bh.handle != 0 && bh.block.arenaId >= numArenas )
