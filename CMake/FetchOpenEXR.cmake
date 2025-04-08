@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
+if(OTK_USE_VCPKG)
+    # An overlay port for OpenEXR fixes the above compilation flags.
+    find_package(Imath CONFIG REQUIRED)
+    find_package(OpenEXR CONFIG REQUIRED)
+    return()
+endif()
+
 # Multiple OpenEXR targets have compile options that confuse nvcc.
 # We replace /flag with $<$<COMPILE_LANGUAGE:CXX>:/flag>.
 function(otk_cxx_flag_only _target _flag)
@@ -39,14 +46,6 @@ if(TARGET OpenEXR::OpenEXR)
   otk_replace_flags(OpenEXR::OpenEXR)
   otk_replace_flags(OpenEXR::OpenEXRCore)          
   return()
-endif()
-
-if(OTK_USE_VCPKG)
-    find_package(Imath CONFIG REQUIRED)
-    find_package(OpenEXR CONFIG REQUIRED)
-    otk_replace_flags(OpenEXR::OpenEXR)
-    otk_replace_flags(OpenEXR::OpenEXRCore)          
-    return()
 endif()
 
 if( NOT OTK_FETCH_CONTENT )

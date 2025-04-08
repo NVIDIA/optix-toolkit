@@ -1,0 +1,13 @@
+diff --git a/cmake/LibraryDefine.cmake b/cmake/LibraryDefine.cmake
+index 6e8c424f..cda6ece9 100644
+--- a/cmake/LibraryDefine.cmake
++++ b/cmake/LibraryDefine.cmake
+@@ -10,7 +10,7 @@ function(OPENEXR_DEFINE_LIBRARY libname)
+   cmake_parse_arguments(OPENEXR_CURLIB "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+ 
+   if (MSVC)
+-    set(_openexr_extra_flags "/EHsc" "/MP")
++    set(_openexr_extra_flags "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>" "$<$<COMPILE_LANGUAGE:CXX>:/MP>")
+   endif()
+   set(objlib ${libname})
+   add_library(${objlib}
