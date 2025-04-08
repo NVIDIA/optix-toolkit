@@ -2,9 +2,21 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
-# Multiple OpenEXR targets have a compile option (/EHsc) that confuses nvcc.
-# We replace it with $<$<COMPILE_LANGUAGE:CXX>:/EHsc>.
-function(otk_replace_eshc _package)
+# Multiple OpenEXR targets have compile options that confuse nvcc.
+# We replace /flag with $<$<COMPILE_LANGUAGE:CXX>:/flag>.
+function(otk_cxx_flag_only _target _flag)
+    get_target_property(_options ${_target} INTERFACE_COMPILE_OPTIONS)
+    if(_options)
+        set(cxx_flag "$<$<COMPILE_LANGUAGE:CXX>:${_flag}>")
+        string(FIND "${_options}" "${cxx_flag}" has_cxx_flag)
+        if(${has_cxx_flag} EQUAL -1)
+            string(REPLACE "${_flag}" "${cxx_flag}" _options "${_options}")
+            set_target_properties(${_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "${_options}")
+        endif()
+    endif()
+endfunction()
+
+function(otk_replace_flags _package)
   if(TARGET ${_package})
     get_target_property(_dependencies ${_package} INTERFACE_LINK_LIBRARIES)
     foreach(_lib ${_package} ${_dependencies})
@@ -13,15 +25,8 @@ function(otk_replace_eshc _package)
         if(NOT _alias)
           set(_alias ${_lib})
         endif()
-        get_target_property(_options ${_alias} INTERFACE_COMPILE_OPTIONS)
-        if(_options)
-          set(cxx_flag "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>")
-          string(FIND "${_options}" "${cxx_flag}" has_cxx_flag)
-          if(${has_cxx_flag} EQUAL -1)
-            string(REPLACE "/EHsc" ${cxx_flag} _options "${_options}")
-            set_target_properties(${_alias} PROPERTIES INTERFACE_COMPILE_OPTIONS "${_options}")
-          endif()
-        endif()
+        otk_cxx_flag_only(${_alias} "/EHsc")
+        otk_cxx_flag_only(${_alias} "/MP")
         if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
           target_compile_options(${_alias} INTERFACE "-Wno-deprecated-declarations")
         endif()
@@ -31,16 +36,16 @@ function(otk_replace_eshc _package)
 endfunction()
 
 if(TARGET OpenEXR::OpenEXR)
-  otk_replace_eshc(OpenEXR::OpenEXR)
-  otk_replace_eshc(OpenEXR::OpenEXRCore)          
+  otk_replace_flags(OpenEXR::OpenEXR)
+  otk_replace_flags(OpenEXR::OpenEXRCore)          
   return()
 endif()
 
 if(OTK_USE_VCPKG)
     find_package(Imath CONFIG REQUIRED)
     find_package(OpenEXR CONFIG REQUIRED)
-    otk_replace_eshc(OpenEXR::OpenEXR)
-    otk_replace_eshc(OpenEXR::OpenEXRCore)          
+    otk_replace_flags(OpenEXR::OpenEXR)
+    otk_replace_flags(OpenEXR::OpenEXRCore)          
     return()
 endif()
 
