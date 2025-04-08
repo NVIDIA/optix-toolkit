@@ -1,0 +1,13 @@
+diff --git a/config/LibraryDefine.cmake b/config/LibraryDefine.cmake
+index ff5c935..a63ffc9 100644
+--- a/config/LibraryDefine.cmake
++++ b/config/LibraryDefine.cmake
+@@ -16,7 +16,7 @@ function(IMATH_DEFINE_LIBRARY libname)
+   cmake_parse_arguments(IMATH_CURLIB "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+ 
+   if (MSVC)
+-    set(_imath_extra_flags "/EHsc")
++    set(_imath_extra_flags "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>")
+   endif()
+   set(objlib ${libname})
+   add_library(${objlib}
