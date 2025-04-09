@@ -5,7 +5,6 @@
 #pragma once
 
 #include <core/paramset.h>
-#include <core/pbrt.h>
 
 #include <memory>
 #include <string>
