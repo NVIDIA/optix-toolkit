@@ -30,6 +30,7 @@ endif()
 
 add_subdirectory(Gui)
 add_subdirectory(pbrtApi)
+add_subdirectory(pbrtParser)
 add_subdirectory(PbrtSceneLoader)
 add_subdirectory(Simple)
 add_subdirectory(Util)
