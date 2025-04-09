@@ -7,10 +7,8 @@
 #include <core/paramset.h>
 #include <core/pbrt.h>
 
-#include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace otk {
 namespace pbrt {
