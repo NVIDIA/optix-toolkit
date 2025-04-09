@@ -42,7 +42,7 @@ string(TIMESTAMP t2 "%s")
 math(EXPR elapsed "${t2} - ${t1}")
 message(VERBOSE "FetchContent(pbrt) took ${elapsed} seconds.")
 
-add_library( pbrtParser STATIC
+add_library( pbrtApi STATIC
   ${pbrt_api_dir}/api.h
   ${pbrt_api_dir}/error.h
   ${pbrt_api_dir}/fileutil.cpp
@@ -86,7 +86,7 @@ source_group("Header Files/textures" REGULAR_EXPRESSION "textures/[^/]*\\.h")
 source_group("Interface/Source Files" PbrtApi.cpp)
 source_group("Interface/Header Files" include/OptiXToolkit/PbrtApi/PbrtApi.h)
 
-set_property(TARGET pbrtParser PROPERTY FOLDER "ThirdParty")
+set_property(TARGET pbrtApi PROPERTY FOLDER "ThirdParty")
 
 if( WIN32 )
   string( REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" )
@@ -94,33 +94,33 @@ else()
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w" )
 endif()
 
-target_include_directories( pbrtParser PUBLIC ${pbrt_SOURCE_DIR}/src include)
-target_include_directories( pbrtParser PRIVATE ${pbrt_api_dir} )
-target_compile_definitions( pbrtParser PRIVATE $<$<CONFIG:Release>:NDEBUG> )
-target_link_libraries( pbrtParser PUBLIC glog )
+target_include_directories( pbrtApi PUBLIC ${pbrt_SOURCE_DIR}/src include)
+target_include_directories( pbrtApi PRIVATE ${pbrt_api_dir} )
+target_compile_definitions( pbrtApi PRIVATE $<$<CONFIG:Release>:NDEBUG> )
+target_link_libraries( pbrtApi PUBLIC glog )
 
 ###########################################################################
 # Annoying compiler-specific details
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-  target_compile_options( pbrtParser PRIVATE "-std=gnu++11" )
-  target_compile_options( pbrtParser PRIVATE "-Wno-conversion-null")
+  target_compile_options( pbrtApi PRIVATE "-std=gnu++11" )
+  target_compile_options( pbrtApi PRIVATE "-Wno-conversion-null")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  target_compile_options( pbrtParser PRIVATE "-Wno-deprecated-register")
+  target_compile_options( pbrtApi PRIVATE "-Wno-deprecated-register")
 endif()
 
 if(MSVC)
-  target_compile_definitions( pbrtParser PRIVATE _CRT_SECURE_NO_WARNINGS)
+  target_compile_definitions( pbrtApi PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
 check_include_files( alloca.h HAVE_ALLOCA_H )
 if( HAVE_ALLOCA_H )
-  target_compile_definitions( pbrtParser PRIVATE PBRT_HAVE_ALLOCA_H )
+  target_compile_definitions( pbrtApi PRIVATE PBRT_HAVE_ALLOCA_H )
 endif()
 
 check_include_files( memory.h HAVE_MEMORY_H )
 if( HAVE_MEMORY_H )
-  target_compile_definitions( pbrtParser PRIVATE PBRT_HAVE_MEMORY_H )
+  target_compile_definitions( pbrtApi PRIVATE PBRT_HAVE_MEMORY_H )
 endif()
 
 ########################################
@@ -143,11 +143,11 @@ __thread int x; int main() { }
 " HAVE___THREAD )
 
 if( HAVE_THREAD_LOCAL )
-  target_compile_definitions( pbrtParser PRIVATE PBRT_THREAD_LOCAL=thread_local )
+  target_compile_definitions( pbrtApi PRIVATE PBRT_THREAD_LOCAL=thread_local )
 elseif( HAVE___THREAD )
-  target_compile_definitions( pbrtParser PRIVATE PBRT_THREAD_LOCAL=__thread )
+  target_compile_definitions( pbrtApi PRIVATE PBRT_THREAD_LOCAL=__thread )
 elseif( HAVE_DECLSPEC_THREAD )
-  target_compile_definitions( pbrtParser PRIVATE "PBRT_THREAD_LOCAL=__declspec(thread)" )
+  target_compile_definitions( pbrtApi PRIVATE "PBRT_THREAD_LOCAL=__declspec(thread)" )
 else()
   message( SEND_ERROR "Unable to find a way to declare a thread-local variable" )
 endif()
@@ -174,11 +174,11 @@ int main() {
 } " HAVE_MEMALIGN )
 
 if( HAVE__ALIGNED_MALLOC )
-  target_compile_definitions( pbrtParser PRIVATE PBRT_HAVE__ALIGNED_MALLOC )
+  target_compile_definitions( pbrtApi PRIVATE PBRT_HAVE__ALIGNED_MALLOC )
 elseif( HAVE_POSIX_MEMALIGN )
-  target_compile_definitions( pbrtParser PRIVATE PBRT_HAVE_POSIX_MEMALIGN )
+  target_compile_definitions( pbrtApi PRIVATE PBRT_HAVE_POSIX_MEMALIGN )
 elseif( HAVE_MEMALIGN )
-  target_compile_definitions( pbrtParser PRIVATE PBRTHAVE_MEMALIGN )
+  target_compile_definitions( pbrtApi PRIVATE PBRTHAVE_MEMALIGN )
 else()
   message( SEND_ERROR "Unable to find a way to allocate aligned memory" )
 endif()
@@ -191,7 +191,7 @@ check_cxx_source_compiles(
   "int main() { constexpr int x = 0; }"
   HAVE_CONSTEXPR )
 if( HAVE_CONSTEXPR )
-  target_compile_definitions( pbrtParser PUBLIC PBRT_CONSTEXPR=constexpr )
+  target_compile_definitions( pbrtApi PUBLIC PBRT_CONSTEXPR=constexpr )
 else()
-  target_compile_definitions( pbrtParser PUBLIC PBRT_CONSTEXPR=const )
+  target_compile_definitions( pbrtApi PUBLIC PBRT_CONSTEXPR=const )
 endif()

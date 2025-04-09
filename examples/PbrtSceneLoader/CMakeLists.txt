@@ -21,7 +21,7 @@ add_library( PbrtSceneLoader STATIC
     ReadMe.md
 )
 source_group("Header Files/Internal" PbrtApiImpl.h)
-target_link_libraries( PbrtSceneLoader PUBLIC pbrtParser rply::rply )
+target_link_libraries( PbrtSceneLoader PUBLIC pbrtApi rply::rply )
 target_link_libraries( PbrtSceneLoader PRIVATE OptiX::OptiX ShaderUtil Util )
 target_include_directories( PbrtSceneLoader PUBLIC include )
 set_property( TARGET PbrtSceneLoader PROPERTY FOLDER Examples/Libraries )
