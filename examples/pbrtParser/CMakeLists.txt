@@ -7,13 +7,21 @@ include( CheckIncludeFiles )
 include( Fetchglog )
 include(FetchContent)
 
-# The pbrt repository does not have any tags, so to avoid the expense of cloning
-# the entire repository we use a shallow clone of a fork with a recent tag.
 string(TIMESTAMP t1 "%s")
 message(VERBOSE "Finding pbrt...")
+
+# Allow GIT_SUBMODULES as empty string to avoid cloning submodules.
 if( POLICY CMP0097 )
     cmake_policy(SET CMP0097 NEW)
 endif()
+
+# Don't warn about FetchContent_Populate
+if( POLICY CMP0169 )
+    cmake_policy(SET CMP0169 OLD)
+endif()
+
+# The pbrt repository does not have any tags, so to avoid the expense of cloning
+# the entire repository we use a shallow clone of a fork with a recent tag.
 FetchContent_Declare(
   pbrt
   GIT_REPOSITORY https://github.com/MarkLeone/pbrt-v3.git # forked from mmp/pbrt-v3
@@ -22,6 +30,11 @@ FetchContent_Declare(
   GIT_PROGRESS TRUE
   GIT_SUBMODULES ""
 )
+# We use Populate instead of MakeAvailable because we don't want add_subdirectory
+# called even though pbrt includes a CMakeLists.txt.  We're going to take a slice
+# of the pbrt source code and make a parsing library from it and the existing
+# CMakeLists.txt in pbrt doesn't organize the code this way, so we can't use their
+# targets.
 FetchContent_Populate(pbrt)
 set(pbrt_api_dir ${pbrt_SOURCE_DIR}/src/core)
 
