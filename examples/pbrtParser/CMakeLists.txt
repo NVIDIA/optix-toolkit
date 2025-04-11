@@ -44,7 +44,11 @@ string(TIMESTAMP t2 "%s")
 math(EXPR elapsed "${t2} - ${t1}")
 message(VERBOSE "FetchContent(pbrt) took ${elapsed} seconds.")
 
-add_library( pbrtParser STATIC
+# Use an OBJECT library to avoid circular dependency between the pbrt code
+# that wants to call Error and Warning, but we want to provide the implementation
+# of those functions in pbrtApi so that they can delegate warnings and errors
+# to the interface.
+add_library( pbrtParser OBJECT
   ${pbrt_api_dir}/api.h
   ${pbrt_api_dir}/error.h
   ${pbrt_api_dir}/fileutil.cpp
