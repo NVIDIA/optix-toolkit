@@ -59,6 +59,20 @@ target_link_libraries( Error INTERFACE
 set_property(TARGET Error PROPERTY FOLDER Memory)
 add_library(OptiXToolkit::Error ALIAS Error)
 
+install(TARGETS Error
+  EXPORT ErrorTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT ErrorTargets
+  FILE ErrorTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
+
 # Basic memory allocators and operations.
 otk_add_library(Memory INTERFACE)
 set_property(TARGET Memory PROPERTY FOLDER Memory)
@@ -92,6 +106,20 @@ if( OTK_USE_CUDA_MEMORY_POOLS )
 endif()
 add_library(OptiXToolkit::Memory ALIAS Memory)
 
+install(TARGETS Memory
+  EXPORT MemoryTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT MemoryTargets
+  FILE MemoryTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
+
 # OptiX related memory operations.
 otk_add_library(OptiXMemory INTERFACE)
 target_sources(OptiXMemory
@@ -113,6 +141,20 @@ target_link_libraries(OptiXMemory INTERFACE
   )
 set_target_properties(OptiXMemory PROPERTIES FOLDER Memory)
 add_library(OptiXToolkit::OptiXMemory ALIAS OptiXMemory)
+
+install(TARGETS OptiXMemory
+  EXPORT OptiXMemoryTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT OptiXMemoryTargets
+  FILE OptiXMemoryTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )

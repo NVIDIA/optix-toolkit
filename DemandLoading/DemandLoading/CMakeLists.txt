@@ -98,10 +98,13 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/RequestFilter.h
   include/OptiXToolkit/DemandLoading/RequestProcessor.h
   include/OptiXToolkit/DemandLoading/Resource.h
+  include/OptiXToolkit/DemandLoading/SparseTextureDevices.h
   include/OptiXToolkit/DemandLoading/Statistics.h
+  include/OptiXToolkit/DemandLoading/Texture2D.h
+  include/OptiXToolkit/DemandLoading/Texture2DCubic.h
   include/OptiXToolkit/DemandLoading/Texture2DExtended.h
   include/OptiXToolkit/DemandLoading/Texture2DFootprint.h
-  include/OptiXToolkit/DemandLoading/Texture2D.h
+  include/OptiXToolkit/DemandLoading/TextureCascade.h
   include/OptiXToolkit/DemandLoading/TextureDescriptor.h
   include/OptiXToolkit/DemandLoading/TextureSampler.h
   include/OptiXToolkit/DemandLoading/Ticket.h
@@ -173,6 +176,20 @@ option( OTK_DEMAND_LOADING_USE_NVTX "Enable NVTX profiling" OFF )
 if( OTK_DEMAND_LOADING_USE_NVTX )
   target_compile_definitions( DemandLoading PUBLIC ENABLE_NVTX_PROFILING )
 endif()
+
+install(TARGETS DemandLoading
+  EXPORT DemandLoadingTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT DemandLoadingTargets
+  FILE DemandLoadingTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )
