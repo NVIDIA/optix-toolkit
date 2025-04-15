@@ -1,7 +1,13 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7415eab..b771763 100644
+index 7415eab..902eec9 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required (VERSION 3.0)
++cmake_minimum_required (VERSION 3.5)
+ 
+ if (POLICY CMP0042)
+   cmake_policy (SET CMP0042 NEW)
 @@ -26,7 +26,7 @@ set (CPACK_PACKAGE_VERSION_MINOR ${GLOG_MINOR_VERSION})
  set (CPACK_PACKAGE_VERSION_PATCH ${GLOG_PATCH_VERSION})
  set (CPACK_PACKAGE_VERSION ${GLOG_VERSION})
