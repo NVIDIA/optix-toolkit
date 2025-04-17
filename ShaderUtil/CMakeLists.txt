@@ -58,6 +58,20 @@ target_include_directories(ShaderUtil INTERFACE
 
 set_target_properties(ShaderUtil PROPERTIES FOLDER "ShaderUtil")
 
+install(TARGETS ShaderUtil
+  EXPORT ShaderUtilTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT ShaderUtilTargets
+  FILE ShaderUtilTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
+
 if( BUILD_TESTING )
   add_subdirectory( tests )
 endif()

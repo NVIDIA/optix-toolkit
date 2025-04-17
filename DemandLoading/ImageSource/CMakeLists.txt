@@ -120,6 +120,20 @@ target_include_directories(ImageSource PUBLIC  # public to facilitate unit testi
 
 set_target_properties(ImageSource PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
+install(TARGETS ImageSource
+  EXPORT ImageSourceTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT ImageSourceTargets
+  FILE ImageSourceTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
+
 if( BUILD_TESTING )
   add_subdirectory( tests )
 endif()
