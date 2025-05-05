@@ -508,6 +508,17 @@ TEST_F( TestCubicFiltering, smartBicubic )
     ddy = float2{0.0f, 0.016f};
     runTest();
     writeImages( "image_smartBicubicMip1.ppm" );
+
+    filterMode = OIIO::TextureOpt::InterpSmartBicubic;
+    uv00 = float2{0.44f, 0.44f};
+    uv11 = float2{0.56f, 0.56f};
+    imageScale = 7.0f;
+    derivativeScale = 7.0f;
+    diffImageScale = 1.0f;
+    ddx = float2{0.007f, -0.007f};
+    ddy = float2{0.050f, 0.050f};
+    runTest();
+    writeImages( "image_smartBicubicMipAnisotropic.ppm" );
 }
 
 TEST_F( TestCubicFiltering, smartBicubicAnisotropic )
