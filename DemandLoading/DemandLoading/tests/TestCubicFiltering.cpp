@@ -509,7 +509,7 @@ TEST_F( TestCubicFiltering, smartBicubic )
     runTest();
     writeImages( "image_smartBicubicMip1.ppm" );
 
-    filterMode = OIIO::TextureOpt::InterpSmartBicubic;
+    filterMode = asUInt( OIIO::TextureOpt::InterpSmartBicubic );
     uv00 = float2{0.44f, 0.44f};
     uv11 = float2{0.56f, 0.56f};
     imageScale = 7.0f;

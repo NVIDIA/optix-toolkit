@@ -104,7 +104,7 @@ void OIIOReader::open( TextureInfo* info )
             m_info.numChannels = ( spec.nchannels >= 3 ) ? 4 : spec.nchannels;
 
             m_info.numMipLevels = 0;
-            while( m_input->seek_subimage( 0, m_info.numMipLevels, spec ) )
+            while( m_input->seek_subimage( 0, m_info.numMipLevels ) )
             {
                 ++m_info.numMipLevels;
                 m_levelWidths.push_back( spec.width );
@@ -157,7 +157,7 @@ void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int
     OTK_ASSERT( m_input.get() );
 
     OIIO::ImageSpec spec;
-    m_input->seek_subimage( 0, mipLevel, spec );
+    m_input->seek_subimage( 0, mipLevel );
     m_input->read_tile( tileX * spec.tile_width, tileY * spec.tile_height, 0, spec.format, dest,
                         getBytesPerChannel( m_info.format ) * m_info.numChannels, rowPitch );
 }
@@ -170,7 +170,7 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, 
     OIIO::ImageSpec spec;
     {
         std::lock_guard<std::mutex> guard( m_mutex );
-        m_input->seek_subimage( 0, mipLevel, spec );
+        m_input->seek_subimage( 0, mipLevel );
     }
 
     if( spec.tile_width && spec.tile_height )
@@ -272,7 +272,7 @@ bool OIIOReader::readMipLevel( char*        dest,
     unsigned int    bytesPerPixel;
     {
         std::lock_guard<std::mutex> guard( m_mutex );
-        m_input->seek_subimage( 0, mipLevel, spec );
+        m_input->seek_subimage( 0, mipLevel );
 
         OTK_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
         OTK_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
