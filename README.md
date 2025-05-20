@@ -263,6 +263,9 @@ described above.
 **Problem:** Compiling the CUDA compiler identification source file failed.  gcc versions later than 13 are not supported.
 **Solution:** Install gcc-13 (`sudo apt-get install gcc-13`) and use `update-alternatives` to make gcc-13 the default.
 
+**Problem:** Running vcpkg install - failed
+**Solution:** `git submodule deinit vcpkg; git submodule update --init vcpkg`
+
 If you encounter a problem, we encourage you to post on the [OptiX forums](https://devtalk.nvidia.com/default/board/90/) or open a ticket on the [OptiX Toolkit issues](https://github.com/NVIDIA/optix-toolkit/issues) page on GitHub.
 
 ## Attributions
