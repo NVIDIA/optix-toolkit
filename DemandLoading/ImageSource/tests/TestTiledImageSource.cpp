@@ -169,7 +169,7 @@ TEST_F( TestTiledImageSource, getInfoWithoutOpenIsInvalid )
 inline int charAsInt( char c )
 {
     return static_cast<unsigned char>( c );
-};
+}
 
 MATCHER_P4( hasPixelRowValueSequence, y, rowWidth, pixelSizeInBytes, start, "" )
 {
