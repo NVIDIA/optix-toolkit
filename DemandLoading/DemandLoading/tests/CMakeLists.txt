@@ -27,11 +27,14 @@ otk_add_executable( testDemandLoading
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
   TestContextSaver.cpp
+  TestDDSImageReader.cpp
   TestDemandLoader.cpp
   TestDemandPageLoader.cpp
   TestDemandTexture.cpp
   TestDenseTexture.cpp
   TestDeviceContextImpl.cpp
+  TestDrawTexture.cu
+  TestDrawTexture.h
   TestMutexArray.cpp
   TestPageTableManager.cpp
   TestPagingSystem.cpp

@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace imageSource;
+
 namespace demandLoading {
 
 SparseArray::~SparseArray()
@@ -268,27 +270,27 @@ void SparseTexture::fillTile( CUstream                     stream,
 
     // Get CUDA array for the specified miplevel.
     CUarray mipLevelArray = m_array->getLevel( mipLevel );
+    int blockScale = imageSource::isBcFormat( m_info.format ) ? 4 : 1;
 
     // Copy tile data into CUDA array
-    const unsigned int pixelSize = m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
+    const unsigned int bitsPerPixel = getBitsPerPixel( m_info );
 
     CUDA_MEMCPY2D copyArgs{};
     copyArgs.srcMemoryType = tileMemoryType;
     copyArgs.srcHost       = ( tileMemoryType == CU_MEMORYTYPE_HOST ) ? tileData : nullptr;
     copyArgs.srcDevice     = ( tileMemoryType == CU_MEMORYTYPE_DEVICE ) ? reinterpret_cast<CUdeviceptr>( tileData ) : 0;
-    copyArgs.srcPitch      = getTileWidth() * pixelSize;
+    copyArgs.srcPitch      = ( blockScale * getTileWidth() * bitsPerPixel ) / BITS_PER_BYTE;
 
-    copyArgs.dstXInBytes = tileX * getTileWidth() * pixelSize;
-    copyArgs.dstY        = tileY * getTileHeight();
-
+    copyArgs.dstXInBytes   = ( blockScale * tileX * getTileWidth() * bitsPerPixel ) / BITS_PER_BYTE;
+    copyArgs.dstY          = tileY * getTileHeight() / blockScale;
     copyArgs.dstMemoryType = CU_MEMORYTYPE_ARRAY;
     copyArgs.dstArray      = mipLevelArray;
 
-    copyArgs.WidthInBytes = tileDims.x * pixelSize;
-    copyArgs.Height       = tileDims.y;
+    copyArgs.WidthInBytes  = ( blockScale * tileDims.x * bitsPerPixel ) / BITS_PER_BYTE;
+    copyArgs.Height        = tileDims.y / blockScale;
 
     OTK_ERROR_CHECK( cuMemcpy2DAsync( &copyArgs, stream ) );
-    m_numBytesFilled += getTileWidth() * getTileHeight() * pixelSize;
+    m_numBytesFilled += ( getTileWidth() * getTileHeight() * bitsPerPixel ) / BITS_PER_BYTE;
 }
 
 
@@ -323,9 +325,11 @@ void SparseTexture::fillMipTail( CUstream                     stream,
 
     m_array->mapMipTailAsync(stream, getMipTailSize(), tileHandle, tileOffset);
 
+    int bitsPerPixel = getBitsPerPixel( m_info );
+    int blockScale   = isBcFormat( m_info.format ) ? 4 : 1;
+    size_t offset    = 0;
+
     // Fill each level in the mip tail.
-    size_t             offset    = 0;
-    const unsigned int pixelSize = m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
     for( unsigned int mipLevel = getMipTailFirstLevel(); mipLevel < m_info.numMipLevels; ++mipLevel )
     {
         CUarray mipLevelArray = m_array->getLevel( mipLevel );
@@ -335,17 +339,17 @@ void SparseTexture::fillMipTail( CUstream                     stream,
         copyArgs.srcMemoryType = mipTailMemoryType;
         copyArgs.srcHost       = ( mipTailMemoryType == CU_MEMORYTYPE_HOST ) ? mipTailData + offset : nullptr;
         copyArgs.srcDevice     = ( mipTailMemoryType == CU_MEMORYTYPE_DEVICE ) ? reinterpret_cast<CUdeviceptr>( mipTailData + offset ) : 0;
-        copyArgs.srcPitch      = levelDims.x * pixelSize;
+        copyArgs.srcPitch      = ( blockScale * levelDims.x * bitsPerPixel ) / BITS_PER_BYTE;
 
         copyArgs.dstMemoryType = CU_MEMORYTYPE_ARRAY;
         copyArgs.dstArray      = mipLevelArray;
 
-        copyArgs.WidthInBytes = levelDims.x * pixelSize;
-        copyArgs.Height       = levelDims.y;
+        copyArgs.WidthInBytes  = copyArgs.srcPitch;
+        copyArgs.Height        = levelDims.y / blockScale;
 
         OTK_ERROR_CHECK( cuMemcpy2DAsync( &copyArgs, stream ) );
 
-        offset += levelDims.x * levelDims.y * pixelSize;
+        offset += ( levelDims.x * levelDims.y * bitsPerPixel ) / BITS_PER_BYTE;
     }
 
     m_numBytesFilled += getMipTailSize();

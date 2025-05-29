@@ -32,7 +32,6 @@ class MipMapImageSource : public WrappedImageSource
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
                       CUstream     stream ) override;
 
     unsigned long long getNumTilesRead() const override;

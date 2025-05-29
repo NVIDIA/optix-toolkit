@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+using namespace imageSource;
+
 namespace demandPbrtScene {
 
 PbrtAlphaMapImageSource::PbrtAlphaMapImageSource( std::shared_ptr<ImageSource> baseImage )
@@ -29,7 +31,7 @@ void PbrtAlphaMapImageSource::getBaseInfo()
     m_alphaInfo             = m_baseInfo;
     m_alphaInfo.format      = CU_AD_FORMAT_UNSIGNED_INT8;
     m_alphaInfo.numChannels = 1;
-    m_basePixelStride       = imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels;
+    m_basePixelStride       = getBitsPerPixel( m_baseInfo ) / BITS_PER_BYTE;
 }
 
 void PbrtAlphaMapImageSource::open( imageSource::TextureInfo* info )
@@ -91,7 +93,6 @@ bool PbrtAlphaMapImageSource::readMipTail( char*        dest,
                                            unsigned int mipTailFirstLevel,
                                            unsigned int numMipLevels,
                                            const uint2* mipLevelDims,
-                                           unsigned int pixelSizeInBytes,
                                            CUstream     stream )
 {
     size_t offset = 0;
@@ -99,7 +100,7 @@ bool PbrtAlphaMapImageSource::readMipTail( char*        dest,
     {
         const uint2 levelDims = mipLevelDims[mipLevel];
         readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
-        offset += static_cast<size_t>( levelDims.x * levelDims.y * pixelSizeInBytes );
+        offset += static_cast<size_t>( ( levelDims.x * levelDims.y * getBitsPerPixel( m_baseInfo ) ) / BITS_PER_BYTE );
     }
 
     return true;

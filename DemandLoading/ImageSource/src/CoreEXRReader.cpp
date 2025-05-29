@@ -125,7 +125,7 @@ void CoreEXRReader::open( TextureInfo* info )
         if( m_isScanline )
             readScanlineData( buff );
         else
-            readActualTile( buff, getBytesPerChannel( m_info.format ) * m_info.numChannels, m_info.numMipLevels - 1, 0, 0 );
+            readActualTile( buff, getBitsPerPixel( m_info ) / BITS_PER_BYTE, m_info.numMipLevels - 1, 0, 0 );
 
         if( m_info.format == CU_AD_FORMAT_HALF )
         {
@@ -281,7 +281,7 @@ void CoreEXRReader::readScanlineData( char* dest )
     {
         std::unique_lock<std::mutex> lock(m_statsMutex);
         m_numTilesRead += 1;
-        m_numBytesRead += m_info.height * m_info.width * m_info.numChannels * getBytesPerChannel( m_info.format );
+        m_numBytesRead += ( m_info.height * m_info.width * getBitsPerPixel( m_info ) ) / BITS_PER_BYTE;
     }
 }
 
@@ -310,7 +310,7 @@ bool CoreEXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& til
     const int actualTileY    = tile.y * ( tile.height / sourceTileHeight );
     const int numTilesX      = tile.width / sourceTileWidth;
     const int numTilesY      = tile.height / sourceTileHeight;
-    const int bytesPerPixel  = getBytesPerChannel( m_info.format ) * m_info.numChannels;
+    const int bytesPerPixel  = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
     const int rowPitch       = tile.width * bytesPerPixel;
     const int sourceTileSize = sourceTileWidth * sourceTileHeight * bytesPerPixel;
 
@@ -351,7 +351,7 @@ bool CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned in
     {
         const int numXTiles     = ( m_levelWidths[mipLevel] + m_tileWidths[mipLevel] - 1 ) / m_tileWidths[mipLevel];
         const int numYTiles     = ( m_levelHeights[mipLevel] + m_tileHeights[mipLevel] - 1 ) / m_tileHeights[mipLevel];
-        const int bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
+        const int bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
 
         for( int rowIdx = 0; rowIdx < numYTiles; ++rowIdx )
         {

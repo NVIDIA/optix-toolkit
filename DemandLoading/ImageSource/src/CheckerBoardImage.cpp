@@ -74,7 +74,7 @@ bool CheckerBoardImage::readTile( char* dest, unsigned int mipLevel, const Tile&
     unsigned int squaresPerSide = std::min( levelWidth, m_squaresPerSide );
 
     const PixelPosition start    = pixelPosition( tile );
-    const unsigned int  rowPitch = tile.width * m_info.numChannels * getBytesPerChannel( m_info.format );
+    const unsigned int  rowPitch = ( tile.width * getBitsPerPixel( m_info ) ) / BITS_PER_BYTE;
 
     for( unsigned int destY = 0; destY < tile.height; ++destY )
     {

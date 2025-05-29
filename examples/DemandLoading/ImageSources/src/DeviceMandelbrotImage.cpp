@@ -115,7 +115,6 @@ bool DeviceMandelbrotImage::readMipTail( char* dest,
                                          unsigned int mipTailFirstLevel,
                                          unsigned int /*numMipLevels*/,
                                          const uint2* mipLevelDims,
-                                         unsigned int /*pixelSizeInBytes*/,
                                          CUstream stream ) 
 {
     OTK_ASSERT_MSG( mipTailFirstLevel < m_info.numMipLevels, "Attempt to read from non-existent mip-level." );

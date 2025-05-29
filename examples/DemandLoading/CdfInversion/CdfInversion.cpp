@@ -154,7 +154,7 @@ void CdfInversionApp::createTexture()
 
     // Read a mip level and make a pdf from it
     TIMEPOINT imageLoadStart = now();
-    int bytesPerPixel = getBytesPerChannel(texInfo.format) * texInfo.numChannels;
+    int bytesPerPixel = getBitsPerPixel(texInfo) / BITS_PER_BYTE;
     char* imgData = (char*)malloc( tableWidth * tableHeight * bytesPerPixel );
     imageSource->readMipLevel( imgData, m_tableMipLevel, tableWidth, tableHeight, CUstream{0} );
     printf( "Time to load image: %0.4f sec.\n", elapsed( imageLoadStart ) );

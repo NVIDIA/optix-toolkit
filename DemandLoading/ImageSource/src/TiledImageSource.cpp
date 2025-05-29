@@ -83,8 +83,7 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
 
         if( m_mipLevels[mipLevel] == nullptr )
         {
-            size_t levelSize = static_cast<size_t>( getBytesPerChannel( m_tiledInfo.format ) ) * m_tiledInfo.numChannels
-                               * m_tiledInfo.width * m_tiledInfo.height;
+            size_t levelSize = ( m_tiledInfo.width * m_tiledInfo.height * getBitsPerPixel( m_tiledInfo ) ) / BITS_PER_BYTE;
             char*        ptr            = m_buffer.data();
             unsigned int mipLevelWidth  = m_tiledInfo.width;
             unsigned int mipLevelHeight = m_tiledInfo.height;
@@ -111,7 +110,7 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
     }
 
     OTK_ASSERT_MSG( mipLevelBuffer != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
-    const size_t        pixelSizeInBytes           = getBytesPerChannel( m_tiledInfo.format ) * m_tiledInfo.numChannels;
+    const size_t        pixelSizeInBytes         = getBitsPerPixel( m_tiledInfo ) / BITS_PER_BYTE;
     // Partial tile dimensions might be less than the nominal dimensions.
     const size_t        sourceWidth              = std::min( tile.width, mipDimensions.x - tile.x * tile.width );
     const size_t        sourceHeight             = std::min( tile.height, mipDimensions.y - tile.y * tile.height );
@@ -134,14 +133,13 @@ bool TiledImageSource::readMipTail( char*        dest,
                                     unsigned int mipTailFirstLevel,
                                     unsigned int numMipLevels,
                                     const uint2* mipLevelDims,
-                                    unsigned int pixelSizeInBytes,
                                     CUstream     stream )
 {
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
         if( m_baseIsTiled )
         {
-            return WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, pixelSizeInBytes, stream );
+            return WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, stream );
         }
     }
 
@@ -150,7 +148,7 @@ bool TiledImageSource::readMipTail( char*        dest,
     {
         const uint2 levelDims = mipLevelDims[mipLevel];
         readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
-        offset += static_cast<size_t>( levelDims.x * levelDims.y * pixelSizeInBytes );
+        offset += static_cast<size_t>( ( levelDims.x * levelDims.y * getBitsPerPixel( m_tiledInfo ) ) / BITS_PER_BYTE );
     }
 
     return true;

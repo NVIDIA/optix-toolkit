@@ -15,6 +15,7 @@
 #include <algorithm>
 
 using namespace testing;
+using namespace imageSource;
 
 namespace {
 
@@ -145,7 +146,7 @@ TEST_F( TestMipMapImageSource, readTileMipLevelZeroSourcesDataFromReadMipLevelZe
 {
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
+    const unsigned int pixelSizeInBytes{ getBitsPerPixel( m_baseInfo ) / BITS_PER_BYTE };
     const auto fillMipLevel = [=]( char* dest, unsigned int /*mipLevel*/, unsigned int expectedWidth,
                                    unsigned int expectedHeight, CUstream /*stream*/ ) {
         for( unsigned int y = 0; y < expectedHeight; ++y )
@@ -192,7 +193,7 @@ TEST_F( TestMipMapImageSource, readTileMipLevelOneSourcesDataFromMipLevelZero )
     ExpectationSet     open{ expectOpen() };
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
+    const unsigned int pixelSizeInBytes{ getBitsPerPixel( m_baseInfo ) / BITS_PER_BYTE };
     EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) ).After( open ).WillOnce( Return( true ) );
     create();
     imageSource::TextureInfo info{};
@@ -213,7 +214,7 @@ TEST_F( TestMipMapImageSource, readMipLevelOneSourcesDataFromMipLevelZero )
     ExpectationSet     open{ expectOpen() };
     const unsigned int mipLevelWidth{ m_baseInfo.width };
     const unsigned int mipLevelHeight{ m_baseInfo.height };
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
+    const unsigned int pixelSizeInBytes{ getBitsPerPixel( m_baseInfo ) / BITS_PER_BYTE };
     EXPECT_CALL( *m_baseImage, readMipLevel( NotNull(), 0, mipLevelWidth, mipLevelHeight, m_stream ) ).After( open ).WillOnce( Return( true ) );
     create();
     imageSource::TextureInfo info{};
@@ -237,7 +238,7 @@ TEST_F( TestMipMapImageSource, readMipTailReadsMipLevelZero )
     const unsigned int numMipLevels{ 5 };
     std::vector<uint2> mipLevelDims;
     unsigned int       size = 16;
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels };
+
     for( unsigned int i = 0; i < numMipLevels; ++i )
     {
         mipLevelDims.push_back( make_uint2( size, size ) );
@@ -255,8 +256,7 @@ TEST_F( TestMipMapImageSource, readMipTailReadsMipLevelZero )
     imageSource::TextureInfo mippedInfo{ m_baseInfo };
     mippedInfo.numMipLevels = numMipLevels;
     dest.resize( getTextureSizeInBytes( mippedInfo ) );
-    EXPECT_TRUE( m_mipMapImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(),
-                                             pixelSizeInBytes, m_stream ) );
+    EXPECT_TRUE( m_mipMapImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(), m_stream ) );
 }
 
 TEST_F( TestMipMapImageSource, tracksTileReadCount )
@@ -336,9 +336,9 @@ TEST_F( TestMipMapImageSourcePassThrough, readMipTail )
 {
     char        buffer{};
     const uint2 dims{};
-    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
-    EXPECT_TRUE( m_mipMapImage->readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) );
+    EXPECT_TRUE( m_mipMapImage->readMipTail( &buffer, 1, 2, &dims, m_stream ) );
 }
 
 TEST_F( TestMipMapImageSourcePassThrough, getNumTilesRead )

@@ -69,14 +69,13 @@ bool RateLimitedImageSource::readMipTail( char*        dest,
                                           unsigned int mipTailFirstLevel,
                                           unsigned int numMipLevels,
                                           const uint2* mipLevelDims,
-                                          unsigned int pixelSizeInBytes,
                                           CUstream     stream )
 {
     if( m_duration->load() <= Microseconds( 0 ) )
         return false;
 
     Timer timer;
-    bool  result = WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, pixelSizeInBytes, stream );
+    bool  result = WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, stream );
     *m_duration -= timer.elapsed();
     return result;
 }

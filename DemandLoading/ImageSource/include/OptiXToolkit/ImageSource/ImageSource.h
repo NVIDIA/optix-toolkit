@@ -83,7 +83,6 @@ class ImageSource
                               unsigned int mipTailFirstLevel,
                               unsigned int numMipLevels,
                               const uint2* mipLevelDims,
-                              unsigned int pixelSizeInBytes,
                               CUstream     stream ) = 0;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
@@ -123,7 +122,6 @@ class ImageSourceBase : public ImageSource
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
                       CUstream     stream ) override;
 
     unsigned int getTileWidth() const override { return 0u; }

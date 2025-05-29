@@ -10,6 +10,7 @@
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/DDSImageReader.h>
 
 using namespace otkApp;
 using namespace demandLoading;
@@ -29,6 +30,7 @@ class UdimTextureApp : public OTKApp
     void setUdimParams( const char* textureName, int texWidth, int texHeight, int udim, int vdim, bool useBaseImage );
     void createTexture();
     void createScene();
+    void setUseSrgb( bool srgb ) { m_useSRGB = srgb; }
 
   private:
     std::string m_textureName;
@@ -37,6 +39,7 @@ class UdimTextureApp : public OTKApp
     int         m_udim         = 10;
     int         m_vdim         = 10;
     bool        m_useBaseImage = false;
+    bool        m_useSRGB      = false;
 };
 
 void UdimTextureApp::setUdimParams( const char* textureName, int texWidth, int texHeight, int udim, int vdim, bool useBaseImage )
@@ -51,19 +54,26 @@ void UdimTextureApp::setUdimParams( const char* textureName, int texWidth, int t
 
 void UdimTextureApp::createTexture()
 {
+    // Split m_textureName into file name and extension
+    size_t dotPos = m_textureName.rfind( '.' );
+    std::string textureNameBase = (dotPos == std::string::npos) ? m_textureName : m_textureName.substr(0, dotPos);
+    std::string textureNameExtension = (dotPos == std::string::npos) ? "" : m_textureName.substr(dotPos);
+
     // Make optional base texture
     int baseTextureId = -1;
     if( m_useBaseImage )
     {
         std::shared_ptr<imageSource::ImageSource> baseImageSource;
         if( m_textureName != "mandelbrot" && m_textureName != "checkerboard" )
-            baseImageSource = createExrImage( m_textureName + ".exr" );
+            baseImageSource = imageSource::createImageSource( m_textureName, "" );
         if( !baseImageSource && m_textureName == "checkerboard" )
             baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
         if( !baseImageSource )
             baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0 ) );
 
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
+        if( m_useSRGB )
+            texDesc.flags = texDesc.flags | CU_TRSF_SRGB;
 
         // Create a base texture for all devices
         for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
@@ -88,9 +98,9 @@ void UdimTextureApp::createTexture()
             std::shared_ptr<imageSource::ImageSource> subImage;
             if( m_textureName != "mandelbrot" && m_textureName != "checkerboard" ) // loading exr images
             {
-                int         udimNum      = 10000 + v * 100 + u;
-                std::string subImageName = m_textureName + std::to_string( udimNum ) + ".exr";
-                subImage                 = createExrImage( subImageName );
+                int         udimNum      = 1000 + ( v * 10 ) + ( u + 1 );
+                std::string subImageName = textureNameBase + "_" + std::to_string( udimNum ) + ".exr";
+                subImage                 = imageSource::createImageSource( subImageName, "" );
             }
             if( !subImage && m_texWidth == 0 ) // mixing different image sizes
             {
@@ -116,6 +126,8 @@ void UdimTextureApp::createTexture()
             // Note: Use address mode CU_TR_ADDRESS_MODE_BORDER for subimages in tex2DGradUdimBlend calls in OptiX programs.
             // (CU_TR_ADDRESS_MODE_CLAMP for tex2DGradUdim calls).
             subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, FILTER_BILINEAR ) );
+            if( m_useSRGB )
+                subTexDescs.back().flags |= CU_TRSF_SRGB;
         }
     }
 
@@ -158,6 +170,7 @@ void printUsage( const char* program )
         "   --texture <texturefile|checkerboard|mandelbrot>    Use texture image file.\n"
         "   --texdim=<width>x<height>   Texture dimensions.\n"
         "   --udim=<width>x<height>     UDIM texture dimensions.\n"
+        "   --srgb                      Turn on SRGB conversion for textures.\n"
         "   --dense                     Use dense (standard) textures instead of sparse textures.\n"
         "   --cascade                   Use cascading texture sizes.\n"
         "   --coalesce-tiles            Coalesce white and black tiles.\n"
@@ -204,6 +217,7 @@ int main( int argc, char* argv[] )
     int  udim = 10;
     int  vdim = 10;
     bool useBaseImage = false;
+    bool srgb = false;
 
     demandLoading::Options options{};
 
@@ -228,6 +242,8 @@ int main( int argc, char* argv[] )
             useBaseImage = true;
         else if( arg == "--dense" )
             options.useSparseTextures = false;
+        else if( arg == "--srgb" )
+            srgb = true;
         else if( arg == "--cascade" )
             options.useCascadingTextureSizes = true;
         else if( arg == "--coalesce-tiles" )
@@ -253,6 +269,7 @@ int main( int argc, char* argv[] )
     // Initialize the app
     UdimTextureApp app( "UDIM Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.initDemandLoading( options );
+    app.setUseSrgb( srgb );
     app.setUdimParams( textureName, texWidth, texHeight, udim, vdim, useBaseImage || ( udim == 0 ) );
     app.createTexture();
     app.createScene();

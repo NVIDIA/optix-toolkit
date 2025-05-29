@@ -198,8 +198,8 @@ TEST_F( TestDemandTexture, TestReadMipTail )
     // For now we print the levels in the mip tail for visual validation.
     const TextureInfo& info      = m_texture->getInfo();
     EXPECT_TRUE( info.isValid );
-    unsigned int       pixelSize = info.numChannels * getBytesPerChannel( info.format );
-    size_t             offset    = 0;
+    unsigned int pixelSize = getBitsPerPixel( info ) / BITS_PER_BYTE;
+    size_t       offset    = 0;
     for( unsigned int mipLevel = m_texture->getMipTailFirstLevel(); mipLevel < info.numMipLevels; ++mipLevel )
     {
         const float4* texels = reinterpret_cast<const float4*>( &buffer[offset] );
@@ -342,7 +342,7 @@ TEST_F( TestDemandTexture, TestDenseNonMipMappedTexture )
     EXPECT_FALSE( m_texture->useSparseTexture() );
 
     // Read the entire texture, and fill it.
-    std::vector<char> buffer( 256 * 256 * imageSource::getBytesPerChannel( info.format ) * info.numChannels );
+    std::vector<char> buffer( ( 256 * 256 * getBitsPerPixel( info ) ) / BITS_PER_BYTE );
     EXPECT_NO_THROW( m_texture->readNonMipMappedData( buffer.data(), buffer.size(), CUstream{} ) );
     m_texture->fillDenseTexture( m_stream, buffer.data(), info.width, info.height, true );
 

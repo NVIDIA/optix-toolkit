@@ -12,6 +12,7 @@
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
+#include <OptiXToolkit/ImageSource/DDSImageReader.h>
 
 #include <cstddef>  // for size_t
 #include <fstream>
@@ -53,7 +54,7 @@ unsigned long long ImageSource::getHash( CUstream stream )
 
     unsigned int levelWidth = info.width >> mipLevel;
     unsigned int levelHeight = info.height >> mipLevel;
-    unsigned int mipLevelSize = levelWidth * levelHeight * getBytesPerChannel( info.format ) * info.numChannels;
+    unsigned int mipLevelSize = ( levelWidth * levelHeight * getBitsPerPixel( info ) ) / BITS_PER_BYTE;
     std::vector<unsigned long long> buffer( ( mipLevelSize + 7 ) / 8 );
     buffer.back() = 0;
     readMipLevel( (char*)buffer.data(), mipLevel, levelWidth, levelHeight, stream );
@@ -68,9 +69,9 @@ bool ImageSourceBase::readMipTail( char*        dest,
                                    unsigned int mipTailFirstLevel,
                                    unsigned int numMipLevels,
                                    const uint2* mipLevelDims,
-                                   unsigned int pixelSizeInBytes,
                                    CUstream     stream )
 {
+    int bitsPerPixel = getBitsPerPixel( getInfo() );
     size_t offset = 0;
     for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
     {
@@ -78,7 +79,7 @@ bool ImageSourceBase::readMipTail( char*        dest,
         readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
 
         // Increment offset.
-        offset += levelDims.x * levelDims.y * pixelSizeInBytes;
+        offset += ( levelDims.x * levelDims.y * bitsPerPixel ) / BITS_PER_BYTE;
     }
 
     return true;
@@ -94,10 +95,15 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
 
     // Construct ImageSource based on filename extension.
     const size_t      dot       = filename.find_last_of( '.' );
-    const std::string extension = dot == std::string::npos ? "" : filename.substr( dot );
+    const std::string extension = ( dot == std::string::npos ) ? "" : filename.substr( dot );
 
     // Attempt relative path first, then absolute path.
     const std::string path = directory.empty() ? filename : ( fileExists( filename ) ? filename : directory + '/' + filename );
+
+    if( extension == ".dds" )
+    {
+        return std::make_shared<DDSImageReader>( path, false );
+    }
 
 #if OTK_USE_OPENEXR    
     if( extension == ".exr" )

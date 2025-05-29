@@ -37,7 +37,7 @@ void MipMapImageSource::getBaseInfo()
         ++numMipLevels;
     }
     m_mipMapInfo.numMipLevels = numMipLevels;
-    m_pixelStrideInBytes      = getBytesPerChannel( m_mipMapInfo.format ) * m_mipMapInfo.numChannels;
+    m_pixelStrideInBytes      = getBitsPerPixel( m_mipMapInfo ) / BITS_PER_BYTE;
     m_mipLevels.resize( numMipLevels );
 }
 
@@ -204,14 +204,13 @@ bool MipMapImageSource::readMipTail( char*        dest,
                                      unsigned int mipTailFirstLevel,
                                      unsigned int numMipLevels,
                                      const uint2* mipLevelDims,
-                                     unsigned int pixelSizeInBytes,
                                      CUstream     stream )
 {
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
         if( m_mipMappedBase )
         {
-            return WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, pixelSizeInBytes, stream );
+            return WrappedImageSource::readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, stream );
         }
     }
 
@@ -220,7 +219,7 @@ bool MipMapImageSource::readMipTail( char*        dest,
     {
         const uint2 levelDims = mipLevelDims[mipLevel];
         readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
-        offset += static_cast<size_t>( levelDims.x * levelDims.y * pixelSizeInBytes );
+        offset += static_cast<size_t>( ( levelDims.x * levelDims.y * getBitsPerPixel( m_mipMapInfo ) ) / BITS_PER_BYTE );
     }
 
     return true;

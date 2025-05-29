@@ -50,7 +50,6 @@ class RateLimitedImageSource : public WrappedImageSource
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
                       CUstream     stream ) override;
 
     /// Delegate to the wrapped ImageSource and update the time remaining, unless there is no time

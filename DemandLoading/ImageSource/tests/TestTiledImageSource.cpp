@@ -15,6 +15,7 @@
 #include <algorithm>
 
 using namespace testing;
+using namespace imageSource;
 
 namespace {
 
@@ -33,7 +34,7 @@ class TestTiledImageSource : public Test
     ExpectationSet expectOpen();
     unsigned int   getPixelSizeInBytes() const
     {
-        return imageSource::getBytesPerChannel( m_baseInfo.format ) * m_baseInfo.numChannels;
+        return getBitsPerPixel( m_baseInfo ) / BITS_PER_BYTE;
     }
     void expectLevelZeroFilledAfter( const ExpectationSet& before );
 
@@ -339,7 +340,7 @@ TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
     const unsigned int numMipLevels{ 5 };
     std::vector<uint2> mipLevelDims;
     unsigned int       size = 1;
-    const unsigned int pixelSizeInBytes{ imageSource::getBytesPerChannel( baseMipInfo.format ) * baseMipInfo.numChannels };
+
     for( unsigned int i = 0; i < numMipLevels; ++i )
     {
         mipLevelDims.push_back( make_uint2( size, size ) );
@@ -350,8 +351,7 @@ TEST_F( TestTiledImageSource, readMipTailReadsMipLevels )
 
     std::vector<char> dest;
     dest.resize( getTextureSizeInBytes( baseMipInfo ) );
-    EXPECT_TRUE( m_tiledImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(),
-                                            pixelSizeInBytes, m_stream ) );
+    EXPECT_TRUE( m_tiledImage->readMipTail( dest.data(), mipTailFirstLevel, numMipLevels, mipLevelDims.data(), m_stream ) );
 }
 
 TEST_F( TestTiledImageSource, tracksTileReadCount )
@@ -421,9 +421,9 @@ TEST_F( TestTiledImageSourcePassThrough, readMipTail )
 {
     char        buffer{};
     const uint2 dims{};
-    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_baseImage, readMipTail( &buffer, 1, 2, &dims, m_stream ) ).After( m_open ).WillOnce( Return( true ) );
 
-    EXPECT_TRUE( m_tiledImage->readMipTail( &buffer, 1, 2, &dims, 4, m_stream ) );
+    EXPECT_TRUE( m_tiledImage->readMipTail( &buffer, 1, 2, &dims, m_stream ) );
 }
 
 TEST_F( TestTiledImageSourcePassThrough, getNumTilesRead )

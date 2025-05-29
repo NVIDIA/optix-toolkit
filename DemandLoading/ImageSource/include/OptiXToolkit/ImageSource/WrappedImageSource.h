@@ -58,10 +58,9 @@ class WrappedImageSource : public ImageSource
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
                       CUstream     stream ) override
     {
-        return m_imageSource->readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, pixelSizeInBytes, stream );
+        return m_imageSource->readMipTail( dest, mipTailFirstLevel, numMipLevels, mipLevelDims, stream );
     }
 
     /// Delegates to the wrapped ImageSource.

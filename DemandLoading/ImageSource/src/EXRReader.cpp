@@ -128,7 +128,7 @@ void EXRReader::open( TextureInfo* info )
                 if( m_inputFile )
                     readScanlineData( buff );
                 else
-                    readActualTile( buff, getBytesPerChannel( m_info.format ) * m_info.numChannels, m_info.numMipLevels - 1, 0, 0 );
+                    readActualTile( buff, getBitsPerPixel( m_info ) / BITS_PER_BYTE, m_info.numMipLevels - 1, 0, 0 );
 
                 if( m_info.format == CU_AD_FORMAT_HALF )
                 {
@@ -163,7 +163,7 @@ void EXRReader::open( TextureInfo* info )
 // Do the setup work for a FrameBuffer, putting in the slices as needed based on the channelDesc
 void EXRReader::setupFrameBuffer( Imf::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride )
 {
-    const unsigned int channelSize = getBytesPerChannel( m_info.format );
+    const unsigned int channelSize = getBitsPerChannel( m_info.format ) / BITS_PER_BYTE;
     frameBuffer.insert( m_firstChannelName, Slice( static_cast<Imf::PixelType>( m_pixelType ), base, xStride, yStride ) );
     if( m_info.numChannels > 1 )
     {
@@ -195,7 +195,7 @@ void EXRReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int 
     const Box2i dw = m_tiledInputFile->dataWindowForTile( tileX, tileY, mipLevel );
 
     // Compute base pointer and strides for frame buffer
-    const unsigned int bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
+    const unsigned int bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
     const size_t       xStride       = bytesPerPixel;
     const size_t       yStride       = rowPitch;
     char*              base          = dest - ( ( dw.min.x + dw.min.y * rowPitch / bytesPerPixel ) * bytesPerPixel );
@@ -216,7 +216,7 @@ void EXRReader::readScanlineData( char* dest )
     const Box2i dw = m_inputFile->header().dataWindow();
 
     // Compute base pointer and strides for frame buffer
-    const unsigned int bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
+    const unsigned int bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
     const size_t       xStride       = bytesPerPixel;
     const size_t       yStride       = xStride * m_info.width;
     char*              base          = dest - ( ( dw.min.x + dw.min.y * yStride / bytesPerPixel ) * bytesPerPixel );
@@ -254,7 +254,7 @@ bool EXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, C
     const unsigned int actualTileY    = tile.y * tile.height / actualTileHeight;
     unsigned int       numTilesX      = tile.width / actualTileWidth;
     unsigned int       numTilesY      = tile.height / actualTileHeight;
-    const unsigned int bytesPerPixel  = getBytesPerChannel( m_info.format ) * m_info.numChannels;
+    const unsigned int bytesPerPixel  = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
     const unsigned int rowPitch       = tile.width * bytesPerPixel;
     const size_t       actualTileSize = actualTileWidth * actualTileHeight * bytesPerPixel;
 
@@ -308,7 +308,7 @@ bool EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int ex
         // Stats tracking
         {
             m_numTilesRead  += 1;
-            m_numBytesRead  += width * height * getBytesPerChannel(m_info.format) * m_info.numChannels;
+            m_numBytesRead  += width * height * getBitsPerPixel( m_info ) / BITS_PER_BYTE;
             m_totalReadTime += stopwatch.elapsed();
         }
     }
@@ -320,7 +320,7 @@ bool EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int ex
         OTK_ASSERT( ( dw.max.y - dw.min.y + 1 ) == static_cast<int>( expectedHeight ) );
 
         // Compute base pointer and strides for frame buffer
-        const unsigned int bytesPerPixel = getBytesPerChannel( m_info.format ) * m_info.numChannels;
+        const unsigned int bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
         const size_t       xStride       = bytesPerPixel;
         const size_t       yStride       = width * xStride;
         char*              base          = dest - ( ( dw.min.x + dw.min.y * width ) * bytesPerPixel );

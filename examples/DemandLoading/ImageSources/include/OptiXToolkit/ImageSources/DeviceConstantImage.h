@@ -53,7 +53,6 @@ class DeviceConstantImage : public imageSource::ImageSourceBase
                       unsigned int mipTailFirstLevel,
                       unsigned int numMipLevels,
                       const uint2* mipLevelDims,
-                      unsigned int pixelSizeInBytes,
                       CUstream stream ) override;
 
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.

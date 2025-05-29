@@ -7,6 +7,7 @@ include(BuildConfig)
 otk_add_library( ImageSource
   src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
+  src/DDSImageReader.cpp
   src/ImageSource.cpp
   src/ImageSourceCache.cpp
   src/MipMapImageSource.cpp
@@ -29,6 +30,7 @@ target_sources(ImageSource
   FILES
   include/OptiXToolkit/ImageSource/CascadeImage.h
   include/OptiXToolkit/ImageSource/CheckerBoardImage.h
+  include/OptiXToolkit/ImageSource/DDSImageReader.h
   include/OptiXToolkit/ImageSource/ImageHelpers.h
   include/OptiXToolkit/ImageSource/ImageSource.h
   include/OptiXToolkit/ImageSource/ImageSourceCache.h

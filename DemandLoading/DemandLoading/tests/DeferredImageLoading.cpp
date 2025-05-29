@@ -73,7 +73,7 @@ class MockImageSource : public imageSource::ImageSource
                  ( override ) );
     MOCK_METHOD( bool,
                  readMipTail,
-                 ( char* dest, unsigned int mipTailFirstLevel, unsigned int numMipLevels, const uint2* mipLevelDims, unsigned int pixelSizeInBytes, CUstream stream ),
+                 ( char* dest, unsigned int mipTailFirstLevel, unsigned int numMipLevels, const uint2* mipLevelDims, CUstream stream ),
                  ( override ) );
     MOCK_METHOD( bool, readBaseColor, ( float4 & dest ), ( override ) );
     MOCK_METHOD( unsigned int, getTileWidth, (), ( const override ) );
@@ -440,7 +440,7 @@ TEST_F( DeferredImageLoadingTest, deferredMipTailIsLoadedAgain )
     const demandLoading::DemandTexture& texture = m_loader->createTexture( image, pointSampledTexture() );
     EXPECT_CALL( *image, open( _ ) ).WillOnce( SetArgPointee<0>( stockNonTiledMipMappedImage() ) );
     EXPECT_CALL( *image, getFillType() ).WillRepeatedly( Return( CU_MEMORYTYPE_HOST ) );
-    EXPECT_CALL( *image, readMipTail( _, _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *image, readMipTail( _, _, _, _, _ ) ).WillOnce( Return( false ) ).WillOnce( Return( true ) );
     EXPECT_CALL( *image, hasCascade() ).WillOnce( Return( false ) );
     m_params.m_output    = m_devOutput;
     m_params.m_textureId = texture.getId();

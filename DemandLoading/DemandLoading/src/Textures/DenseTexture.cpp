@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace imageSource;
+
 namespace demandLoading {
 
 void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource::TextureInfo& info, std::shared_ptr<CUmipmappedArray> masterArray )
@@ -93,9 +95,7 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
     (void)height;
 
     // Fill each level.
-    size_t             offset    = 0;
-    const unsigned int pixelSize = m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
-
+    size_t offset  = 0;
     for( unsigned int mipLevel = 0; mipLevel < m_info.numMipLevels; ++mipLevel )
     {
         CUarray mipLevelArray{};
@@ -106,20 +106,26 @@ void DenseTexture::fillTexture( CUstream stream, const char* textureData, unsign
         CUDA_MEMCPY2D copyArgs{};
         copyArgs.srcMemoryType = CU_MEMORYTYPE_HOST;
         copyArgs.srcHost       = textureData + offset;
-        copyArgs.srcPitch      = levelDims.x * pixelSize;
-
+        copyArgs.srcPitch      = ( levelDims.x * getBitsPerPixel( m_info ) ) / BITS_PER_BYTE;
         copyArgs.dstMemoryType = CU_MEMORYTYPE_ARRAY;
         copyArgs.dstArray      = mipLevelArray;
+        copyArgs.WidthInBytes  = copyArgs.srcPitch;
+        copyArgs.Height        = levelDims.y;
 
-        copyArgs.WidthInBytes = levelDims.x * pixelSize;
-        copyArgs.Height       = levelDims.y;
+        // For BC formats, the texture is stored as 4x4 blocks, so each row is actually a row of 4 lines
+        if( imageSource::isBcFormat( m_info.format ) )
+        {
+            copyArgs.srcPitch = copyArgs.srcPitch * 4;
+            copyArgs.WidthInBytes = copyArgs.srcPitch;
+            copyArgs.Height = copyArgs.Height / 4;
+        }
 
         if( bufferPinned )
             OTK_ERROR_CHECK( cuMemcpy2DAsync( &copyArgs, stream ) );
         else 
             OTK_ERROR_CHECK( cuMemcpy2D( &copyArgs ) );
 
-        offset += levelDims.x * levelDims.y * pixelSize;
+        offset += copyArgs.WidthInBytes * copyArgs.Height;
         m_numBytesFilled += copyArgs.WidthInBytes * copyArgs.Height;
     }
 }

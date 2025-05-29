@@ -80,7 +80,7 @@ class MockImageSource : public ::testing::StrictMock<imageSource::ImageSource>
     MOCK_METHOD( CUmemorytype, getFillType, (), ( const, override ) );
     MOCK_METHOD( bool, readTile, ( char*, unsigned, const imageSource::Tile&, CUstream ), ( override ) );
     MOCK_METHOD( bool, readMipLevel, ( char*, unsigned, unsigned, unsigned, CUstream ), ( override ) );
-    MOCK_METHOD( bool, readMipTail, ( char*, unsigned, unsigned, const uint2*, unsigned, CUstream ), ( override ) );
+    MOCK_METHOD( bool, readMipTail, ( char*, unsigned, unsigned, const uint2*, CUstream ), ( override ) );
     MOCK_METHOD( bool, readBaseColor, (float4&), ( override ) );
     MOCK_METHOD( unsigned int, getTileWidth, (), ( const, override ) );
     MOCK_METHOD( unsigned int, getTileHeight, (), ( const, override ) );

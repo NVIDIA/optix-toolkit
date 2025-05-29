@@ -54,7 +54,6 @@ bool CascadeImage::readMipTail( char*        dest,
                                 unsigned int mipTailFirstLevel,
                                 unsigned int /*numMipLevels*/,
                                 const uint2* /*mipLevelDims*/,
-                                unsigned int pixelSizeInBytes,
                                 CUstream     stream )
 {
     if( !m_backingImage ) 
@@ -68,7 +67,7 @@ bool CascadeImage::readMipTail( char*        dest,
     for( unsigned int mip = 0; mip < backingMipLevelDims.size(); ++mip )
         backingMipLevelDims[mip] = uint2{ std::max( backingInfo.width >> mip, 1U ), std::max( backingInfo.height >> mip, 1U ) };
 
-    return m_backingImage->readMipTail( dest, backingMipTailFirstLevel, backingInfo.numMipLevels, &backingMipLevelDims[0], pixelSizeInBytes, stream );
+    return m_backingImage->readMipTail( dest, backingMipTailFirstLevel, backingInfo.numMipLevels, &backingMipLevelDims[0], stream );
 }
 
 }  // namespace imageSource

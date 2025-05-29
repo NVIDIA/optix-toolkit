@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <vector>
 
+using namespace imageSource;
+
 namespace imageSources {
 
 /// This image generates a procedural pattern in many different formats.
@@ -135,7 +137,7 @@ bool MultiCheckerImage<TYPE>::readTile( char* dest, unsigned int mipLevel, const
     unsigned int squaresPerSide = std::min( levelWidth, m_squaresPerSide );
 
     const imageSource::PixelPosition start = pixelPosition( tile );
-    const unsigned int rowPitch = tile.width * m_info.numChannels * imageSource::getBytesPerChannel( m_info.format );
+    const unsigned int rowPitch = ( tile.width * getBitsPerPixel( m_info ) ) / BITS_PER_BYTE;
 
     for( unsigned int destY = 0; destY < tile.height; ++destY )
     {

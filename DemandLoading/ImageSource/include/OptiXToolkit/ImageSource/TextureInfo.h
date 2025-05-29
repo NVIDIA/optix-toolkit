@@ -20,10 +20,15 @@ struct TextureInfo
     bool           isTiled;
 };
 
-/// Get the channel size in bytes.
-unsigned int getBytesPerChannel( CUarray_format format );
+inline bool isBcFormat( CUarray_format format )
+{
+    return (format >= CU_AD_FORMAT_BC1_UNORM && format <= CU_AD_FORMAT_BC7_UNORM_SRGB );
+}
 
-/// Get total texture size
+/// Get sizes of things
+const unsigned int BITS_PER_BYTE = 8;
+unsigned int getBitsPerChannel( CUarray_format format );
+unsigned int getBitsPerPixel( const TextureInfo& info );
 size_t getTextureSizeInBytes( const TextureInfo& info );
 
 /// Check equality
