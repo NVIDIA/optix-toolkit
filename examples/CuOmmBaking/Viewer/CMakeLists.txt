@@ -4,10 +4,13 @@
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(embed_cuda)
 include(FetchGlad)
 include(FetchGlfw)
+include(SetCxxStandard)
 
-include(embed_cuda)
+set_cxx_standard( 17 )
+
 embed_cuda(
   CONST HEADER CuOmmBakingViewerKernelCuda.h
   OUTPUT_TARGET

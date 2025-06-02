@@ -18,14 +18,14 @@ cmake_minimum_required( VERSION 3.27 FATAL_ERROR )
 include( BuildConfig )
 include( Policies )
 include( ProjectOptions )
+include( SetCxxStandard )
 
 #########################################################
 # Set the project name (i.e. the VS solution file).
 project( ${OTK_PROJECT_NAME} LANGUAGES C CXX CUDA VERSION 0.9.1 )
 set( OTK_PROJECT_SOURCE_DIR ${${OTK_PROJECT_NAME}_SOURCE_DIR} )
 set( OTK_PROJECT_BINARY_DIR ${${OTK_PROJECT_NAME}_BINARY_DIR} )
-set( CMAKE_CXX_STANDARD 11 )
-set( CMAKE_CXX_STANDARD_REQUIRED TRUE )
+set_cxx_standard( 11 )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
 #########################################################

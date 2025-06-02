@@ -3,11 +3,12 @@
 #
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 include(BuildConfig)
 include(embed_cuda)
+include(SetCxxStandard)
+
+set_cxx_standard(17)
 
 find_package(OptiX 7.5)
 if(NOT OptiX_FOUND OR OPTIX_VERSION VERSION_LESS 7.5)

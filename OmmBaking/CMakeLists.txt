@@ -5,10 +5,10 @@
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(Policies)
+include(SetCxxStandard)
 
 project(CuOmmBaking LANGUAGES C CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set_cxx_standard(17) # CUB requires C++17
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
