@@ -4,6 +4,9 @@
 
 include(GNUInstallDirs)
 include(BuildConfig)
+include(SetCxxStandard)
+
+set_cxx_standard( 17 )
 
 otk_add_executable( ommBakingSimple
   simple.cpp
