@@ -73,6 +73,7 @@ configure_file( SourceDir.h.in include/SourceDir.h @ONLY )
 target_link_libraries( testDemandLoading
   testDemandLoadingKernels
   DemandLoadingKernels
+  OptiXToolkit::OptiXMemory
   OptiX::OptiX
   DemandLoading
   ShaderUtil
@@ -127,6 +128,7 @@ target_include_directories( testTextureFootprint PUBLIC
 target_link_libraries( testTextureFootprint
   testTextureFootprintKernel
   DemandLoading
+  OptiXToolkit::OptiXMemory
   CUDA::cudart
   GTest::gtest_main
   ${CMAKE_DL_LIBS}

@@ -13,6 +13,7 @@
 #include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>
@@ -284,6 +285,7 @@ void TestDebugLocation::SetUp()
     contextOptions.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
     setLogger( contextOptions, &log );
     context                                                 = Context( nullptr, &contextOptions );
+    otk::configModuleCompileOptions( moduleCompileOptions );
     pipelineCompileOptions.pipelineLaunchParamsVariableName = "g_params";
     module = Module( context, &moduleCompileOptions, &pipelineCompileOptions, TestDebugLocationCudaText(), TestDebugLocationCudaSize );
     otk::ProgramGroupDescBuilder( descs, module )

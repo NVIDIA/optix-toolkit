@@ -27,6 +27,8 @@
 #include <OptiXToolkit/Gui/Gui.h>
 #include <OptiXToolkit/Gui/glfw3.h>
 
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
+
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <OptiXToolkit/Util/Logger.h>
@@ -245,11 +247,8 @@ void OTKApp::copyGeometryToDevice()
 
 void OTKApp::createModule( OTKAppPerDeviceOptixState& state, const char* moduleCode, size_t codeSize )
 {
-    OptixModuleCompileOptions module_compile_options = {};
-#if !defined( NDEBUG )
-    module_compile_options.optLevel   = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
-    module_compile_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
-#endif
+    OptixModuleCompileOptions module_compile_options{};
+    otk::configModuleCompileOptions( module_compile_options );
 
     state.pipeline_compile_options.usesMotionBlur        = false;
     state.pipeline_compile_options.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;

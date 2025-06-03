@@ -55,6 +55,7 @@ target_link_libraries( ommBakingViewer
   PUBLIC  
   OptiXToolkit::CuOmmBaking
   OptiXToolkit::Gui
+  OptiXToolkit::OptiXMemory
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
   OptiX::OptiX

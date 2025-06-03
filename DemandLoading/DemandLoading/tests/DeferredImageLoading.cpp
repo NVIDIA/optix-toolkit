@@ -12,6 +12,7 @@
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>
@@ -204,20 +205,7 @@ void DeferredImageLoadingTest::createModules()
 {
     OptixModuleCompileOptions compileOptions{};
     compileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
-#ifdef NDEBUG
-    bool debugInfo{ false };
-#else
-    bool debugInfo{ true };
-#endif
-    compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 :
-                                            OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-#if OPTIX_VERSION >= 70400
-    compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
-                                            OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
-#else
-    compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
-                                            OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
-#endif
+    otk::configModuleCompileOptions( compileOptions );
     OTK_ERROR_CHECK_LOG( optixModuleCreate( m_context, &compileOptions, &m_pipelineOpts, DeferredImageLoadingKernelsCudaText(),
                                              DeferredImageLoadingKernelsCudaSize, LOG, &LOG_SIZE, &m_module ) );
 }

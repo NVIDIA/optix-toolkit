@@ -23,6 +23,7 @@
 #include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 #include <OptiXToolkit/OptiXMemory/Record.h>
 #include <OptiXToolkit/OptiXMemory/SyncRecord.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
@@ -411,14 +412,7 @@ static OptixModuleCompileOptions getCompileOptions()
 {
     OptixModuleCompileOptions compileOptions{};
     compileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
-#ifdef NDEBUG
-    bool debugInfo{ false };
-#else
-    bool debugInfo{ true };
-#endif
-    compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 : OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-    compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
-
+    otk::configModuleCompileOptions( compileOptions );
     return compileOptions;
 }
 
@@ -453,14 +447,8 @@ void Application::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options{};
     options.maxTraceDepth = maxTraceDepth;
+    otk::configPipelineLinkOptions( options );
 
-#if OPTIX_VERSION < 70700
-#ifdef NDEBUG
-    options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
-#else
-    options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
-#endif
-#endif
     OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_programGroups.data(),
                                            m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 

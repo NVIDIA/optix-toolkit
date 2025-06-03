@@ -63,6 +63,7 @@ target_link_libraries( testCuOmmBaking
   CuOmmBaking
   OptiX::OptiX
   OptiXToolkit::Error
+  OptiXToolkit::OptiXMemory
   tinyddsloader
   tinyexr
   tinygltf

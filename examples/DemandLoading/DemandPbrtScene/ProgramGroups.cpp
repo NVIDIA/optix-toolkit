@@ -22,6 +22,7 @@
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 
@@ -46,13 +47,7 @@ static OptixModuleCompileOptions getCompileOptions()
 {
     OptixModuleCompileOptions compileOptions{};
     compileOptions.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
-#ifdef NDEBUG
-    bool debugInfo{ false };
-#else
-    bool debugInfo{ true };
-#endif
-    compileOptions.optLevel   = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 : OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-    compileOptions.debugLevel = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL : OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
+    otk::configModuleCompileOptions( compileOptions );
 
     return compileOptions;
 }
