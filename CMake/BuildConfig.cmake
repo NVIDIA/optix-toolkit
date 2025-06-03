@@ -12,7 +12,8 @@ set(CMAKE_BUILD_TYPE_INIT RelWithDebInfo)
 set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
 
 # optixTexFootprint2D is hardware-accelerated in sm60+
-set(CMAKE_CUDA_ARCHITECTURES "60-virtual")
+# CUDA SDK 12.9 warns that < sm75 will be deprecated in a future release.
+set(CMAKE_CUDA_ARCHITECTURES "75-virtual")
 
 # Put all the runtime stuff in the same directory.  By default, CMake puts each targets'
 # output into their own directory.  We want all the targets to be put in the same
