@@ -26,16 +26,21 @@ inline void configModuleCompileOptions( OptixModuleCompileOptions& options )
 #endif
 }
 
+#if OPTIX_VERSION < 70700
 /// \brief Configures the OptiX pipeline link options based on the build type.
 inline void configPipelineLinkOptions( OptixPipelineLinkOptions& options )
 {
-#if OPTIX_VERSION < 70700
 #ifdef NDEBUG
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_NONE;
 #else
     options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
 #endif
-#endif
 }
+#else
+/// \brief Configures the OptiX pipeline link options based on the build type.
+inline void configPipelineLinkOptions( OptixPipelineLinkOptions& /*options*/ )
+{
+}    
+#endif
 
 }  // namespace otk
