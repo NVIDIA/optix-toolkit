@@ -27,50 +27,54 @@
 
 #ifndef NDEBUG
 
-#define CUDA_CHECK( call )                                                                                                                                                                                                                                                             \
-    {                                                                                                                                                                                                                                                                                  \
-        cudaError_t error = call;                                                                                                                                                                                                                                                      \
-        if( error == cudaSuccess )                                                                                                                                                                                                                                                     \
-            error = cudaDeviceSynchronize();                                                                                                                                                                                                                                           \
-        if( error != cudaSuccess )                                                                                                                                                                                                                                                     \
-        {                                                                                                                                                                                                                                                                              \
-            return OPTIX_ERROR_CUDA_ERROR;                                                                                                                                                                                                                                             \
-        }                                                                                                                                                                                                                                                                              \
-    }
+#define CUDA_CHECK( call )                                                                                             \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        cudaError_t error = call;                                                                                      \
+        if( error == cudaSuccess )                                                                                     \
+            error = cudaDeviceSynchronize();                                                                           \
+        if( error != cudaSuccess )                                                                                     \
+        {                                                                                                              \
+            return OPTIX_ERROR_CUDA_ERROR;                                                                             \
+        }                                                                                                              \
+    } while( false )
 
-#define OPTIX_CHECK( call )                                                                                                                                                                                                                                                            \
-    {                                                                                                                                                                                                                                                                                  \
-        OptixResult res = call;                                                                                                                                                                                                                                                        \
-        if( res != OPTIX_SUCCESS )                                                                                                                                                                                                                                                     \
-        {                                                                                                                                                                                                                                                                              \
-            return res;                                                                                                                                                                                                                                                                \
-        }                                                                                                                                                                                                                                                                              \
-        cudaError_t error = cudaDeviceSynchronize();                                                                                                                                                                                                                                   \
-        if( error != cudaSuccess )                                                                                                                                                                                                                                                     \
-        {                                                                                                                                                                                                                                                                              \
-            return OPTIX_ERROR_CUDA_ERROR;                                                                                                                                                                                                                                             \
-        }                                                                                                                                                                                                                                                                              \
-    }
+#define OPTIX_CHECK( call )                                                                                            \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        OptixResult res = call;                                                                                        \
+        if( res != OPTIX_SUCCESS )                                                                                     \
+        {                                                                                                              \
+            return res;                                                                                                \
+        }                                                                                                              \
+        cudaError_t error = cudaDeviceSynchronize();                                                                   \
+        if( error != cudaSuccess )                                                                                     \
+        {                                                                                                              \
+            return OPTIX_ERROR_CUDA_ERROR;                                                                             \
+        }                                                                                                              \
+    } while( false )
 
 #else
 
 #define OPTIX_CHECK( call )                                                                                                                                                                                                                                                            \
-    {                                                                                                                                                                                                                                                                                  \
-        OptixResult res = call;                                                                                                                                                                                                                                                        \
-        if( res != OPTIX_SUCCESS )                                                                                                                                                                                                                                                     \
-        {                                                                                                                                                                                                                                                                              \
-            return res;                                                                                                                                                                                                                                                                \
-        }                                                                                                                                                                                                                                                                              \
-    }
+    do                                                                                                                 \
+    {                                                                                                                  \
+        OptixResult res = call;                                                                                        \
+        if( res != OPTIX_SUCCESS )                                                                                     \
+        {                                                                                                              \
+            return res;                                                                                                \
+        }                                                                                                              \
+    } while( false )
 
 #define CUDA_CHECK( call )                                                                                                                                                                                                                                                             \
-    {                                                                                                                                                                                                                                                                                  \
-        cudaError_t error = call;                                                                                                                                                                                                                                                      \
-        if( error != cudaSuccess )                                                                                                                                                                                                                                                     \
-        {                                                                                                                                                                                                                                                                              \
-            return OPTIX_ERROR_CUDA_ERROR;                                                                                                                                                                                                                                             \
-        }                                                                                                                                                                                                                                                                              \
-    }
+    do                                                                                                                 \
+    {                                                                                                                  \
+        cudaError_t error = call;                                                                                      \
+        if( error != cudaSuccess )                                                                                     \
+        {                                                                                                              \
+            return OPTIX_ERROR_CUDA_ERROR;                                                                             \
+        }                                                                                                              \
+    } while( false )
 
 #endif
 
