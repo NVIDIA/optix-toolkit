@@ -12,6 +12,7 @@
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 
 #include <optix.h>
 #include <optix_function_table_definition.h>
@@ -289,20 +290,7 @@ class TextureFootprintFixture
             OptixPipelineCompileOptions pipeline_compile_options = {};
             {
                 OptixModuleCompileOptions module_compile_options = {};
-#ifdef NDEBUG
-                bool debugInfo{ false };
-#else
-                bool debugInfo{ true };
-#endif
-                module_compile_options.optLevel         = debugInfo ? OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 :
-                                                                      OPTIX_COMPILE_OPTIMIZATION_DEFAULT;
-#if OPTIX_VERSION >= 70400
-                module_compile_options.debugLevel       = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
-                                                                      OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL;
-#else
-                module_compile_options.debugLevel       = debugInfo ? OPTIX_COMPILE_DEBUG_LEVEL_FULL :
-                                                                      OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO;
-#endif
+                otk::configModuleCompileOptions( module_compile_options );
                 module_compile_options.maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT;
 
                 pipeline_compile_options.usesMotionBlur        = false;

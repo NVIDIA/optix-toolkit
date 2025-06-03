@@ -129,6 +129,7 @@ target_sources(OptiXMemory
   BASE_DIRS include
   FILES
   include/OptiXToolkit/OptiXMemory/Builders.h
+  include/OptiXToolkit/OptiXMemory/CompileOptions.h
   include/OptiXToolkit/OptiXMemory/Record.h
   include/OptiXToolkit/OptiXMemory/SyncRecord.h
 )

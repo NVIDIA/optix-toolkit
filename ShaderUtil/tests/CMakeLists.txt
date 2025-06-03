@@ -83,6 +83,7 @@ embed_cuda(
   OUTPUT_TARGET
     TestShaderUtilsKernels
   LIBRARIES
+    OptiXToolkit::OptiXMemory
     OptiXToolkit::ShaderUtil
     OptiX::OptiX
   SOURCES

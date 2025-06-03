@@ -10,6 +10,7 @@
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Window.h>
+#include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 #include <OptiXToolkit/Util/Logger.h>
 
 #include <optix.h>
@@ -106,11 +107,8 @@ int main( int argc, char* argv[] )
         OptixModule                 module                   = nullptr;
         OptixPipelineCompileOptions pipeline_compile_options = {};
         {
-            OptixModuleCompileOptions module_compile_options = {};
-#if !defined( NDEBUG )
-            module_compile_options.optLevel   = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
-            module_compile_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
-#endif
+            OptixModuleCompileOptions module_compile_options{};
+            otk::configModuleCompileOptions( module_compile_options );
             pipeline_compile_options.usesMotionBlur        = false;
             pipeline_compile_options.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
             pipeline_compile_options.numPayloadValues      = 2;

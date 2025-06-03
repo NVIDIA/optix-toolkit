@@ -38,6 +38,7 @@ target_link_libraries( DemandGeometryViewer PUBLIC
     DemandGeometryViewerKernel
     OptiXToolkit::DemandGeometry
     OptiXToolkit::DemandMaterial
+    OptiXToolkit::OptiXMemory
     OptiXToolkit::ShaderUtil
     OptiXToolkit::Gui
     OptiXToolkit::Util

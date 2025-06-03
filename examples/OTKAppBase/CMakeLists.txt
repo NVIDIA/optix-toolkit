@@ -37,6 +37,7 @@ target_link_libraries(OTKAppBase
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
   OptiXToolkit::ImageSources
+  OptiXToolkit::OptiXMemory
   OptiXToolkit::ShaderUtil
   OptiXToolkit::Util
   imgui::imgui

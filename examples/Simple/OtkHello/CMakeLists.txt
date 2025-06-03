@@ -33,6 +33,7 @@ otk_add_executable( otkHello
 target_link_libraries( otkHello
   otkHelloKernel
   OptiXToolkit::Gui
+  OptiXToolkit::OptiXMemory
   OptiXToolkit::Util
   OptiX::OptiX
   CUDA::cuda_driver

@@ -36,6 +36,7 @@ target_link_libraries( demandLoadTexture
   OptiXToolkit::DemandLoading
   OptiXToolkit::Gui
   OptiXToolkit::ImageSources
+  OptiXToolkit::OptiXMemory
   OptiXToolkit::Util
   CUDA::cudart
   )
