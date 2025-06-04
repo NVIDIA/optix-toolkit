@@ -77,26 +77,43 @@ static __device__ void phongShade( float3 const& p_Kd,
     setRayPayload( result );
 }
 
+namespace {
+
+struct SphereDebugInfo
+{
+    __forceinline__ __device__ SphereDebugInfo( const float4& q, const float3& worldNormal )
+        : m_q( q )
+        , m_worldNormal( worldNormal )
+    {
+    }
+
+    __forceinline__ __device__ void dump( const uint3& launchIndex ) const
+    {
+        const uint_t                 primIdx     = optixGetPrimitiveIndex();
+        const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
+        const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
+        const PhongMaterial&         mat         = getSbtData<HitGroupData>()->material;
+        printf(
+            "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, "  //
+            "q: [%g,%g,%g,%g], N: [%g,%g,%g], D: [%g,%g,%g]\n",              //
+            launchIndex.x, launchIndex.y, launchIndex.z,                     //
+            primIdx, sbtGASIndex, gas,                                       //
+            m_q.x, m_q.y, m_q.z, m_q.w,                                      //
+            m_worldNormal.x, m_worldNormal.y, m_worldNormal.z,               //
+            mat.Kd.x, mat.Kd.y, mat.Kd.z );
+    }
+
+    __forceinline__ __device__ void setColor( float r, float g, float b ) const { setRayPayload( r, g, b ); }
+
+    const float4& m_q;
+    const float3& m_worldNormal;
+};
+
+}  // namespace
+
 static __forceinline__ __device__ bool sphereDebugInfo( const float4& q, const float3& worldNormal )
 {
-    return otk::debugInfoDump(
-        g_params.debug,
-        [&]( const uint3& launchIndex ) {
-            const uint_t                 primIdx     = optixGetPrimitiveIndex();
-            const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
-            const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
-            const PhongMaterial&         mat         = getSbtData<HitGroupData>()->material;
-            // clang-format off
-            printf(
-                "[%u, %u, %u]: primitive index: %u, GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g], D: [%g,%g,%g]\n",
-                launchIndex.x, launchIndex.y, launchIndex.z,
-                primIdx, sbtGASIndex, gas,
-                q.x, q.y, q.z, q.w,
-                worldNormal.x, worldNormal.y, worldNormal.z,
-                mat.Kd.x, mat.Kd.y, mat.Kd.z );
-            // clang-format on
-        },
-        setRayPayload );
+    return otk::debugInfoDump( g_params.debug, SphereDebugInfo{ q, worldNormal } );
 }
 
 extern "C" __global__ void __closesthit__sphere()
