@@ -390,11 +390,23 @@ __forceinline__ __device__ float2 sphericalCoordFromRayDirection()
     return make_float2( sphericalPhi( dir ) * Inv2Pi, sphericalTheta( dir ) * InvPi );
 }
 
+namespace {
+
+struct MissDebugInfo
+{
+    __forceinline__ __device__ void dump( const uint3& pixel ) const
+    {
+        printf( "Miss at [%u, %u]\n", pixel.x, pixel.y );
+    }
+    __forceinline__ __device__ void setColor( float r, float g, float b ) const { setRayPayload( r, g, b ); }
+};
+
+}  // namespace
+
 extern "C" __global__ void __miss__backgroundColor()
 {
     const Params& params{ PARAMS_VAR_NAME };
-    if( otk::debugInfoDump(
-            params.debug, []( const uint3& pixel ) { printf( "Miss at [%u, %u]\n", pixel.x, pixel.y ); }, setRayPayload ) )
+    if( otk::debugInfoDump( params.debug, MissDebugInfo{} ) )
     {
         return;
     }
@@ -493,6 +505,37 @@ __device__ const demandLoading::DeviceContext& getDeviceContext()
     return demandPbrtScene::PARAMS_VAR_NAME.demandContext;
 }
 
+namespace {
+
+struct ProxyClosestHitDebugInfo
+{
+    __forceinline__ __device__ ProxyClosestHitDebugInfo( const float3& ffNormal, const float3* colors, uint_t index )
+        : ffNormal( ffNormal )
+        , colors( colors )
+        , index( index )
+    {
+    }
+
+    __forceinline__ __device__ void dump( const uint3& launchIndex ) const
+    {
+        printf( "Proxy geometry %u at [%u, %u]: N(%g,%g,%g) index %u, C(%g,%g,%g)\n",  //
+                optixGetAttribute_3(), launchIndex.x, launchIndex.y,                   //
+                ffNormal.x, ffNormal.y, ffNormal.z,                                    //
+                index, colors[index].x, colors[index].y, colors[index].z );
+    }
+
+    __forceinline__ __device__ void setColor( float r, float g, float b ) const
+    {
+        demandPbrtScene::setRayPayload( r, g, b );
+    }
+
+    const float3& ffNormal;
+    const float3* colors;
+    uint_t        index;
+};
+
+}  // namespace
+
 __device__ void reportClosestHitNormal( float3 ffNormal )
 {
     // Color the proxy faces by a solid color per face.
@@ -512,14 +555,7 @@ __device__ void reportClosestHitNormal( float3 ffNormal )
     else if( ffNormal.z < -0.5f )
         index = 5;
 
-    if( otk::debugInfoDump(
-            params.debug,
-            [=]( const uint3& launchIndex ) {
-                printf( "Proxy geometry %u at [%u, %u]: N(%g,%g,%g) index %u, C(%g,%g,%g)\n", optixGetAttribute_3(),
-                        launchIndex.x, launchIndex.y, ffNormal.x, ffNormal.y, ffNormal.z, index, colors[index].x,
-                        colors[index].y, colors[index].z );
-            },
-            demandPbrtScene::setRayPayload ) )
+    if( otk::debugInfoDump( params.debug, ProxyClosestHitDebugInfo{ ffNormal, colors, index } ) )
     {
         return;
     }
@@ -549,15 +585,34 @@ __device__ __forceinline__ unsigned int getMaterialId()
     return materialId;
 }
 
+namespace {
+struct ProxyMaterialDebugInfo
+{
+    __forceinline__ __device__ ProxyMaterialDebugInfo( unsigned int pageId, bool isResident )
+        : pageId( pageId )
+        , isResident( isResident )
+    {
+    }
+    __device__ __forceinline__ void dump( const uint3& launchIndex ) const
+    {
+        printf( "Demand material at [%u, %u]: materialId %u, isResident %s\n",  //
+                launchIndex.x, launchIndex.y,                                   //
+                pageId,                                                         //
+                isResident ? "true" : "false" );
+    }
+    __device__ __forceinline__ void setColor( float r, float g, float b ) const
+    {
+        demandPbrtScene::setRayPayload( r, g, b );
+    }
+
+    unsigned int pageId;
+    bool         isResident;
+};
+}  // namespace
+
 __device__ __forceinline__ bool proxyMaterialDebugInfo( unsigned int pageId, bool isResident )
 {
-    return otk::debugInfoDump(
-        demandPbrtScene::PARAMS_VAR_NAME.debug,
-        [=]( const uint3& launchIndex ) {
-            printf( "Demand material at [%u, %u]: materialId %u, isResident %s\n", launchIndex.x, launchIndex.y, pageId,
-                    isResident ? "true" : "false" );
-        },
-        demandPbrtScene::setRayPayload );
+    return otk::debugInfoDump( demandPbrtScene::PARAMS_VAR_NAME.debug, ProxyMaterialDebugInfo{ pageId, isResident } );
 }
 
 __device__ __forceinline__ void reportClosestHit( unsigned int materialId, bool isResident )
@@ -573,20 +628,48 @@ __device__ __forceinline__ void reportClosestHit( unsigned int materialId, bool 
 
 namespace demandPbrtScene {
 
+namespace {
+
+struct AlphaCutOutDebugInfo
+{
+    __forceinline__ __device__ AlphaCutOutDebugInfo( unsigned int textureId, const float2& uv, bool isResident, unsigned char texel, bool ignored )
+        : textureId( textureId )
+        , uv( uv )
+        , isResident( isResident )
+        , texel( texel )
+        , ignored( ignored )
+    {
+    }
+
+    __device__ __forceinline__ void dump( const uint3& launchIndex ) const
+    {
+        printf( "Alpha cutout at [%u, %u]: textureId %u, uv(%g, %g), isResident %s, texel %u: %s\n",  //
+                launchIndex.x, launchIndex.y,                                                         //
+                textureId,                                                                            //
+                uv.x, uv.y,                                                                           //
+                isResident ? "true" : "false",                                                        //
+                static_cast<unsigned int>( texel ),                                                   //
+                ignored ? "ignored" : "accepted" );                                                   //
+    }
+
+    __device__ __forceinline__ void setColor( float r, float g, float b ) const
+    {
+        demandPbrtScene::setRayPayload( r, g, b );
+    }
+
+    unsigned int  textureId;
+    float2        uv;
+    bool          isResident;
+    unsigned char texel;
+    bool          ignored;
+};
+
+}  // namespace
+
 __device__ __forceinline__ bool alphaCutOutDebugInfo( unsigned int textureId, const float2& uv, bool isResident, unsigned char texel, bool ignored )
 {
-    return otk::debugInfoDump(
-        demandPbrtScene::PARAMS_VAR_NAME.debug,
-        [=]( const uint3& launchIndex ) {
-            printf( "Alpha cutout at [%u, %u]: textureId %u, uv(%g, %g), isResident %s, texel %u: %s\n",  //
-                    launchIndex.x, launchIndex.y,                                                         //
-                    textureId,                                                                            //
-                    uv.x, uv.y,                                                                           //
-                    isResident ? "true" : "false",                                                        //
-                    static_cast<unsigned int>( texel ),                                                   //
-                    ignored ? "ignored" : "accepted" );                                                   //
-        },
-        demandPbrtScene::setRayPayload );
+    return otk::debugInfoDump( demandPbrtScene::PARAMS_VAR_NAME.debug,
+                               AlphaCutOutDebugInfo{ textureId, uv, isResident, texel, ignored } );
 }
 
 // Flip V because PBRT texture coordinate space has (0,0) at the lower left corner.

@@ -56,17 +56,15 @@ __forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const 
 
 /// debugInfoDump
 ///
-/// Invoke a functor at a specific launch index for debugging purposes.  The functor takes the OptiX launch index
-/// at which debugging information is desired.  Generally the functor is a lambda that captures application
+/// Invoke a callback at a specific launch index for debugging purposes.  The callback takes the OptiX launch index
+/// at which debugging information is desired.  Generally the callback is a struct that captures application
 /// state (or references or pointers to such state) to be dumped via printf at the specific launch index.
 /// A red pixel is drawn at the debug launch index, with a 2 pixel black border around the debug launch index
 /// and a further 2 pixel white border around that.  This makes a single red pixel easy to spot in the output.
-/// Pixels are set via the given function pointer, which generally just sets the ray payload to the appropriate
+/// Pixels are set via the given callback method, which generally just sets the ray payload to the appropriate
 /// values.  If no visible output is desired, then simply supply a lambda that does nothing with the 3 float values.
-/// The dump function is taken as a template parameter to allow the use of lambdas that capture application state
-/// as we don't have access to std::function<> to make a generic callable.  The set color routine is taken as a
-/// simple function pointer because it is assumed to not need to capture any application state in order to set
-/// a ray payload.
+/// The callback type is taken as a template parameter.  Using a template avoids indirect function calls that are
+/// not supported in OptiX.
 ///
 /// A "one-shot" debug information dump mechanism can be implemented as follows:
 /// - Enable the debug dump mechanism and set the debug launch index and the set flag.
@@ -79,16 +77,14 @@ __forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const 
 /// an application where the rendered image only changes due to user interaction and therefore the debug output
 /// is static across many frames.
 ///
+/// @tparam Callback    A callback class with the following static member functions:
+///                     void dump( const uint3& launchIndex ) and void setColor( float r, float g, float b ).
 /// @param  debug       The DebugLocation structure containing enable flags and debug launchIndex.
-/// @param  dumpFn      The function to be invoked when the launch index matches.
-///         setColor    The function invoked to set colors for the debug pixel and its border.
 ///
 /// @returns            Returns true if a debug color was set at the current launch index.
 ///
-template <typename Dump>
-static __forceinline__ __device__ bool debugInfoDump( const DebugLocation& debug,
-                                                      const Dump&          dumpFn,
-                                                      void( setColor )( float red, float green, float blue ) )
+template <typename Callback>
+static __forceinline__ __device__ bool debugInfoDump( const DebugLocation& debug, const Callback &callback )
 {
     if( !debug.enabled || !debug.debugIndexSet )
     {
@@ -100,19 +96,19 @@ static __forceinline__ __device__ bool debugInfoDump( const DebugLocation& debug
     {
         if( !debug.dumpSuppressed )
         {
-            dumpFn( launchIndex );
+            callback.dump( launchIndex );
         }
-        setColor( 1.0f, 0.0f, 0.0f );  // red
+        callback.setColor( 1.0f, 0.0f, 0.0f );  // red
         return true;
     }
     if( debugDetail::inDebugWindow( launchIndex, debug.debugIndex, 2 ) )
     {
-        setColor( 0.0f, 0.0f, 0.0f );  // black
+        callback.setColor( 0.0f, 0.0f, 0.0f );  // black
         return true;
     }
     if( debugDetail::inDebugWindow( launchIndex, debug.debugIndex, 4 ) )
     {
-        setColor( 1.0f, 1.0f, 1.0f );  // white
+        callback.setColor( 1.0f, 1.0f, 1.0f );  // white
         return true;
     }
     return false;

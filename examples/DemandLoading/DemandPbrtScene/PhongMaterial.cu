@@ -58,23 +58,36 @@ extern "C" __global__ void __closesthit__mesh()
     prd->color       = float3{ 1.0f, 0.0f, 1.0f };
 }
 
+struct SphereMaterialDebugInfo
+{
+    __forceinline__ __device__ SphereMaterialDebugInfo( const float4& q, const float3& worldNormal )
+        : q( q ), worldNormal( worldNormal )
+    {
+    }
+
+    __forceinline__ __device__ void dump( const uint3& launchIndex ) const
+    {
+        const uint_t                 instIdx     = optixGetInstanceIndex();
+        const uint_t                 instId      = optixGetInstanceId();
+        const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
+        const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
+        printf(                                                                                                //
+            "[%u, %u, %u]: instance %u (id %u), GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g]\n",  //
+            launchIndex.x, launchIndex.y, launchIndex.z,                                                       //
+            instIdx, instId, sbtGASIndex, gas,                                                                 //
+            q.x, q.y, q.z, q.w,                                                                                //
+            worldNormal.x, worldNormal.y, worldNormal.z );                                                     //
+    }
+
+    __forceinline__ __device__ void setColor( float r, float g, float b ) const { setRayPayload( r, g, b ); }
+
+    const float4& q;            // sphere center (q.x, q.y, q.z), sphere radius q.w
+    const float3& worldNormal;  // world space normal at intersection point
+};
+
 static __forceinline__ __device__ bool sphereMaterialDebugInfo( const float4& q, const float3& worldNormal )
 {
-    return debugInfoDump(
-        PARAMS_VAR_NAME.debug,
-        [&]( const uint3& launchIndex ) {
-            const uint_t                 instIdx     = optixGetInstanceIndex();
-            const uint_t                 instId      = optixGetInstanceId();
-            const OptixTraversableHandle gas         = optixGetGASTraversableHandle();
-            const uint_t                 sbtGASIndex = optixGetSbtGASIndex();
-            printf(                                                                                                //
-                "[%u, %u, %u]: instance %u (id %u), GAS index: %u, GAS: %llx, q: [%g,%g,%g,%g], N: [%g,%g,%g]\n",  //
-                launchIndex.x, launchIndex.y, launchIndex.z,                                                       //
-                instIdx, instId, sbtGASIndex, gas,                                                                 //
-                q.x, q.y, q.z, q.w,                                                                                //
-                worldNormal.x, worldNormal.y, worldNormal.z );                                                     //
-        },
-        setRayPayload );
+    return debugInfoDump( PARAMS_VAR_NAME.debug, SphereMaterialDebugInfo{ q, worldNormal } );
 }
 
 extern "C" __global__ void __closesthit__sphere()

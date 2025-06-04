@@ -21,10 +21,22 @@ __device__ __forceinline__ void setPixel( float r, float g, float b )
     g_params.image[index]    = make_float3( r, g, b );
 }
 
+struct Callback
+{
+    __device__ __forceinline__ void dump( const uint3& pos ) const
+    {
+        ++g_params.dumpIndicator[0];
+    }
+
+    __device__ __forceinline__ void setColor( float r, float g, float b ) const
+    {
+        setPixel( r, g, b );
+    }
+};
+
 extern "C" __global__ void __raygen__debugLocationTest()
 {
-    if( otk::debugInfoDump(
-            g_params.debug, []( uint3 ) { ++g_params.dumpIndicator[0]; }, setPixel ) )
+    if( otk::debugInfoDump( g_params.debug, Callback{} ) )
         return;
 
     setPixel( g_params.miss.x, g_params.miss.y, g_params.miss.z );
