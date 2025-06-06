@@ -24,7 +24,12 @@ protected:
     void SetUp() override
     {
         OTK_ERROR_CHECK( cuInit( 0 ) );
+#if CUDA_VERSION >= 13000
+	CUctxCreateParams params{};
+        OTK_ERROR_CHECK( cuCtxCreate( &m_context, &params, 0, 0 ) );
+#else
         OTK_ERROR_CHECK( cuCtxCreate( &m_context, 0, 0 ) );
+#endif
     }
     void TearDown() override
     {
