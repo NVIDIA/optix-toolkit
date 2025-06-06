@@ -177,7 +177,7 @@ if( OTK_DEMAND_LOADING_USE_NVTX )
   target_compile_definitions( DemandLoading PUBLIC ENABLE_NVTX_PROFILING )
 endif()
 
-install(TARGETS DemandLoading
+install(TARGETS DemandLoading DemandLoadingKernels
   EXPORT DemandLoadingTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
