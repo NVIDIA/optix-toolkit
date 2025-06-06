@@ -20,7 +20,7 @@ CUresult ctxCreate( CUcontext* ctx, unsigned int flags, CUdevice dev )
     CUctxCreateParams params{};
     return cuCtxCreate( ctx, &params, flags, dev );
 #else
-    return cuCtxCreate( ctx, flags, dev )
+    return cuCtxCreate( ctx, flags, dev );
 #endif
 }
 
