@@ -3,6 +3,7 @@
 #
 
 include( FetchGtest )
+include( FetchOptiX )
 include( GoogleTest )
 
 otk_add_executable( testUtil
@@ -31,6 +32,7 @@ target_link_libraries( testUtil
   Util
   GTest::gtest_main
   Imath::Imath
+  OptiX::OptiX
   Stb::Image
   )
 

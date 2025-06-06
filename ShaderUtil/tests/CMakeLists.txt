@@ -5,6 +5,7 @@
 include( FetchGtest )
 include( GoogleTest )
 include( embed_cuda )
+include( FetchOptiX )
 
 if(NOT TARGET GTest::gtest)
     find_package( GTest QUIET )
@@ -15,16 +16,6 @@ if(NOT TARGET GTest::gtest)
 endif()
 
 include(GoogleTest)
-
-if(NOT TARGET OptiX::OptiX)
-  # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-  set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-  find_package(OptiX 7.3 QUIET)
-  if(NOT OPTIX_FOUND)
-    message(WARNING "OptiX not found.  Skipping ShaderUtil/tests.")
-    return()
-  endif()  
-endif()
 
 # The SIA test employs an OptiX kernel, which is compiled from CUDA to OptiXIR.
 include(embed_cuda OPTIONAL RESULT_VARIABLE EMBED_CUDA_FOUND)

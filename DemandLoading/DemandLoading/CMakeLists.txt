@@ -15,12 +15,10 @@ include(GNUInstallDirs)
 include(BuildConfig)
 include(embed_cuda)
 include(FetchOpenEXR)
+include(FetchOptiX)
 include(CTest)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
-
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-find_package(OptiX 7.3 REQUIRED)
 
 embed_cuda(CONST RELOCATABLE
     PTX
@@ -148,8 +146,8 @@ target_include_directories( DemandLoading
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  ${OptiX_INCLUDE_DIR}
   PRIVATE
+  ${OptiX_INCLUDE_DIR}
   src
   )
 
