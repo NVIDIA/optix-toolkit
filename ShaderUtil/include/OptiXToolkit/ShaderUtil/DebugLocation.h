@@ -80,6 +80,7 @@ __forceinline__ __device__ bool atDebugIndex( const DebugLocation& debug, const 
 /// @tparam Callback    A callback class with the following static member functions:
 ///                     void dump( const uint3& launchIndex ) and void setColor( float r, float g, float b ).
 /// @param  debug       The DebugLocation structure containing enable flags and debug launchIndex.
+/// @param  callback    Instance of Callback class.
 ///
 /// @returns            Returns true if a debug color was set at the current launch index.
 ///

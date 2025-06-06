@@ -12,6 +12,20 @@
 
 using namespace demandLoading;
 
+namespace {
+
+CUresult ctxCreate( CUcontext* ctx, unsigned int flags, CUdevice dev )
+{
+#if CUDA_VERSION >= 13000
+    CUctxCreateParams params{};
+    return cuCtxCreate( ctx, &params, flags, dev );
+#else
+    return cuCtxCreate( ctx, flags, dev );
+#endif
+}
+
+}  // anonymous namespace
+
 
 class TestContextSaver : public testing::Test
 {
@@ -21,7 +35,7 @@ class TestContextSaver : public testing::Test
         // Initialize CUDA and create context.
         cuInit( 0 );
         OTK_ERROR_CHECK( cuDeviceGet( &m_device, m_deviceIndex ) );
-        OTK_ERROR_CHECK( cuCtxCreate( &m_context, 0, m_device ) );
+        OTK_ERROR_CHECK( ctxCreate( &m_context, 0, m_device ) );
     }
 
     void TearDown() override { OTK_ERROR_CHECK( cuCtxDestroy( m_context ) ); }
@@ -54,7 +68,7 @@ TEST_F( TestContextSaver, TestSave )
     {
         ContextSaver saver;
         CUcontext newContext;
-        OTK_ERROR_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+        OTK_ERROR_CHECK( ctxCreate( &newContext, 0, m_device ) );
         expectCurrentContext( newContext );
     }
     expectCurrentContext( m_context );
@@ -67,12 +81,12 @@ TEST_F( TestContextSaver, TestNestedSave )
     {
         ContextSaver saver;
         CUcontext    newContext;
-        OTK_ERROR_CHECK( cuCtxCreate( &newContext, 0, m_device ) );
+        OTK_ERROR_CHECK( ctxCreate( &newContext, 0, m_device ) );
 
         {
             ContextSaver saver2;
             CUcontext    nestedContext;
-            OTK_ERROR_CHECK( cuCtxCreate( &nestedContext, 0, m_device ) );
+            OTK_ERROR_CHECK( ctxCreate( &nestedContext, 0, m_device ) );
             expectCurrentContext( nestedContext );
         }
 

@@ -189,7 +189,12 @@ class TraceFileReader
         {
             CUdevice device;
             OTK_ERROR_CHECK( cuDeviceGet( &device, deviceIndex ) );
+#if CUDA_VERSION >= 13000
+	    CUctxCreateParams params{};
+            OTK_ERROR_CHECK( cuCtxCreate( &m_contexts[deviceIndex], &params, 0, device ) );
+#else
             OTK_ERROR_CHECK( cuCtxCreate( &m_contexts[deviceIndex], 0, device ) );
+#endif
         }
         return m_contexts[deviceIndex];
     }

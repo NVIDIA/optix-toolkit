@@ -121,7 +121,6 @@ INPUT                  = \
   @OTK_ROOT@/ShaderUtil \
   @OTK_ROOT@/examples/README.md \
   @OTK_ROOT@/examples/CHANGELOG.md \
-  @OTK_ROOT@/examples/DemandLoading/DemandTextureAppBase/include \
   @OTK_ROOT@/examples/DemandLoading/ImageSources/include \
   @OTK_ROOT@/examples/DemandLoading/RayCones/README.md \
   @OTK_ROOT@/examples/DemandLoading/TexturePainting/README.md \
@@ -155,8 +154,6 @@ REFERENCES_LINK_SOURCE = YES
 SOURCE_TOOLTIPS        = YES
 USE_HTAGS              = NO
 VERBATIM_HEADERS       = YES
-CLANG_ASSISTED_PARSING = NO
-CLANG_OPTIONS          =
 #---------------------------------------------------------------------------
 # Configuration options related to the alphabetical class index
 #---------------------------------------------------------------------------
