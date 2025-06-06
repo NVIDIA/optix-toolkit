@@ -138,6 +138,7 @@ void TestGeometryResolverInitialized::SetUp()
     m_init += EXPECT_CALL( *m_geometryLoader, createTraversable( _, _ ) ).WillOnce( Return( m_fakeProxyTraversable ) );
     m_resolver->initialize( m_stream, m_fakeContext, m_scene, m_sync );
     Mock::AllowLeak( m_sceneProxy.get() );
+    Mock::AllowLeak( m_proxyFactory.get() );
 }
 
 }  // namespace

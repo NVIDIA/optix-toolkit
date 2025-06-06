@@ -31,7 +31,7 @@ void PbrtAlphaMapImageSource::getBaseInfo()
     m_alphaInfo             = m_baseInfo;
     m_alphaInfo.format      = CU_AD_FORMAT_UNSIGNED_INT8;
     m_alphaInfo.numChannels = 1;
-    m_basePixelStride       = getBitsPerPixel( m_baseInfo ) / BITS_PER_BYTE;
+    m_basePixelStride       = ( m_baseInfo.numChannels * getBitsPerChannel( m_baseInfo.format ) ) / BITS_PER_BYTE;
 }
 
 void PbrtAlphaMapImageSource::open( imageSource::TextureInfo* info )
@@ -95,12 +95,13 @@ bool PbrtAlphaMapImageSource::readMipTail( char*        dest,
                                            const uint2* mipLevelDims,
                                            CUstream     stream )
 {
+    int pixelSizeInBits = getBitsPerPixel( m_alphaInfo );
     size_t offset = 0;
     for( unsigned int mipLevel = mipTailFirstLevel; mipLevel < numMipLevels; ++mipLevel )
     {
         const uint2 levelDims = mipLevelDims[mipLevel];
         readMipLevel( dest + offset, mipLevel, levelDims.x, levelDims.y, stream );
-        offset += static_cast<size_t>( ( levelDims.x * levelDims.y * getBitsPerPixel( m_baseInfo ) ) / BITS_PER_BYTE );
+        offset += static_cast<size_t>( ( levelDims.x * levelDims.y * pixelSizeInBits ) / BITS_PER_BYTE );
     }
 
     return true;
