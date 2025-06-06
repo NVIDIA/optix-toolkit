@@ -17,16 +17,11 @@ list(APPEND CMAKE_MODULE_PATH
 cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
 include(Policies)
 include(SetCxxStandard)
+include(FetchOptiX)
 
 project(OptiXToolkitExamples LANGUAGES C CXX CUDA)
 set_cxx_standard(11)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-if(NOT TARGET OptiX::OptiX)
-  # Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-  set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-  find_package(OptiX 7.3 REQUIRED)
-endif()
 
 add_subdirectory(Gui)
 add_subdirectory(pbrtApi)
