@@ -14,17 +14,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 include(BuildConfig)
 include(CTest)
+include(FetchOptiX)
 
 if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
-
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location.")
-find_package(OptiX 7.6)
-if(NOT OptiX_FOUND OR OPTIX_VERSION VERSION_LESS 7.6)
-  message(WARNING "Cannot build OmmBaking: it requires OptiX 7.6 or later")
-  return()
 endif()
 
 option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
@@ -92,20 +85,6 @@ option( OTK_OMM_BAKING_USE_NVTX "Enable NVTX profiling" OFF )
 if( OTK_OMM_BAKING_USE_NVTX )
   target_compile_definitions( CuOmmBaking PUBLIC ENABLE_NVTX_PROFILING )
 endif()
-
-install(TARGETS CuOmmBaking
-  EXPORT CuOmmBakingTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
-  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
-
-install(EXPORT CuOmmBakingTargets
-  FILE CuOmmBakingTargets.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
-  NAMESPACE OptiXToolkit::
-  )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )
