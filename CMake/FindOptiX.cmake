@@ -6,10 +6,6 @@ if(TARGET OptiX::OptiX)
     return()
 endif()
 
-find_package(CUDAToolkit REQUIRED)
-
-set(OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to the installed location of the OptiX SDK.")
-
 if(NOT OptiX_FIND_VERSION)
     set(OptiX_FIND_VERSION "*")
 endif()
@@ -38,22 +34,23 @@ if(NOT OptiX_INSTALL_DIR)
     endif()
 endif()
 
-find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR} ${OPTIX_SDK_DIR} REQUIRED)
-file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
-string(REGEX REPLACE "^.*OPTIX_VERSION ([0-9]+)([0-9][0-9])([0-9][0-9])[^0-9].*$" "\\1.\\2.\\3" OPTIX_VERSION ${header})
+find_path(OptiX_ROOT_DIR NAMES include/optix.h PATHS ${OptiX_INSTALL_DIR} ${OPTIX_SDK_DIR})
+if(OptiX_ROOT_DIR)
+  file(READ "${OptiX_ROOT_DIR}/include/optix.h" header)
+  string(REGEX REPLACE "^.*OPTIX_VERSION ([0-9]+)([0-9][0-9])([0-9][0-9])[^0-9].*$" "\\1.\\2.\\3" OPTIX_VERSION ${header})
 
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(OptiX
-    FOUND_VAR OptiX_FOUND
-    VERSION_VAR OPTIX_VERSION
-    REQUIRED_VARS
-        OptiX_ROOT_DIR
-    REASON_FAILURE_MESSAGE
-        "OptiX installation not found. Please use CMAKE_PREFIX_PATH or OptiX_INSTALL_DIR to locate 'include/optix.h'."
-)
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(OptiX
+      FOUND_VAR OptiX_FOUND
+      VERSION_VAR OPTIX_VERSION
+      REQUIRED_VARS OptiX_ROOT_DIR
+    )
+  else()
+    set(OptiX_FOUND FALSE)
+endif()
 
-set(OptiX_INCLUDE_DIR ${OptiX_ROOT_DIR}/include)
-
-add_library(OptiX::OptiX INTERFACE IMPORTED)
-target_include_directories(OptiX::OptiX INTERFACE ${OptiX_INCLUDE_DIR} ${CUDAToolkit_INCLUDE_DIRS})
-target_link_libraries(OptiX::OptiX INTERFACE ${CMAKE_DL_LIBS})
+if(OptiX_FOUND)
+  message(VERBOSE "Found Optix: ${OptiX_ROOT_DIR}")
+else()
+  message(VERBOSE "No installed OptiX SDK was found.")
+endif()

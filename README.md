@@ -46,9 +46,9 @@ Under Rocky linux, the following packages must be installed to build the GL-base
 sudo dnf install libXcursor-devel libXi-devel libXinerama-devel libXrandr-devel mesa-libGLU-devel pkg-config
 ```
 
-## Specifying the Location of the OptiX SDK
+## Specifying the Location of the OptiX SDK (optional)
 
-The OptiX Toolkit will do it's best to locate the highest installed version of the OptiX SDK. On Windows, the standard installation location `%ProgramData%/NVIDIA Corporation` is searched; on Linux, the locations `/opt`, `/usr/local`, `$HOME` and `$HOME/Downloads` are searched for the default SDK directory name.
+The OptiX SDK headers will be downloaded (via FetchContent) if no installed version of the OptiX SDK is found.  On Windows, the standard installation location `%ProgramData%/NVIDIA Corporation` is searched; on Linux, the locations `/opt`, `/usr/local`, `$HOME` and `$HOME/Downloads` are searched for the default SDK directory name.
 
 If you installed the OptiX SDK in another location, or using a different directory name than the suggested default, you can specify the location of the OptiX SDK by setting the CMake variable `OptiX_INSTALL_DIR` (case sensitive) at CMake configure time.  Set the variable to the path to the directory containing the OptiX SDK `include` directory.
 
@@ -175,7 +175,6 @@ cmake \
 -DOpenEXR_DIR:PATH=/usr/local/OpenEXR/lib/cmake/OpenEXR \
 -Dglfw3_DIR:PATH=/usr/local/glfw3/lib/cmake/glfw3 \
 -Dglad_DIR:PATH=/usr/local/glad/lib/cmake/glad \
--DOptiX_ROOT_DIR:PATH=/usr/local/OptiX-SDK-7.5 \
 ../optix-toolkit
 ```
 When `FetchContent` is disabled, using `vcpkg` as described above is recommended.  Alternatively, the necessary third-party libraries from source code downloaded from the following locations:

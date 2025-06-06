@@ -14,12 +14,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(BuildConfig)
 include(CTest)
+include(FetchOptiX)
 
 if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.1 REQUIRED )
-endif()
-if(NOT TARGET OptiX::OptiX)
-  find_package( OptiX REQUIRED )
 endif()
 
 if( CUDAToolkit_VERSION VERSION_GREATER_EQUAL 11.2 )
