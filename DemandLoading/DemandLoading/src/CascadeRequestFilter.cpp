@@ -32,23 +32,29 @@ std::vector<unsigned int> CascadeRequestFilter::filter( const unsigned int* requ
     std::vector<unsigned int> filteredRequests;
     for( int i = static_cast<int>( cascadePages.size() - 1 ); i >= 0 ; --i)
     {
-        if( filteredRequests.empty() || ( cascadePageToTextureId( cascadePages[i] ) != cascadePageToTextureId( cascadePages[i + 1] ) ) )
+        if( filteredRequests.empty() || ( cascadePageToTextureId( cascadePages[i] ) != filteredRequests.back() ) )
             filteredRequests.push_back( cascadePages[i] );
     }
 
-    // Find current page range for each cascade's texture, put in map so we can remove these requests
+    // Remove other requests for textures that have a cascade request.
     std::map<unsigned int, unsigned int> knockoutPages;
     knockoutPages[0] = 0; // Sentinel
     for( unsigned int i = 0; i < filteredRequests.size(); ++i )
     {
         unsigned int textureId = cascadePageToTextureId( filteredRequests[i] );
         DemandTextureImpl* texture = m_demandLoader->getTexture( textureId );
+        // Texture sampler
+        knockoutPages[ textureId ] = textureId+1;
+        // Base color
+        unsigned int baseColorId = samplerIdToBaseColorId( textureId, m_demandLoader->getOptions().maxTextures );
+        knockoutPages[ baseColorId ] = baseColorId+1;
+        // Texture tiles
         unsigned int textureStartPage = texture->getSampler().startPage;
         unsigned int textureEndPage = textureStartPage + texture->getSampler().numPages;
         knockoutPages[ textureStartPage ] = textureEndPage;
     }
     
-    // Remove tile requests for textures with cascades and return final request list
+    // Make final filtered list of requests
     for( unsigned int i = 0; i < numRequests; ++i )
     {
         if( isCascadePage( requests[i] ) )

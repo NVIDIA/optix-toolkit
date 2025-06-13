@@ -45,20 +45,20 @@ void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     imageSource::CascadeImage* cascadeImage = reinterpret_cast<imageSource::CascadeImage*>( texture->getImage().get() );
     std::shared_ptr<imageSource::ImageSource> backingImage = cascadeImage->getBackingImage();
 
-    // Cascade image is already as large as possible, or larger than the proposed size. Just return
+    // If the cascade image is already as large as possible, or larger than the proposed size, return.
     const imageSource::TextureInfo& cascadeInfo = cascadeImage->getInfo();
     const imageSource::TextureInfo& backingInfo = backingImage->getInfo();
     if( cascadeInfo.width >= backingInfo.width || ( cascadeInfo.width >= requestCascadeSize && cascadeInfo.height >= requestCascadeSize ) )
         return;
 
-    // Create a new cascadeImage and replace the current image with it.
+    // Clear the backing image and page table entry on the device.
     cascadeImage->setBackingImage( std::shared_ptr<imageSource::ImageSource>(nullptr) );
+    m_loader->setPageTableEntry( pageId, false, 0ULL );
+
+    // Create a new cascadeImage and replace the current image with it.
     unsigned int newCascadeSize = requestCascadeSize;
     std::shared_ptr<imageSource::ImageSource> newCascadeImage( new imageSource::CascadeImage( backingImage, newCascadeSize ) );
     m_loader->replaceTexture( stream, samplerId, newCascadeImage, texture->getDescriptor(), true );
-
-    // Note: updating the page table is not necessary
-    //m_loader->setPageTableEntry( pageId, false, 0ULL );
 }
 
 unsigned int CascadeRequestHandler::cascadeIdToSamplerId( unsigned int pageId )
