@@ -15,10 +15,16 @@ namespace demandLoading {
 
 D_INLINE void separateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
 {
-    newx = wrapTexCoord( x, wrapMode ) * udim;
-    xidx = static_cast<unsigned int>( floorf( newx ) );
-    xidx = (xidx < udim) ? xidx : 0; // fix problem that happens with -0.000
-    newx -= floorf( newx );
+    if( wrapMode == CU_TR_ADDRESS_MODE_WRAP )
+    {
+        fmodf( x, float( udim ) );
+        if( x < 0.0f )
+            x += udim;
+    }
+    x = clampf( x, 0.0f, udim );
+
+    xidx = min( static_cast<unsigned int>( floorf( x ) ), udim - 1 );
+    newx = x - floorf( x );
 }
 
 /// Fetch from a demand-loaded texture with the specified textureId. Results are computed and stored
@@ -46,7 +52,7 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     if( dresultdt ) *dresultdt = TYPE{};
 
     // Sample base color
-    if( !sampler && result )
+    if( result && !sampler && minGradSquared >= 1.0f )
         resident &= getBaseColor<TYPE>( context, textureId, *result, &baseColorResident );
     if( !sampler )
         return resident && baseColorResident;
@@ -119,43 +125,41 @@ template <class TYPE> D_INLINE bool
 textureUdim( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
              TYPE* result, TYPE* dresultds, TYPE* dresultdt, float2 texelJitter = float2{} )
 {
-    float minGradSquared = minf( dot( ddx, ddx ), dot( ddy, ddy ) );
-    if( minGradSquared < 1.0f )
+    bool resident;
+    TextureSampler* bsmp = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, &resident ) ); // base sampler
+    if( !resident )
     {
-        bool resident;
-        TextureSampler* bsmp = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, &resident ) ); // base sampler
-        if( !resident )
-        {
-            if( result ) *result = TYPE{};
-            if( dresultds ) *dresultds = TYPE{};
-            if( dresultdt ) *dresultdt = TYPE{};
-            return false;
-        }
+        if( result ) *result = TYPE{};
+        if( dresultds ) *dresultds = TYPE{};
+        if( dresultdt ) *dresultdt = TYPE{};
+        return false;
+    }
 
-        // Use base texture if it's not a udim texture, if the mip level fits in the base texture, or if the base texture has a cascade.
-        bool useBaseTexture = ( !bsmp ) || ( bsmp && bsmp->udim == 0 );
-        if( !useBaseTexture && bsmp->desc.isUdimBaseTexture )
-        {
-            float mipLevel = getMipLevel( ddx, ddy, bsmp->width, bsmp->height, 1.0f / bsmp->desc.maxAnisotropy );
-            useBaseTexture = ( mipLevel >= 0.0f ) || bsmp->hasCascade;
-            if( useBaseTexture )
-                texelJitter = float2{0.0f};
-        }
+    // Use base texture if it's not a udim texture, if the mip level fits in the base texture, or if the base texture has a cascade.
+    bool useBaseTexture = ( !bsmp ) || ( bsmp && bsmp->udim == 0 );
+    if( !useBaseTexture && bsmp->desc.isUdimBaseTexture )
+    {
+        float mipLevel = getMipLevel( ddx, ddy, bsmp->width * bsmp->udim, bsmp->height * bsmp->vdim, 1.0f / bsmp->desc.maxAnisotropy );
+        useBaseTexture = ( mipLevel >= 0.0f ) || bsmp->hasCascade;
+        if( useBaseTexture )
+            texelJitter = float2{0.0f};
+    }
 
-        // Sampling the subtexture. Change textureId, texture coords, and texture gradients.
-        if( !useBaseTexture )
-        {
-            float        subs, subt;
-            unsigned int sidx, tidx;
-            separateUdimCoord( s, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, subs, sidx );
-            separateUdimCoord( t, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, subt, tidx );
-
-            textureId = bsmp->udimStartPage + ( tidx * bsmp->udim + sidx ) * bsmp->numChannelTextures;
-            s = subs;
-            t = subt;
-            ddx = float2{ ddx.x * bsmp->udim, ddx.y * bsmp->vdim };
-            ddy = float2{ ddy.x * bsmp->udim, ddy.y * bsmp->vdim };
-        }
+    // Sampling the subtexture. Change textureId, texture coords, and texture gradients.
+    if( !useBaseTexture )
+    {
+        float        subs, subt;
+        unsigned int sidx, tidx;
+        separateUdimCoord( s, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, subs, sidx );
+        separateUdimCoord( t, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, subt, tidx );
+        textureId = bsmp->udimStartPage + ( tidx * bsmp->udim + sidx ) * bsmp->numChannelTextures;
+        s = subs;
+        t = subt;
+    }
+    else if( bsmp && bsmp->udim != 0 ) // Scale the gradients for the base texture
+    {
+        ddx /= bsmp->udim;
+        ddy /= bsmp->vdim;
     }
 
     // Call sampling routine

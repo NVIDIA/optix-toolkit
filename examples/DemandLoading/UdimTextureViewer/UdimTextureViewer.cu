@@ -9,6 +9,8 @@
 #include <OptiXToolkit/OTKAppBase/OTKAppDeviceUtil.h>
 #include <OptiXToolkit/OTKAppBase/OTKAppOptixPrograms.h>
 
+#include <OptiXToolkit/DemandLoading/Texture2DCubic.h>
+
 extern "C" {
 __constant__ OTKAppLaunchParams params;
 }
@@ -34,12 +36,22 @@ extern "C" __global__ void __raygen__rg()
     #ifndef CAST_RAYS
     if( origin.x >= 0.0f && origin.x <= 1.0f && origin.y >= 0.0f && origin.y <= 1.0f )
     {
+        float2* uvdim = reinterpret_cast<float2*>( &params.extraData );
         RayCone rayCone = initRayConeOrthoCamera( params.camera.U, params.camera.V, params.image_dim );
-        float2 ddx = float2{rayCone.width, 0.0f};
-        float2 ddy = float2{0.0f, rayCone.width};
+
+        float u = origin.x * uvdim->x;
+        float v = origin.y * uvdim->y;
+        float2 ddx = float2{rayCone.width * uvdim->x, 0.0f};
+        float2 ddy = float2{0.0f, rayCone.width * uvdim->y};
         bool resident = false;
+
+        // Standard bilinear filtering
         color = tex2DGradUdimBlend<float4>( params.demand_texture_context, params.display_texture_id,
-                                            origin.x, origin.y, ddx, ddy, &resident );
+                                            u, v, ddx, ddy, &resident );
+
+        // Cubic filtering
+        //resident = textureUdim<float4>( params.demand_texture_context, params.display_texture_id,
+        //                                u, v, ddx, ddy, &color, nullptr, nullptr, float2{0.0f, 0.0f} );
     }
     #endif
 

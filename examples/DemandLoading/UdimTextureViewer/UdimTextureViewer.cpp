@@ -32,6 +32,8 @@ class UdimTextureApp : public OTKApp
     void createScene();
     void setUseSrgb( bool srgb ) { m_useSRGB = srgb; }
 
+    void initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices ) override;
+
   private:
     std::string m_textureName;
     int         m_texWidth     = 8192;
@@ -125,7 +127,7 @@ void UdimTextureApp::createTexture()
 
             // Note: Use address mode CU_TR_ADDRESS_MODE_BORDER for subimages in tex2DGradUdimBlend calls in OptiX programs.
             // (CU_TR_ADDRESS_MODE_CLAMP for tex2DGradUdim calls).
-            subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, FILTER_BILINEAR ) );
+            subTexDescs.push_back( makeTextureDescriptor( CU_TR_ADDRESS_MODE_BORDER, FILTER_SMARTBICUBIC ) );
             if( m_useSRGB )
                 subTexDescs.back().flags |= CU_TRSF_SRGB;
         }
@@ -148,13 +150,30 @@ void UdimTextureApp::createScene()
     OTKAppTriangleHitGroupData mat{};
     std::vector<Vert> shape;
 
+    float udim = (m_udim >= 1) ? m_udim : 1.0f;
+    float vdim = (m_vdim >= 1) ? m_vdim : 1.0f;
+
     // Square
     mat.tex = makeSurfaceTex( 0xffffff, 0, 0x000000, -1, 0x000000, -1, 0.1f, 0.0f );
     m_materials.push_back( mat );
     OTKAppShapeMaker::makeAxisPlane( float3{0, 0, 0}, float3{1, 1, 0}, shape );
+    // Fix up texture coordinates for udim size
+    for( unsigned int i = 0; i < shape.size(); ++i )
+    {
+        shape[i].t.x *= udim;
+        shape[i].t.y *= vdim;
+    }
     addShapeToScene( shape, m_materials.size() - 1 );
 
     copyGeometryToDevice();
+}
+
+void UdimTextureApp::initLaunchParams( OTKAppPerDeviceOptixState& state, unsigned int numDevices )
+{
+    OTKApp::initLaunchParams( state, numDevices );
+    float2* uvdim = reinterpret_cast<float2*>(&state.params.extraData);
+    uvdim->x = (m_udim >= 1) ? m_udim : 1.0f;
+    uvdim->y = (m_vdim >= 1) ? m_vdim : 1.0f;
 }
 
 //------------------------------------------------------------------------------
@@ -174,7 +193,7 @@ void printUsage( const char* program )
         "   --dense                     Use dense (standard) textures instead of sparse textures.\n"
         "   --cascade                   Use cascading texture sizes.\n"
         "   --coalesce-tiles            Coalesce white and black tiles.\n"
-        "   --coalesce-images           Coalesce idendtical images.\n"
+        "   --coalesce-images           Coalesce identical images.\n"
         "   --dim=<width>x<height>      Specify rendering dimensions.\n"
         "   --file <outputfile>         Render to output file and exit.\n"
         "   --no-gl-interop             Disable OpenGL interop.\n";
@@ -263,6 +282,7 @@ int main( int argc, char* argv[] )
     options.maxInvalidatedPages = options.maxRequestedPages * 2;
     options.maxStagedPages      = options.maxRequestedPages * 2;
     options.maxRequestQueueSize = options.maxRequestedPages * 2;
+    options.maxThreads          = 0;
 
     printKeyCommands();
 

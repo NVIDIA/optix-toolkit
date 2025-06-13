@@ -15,10 +15,16 @@ namespace demandLoading {
 
 D_INLINE void wrapAndSeparateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
 {
-    newx = wrapTexCoord( x, wrapMode ) * udim;
-    xidx = static_cast<unsigned int>( floorf( newx ) );
-    xidx = (xidx < udim) ? xidx : 0; // fix problem that happens with -0.000
-    newx -= floorf( newx );
+    if( wrapMode == CU_TR_ADDRESS_MODE_WRAP )
+    {
+        fmodf( x, float( udim ) );
+        if( x < 0.0f )
+            x += udim;
+    }
+    x = clampf( x, 0.0f, udim );
+
+    xidx = min( static_cast<unsigned int>( floorf( x ) ), udim - 1 );
+    newx = x - floorf( x );
 }
 
 
@@ -35,7 +41,7 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
     bool useBaseTexture = ( !bsmp ) || ( bsmp && bsmp->udim == 0 );
     if( !useBaseTexture && bsmp->desc.isUdimBaseTexture )
     {
-        float mipLevel = getMipLevel( ddx, ddy, bsmp->width, bsmp->height, 1.0f / bsmp->desc.maxAnisotropy );
+        float mipLevel = getMipLevel( ddx, ddy, bsmp->width * bsmp->udim, bsmp->height * bsmp->vdim, 1.0f / bsmp->desc.maxAnisotropy );
         useBaseTexture = ( mipLevel >= 0.0f ) || bsmp->hasCascade;
         if( useBaseTexture )
             texelJitter = float2{0.0f};
@@ -50,12 +56,17 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
         wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, sy, yidx );
 
         unsigned int subTexId = bsmp->udimStartPage + ( yidx * bsmp->udim + xidx ) * bsmp->numChannelTextures;
-        const float2 ddx_dim = make_float2( ddx.x * bsmp->udim, ddx.y * bsmp->vdim );
-        const float2 ddy_dim = make_float2( ddy.x * bsmp->udim, ddy.y * bsmp->vdim );
-        rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx_dim, ddy_dim, isResident, texelJitter );
+        rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx, ddy, isResident, texelJitter );
 
         if( *isResident || !bsmp->desc.isUdimBaseTexture )
             return rval;
+    }
+
+    // Scale the gradients for the base texture
+    if( bsmp && bsmp->udim != 0 )
+    {
+        ddx /= bsmp->udim;
+        ddy /= bsmp->vdim;
     }
 
     // Sample the base texture
@@ -84,7 +95,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
     bool useBaseTexture = ( !bsmp ) || ( bsmp && bsmp->udim == 0 );
     if( !useBaseTexture && bsmp->desc.isUdimBaseTexture )
     {
-        float mipLevel = getMipLevel( ddx, ddy, bsmp->width, bsmp->height, 1.0f / bsmp->desc.maxAnisotropy );
+        float mipLevel = getMipLevel( ddx, ddy, bsmp->width * bsmp->udim, bsmp->height * bsmp->vdim, 1.0f / bsmp->desc.maxAnisotropy );
         useBaseTexture = ( mipLevel >= 0.0f ) || bsmp->hasCascade;
         if( useBaseTexture )
             texelJitter = float2{0.0f};
@@ -102,7 +113,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
 
         // Clamp large gradients (that are < 1) to prevent the texture footprint from spanning
         // more than half a subtexture, which could cause artifacts at subtexture boundaries.
-        float mx = maxf( dx * udim, dy * vdim );
+        float mx = maxf( dx, dy );
         if( mx > 0.25f && mx < 1.0f )
         {
             float scale = 0.25f / mx;
@@ -112,17 +123,12 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
             dy *= scale;
         }
 
-        // Scale the gradients
-        const float2 ddx_dim = ddx * float2{float(udim), float(vdim)};
-        const float2 ddy_dim = ddy * float2{float(udim), float(vdim)};
-
         // Add in a fudge factor to the gradient extents to account for the black edge of a texture in border mode.
         // (The fudge factor must be at least half a texel width at the mip level being sampled.)
         // FIXME: this only works if both subtextures have the same dimensions.  Otherwise, the sample weight on the
         // border will end up != 1, resulting in a dark border.
-        const float subtexProxySize = 64.0f;
         const float mipLevelCorrection = 0.5f * exp2f( getMipLevel( ddx, ddy, 1.0f, 1.0f, 1.0f / 16.0f ) );
-        const float magnificationCorrection = 0.5f / static_cast<float>( min( udim, vdim ) * subtexProxySize );
+        const float magnificationCorrection = 0.5f / 64.0f; // half pixel width in smallest tile size
         dx += ( mipLevelCorrection + magnificationCorrection );
         dy += ( mipLevelCorrection + magnificationCorrection );
 
@@ -147,7 +153,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         unsigned int subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx0 ) * bsmp->numChannelTextures;
         float xoff = ( xidx != xidx0 ) ? 1.0f : 0.0f;
         float yoff = ( yidx != yidx0 ) ? 1.0f : 0.0f;
-        rval = tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
+        rval = tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx, ddy, &subTexResident, texelJitter );
         *isResident = subTexResident;
 
         // Special case for base colors - don't blend with neighbors
@@ -159,7 +165,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
             subTexId = bsmp->udimStartPage + ( yidx0 * udim + xidx1 ) * bsmp->numChannelTextures;
             xoff = ( xidx != xidx1 ) ? -1.0f : 0.0f;
             yoff = ( yidx != yidx0 ) ? 1.0f : 0.0f;
-            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
+            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx, ddy, &subTexResident, texelJitter );
             *isResident = *isResident && subTexResident;
         }
         if( yidx1 != yidx0 )
@@ -167,7 +173,7 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
             subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx0 ) * bsmp->numChannelTextures;
             xoff = ( xidx != xidx0 ) ? 1.0f : 0.0f;
             yoff = ( yidx != yidx1 ) ? -1.0f : 0.0f;
-            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
+            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx, ddy, &subTexResident, texelJitter );
             *isResident = *isResident && subTexResident;
         }
         if( xidx1 != xidx0 && yidx1 != yidx0 )
@@ -175,12 +181,19 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
             subTexId = bsmp->udimStartPage + ( yidx1 * udim + xidx1 ) * bsmp->numChannelTextures;
             xoff = ( xidx != xidx1 ) ? -1.0f : 0.0f;
             yoff = ( yidx != yidx1 ) ? -1.0f : 0.0f;
-            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx_dim, ddy_dim, &subTexResident, texelJitter );
+            rval += tex2DGrad<TYPE>( context, subTexId, sx + xoff, sy + yoff, ddx, ddy, &subTexResident, texelJitter );
             *isResident = *isResident && subTexResident;
         }
 
         if( *isResident || !bsmp->desc.isUdimBaseTexture )
             return rval;
+    }
+
+    // Scale the gradients for the base texture
+    if( bsmp && bsmp->udim != 0 )
+    {
+        ddx /= bsmp->udim;
+        ddy /= bsmp->vdim;
     }
 
     // Sample the base texture

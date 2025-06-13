@@ -68,10 +68,18 @@ class CascadeImage : public ImageSourceBase
     std::shared_ptr<ImageSource> getBackingImage() { return m_backingImage; }
 
     // Set the backing image
-    void setBackingImage( std::shared_ptr<ImageSource> image ) { m_backingImage = image; }
+    void setBackingImage( std::shared_ptr<ImageSource> image )
+    {
+        m_backingImage = image;
+    }
 
     // Return whether the image has a cascade
-    bool hasCascade() const override { return m_info.width < m_backingImage->getInfo().width; }
+    bool hasCascade() const override
+    {
+        if( !m_backingImage )
+            return true;
+        return m_info.width < m_backingImage->getInfo().width;
+    }
 
   private:
     std::shared_ptr<ImageSource> m_backingImage;
