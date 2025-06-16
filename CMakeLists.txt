@@ -53,11 +53,7 @@ install( FILES ${OTK_PROJECT_BINARY_DIR}//CMake/OptiXToolkitConfig.cmake
 # Third-party libraries
 
 find_package( CUDAToolkit )
-
-# Set OptiX_INSTALL_DIR to the root of the OptiX SDK when configuring CMake.
-set( OptiX_INSTALL_DIR "OptiX_INSTALL_DIR-NOTFOUND" CACHE PATH "Path to OptiX installed location." )
-find_package( OptiX )
-
+include(FetchOptiX)
 
 #########################################################
 # Subdirectories

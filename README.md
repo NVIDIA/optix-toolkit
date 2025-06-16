@@ -49,18 +49,6 @@ Under Rocky linux, the following packages must be installed to build the GL-base
 sudo dnf install libXcursor-devel libXi-devel libXinerama-devel libXrandr-devel mesa-libGLU-devel pkg-config
 ```
 
-## Specifying the Location of the OptiX SDK
-
-The OptiX Toolkit will do it's best to locate the highest installed version of the OptiX SDK.
-On Windows, the standard installation location `%ProgramData%/NVIDIA Corporation` is searched;
-on Linux, the locations `/opt`, `/usr/local`, `$HOME` and `$HOME/Downloads` are searched for
-the default SDK directory name.
-
-If you installed the OptiX SDK in another location, or using a different directory name than the
-suggested default, you can specify the location of the OptiX SDK by setting the CMake variable
-`OptiX_INSTALL_DIR` (case sensitive) at CMake configure time.  Set the variable to the path to
-the directory containing the OptiX SDK `include` directory.
-
 ## Building the OptiX Toolkit with the Supplied CMake Presets
 
 [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) provide a convenient
@@ -103,7 +91,7 @@ Building the toolkit follows the standard CMake worfklow: configure, build and t
   mkdir build
   cd build
   ```
-- Configure the toolkit using CMake, optionally [specifying the location of the OptiX SDK](README.md#specifying-the-location-of-the-optix-sdk).
+- Configure the toolkit using CMake.
   This can be accomplished using the [CMake GUI tool](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html),
   the [CMake console tool](https://cmake.org/cmake/help/latest/manual/ccmake.1.html) (not available on Windows as of this writing),
   or from the command-line directly by entering the following command:
@@ -216,7 +204,6 @@ cmake \
 -DOpenEXR_DIR:PATH=/usr/local/OpenEXR/lib/cmake/OpenEXR \
 -Dglfw3_DIR:PATH=/usr/local/glfw3/lib/cmake/glfw3 \
 -Dglad_DIR:PATH=/usr/local/glad/lib/cmake/glad \
--DOptiX_ROOT_DIR:PATH=/usr/local/OptiX-SDK-7.5 \
 ../optix-toolkit
 ```
 When `FetchContent` is disabled, using `vcpkg` as described above is recommended.  Alternatively,
