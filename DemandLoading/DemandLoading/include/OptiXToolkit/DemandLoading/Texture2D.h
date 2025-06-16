@@ -104,11 +104,18 @@ D_INLINE bool requestTexFootprint2DRect( const TextureSampler& sampler,
 
     // Request bits in fine mip level
     TextureSampler::MipLevelSizes sizes = sampler.mipLevelSizes[mipLevel];
+
     unsigned int mipLevelStart = sampler.startPage + sizes.mipLevelStart;
-    int xx0 = static_cast<int>(x0 * sizes.levelWidthInTiles);
-    int yy0 = static_cast<int>(y0 * sizes.levelHeightInTiles);
-    int xx1 = static_cast<int>(x1 * sizes.levelWidthInTiles);
-    int yy1 = static_cast<int>(y1 * sizes.levelHeightInTiles);
+
+    int tileWidth = 1 << sampler.desc.logTileWidth;
+    int tileHeight = 1 << sampler.desc.logTileHeight;
+    float fracLevelWidthInTiles = float( sampler.width >> mipLevel ) / float( tileWidth );
+    float fracLevelHeightInTiles = float( sampler.height >> mipLevel ) / float( tileHeight );
+
+    int xx0 = static_cast<int>( x0 * fracLevelWidthInTiles );
+    int yy0 = static_cast<int>( y0 * fracLevelHeightInTiles );
+    int xx1 = static_cast<int>( x1 * fracLevelWidthInTiles );
+    int yy1 = static_cast<int>( y1 * fracLevelHeightInTiles );
 
     bool isResident = requestAndCheckResidency( referenceBits, residenceBits, mipLevelStart + getPageOffsetFromTileCoords( xx0, yy0, sizes.levelWidthInTiles ) );
     if( xx0 != xx1 )
