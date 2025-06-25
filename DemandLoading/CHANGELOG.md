@@ -32,14 +32,14 @@
 
     * It increases the virtual texture that can be defined in the demand texturing system, from 4 TB to
       over 100 TB in some scenes.
-    * It reduces startup time for scenes with many tetxures since small sparse textures take less time
+    * It reduces startup time for scenes with many textures since small sparse textures take less time
       to instantiate than large ones.
 
 * The error message was improved when loading a texture sampler fails during request processing.
 * A `Tile` structure was introduced to clearly distinguish tile coordinates vs. pixel coordinates.
-* A `MipMapImageSource` adapater was added that adapts a single level image source into a mipmapped
+* A `MipMapImageSource` adapter was added that adapts a single level image source into a mipmapped
   image source, using point sampling to generate smaller mip levels.
-* A `TiledImageSource` adapater was added that adapts a non-tiled image source into a tiled image
+* A `TiledImageSource` adapter was added that adapts a non-tiled image source into a tiled image
   source by fetching mip levels into a memory buffer and serving tiles from there.
 * The `MockOptix` google mock class was expanded to cover the entire OptiX API.
 * PNG and JPEG image source tests were enabled when OpenImageIO is available.
