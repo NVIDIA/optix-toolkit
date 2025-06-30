@@ -124,13 +124,13 @@ void OIIOReader::open( TextureInfo* info )
 
     if( m_readBaseColor && !m_baseColorWasRead && m_info.numMipLevels > 1 )
     {
-        std::vector<char> tmp( getBitsPerPixel( m_info.format ) / BITS_PER_BYTE, 0 );
+        std::vector<char> tmp( getBitsPerPixel( m_info ) / BITS_PER_BYTE, 0 );
         readMipLevel( tmp.data(), m_info.numMipLevels - 1, 1, 1, 0 );
 
         float out[4]{};
 
         for( unsigned int i = 0; i < m_info.numChannels; ++i )
-            out[i] = toFloat( tmp.data() + ( getBitsPerChannel( m_info ) / BITS_PER_BYTE ) * i, m_info.format );
+            out[i] = toFloat( tmp.data() + ( getBitsPerChannel( m_info.format ) / BITS_PER_BYTE ) * i, m_info.format );
 
         m_baseColor = float4{out[0], out[1], out[2], out[3]};
 
@@ -219,7 +219,7 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, 
         const unsigned int start_y = tile.y * tile.height;
         const unsigned int end_y   = std::min<int>( spec.height, start_y + tile.height );
 
-        const unsigned int bytesPerPixel    = getBitsPerPixel( m_info.format ) / BITS_PER_BYTE;
+        const unsigned int bytesPerPixel    = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
         const unsigned int file_pixel_bytes = spec.pixel_bytes();
         std::vector<char>  tmp( spec.width * file_pixel_bytes );
 
@@ -285,7 +285,7 @@ bool OIIOReader::readMipLevel( char*        dest,
         (void)expectedHeight;
         (void)expectedDepth;
 
-        bytesPerPixel = getBitsPerPixel( m_info.format ) / BITS_PER_BYTE;
+        bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
 
         m_input->read_image( 0, mipLevel, 0, spec.nchannels, spec.format, dest, bytesPerPixel );
     }

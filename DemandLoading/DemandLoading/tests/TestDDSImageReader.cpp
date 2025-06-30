@@ -14,6 +14,8 @@
 
 using namespace imageSource;
 
+namespace {
+
 inline uint8_t quantize( float f )
 {
     f = std::min( 1.0f, std::max( 0.0f, f ));
@@ -38,6 +40,8 @@ void writePPM( const char* filename, float* pixels, int width, int height, int n
     }
     fclose( fp );
 }
+
+} // anonymous namspace
 
 class TestDDSImageReader : public testing::Test
 {

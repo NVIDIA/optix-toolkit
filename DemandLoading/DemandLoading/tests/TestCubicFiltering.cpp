@@ -85,6 +85,8 @@ class TestCubicFiltering : public testing::Test
     float rmseDerivativeImages;
 };
 
+namespace {
+    
 //------------------------------------------------------------------------------
 
 inline float mix( float a, float b, float x )
@@ -156,6 +158,8 @@ float imageDiff( std::vector<float4>& imgA, std::vector<float4>& imgB )
     }
     return static_cast<float>( sqrt( diff / imgA.size() ) );
 }
+
+} // anonymous namespace
 
 void copyImage( std::vector<float4>& dest, int dw, int dh, std::vector<float4>& src, int sw, int sh, int x, int y )
 {
