@@ -98,7 +98,7 @@ void DDSImageReader::open( TextureInfo* info )
 
     // Resize mip level cache
     {
-        std::unique_lock<std::mutex> lock( m_mipCacheMutex );
+        std::unique_lock<std::mutex> lk( m_mipCacheMutex );
         m_mipCache.resize( m_info.numMipLevels );
     }
 

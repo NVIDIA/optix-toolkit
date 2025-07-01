@@ -6,6 +6,7 @@
 
 #include "SourceDir.h"  // generated from SourceDir.h.in
 
+#include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/DDSImageReader.h>
 
@@ -105,7 +106,7 @@ class TestDDSImageReader : public testing::Test
         texDesc.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
         texDesc.maxAnisotropy = 16;
         texDesc.minMipmapLevelClamp = 0;
-        texDesc.maxMipmapLevelClamp = imageInfo.numMipLevels - 1;
+        texDesc.maxMipmapLevelClamp = static_cast<float>( imageInfo.numMipLevels - 1 );
         texDesc.mipmapLevelBias = 0;
         texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
 
