@@ -2,13 +2,17 @@
 
 ## Verison 1.0.1
 * Added support for block compressed formats (.dds files) in the demand load library.
+* Made numerous improvements to cubic filtering.
 * Fixed a texture tile indexing error in DemandLoading
 * Fixed pixel stride calculation in PbrtAlphaMapImageSource
-* Updated DemandLoading documentation.
-* Added support for CUDA 13.0. Silence Doxygen warnings.
-* Fixed build issues, including OptiX 8.1+ issues.
-* Improved debugInfoDump in ShaderUtil
+* Enhanced compatibility: added support for CUDA 13.0, OptiX 8.1+, and fixed various build issues (Windows, OptiX, C++ standards).
 * Added support for installation of OptiX Toolkit.
+* Refactored and improved debug utilities and statistics reporting.
+* Improved test coverage for demand loading and geometry.
+* Refactored code for better maintainability: extracted and renamed libraries, improved modularity, and cleaned up includes.
+* Updated dependencies and build scripts for better compatibility with vcpkg and OpenImageIO 3.x.
+* Improved logging, error handling, and documentation throughout the toolkit.
+* Various bug fixes, code cleanups and enhancements.
 
 ## Version 1.0.0
 * Merged multiple submodules into the main repository (CMake, DemandLoading, Memory, OmmBaking, PyOptiX, ShaderUtil, examples).
