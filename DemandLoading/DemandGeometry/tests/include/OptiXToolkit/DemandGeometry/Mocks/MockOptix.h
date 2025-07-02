@@ -7,6 +7,10 @@
 #include <optix.h>
 #include <optix_function_table.h>
 
+#ifndef OPTIX_FUNCTION_TABLE_SYMBOL
+#define OPTIX_FUNCTION_TABLE_SYMBOL g_optixFunctionTable  // pre-OptiX 8.1
+#endif
+
 #include <gmock/gmock.h>
 
 namespace otk {
