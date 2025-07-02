@@ -1,5 +1,15 @@
 # OptiX Toolkit changes
 
+## Verison 1.0.1
+* Added support for block compressed formats (.dds files) in the demand load library.
+* Fixed a texture tile indexing error in DemandLoading
+* Fixed pixel stride calculation in PbrtAlphaMapImageSource
+* Updated DemandLoading documentation.
+* Added support for CUDA 13.0. Silence Doxygen warnings.
+* Fixed build issues, including OptiX 8.1+ issues.
+* Improved debugInfoDump in ShaderUtil
+* Added support for installation of OptiX Toolkit.
+
 ## Version 1.0.0
 * Merged multiple submodules into the main repository (CMake, DemandLoading, Memory, OmmBaking, PyOptiX, ShaderUtil, examples).
 
