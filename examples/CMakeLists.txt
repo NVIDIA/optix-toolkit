@@ -14,7 +14,7 @@ list(APPEND CMAKE_MODULE_PATH
   )
 
 # Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
-cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.27 FATAL_ERROR)
 include(Policies)
 include(SetCxxStandard)
 

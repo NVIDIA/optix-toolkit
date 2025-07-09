@@ -26,6 +26,21 @@ using namespace Imath;
 
 namespace imageSource {
 
+class ImfTiledInputFile : public Imf::TiledInputFile
+{
+    using Imf::TiledInputFile::TiledInputFile;
+};
+
+class ImfInputFile: public Imf::InputFile
+{
+    using Imf::InputFile::InputFile;
+};
+
+class ImfFrameBuffer: public Imf::FrameBuffer
+{
+    using Imf::FrameBuffer::FrameBuffer;
+};
+
 EXRReader::EXRReader( const std::string& filename, bool readBaseColor )
     : m_filename( filename )
     , m_pixelType( Imf::NUM_PIXELTYPES )
@@ -67,11 +82,11 @@ void EXRReader::open( TextureInfo* info )
             m_info.isValid = false;
 
             // Open input file. May throw.
-            m_inputFile.reset( new InputFile( m_filename.c_str() ) );
+            m_inputFile.reset( new ImfInputFile( m_filename.c_str() ) );
 
             if( m_inputFile->header().hasTileDescription() )
             {
-                m_tiledInputFile.reset( new TiledInputFile( m_filename.c_str() ) );
+                m_tiledInputFile.reset( new ImfTiledInputFile( m_filename.c_str() ) );
 
                 // Note that non-power-of-two EXR files often have one fewer miplevel than one would expect
                 // (they don't round up from 1+log2(max(width/height))).
@@ -161,8 +176,9 @@ void EXRReader::open( TextureInfo* info )
 }
 
 // Do the setup work for a FrameBuffer, putting in the slices as needed based on the channelDesc
-void EXRReader::setupFrameBuffer( Imf::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride )
+void EXRReader::setupFrameBuffer( ImfFrameBuffer& frameBuffer_, char* base, size_t xStride, size_t yStride )
 {
+    Imf::FrameBuffer& frameBuffer = static_cast<Imf::FrameBuffer&>(frameBuffer_);
     const unsigned int channelSize = getBitsPerChannel( m_info.format ) / BITS_PER_BYTE;
     frameBuffer.insert( m_firstChannelName, Slice( static_cast<Imf::PixelType>( m_pixelType ), base, xStride, yStride ) );
     if( m_info.numChannels > 1 )
@@ -201,7 +217,7 @@ void EXRReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int 
     char*              base          = dest - ( ( dw.min.x + dw.min.y * rowPitch / bytesPerPixel ) * bytesPerPixel );
 
     // Create frame buffer.
-    FrameBuffer frameBuffer;
+    ImfFrameBuffer frameBuffer;
     setupFrameBuffer( frameBuffer, base, xStride, yStride );
 
     m_tiledInputFile->setFrameBuffer( frameBuffer );
@@ -222,7 +238,7 @@ void EXRReader::readScanlineData( char* dest )
     char*              base          = dest - ( ( dw.min.x + dw.min.y * yStride / bytesPerPixel ) * bytesPerPixel );
 
     // Create frame buffer.
-    FrameBuffer frameBuffer;
+    ImfFrameBuffer frameBuffer;
     setupFrameBuffer( frameBuffer, base, xStride, yStride );
 
     m_inputFile->setFrameBuffer( frameBuffer );
@@ -326,7 +342,7 @@ bool EXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int ex
         char*              base          = dest - ( ( dw.min.x + dw.min.y * width ) * bytesPerPixel );
 
         // Create frame buffer and read the tiles for the specified mipLevel.
-        FrameBuffer frameBuffer;
+        ImfFrameBuffer frameBuffer;
         setupFrameBuffer( frameBuffer, base, xStride, yStride );
         m_tiledInputFile->setFrameBuffer( frameBuffer );
         m_tiledInputFile->readTiles( 0, m_tiledInputFile->numXTiles( mipLevel ) - 1, 0, m_tiledInputFile->numYTiles( mipLevel ) - 1, mipLevel, mipLevel );

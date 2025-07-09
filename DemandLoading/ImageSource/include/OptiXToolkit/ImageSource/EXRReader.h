@@ -10,23 +10,18 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
-#include <ImfNamespace.h>
-
 #include <iosfwd>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-// Forward declarations of OpenEXR classes.  (Not sure why this can't use "namespace Imf".)
-namespace OPENEXR_IMF_INTERNAL_NAMESPACE
-{
-    class FrameBuffer;
-    class InputFile;
-    class TiledInputFile;
-}
-
 namespace imageSource {
+
+// proxies to hide the implementation of the corresponding Imf:: types
+class ImfTiledInputFile;
+class ImfInputFile;
+class ImfFrameBuffer;
 
 /// OpenEXR image reader. Uses the OpenEXR 2.x tile reading API.
 /// CoreEXRReader is preferred, since it allows concurrent tile reads in the same texture.
@@ -104,8 +99,8 @@ class EXRReader : public ImageSourceBase
     std::string m_firstChannelName{"R"};
     std::string m_filename;
 
-    std::unique_ptr<Imf::TiledInputFile> m_tiledInputFile;
-    std::unique_ptr<Imf::InputFile>      m_inputFile;
+    std::unique_ptr<ImfTiledInputFile> m_tiledInputFile;
+    std::unique_ptr<ImfInputFile>      m_inputFile;
 
     TextureInfo        m_info{};
     unsigned int       m_pixelType;
@@ -119,7 +114,7 @@ class EXRReader : public ImageSourceBase
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;
 
-    void setupFrameBuffer( Imf::FrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride );
+    void setupFrameBuffer( ImfFrameBuffer& frameBuffer, char* base, size_t xStride, size_t yStride );
     void readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY );
     void readScanlineData( char* dest );
 };

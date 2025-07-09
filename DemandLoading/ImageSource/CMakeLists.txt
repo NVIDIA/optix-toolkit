@@ -4,6 +4,11 @@
 
 include(BuildConfig)
 
+# this is set in CMake/Policies.cmake, I don't understand why it has no effect for this file
+if(POLICY CMP0167)  # introduced in CMake 3.30
+  cmake_policy(SET CMP0167 NEW) # ignore FindBoost and use BoostConfig
+endif()
+
 otk_add_library( ImageSource
   src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
@@ -99,6 +104,8 @@ endif()
 if( OTK_USE_OIIO )
     find_package(OpenImageIO QUIET)
     if(OpenImageIO_FOUND)
+        set(Boost_NO_WARN_NEW_VERSIONS ON)
+        find_package(Boost CONFIG COMPONENTS system filesystem thread REQUIRED)
         target_sources(ImageSource PRIVATE 
             src/OIIOReader.cpp 
             include/OptiXToolkit/ImageSource/OIIOReader.h
