@@ -6,15 +6,15 @@ The demand loading library works by maintaining a page table that tracks assets,
 
 The OptiX Demand Loading library was initially designed for sparse textures, and that functionality is fairly mature now, but is supports other use cases as well, including on-demand geometry and material loading.  For more information on specific use cases of demand loading and supporting libraries please see the following:
 
-- [Geometry](https://github.com/NVIDIA/optix-toolkit/tree/master/DemandLoading/DemandGeometry)
-- [Materials](https://github.com/NVIDIA/optix-toolkit/tree/master/DemandLoading/DemandMaterial)
-- [Sparse Textures](https://github.com/NVIDIA/otk-demand-loading/docs/README.md)
+- [Geometry](/DemandLoading/DemandGeometry)
+- [Materials](/DemandLoading/DemandMaterial)
+- [Sparse Textures](/DemandLoading/DemandLoading)
 
 API documentation for the Demand Loading library can be generated via `make docs` after configuring CMake. A quick start guide for incorporating the Demand Loading Library into your projects is provided below.
 
 ## Quick Start Guide
 
-The [simple demand loading example](../examples/DemandLoading/Simple/simple.cpp) demonstrates basic use of the OptiX Demand Loading library.  Following this example, first create a `DemandLoader` object, through which subsequent method calls will be invoked:
+The [simple demand loading example](/examples/DemandLoading/Simple) demonstrates basic use of the OptiX Demand Loading library.  Following this example, first create a `DemandLoader` object, through which subsequent method calls will be invoked:
 ```
 // Create DemandLoader
 DemandLoader* loader = createDemandLoader( Options() );
@@ -31,7 +31,7 @@ Prior to launching a kernel, call `launchPrepare()`, which returns a `DeviceCont
 DeviceContext context;
 loader->launchPrepare( deviceIndex, stream, context );
 ```
-Pass the `DeviceContext` structure to the OptiX kernel as a launch parameter, which copies it to device memory.  In the [kernel device code](../examples/optixDemandLoadSimple/PageRequester.cu), use the `pagingMapOrRequest()` function to request a page of data.  It returns a pointer to the requested data (or a null pointer if it's not resident), along with a boolean result parameter indicating whether the requested page is resident.
+Pass the `DeviceContext` structure to the OptiX kernel as a launch parameter, which copies it to device memory.  In the [kernel device code](/examples/DemandLoading/Simple/PageRequester.cu), use the `pagingMapOrRequest()` function to request a page of data.  It returns a pointer to the requested data (or a null pointer if it's not resident), along with a boolean result parameter indicating whether the requested page is resident.
 ```
 bool isResident;
 void* data = pagingMapOrRequest( context, pageId, &isResident );

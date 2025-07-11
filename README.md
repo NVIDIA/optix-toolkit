@@ -18,7 +18,7 @@ If you cloned the OptiX Tookit repository prior to v1.0.0, we recommend cloning 
 - **[DemandLoading](DemandLoading)** -  a C++/CUDA library for on-demand loading of CUDA sparse textures and other assets in OptiX renderers.
 - **[Memory](Memory)** - Host and device memory pools (used by DemandLoading library).
 - **[OmmBaking](OmmBaking)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
-- **[PyOptiX](PyOptiX)** - Complete Python bindings for the OptiX host API.
+- **[PyOptiX](https://github.com/NVIDIA/otk-pyoptix/)** - Complete Python bindings for the OptiX host API.
 - **[ShaderUtil](ShaderUtil)** - Header-only libraries for OptiX kernels (e.g. Vector Math, Self Intersection Avoidance, Ray Cones, Environment Map Sampling, Stochastic Texture Filtering, Cubic Texture Filtering).
 
 ## Requirements
@@ -219,7 +219,7 @@ Important: when building statically linked libraries, the CMake configuration va
 **Problem:** Running vcpkg install - failed
 **Solution:** `git submodule deinit vcpkg; git submodule update --init vcpkg`
 
-If you encounter a problem, we encourage you to post on the [OptiX forums](https://devtalk.nvidia.com/default/board/90/) or open a ticket on the [OptiX Toolkit issues](https://github.com/NVIDIA/optix-toolkit/issues) page on GitHub.
+If you encounter a problem, we encourage you to post on the [OptiX forums](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167) or open a ticket on the [OptiX Toolkit issues](https://github.com/NVIDIA/optix-toolkit/issues) page on GitHub.
 
 ## Attributions
 

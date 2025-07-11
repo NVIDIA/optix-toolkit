@@ -1,7 +1,6 @@
 # UdimTextureViewer sample
 
-The udimTextureViewer demonstrates how to create an use UDIM texture (arrays of texture images treated as a single texture) in the OptiX demand loading library. This sample can also stress the texturing system by allocating large arrays 
-of textures.  For example, the command 
+The udimTextureViewer demonstrates how to create an use UDIM texture (arrays of texture images treated as a single texture) in the OptiX demand loading library. This sample can also stress the texturing system by allocating large arrays of textures.  For example, the command 
 
 ```
 udimTextureViewer --texdim=8192x8192 --udim=32x32
