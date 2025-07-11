@@ -164,7 +164,7 @@ Once rendering has finished, the `destroyDemandLoader()` function can be used to
 void destroyDemandLoader(DemandLoader* manager);
 ```
 
-The OTK [Texture](https://github.com/NVIDIA/optix-toolkit/tree/master/examples/DemandLoading/Texture) sample shows basic use of the demand loading library for CUDA sparse textures.
+The OTK [Texture](/examples/DemandLoading/Texture) sample shows basic use of the demand loading library for CUDA sparse textures.
 
 # Advanced demand loader features
 
@@ -172,7 +172,7 @@ The OptiX demand-loaded texture library has matured into a high quality texturin
 
 ## Configuring the demand loader 
 
-The OptiX Demand Loading Library can be configured using an [Options](https://github.com/NVIDIA/optix-toolkit/blob/master/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Options.h) struct passed to `createDemandLoader()`.  This gives the size of the virtual page table and other buffers used to transfer data, specifies memory limits for device-side texture data, and defines the number of threads and CUDA streams to use in the demand loader.  The Options struct and default values are shown below, and the next section describes the use of the options.
+The OptiX Demand Loading Library can be configured using an [Options](/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Options.h) struct passed to `createDemandLoader()`.  This gives the size of the virtual page table and other buffers used to transfer data, specifies memory limits for device-side texture data, and defines the number of threads and CUDA streams to use in the demand loader.  The Options struct and default values are shown below, and the next section describes the use of the options.
 
 ```
 struct Options
@@ -258,11 +258,11 @@ Other notable fields in the Options struct include:
 
 ## Supported file formats
 
-EXR images are supported using the [CoreEXRReader](https://github.com/NVIDIA/optix-toolkit/blob/master/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/CoreEXRReader.h) class to wrap the EXR reading functions of the [OpenEXR](https://openexr.com/) library.  The older `EXRReader` class is deprecated as it does take advantage of the parallel processing capabilities available in OpenEXR 3.1.
+EXR images are supported using the [CoreEXRReader](/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/CoreEXRReader.h) class to wrap the EXR reading functions of the [OpenEXR](https://openexr.com/) library.  The older `EXRReader` class is deprecated as it does take advantage of the parallel processing capabilities available in OpenEXR 3.1.
 
-Block compressed textures (BC1...BC7), stored as .dds files, are supported using the [DDSImageReader](https://github.com/NVIDIA/optix-toolkit/blob/master/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/DDSImageReader.h) class. The block compressed formats provide substantial texture compression (2-8x) on the GPU while maintaining high image quality. The [NVIDIA Texture Tools](https://developer.nvidia.com/texture-tools-exporter) utility can convert other image types to .dds files. (Note that CUDA is limited to rendering mip levels for BC textures that are multiples of 4 in size. The DDSImageReader will truncate the mip pyramid as needed to maintain this requirement.)
+Block compressed textures (BC1...BC7), stored as .dds files, are supported using the [DDSImageReader](/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/DDSImageReader.h) class. The block compressed formats provide substantial texture compression (2-8x) on the GPU while maintaining high image quality. The [NVIDIA Texture Tools](https://developer.nvidia.com/texture-tools-exporter) utility can convert other image types to .dds files. (Note that CUDA is limited to rendering mip levels for BC textures that are multiples of 4 in size. The DDSImageReader will truncate the mip pyramid as needed to maintain this requirement.)
 
-The [OIIOReader](https://github.com/NVIDIA/optix-toolkit/blob/master/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/OIIOReader.h) class wraps [OpenImageIO](https://sites.google.com/site/openimageio/home), allowing a wide range of image files to be read, including TIFF, JPEG, and PNG, as well as EXR. Note that for best performance, EXR files should be read via `CoreEXRReader`, however.
+The [OIIOReader](/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/OIIOReader.h) class wraps [OpenImageIO](https://sites.google.com/site/openimageio/home), allowing a wide range of image files to be read, including TIFF, JPEG, and PNG, as well as EXR. Note that for best performance, EXR files should be read via `CoreEXRReader`, however.
 
 Other image file types can easily be added by defining a ImageSource subclass that reads them.
 
@@ -280,7 +280,7 @@ The OptiX Demand Loading Library reverts to dense textures regardless of size on
 
 ## Host and device filled textures
 
-Depending on the ImageSource, texture requests can be filled on the host and then transferred to the device, or filled directly on the device by a CUDA kernel. The file [DeviceMandelbrotImage.h]() gives an example of device-side fulfillment.
+Depending on the ImageSource, texture requests can be filled on the host and then transferred to the device, or filled directly on the device by a CUDA kernel. The file [DeviceMandelbrotImage.h](/examples/DemandLoading/ImageSources/include/OptiXToolkit/ImageSources/DeviceMandelbrotImage.h) gives an example of device-side fulfillment.
 
 ## Preloading, unloading, and replacing textures
 
@@ -293,7 +293,7 @@ Most of the actions to load and unload textures in the demand loading library ar
 - `invalidatePage` - Discard the page (of a texture tile or other resource) on the next `pullRequests()`.
 - `replaceTexture` - Replace the image source for a texture, discarding any resident tiles.
 
-The [texture painting](https://github.com/NVIDIA/optix-toolkit/tree/master/examples/DemandLoading/TexturePainting) sample shows how to use many of these.
+The [texture painting](/examples/DemandLoading/TexturePainting) sample shows how to use many of these.
 
 ## Setting the max texture tile memory
 
@@ -303,7 +303,7 @@ The `maxTexMemPerDevice` field of the Options struct determines the initial amou
 
 By default, the demand loading library instantiates CUDA textures at the size of the image source, which can be inefficient if the finer mip levels of the texture are never accessed. When `useCascadingTextureSizes` is set to true, the demand loader instead creates CUDA textures that are just large enough to fill requested mip levels.  If finer mip levels are needed on a later launch, the texture is *cascaded* (reinstantiated) to a larger size. 
 
-Texture cascading offers two main benefits. First, it expands the virtual texture set size that can be managed by the demand loader, sometimes by an order of magnitude or more. Second, it reduces startup times for textures by a similar amount, since sparse texture creation time is dependent on texture size in CUDA. As an example, I ran the [udimTextureViewer](https://github.com/NVIDIA/optix-toolkit/tree/master/examples/DemandLoading/UdimTextureViewer) with the argument `--udim=50x50` to create 2500 8K textures. This took 2.3 seconds on a 5080 with texture cascading, but 30 seconds without it.
+Texture cascading offers two main benefits. First, it expands the virtual texture set size that can be managed by the demand loader, sometimes by an order of magnitude or more. Second, it reduces startup times for textures by a similar amount, since sparse texture creation time is dependent on texture size in CUDA. As an example, I ran the [udimTextureViewer](/DemandLoading/UdimTextureViewer) with the argument `--udim=50x50` to create 2500 8K textures. This took 2.3 seconds on a 5080 with texture cascading, but 30 seconds without it.
 
 ## Eviction 
 
@@ -365,7 +365,7 @@ The function `tex2DGradUdimBlend()` interpolates between adjacent textures in th
 
 ## Cubic filtering and texture derivatives
 
-High quality renderers often employ cubic filtering when magnifying a texture to reduce blocky image artifacts.  [Open ImageIO](https://github.com/AcademySoftwareFoundation/OpenImageIO) is an industry standard texturing library used by many commercial renderers. It supports four filtering modes: *point*, *linear*, *bicubic*, and *smart bicubic*, and computes texture derivatives in the chosen mode. The OTK demand loading library includes sampling functions that attempt to work like the OIIO `texture()` function.  It supports the same four filtering modes as Open ImageIO, and can calculate texture derivatives in addition to filtered texture values. These Open ImageIO work-alike functions are header only implementations, and are found in the file [Texure2DCubic.h](https://github.com/NVIDIA/optix-toolkit/blob/master/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2DCubic.h) with the main entry points being `textureCubic`, `textureUdim`, and `texture`.  The `textureCubic` function looks like this:
+High quality renderers often employ cubic filtering when magnifying a texture to reduce blocky image artifacts.  [Open ImageIO](https://github.com/AcademySoftwareFoundation/OpenImageIO) is an industry standard texturing library used by many commercial renderers. It supports four filtering modes: *point*, *linear*, *bicubic*, and *smart bicubic*, and computes texture derivatives in the chosen mode. The OTK demand loading library includes sampling functions that attempt to work like the OIIO `texture()` function.  It supports the same four filtering modes as Open ImageIO, and can calculate texture derivatives in addition to filtered texture values. These Open ImageIO work-alike functions are header only implementations, and are found in the file [Texure2DCubic.h](/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2DCubic.h) with the main entry points being `textureCubic`, `textureUdim`, and `texture`.  The `textureCubic` function looks like this:
 
 ```
 template <class TYPE> bool textureCubic( 
@@ -384,17 +384,17 @@ The filtered texture result is returned in three return parameters,`result`, `dr
 
 To perform cubic filtering, the `filterMode` field in the `TextureDescriptor` struct must be set to `FILTER_SMARTBICUBIC` or `FILTER_BICUBIC` when defining the texture, and one of the texturing functions in `Texture2DCubic.h` must be used to sample the texture.
 
-The main cubic filtering routines are defined in the file [CubicFiltering.h](FIhttps://github.com/NVIDIA/optix-toolkit/blob/master/ShaderUtil/include/OptiXToolkit/ShaderUtil/CubicFiltering.h), which is in ShaderUtil, outside of the demand loading library, so they can be used without it.
+The main cubic filtering routines are defined in the file [CubicFiltering.h](/ShaderUtil/CubicFiltering.h), which is in ShaderUtil, outside of the demand loading library, so they can be used without it.
 
 ## Stochastic texture filtering
 
-[Stochastic texture filtering](https://research.nvidia.com/publication/2024-05_filtering-after-shading-stochastic-texture-filtering) achieves high quality texture filtering by jittering texture coordinates and combining samples rather than computing weighted sums of many texture reads. All of the texture sampling functions in the OptiX demand loading library have variants to support stochastic filtering. The augmented entry points include an extra `float2` parameter for jittering the texture coordinate at the sampled mip level.The OTK stochastic texturing sample demonstrates how to do stochastic texture filtering with the OptiX Toolkit. The OTK sample [stochasticTextureFiltering](https://github.com/NVIDIA/optix-toolkit/tree/master/examples/DemandLoading/StochasticTextureFiltering) gives an examples of this.
+[Stochastic texture filtering](https://research.nvidia.com/publication/2024-05_filtering-after-shading-stochastic-texture-filtering) achieves high quality texture filtering by jittering texture coordinates and combining samples rather than computing weighted sums of many texture reads. All of the texture sampling functions in the OptiX demand loading library have variants to support stochastic filtering. The augmented entry points include an extra `float2` parameter for jittering the texture coordinate at the sampled mip level.The OTK stochastic texturing sample demonstrates how to do stochastic texture filtering with the OptiX Toolkit. The OTK sample [stochasticTextureFiltering](/DemandLoading/StochasticTextureFiltering) gives an examples of this.
 
-Similar to cubic filtering, the stochastic texturing functions are defined in ShaderUtil in the file [stochastic_filtering.h](https://github.com/NVIDIA/optix-toolkit/blob/master/ShaderUtil/include/OptiXToolkit/ShaderUtil/stochastic_filtering.h), so they do not depend on the demand loading.
+Similar to cubic filtering, the stochastic texturing functions are defined in ShaderUtil in the file [stochastic_filtering.h](/ShaderUtil/stochastic_filtering.h), so they do not depend on the demand loading.
 
 ## Ray cones for texture streaming
 
-Renderers employing texture streaming often rely on **ray differentials** or **ray cones** to drive texture requests. ShaderUtil provides an implementation of ray cones in the file [ray_cone.h](https://github.com/NVIDIA/optix-toolkit/blob/master/ShaderUtil/include/OptiXToolkit/ShaderUtil/ray_cone.h). The OTK [rayCones](https://github.com/NVIDIA/optix-toolkit/tree/master/examples/DemandLoading/RayCones) sample shows how to use ray cones in a ray tracer.
+Renderers employing texture streaming often rely on **ray differentials** or **ray cones** to drive texture requests. ShaderUtil provides an implementation of ray cones in the file [ray_cone.h](/ShaderUtil/ray_cone.h). The OTK [rayCones](/examples/DemandLoading/RayCones) sample shows how to use ray cones in a ray tracer.
 
 ## Limits on demand loaded textures
 
