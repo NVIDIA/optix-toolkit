@@ -1,6 +1,6 @@
 # Cubic Texture Filtering in the OTK
 
-Graphics hardware natively supports point and bilinear texture filtering. These are fast but inadequate for some applications. Production renderers often want cubic filtering when magnifying textures to smooth out blocky artifacts. This note describes the cubic texture filtering implementation included in the file [CubicFiltering.h]() in ShaderUtil. The OTK code follows the implementation in [Open ImageIO](), and is intended to provide a GPU functionality similar to the OIIO `texture` function, including the same filter modes and texture derivatives.
+Graphics hardware natively supports point and bilinear texture filtering. These are fast but inadequate for some applications. Production renderers often want cubic filtering when magnifying textures to smooth out blocky artifacts. This note describes the cubic texture filtering implementation included in the file [CubicFiltering.h](/ShaderUtil/include/OptiXToolkit/ShaderUtil/CubicFiltering.h) in ShaderUtil. The OTK code follows the implementation in [Open ImageIO](https://github.com/AcademySoftwareFoundation/OpenImageIO), and is intended to provide GPU functionality similar to the OIIO `texture` function.
 
 ## Linear Interpolation
 
@@ -21,9 +21,9 @@ $$
 $$
 B(x) = 
 \begin{matrix}
-- \frac{1}{2}|x|^3 - |x|^2 + \frac{2}{3}   &   |x| \in [0,1) ~~ \\
-\frac{1}{6} (2-|x|)^3                      &   |x| \in [1,2) ~~ \\
-0                                          &   |x| \in [2,\infty)
+-\frac{1}{2}|x|^3 - |x|^2 + \frac{2}{3}     & |x| \in [0,1) ~~ \\
+\frac{1}{6} (2-|x|)^3                       & |x| \in [1,2) ~~ \\
+0                                           & |x| \in [2,\infty)
 \end{matrix}
 $$
 
@@ -40,10 +40,12 @@ $$
 The weights $w_0 ... w_3$ are the value of $B()$ evaluated at the sample positions:
 
 $$
+\begin{matrix}
 w_0 = B(-1-m) = (-m^3 + 3m^2 - 3m + 1)/6 \\
-w_1 = B(-m) = (3m^3 - 6m^2 + 4)/6 ~~~~~~~~~~~~~~~~~~ \\
+w_1 = B(-m) = (3m^3 - 6m^2 + 4)/6 ~~~~~~~~~~~~~~~~~ \\
 w_2 = B(1-m) = (-3m^3 + 3m^2 + 3m + 1)/6 ~ \\
-w_3 = B(2-m) =(m^3)/6 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+w_3 = B(2-m) =(m^3)/6 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\end{matrix}
 $$
 
 ## Evaluating the Cubic in Fewer Taps
@@ -96,10 +98,12 @@ $$
 $B$ is symmetric about the origin, so $B'(x) = -B'(-x)$, and the derivative weights reduce to:
 
 $$
+\begin{matrix}
 w'_0 =  -0.5m^2 + m - 0.5 \\
 w'_1 =  1.5m^2 - 2m ~~~~~~~~~~~ \\
 w'_2 =  -1.5m^2 + m + 0.5 \\
-w'_3 =  0.5m^2 ~~~~~~~~~~~~~~~~~~~~~
+w'_3 =  0.5m^2 ~~~~~~~~~~~~~~~~~~~~
+\end{matrix}
 $$
 
 This calculation works because $w'_0$ and $w'_1$ are always negative, and $w'_2$ and $w'_3$ are always positive. The signs for the derivative weights of each linear tap agree and the sum from equation 1 is still valid.
@@ -138,8 +142,8 @@ The *cubic* filtering mode in the OTK code is not anisotropic. Instead, it blend
 **Sampling speed.**
 The table gives timings for the *smart bicubic* filter mode, using *demand load textures* calling the `textureCubic` function in the file `Texture2DCubic.h`. Results are encouraging. Bicubic filtering with 4 taps renders at about 93 percent of bilinear, and even the bilinear/cubic derivative transition, with 12 taps, renders at 84 percent of bilinear, and has lower overhead than using the demand load texture system.
 
-<p align="center">
-
+<div align="center">
+  
 | Filter      | Taps        | FPS        |
 | ----------- | ----------- | ---------- |
 | Bilinear    | 1           | 604        |
@@ -148,7 +152,7 @@ The table gives timings for the *smart bicubic* filter mode, using *demand load 
 | Bicubic Derivatives | 8   | 530        |
 | Transition Derivatives | 12 | 510      |
 
-</p>
+</div>
 
 **Filtering results.**
 The images below show bilinear and bicubic filtering using the `texture2DCubic` function. Bilinear interpolation results in blocky artifacts.  These are reduced using bicubic interpolation.
