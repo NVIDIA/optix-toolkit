@@ -7,6 +7,6 @@ The OptiX Toolkit ShaderUtil is a header-only library of commonly used utilities
 * [Environment map sampling](/ShaderUtil/docs/emapSampling)
 * [Ray cones for texture LOD control](/ShaderUtil/docs/rayCones)
 * [Self-intersection avoidance for secondary rays](/ShaderUtil/docs/selfIntersectionAvoidance)
-* [Stochastic texture filtering](/ShaderUtil/include/OptiXToolkit/ShaderUtil/stochastic_filtering.h)
+* [Stochastic texture filtering](/ShaderUtil/docs/stochasticFiltering)
 * [Transform matrices](/ShaderUtil/include/OptiXToolkit/ShaderUtil/Transform4.h)
 * [Vector math operations](/ShaderUtil/include/OptiXToolkit/ShaderUtil/vec_math.h)
