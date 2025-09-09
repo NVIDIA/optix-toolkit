@@ -27,7 +27,7 @@ API documentation for the Cuda Opacticy Micromap Baking Library can be generated
 
 ## Quick start
 
-See the [simple Opacity Micromap Baking example](https://github.com/NVIDIA/otk-examples/blob/master/CuOmmBaking/Simple/simple.cpp)
+See the [simple Opacity Micromap Baking example](https://github.com/NVIDIA/optix-toolkit/blob/master/examples/CuOmmBaking/Simple/simple.cpp)
 example, which demonstrates how to use the Cuda Opacticy Micromap Baking Library.
 
 The first step is to setup a texture descriptor, specifying an opacity texture input.
