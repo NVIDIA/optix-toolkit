@@ -19,6 +19,10 @@ namespace imageSource {
 const uint32_t DDS_MAGIC_NUMBER = 0x20534444U; // "DDS "
 const uint32_t BC_BLOCK_WIDTH = 4;
 const uint32_t BC_BLOCK_HEIGHT = 4;
+const uint32_t D3D11_RESOURCE_MISC_TILED = 0x40000L;
+const uint32_t MISC_TILED_PIXEL_LAYOUT = 0x10000000;
+
+const uint32_t TILE_SIZE_IN_BYTES = 65536;
 
 enum DXGIFormats
 {
@@ -132,9 +136,36 @@ class DDSImageReader : public ImageSourceBase
     /// Read the base color of the image (1x1 mip level) as a float4. Returns true on success.
     bool readBaseColor( float4& dest ) override;
 
-    int getMipLevelFileOffsetInBytes( int mipLevel );
-    int getMipLevelSizeInBytes( int mipLevel );
+    /// Read the mip tail
+    bool readMipTail( char* dest, unsigned int mipTailFirstLevel, unsigned int numMipLevels, 
+                      const uint2* mipLevelDims, CUstream stream ) override;
+
+    /// Whether the file is tiled.  Valid only after calling open().
+    bool isFileTiled() { return m_fileIsTiled; }
+
+    /// Get the width of a tile that would be used for CUDA sparse textures.
+    unsigned int getTileWidth() const override { return ( m_blockSizeInBytes == 8 ) ? 512u : 256u; }
+
+    /// Get the height of a tile that would be used for CUDA sparse textures.
+    unsigned int getTileHeight() const override { return 256u; }
+
+    /// Get the mip level width in bytes (for a flat file)
     int getMipLevelWidthInBytes( int mipLevel );
+
+    /// Get the size of a mip level in bytes
+    int getMipLevelSizeInBytes( int mipLevel );
+
+    /// Save as a tiled file which can be read from disk in a tile-wise fashion.
+    bool saveAsTiledFile( const char* fileName );
+
+    /// Returns the number of tiles that have been read.
+    unsigned long long getNumTilesRead() const override { return m_numTilesRead; }
+
+    /// Returns the number of bytes that have been read.
+    unsigned long long getNumBytesRead() const override { return m_numBytesRead; }
+
+    /// Returns the time in seconds spent reading image tiles.
+    double getTotalReadTime() const override { return m_totalReadTime; }
 
   private:
     std::mutex m_mutex;
@@ -144,10 +175,40 @@ class DDSImageReader : public ImageSourceBase
     int m_fileHeaderOffset;
     int m_blockSizeInBytes;
 
+    bool m_fileIsTiled;
     bool m_readBaseColor;
     float4 m_baseColor;
     imageSource::TextureInfo m_info;
     std::vector<std::vector<char>> m_mipCache;
+
+    DDSFileHeader m_ddsFileHeader{};
+    DDSHeaderExtension m_ddsHeaderExtension{};
+
+    // Stats
+    std::mutex         m_statsMutex;
+    unsigned long long m_numTilesRead  = 0;
+    unsigned long long m_numBytesRead  = 0;
+    double             m_totalReadTime = 0.0;
+
+    // Saving the file
+    int getMipTailStartLevel();
+    int getMipTailSize();
+
+    // Reading flat (non-tiled) files
+    bool readTileFlat( char* dest, unsigned int mipLevel, const Tile& tile );
+    bool readMipLevelFlat( char* dest, unsigned int mipLevel );
+    int getMipLevelOffsetInBytesFlat( int mipLevel );
+    int getMipLevelSizeInBytesFlat( int mipLevel );
+
+    // Reading tiled files
+    bool readTileTiled( char* dest, unsigned int mipLevel, const Tile& tile );
+    bool readMipLevelTiled( char* dest, unsigned int mipLevel );
+    bool readMipTailTiled( char* dest, unsigned int mipTailFirstLevel );
+    int getMipLevelOffsetInBytesTiled( int mipLevel );
+    int getMipLevelWidthInTiles( int mipLevel ) { return ( ( m_info.width >> mipLevel ) + getTileWidth() - 1 ) / getTileWidth(); }
+    int getMipLevelHeightInTiles( int mipLevel ) { return ( ( m_info.height >> mipLevel ) + getTileHeight() - 1 ) / getTileHeight(); }
+    int getMipLevelSizeInBytesTiled( int mipLevel );
+    int getTileOffsetInBytesTiled( int mipLevel, const Tile& tile );
 };
 
 }  // namespace imageSource
