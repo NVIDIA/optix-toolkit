@@ -473,6 +473,7 @@ void OTKApp::printDemandLoadingStats()
     std::cout << "Num textures:             " << stats[0].numTextures << "\n";
     std::cout << "Virtual texture Size:     " << stats[0].virtualTextureBytes / ( 1024.0 * 1024.0 ) << " MiB\n";
     std::cout << "Tiles read from disk:     " << stats[0].numTilesRead << "\n";
+    std::cout << "Texture read time:        " << stats[0].readTime * 1024 << " ms\n";
     
     std::cout << "Max device memory used:   ";
     for( OTKAppPerDeviceOptixState& state : m_perDeviceOptixStates )
