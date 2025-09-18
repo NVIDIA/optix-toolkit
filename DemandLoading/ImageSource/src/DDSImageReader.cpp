@@ -407,7 +407,7 @@ bool DDSImageReader::readMipLevelTiled( char* dest, unsigned int mipLevel )
             int standardTileWidth = getTileWidth();
             int tileWidth = std::min( (unsigned int)standardTileWidth, mipLevelWidth - standardTileWidth * tileX );
             int tileWidthInBytes = ( tileWidth / BC_BLOCK_WIDTH ) * m_blockSizeInBytes;
-            int standardTileWidthInBytes = ( standardTileWidth / BC_BLOCK_HEIGHT ) * m_blockSizeInBytes;
+            int standardTileWidthInBytes = ( standardTileWidth / BC_BLOCK_WIDTH ) * m_blockSizeInBytes;
             int mipLineWidthInBytes = ( mipLevelWidth / BC_BLOCK_WIDTH ) * m_blockSizeInBytes;
 
             // Copy each line from the tile buffer to the mip level buffer.
