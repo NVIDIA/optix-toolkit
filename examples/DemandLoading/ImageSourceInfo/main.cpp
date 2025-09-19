@@ -4,10 +4,12 @@
 
 // Utility to print information about an image source.
 
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 

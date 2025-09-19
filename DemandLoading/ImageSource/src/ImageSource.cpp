@@ -8,6 +8,9 @@
 
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/ImageSource/CheckerBoardImage.h>
+#include <OptiXToolkit/ImageSource/DeviceConstantImage.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>

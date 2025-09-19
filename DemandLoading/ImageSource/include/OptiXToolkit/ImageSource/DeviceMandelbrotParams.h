@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <vector_types.h>
+
 namespace imageSource {
 
 const int MAX_MANDELBROT_COLORS = 16;

@@ -48,7 +48,7 @@ target_sources(ImageSource
   include/OptiXToolkit/ImageSource/ImageSource.h
   include/OptiXToolkit/ImageSource/ImageSourceCache.h
   include/OptiXToolkit/ImageSource/MipMapImageSource.h
-  include/OptiXToolkit/ImageSources/MultiCheckerImage.h
+  include/OptiXToolkit/ImageSource/MultiCheckerImage.h
   include/OptiXToolkit/ImageSource/RateLimitedImageSource.h
   include/OptiXToolkit/ImageSource/TextureInfo.h
   include/OptiXToolkit/ImageSource/TiledImageSource.h

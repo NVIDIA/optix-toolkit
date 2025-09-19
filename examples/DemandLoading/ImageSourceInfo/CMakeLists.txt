@@ -5,5 +5,5 @@
 include(BuildConfig)
 
 add_executable(ImageSourceInfo main.cpp)
-target_link_libraries(ImageSourceInfo PUBLIC OptiXToolkit::ImageSource OptiXToolkit::ImageSources)
+target_link_libraries(ImageSourceInfo PUBLIC OptiXToolkit::ImageSource)
 set_property(TARGET ImageSourceInfo PROPERTY FOLDER Examples/DemandLoading)
