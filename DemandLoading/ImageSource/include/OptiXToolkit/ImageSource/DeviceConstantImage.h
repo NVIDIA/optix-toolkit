@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
@@ -7,26 +7,24 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
-#include <OptiXToolkit/ImageSources/DeviceMandelbrotParams.h>
+#include <OptiXToolkit/ImageSource/DeviceConstantImageParams.h>
 
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
 
-namespace imageSources {
+namespace imageSource {
 
-/// This image makes a basic mandelbrot set using a CUDA kernel on the GPU
-class DeviceMandelbrotImage : public imageSource::ImageSourceBase
+/// This image makes a solid color per mip level on the GPU
+class DeviceConstantImage : public imageSource::ImageSourceBase
 {
   public:
-    /// Create a mandelbrot image with the specified dimensions.
-    DeviceMandelbrotImage( unsigned int width, unsigned int height, double xmin, double ymin, double xmax, double ymax );
+    /// Create a test image with the specified dimensions.
+    DeviceConstantImage( unsigned int width, unsigned int height, const std::vector<float4>& mipColors );
 
     /// The destructor is virtual.
-    ~DeviceMandelbrotImage() override = default;
-
-    void setColors( const std::vector<float4>& colors, int maxIterations );
+    ~DeviceConstantImage( ) override = default;
 
     /// The open method initializes the given image info struct.
     void open( imageSource::TextureInfo* info ) override;
@@ -61,8 +59,8 @@ class DeviceMandelbrotImage : public imageSource::ImageSourceBase
     bool readBaseColor( float4& dest ) override;
 
   private:
-    imageSource::TextureInfo  m_info;
-    MandelbrotParams m_params;
+    imageSource::TextureInfo m_info;
+    std::vector<float4> m_mipColors;
 };
 
-}  // namespace imageSources
+}  // namespace imageSource

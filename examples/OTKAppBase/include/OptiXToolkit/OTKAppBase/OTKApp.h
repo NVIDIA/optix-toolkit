@@ -16,7 +16,7 @@
 #include <OptiXToolkit/DemandLoading/TextureDescriptor.h>
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 
 #include <OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h>
 #include <OptiXToolkit/OTKAppBase/OTKAppLaunchParams.h>

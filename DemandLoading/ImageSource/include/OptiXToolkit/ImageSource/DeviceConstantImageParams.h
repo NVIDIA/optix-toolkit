@@ -4,7 +4,7 @@
 
 #pragma once
 
-namespace imageSources {
+namespace imageSource {
 
 struct DeviceConstantImageParams
 {

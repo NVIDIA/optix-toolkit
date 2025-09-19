@@ -88,6 +88,19 @@ bool ImageSourceBase::readMipTail( char*        dest,
 std::shared_ptr<ImageSource> createImageSource( const std::string& filename, const std::string& directory )
 {
     // Special cases
+    if( filename == "mandelbrot" )
+    {
+        return std::make_shared<DeviceMandelbrotImage>( 8192, 8192, -2.0f, -2.0f, 2.0f, 2.0f );
+    }
+    if( filename == "constant" )
+    {
+        std::vector<float4> mipColors = { float4{1.0f, 1.0f, 1.0f, 0.0f} };
+        return std::make_shared<DeviceConstantImage>( 2048, 2048, mipColors );
+    }
+    if( filename == "multichecker" )
+    {
+        return std::make_shared<MultiCheckerImage<float4>>( 2048, 2048, 16, true );
+    }
     if( filename == "checkerboard" )
     {
         return std::make_shared<CheckerBoardImage>( 8192, 8192, /*squaresPerSide=*/16, /*useMipmaps=*/true );
@@ -111,11 +124,13 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
         return std::make_shared<CoreEXRReader>( path );
     }
 #endif
+
 #if OTK_USE_OIIO
     return std::make_shared<OIIOReader>( path );
-#else
-    throw std::runtime_error( "Image file not supported: " + filename );
 #endif
+
+    throw std::runtime_error( "Image file not supported: " + filename );
+    return nullptr;
 }
 
 }  // namespace imageSource

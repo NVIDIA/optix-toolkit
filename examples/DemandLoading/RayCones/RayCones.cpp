@@ -9,7 +9,7 @@
 #include <OptiXToolkit/OTKAppBase/OTKAppShapeMaker.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Error/optixErrorCheck.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
@@ -83,7 +83,7 @@ void RayConesApp::createTexture()
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 64, true ) );
+        imageSource.reset( new imageSource::MultiCheckerImage<uchar4>( 16384, 16384, 64, true ) );
     
     demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
 

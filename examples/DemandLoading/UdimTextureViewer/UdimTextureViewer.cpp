@@ -9,7 +9,7 @@
 #include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
-#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
 #include <OptiXToolkit/ImageSource/DDSImageReader.h>
 
 using namespace otkApp;
@@ -69,9 +69,9 @@ void UdimTextureApp::createTexture()
         if( m_textureName != "mandelbrot" && m_textureName != "checkerboard" )
             baseImageSource = imageSource::createImageSource( m_textureName, "" );
         if( !baseImageSource && m_textureName == "checkerboard" )
-            baseImageSource.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
+            baseImageSource.reset( new imageSource::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
         if( !baseImageSource )
-            baseImageSource.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0 ) );
+            baseImageSource.reset( new imageSource::DeviceMandelbrotImage( m_texWidth, m_texHeight, -2.0, -2.0, 2.0, 2.0 ) );
 
         demandLoading::TextureDescriptor texDesc = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
         if( m_useSRGB )
@@ -109,11 +109,11 @@ void UdimTextureApp::createTexture()
                 int maxAspect = 64;
                 int w         = std::max( 4 << u, ( 4 << v ) / maxAspect );
                 int h         = std::max( 4 << v, ( 4 << u ) / maxAspect );
-                subImage.reset( new imageSources::MultiCheckerImage<float4>( w, h, 4, true ) );
+                subImage.reset( new imageSource::MultiCheckerImage<float4>( w, h, 4, true ) );
             }
             if( !subImage && m_textureName == "checkerboard" )
             {
-                subImage.reset( new imageSources::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
+                subImage.reset( new imageSource::MultiCheckerImage<float4>( m_texWidth, m_texHeight, 32, true ) );
             }
             if( !subImage ) // many images of the same size
             {
@@ -121,7 +121,7 @@ void UdimTextureApp::createTexture()
                 double xmax = -2.0 + 4.0 * ( u + 1.0 ) / m_udim;
                 double ymin = -2.0 + 4.0 * v / m_vdim;
                 double ymax = -2.0 + 4.0 * ( v + 1.0 ) / m_vdim;
-                subImage.reset( new imageSources::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax ) );
+                subImage.reset( new imageSource::DeviceMandelbrotImage( m_texWidth, m_texHeight, xmin, ymin, xmax, ymax ) );
             }
             subImageSources.emplace_back( subImage );
 

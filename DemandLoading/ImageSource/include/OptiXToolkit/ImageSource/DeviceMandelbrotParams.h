@@ -4,7 +4,7 @@
 
 #pragma once
 
-namespace imageSources {
+namespace imageSource {
 
 const int MAX_MANDELBROT_COLORS = 16;
 
@@ -65,4 +65,4 @@ __host__ __device__ __forceinline__ float4 mandelbrotColor( double x, double y, 
                   ( c0.z * ( 1.0f - f ) + c1.z * f ), ( c0.w * ( 1.0f - f ) + c1.w * f )};
 }
 
-} // namespace imageSources
+} // namespace imageSource

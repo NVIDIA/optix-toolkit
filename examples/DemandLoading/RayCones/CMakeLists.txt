@@ -32,7 +32,6 @@ target_link_libraries( rayCones
   OptiXToolkit::DemandLoading
   OptiXToolkit::OTKAppBase
   OptiXToolkit::Gui
-  OptiXToolkit::ImageSources
   OptiXToolkit::Util
   )
 

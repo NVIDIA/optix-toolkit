@@ -12,6 +12,10 @@ endif()
 otk_add_library( ImageSource
   src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
+  src/DeviceConstantImage.cpp
+  src/DeviceConstantImageKernels.cu
+  src/DeviceMandelbrotImage.cpp
+  src/DeviceMandelbrotImageKernels.cu
   src/DDSImageReader.cpp
   src/ImageSource.cpp
   src/ImageSourceCache.cpp
@@ -36,10 +40,15 @@ target_sources(ImageSource
   include/OptiXToolkit/ImageSource/CascadeImage.h
   include/OptiXToolkit/ImageSource/CheckerBoardImage.h
   include/OptiXToolkit/ImageSource/DDSImageReader.h
+  include/OptiXToolkit/ImageSource/DeviceConstantImage.h
+  include/OptiXToolkit/ImageSource/DeviceConstantImageParams.h
+  include/OptiXToolkit/ImageSource/DeviceMandelbrotImage.h
+  include/OptiXToolkit/ImageSource/DeviceMandelbrotParams.h
   include/OptiXToolkit/ImageSource/ImageHelpers.h
   include/OptiXToolkit/ImageSource/ImageSource.h
   include/OptiXToolkit/ImageSource/ImageSourceCache.h
   include/OptiXToolkit/ImageSource/MipMapImageSource.h
+  include/OptiXToolkit/ImageSources/MultiCheckerImage.h
   include/OptiXToolkit/ImageSource/RateLimitedImageSource.h
   include/OptiXToolkit/ImageSource/TextureInfo.h
   include/OptiXToolkit/ImageSource/TiledImageSource.h

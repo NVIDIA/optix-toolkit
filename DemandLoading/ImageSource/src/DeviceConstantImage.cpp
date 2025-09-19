@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <OptiXToolkit/ImageSources/DeviceConstantImage.h>
+#include <OptiXToolkit/ImageSource/DeviceConstantImage.h>
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
-namespace imageSources {
+namespace imageSource {
 
 void launchReadConstantImage( const DeviceConstantImageParams& params, CUstream stream );
 
@@ -102,4 +102,4 @@ bool DeviceConstantImage::readBaseColor( float4& dest )
     return true;
 }
 
-}  // namespace imageSources
+}  // namespace imageSource

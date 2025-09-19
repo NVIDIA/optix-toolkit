@@ -4,9 +4,9 @@
 
 #include <cuda.h>
 
-#include <OptiXToolkit/ImageSources/DeviceMandelbrotParams.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotParams.h>
 
-namespace imageSources {
+namespace imageSource {
 
 extern "C" __global__ void deviceReadMandelbrotImage(const MandelbrotParams params)
 {
@@ -63,4 +63,4 @@ __host__ void launchReadMandelbrotImage( const MandelbrotParams& params, CUstrea
     deviceReadMandelbrotImage<<<grid, block, 0U, stream>>>( params );
 }
 
-} // namespace imageSources
+} // namespace imageSource

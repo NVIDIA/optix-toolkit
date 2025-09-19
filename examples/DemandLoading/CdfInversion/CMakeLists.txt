@@ -32,7 +32,6 @@ target_link_libraries( cdfInversion
   OptiXToolkit::DemandLoading
   OptiXToolkit::OTKAppBase
   OptiXToolkit::Gui
-  OptiXToolkit::ImageSources
   OptiXToolkit::Util
   )
 
