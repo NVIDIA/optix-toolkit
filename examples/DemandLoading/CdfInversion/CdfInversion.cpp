@@ -11,7 +11,7 @@
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/Gui.h>
 #include <OptiXToolkit/Gui/glfw3.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/AliasTable.h>
 #include <OptiXToolkit/ShaderUtil/CdfInversionTable.h>
 #include <OptiXToolkit/ShaderUtil/ISummedAreaTable.h>
@@ -125,7 +125,7 @@ void CdfInversionApp::createTexture()
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<half4>( 2048, 1024, 16, true, false ) );
+        imageSource.reset( new imageSource::MultiCheckerImage<half4>( 2048, 1024, 16, true, false ) );
     imageSource::TextureInfo texInfo;
     imageSource->open(&texInfo);
 

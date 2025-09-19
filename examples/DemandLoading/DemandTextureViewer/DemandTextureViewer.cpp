@@ -11,7 +11,6 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/MipMapImageSource.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
-#include <OptiXToolkit/ImageSources/ImageSources.h>
 
 using namespace otkApp;
 
@@ -43,7 +42,7 @@ inline bool endsWith( const std::string& text, const std::string& suffix )
 
 ImageSourcePtr DemandTextureViewer::createImageSource( const std::string& textureName, bool tile, bool mipmap )
 {
-    ImageSourcePtr img = imageSources::createImageSource( textureName );
+    ImageSourcePtr img = imageSource::createImageSource( textureName );
     if( !img )
     {
         throw std::runtime_error( "Could not create requested texture " +

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include <OptiXToolkit/ImageSources/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
-namespace imageSources {
+namespace imageSource {
 
 void launchReadMandelbrotImage( const MandelbrotParams& params, CUstream stream );
 
@@ -143,4 +143,4 @@ bool DeviceMandelbrotImage::readBaseColor( float4& dest )
     return true;
 }
 
-}  // namespace imageSources
+}  // namespace imageSource

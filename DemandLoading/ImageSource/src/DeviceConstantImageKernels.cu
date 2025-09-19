@@ -4,9 +4,9 @@
 
 #include <cuda.h>
 
-#include <OptiXToolkit/ImageSources/DeviceConstantImageParams.h>
+#include <OptiXToolkit/ImageSource/DeviceConstantImageParams.h>
 
-namespace imageSources {
+namespace imageSource {
 
 extern "C" __global__ void deviceReadConstantImage(const DeviceConstantImageParams params)
 {
@@ -32,4 +32,4 @@ __host__ void launchReadConstantImage( const DeviceConstantImageParams& params, 
     deviceReadConstantImage<<<grid, block, 0U, stream>>>( params );
 }
 
-} // namespace imageSources
+} // namespace imageSource

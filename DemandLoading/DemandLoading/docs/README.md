@@ -280,7 +280,7 @@ The OptiX Demand Loading Library reverts to dense textures regardless of size on
 
 ## Host and device filled textures
 
-Depending on the ImageSource, texture requests can be filled on the host and then transferred to the device, or filled directly on the device by a CUDA kernel. The file [DeviceMandelbrotImage.h](/examples/DemandLoading/ImageSources/include/OptiXToolkit/ImageSources/DeviceMandelbrotImage.h) gives an example of device-side fulfillment.
+Depending on the ImageSource, texture requests can be filled on the host and then transferred to the device, or filled directly on the device by a CUDA kernel. The file [DeviceMandelbrotImage.h](/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/DeviceMandelbrotImage.h) gives an example of device-side fulfillment.
 
 ## Preloading, unloading, and replacing textures
 

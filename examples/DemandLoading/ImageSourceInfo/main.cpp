@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+// Utility to print information about an image source.
+
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
-#include <OptiXToolkit/ImageSources/ImageSources.h>
 
 #include <iomanip>
 #include <iostream>
@@ -75,7 +76,7 @@ class ImageSourceInfo
 
 void ImageSourceInfo::printInfo()
 {
-    std::shared_ptr<imageSource::ImageSource> image{ imageSources::createImageSource( m_texture ) };
+    std::shared_ptr<imageSource::ImageSource> image{ imageSource::createImageSource( m_texture ) };
     imageSource::TextureInfo                  info{};
     image->open( &info );
 

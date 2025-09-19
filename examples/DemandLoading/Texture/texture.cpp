@@ -15,7 +15,6 @@
 #include <OptiXToolkit/Gui/CUDAOutputBuffer.h>
 #include <OptiXToolkit/Gui/Camera.h>
 #include <OptiXToolkit/Gui/Window.h>
-#include <OptiXToolkit/ImageSources/ImageSources.h>
 #include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/Util/Logger.h>
@@ -557,7 +556,7 @@ int main( int argc, char* argv[] )
         createContexts( states );
 
         std::string                  directory( getSourceDir() + "/Textures/" );
-        std::shared_ptr<ImageSource> imageSource = imageSources::createImageSource( textureFile, directory );
+        std::shared_ptr<ImageSource> imageSource = imageSource::createImageSource( textureFile, directory );
 
         // Set up OptiX per-device states and demand loaders
         // The texture id is passed to the closest hit shader via a hit group record in the SBT.

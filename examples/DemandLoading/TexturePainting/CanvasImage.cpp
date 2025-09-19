@@ -8,7 +8,7 @@
 #include <cstring>
 
 #include "CanvasImage.h"
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 
 namespace imageSource {
 

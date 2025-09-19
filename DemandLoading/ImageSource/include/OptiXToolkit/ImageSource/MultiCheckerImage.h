@@ -15,7 +15,7 @@
 
 using namespace imageSource;
 
-namespace imageSources {
+namespace imageSource {
 
 /// This image generates a procedural pattern in many different formats.
 template <class TYPE>
@@ -193,4 +193,4 @@ bool MultiCheckerImage<TYPE>::readBaseColor( float4& dest )
     return ( m_info.numMipLevels > 1 ) || ( m_info.width == 1 && m_info.height == 1 );
 }
 
-}  // namespace imageSources
+}  // namespace imageSource

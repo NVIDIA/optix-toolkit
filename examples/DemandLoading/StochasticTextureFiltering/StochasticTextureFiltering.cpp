@@ -11,7 +11,7 @@
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/Gui/Gui.h>
 #include <OptiXToolkit/Gui/glfw3.h>
-#include <OptiXToolkit/ImageSources/MultiCheckerImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
 #include <OptiXToolkit/ShaderUtil/ray_cone.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
@@ -116,7 +116,7 @@ void StochasticTextureFilteringApp::createTexture()
     if( !imageSource && !m_textureName.empty() )
         std::cout << "ERROR: Could not find image " << m_textureName << ". Substituting procedural image.\n";
     if( !imageSource )
-        imageSource.reset( new imageSources::MultiCheckerImage<uchar4>( 16384, 16384, 256, true, false ) );
+        imageSource.reset( new imageSource::MultiCheckerImage<uchar4>( 16384, 16384, 256, true, false ) );
     
     demandLoading::TextureDescriptor texDesc0 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_POINT );
     demandLoading::TextureDescriptor texDesc1 = makeTextureDescriptor( CU_TR_ADDRESS_MODE_CLAMP, FILTER_BILINEAR );
