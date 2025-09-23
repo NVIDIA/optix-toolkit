@@ -50,6 +50,7 @@ gtest_discover_tests(testError PROPERTIES LABELS Memory)
 otk_add_executable(testOptiXMemory
   TestBuilders.cpp
   TestSyncRecordHeader.cpp
+  OptiXFunctionTable.cpp
 )
 target_link_libraries(testOptiXMemory
   OptiXMemory

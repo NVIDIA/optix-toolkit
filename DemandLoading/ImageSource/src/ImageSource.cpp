@@ -130,10 +130,9 @@ std::shared_ptr<ImageSource> createImageSource( const std::string& filename, con
 
 #if OTK_USE_OIIO
     return std::make_shared<OIIOReader>( path );
-#endif
-
+#else
     throw std::runtime_error( "Image file not supported: " + filename );
-    return nullptr;
+#endif
 }
 
 }  // namespace imageSource

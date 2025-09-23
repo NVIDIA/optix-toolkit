@@ -8,7 +8,10 @@
 
 using namespace imageSource;
 
-void launchReadConstantImage( const DeviceConstantImageParams& params, CUstream stream );
+// Forward declaration for internal function from ImageSource library
+namespace imageSource {
+    void launchReadConstantImage( const DeviceConstantImageParams& params, CUstream stream );
+}
 
 DeviceConstantImage::DeviceConstantImage( unsigned int width, unsigned int height, const std::vector<float4>& colors )
 {

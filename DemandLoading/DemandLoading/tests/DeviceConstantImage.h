@@ -7,7 +7,7 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
-#include "DeviceConstantImageParams.h"
+#include <OptiXToolkit/ImageSource/DeviceConstantImageParams.h>
 
 #include <algorithm>
 #include <sstream>

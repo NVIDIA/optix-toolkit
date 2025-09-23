@@ -299,7 +299,7 @@ bool DDSImageReader::readTileFlat( char* dest, unsigned int mipLevel, const Tile
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_statsMutex );
+        std::unique_lock<std::mutex> statsLock( m_statsMutex );
         m_numTilesRead += 1;
     }
     
@@ -317,7 +317,7 @@ bool DDSImageReader::readMipLevelFlat( char* dest, unsigned int mipLevel )
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_statsMutex );
+        std::unique_lock<std::mutex> statsLock( m_statsMutex );
         m_numBytesRead += getMipLevelSizeInBytesFlat( mipLevel );
         m_totalReadTime += stopwatch.elapsed();
     }
@@ -351,7 +351,7 @@ bool DDSImageReader::readTileTiled( char* dest, unsigned int mipLevel, const Til
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_statsMutex );
+        std::unique_lock<std::mutex> statsLock( m_statsMutex );
         m_numTilesRead++;
         m_numBytesRead += TILE_SIZE_IN_BYTES;
         m_totalReadTime += stopwatch.elapsed();
@@ -437,7 +437,7 @@ bool DDSImageReader::readMipTailTiled( char* dest, unsigned int mipTailFirstLeve
 
     // Stats tracking
     {
-        std::unique_lock<std::mutex> lock( m_statsMutex );
+        std::unique_lock<std::mutex> statsLock( m_statsMutex );
 //        m_numTilesRead++;
         m_numBytesRead += getMipTailSize();
         m_totalReadTime += stopwatch.elapsed();
