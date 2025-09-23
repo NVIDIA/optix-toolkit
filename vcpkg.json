@@ -29,7 +29,10 @@
     "otk-openimageio": {
       "description": "OpenImageIO support for JPG and PNG files",
       "dependencies": [
-        "openimageio"
+        "openimageio",
+        "boost-system",
+        "boost-filesystem",
+        "boost-thread"
       ]
     },
     "otk-tests": {
