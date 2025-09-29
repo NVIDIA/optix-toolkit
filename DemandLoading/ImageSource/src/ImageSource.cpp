@@ -17,6 +17,10 @@
 #endif
 #include <OptiXToolkit/ImageSource/DDSImageReader.h>
 
+#include <OptiXToolkit/ImageSource/DeviceConstantImage.h>
+#include <OptiXToolkit/ImageSource/DeviceMandelbrotImage.h>
+#include <OptiXToolkit/ImageSource/MultiCheckerImage.h>
+
 #include <cstddef>  // for size_t
 #include <fstream>
 #include <memory>

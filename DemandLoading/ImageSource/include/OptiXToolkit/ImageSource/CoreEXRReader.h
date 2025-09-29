@@ -72,6 +72,8 @@ class CoreEXRReader : public ImageSourceBase
     /// Returns the time in seconds spent reading image tiles.
     double getTotalReadTime() const override { return m_totalReadTime; }
 
+    int getNumExrChannels() { return m_numExrChannels; }
+
   private:
     std::string        m_filename;
     exr_context_t      m_exrCtx = nullptr;
@@ -79,6 +81,7 @@ class CoreEXRReader : public ImageSourceBase
     TextureInfo        m_info{};
     unsigned int       m_tileWidth{};
     unsigned int       m_tileHeight{};
+    unsigned int       m_numExrChannels{};
     float4             m_baseColor{};
     bool               m_readBaseColor    = false;
     bool               m_baseColorWasRead = false;
