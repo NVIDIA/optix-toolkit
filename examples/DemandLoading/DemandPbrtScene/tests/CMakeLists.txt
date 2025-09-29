@@ -43,7 +43,6 @@ endif()
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
     OptiXToolkit::DemandGeometry::Mocks
-    OptiXToolkit::ImageSource
     OptiXToolkit::Memory
     OptiXToolkit::ShaderUtil
     GTest::gmock_main)

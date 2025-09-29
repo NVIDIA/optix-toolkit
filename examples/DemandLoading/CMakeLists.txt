@@ -3,6 +3,7 @@
 #
 
 add_subdirectory(CdfInversion)
+add_subdirectory(CompressedTextureCache)
 add_subdirectory(DemandGeometryViewer)
 add_subdirectory(DemandPbrtScene)
 add_subdirectory(DemandTextureViewer)

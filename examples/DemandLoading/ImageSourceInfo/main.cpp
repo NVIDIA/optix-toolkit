@@ -6,6 +6,7 @@
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
+#include <OptiXToolkit/ImageSource/ImageSource.h>
 
 #include <iomanip>
 #include <iostream>

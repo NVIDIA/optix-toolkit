@@ -104,6 +104,7 @@ void CoreEXRReader::open( TextureInfo* info )
         OTK_ERROR_CHECK( exr_get_channels( m_exrCtx, m_partIndex, &chlist ) );
         OTK_ASSERT_MSG( chlist->num_channels > 0, "No channels found in EXR file" );
         OTK_ASSERT_MSG( chlist->num_channels <= 4, "More than four channels found in EXR file" );
+        m_numExrChannels = chlist->num_channels;
 
         // CUDA textures don't support float3, so we round up to four channels.
         m_info.numChannels = ( chlist->num_channels == 3 ) ? 4 : chlist->num_channels;

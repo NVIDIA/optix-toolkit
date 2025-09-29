@@ -24,7 +24,6 @@ embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
         OptiXToolkit::DemandGeometry
         OptiXToolkit::DemandLoading
         OptiXToolkit::DemandMaterial
-        OptiXToolkit::ImageSource
         OptiXToolkit::ShaderUtil
     SOURCES
         DemandPbrtScene.cu
