@@ -12,10 +12,20 @@
 
 namespace imageSource {
 
+#ifdef _WIN32
+const char* DELETE_COMMAND = "del";
+const char* FILE_SEPARATOR = "\\";
+const char* MOVE_COMMAND = "ren";
+#else
+const char* DELETE_COMMAND = "rm";
+const char* FILE_SEPARATOR = "/";
+const char* MOVE_COMMAND = "mv";
+#endif
+
 // How to convert EXR images to DDS depending on hdr statas and num components
-//                                   default, r,   rg,    rgb,   rgba,  hdr
-#define EXR_TO_DDS_FORMATS_STANDARD {"bc7", "bc4", "bc5", "bc7", "bc7", "bc6"}
-#define EXR_TO_DDS_FORMATS_SMALL    {"bc1", "bc4", "bc1", "bc1", "bc7", "bc6"}
+//                                            non-exr, r,   rg,    rgb,   rgba,  hdr
+const char* EXR_TO_DDS_FORMATS_STANDARD[6] = {"bc7", "bc4", "bc5", "bc7", "bc7", "bc6"};
+const char* EXR_TO_DDS_FORMATS_SMALL[6] =    {"bc1", "bc4", "bc1", "bc1", "bc7", "bc1"};
 
 const int DDS_DEFAULT_INDEX = 0;
 const int DDS_HDR_INDEX = 5;
@@ -25,15 +35,15 @@ const char* SUPPORTED_FILE_TYPES[NUM_SUPPORTED_FILE_TYPES] = {".exr", ".png", ".
 
 struct CompressedTextureCacheOptions
 {
-    std::string imageMagick = "magick";               // imageMagick executable
-    std::string nvcompress  = "nvcompress";           // nvCompress executable
+    std::string nvcompress  = "nvcompress";      // nvcompress executable
     std::string cacheFolder = "compressedCache"; // Where to store the compressed cache
 
     unsigned int droppedMipLevels = 1;    // How many mip levels to drop when images are put in the cache
     unsigned int minImageSize     = 512;  // Don't drop mip levels of cached images to below this size
     unsigned int hdrCheckSize     = 256;  // Size of image to read to see if an exr is an hdr image
+    bool saveTiled                = true; // Save images as tiled or regular dds images
 
-    std::string exrToDdsFormats[6] = EXR_TO_DDS_FORMATS_STANDARD;
+    const char** exrToDdsFormats = EXR_TO_DDS_FORMATS_STANDARD;
 };
 
 class CompressedTextureCacheManager
@@ -60,7 +70,8 @@ class CompressedTextureCacheManager
 
     void printCommand( const std::string& command );
     bool isHighDynamicRange( CoreEXRReader& exrReader, TextureInfo& texInfo );
-    bool convertImageToIntermediateFormat( const std::string& inFile, const std::string& outFile, unsigned int width, unsigned int height );
+    bool convertEXRtoHDR( CoreEXRReader& exrReader, TextureInfo& texInfo, const std::string& outFile );
+    bool convertEXRtoTGA4( CoreEXRReader& exrReader, TextureInfo& texInfo, float exposure, float gamma, std::string& outFileName );
     bool convertImageToDDS( const std::string& inFile, const std::string& outFile, const std::string& ddsFormat );
     bool convertDDSToTiledDDS( const std::string& inFile, const std::string& outFile );
     bool deleteFile( const std::string &fileName );
