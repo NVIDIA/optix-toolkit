@@ -3,11 +3,14 @@
 //
 
 #include <algorithm>
+#include <filesystem>
 
 #include <OptiXToolkit/ImageSource/CompressedTextureCacheManager.h>
 
 #include <half.h>
 #include <openexr.h>
+
+namespace fs = std::filesystem;
 
 namespace imageSource {
 
@@ -39,15 +42,16 @@ bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath 
 
     // Return if the cache file already exists, or the input file does not exist.
     {
-        std::ifstream cacheFile( cacheFilePath );
-        if( cacheFile.good() )
+        if( fs::exists( cacheFilePath ) )
         {
             printCommand( "\"" + cacheFilePath + "\" exists, not converting." );
             return true;
         }
-        std::ifstream inputFile( inputFilePath );
-        if( !inputFile.good() )
+        if( !fs::exists( inputFilePath ) )
+        {
+            printCommand( "Could not find input file \"" + inputFilePath + "\"." );
             return false;
+        }
     }
 
     // If already a DDS image, copy or convert directly to tiled.
@@ -103,8 +107,11 @@ bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath 
             std::string command = "Converting EXR file \"" + inputFilePath + "\" to HDR file \"" 
                 + intermediateFilePath + "\"";
             printCommand( command );
-            if( !convertEXRtoHDR( exrReader, texInfo, intermediateFilePath ) )
-                return false;
+            if( !fs::exists( intermediateFilePath ) )
+            {
+                if( !convertEXRtoHDR( exrReader, texInfo, intermediateFilePath ) )
+                    return false;
+            }
         }
         else // Use TGA for images with alpha
         {
@@ -112,8 +119,11 @@ bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath 
             std::string command = "Converting EXR file \"" + inputFilePath + "\" to TGA file \"" 
                 + intermediateFilePath + "\"";
             printCommand( command );
-            if( !convertEXRtoTGA4( exrReader, texInfo, 1.0f, 1.0f, intermediateFilePath ) )
-                return false;
+            if( !fs::exists( intermediateFilePath ) )
+            {
+                if( !convertEXRtoTGA4( exrReader, texInfo, 1.0f, 1.0f, intermediateFilePath ) )
+                    return false;
+            }
         }
 
         // Convert the intermediate file to dds, and tile it if needed
@@ -364,7 +374,16 @@ bool CompressedTextureCacheManager::convertImageToDDS( const std::string& inFile
     std::string command = m_options.nvcompress + " -" + ddsFormat + " -silent "
         + " \"" + inFile + "\"" + " \"" + outFile + "\"";
     printCommand( command );
-    return ( std::system( command.c_str() ) == 0 );
+    if( std::system( command.c_str() ) != 0 )
+        return false;
+
+    // Check to to see if nvcompress failed. This can happen when cudaMalloc fails because
+    // multiple instances of nvcompress are running at the same time.
+    const unsigned int failSize = 148;
+    std::uintmax_t fileSize = fs::file_size( fs::path( outFile ) );
+    if( fileSize <= failSize )
+        deleteFile( outFile );
+    return ( fileSize > failSize );
 }
 
 bool CompressedTextureCacheManager::convertDDSToTiledDDS( const std::string& inFile, const std::string& outFile )
