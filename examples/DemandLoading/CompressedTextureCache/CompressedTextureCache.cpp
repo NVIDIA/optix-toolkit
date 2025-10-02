@@ -44,7 +44,7 @@ int main( int argc, char* argv[] )
 {
     CompressedTextureCacheOptions options{};
     bool verbose = false;
-    int numThreads = 3;
+    int numThreads = 5;
 
     //
     // Process command line options
@@ -161,16 +161,36 @@ int main( int argc, char* argv[] )
     if( numThreads > 1 )
         cacheManager.setVerbose( false );
 
-    omp_set_num_threads( numThreads );
-    #pragma omp parallel for schedule(dynamic)
-    for( unsigned int i = 0; i < sourceImages.size(); ++i )
+    // Sometimes nvcompress can fail due to insufficient device
+    // memory if too many threads are in flight. Try each conversion
+    // up to 3 times, reducing the number of threads on each pass.
+
+    const int numPasses = 3;
+    int passThreads[numPasses] = {numThreads, 3, 1};
+    unsigned int conversionCount = 0;
+
+    for( int pass = 0; pass < numPasses; ++pass )
     {
-        if( verbose )
+        omp_set_num_threads( passThreads[pass] );
+        #pragma omp parallel for schedule(dynamic)
+        for( unsigned int i = 0; i < sourceImages.size(); ++i )
         {
             std::string outputImage = cacheManager.getCacheFilePath( sourceImages[i] );
-            printf( "Converting: \"%s\" ==> \"%s\"\n", sourceImages[i].c_str(), outputImage.c_str() );
+            if( verbose )
+                printf( "Converting: \"%s\" ==> \"%s\"\n", sourceImages[i].c_str(), outputImage.c_str() );
+
+            if( cacheManager.cacheFile( sourceImages[i] ) )
+                conversionCount++;
+            else if( verbose )
+                printf( "Failed to convert %s. Will retry.\n", outputImage.c_str() );
         }
-        cacheManager.cacheFile( sourceImages[i] );
+
+        // Turn off verbose printing after first pass.
+        verbose = false;
+
+        // Check if all the conversions are done.
+        if( conversionCount >= sourceImages.size() )
+            break;
     }
 
     return 0;
