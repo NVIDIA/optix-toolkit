@@ -44,7 +44,7 @@ int main( int argc, char* argv[] )
 {
     CompressedTextureCacheOptions options{};
     bool verbose = false;
-    int numThreads = 5;
+    int numThreads = 8;
 
     //
     // Process command line options
@@ -163,10 +163,10 @@ int main( int argc, char* argv[] )
 
     // Sometimes nvcompress can fail due to insufficient device
     // memory if too many threads are in flight. Try each conversion
-    // up to 3 times, reducing the number of threads on each pass.
+    // several times, reducing the number of threads on each pass.
 
-    const int numPasses = 3;
-    int passThreads[numPasses] = {numThreads, 3, 1};
+    const int numPasses = 4;
+    int passThreads[numPasses] = {numThreads, 3, 1, 1};
     unsigned int conversionCount = 0;
 
     for( int pass = 0; pass < numPasses; ++pass )
@@ -176,13 +176,13 @@ int main( int argc, char* argv[] )
         for( unsigned int i = 0; i < sourceImages.size(); ++i )
         {
             std::string outputImage = cacheManager.getCacheFilePath( sourceImages[i] );
-            if( verbose )
+            if( verbose && ( pass == 0 || !fs::exists( outputImage )  ) )
                 printf( "Converting: \"%s\" ==> \"%s\"\n", sourceImages[i].c_str(), outputImage.c_str() );
 
             if( cacheManager.cacheFile( sourceImages[i] ) )
                 conversionCount++;
             else if( verbose )
-                printf( "Failed to convert %s. Will retry.\n", outputImage.c_str() );
+                printf( "GPU busy converting %s. Will retry.\n", outputImage.c_str() );
         }
 
         // Turn off verbose printing after first pass.
