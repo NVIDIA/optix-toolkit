@@ -374,6 +374,9 @@ bool CompressedTextureCacheManager::convertImageToDDS( const std::string& inFile
     std::string command = m_options.nvcompress + " -" + ddsFormat + " -silent "
         + " \"" + inFile + "\"" + " \"" + outFile + "\"";
     printCommand( command );
+    if( !m_options.showErrors )
+        command = command + " " + TO_DEV_NULL;
+
     if( std::system( command.c_str() ) != 0 )
         return false;
 
