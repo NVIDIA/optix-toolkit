@@ -16,10 +16,12 @@ namespace imageSource {
 const char* DELETE_COMMAND = "del";
 const char* FILE_SEPARATOR = "\\";
 const char* MOVE_COMMAND = "ren";
+const char* TO_DEV_NULL = "> NUL";
 #else
 const char* DELETE_COMMAND = "rm";
 const char* FILE_SEPARATOR = "/";
 const char* MOVE_COMMAND = "mv";
+const char* TO_DEV_NULL = "1>/dev/null 2>/dev/null";
 #endif
 
 // How to convert EXR images to DDS depending on hdr statas and num components
@@ -38,10 +40,11 @@ struct CompressedTextureCacheOptions
     std::string nvcompress  = "nvcompress";      // nvcompress executable
     std::string cacheFolder = "compressedCache"; // Where to store the compressed cache
 
-    unsigned int droppedMipLevels = 1;    // How many mip levels to drop when images are put in the cache
-    unsigned int minImageSize     = 512;  // Don't drop mip levels of cached images to below this size
-    unsigned int hdrCheckSize     = 256;  // Size of image to read to see if an exr is an hdr image
-    bool saveTiled                = true; // Save images as tiled or regular dds images
+    unsigned int droppedMipLevels = 0;     // How many mip levels to drop when images are put in the cache
+    unsigned int minImageSize     = 512;   // Don't drop mip levels of cached images to below this size
+    unsigned int hdrCheckSize     = 256;   // Size of image to read to see if an exr is an hdr image
+    bool saveTiled                = true;  // Save images as tiled or regular dds images
+    bool showErrors               = false; // Show errors from external programs
 
     const char** exrToDdsFormats = EXR_TO_DDS_FORMATS_STANDARD;
 };

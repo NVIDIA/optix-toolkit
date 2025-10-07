@@ -34,7 +34,8 @@ void printUsage( char* program )
         "   --verbose | -v                                turn on verbose output.\n"
         "   --threads | -t <numThreads>                   number of threads to use. (default 3 to avoid running out of GPU memory.)\n"
         "   --small | -s                                  use lower quality, higher compression formats. (default off)\n"
-        "   --noTile | -nt                                don't tile the dds outputs.\n";
+        "   --noTile | -nt                                don't tile the dds outputs.\n"
+        "   --showErrors | -e                             show errors from external programs.\n";
     // clang-format on
 
     exit(0);
@@ -61,7 +62,7 @@ int main( int argc, char* argv[] )
             printUsage( argv[0] );
         else if( ( arg == "--nvcompress" || arg == "-nc" ) && !lastArg )
             options.nvcompress = argv[++idx];
-        else if( ( arg == "--cachefolder " || arg == "-cf" ) && !lastArg )
+        else if( ( arg == "--cachefolder" || arg == "-cf" ) && !lastArg )
             options.cacheFolder = argv[++idx];
         else if( ( arg == "--dropmiplevels" || arg == "-dl" ) && !lastArg )
             options.droppedMipLevels = atoi( argv[++idx] );
@@ -77,27 +78,31 @@ int main( int argc, char* argv[] )
             options.saveTiled = false;
         else if( arg == "--small" || arg == "-s" )
             options.exrToDdsFormats = EXR_TO_DDS_FORMATS_SMALL;
+        else if( arg == "--showerrors" || arg == "-e" )
+            options.showErrors = true;
         else 
             break;
     }
-
 
     //
     // Check for nvcompress executable
     //
 
 #ifdef _WIN32
-    std::filesystem::path nvcompress( options.nvcompress );
-    std::string extension = nvcompress.extension().string();
-    bool nvcompressFound = ( extension == ".exr" );
+    std::string nvc = options.nvcompress;
+    nvc = ( nvc.find( ".exe" ) != std::string::npos ) ? nvc.substr( 0, nvc.find( ".exe" ) + 4 ) : nvc;
+    std::filesystem::path nvcompress = fs::absolute( nvc );
+    bool nvcompressFound = fs::exists( nvcompress );
 #else // linux
-    std::filesystem::path nvcompress( options.nvcompress );
+    std::string nvc = options.nvcompress;
+    nvc = ( nvc.find( "nvcompress" ) != std::string::npos ) ? nvc.substr( 0, nvc.find( "nvcompress" ) + 10 ) : nvc;
+    std::filesystem::path nvcompress = fs::absolute( nvc );
     bool nvcompressFound = ( access( nvcompress.c_str(), X_OK ) == 0 );
 #endif
 
     if( !nvcompressFound )
     {
-        std::cerr << "Error: Unable to find nvcompress executable \"" << options.nvcompress << "\".\n";
+        std::cerr << "Error: Unable to find nvcompress executable \"" << nvcompress.c_str() << "\".\n";
         std::cerr << "  nvcompress is part of the nvidia texture tools suite. It can be downloaded from\n";
         std::cerr << "  https://developer.nvidia.com/gpu-accelerated-texture-compression\n\n";
         printUsage( argv[0] );
@@ -152,6 +157,10 @@ int main( int argc, char* argv[] )
         std::cerr << "No input files given.\n\n";
         printUsage( argv[0] );
     }
+    if ( verbose )
+    {
+        printf( "Found %d image files. Processing...\n", static_cast<int>( sourceImages.size() ) );
+    }
 
 
     //
@@ -176,13 +185,24 @@ int main( int argc, char* argv[] )
         for( unsigned int i = 0; i < sourceImages.size(); ++i )
         {
             std::string outputImage = cacheManager.getCacheFilePath( sourceImages[i] );
-            if( verbose && ( pass == 0 || !fs::exists( outputImage )  ) )
+            bool outFileExists = fs::exists( outputImage );
+            bool doPrint = verbose && ( !outFileExists || ( pass == 0 ) );
+
+            if( doPrint )
                 printf( "Converting: \"%s\" ==> \"%s\"\n", sourceImages[i].c_str(), outputImage.c_str() );
 
-            if( cacheManager.cacheFile( sourceImages[i] ) )
-                conversionCount++;
-            else if( verbose )
-                printf( "GPU busy converting %s. Will retry.\n", outputImage.c_str() );
+            if( outFileExists )
+            {
+                if( pass == 0 )
+                   conversionCount++;
+            }
+            else
+            {
+                if( cacheManager.cacheFile( sourceImages[i] ) )
+                    conversionCount++;
+                else if( verbose )
+                    printf( "GPU busy converting %s. Will retry.\n", outputImage.c_str() );
+            }
         }
 
         // Turn off verbose printing after first pass.
@@ -191,6 +211,12 @@ int main( int argc, char* argv[] )
         // Check if all the conversions are done.
         if( conversionCount >= sourceImages.size() )
             break;
+    }
+
+    if( conversionCount != sourceImages.size() )
+    {
+        std::cerr << "Error: Failed to convert all source images.\n";
+        printUsage( argv[0] );
     }
 
     return 0;
