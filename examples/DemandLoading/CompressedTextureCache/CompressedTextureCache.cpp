@@ -12,6 +12,7 @@
 #include <unistd.h>
 #endif
 
+#include <cuda_runtime.h>
 #include <omp.h>
 
 #include <OptiXToolkit/ImageSource/CompressedTextureCacheManager.h>
@@ -33,6 +34,7 @@ void printUsage( char* program )
         "   --hdrCheckSize | -cs <checkSize>              size of mip level to check to see if a file is hdr. (default 256)\n"
         "   --verbose | -v                                turn on verbose output.\n"
         "   --threads | -t <numThreads>                   number of threads to use. (default 3 to avoid running out of GPU memory.)\n"
+        "   --multiGPU | -mg                              use multiple GPUs if available.\n"
         "   --small | -s                                  use lower quality, higher compression formats. (default off)\n"
         "   --noTile | -nt                                don't tile the dds outputs.\n"
         "   --showErrors | -e                             show errors from external programs.\n";
@@ -46,6 +48,7 @@ int main( int argc, char* argv[] )
     CompressedTextureCacheOptions options{};
     bool verbose = false;
     int numThreads = 8;
+    int numCudaDevices = 1;
 
     //
     // Process command line options
@@ -74,6 +77,8 @@ int main( int argc, char* argv[] )
             verbose = true;
         else if( ( arg == "--threads" || arg == "-t" ) && !lastArg )
             numThreads = atoi( argv[++idx] );
+        else if( arg == "--multigpu" || arg == "-mg" )
+            cudaGetDeviceCount( &numCudaDevices );
         else if( arg == "--notile" || arg == "-nt" )
             options.saveTiled = false;
         else if( arg == "--small" || arg == "-s" )
@@ -198,7 +203,7 @@ int main( int argc, char* argv[] )
             }
             else
             {
-                if( cacheManager.cacheFile( sourceImages[i] ) )
+                if( cacheManager.cacheFile( sourceImages[i], idx % numCudaDevices ) )
                     conversionCount++;
                 else if( verbose )
                     printf( "GPU busy converting %s. Will retry.\n", outputImage.c_str() );

@@ -32,7 +32,7 @@ bool CompressedTextureCacheManager::isSupportedFileType( const std::string& exte
     return false;
 }
 
-bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath )
+bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath, int deviceId )
 {
     if( inputFilePath.length() == 0 )
         return false;
@@ -74,11 +74,11 @@ bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath 
 
         if( !m_options.saveTiled )
         {
-            return convertImageToDDS( inputFilePath, cacheFilePath, ddsFormat );
+            return convertImageToDDS( inputFilePath, cacheFilePath, ddsFormat, deviceId );
         }
         else
         {
-            if( !convertImageToDDS( inputFilePath, tempDdsFilePath, ddsFormat ) )
+            if( !convertImageToDDS( inputFilePath, tempDdsFilePath, ddsFormat, deviceId ) )
                 return false;
             if( !convertDDSToTiledDDS( tempDdsFilePath, cacheFilePath ) )
                 return false;
@@ -129,14 +129,14 @@ bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath 
         // Convert the intermediate file to dds, and tile it if needed
         if( !m_options.saveTiled )
         {
-            if( !convertImageToDDS( intermediateFilePath, cacheFilePath, ddsFormat ) )
+            if( !convertImageToDDS( intermediateFilePath, cacheFilePath, ddsFormat, deviceId ) )
                 return false;
             return deleteFile( intermediateFilePath );
         }
         else
         {
             std::string tempDdsFilePath = cacheFilePath + ".tmp.dds";
-            if( !convertImageToDDS( intermediateFilePath, tempDdsFilePath, ddsFormat ) )
+            if( !convertImageToDDS( intermediateFilePath, tempDdsFilePath, ddsFormat, deviceId ) )
                 return false;
             if( !convertDDSToTiledDDS( tempDdsFilePath, cacheFilePath ) )
                 return false;
@@ -369,10 +369,12 @@ bool CompressedTextureCacheManager::convertEXRtoTGA4( CoreEXRReader& exrReader, 
     }
 }
 
-bool CompressedTextureCacheManager::convertImageToDDS( const std::string& inFile, const std::string& outFile, const std::string& ddsFormat )
+bool CompressedTextureCacheManager::convertImageToDDS( const std::string& inFile, const std::string& outFile, const std::string& ddsFormat, int deviceId )
 {
     std::string command = m_options.nvcompress + " -" + ddsFormat + " -silent "
         + " \"" + inFile + "\"" + " \"" + outFile + "\"";
+    if( deviceId != 0 )
+        command = std::string("CUDA_VISIBLE_DEVICES=") + std::to_string(deviceId) + " " + command;
     printCommand( command );
     if( !m_options.showErrors )
         command = command + " " + TO_DEV_NULL;

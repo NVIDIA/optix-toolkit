@@ -59,7 +59,7 @@ class CompressedTextureCacheManager
     std::string getCacheFilePath( const std::string& inputFilePath );
 
     /// Put an input file into the compressed cache
-    bool cacheFile( const std::string& inputFilePath );
+    bool cacheFile( const std::string& inputFilePath, int deviceId = 0 );
 
     /// Determine if a file extension is of a known type for compression
     bool isSupportedFileType( const std::string& extension );
@@ -75,7 +75,7 @@ class CompressedTextureCacheManager
     bool isHighDynamicRange( CoreEXRReader& exrReader, TextureInfo& texInfo );
     bool convertEXRtoHDR( CoreEXRReader& exrReader, TextureInfo& texInfo, const std::string& outFile );
     bool convertEXRtoTGA4( CoreEXRReader& exrReader, TextureInfo& texInfo, float exposure, float gamma, std::string& outFileName );
-    bool convertImageToDDS( const std::string& inFile, const std::string& outFile, const std::string& ddsFormat );
+    bool convertImageToDDS( const std::string& inFile, const std::string& outFile, const std::string& ddsFormat, int deviceId );
     bool convertDDSToTiledDDS( const std::string& inFile, const std::string& outFile );
     bool deleteFile( const std::string &fileName );
 };

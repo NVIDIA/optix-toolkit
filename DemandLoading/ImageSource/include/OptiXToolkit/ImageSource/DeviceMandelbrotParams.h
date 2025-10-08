@@ -34,6 +34,7 @@ struct MandelbrotParams
     int max_iterations;
     float4 colors[MAX_MANDELBROT_COLORS];
     int num_colors;
+    bool continuous_iterations;
 
     float4* output_buffer;
 };
@@ -54,7 +55,11 @@ __host__ __device__ __forceinline__ float4 mandelbrotColor( double x, double y, 
     if( n == params.max_iterations )
         return float4{0.0f, 0.0f, 0.0f, 0.0f};
 
-    float v = static_cast<float>( n ) / static_cast<float>( params.max_iterations );
+    float zn = static_cast<float>( z.x * z.x + z.y * z.y ); // magnitude squared at escape
+    float continuous_n = static_cast<float>( n );
+    if( params.continuous_iterations ) // continuous iteration count for smooth coloring
+        continuous_n += ( 1.0f - log2f( 0.5f * logf( zn ) ) );
+    float v = continuous_n / static_cast<float>( params.max_iterations );
 
     float f = static_cast<float>( v * ( params.num_colors - 1 ) );
     int   i = static_cast<unsigned int>( f );
