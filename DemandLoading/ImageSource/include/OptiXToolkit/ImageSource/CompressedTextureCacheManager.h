@@ -27,7 +27,7 @@ const char* TO_DEV_NULL = "1>/dev/null 2>/dev/null";
 // How to convert EXR images to DDS depending on hdr statas and num components
 //                                            non-exr, r,   rg,    rgb,   rgba,  hdr
 const char* EXR_TO_DDS_FORMATS_STANDARD[6] = {"bc7", "bc4", "bc5", "bc7", "bc7", "bc6"};
-const char* EXR_TO_DDS_FORMATS_SMALL[6] =    {"bc1", "bc4", "bc1", "bc1", "bc7", "bc1"};
+const char* EXR_TO_DDS_FORMATS_SMALL[6] =    {"bc1", "bc4", "bc1", "bc1", "bc7", "bc6"};
 
 const int DDS_DEFAULT_INDEX = 0;
 const int DDS_HDR_INDEX = 5;
