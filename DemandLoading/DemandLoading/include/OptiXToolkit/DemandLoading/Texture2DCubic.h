@@ -39,13 +39,12 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     bool baseColorResident = true;
     float minGradSquared = minf( dot( ddx, ddx ), dot( ddy, ddy ) );
     TextureSampler* sampler = nullptr; 
-    if( minGradSquared < 1.0f )
+    if( minGradSquared < 1.0f ) {
         sampler = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, &resident ) );
-
 #ifdef REQUEST_CASCADE
-    resident &= !requestCascade( context, textureId, sampler, ddx, ddy );
+        resident &= !requestCascade( context, textureId, sampler, ddx, ddy );
 #endif
-
+    }
     // Zero out results
     if( result ) *result = TYPE{};
     if( dresultds ) *dresultds = TYPE{};
