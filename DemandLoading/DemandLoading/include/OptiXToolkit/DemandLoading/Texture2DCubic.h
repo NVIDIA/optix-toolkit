@@ -34,9 +34,8 @@ template <class TYPE> D_INLINE bool
 textureCubic( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
               TYPE* result, TYPE* dresultds, TYPE* dresultdt, float2 texelJitter = float2{} )
 {
-    // Get the sampler if the gradients are small enough. If |grad|>1, use base color
+    // Get the sampler if the gradients are small enough. If |grad|>=1, use base color
     bool resident = true; 
-    bool baseColorResident = true;
     float minGradSquared = minf( dot( ddx, ddx ), dot( ddy, ddy ) );
     TextureSampler* sampler = nullptr;
     if( minGradSquared < 1.0f )
@@ -53,11 +52,25 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
     if( dresultds ) *dresultds = TYPE{};
     if( dresultdt ) *dresultdt = TYPE{};
 
-    // Sample base color
-    if( result && !sampler && minGradSquared >= 1.0f )
-        resident &= getBaseColor<TYPE>( context, textureId, *result, &baseColorResident );
+    // Sample base color if |grad|>=1 or a 1x1 texture
+    if( minGradSquared >= 1.0f || ( resident && !sampler ) )
+    {
+        bool baseColorPageResident = true;
+        bool baseColorResident = true;
+        if( result )
+            baseColorResident &= getBaseColor<TYPE>( context, textureId, *result, &baseColorPageResident );
+
+        if( !baseColorPageResident ) // The base color page is not resident, wait for next launch.
+            return false;
+        if( baseColorResident ) // The base color is resident, return it.
+            return true;
+
+        // The texture does not supply a base color. Get the sampler if it wasn't requested before.
+        if( minGradSquared >= 1.0f )
+            sampler = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, &resident ) );
+    }
     if( !sampler )
-        return resident && baseColorResident;
+        return false;
 
     const CUtexObject texture = sampler->texture;
     const unsigned int texWidth = sampler->width;
