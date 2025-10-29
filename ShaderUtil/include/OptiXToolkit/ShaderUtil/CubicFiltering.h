@@ -151,14 +151,14 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
             float t0 = (jj+0.5f) / mipLevelHeight;
             float t1 = (jj+1.0f) / mipLevelHeight;
 
-            TYPE t00 = ::tex2DGrad<TYPE>( texture, s0, t0, ddx, ddy ) * mipLevelWidth * 2.0f;
-            TYPE t10 = ::tex2DGrad<TYPE>( texture, s1, t0, ddx, ddy ) * mipLevelWidth * 2.0f;
-            TYPE t01 = ::tex2DGrad<TYPE>( texture, s0, t1, ddx, ddy ) * mipLevelHeight * 2.0f;
-            TYPE t11 = ::tex2DGrad<TYPE>( texture, s1, t1, ddx, ddy ) * mipLevelHeight * 2.0f;
+            TYPE t00 = ::tex2DGrad<TYPE>( texture, s0, t0, ddx, ddy );
+            TYPE t10 = ::tex2DGrad<TYPE>( texture, s1, t0, ddx, ddy );
+            TYPE t01 = ::tex2DGrad<TYPE>( texture, s0, t1, ddx, ddy );
+            TYPE t11 = ::tex2DGrad<TYPE>( texture, s1, t1, ddx, ddy );
             if( dresultds )
-                *dresultds = (lerp(t10, t11, 2.0f*(tt-jj)) - lerp(t00, t01, 2.0f*(tt-jj)));
+                *dresultds = lerp(t10-t00, t11-t01, 2.0f*(tt-jj)) * mipLevelWidth * 2.0f;
             if( dresultdt )
-                *dresultdt = (lerp(t01, t11, 2.0f*(ts-ii)) - lerp(t00, t10, 2.0f*(ts-ii)));
+                *dresultdt = lerp(t01-t00, t11-t10, 2.0f*(ts-ii)) * mipLevelHeight * 2.0f;
         }
 
         if( cubicBlend <= 0.0f )
