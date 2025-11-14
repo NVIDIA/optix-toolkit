@@ -9,6 +9,7 @@ endif()
 include(BuildConfig)
 include(CTest)
 include(FetchOpenEXR)
+include(FetchOptiX)
 include(FetchStbImage)
 
 configure_file(src/BinaryDataDir.h.in BinaryDataDir.h)

@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
+include(FetchOptiX)
 include(Fetchrply)
-
-find_package(OptiX 7.5)
 
 add_library( PbrtSceneLoader STATIC
     include/OptiXToolkit/PbrtSceneLoader/GoogleLogger.h
