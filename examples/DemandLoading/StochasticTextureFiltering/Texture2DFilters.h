@@ -21,8 +21,8 @@ static __forceinline__ __device__ float2 getTextureDims( const DeviceContext& co
     // Get subtexture and multiply texture dims by udims
     float        sx, sy;
     unsigned int xidx, yidx;
-    wrapAndSeparateUdimCoord( uv.x, CU_TR_ADDRESS_MODE_WRAP, sampler->udim, sx, xidx );
-    wrapAndSeparateUdimCoord( uv.y, CU_TR_ADDRESS_MODE_WRAP, sampler->vdim, sy, yidx );
+    separateUdimCoord( uv.x, CU_TR_ADDRESS_MODE_WRAP, sampler->udim, sx, xidx );
+    separateUdimCoord( uv.y, CU_TR_ADDRESS_MODE_WRAP, sampler->vdim, sy, yidx );
     unsigned int subTexId = sampler->udimStartPage + ( yidx * sampler->udim + xidx );
     
     const TextureSampler* subSampler = reinterpret_cast<const TextureSampler*>( context.pageTable.data[subTexId] );

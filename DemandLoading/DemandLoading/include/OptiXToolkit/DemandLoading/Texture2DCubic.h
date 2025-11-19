@@ -13,20 +13,6 @@
 
 namespace demandLoading {
 
-D_INLINE void separateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
-{
-    if( wrapMode == CU_TR_ADDRESS_MODE_WRAP )
-    {
-        fmodf( x, float( udim ) );
-        if( x < 0.0f )
-            x += udim;
-    }
-    x = clampf( x, 0.0f, udim );
-
-    xidx = min( static_cast<unsigned int>( floorf( x ) ), udim - 1 );
-    newx = x - floorf( x );
-}
-
 /// Fetch from a demand-loaded texture with the specified textureId. Results are computed and stored
 /// in the non-null locations pointed to by result, dresultds, and dresultdt. Filter based on the 
 /// filterMode in the texture sampler. Return true if the requested texture data is resident.

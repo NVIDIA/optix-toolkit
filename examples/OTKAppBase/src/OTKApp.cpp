@@ -94,12 +94,15 @@ OTKApp::OTKApp( const char* appName, unsigned int width, unsigned int height,
 
 void OTKApp::createContext( OTKAppPerDeviceOptixState& state )
 {
+    if( state.context != 0 )
+        return;
+
     CUcontext                 cuCtx   = 0;  // zero means take the current context
     OptixDeviceContextOptions options = {};
     otk::util::setLogger( options );
     OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &state.context ) );
-
     OTK_ERROR_CHECK( cudaStreamCreate( &state.stream ) );
+    state.demandLoader->setOptixContext( state.context );
 }
 
 void OTKApp::buildAccel( OTKAppPerDeviceOptixState& state )
@@ -510,6 +513,7 @@ void OTKApp::initView()
 {
     // Set the view so that the square (0,0,0) to (1,1,0) exactly covers the viewport.
     setView( float3{0.5f, 0.5f, 1.0f}, float3{0.5f, 0.5f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, 53.130102354f );
+    m_subframeId = 0;
 }
 
 void OTKApp::setView( float3 eye, float3 lookAt, float3 up, float fovY )

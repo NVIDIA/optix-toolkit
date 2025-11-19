@@ -34,6 +34,21 @@ namespace demandLoading {
 
 #ifndef DOXYGEN_SKIP
 
+/// Separate a udim texture coordinate into an index and offset according to the wrapping mode.
+D_INLINE void separateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
+{
+    if( wrapMode == CU_TR_ADDRESS_MODE_WRAP )
+    {
+        fmodf( x, float( udim ) );
+        if( x < 0.0f )
+            x += udim;
+    }
+    x = clampf( x, 0.0f, udim );
+
+    xidx = min( static_cast<unsigned int>( floorf( x ) ), udim - 1 );
+    newx = x - floorf( x );
+}
+
 /// Request a cascade (texture resolution) big enough handle a sample with texture derivatives ddx, ddy
 D_INLINE bool requestCascade( const DeviceContext& context, unsigned int textureId, const TextureSampler* sampler, float2 ddx, float2 ddy )
 {

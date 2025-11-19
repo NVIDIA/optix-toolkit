@@ -14,6 +14,8 @@
 #include <memory>
 #include <string>
 
+typedef struct OptixDeviceContext_t* OptixDeviceContext;
+
 namespace imageSource {
 
 struct TextureInfo;
@@ -110,6 +112,8 @@ class ImageSource
 
     /// Return a hash of the image, using a small mip level.
     unsigned long long getHash( CUstream stream );
+
+    virtual CUdeviceptr getSamplerExtraData( OptixDeviceContext optixContext ) { (void)optixContext; return 0; }
 };
 
 /// Base class for ImageSource with default implementation of readMipTail, etc.

@@ -52,7 +52,7 @@ class DemandTextureImpl : public DemandTexture
     DemandTextureImpl( unsigned int id, DemandTextureImpl* masterTexture, const TextureDescriptor& descriptor, DemandLoaderImpl* loader );
 
     /// Default destructor.
-    ~DemandTextureImpl() override = default;
+    ~DemandTextureImpl() override;
 
     /// DemandTextureImpl cannot be copied because the PageTableManager holds a pointer to the
     /// RequestHandler it provides.

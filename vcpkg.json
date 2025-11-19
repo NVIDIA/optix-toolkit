@@ -35,6 +35,12 @@
         "boost-thread"
       ]
     },
+    "otk-neuraltextures": {
+      "description": "NeuralTextures support for neural texture compression",
+      "dependencies": [
+        "rapidjson"
+      ]
+    },
     "otk-tests": {
       "description": "Dependencies needed only by the tests",
       "dependencies": [
