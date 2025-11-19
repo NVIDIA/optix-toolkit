@@ -13,21 +13,6 @@ using namespace otk;
 
 namespace demandLoading {
 
-D_INLINE void wrapAndSeparateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int udim, float& newx, unsigned int& xidx )
-{
-    if( wrapMode == CU_TR_ADDRESS_MODE_WRAP )
-    {
-        fmodf( x, float( udim ) );
-        if( x < 0.0f )
-            x += udim;
-    }
-    x = clampf( x, 0.0f, udim );
-
-    xidx = min( static_cast<unsigned int>( floorf( x ) ), udim - 1 );
-    newx = x - floorf( x );
-}
-
-
 /// Fetch from demand-loaded udim texture.  A "udim" texture is an array of texture images that are treated as a single texture
 /// object (with an optional base texture).  This entry point does not combine multiple samples to blend across subtexture boundaries.
 /// Use CU_TR_ADDRESS_MODE_CLAMP when defining all subtextures. Other blending modes will show lines between subtextures.
@@ -52,8 +37,8 @@ tex2DGradUdim( const DeviceContext& context, unsigned int textureId, float x, fl
     {
         float        sx, sy;
         unsigned int xidx, yidx;
-        wrapAndSeparateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, sx, xidx );
-        wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, sy, yidx );
+        separateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, bsmp->udim, sx, xidx );
+        separateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, bsmp->vdim, sy, yidx );
 
         unsigned int subTexId = bsmp->udimStartPage + ( yidx * bsmp->udim + xidx ) * bsmp->numChannelTextures;
         rval = tex2DGrad<TYPE>( context, subTexId, sx, sy, ddx, ddy, isResident, texelJitter );
@@ -135,14 +120,14 @@ tex2DGradUdimBlend( const DeviceContext& context, unsigned int textureId, float 
         // Find subtexture for texture coordinate (x,y)
         float        sx, sy, sx0, sy0, sx1, sy1;
         unsigned int xidx, yidx, xidx0, yidx0, xidx1, yidx1;
-        wrapAndSeparateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, udim, sx, xidx );
-        wrapAndSeparateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, vdim, sy, yidx );
+        separateUdimCoord( x, CU_TR_ADDRESS_MODE_WRAP, udim, sx, xidx );
+        separateUdimCoord( y, CU_TR_ADDRESS_MODE_WRAP, vdim, sy, yidx );
 
         // Find the bounds of sample footprint in udim coords
-        wrapAndSeparateUdimCoord( x - dx, CU_TR_ADDRESS_MODE_WRAP, udim, sx0, xidx0 );
-        wrapAndSeparateUdimCoord( y - dy, CU_TR_ADDRESS_MODE_WRAP, vdim, sy0, yidx0 );
-        wrapAndSeparateUdimCoord( x + dx, CU_TR_ADDRESS_MODE_WRAP, udim, sx1, xidx1 );
-        wrapAndSeparateUdimCoord( y + dy, CU_TR_ADDRESS_MODE_WRAP, vdim, sy1, yidx1 );
+        separateUdimCoord( x - dx, CU_TR_ADDRESS_MODE_WRAP, udim, sx0, xidx0 );
+        separateUdimCoord( y - dy, CU_TR_ADDRESS_MODE_WRAP, vdim, sy0, yidx0 );
+        separateUdimCoord( x + dx, CU_TR_ADDRESS_MODE_WRAP, udim, sx1, xidx1 );
+        separateUdimCoord( y + dy, CU_TR_ADDRESS_MODE_WRAP, vdim, sy1, yidx1 );
 
         // special case for base colors - force (xidx0,yidx0) to equal (xidx,yidx)
         xidx0 = ( mx >= 1.0f ) ? xidx : xidx0;

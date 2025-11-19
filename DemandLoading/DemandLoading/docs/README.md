@@ -62,7 +62,7 @@ A page table tracks which tiles are resident on the GPU. As an OptiX kernel disc
 
 ## Texture fetch
 
-The OptiX Demand Loading library provides `tex2D`, `tex2DLod`, and `tex2DGrad` functions to fetch from demand-loaded sparse textures in the file [Texture2D.h](https://github.com/NVIDIA/optix-toolkit/blob/master/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2D.h). These functions are implemented entirely in header code, and are templated on the return type.  For example, the signature for the `tex2DGrad` is as follows:
+The OptiX Demand Loading library provides `tex2D`, `tex2DLod`, and `tex2DGrad` functions to fetch from demand-loaded sparse textures in the file [Texture2D.h](/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2D.h). These functions are implemented entirely in header code, and are templated on the return type.  For example, the signature for the `tex2DGrad` is as follows:
 
 ```
 template <class Sample> 
@@ -262,6 +262,8 @@ EXR images are supported using the [CoreEXRReader](/DemandLoading/ImageSource/in
 
 Block compressed textures (BC1...BC7), stored as .dds files, are supported using the [DDSImageReader](/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/DDSImageReader.h) class. The block compressed formats provide substantial texture compression (2-8x) on the GPU while maintaining high image quality. The [NVIDIA Texture Tools](https://developer.nvidia.com/texture-tools-exporter) utility can convert other image types to .dds files. (Note that CUDA is limited to rendering mip levels for BC textures that are multiples of 4 in size. The DDSImageReader will truncate the mip pyramid as needed to maintain this requirement.)
 
+Neural textures created by the [Neural Texture SDK](https://github.com/NVIDIA-RTX/RTXNTC). Neural textures can achieve extremely high compression ratios on the GPU for bundled texture sets (up to 50x or more). They take advantage of the GPU tensor cores to achieve fast decompression. 
+
 The [OIIOReader](/DemandLoading/ImageSource/include/OptiXToolkit/ImageSource/OIIOReader.h) class wraps [OpenImageIO](https://sites.google.com/site/openimageio/home), allowing a wide range of image files to be read, including TIFF, JPEG, and PNG, as well as EXR. Note that for best performance, EXR files should be read via `CoreEXRReader`, however.
 
 Other image file types can easily be added by defining a ImageSource subclass that reads them.
@@ -363,6 +365,35 @@ The `tex2DGradUdim()` method can also be used for non-UDIM textures with almost 
 
 The function `tex2DGradUdimBlend()` interpolates between adjacent textures in the UDIM grid to create a seamless transition, whereas `tex2DGradUdim()` does not. The interpolation incurs a slight performance penalty, since multiple texture samples must be sampled on subtexture edges. When sampling with tex2DGradUdimBlend, `CU_TR_ADDRESS_MODE_BORDER` address mode should be used so that the textures blend properly across subtexture boundaries.
 
+## Managing large texture working sets
+
+The set of texture tiles that must be resident during a kernel launch can be termed the texture **working set** for the launch.  In typical usage, rendered pixels cover roughly 4 texels per texture layer, or about 32 bytes per texture layer per pixel for `half4` textures. If a scene's working set is much larger than indicated by the number of texture layers, the renderer may be sampling textures at too high resolution. Common causes of oversampling include
+
+- Using a distance-based LOD metric (or no metric) instead of proper ray cones or differentials.
+- Having too narrow a starting angle for ray cones or differentials.
+- Using a single ray cone instead of two.
+- Loading non-tiled or non-mipmapped textures.
+- Not enabling eviction for multi-launch renders.
+- Setting `useSparseTextures` flag to false in the demand texture options struct.
+
+**Reducing the working set.**  Some scenes simply have very large working sets. Applications can reduce the working set by employing some combination of different methods, including:
+
+- Texture coalescing
+
+    * The demand loading options `coalesceWhiteBlackTiles` and `coalesceDuplicateImages` direct the texturing system to coalesce duplicate textures and white/black texture tiles. Enabling these options will reduce the working set for some scenes.
+
+- Tiled rendering
+
+    * *Tiled rendering* refers to subdividing an image into a grid of tiles that are rendered in separate launches. Tiled rendering can drastically reduce the *first hit* working set per launch. The *secondary hit* working set will also be reduced, although not to the same degree.
+
+- Compressed textures
+
+    * Film renders typically use uncompressed textures to achieve the highest visual quality, relying on texture caching to manage the texture working set. GPU memory constraints are tighter than CPU constraints, however. To address this, an application may choose to render with compressed textures, either for all ray hits, or for secondary hits. The OTK demand texturing system supports **Block Compressed (BC) textures** and **Neural Textures (NTC)**. The [compressedTextureCache](/examples/DemandLoading/CompressedTextureCache/) utility can convert images to BC formats, and the [Neural Texture SDK](https://github.com/NVIDIA-RTX/RTXNTC) can convert to ntc format.
+    
+- Mip level bias
+
+    * A *mip level bias* changes the mip level sampled by a texture call, reducing the working set at the expense of slight blurring. The bias can be added either by setting the `mipmapLevelBias` field of the `CUDA_TEXTURE_DESC` struct when defining the texture, or scaling the gradients sent to the `tex2DGrad*` call. An application could bias all texture hits, or just secondary hits.  The exact amount of savings is view dependent, but a rough rule of thumb is that a half mip level bias will reduce the working set by 50%.
+
 ## Cubic filtering and texture derivatives
 
 High quality renderers often employ cubic filtering when magnifying a texture to reduce blocky image artifacts.  [Open ImageIO](https://github.com/AcademySoftwareFoundation/OpenImageIO) is an industry standard texturing library used by many commercial renderers. It supports four filtering modes: *point*, *linear*, *bicubic*, and *smart bicubic*, and computes texture derivatives in the chosen mode. The OTK demand loading library includes sampling functions that attempt to work like the OIIO `texture()` function.  It supports the same four filtering modes as Open ImageIO, and can calculate texture derivatives in addition to filtered texture values. These Open ImageIO work-alike functions are header only implementations, and are found in the file [Texure2DCubic.h](/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2DCubic.h) with the main entry points being `textureCubic`, `textureUdim`, and `texture`.  The `textureCubic` function looks like this:
@@ -413,7 +444,7 @@ The total number of virtual tiles that can be managed by OptiX Demand Loading is
 
 ## Eviction limits
 
-Texture tiles can be evicted and reused, but tile pool backing storage is not freed until the DemandLoader is destroyed. Once created, CUDA sparse texture objects are not evicted, and the associated page table entries are not recycled. Dense textures are also not evicted.
+Texture tiles can be evicted and reused, but tile pool backing storage is not freed until the DemandLoader is destroyed unless the application explicitly calls `setMaxTextureMemory`. Once created, CUDA sparse texture objects are not evicted, and the associated page table entries are not recycled. Dense textures are also not evicted.
 
 The system does not stage texture tiles unless they are stale, and only staged tiles can be used to fill requests once the initial tile pools have been exhausted.  Consequently, if the working set needed for a launch is too large, the launch will always have non-resident texture references.  Bucketed rendering (rendering different parts of an image in separate launches) can reduce the working set.
 

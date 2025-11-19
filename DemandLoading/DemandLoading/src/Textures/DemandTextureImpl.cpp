@@ -50,6 +50,12 @@ DemandTextureImpl::DemandTextureImpl( unsigned int id, DemandTextureImpl* master
     masterTexture->addVariantId( id );
 }
 
+DemandTextureImpl::~DemandTextureImpl()
+{
+    if( m_sampler.extraData )
+        cudaFree( reinterpret_cast<void*>( m_sampler.extraData ) );
+}
+
 void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shared_ptr<imageSource::ImageSource> newImage )
 {
     std::unique_lock<std::mutex> lock( m_initMutex );
@@ -81,6 +87,7 @@ void DemandTextureImpl::setImage( const TextureDescriptor& descriptor, std::shar
         newSampler.vdim = m_sampler.vdim;
         newSampler.numChannelTextures = m_sampler.numChannelTextures;
         newSampler.desc.isUdimBaseTexture = m_sampler.desc.isUdimBaseTexture;
+        newSampler.extraData = m_sampler.extraData;
         m_sampler = newSampler;
     }
 
@@ -237,6 +244,9 @@ void DemandTextureImpl::initSampler()
     m_sampler.cascadeLevel = static_cast<unsigned short>( getCascadeLevel( m_sampler.width, m_sampler.height ) );
     m_sampler.filterMode = m_descriptor.filterMode;
     m_sampler.conservativeFilter = m_descriptor.conservativeFilter;
+
+    // Fill in extra data
+    m_sampler.extraData = m_image->getSamplerExtraData( m_loader->getOptixContext() );
 }
 
 const imageSource::TextureInfo& DemandTextureImpl::getInfo() const

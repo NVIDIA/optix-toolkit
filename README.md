@@ -15,8 +15,9 @@ If you cloned the OptiX Tookit repository prior to v1.0.0, we recommend cloning 
 
 ## Current Utilities
 
-- **[DemandLoading](DemandLoading)** -  a C++/CUDA library for on-demand loading of CUDA sparse textures and other assets in OptiX renderers.
+- **[DemandLoading](DemandLoading)** - a C++/CUDA library for on-demand loading of CUDA sparse textures and other assets in OptiX renderers.
 - **[Memory](Memory)** - Host and device memory pools (used by DemandLoading library).
+- **[NeuralTextures](NeuralTextures)** - Load neural textures (.ntc files) suitable for the demand loading library.
 - **[OmmBaking](OmmBaking)** - a C++/CUDA library for baking Opacity Micromap Arrays for textured geometry.
 - **[PyOptiX](https://github.com/NVIDIA/otk-pyoptix/)** - Complete Python bindings for the OptiX host API.
 - **[ShaderUtil](ShaderUtil)** - Header-only libraries for OptiX kernels (e.g. Vector Math, Self Intersection Avoidance, Ray Cones, Environment Map Sampling, Stochastic Texture Filtering, Cubic Texture Filtering).

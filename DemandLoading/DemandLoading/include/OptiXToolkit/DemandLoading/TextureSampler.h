@@ -71,6 +71,9 @@ struct TextureSampler
     unsigned int numChannelTextures : 5;
     unsigned int conservativeFilter : 1;
     unsigned int pad          : 19;
+
+    // Extra data
+    CUdeviceptr extraData;
 };
 
 // Indexing related to base colors

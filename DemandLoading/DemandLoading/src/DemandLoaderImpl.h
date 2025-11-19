@@ -171,10 +171,17 @@ class DemandLoaderImpl : public DemandLoader
     /// Get the CUDA context associated with this demand loader
     CUcontext getCudaContext() override { return m_cudaContext; }
 
+    /// Set the OptiX context associated with this demand loader
+    void setOptixContext( OptixDeviceContext optixContext ) override { m_optixContext = optixContext; };
+
+    /// Get the OptiX context associated with this demand loader
+    OptixDeviceContext getOptixContext() override { return m_optixContext; }
+
   private:
     mutable std::mutex       m_mutex;
     std::shared_ptr<Options> m_options;
     CUcontext                m_cudaContext;  // The demand loader is for this context
+    OptixDeviceContext       m_optixContext; // The optix context
     bool                     m_isActive = false;  // Controls whether pullRequests kernel is launched.
 
     std::shared_ptr<PageTableManager>     m_pageTableManager;  // Allocates ranges of virtual pages.

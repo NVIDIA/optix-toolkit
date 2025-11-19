@@ -25,6 +25,8 @@ namespace imageSource {
 class ImageSource;
 }
 
+typedef struct OptixDeviceContext_t* OptixDeviceContext;
+
 namespace demandLoading {
 
 /// DemandLoader loads sparse textures on demand.
@@ -133,6 +135,12 @@ class DemandLoader
 
     /// Get the CUDA context associated with this demand loader
     virtual CUcontext getCudaContext() = 0;
+
+    /// Set the OptiX context associated with this demand loader
+    virtual void setOptixContext( OptixDeviceContext optixContext ) = 0;
+
+    /// Get the OptiX context associated with this demand loader
+    virtual OptixDeviceContext getOptixContext() = 0;
 };
 
 /// Create a DemandLoader with the given options.  

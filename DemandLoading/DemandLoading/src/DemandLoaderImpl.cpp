@@ -217,6 +217,7 @@ const DemandTexture& DemandLoaderImpl::createUdimTexture( std::vector<std::share
                 else
                 {
                     m_textures.emplace( textureId, nullptr );
+                    m_pageLoader->setPageTableEntry( textureId, false, 0ULL );
                 }
             }
         }
@@ -498,7 +499,7 @@ void DemandLoaderImpl::unmapTileResource( CUstream stream, unsigned int pageId )
 
 void DemandLoaderImpl::setPageTableEntry( unsigned pageId, bool evictable, unsigned long long pageTableEntry )
 {
-    m_pageLoader->setPageTableEntry( pageId, evictable, pageTableEntry);
+    m_pageLoader->setPageTableEntry( pageId, evictable, pageTableEntry );
 }
 
 PagingSystem* DemandLoaderImpl::getPagingSystem() const

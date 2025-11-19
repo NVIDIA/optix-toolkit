@@ -60,6 +60,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
             throw;
         }
     };
+
     DemandTextureImpl* texture = getTextureForSamplerId( samplerId );
     texture->open();
 
