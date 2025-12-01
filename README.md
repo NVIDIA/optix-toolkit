@@ -104,6 +104,15 @@ If you wish to customize the build of the toolkit, see the section on [options](
 
 If you encounter problems or if you have any questions, we encourage you to post on the [OptiX developer forum](https://forums.developer.nvidia.com/c/gaming-and-visualization-technologies/visualization/optix/167).
 
+## Installing the OptiX Toolkit
+
+After a successful build, stage the libraries, headers, and the generated `OptiXToolkitConfig.cmake` by running the standard CMake install step, e.g.
+```
+cmake --install build --prefix /opt/otk
+```
+Pick any convenient prefix; on Windows, a path such as `C:/OptiXToolkit` works well.
+The install tree is layout-compatible with `find_package(OptiXToolkit)` so downstream projects (including ExternalProject builds) can consume any subset of the libraries you enabled.
+
 ## OptiX Toolkit Options
 
 The following options may be supplied to CMake at configure time to customize the toolkit:
