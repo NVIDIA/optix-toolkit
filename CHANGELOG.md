@@ -1,6 +1,9 @@
 # OptiX Toolkit changes
 
-## Verison 1.0.1
+## Version 1.1.x
+* Improved CMake installation logic.
+
+## Version 1.0.1
 * Added support for block compressed formats (.dds files) in the demand load library.
 * Made numerous improvements to cubic filtering.
 * Fixed a texture tile indexing error in DemandLoading

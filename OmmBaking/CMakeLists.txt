@@ -67,7 +67,6 @@ target_include_directories( CuOmmBaking
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  ${OptiX_INCLUDE_DIR}
   PRIVATE
   src
   )
@@ -75,6 +74,7 @@ target_include_directories( CuOmmBaking
 target_link_libraries( CuOmmBaking
   PUBLIC
   CUDA::cudart_static
+  OptiX::OptiX
   ${CMAKE_DL_LIBS}  
   )
 
@@ -85,6 +85,20 @@ option( OTK_OMM_BAKING_USE_NVTX "Enable NVTX profiling" OFF )
 if( OTK_OMM_BAKING_USE_NVTX )
   target_compile_definitions( CuOmmBaking PUBLIC ENABLE_NVTX_PROFILING )
 endif()
+
+install(TARGETS CuOmmBaking
+  EXPORT CuOmmBakingTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(EXPORT CuOmmBakingTargets
+  FILE CuOmmBakingTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+  )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )
