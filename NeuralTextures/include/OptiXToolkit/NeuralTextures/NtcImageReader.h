@@ -13,7 +13,7 @@
 #include <optix_stubs.h>
 #include <rapidjson/document.h>
 
-#include "NtcTextureSet.h"
+#include "InferenceDataOptix.h"
 
 const uint32_t NTC_NETWORK_MAX_SIZE = 32768;
 
@@ -29,8 +29,8 @@ class NtcImageReader
     /// Make the device network data for optixContext in the d_dstMatrix buffer
     bool prepareDeviceNetwork( OptixDeviceContext optixContext, CUdeviceptr d_dstMatrix, int d_dstSize );
 
-    /// Get the texture NtcTextureSet for this texture
-    const NtcTextureSet& getTextureSet() { return m_textureSet; }
+    /// Get the texture inference data for this texture
+    const InferenceDataOptix& getInferenceData() { return m_inferenceData; }
 
     /// Read a rectangle from a mip level of the latent texture into dest on the host.
     bool readLatentRectUshort( ushort* dest, int mipLevel, int xstart, int ystart, int width, int height );
@@ -62,7 +62,7 @@ class NtcImageReader
         std::string biasType;
     };
 
-    NtcTextureSet m_textureSet{};
+    InferenceDataOptix m_inferenceData{};
     std::vector<char> m_hDataChunk;
     std::vector<int> m_hLatentMipOffsets;
     std::vector<int> m_hLatentMipSizes;

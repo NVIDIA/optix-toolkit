@@ -97,7 +97,7 @@ bool NtcImageReader::parseTextureSetDescription( rapidjson::Document& doc )
 {
     try
     {
-        NtcTextureSetConstants& tsc = m_textureSet.constants;
+        NtcTextureSetConstants& tsc = m_inferenceData.constants;
 
         int schemaVersion = doc["schemaVersion"].GetInt();
         if( schemaVersion < 3 )
@@ -111,28 +111,28 @@ bool NtcImageReader::parseTextureSetDescription( rapidjson::Document& doc )
         tsc.validChannelMask = 0;
         tsc.channelColorSpaces = 0; // FIXME: actually read these
 
-        m_textureSet.numTextures = doc["textures"].Size();
-        m_textureSet.numChannels = doc["numChannels"].GetInt();
+        m_inferenceData.numTextures = doc["textures"].Size();
+        m_inferenceData.numChannels = doc["numChannels"].GetInt();
 
         // Subtexture descriptions
-        for( int texNum = 0; texNum < m_textureSet.numTextures; ++texNum )
+        for( int texNum = 0; texNum < m_inferenceData.numTextures; ++texNum )
         {
-            m_textureSet.texFirstChannel[texNum] = doc["textures"][texNum]["firstChannel"].GetInt();
-            m_textureSet.texNumChannels[texNum] = doc["textures"][texNum]["numChannels"].GetInt();
+            m_inferenceData.texFirstChannel[texNum] = doc["textures"][texNum]["firstChannel"].GetInt();
+            m_inferenceData.texNumChannels[texNum] = doc["textures"][texNum]["numChannels"].GetInt();
         }
 
         // Channel color spaces
         tsc.channelColorSpaces = 0;
-        for( int channelNum = 0; channelNum < m_textureSet.numChannels; ++channelNum )
+        for( int channelNum = 0; channelNum < m_inferenceData.numChannels; ++channelNum )
         {
             uint32_t colorSpace = getColorSpace( doc, channelNum );
             tsc.channelColorSpaces = tsc.channelColorSpaces | ( colorSpace << ( channelNum * 2 ) );
         }
 
         // Latents info
-        m_textureSet.latentFeatures = doc["latentShape"]["numFeatures"].GetInt();
-        m_textureSet.latentWidth = doc["latents"][0]["width"].GetInt();
-        m_textureSet.latentHeight = doc["latents"][0]["height"].GetInt();
+        m_inferenceData.latentFeatures = doc["latentShape"]["numFeatures"].GetInt();
+        m_inferenceData.latentWidth = doc["latents"][0]["width"].GetInt();
+        m_inferenceData.latentHeight = doc["latents"][0]["height"].GetInt();
 
         // Color mips
         for( int colorMipLevel = 0; colorMipLevel < tsc.imageMips; ++colorMipLevel )
@@ -172,7 +172,7 @@ bool NtcImageReader::parseLatentsDescription( rapidjson::Document& doc )
         // The latent data is held in m_hDataChunk. Read the offsets and sizes
         m_hLatentMipOffsets.resize( doc["latents"].Size(), 0 );
         m_hLatentMipSizes.resize( doc["latents"].Size(), 0 );
-        m_textureSet.numLatentMips = static_cast<int>( doc["latents"].Size() );
+        m_inferenceData.numLatentMips = static_cast<int>( doc["latents"].Size() );
         for( unsigned int level = 0; level < doc["latents"].Size(); ++level )
         {
             // FIXME: Assuming that layer views are sequential, and all layer views are the same size.
@@ -284,11 +284,11 @@ bool NtcImageReader::parseNetworkDescription( rapidjson::Document& doc )
 
 bool NtcImageReader::readLatentRectUshort( ushort* dest, int mipLevel, int xstart, int ystart, int width, int height )
 {
-    int numLatentTextures = m_textureSet.latentFeatures / 4;
+    int numLatentTextures = m_inferenceData.latentFeatures / 4;
     int destPixelStride = (numLatentTextures != 3) ? numLatentTextures : 4;
 
-    int mipWidth = m_textureSet.latentWidth >> mipLevel;
-    int mipHeight = m_textureSet.latentHeight >> mipLevel;
+    int mipWidth = m_inferenceData.latentWidth >> mipLevel;
+    int mipHeight = m_inferenceData.latentHeight >> mipLevel;
     int latentOffset = m_hLatentMipOffsets[mipLevel];
 
     ushort* src = (ushort*) &m_hDataChunk[latentOffset];
@@ -316,14 +316,14 @@ bool NtcImageReader::readLatentRectUshort( ushort* dest, int mipLevel, int xstar
 CUtexObject NtcImageReader::makeLatentTexture()
 {
     // Allocate mipmapped CUDA array
-    int numLatentTextures = m_textureSet.latentFeatures / 4;
+    int numLatentTextures = m_inferenceData.latentFeatures / 4;
     int pixelStride = (numLatentTextures != 3) ? numLatentTextures : 4;
     int numMips = m_hLatentMipOffsets.size();
     
     // Create mipmapped array descriptor
     CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
-    arrayDesc.Width = m_textureSet.latentWidth;
-    arrayDesc.Height = m_textureSet.latentHeight;
+    arrayDesc.Width = m_inferenceData.latentWidth;
+    arrayDesc.Height = m_inferenceData.latentHeight;
     arrayDesc.Depth = 0;  // 2D texture
     arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT16;
     arrayDesc.NumChannels = pixelStride;
@@ -340,8 +340,8 @@ CUtexObject NtcImageReader::makeLatentTexture()
             continue;
 
         // Get the source (latentSrc) and destination (levelArray)
-        int mipWidth = m_textureSet.latentWidth >> mipLevel;
-        int mipHeight = m_textureSet.latentHeight >> mipLevel;
+        int mipWidth = m_inferenceData.latentWidth >> mipLevel;
+        int mipHeight = m_inferenceData.latentHeight >> mipLevel;
         std::vector<ushort> latentSrc( mipWidth * mipHeight * pixelStride, 0 );
         readLatentRectUshort( latentSrc.data(), mipLevel, 0, 0, mipWidth, mipHeight );
         CUarray levelArray;
@@ -409,7 +409,7 @@ bool NtcImageReader::convertNetworkToOptixInferencingOptimal( OptixDeviceContext
     OptixCoopVecMatrixLayout srcMatrixLayout = OPTIX_COOP_VEC_MATRIX_LAYOUT_ROW_MAJOR;
     OptixCoopVecMatrixLayout dstMatrixLayout = OPTIX_COOP_VEC_MATRIX_LAYOUT_INFERENCING_OPTIMAL;
     
-    NtcTextureSetConstants& tsc = m_textureSet.constants;
+    NtcTextureSetConstants& tsc = m_inferenceData.constants;
     const int optStride = 0;
 
     // Compute layer sizes
@@ -506,7 +506,7 @@ bool NtcImageReader::convertNetworkToOptixInferencingOptimal( OptixDeviceContext
 
 void NtcImageReader::printTextureSetDescription()
 {
-    NtcTextureSetConstants& tsc = m_textureSet.constants;
+    NtcTextureSetConstants& tsc = m_inferenceData.constants;
     printf( "width:%d, height:%d, mips:%d\n", tsc.imageWidth, tsc.imageHeight, tsc.imageMips );
     
     for( unsigned int i = 0; i < m_hNetwork.size(); ++i )
@@ -526,16 +526,16 @@ void NtcImageReader::printTextureSetDescription()
             i, mip.neuralMip, mip.positionLod, mip.positionScale );
     }
 
-    printf("numTextures:%d, numChannels:%d\n", m_textureSet.numTextures, m_textureSet.numChannels );
+    printf("numTextures:%d, numChannels:%d\n", m_inferenceData.numTextures, m_inferenceData.numChannels );
     printf( "validChannelMask:%x, channelColorSpaces:%x\n", tsc.validChannelMask, tsc.channelColorSpaces );
 
-    for( int i=0; i<m_textureSet.numTextures; ++i )
+    for( int i=0; i<m_inferenceData.numTextures; ++i )
     {
-        printf("TextureChannels[%d] (%d, %d)\n", i, m_textureSet.texFirstChannel[i], m_textureSet.texNumChannels[i]);
+        printf("TextureChannels[%d] (%d, %d)\n", i, m_inferenceData.texFirstChannel[i], m_inferenceData.texNumChannels[i]);
     }
 
     printf("latentFeatures:%d, latentWidth:%d, latentHeight:%d\n", 
-        m_textureSet.latentFeatures, m_textureSet.latentWidth, m_textureSet.latentHeight );
+        m_inferenceData.latentFeatures, m_inferenceData.latentWidth, m_inferenceData.latentHeight );
     
     for( unsigned int i=0; i < m_hLatentMipOffsets.size(); ++i )
     {

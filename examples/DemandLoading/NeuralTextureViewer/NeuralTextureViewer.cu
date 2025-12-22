@@ -27,11 +27,11 @@ using namespace neuralTextures;
 #endif
 
 template <class T_VEC_OUT>
-static __forceinline__ __device__ float4 getSubtextureValue( NtcTextureSet* nts, T_VEC_OUT& out, unsigned int texNum )
+static __forceinline__ __device__ float4 getSubtextureValue( InferenceDataOptix* infData, T_VEC_OUT& out, unsigned int texNum )
 {
-    texNum = min( texNum, nts->numTextures - 1 );
-    const int start = nts->texFirstChannel[texNum];
-    const int numChannels = nts->texNumChannels[texNum];
+    texNum = min( texNum, infData->numTextures - 1 );
+    const int start = infData->texFirstChannel[texNum];
+    const int numChannels = infData->texNumChannels[texNum];
     float4 color;
     color.x = out[start];
     color.y = (numChannels > 1) ? out[start+1] : 0.0f;
@@ -75,9 +75,9 @@ extern "C" __global__ void __raygen__rg()
 
         // Extract the current texture value
         unsigned int texNum = params.render_mode - 1u;
-        NtcTextureSet* nts;
-        bool resident = ntcTex2DGradUdim<T_VEC_OUT_FLOAT>( out, nts, dtContext, textureId, uv.x, uv.y, ddx, ddy, xi );
-        color = ( resident ) ? getSubtextureValue( nts, out, texNum ) : float4{0.2f, 0.0f, 0.0f, 0.0f};
+        InferenceDataOptix* infData;
+        bool resident = ntcTex2DGradUdim<T_VEC_OUT_FLOAT>( out, infData, dtContext, textureId, uv.x, uv.y, ddx, ddy, xi );
+        color = ( resident ) ? getSubtextureValue( infData, out, texNum ) : float4{0.2f, 0.0f, 0.0f, 0.0f};
     }
 
     // Accumulate sample in the accumulation buffer
