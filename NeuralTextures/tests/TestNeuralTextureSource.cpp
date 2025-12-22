@@ -30,11 +30,11 @@ TEST_F( TestNeuralTextureSource, Loading )
     NeuralTextureSource image( fileName.c_str() );
     imageSource::TextureInfo info = image.getInfo();
     image.open( &info );
-    NtcTextureSet textureSet = image.getTextureSet();
+    InferenceDataOptix infData = image.getInferenceData();
 
     EXPECT_EQ( info.width, 105 );
     EXPECT_EQ( info.height, 106 );
-    EXPECT_EQ( textureSet.latentFeatures, 8 );
-    EXPECT_EQ( textureSet.constants.imageWidth, 422 );
-    EXPECT_EQ( textureSet.constants.imageHeight, 425 );
+    EXPECT_EQ( infData.latentFeatures, 8 );
+    EXPECT_EQ( infData.constants.imageWidth, 422 );
+    EXPECT_EQ( infData.constants.imageHeight, 425 );
 }

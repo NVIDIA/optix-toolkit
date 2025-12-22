@@ -24,13 +24,13 @@ void NeuralTextureSource::open( imageSource::TextureInfo* info )
         std::string errString = "Could not open NTC image file " + m_filename;
         bool success = m_imageReader.loadFile( m_filename.c_str() );
         OTK_ERROR_CHECK_MSG( !success, errString.c_str() );
-        NtcTextureSet nts = m_imageReader.getTextureSet();
+        InferenceDataOptix infData = m_imageReader.getInferenceData();
 
-        m_latentsInfo.width        = nts.latentWidth;
-        m_latentsInfo.height       = nts.latentHeight;
+        m_latentsInfo.width        = infData.latentWidth;
+        m_latentsInfo.height       = infData.latentHeight;
         m_latentsInfo.format       = CU_AD_FORMAT_UNSIGNED_INT16;
-        m_latentsInfo.numChannels  = ( nts.latentFeatures != 12 ) ? nts.latentFeatures / 4 : 4;
-        m_latentsInfo.numMipLevels = nts.numLatentMips;
+        m_latentsInfo.numChannels  = ( infData.latentFeatures != 12 ) ? infData.latentFeatures / 4 : 4;
+        m_latentsInfo.numMipLevels = infData.numLatentMips;
         m_latentsInfo.isValid      = true;
         m_latentsInfo.isTiled      = true;
     }
@@ -64,20 +64,20 @@ CUdeviceptr NeuralTextureSource::makeOptixInferenceData( OptixDeviceContext opti
 {
     // Allocate device side buffer to hold network weights and inference data
     open( nullptr );
-    CUdeviceptr d_nts = 0;
-    OTK_ERROR_CHECK( cuMemAlloc( &d_nts, NTC_NETWORK_MAX_SIZE ) );
+    CUdeviceptr d_infData = 0;
+    OTK_ERROR_CHECK( cuMemAlloc( &d_infData, NTC_NETWORK_MAX_SIZE ) );
 
     // Make inferencing optimal network weights on the device
-    CUdeviceptr d_mlpWeights = d_nts + NTC_TEXTURE_SET_CHUNK_SIZE;
+    CUdeviceptr d_mlpWeights = d_infData + NTC_TEXTURE_SET_CHUNK_SIZE;
     uint32_t bufferSize = NTC_NETWORK_MAX_SIZE - NTC_TEXTURE_SET_CHUNK_SIZE;
     m_imageReader.prepareDeviceNetwork( optixContext, d_mlpWeights, bufferSize );
 
     // Copy inference metadata to device
-    NtcTextureSet nts = m_imageReader.getTextureSet();
-    nts.d_mlpWeights = d_mlpWeights;
-    OTK_ERROR_CHECK( cuMemcpyHtoD( d_nts, &nts, sizeof( NtcTextureSet ) ) );
+    InferenceDataOptix infData = m_imageReader.getInferenceData();
+    infData.d_mlpWeights = d_mlpWeights;
+    OTK_ERROR_CHECK( cuMemcpyHtoD( d_infData, &infData, sizeof( InferenceDataOptix ) ) );
 
-    return d_nts;
+    return d_infData;
 }
 
 }  // namespace neuralTextures

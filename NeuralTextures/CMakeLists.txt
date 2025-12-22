@@ -28,7 +28,7 @@ target_sources(NeuralTextures
   FILES
   include/OptiXToolkit/NeuralTextures/NeuralTextureSource.h
   include/OptiXToolkit/NeuralTextures/NtcImageReader.h
-  include/OptiXToolkit/NeuralTextures/NtcTextureSet.h
+  include/OptiXToolkit/NeuralTextures/InferenceDataOptix.h
   include/OptiXToolkit/NeuralTextures/InferenceConstants.h
   include/OptiXToolkit/NeuralTextures/InferenceOptix.h
 )

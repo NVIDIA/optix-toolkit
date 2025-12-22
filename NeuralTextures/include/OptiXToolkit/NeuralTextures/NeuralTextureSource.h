@@ -8,7 +8,7 @@
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
-#include "NtcTextureSet.h"
+#include "InferenceDataOptix.h"
 #include "NtcImageReader.h"
 
 namespace neuralTextures {
@@ -56,8 +56,8 @@ class NeuralTextureSource : public imageSource::ImageSourceBase
     /// Make the neural texture inference data for this optix context
     CUdeviceptr makeOptixInferenceData( OptixDeviceContext optixContext );
 
-    /// Get the NtcTextureSet
-    const NtcTextureSet& getTextureSet() { return m_imageReader.getTextureSet(); }
+    /// Get the inference data
+    const InferenceDataOptix& getInferenceData() { return m_imageReader.getInferenceData(); }
 
   private:
 
