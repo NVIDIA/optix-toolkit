@@ -725,6 +725,7 @@ void OTKApp::saveImage()
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         OTK_ERROR_CHECK( cudaFree( state.params.accum_buffer ) );
         OTK_ERROR_CHECK( cudaMalloc( &state.params.accum_buffer, accumulatorSize ) );
+        OTK_ERROR_CHECK( cudaMemset( state.params.accum_buffer, 0, accumulatorSize ) );
     }
  }
 

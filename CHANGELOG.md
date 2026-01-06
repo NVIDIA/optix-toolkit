@@ -2,6 +2,7 @@
 
 ## Version 1.1.x
 * Improved CMake installation logic.
+* Added NeuralTextures library for neural texture compression support (see the [README](NeuralTextures/README.md)).
 
 ## Version 1.0.1
 * Added support for block compressed formats (.dds files) in the demand load library.

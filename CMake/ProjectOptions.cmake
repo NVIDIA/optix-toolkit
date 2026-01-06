@@ -66,6 +66,11 @@ if( OTK_USE_VCPKG )
     otk_vcpkg_feature( OTK_USE_OIIO           "otk-openimageio" )
     otk_vcpkg_feature( OTK_BUILD_EXAMPLES     "otk-examples" )
     otk_vcpkg_feature( OTK_BUILD_TESTS        "otk-tests" )
+    
+    # Enable otk-neuraltextures feature if NeuralTextures library is being built
+    if( OTK_LIBRARIES STREQUAL "ALL" OR "NeuralTextures" IN_LIST OTK_LIBRARIES )
+        otk_vcpkg_feature( TRUE "otk-neuraltextures" )
+    endif()
 
     if( NOT CMAKE_TOOLCHAIN_FILE )
         # Assume that vcpkg submodule is sibling of current list dir

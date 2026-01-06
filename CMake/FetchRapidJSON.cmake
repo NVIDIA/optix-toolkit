@@ -26,7 +26,18 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
   FIND_PACKAGE_ARGS
 )
+
+# Disable RapidJSON docs/examples/tests (tests pull in their own gtest)
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build RapidJSON documentation" FORCE)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build RapidJSON examples" FORCE)
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "Build RapidJSON tests" FORCE)
+
+# Standard FetchContent; options above prevent gtest conflicts
 FetchContent_MakeAvailable(RapidJSON)
+# Export source dir for NeuralTextures include path logic
+set(RapidJSON_SOURCE_DIR ${rapidjson_SOURCE_DIR})
+set(RapidJSON_SOURCE_DIR ${rapidjson_SOURCE_DIR} PARENT_SCOPE)
+
 # Let find_package know we have it
 set(RapidJSON_FOUND ON PARENT_SCOPE)
 
