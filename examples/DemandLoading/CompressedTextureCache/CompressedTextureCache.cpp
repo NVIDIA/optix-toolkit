@@ -128,7 +128,7 @@ int main( int argc, char* argv[] )
             if( fs::is_regular_file( argv[idx] ) )
             {
                 std::filesystem::path file( argv[idx] );
-                if( !cacheManager.isSupportedFileType( file.extension() ) )
+                if( !cacheManager.isSupportedFileType( file.extension().string() ) )
                 {
                     std::cerr << "Error: unknown image file: " << argv[idx] << "\n\n";
                     printUsage( argv[0] );
@@ -139,7 +139,7 @@ int main( int argc, char* argv[] )
             {
                 for ( const auto& entry : fs::directory_iterator( argv[idx] ) ) 
                 {
-                    if( entry.is_regular_file() && cacheManager.isSupportedFileType( entry.path().extension() ) )
+                    if( entry.is_regular_file() && cacheManager.isSupportedFileType( entry.path().extension().string() ) )
                         sourceImages.push_back( entry.path().string() );
                 }
             }
