@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: LicenseRef-NvidiaProprietary
  *
  * NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <cuda.h>
 #include <optix.h>
 #include <optix_device.h>
 
@@ -29,7 +30,7 @@ __device__ __forceinline__ int hb3( int a ) { return (a >> 12) & 0xf; }
 
 template<class vecT>
 __device__ __forceinline__ 
-void lerp4latents( vecT& out, int idx, ushort s00, ushort s10, ushort s01, ushort s11, float w00, float w10, float w01, float w11 )
+void lerp4latents( vecT& out, int idx, uint16_t s00, uint16_t s10, uint16_t s01, uint16_t s11, float w00, float w10, float w01, float w11 )
 {
     // Scale and bias to convert half bytes with range [0 .. 15] to [-1.0 .. 1.0]
     const float scale = 2.0f / 15.0f;
