@@ -1,32 +1,6 @@
 /*
-
  * SPDX-FileCopyrightText: Copyright (c) 2019 - 2025  NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- * contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <math.h>
@@ -109,7 +83,6 @@ bool NtcImageReader::parseTextureSetDescription( rapidjson::Document& doc )
         tsc.imageHeight = doc["colorMips"][0]["height"].GetInt();
 
         tsc.validChannelMask = 0;
-        tsc.channelColorSpaces = 0; // FIXME: actually read these
 
         m_inferenceData.numTextures = doc["textures"].Size();
         m_inferenceData.numChannels = doc["numChannels"].GetInt();
@@ -282,7 +255,7 @@ bool NtcImageReader::parseNetworkDescription( rapidjson::Document& doc )
 }
 
 
-bool NtcImageReader::readLatentRectUshort( ushort* dest, int mipLevel, int xstart, int ystart, int width, int height )
+bool NtcImageReader::readLatentRectUshort( uint16_t* dest, int mipLevel, int xstart, int ystart, int width, int height )
 {
     int numLatentTextures = m_inferenceData.latentFeatures / 4;
     int destPixelStride = (numLatentTextures != 3) ? numLatentTextures : 4;
@@ -291,7 +264,7 @@ bool NtcImageReader::readLatentRectUshort( ushort* dest, int mipLevel, int xstar
     int mipHeight = m_inferenceData.latentHeight >> mipLevel;
     int latentOffset = m_hLatentMipOffsets[mipLevel];
 
-    ushort* src = (ushort*) &m_hDataChunk[latentOffset];
+    uint16_t* src = (uint16_t*) &m_hDataChunk[latentOffset];
     width = std::min( width, mipWidth - xstart );
     height = std::min( height, mipHeight - ystart );
 
@@ -299,12 +272,12 @@ bool NtcImageReader::readLatentRectUshort( ushort* dest, int mipLevel, int xstar
     {
         for( int x = 0; x < width; ++x )
         {
-            ushort* pixelDest = &dest[( y * width + x ) * destPixelStride];
+            uint16_t* pixelDest = &dest[( y * width + x ) * destPixelStride];
             for( int c = 0; c < numLatentTextures; ++c )
             {
                 int srcLayerOffset = mipWidth * mipHeight * c;
                 int srcPixelOffset = ( y + ystart ) * mipWidth + ( x + xstart );
-                ushort* pixelSrc = &src[srcLayerOffset + srcPixelOffset];
+                uint16_t* pixelSrc = &src[srcLayerOffset + srcPixelOffset];
                 pixelDest[c] = *pixelSrc;
             }
         }
@@ -318,7 +291,7 @@ CUtexObject NtcImageReader::makeLatentTexture()
     // Allocate mipmapped CUDA array
     int numLatentTextures = m_inferenceData.latentFeatures / 4;
     int pixelStride = (numLatentTextures != 3) ? numLatentTextures : 4;
-    int numMips = m_hLatentMipOffsets.size();
+    int numMips = static_cast<int>(m_hLatentMipOffsets.size());
     
     // Create mipmapped array descriptor
     CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
@@ -342,7 +315,7 @@ CUtexObject NtcImageReader::makeLatentTexture()
         // Get the source (latentSrc) and destination (levelArray)
         int mipWidth = m_inferenceData.latentWidth >> mipLevel;
         int mipHeight = m_inferenceData.latentHeight >> mipLevel;
-        std::vector<ushort> latentSrc( mipWidth * mipHeight * pixelStride, 0 );
+        std::vector<uint16_t> latentSrc( mipWidth * mipHeight * pixelStride, 0 );
         readLatentRectUshort( latentSrc.data(), mipLevel, 0, 0, mipWidth, mipHeight );
         CUarray levelArray;
         CUDA_CHK( cuMipmappedArrayGetLevel( &levelArray, mipmappedArray, mipLevel ) );
@@ -351,10 +324,10 @@ CUtexObject NtcImageReader::makeLatentTexture()
         CUDA_MEMCPY2D copyDesc = {};
         copyDesc.srcMemoryType = CU_MEMORYTYPE_HOST;
         copyDesc.srcHost = latentSrc.data();
-        copyDesc.srcPitch = mipWidth * pixelStride * sizeof(ushort);
+        copyDesc.srcPitch = mipWidth * pixelStride * sizeof(uint16_t);
         copyDesc.dstMemoryType = CU_MEMORYTYPE_ARRAY;
         copyDesc.dstArray = levelArray;
-        copyDesc.WidthInBytes = mipWidth * pixelStride * sizeof(ushort);
+        copyDesc.WidthInBytes = mipWidth * pixelStride * sizeof(uint16_t);
         copyDesc.Height = mipHeight;
         CUDA_CHK( cuMemcpy2D( &copyDesc ) );
     }
@@ -486,12 +459,12 @@ bool NtcImageReader::convertNetworkToOptixInferencingOptimal( OptixDeviceContext
         optStride) );
 
     // Put scale and bias offsets in texture set constants
-    tsc.networkScaleOffsets[0] = dst_mats_size;
-    tsc.networkBiasOffsets[0] = tsc.networkScaleOffsets[0] + m_hNetwork[0].scaleSize;
+    tsc.networkScaleOffsets[0] = static_cast<int>(dst_mats_size);
+    tsc.networkBiasOffsets[0] = static_cast<int>(tsc.networkScaleOffsets[0] + m_hNetwork[0].scaleSize);
     for( int i = 1; i < numLayers; ++i )
     {
-        tsc.networkScaleOffsets[i] = tsc.networkBiasOffsets[i-1] + m_hNetwork[i-1].biasSize;
-        tsc.networkBiasOffsets[i] = tsc.networkScaleOffsets[i] + m_hNetwork[i].scaleSize;
+        tsc.networkScaleOffsets[i] = static_cast<int>(tsc.networkBiasOffsets[i-1] + m_hNetwork[i-1].biasSize);
+        tsc.networkBiasOffsets[i] = static_cast<int>(tsc.networkScaleOffsets[i] + m_hNetwork[i].scaleSize);
     }
 
     // copy the other stuff after the mats arrays from src to dest

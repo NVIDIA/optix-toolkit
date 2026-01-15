@@ -33,7 +33,7 @@ class NtcImageReader
     const InferenceDataOptix& getInferenceData() { return m_inferenceData; }
 
     /// Read a rectangle from a mip level of the latent texture into dest on the host.
-    bool readLatentRectUshort( ushort* dest, int mipLevel, int xstart, int ystart, int width, int height );
+    bool readLatentRectUshort( uint16_t* dest, int mipLevel, int xstart, int ystart, int width, int height );
 
   private:
 
