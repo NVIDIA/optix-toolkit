@@ -14,10 +14,10 @@ namespace fs = std::filesystem;
 
 namespace imageSource {
 
-std::string CompressedTextureCacheManager::getCacheFilePath( const std::string& inputFile )
+std::string CompressedTextureCacheManager::getCacheFilePath( const std::string& cacheFileName, const std::string& extension )
 {
-    std::string baseFileName = inputFile.substr( inputFile.find_last_of( "/\\") + 1 );
-    return m_options.cacheFolder + FILE_SEPARATOR + baseFileName + ".dds";
+    std::string baseFileName = cacheFileName.substr( cacheFileName.find_last_of( "/\\") + 1 );
+    return m_options.cacheFolder + FILE_SEPARATOR + baseFileName + extension;
 }
 
 bool CompressedTextureCacheManager::isSupportedFileType( const std::string& extension )
@@ -32,13 +32,57 @@ bool CompressedTextureCacheManager::isSupportedFileType( const std::string& exte
     return false;
 }
 
-bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath, int deviceId )
+bool CompressedTextureCacheManager::cacheTextureSetAsNtc( const std::vector<std::string>& filePaths, int deviceId )
+{
+    std::string outputFileName = filePaths[0];
+    std::string cacheFilePath = getCacheFilePath( outputFileName, "" );
+
+    // Return if the cache file already exists, or the input files do not exist.
+    if( fs::exists( cacheFilePath ) )
+    {
+        printCommand( "\"" + cacheFilePath + "\" exists, not converting." );
+        return true;
+    }
+    for( unsigned int i = 1; i < filePaths.size(); ++i )
+    {
+        if( !fs::exists( filePaths[i] ) )
+        {
+            printCommand( "Could not find input file \"" + filePaths[i] + "\"." );
+            return false;
+        }
+    }
+
+    // Construct the command to convert the texture set into an NTC file
+    std::string command = m_options.ntcCli;
+    for( unsigned int i = 1; i < filePaths.size(); ++i )
+    {
+        command += " \"" + filePaths[i] + "\"";
+    }
+    command += " --gridSizeScale 4";
+    command += " --numFeatures " + std::to_string(m_options.numNtcFeatures);
+    command += " --compress";
+    std::string generateMips = " --generateMips";
+    command += generateMips;
+    command += " --saveCompressed \"" + cacheFilePath + "\"";
+    printCommand( command );
+
+    // Run the command
+    if( !m_options.showErrors )
+        command += TO_DEV_NULL;
+    if( deviceId != 0 )
+        command = std::string("CUDA_VISIBLE_DEVICES=") + std::to_string(deviceId) + " " + command;
+    if( std::system( command.c_str() ) != 0 )
+        return false;
+    return true;
+}
+
+bool CompressedTextureCacheManager::cacheFileAsDDS( const std::string& inputFilePath, int deviceId )
 {
     if( inputFilePath.length() == 0 )
         return false;
     std::string suffix = inputFilePath.substr( inputFilePath.rfind('.') + 1 );
     std::transform( suffix.begin(), suffix.end(), suffix.begin(), ::tolower );
-    std::string cacheFilePath = getCacheFilePath( inputFilePath );
+    std::string cacheFilePath = getCacheFilePath( inputFilePath, ".dds" );
 
     // Return if the cache file already exists, or the input file does not exist.
     {
@@ -149,8 +193,10 @@ bool CompressedTextureCacheManager::cacheFile( const std::string& inputFilePath,
 
 void CompressedTextureCacheManager::printCommand( const std::string& command )
 {
-    if( m_verbose )
+    if( m_verbose && command.length() < 100 )
         printf("    %s\n", command.c_str());
+    if( m_verbose && command.length() >= 100 )
+        printf("\n%s\n\n", command.c_str());
 }
 
 bool CompressedTextureCacheManager::isHighDynamicRange( CoreEXRReader& exrReader, TextureInfo& texInfo )
@@ -371,7 +417,7 @@ bool CompressedTextureCacheManager::convertEXRtoTGA4( CoreEXRReader& exrReader, 
 
 bool CompressedTextureCacheManager::convertImageToDDS( const std::string& inFile, const std::string& outFile, const std::string& ddsFormat, int deviceId )
 {
-    std::string command = m_options.nvcompress + " -" + ddsFormat + " -silent "
+    std::string command = m_options.nvcompress + " " + m_options.flags + " -" + ddsFormat + " -silent "
         + " \"" + inFile + "\"" + " \"" + outFile + "\"";
     if( deviceId != 0 )
         command = std::string("CUDA_VISIBLE_DEVICES=") + std::to_string(deviceId) + " " + command;
