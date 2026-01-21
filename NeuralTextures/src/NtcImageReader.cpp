@@ -44,7 +44,7 @@ bool NtcImageReader::loadFile( const char* fileName )
 
     // Figure out how much of the data chunk to read
     bool loadLatents = true;
-    int dataChunkReadSize = header.dataSize;
+    int dataChunkReadSize = static_cast<int>(header.dataSize);
     if( !loadLatents )
     {
         int latentOffsetViewIdx = jsonDoc["latents"][0]["view"].GetInt();
@@ -84,7 +84,7 @@ bool NtcImageReader::parseTextureSetDescription( rapidjson::Document& doc )
 
         tsc.validChannelMask = 0;
 
-        m_inferenceData.numTextures = doc["textures"].Size();
+        m_inferenceData.numTextures = static_cast<int>(doc["textures"].Size());
         m_inferenceData.numChannels = doc["numChannels"].GetInt();
 
         // Subtexture descriptions
@@ -173,7 +173,7 @@ bool NtcImageReader::parseNetworkDescription( rapidjson::Document& doc )
         for( networkIdx = 0; networkIdx < doc["mlpVersions"].Size(); ++networkIdx )
         {
             rapidjson::Value& network = doc["mlpVersions"][networkIdx];
-            if( ( network["layers"].Size() == 4 || network["layers"].Size() == 3 ) &&
+            if( ( network["layers"].Size() == 4u || network["layers"].Size() == 3u ) &&
                 network["layers"][0]["weightType"].GetString() == std::string("FloatE4M3") )
             {
                 break;
@@ -443,7 +443,7 @@ bool NtcImageReader::convertNetworkToOptixInferencingOptimal( OptixDeviceContext
     size_t src_other_stuff_size = networkSizeInBytes - src_mats_size;
     size_t dst_total_size       = dst_mats_size + src_other_stuff_size;
 
-    if( d_dstSize < (int)dst_total_size )
+    if( d_dstSize < static_cast<int>(dst_total_size) )
         return false;
 
     const int numNetworks = 1;
@@ -492,7 +492,7 @@ void NtcImageReader::printTextureSetDescription()
             layer.biasType.c_str(), layer.biasOffset, layer.biasSize );
     }
 
-    for( int i=0; i<tsc.imageMips; ++i )
+    for( int i=0; i < tsc.imageMips; ++i )
     {
         NtcColorMipConstants mip = tsc.colorMips[i];
         printf( "mip[%d]: neuralMip:%d, positionLod:%1.3f, positionScale:%1.3f\n", 
@@ -502,7 +502,7 @@ void NtcImageReader::printTextureSetDescription()
     printf("numTextures:%d, numChannels:%d\n", m_inferenceData.numTextures, m_inferenceData.numChannels );
     printf( "validChannelMask:%x, channelColorSpaces:%x\n", tsc.validChannelMask, tsc.channelColorSpaces );
 
-    for( int i=0; i<m_inferenceData.numTextures; ++i )
+    for( int i=0; i < m_inferenceData.numTextures; ++i )
     {
         printf("TextureChannels[%d] (%d, %d)\n", i, m_inferenceData.texFirstChannel[i], m_inferenceData.texNumChannels[i]);
     }
@@ -510,7 +510,7 @@ void NtcImageReader::printTextureSetDescription()
     printf("latentFeatures:%d, latentWidth:%d, latentHeight:%d\n", 
         m_inferenceData.latentFeatures, m_inferenceData.latentWidth, m_inferenceData.latentHeight );
     
-    for( unsigned int i=0; i < m_hLatentMipOffsets.size(); ++i )
+    for( unsigned int i = 0; i < m_hLatentMipOffsets.size(); ++i )
     {
         printf( "latentMip[%d]: offset:%d\n", i, m_hLatentMipOffsets[i] );
     }
