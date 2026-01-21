@@ -4,11 +4,11 @@ The NeuralTextures module supports on-demand streaming of neural textures in Opt
 
 ## Overview
 
-Neural Texture Compression (NTC) is a lossy compression format that uses neural networks to achieve very high compression ratios while maintaining visual quality. Unlike traditional block compression formats, NTC files store textures as compressed latent features and a small multi-layer perceptron (MLP) network. During rendering, the neural network performs inference on-demand to reconstruct texture values, enabling efficient GPU memory usage.
+Neural Texture Compression (NTC) is a lossy compression format that uses neural networks to achieve very high compression ratios while maintaining visual quality. NTC files store textures as compressed latent features and a small multi-layer perceptron (MLP) network. During rendering, the neural network performs inference on-demand to reconstruct texture values, enabling efficient GPU memory usage.
 
 ### Benefits
 
-- **High compression ratios**: Achieves significantly better compression than traditional formats
+- **High compression ratios**: Significantly better compression than traditional formats
 - **GPU-accelerated inference**: Neural network evaluation runs efficiently on GPU using OptiX
 - **On-demand streaming**: Works with the demand loading library to stream texture data as needed
 - **Quality preservation**: Maintains high visual quality even at aggressive compression ratios
@@ -27,7 +27,7 @@ The library consists of host-side and device-side components:
 
 - **`NeuralTextureSource`** - Implements `ImageSource`, bridging `.ntc` files and the demand loading system
 - **`NtcImageReader`** - Parses `.ntc` files, extracting latent features and MLP weights
-- **`InferenceDataOptix`** - Stores per-device inference data (latent textures, MLP weights)
+- **`InferenceDataOptix.h`** - Stores per-device inference data (latent textures, MLP weights)
 
 ### Device-Side
 
