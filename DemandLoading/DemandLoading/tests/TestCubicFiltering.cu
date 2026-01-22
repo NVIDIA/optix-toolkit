@@ -23,7 +23,7 @@ __global__ static void cubicTextureDrawKernel( demandLoading::DeviceContext cont
     float s = (x + 0.5f) / width;
     float t = (y + 0.5f) / height;
     float4 color;
-    resident = textureUdim<float4>( context, textureId, s, t, ddx, ddy, &color );
+    resident = tex2DCubicUdim<float4>( context, textureId, s, t, ddx, ddy, &color );
 
     output[y * width + x] = resident ? color : make_float4( 1.f, 0.f, 1.f, 0.f );
 }
@@ -58,7 +58,7 @@ __global__ static void cubicTextureSubimageDrawKernel( demandLoading::DeviceCont
     float t = mix( uv00.y, uv11.y, y );
 
     float4 val, drds, drdt;
-    textureUdim<float4>( context, textureId, s, t, ddx, ddy, &val, &drds, &drdt );
+    tex2DCubicUdim<float4>( context, textureId, s, t, ddx, ddy, &val, &drds, &drdt );
 
     int pixelId = j * width + i;
     image[pixelId] = val;
