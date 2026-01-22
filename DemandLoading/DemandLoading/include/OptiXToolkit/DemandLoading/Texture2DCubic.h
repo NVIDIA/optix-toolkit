@@ -17,8 +17,8 @@ namespace demandLoading {
 /// in the non-null locations pointed to by result, dresultds, and dresultdt. Filter based on the 
 /// filterMode in the texture sampler. Return true if the requested texture data is resident.
 template <class TYPE> D_INLINE bool
-textureCubic( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
-              TYPE* result, TYPE* dresultds, TYPE* dresultdt, float2 texelJitter = float2{} )
+tex2DCubic( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
+            TYPE* result, TYPE* dresultds, TYPE* dresultdt, float2 texelJitter = float2{} )
 {
     // Get the sampler if the gradients are small enough. If |grad|>=1, use base color
     bool resident = true; 
@@ -112,10 +112,10 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
 
 /// Fetch from a demand-loaded texture with the specified textureId. Simplified entry point without derivatives.
 template <class TYPE> D_INLINE bool
-textureCubic( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
-              TYPE* result, float2 texelJitter = float2{} )
+tex2DCubic( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
+            TYPE* result, float2 texelJitter = float2{} )
 {
-    return textureCubic( context, textureId, s, t, ddx, ddy, result, nullptr, nullptr, texelJitter );
+    return tex2DCubic( context, textureId, s, t, ddx, ddy, result, nullptr, nullptr, texelJitter );
 }
 
 
@@ -123,8 +123,8 @@ textureCubic( const DeviceContext& context, unsigned int textureId, float s, flo
 /// computed and stored in the non-null locations pointed to by result, dresultds, and dresultdt. 
 /// Filter based on the filterMode in the texture sampler. Return true if the requested texture data is resident.
 template <class TYPE> D_INLINE bool
-textureUdim( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
-             TYPE* result, TYPE* dresultds, TYPE* dresultdt, float2 texelJitter = float2{} )
+tex2DCubicUdim( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
+                TYPE* result, TYPE* dresultds, TYPE* dresultdt, float2 texelJitter = float2{} )
 {
     bool resident;
     TextureSampler* bsmp = reinterpret_cast<TextureSampler*>( pagingMapOrRequest( context, textureId, &resident ) ); // base sampler
@@ -164,63 +164,15 @@ textureUdim( const DeviceContext& context, unsigned int textureId, float s, floa
     }
 
     // Call sampling routine
-    return textureCubic( context, textureId, s, t, ddx, ddy, result, dresultds, dresultdt, texelJitter );
+    return tex2DCubic( context, textureId, s, t, ddx, ddy, result, dresultds, dresultdt, texelJitter );
 }
 
 /// Fetch from a demand-loaded udim texture with the specified textureId. Simplified entry point without derivatives.
 template <class TYPE> D_INLINE bool
-textureUdim( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
-             TYPE* result, float2 texelJitter = float2{} )
+tex2DCubicUdim( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
+                TYPE* result, float2 texelJitter = float2{} )
 {
-    return textureUdim<TYPE>( context, textureId, s, t, ddx, ddy, result, nullptr, nullptr, texelJitter );
-}
-
-
-D_INLINE void copyResult( float* result, float4 res, int startIdx, int nchannels )
-{
-    if( !result )
-        return;
-    result[startIdx] = res.x;
-    if( startIdx + 1 < nchannels ) result[startIdx + 1] = res.y;
-    if( startIdx + 2 < nchannels ) result[startIdx + 2] = res.z;
-    if( startIdx + 3 < nchannels ) result[startIdx + 3] = res.w;
-}
-
-/// Fetch from a demand-loaded udim (or non-udim) texture with the specified starting textureId. 
-/// Results are computed and stored as floats in the non-null locations pointed to by result, dresultds, and dresultdt. 
-/// nchannels specifies how many channels to fetch from the texture.  The function assumes that channels
-/// are stored in textures with consecutive ids, and that each texture except for the last has 4 channels.
-/// Filtering is based on the filterMode in the texture sampler. Returns true if the requested texture data is resident.
-D_INLINE bool
-texture( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
-         int nchannels, float* result, float* dresultds, float* dresultdt, float2 texelJitter = float2{} )
-{
-    bool resident = true;
-    float4 res, drds, drdt;
-    float4* resPtr = (result) ? &res : nullptr;
-    float4* drdsPtr = (dresultds) ? &drds : nullptr; 
-    float4* drdtPtr = (dresultdt) ? &drdt : nullptr;
-
-    int idx = 0;
-    do
-    {
-        resident &= textureUdim<float4>( context, textureId + (idx>>2), s, t, ddx, ddy, resPtr, drdsPtr, drdtPtr, texelJitter );
-        copyResult( result, res, idx, nchannels );
-        copyResult( dresultds, drds, idx, nchannels );
-        copyResult( dresultdt, drdt, idx, nchannels );
-        idx += 4;
-    } while( idx < nchannels );
-
-    return resident;
-}
-
-/// Fetch from a demand-loaded udim texture as floats with the specified starting textureId. 
-/// Simplified entry point without derivatives.
-D_INLINE bool
-texture( const DeviceContext& context, unsigned int textureId, float s, float t, float2 ddx, float2 ddy, 
-         int nchannels, float* result, float2 texelJitter = float2{} )
-{
-    return texture( context, textureId, s, t, ddx, ddy, nchannels, result, nullptr, nullptr, texelJitter );
+    return tex2DCubicUdim<TYPE>( context, textureId, s, t, ddx, ddy, result, nullptr, nullptr, texelJitter );
 }
 
 } // namespace demandloading

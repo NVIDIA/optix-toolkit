@@ -140,7 +140,7 @@ The *cubic* filtering mode in the OTK code is not anisotropic. Instead, it blend
 ## Tests
 
 **Sampling speed.**
-The table gives timings for the *smart bicubic* filter mode, using *demand load textures* calling the `textureCubic` function in the file `Texture2DCubic.h`. Results are encouraging. Bicubic filtering with 4 taps renders at about 93 percent of bilinear, and even the bilinear/cubic derivative transition, with 12 taps, renders at 84 percent of bilinear, and has lower overhead than using the demand load texture system.
+The table gives timings we measured for the *smart bicubic* filter mode, using *demand load textures* calling the `tex2DCubic` function in the file `Texture2DCubic.h`. Results are encouraging. In our experiments, bicubic filtering with 4 taps rendered at about 93 percent of bilinear, and even the bilinear/cubic derivative transition, with 12 taps, rendered at 84 percent of bilinear, and has lower overhead than using the demand load texture system.
 
 <div align="center">
   
@@ -155,7 +155,7 @@ The table gives timings for the *smart bicubic* filter mode, using *demand load 
 </div>
 
 **Filtering results.**
-The images below show bilinear and bicubic filtering using the `texture2DCubic` function. Bilinear interpolation results in blocky artifacts.  These are reduced using bicubic interpolation.
+The images below show bilinear and bicubic filtering using the `tex2DCubic` function. Bilinear interpolation results in blocky artifacts.  These are reduced using bicubic interpolation.
 
 <p align="center">
 <img src="CSbilinear.png" width="30%"/> <img src="CSbicubic.png" width="30%"/><br>

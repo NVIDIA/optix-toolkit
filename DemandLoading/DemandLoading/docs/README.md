@@ -396,10 +396,10 @@ The set of texture tiles that must be resident during a kernel launch can be ter
 
 ## Cubic filtering and texture derivatives
 
-High quality renderers often employ cubic filtering when magnifying a texture to reduce blocky image artifacts.  [Open ImageIO](https://github.com/AcademySoftwareFoundation/OpenImageIO) is an industry standard texturing library used by many commercial renderers. It supports four filtering modes: *point*, *linear*, *bicubic*, and *smart bicubic*, and computes texture derivatives in the chosen mode. The OTK demand loading library includes sampling functions that attempt to work like the OIIO `texture()` function.  It supports the same four filtering modes as Open ImageIO, and can calculate texture derivatives in addition to filtered texture values. These Open ImageIO work-alike functions are header only implementations, and are found in the file [Texure2DCubic.h](/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2DCubic.h) with the main entry points being `textureCubic`, `textureUdim`, and `texture`.  The `textureCubic` function looks like this:
+High quality renderers often employ cubic filtering when magnifying a texture to reduce blocky image artifacts.  [Open ImageIO](https://github.com/AcademySoftwareFoundation/OpenImageIO) is an industry standard texturing library used by many commercial renderers. It supports four filtering modes: *point*, *linear*, *bicubic*, and *smart bicubic*, and computes texture derivatives in the chosen mode. The OTK demand loading library includes sampling functions that attempt to work like the OIIO `texture()` function.  It supports the same four filtering modes as Open ImageIO, and can calculate texture derivatives in addition to filtered texture values. These Open ImageIO work-alike functions are header only implementations, and are found in the file [Texure2DCubic.h](/DemandLoading/DemandLoading/include/OptiXToolkit/DemandLoading/Texture2DCubic.h) with the main entry points being `tex2DCubic` and `tex2DCubicUdim`.  The `tex2DCubic` function looks like this:
 
 ```
-template <class TYPE> bool textureCubic( 
+template <class TYPE> bool tex2DCubic( 
     const DeviceContext& context, 
     unsigned int textureId, 
     float s, 
