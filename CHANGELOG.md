@@ -40,11 +40,11 @@
 
 ## Version 0.8
 
-* Added [Self Intersection Avoidance library](ShaderUtil/README.md).
+* Added [Self Intersection Avoidance library](ShaderUtil/docs/selfIntersectionAvoidance/README.md).
 * Added [DemandGeometry library](DemandLoading/DemandGeometry/README.md)
 * Added [DemandGeometryViewer example](examples/DemandLoading/DemandGeometryViewer)
 * OTK now requires cmake 3.24 or later, leveraging a [new feature of FetchContent](https://cmake.org/cmake/help/latest/guide/using-dependencies/index.html#fetchcontent-and-find-package-integration) that invokes find_package and uses installed third-party packages when possible. 
-* Added a new [Memory](Memory/README) submodule that provides device memory allocators, etc.
+* Added a new [Memory](Memory/README.md) submodule that provides device memory allocators, etc.
   * The demand loading library now depends on this submodule.
 * The Demand Loading library now supports a wide range of image file types (via OpenImageIO).  See 
 the [Demand Loading CHANGELOG](DemandLoading/CHANGELOG.md).
