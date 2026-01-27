@@ -6,7 +6,9 @@ if (TARGET OptiX::OptiX)
   return()
 endif()
 
-find_package(CUDAToolkit REQUIRED)
+if(NOT TARGET CUDA::cuda_driver)
+  find_package(CUDAToolkit REQUIRED)
+endif()
 
 # OptiX_INSTALL_DIR can be set to root of an installed OptiX SDK.
 # If not specified, FetchContent is used to download the OptiX headers.
