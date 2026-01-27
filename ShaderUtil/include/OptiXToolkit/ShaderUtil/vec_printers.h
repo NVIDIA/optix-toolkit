@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include <vector_types.h>
+
+// Redirect deprecated CUDA vector types to explicitly-aligned variants (CUDA 12.6+)
+#if CUDART_VERSION >= 12060
+#define double4 double4_16a
+#define long4 long4_16a
+#define ulong4 ulong4_16a
+#define longlong4 longlong4_16a
+#define ulonglong4 ulonglong4_16a
+#endif
 
 #include <iostream>
 

@@ -9,6 +9,20 @@
 #include <vector_functions.h>
 #include <vector_types.h>
 
+// Redirect deprecated CUDA vector types to explicitly-aligned variants (CUDA 12.6+)
+#if CUDART_VERSION >= 12060
+#define double4 double4_16a
+#define long4 long4_16a
+#define ulong4 ulong4_16a
+#define longlong4 longlong4_16a
+#define ulonglong4 ulonglong4_16a
+#define make_double4 make_double4_16a
+#define make_long4 make_long4_16a
+#define make_ulong4 make_ulong4_16a
+#define make_longlong4 make_longlong4_16a
+#define make_ulonglong4 make_ulonglong4_16a
+#endif
+
 #if !defined(__CUDACC_RTC__)
 #include <cmath>
 #include <cstdlib>
