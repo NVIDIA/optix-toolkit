@@ -1,6 +1,19 @@
 # OptiX Toolkit changes
 
-## Version 1.1.x
+## Version 1.2.0
+* Added NeuralTextures library and NeuralTextureViewer example.
+* Renamed cubic texturing entry points to align with existing naming conventions.
+* Updated documentation for stochastic texture filtering.
+* OptiX SDK headers are automatically downloaded from GitHub if preinstalled SDK is not found.
+* Reduced Cmake configuration time overhead.
+* Improved CMake install/export logic, particularly when building a subset of libraries.
+* Fixed CMake 4.2 issue involving third-party dependencies with legacy CMake minimum versions.
+* PyOptiX submodule changes:
+  - CMake 4.x support.
+  - Windows installation improvements (DLL loading for Python 3.8+)
+  - Updated pybind11 to v2.13.6
+
+## Version 1.1.0
 * Improved CMake installation logic.
 * Added NeuralTextures library for neural texture compression support (see the [README](NeuralTextures/README.md)).
 
