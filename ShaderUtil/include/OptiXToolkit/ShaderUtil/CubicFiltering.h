@@ -100,21 +100,22 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
               unsigned int filterMode, unsigned int mipmapFilterMode, unsigned int maxAnisotropy, bool conservativeFiltering,
               float s, float t, float2 ddx, float2 ddy, TYPE* result, TYPE* dresultds, TYPE* dresultdt )
 {
-    // General gradient size fixes
+    float p1 = (ddx.x * texWidth) * (ddx.x * texWidth) + (ddx.y * texHeight) * (ddx.y * texHeight);
+    float p2 = (ddy.x * texWidth) * (ddy.x * texWidth) + (ddy.y * texHeight) * (ddy.y * texHeight);
+    float maxGradientLengthInPixels = sqrtf( maxf( p1, p2 ) );
+
     fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservativeFiltering );
 
     // Determine the blend between linear and cubic filtering
-    float pixelSpan = getPixelSpan( ddx, ddy, texWidth, texHeight );
-    float ml = 0.0f;
-    int mipLevel = 0;
-
     float cubicBlend = ( filterMode == FILTER_BICUBIC ) ? 1.0f : 0.0f;
-    if( filterMode == FILTER_SMARTBICUBIC && pixelSpan <= 2.0f )
+    if( filterMode == FILTER_SMARTBICUBIC && maxGradientLengthInPixels < 2.0f )
     {
-        cubicBlend = fminf( ( 2.0f - pixelSpan ), 1.0f );
+        cubicBlend = fminf( 2.0f - maxGradientLengthInPixels, 1.0f );
     }
 
     // Get mip level if needed
+    float ml = 0.0f;
+    int mipLevel = 0;
     if( dresultds || dresultdt || filterMode == FILTER_BICUBIC )
     {
         ml = getMipLevel( ddx, ddy, texWidth, texHeight, 1.0f / maxAnisotropy );
