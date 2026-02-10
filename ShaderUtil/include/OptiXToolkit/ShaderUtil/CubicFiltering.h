@@ -102,7 +102,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
 {
     float p1 = (ddx.x * texWidth) * (ddx.x * texWidth) + (ddx.y * texHeight) * (ddx.y * texHeight);
     float p2 = (ddy.x * texWidth) * (ddy.x * texWidth) + (ddy.y * texHeight) * (ddy.y * texHeight);
-    float maxGradientLengthInPixels = sqrtf( maxf( p1, p2 ) );
+    float maxGradientLengthInPixels = sqrtf( fmaxf( p1, p2 ) );
 
     fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservativeFiltering );
 
