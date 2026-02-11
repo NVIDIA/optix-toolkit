@@ -11,6 +11,7 @@
 #include "TransferBufferDesc.h"
 #include "Util/NVTXProfiling.h"
 
+#include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
@@ -40,6 +41,9 @@ void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 
     unsigned int samplerId = cascadeIdToSamplerId( pageId );
     unsigned int requestCascadeSize = cascadeLevelToTextureSize( cascadeIdToCascadeLevel( pageId ) );
+
+    DL_LOG(4, "[Page " + std::to_string(pageId) + "] Cascade request, texture " + std::to_string(samplerId)
+        + ", cascade size " + std::to_string(requestCascadeSize) + ".");
 
     DemandTextureImpl* texture = m_loader->getTexture( samplerId );
     imageSource::CascadeImage* cascadeImage = reinterpret_cast<imageSource::CascadeImage*>( texture->getImage().get() );

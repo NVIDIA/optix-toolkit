@@ -11,6 +11,7 @@
 #include "TransferBufferDesc.h"
 #include "Util/NVTXProfiling.h"
 
+#include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include <OptiXToolkit/DemandLoading/LRU.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/Error/ErrorCheck.h>
@@ -67,6 +68,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     // Load base color if the page is for a base color
     if( isBaseColorId( pageId, m_loader->getOptions().maxTextures ) )
     {
+        DL_LOG(4, "[Page " + std::to_string(pageId) + "] Base color request, texture " + std::to_string(samplerId) + ".");
         fillBaseColorRequest( stream, texture, pageId );
         return;
     }
@@ -74,6 +76,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     // If the texture is 1x1 or null, don't create a sampler.
     if( texture->isDegenerate() && !texture->isUdimEntryPoint() )
     {
+        DL_LOG(4, "[Page " + std::to_string(pageId) + "] Degenerate texture " + std::to_string(samplerId) + ".");
         m_loader->setPageTableEntry( pageId, false, 0ULL );
         return;
     }
@@ -89,6 +92,13 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
         ss << "ImageSource::init() failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
         throw std::runtime_error(ss.str().c_str());
     }
+
+    DL_LOG(4, "[Page " + std::to_string(pageId) + "] Texture " + std::to_string(samplerId)
+        + " (size=" + std::to_string(texture->getInfo().width) + "x" + std::to_string(texture->getInfo().height)
+        + ", mips=" + std::to_string(texture->getInfo().numMipLevels)
+        + ( !texture->useSparseTexture() ? ", dense" :
+            ", sparse, tileSize=" + std::to_string(texture->getTileWidth()) + "x" + std::to_string(texture->getTileHeight()) )
+        + ")");
 
     // For a dense texture, the whole thing has to be loaded, so load it now
     if ( !texture->useSparseTexture() )
