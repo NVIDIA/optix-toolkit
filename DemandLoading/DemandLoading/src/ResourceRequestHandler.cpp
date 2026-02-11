@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+#include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include "ResourceRequestHandler.h"
 #include "DemandLoaderImpl.h"
 
@@ -13,6 +14,8 @@ void ResourceRequestHandler::fillRequest( CUstream stream, unsigned int pageInde
     // multiple streams might race to fill the same tile (or the mip tail).
     unsigned int index = pageIndex - m_startPage;
     MutexArrayLock lock( m_mutex.get(), index);
+
+    DL_LOG(4, "[Page " + std::to_string(pageIndex) + "] Resource request.");
 
     // Do nothing if the request has already been filled.
     PagingSystem* pagingSystem = m_loader->getPagingSystem();

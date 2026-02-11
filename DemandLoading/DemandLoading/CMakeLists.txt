@@ -38,6 +38,7 @@ otk_add_library( DemandLoading
   src/DemandPageLoaderImpl.h
   src/DeviceContextImpl.cpp
   src/DeviceContextImpl.h
+  src/DemandLoadLogger.cpp
   src/Memory/DeviceMemoryManager.cpp
   src/Memory/DeviceMemoryManager.h
   src/PageMappingsContext.h
@@ -88,6 +89,7 @@ target_sources(DemandLoading
   FILES
   include/OptiXToolkit/DemandLoading/DemandLoader.h
   include/OptiXToolkit/DemandLoading/DemandPageLoader.h
+  include/OptiXToolkit/DemandLoading/DemandLoadLogger.h
   include/OptiXToolkit/DemandLoading/DemandTexture.h
   include/OptiXToolkit/DemandLoading/DeviceContext.h
   include/OptiXToolkit/DemandLoading/LRU.h

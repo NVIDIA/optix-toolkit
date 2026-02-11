@@ -7,6 +7,7 @@
 
 #include <DemandTextureViewerKernelCuda.h>
 
+#include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/ImageSource/MipMapImageSource.h>
@@ -105,6 +106,7 @@ void printUsage( const char* program )
         "   --file <outputfile>         Render to output file and exit.\n"
         "   --tile                      Make image tileable\n"
         "   --mipmap                    Make image mipmapped\n"
+        "   --log <level>               Set demand load log level (0-10)\n"
         "   --no-gl-interop             Disable OpenGL interop.\n";
     // clang-format on
 
@@ -138,6 +140,7 @@ int main( int argc, char* argv[] )
     int         windowHeight = 768;
     std::string outFileName = "";
     bool        glInterop = true;
+    int         logLevel = 0;
 
     std::string textureName = "checkerboard";
     bool        tile = false;
@@ -160,11 +163,14 @@ int main( int argc, char* argv[] )
             tile = true;
         else if( arg == "--mipmap" )
             mipmap = true;
+        else if( arg == "--log" && !lastArg )
+            logLevel = atoi( argv[++i] );
         else
             printUsage( argv[0] );
     }
 
     printKeyCommands();
+    DemandLoadLogger::setLogFunction( standardDemandLoadLogCallback, logLevel );
 
     DemandTextureViewer app( "Demand Texture Viewer", windowWidth, windowHeight, outFileName, glInterop );
     app.initDemandLoading( demandLoading::Options{} );

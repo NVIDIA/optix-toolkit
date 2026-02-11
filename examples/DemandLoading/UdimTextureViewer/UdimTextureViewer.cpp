@@ -6,6 +6,7 @@
 
 #include "UdimTextureViewerKernelCuda.h"
 
+#include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include <OptiXToolkit/OTKAppBase/OTKApp.h>
 #include <OptiXToolkit/DemandLoading/TextureSampler.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
@@ -196,7 +197,8 @@ void printUsage( const char* program )
         "   --coalesce-images           Coalesce identical images.\n"
         "   --dim=<width>x<height>      Specify rendering dimensions.\n"
         "   --file <outputfile>         Render to output file and exit.\n"
-        "   --no-gl-interop             Disable OpenGL interop.\n";
+        "   --no-gl-interop             Disable OpenGL interop.\n"
+        "   --log <level>               Set demand load log level (0-10)\n";
     // clang-format on
 
     exit(0);
@@ -230,6 +232,7 @@ int main( int argc, char* argv[] )
     const char* textureName  = "mandelbrot";
     const char* outFileName  = "";
     bool        glInterop    = true;
+    int         logLevel     = 0;
 
     int  texWidth = 8192;
     int  texHeight = 8192;
@@ -269,6 +272,8 @@ int main( int argc, char* argv[] )
             options.coalesceWhiteBlackTiles = true;
         else if( arg == "--coalesce-images" )
             options.coalesceDuplicateImages = true;
+        else if( arg == "--log" && !lastArg )
+            logLevel = atoi( argv[++i] );
         else
             printUsage( argv[0] );
     }
@@ -284,6 +289,7 @@ int main( int argc, char* argv[] )
     options.maxRequestQueueSize = options.maxRequestedPages * 2;
     options.maxThreads          = 0;
 
+    DemandLoadLogger::setLogFunction( standardDemandLoadLogCallback, logLevel );
     printKeyCommands();
 
     // Initialize the app
