@@ -133,7 +133,7 @@ Variable | Type | Default | Description
 
 If both `OTK_USE_VCPKG` and `OTK_FETCH_CONTENT` are `ON`, vcpkg will be used for dependencies.
 
-If the option `OTK_LIBRARIES` is used to configure the libraries to build, the value should be a semi-colon separated list of one or more of the names `DemandLoading`, `Memory`, `OmmBaking` or `ShaderUtil`. The default value `ALL` is the same as specifying `DemandLoading;Memory;OmmBaking;ShaderUtil`. Some libraries depend on other libraries.  The CMake build script includes dependent libraries as needed.
+If the option `OTK_LIBRARIES` is used to configure the libraries to build, the value should be a semi-colon separated list of one or more of the names `DemandLoading`, `Memory`, `NeuralTextures`, `OmmBaking` or `ShaderUtil`. The default value `ALL` is the same as specifying `DemandLoading;Memory;NeuralTextures;OmmBaking;ShaderUtil`. Some libraries depend on other libraries.  The CMake build script includes dependent libraries as needed.
 
 ## Third-party Libraries
 
@@ -148,6 +148,7 @@ The toolkit depends on third party libraries for texture file format parsing, a 
 |                   | GLFW 3.3 or later         |
 |                   | glad (any recent version) |
 |                   | stb                       |
+| **NeuralTextures**| rapidjson                 |
 | **Tests**         | gtest                     |
 
 The toolkit can automatically obtain these third party libraries in one of two ways: via a [vcpkg](README.md#vcpkg) manifest or via [FetchContent](README.md#fetchcontent) as described below.
