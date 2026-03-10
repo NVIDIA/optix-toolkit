@@ -9,8 +9,8 @@
 #include <vector_functions.h>
 #include <vector_types.h>
 
-// Redirect deprecated CUDA vector types to explicitly-aligned variants (CUDA 12.6+)
-#if CUDART_VERSION >= 12060
+// Redirect deprecated CUDA vector types to explicitly-aligned variants (CUDA 12.6 only)
+#if CUDART_VERSION >= 12060 && CUDART_VERSION < 12070
 #define double4 double4_16a
 #define long4 long4_16a
 #define ulong4 ulong4_16a
