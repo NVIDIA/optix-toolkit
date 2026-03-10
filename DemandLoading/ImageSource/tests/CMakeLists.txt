@@ -10,6 +10,7 @@ configure_file( ImageSourceTestConfig.h.in include/ImageSourceTestConfig.h @ONLY
 
 otk_add_executable( testImageSource
   MockImageSource.h
+  TestCascadeImage.cpp
   TestCheckerBoardImage.cpp
   TestImageSourceCache.cpp
   TestMipMapImageSource.cpp
