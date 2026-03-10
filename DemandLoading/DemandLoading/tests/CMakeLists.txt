@@ -25,6 +25,7 @@ otk_add_executable( testDemandLoading
   DeviceConstantImage.cpp
   PagingSystemTestKernels.cu
   PagingSystemTestKernels.h
+  TestCascadeResidency.cpp
   TestContextSaver.cpp
   TestDDSImageReader.cpp
   TestDemandLoader.cpp
