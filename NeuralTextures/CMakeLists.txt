@@ -4,13 +4,14 @@
 
 include(BuildConfig)
 include(FetchOptiX)
-include(FetchRapidJSON)
 
 # Check OptiX version (9.0.0 = 90000)
 if(OPTIX_VERSION LESS 90000)
   message(STATUS "Skipping NeuralTextures: requires OptiX 9.0.0 or newer. Found version ${OPTIX_VERSION}.")
   return()
 endif()
+
+include(FetchRapidJSON)
 
 otk_add_library( NeuralTextures
   src/NeuralTextureSource.cpp
