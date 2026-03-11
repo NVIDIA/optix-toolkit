@@ -52,7 +52,7 @@ D_INLINE void separateUdimCoord( float x, CUaddress_mode wrapMode, unsigned int 
 /// Request a cascade (texture resolution) big enough handle a sample with texture derivatives ddx, ddy
 D_INLINE bool requestCascade( const DeviceContext& context, unsigned int textureId, const TextureSampler* sampler, float2 ddx, float2 ddy )
 {
-    if( sampler && !sampler->hasCascade )
+    if( !sampler || !sampler->hasCascade )
         return false;
 
     // Get the mip level
