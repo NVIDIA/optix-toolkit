@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cuda.h>
+#include <cuda_runtime.h>
 
 namespace demandLoading {
 struct DeviceContext;
@@ -23,3 +24,10 @@ void launchPageBatchRequester( CUstream                            stream,
                                unsigned int                        pageBegin,
                                unsigned int                        pageEnd,
                                PageTableEntry*                     pageTableEntries );
+
+void launchTextureSampler( CUstream                            stream,
+                           const demandLoading::DeviceContext& context,
+                           unsigned int                        textureId,
+                           float2                              ddx,
+                           float2                              ddy,
+                           bool*                               devIsResident );

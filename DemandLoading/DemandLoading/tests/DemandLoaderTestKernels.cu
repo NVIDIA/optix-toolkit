@@ -7,6 +7,7 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/DemandLoading/Texture2DCubic.h>
 
 using namespace demandLoading;
 
@@ -22,6 +23,21 @@ __host__ void launchPageRequester( CUstream stream, const DeviceContext& context
     OTK_ERROR_CHECK( cudaGetLastError() );
 }
 
+
+__global__ static void textureSampler( DeviceContext context, unsigned int textureId, float2 ddx, float2 ddy, bool* isResident )
+{
+    float4 result;
+    float4* noDerivs = nullptr;
+    *isResident = demandLoading::tex2DCubic( context, textureId, 0.5f, 0.5f, ddx, ddy, &result, noDerivs, noDerivs );
+}
+
+__host__ void launchTextureSampler( CUstream stream, const DeviceContext& context, unsigned int textureId,
+                                    float2 ddx, float2 ddy, bool* devIsResident )
+{
+    textureSampler<<<1, 1, 0U, stream>>>( context, textureId, ddx, ddy, devIsResident );
+    OTK_ERROR_CHECK( cudaStreamSynchronize( stream ) );
+    OTK_ERROR_CHECK( cudaGetLastError() );
+}
 
 __global__ static void pageBatchRequester( DeviceContext context, unsigned int pageBegin, unsigned int pageEnd, PageTableEntry* pageTableEntries )
 {
