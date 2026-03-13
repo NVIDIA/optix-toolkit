@@ -104,7 +104,7 @@ tex2DCubic( const DeviceContext& context, unsigned int textureId, float s, float
     }
 #endif
 
-    textureCubic( texture, texWidth, texHeight, filterMode, mipmapFilterMode, maxAnisotropy, sampler->conservativeFilter,
+    textureCubic( texture, texWidth, texHeight, sampler->desc.numMipLevels, filterMode, mipmapFilterMode, maxAnisotropy, sampler->conservativeFilter,
                   s, t, ddx, ddy, result, dresultds, dresultdt );
     return resident;
 }

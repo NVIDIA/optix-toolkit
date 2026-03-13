@@ -96,7 +96,7 @@ textureWeighted( CUtexObject texture, float i, float j, float4 wx, float4 wy, in
 
 /// Compute cubic filtered texture sample based on filterMode.
 template <class TYPE> D_INLINE void
-textureCubic( CUtexObject texture, int texWidth, int texHeight,
+textureCubic( CUtexObject texture, int texWidth, int texHeight, int numMipLevels,
               unsigned int filterMode, unsigned int mipmapFilterMode, unsigned int maxAnisotropy, bool conservativeFiltering,
               float s, float t, float2 ddx, float2 ddy, TYPE* result, TYPE* dresultds, TYPE* dresultdt )
 {
@@ -121,6 +121,7 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight,
         ml = getMipLevel( ddx, ddy, texWidth, texHeight, 1.0f / maxAnisotropy );
         if( mipmapFilterMode == CU_TR_FILTER_MODE_POINT )
             ml = fmaxf( 0.0f, ceilf( ml - 0.5f ) );
+        ml = fminf( ml, (float)( numMipLevels - 1 ) );
         mipLevel = floorf( ml );
         mipLevel = max( mipLevel, 0 );
     }

@@ -200,6 +200,7 @@ D_INLINE bool requestTexFootprint2DGrad( const TextureSampler& sampler,
     // Figure out which mip levels are sampled.
     float ml = getMipLevel( float2{dPdx_x, dPdx_y}, float2{dPdy_x, dPdy_y}, sampler.width, sampler.height, 1.0f / sampler.desc.maxAnisotropy );
     unsigned int fineLevel = ( ml >= 0.0f ) ? static_cast<unsigned int>( ml ) : 0;
+    fineLevel = min( fineLevel, sampler.desc.numMipLevels - 1 );
     unsigned int swFootprint = ( ml >= -MAX_SW_MIPLEVEL_ERROR );  // no need to correct if texture magnified enough
     unsigned int singleMipLevel = ( ml < -MAX_SW_MIPLEVEL_ERROR || sampler.desc.numMipLevels <= 1 ) ? 1 : 0;
 #endif
