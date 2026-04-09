@@ -224,6 +224,10 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
             m_loader->setPageTableEntry( pageId, true, static_cast<unsigned long long>( bh.block.data ) );
         }
     }
+    else
+    {
+        deviceMemoryManager->freeTileBlock( bh.block );
+    }
 
     m_loader->freeTransferBuffer( transferBuffer, stream );
 }
