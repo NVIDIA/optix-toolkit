@@ -78,8 +78,8 @@ void NeuralTextureViewer::createTextures( const std::vector<std::string>& textur
     {
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
         createContext( state );
-        state.params.extraData[0] = udim;
-        state.params.extraData[1] = vdim;
+        state.params.extraData[0] = static_cast<char>( udim );
+        state.params.extraData[1] = static_cast<char>( vdim );
 
         const demandLoading::DemandTexture& udimTexture =
             state.demandLoader->createUdimTexture( subImageSources, subTexDescs, udim, vdim, baseTextureId );

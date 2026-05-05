@@ -386,8 +386,8 @@ bool CompressedTextureCacheManager::convertEXRtoTGA4( CoreEXRReader& exrReader, 
             return false;
         }
         TGAHeader header;
-        header.width = width;
-        header.height = height;
+        header.width  = static_cast<uint16_t>( width );
+        header.height = static_cast<uint16_t>( height );
         outFile.write( reinterpret_cast<const char*>( &header ), sizeof( header ) );
 
         // Convert and write pixels

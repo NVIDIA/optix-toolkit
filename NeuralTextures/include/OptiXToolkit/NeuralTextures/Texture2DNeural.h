@@ -39,7 +39,7 @@ ntcTex2DGrad( T_VEC_OUT& out, InferenceDataOptix* &infData, const DeviceContext&
     // Get mip level
     float mipLevel = getMipLevel( ddx, ddy, sampler->width, sampler->height, 1.0f / sampler->desc.maxAnisotropy );
     float mipJitter = ( sampler->desc.mipmapFilterMode ) ? xi.x : 0.5f;
-    int mip = clamp( (int)( mipLevel + mipJitter ), 0, sampler->desc.numMipLevels - 1 );
+    int mip = clamp( static_cast<int>( mipLevel + mipJitter ), 0, static_cast<int>( sampler->desc.numMipLevels ) - 1 );
     float2 uv = float2{u, v};
 
     // Request texture footprint for neural texture mips
