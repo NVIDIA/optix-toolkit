@@ -12,7 +12,30 @@
 
 namespace fs = std::filesystem;
 
+#ifdef _WIN32
+static const char* DELETE_COMMAND = "del";
+static const char* FILE_SEPARATOR = "\\";
+static const char* MOVE_COMMAND = "ren";
+static const char* TO_DEV_NULL = "> NUL";
+#else
+static const char* DELETE_COMMAND = "rm";
+static const char* FILE_SEPARATOR = "/";
+static const char* MOVE_COMMAND = "mv";
+static const char* TO_DEV_NULL = "1>/dev/null 2>/dev/null";
+#endif
+
+static const int DDS_DEFAULT_INDEX = 0;
+static const int DDS_HDR_INDEX = 5;
+
+static const int NUM_SUPPORTED_FILE_TYPES = 9;
+static const char* SUPPORTED_FILE_TYPES[NUM_SUPPORTED_FILE_TYPES] = {".exr", ".png", ".jpg", ".ppm", ".pgm", ".tga", ".hdr", ".dds", ".bmp"};
+
 namespace imageSource {
+
+// How to convert EXR images to DDS depending on hdr status and num components
+//                                            non-exr, r,   rg,    rgb,   rgba,  hdr
+std::array<const char*, 6> EXR_TO_DDS_FORMATS_STANDARD{"bc7", "bc4", "bc5", "bc7", "bc7", "bc6"};
+std::array<const char*, 6> EXR_TO_DDS_FORMATS_SMALL{"bc1", "bc4", "bc1", "bc1", "bc7", "bc6"};
 
 std::string CompressedTextureCacheManager::getCacheFilePath( const std::string& cacheFileName, const std::string& extension )
 {
