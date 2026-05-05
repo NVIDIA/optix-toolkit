@@ -17,7 +17,7 @@ embed_cuda(
   OUTPUT_TARGET
     neuralTextureViewerKernel
   FOLDER
-    Examples/DemandLoading
+    Examples/NeuralTextures
   LIBRARIES
     OptiXToolkit::DemandLoading
     OptiXToolkit::NeuralTextures
@@ -48,7 +48,7 @@ target_include_directories( neuralTextureViewer PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}/include )
 
 set_target_properties( neuralTextureViewer PROPERTIES
-  FOLDER Examples/DemandLoading
+  FOLDER Examples/NeuralTextures
   INSTALL_RPATH ${OptiXToolkit_DIR}/../../OptiXToolkit )
 
 # Copy shared libraries that the built executable depends on.
