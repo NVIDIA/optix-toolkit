@@ -6,49 +6,30 @@
 
 #include <fstream>
 #include <string>
+#include <array>
 
 #include <OptiXToolkit/ImageSource/DDSImageReader.h>
 #include <OptiXToolkit/ImageSource/CoreEXRReader.h>
 
 namespace imageSource {
 
-#ifdef _WIN32
-const char* DELETE_COMMAND = "del";
-const char* FILE_SEPARATOR = "\\";
-const char* MOVE_COMMAND = "ren";
-const char* TO_DEV_NULL = "> NUL";
-#else
-const char* DELETE_COMMAND = "rm";
-const char* FILE_SEPARATOR = "/";
-const char* MOVE_COMMAND = "mv";
-const char* TO_DEV_NULL = "1>/dev/null 2>/dev/null";
-#endif
-
-// How to convert EXR images to DDS depending on hdr status and num components
-//                                            non-exr, r,   rg,    rgb,   rgba,  hdr
-const char* EXR_TO_DDS_FORMATS_STANDARD[6] = {"bc7", "bc4", "bc5", "bc7", "bc7", "bc6"};
-const char* EXR_TO_DDS_FORMATS_SMALL[6] =    {"bc1", "bc4", "bc1", "bc1", "bc7", "bc6"};
-
-const int DDS_DEFAULT_INDEX = 0;
-const int DDS_HDR_INDEX = 5;
-
-const int NUM_SUPPORTED_FILE_TYPES = 9;
-const char* SUPPORTED_FILE_TYPES[NUM_SUPPORTED_FILE_TYPES] = {".exr", ".png", ".jpg", ".ppm", ".pgm", ".tga", ".hdr", ".dds", ".bmp"};
+extern std::array<const char*, 6> EXR_TO_DDS_FORMATS_STANDARD;
+extern std::array<const char*, 6> EXR_TO_DDS_FORMATS_SMALL;
 
 struct CompressedTextureCacheOptions
 {
     unsigned int droppedMipLevels = 0;            // How many mip levels to drop when images are put in the cache
     std::string cacheFolder = "compressedCache";  // Where to store the compressed cache
     bool showErrors = false;                      // Show errors from external programs
-    std::string flags = "";                       // flags to pass to ntc-cli and nvcompress
+    std::string flags;                            // flags to pass to ntc-cli and nvcompress
     unsigned int minImageSize = 512;              // Don't drop mip levels of cached images to below this size
     unsigned int hdrCheckSize = 256;              // Size of image to read to see if an exr is an hdr image
 
-    std::string nvcompress = "";                 // nvcompress executable
+    std::string nvcompress;                      // nvcompress executable
     bool saveTiled = true;                       // Save images as tiled or regular dds images
-    const char** exrToDdsFormats = EXR_TO_DDS_FORMATS_STANDARD;
+    const char** exrToDdsFormats = EXR_TO_DDS_FORMATS_STANDARD.data();
 
-    std::string ntcCli = "";                     // ntc-cli executable
+    std::string ntcCli;                          // ntc-cli executable
     unsigned int numNtcFeatures = 8;             // Number of features to use for Neural Texture Compression
 };
 

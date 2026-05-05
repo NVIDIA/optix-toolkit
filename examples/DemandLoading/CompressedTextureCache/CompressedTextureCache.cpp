@@ -130,7 +130,7 @@ int main( int argc, char* argv[] )
         else if( arg == "--notile" || arg == "-nt" )
             options.saveTiled = false;
         else if( arg == "--small" || arg == "-s" )
-            options.exrToDdsFormats = EXR_TO_DDS_FORMATS_SMALL;
+            options.exrToDdsFormats = EXR_TO_DDS_FORMATS_SMALL.data();
         else if( arg == "--showerrors" || arg == "-e" )
             options.showErrors = true;
         else if( ( arg == "--ntc-cli" ) && !lastArg )
@@ -254,7 +254,7 @@ int main( int argc, char* argv[] )
     {
         for( unsigned int i = 1; i < textureSet.size(); ++i )
         {
-            textureSet[i] = inputFolder + FILE_SEPARATOR + textureSet[i];
+            textureSet[i] = ( fs::path( inputFolder ) / textureSet[i] ).string();
         }
     }
 
