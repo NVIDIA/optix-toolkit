@@ -90,8 +90,8 @@ bool NtcImageReader::parseTextureSetDescription( rapidjson::Document& doc )
         // Subtexture descriptions
         for( int texNum = 0; texNum < m_inferenceData.numTextures; ++texNum )
         {
-            m_inferenceData.texFirstChannel[texNum] = doc["textures"][texNum]["firstChannel"].GetInt();
-            m_inferenceData.texNumChannels[texNum] = doc["textures"][texNum]["numChannels"].GetInt();
+            m_inferenceData.texFirstChannel[texNum] = static_cast<uint8_t>( doc["textures"][texNum]["firstChannel"].GetInt() );
+            m_inferenceData.texNumChannels[texNum] = static_cast<uint8_t>( doc["textures"][texNum]["numChannels"].GetInt() );
         }
 
         // Channel color spaces

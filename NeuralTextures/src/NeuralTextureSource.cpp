@@ -45,7 +45,7 @@ void NeuralTextureSource::open( imageSource::TextureInfo* info )
 bool NeuralTextureSource::readTile( char* dest, unsigned int latentMipLevel, const imageSource::Tile& tile, CUstream stream )
 {
     (void) stream;
-    return m_imageReader.readLatentRectUshort( (ushort*)dest, latentMipLevel, tile.x * tile.width, tile.y * tile.height, tile.width, tile.height );
+    return m_imageReader.readLatentRectUshort( (uint16_t*)dest, latentMipLevel, tile.x * tile.width, tile.y * tile.height, tile.width, tile.height );
 }
 
 bool NeuralTextureSource::readMipLevel( char* dest, unsigned int latentMipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream stream )
@@ -56,8 +56,8 @@ bool NeuralTextureSource::readMipLevel( char* dest, unsigned int latentMipLevel,
     
     int mipWidth = m_latentsInfo.width >> latentMipLevel;
     int mipHeight = m_latentsInfo.height >> latentMipLevel;
-    OTK_ASSERT( expectedWidth == mipWidth && expectedHeight == mipHeight );
-    return m_imageReader.readLatentRectUshort( (ushort*)dest, latentMipLevel, 0, 0, mipWidth, mipHeight );
+    OTK_ASSERT( static_cast<int>( expectedWidth ) == mipWidth && static_cast<int>( expectedHeight ) == mipHeight );
+    return m_imageReader.readLatentRectUshort( (uint16_t*)dest, latentMipLevel, 0, 0, mipWidth, mipHeight );
 }
 
 CUdeviceptr NeuralTextureSource::makeOptixInferenceData( OptixDeviceContext optixContext )
