@@ -152,7 +152,7 @@ int main( int argc, char* argv[] )
 
 #ifdef _WIN32
     if( !options.nvcompress.empty() )
-        nvCompressFound = fs::exists( fs::absolute( options.nvcompress ) );
+        nvcompressFound = fs::exists( fs::absolute( options.nvcompress ) );
     if( !options.ntcCli.empty() )
         ntcCliFound = fs::exists( fs::absolute( options.ntcCli ) );
 #else // linux
