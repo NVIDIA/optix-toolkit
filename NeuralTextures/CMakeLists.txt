@@ -13,7 +13,7 @@ endif()
 
 include(FetchRapidJSON)
 
-otk_add_library( NeuralTextures
+otk_add_library( NeuralTextures STATIC
   src/NeuralTextureSource.cpp
   src/NtcImageReader.cpp
 )

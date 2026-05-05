@@ -29,7 +29,7 @@ embed_cuda(CONST RELOCATABLE
     SOURCES src/PagingSystemKernels.cu
 )
 
-otk_add_library( DemandLoading
+otk_add_library( DemandLoading STATIC
   src/CascadeRequestFilter.cpp
   src/CascadeRequestFilter.h
   src/DemandLoaderImpl.cpp

@@ -9,7 +9,7 @@ if(POLICY CMP0167)  # introduced in CMake 3.30
   cmake_policy(SET CMP0167 NEW) # ignore FindBoost and use BoostConfig
 endif()
 
-otk_add_library( ImageSource
+otk_add_library( ImageSource STATIC
   src/CascadeImage.cpp
   src/CheckerBoardImage.cpp
   src/CompressedTextureCacheManager.cpp

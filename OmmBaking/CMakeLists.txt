@@ -20,9 +20,7 @@ if(NOT TARGET CUDA::cuda_driver)
   find_package( CUDAToolkit 11.1 REQUIRED )
 endif()
 
-option( BUILD_SHARED_LIBS "Build using shared libraries" ON )
-
-otk_add_library( CuOmmBaking
+otk_add_library( CuOmmBaking STATIC
   src/CuOmmBakingImpl.cpp
   src/CuOmmBakingImpl.cu
   src/CuOmmBakingImpl.h
