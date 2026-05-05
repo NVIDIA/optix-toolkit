@@ -4,4 +4,4 @@
 
 include(ImageTest)
 
-add_image_test(neuralTextureViewer basic FOLDER Examples/DemandLoading/Tests ARGS --dim=512x512 --no-gl-interop ALLOWED_PERCENTAGE 1.0)
+add_image_test(neuralTextureViewer basic FOLDER Examples/NeuralTextures/Tests ARGS --dim=512x512 --no-gl-interop ALLOWED_PERCENTAGE 1.0)
