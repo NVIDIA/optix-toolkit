@@ -114,6 +114,13 @@ static __forceinline__ __device__ float3 sampleDiffuse( float2 xi, float3 N )
     return ( st.x * S ) + ( st.y * T ) + ( sqrtf( 1.0f - otk::dot( st, st ) ) * N );
 }
 
+static __forceinline__ __device__ void setAccumulatorValue( int pixel, const float3& val )
+{
+    const Params& params{ PARAMS_VAR_NAME };
+    params.accumulator[pixel] = float4{ val.x, val.y, val.z, 1.0f };
+    params.image[pixel]       = makeColor( val );
+}
+
 // Accumulate a value
 static __forceinline__ __device__ void accumulateValue( int pixel, float3 val )
 {
@@ -133,7 +140,6 @@ static __forceinline__ __device__ void showAccumulatorValue( int pixel, float3 s
     else
         params.image[pixel] = makeColor( substituteVal );
 }
-
 
 extern "C" __global__ void __raygen__perspectiveCamera()
 {
@@ -249,6 +255,12 @@ extern "C" __global__ void __raygen__perspectiveCamera()
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
     rayCone       = propagate( rayCone, prd.rayDistance );
     rayCone.angle = MAX_CONE_ANGLE;
+
+    if( prd.isDebug )
+    {
+        setAccumulatorValue( pixel, prd.color );
+        return;
+    }
 
     // Render background and electric bounding boxes
     if( otk::dot( prd.normal, prd.normal ) == 0.0f )
