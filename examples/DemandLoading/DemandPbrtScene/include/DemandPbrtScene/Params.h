@@ -317,8 +317,9 @@ struct RayPayload
     float2               uv;
     const PhongMaterial* material;
     unsigned int         diffuseTextureId;
-    bool                 isBackground;
     float                worldSpaceTextureSize;
+    bool                 isDebug;
+    bool                 isBackground;
     bool                 discardRay;
 };
 

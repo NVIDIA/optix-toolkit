@@ -20,16 +20,16 @@
 
 namespace demandPbrtScene {
 
-static __forceinline__ __device__ void setRayPayload( float x, float y, float z )
+static __forceinline__ __device__ void setRayPayload( const float3& p )
 {
-    optixSetPayload_0( __float_as_uint( x ) );
-    optixSetPayload_1( __float_as_uint( y ) );
-    optixSetPayload_2( __float_as_uint( z ) );
+    RayPayload* prd = getRayPayload();
+    prd->isDebug    = true;
+    prd->color      = p;
 }
 
-static __forceinline__ __device__ void setRayPayload( const float3 &p )
+static __forceinline__ __device__ void setRayPayload( float x, float y, float z )
 {
-    setRayPayload( p.x, p.y, p.z );
+    setRayPayload( make_float3( x, y, z ) );
 }
 
 static __device__ void getTriangleData( float3 ( &vertices )[3], float3& worldNormal )
