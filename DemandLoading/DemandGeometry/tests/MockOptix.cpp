@@ -108,6 +108,14 @@ void initMockOptix( MockOptix& mock )
         return g_mockOptix->moduleGetCompilationState( module, state );
     };
 #endif
+#if OPTIX_VERSION >= 90100
+    funcTable.optixModuleCancelCreation = []( OptixModule module, OptixCreationFlags flags ) {
+        return g_mockOptix->moduleCancelCreation( module, flags );
+    };
+    funcTable.optixDeviceContextCancelCreations = []( OptixDeviceContext context, OptixCreationFlags flags ) {
+        return g_mockOptix->deviceContextCancelCreations( context, flags );
+    };
+#endif
     funcTable.optixModuleDestroy = []( OptixModule module ) { return g_mockOptix->moduleDestroy( module ); };
     funcTable.optixBuiltinISModuleGet = []( OptixDeviceContext context, const OptixModuleCompileOptions* moduleCompileOptions,
                                             const OptixPipelineCompileOptions* pipelineCompileOptions,
@@ -118,6 +126,18 @@ void initMockOptix( MockOptix& mock )
     funcTable.optixTaskExecute = []( OptixTask task, OptixTask* additionalTasks, unsigned int maxNumAdditionalTasks,
                                      unsigned int* numAdditionalTasksCreated ) {
         return g_mockOptix->taskExecute( task, additionalTasks, maxNumAdditionalTasks, numAdditionalTasksCreated );
+    };
+#endif
+#if OPTIX_VERSION >= 90100
+    funcTable.optixTaskGetSerializationKey = []( OptixTask task, void* key, size_t* size ) {
+        return g_mockOptix->taskGetSerializationKey( task, key, size );
+    };
+    funcTable.optixTaskSerializeOutput = []( OptixTask task, void* data, size_t* size ) {
+        return g_mockOptix->taskSerializeOutput( task, data, size );
+    };
+    funcTable.optixTaskDeserializeOutput = []( OptixTask task, const void* data, size_t size, OptixTask* additionalTasks,
+                                               unsigned int maxNumAdditionalTasks, unsigned int* numAdditionalTasksCreated ) {
+        return g_mockOptix->taskDeserializeOutput( task, data, size, additionalTasks, maxNumAdditionalTasks, numAdditionalTasksCreated );
     };
 #endif
     funcTable.optixProgramGroupCreate = []( OptixDeviceContext context, const OptixProgramGroupDesc* programDescriptions,
@@ -146,12 +166,29 @@ void initMockOptix( MockOptix& mock )
                                             numProgramGroups, logString, logStringSize, pipeline );
     };
     funcTable.optixPipelineDestroy = []( OptixPipeline pipeline ) { return g_mockOptix->pipelineDestroy( pipeline ); };
+#if OPTIX_VERSION >= 90100
+    funcTable.optixPipelineSetStackSizeFromCallDepths = []( OptixPipeline pipeline, unsigned int maxTraceDepth,
+                                                            unsigned int maxContinuationCallableDepth,
+                                                            unsigned int maxDirectCallableDepthFromState,
+                                                            unsigned int maxDirectCallableDepthFromTraversal,
+                                                            unsigned int maxTraversableGraphDepth ) {
+        return g_mockOptix->pipelineSetStackSizeFromCallDepths( pipeline, maxTraceDepth, maxContinuationCallableDepth,
+                                                                maxDirectCallableDepthFromState,
+                                                                maxDirectCallableDepthFromTraversal, maxTraversableGraphDepth );
+    };
+#endif
     funcTable.optixPipelineSetStackSize = []( OptixPipeline pipeline, unsigned int directCallableStackSizeFromTraversal,
                                               unsigned int directCallableStackSizeFromState,
                                               unsigned int continuationStackSize, unsigned int maxTraversableGraphDepth ) {
         return g_mockOptix->pipelineSetStackSize( pipeline, directCallableStackSizeFromTraversal, directCallableStackSizeFromState,
                                                   continuationStackSize, maxTraversableGraphDepth );
     };
+#if OPTIX_VERSION >= 90100
+    funcTable.optixPipelineSymbolMemcpyAsync = []( OptixPipeline pipeline, const char* name, void* mem, size_t sizeInBytes,
+                                                   size_t offsetInBytes, OptixPipelineSymbolMemcpyKind kind, CUstream stream ) {
+        return g_mockOptix->pipelineSymbolMemcpyAsync( pipeline, name, mem, sizeInBytes, offsetInBytes, kind, stream );
+    };
+#endif
     funcTable.optixAccelComputeMemoryUsage = []( OptixDeviceContext context, const OptixAccelBuildOptions* accelOptions,
                                                  const OptixBuildInput* buildInputs, unsigned int numBuildInputs,
                                                  OptixAccelBufferSizes* bufferSizes ) {
@@ -233,6 +270,31 @@ void initMockOptix( MockOptix& mock )
                                                           targetOpacityMicromapArraySizeInBytes );
     };
 #endif
+#if OPTIX_VERSION >= 70700 && OPTIX_VERSION < 90100
+    funcTable.optixDisplacementMicromapArrayComputeMemoryUsage = []( OptixDeviceContext context,
+                                                                     const OptixDisplacementMicromapArrayBuildInput* buildInput,
+                                                                     OptixMicromapBufferSizes* bufferSizes ) {
+        return g_mockOptix->displacementMicromapArrayComputeMemoryUsage( context, buildInput, bufferSizes );
+    };
+    funcTable.optixDisplacementMicromapArrayBuild = []( OptixDeviceContext context, CUstream stream,
+                                                        const OptixDisplacementMicromapArrayBuildInput* buildInput,
+                                                        const OptixMicromapBuffers*                     buffers ) {
+        return g_mockOptix->displacementMicromapArrayBuild( context, stream, buildInput, buffers );
+    };
+#endif
+#if OPTIX_VERSION >= 90000
+    funcTable.optixClusterAccelComputeMemoryUsage = []( OptixDeviceContext context, OptixClusterAccelBuildMode buildMode,
+                                                        const OptixClusterAccelBuildInput* buildInput,
+                                                        OptixAccelBufferSizes*             bufferSizes ) {
+        return g_mockOptix->clusterAccelComputeMemoryUsage( context, buildMode, buildInput, bufferSizes );
+    };
+    funcTable.optixClusterAccelBuild = []( OptixDeviceContext context, CUstream stream,
+                                           const OptixClusterAccelBuildModeDesc* buildModeDesc,
+                                           const OptixClusterAccelBuildInput* buildInput, CUdeviceptr argsArray,
+                                           CUdeviceptr argsCount, unsigned int argsStrideInBytes ) {
+        return g_mockOptix->clusterAccelBuild( context, stream, buildModeDesc, buildInput, argsArray, argsCount, argsStrideInBytes );
+    };
+#endif
     funcTable.optixSbtRecordPackHeader = []( OptixProgramGroup programGroup, void* sbtRecordHeaderHostPointer ) {
         return g_mockOptix->sbtRecordPackHeader( programGroup, sbtRecordHeaderHostPointer );
     };
@@ -240,6 +302,22 @@ void initMockOptix( MockOptix& mock )
                                 const OptixShaderBindingTable* sbt, unsigned int width, unsigned int height, unsigned int depth ) {
         return g_mockOptix->launch( pipeline, stream, pipelineParams, pipelineParamsSize, sbt, width, height, depth );
     };
+#if OPTIX_VERSION >= 90000
+    funcTable.optixCoopVecMatrixConvert = []( OptixDeviceContext context, CUstream stream, unsigned int numNetworks,
+                                              const OptixNetworkDescription* inputNetworkDescription,
+                                              CUdeviceptr inputNetworks, size_t inputNetworkStrideInBytes,
+                                              const OptixNetworkDescription* outputNetworkDescription,
+                                              CUdeviceptr outputNetworks, size_t outputNetworkStrideInBytes ) {
+        return g_mockOptix->coopVecMatrixConvert( context, stream, numNetworks, inputNetworkDescription, inputNetworks,
+                                                  inputNetworkStrideInBytes, outputNetworkDescription, outputNetworks,
+                                                  outputNetworkStrideInBytes );
+    };
+    funcTable.optixCoopVecMatrixComputeSize = []( OptixDeviceContext context, unsigned int N, unsigned int K,
+                                                  OptixCoopVecElemType elementType, OptixCoopVecMatrixLayout layout,
+                                                  size_t rowColumnStrideInBytes, size_t* sizeInBytes ) {
+        return g_mockOptix->coopVecMatrixComputeSize( context, N, K, elementType, layout, rowColumnStrideInBytes, sizeInBytes );
+    };
+#endif
     funcTable.optixDenoiserCreate = []( OptixDeviceContext context, OptixDenoiserModelKind modelKind,
                                         const OptixDenoiserOptions* options, OptixDenoiser* returnHandle ) {
         return g_mockOptix->denoiserCreate( context, modelKind, options, returnHandle );

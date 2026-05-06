@@ -18,7 +18,7 @@ namespace testing {
 
 /// MockOptix
 ///
-/// This is a mock class that implements the OptiX API versions 7.3 through 7.7.
+/// This is a mock class that implements the OptiX API versions 7.3 through 9.1.
 /// The global API functions delegate through the OptixFunctionTable instance, a
 /// struct of function pointers.  The function table is initialized with functions
 /// that delegate to an instance of this mock class.  The names of the members of
@@ -115,6 +115,10 @@ class MockOptix
 #if OPTIX_VERSION >= 70400
     MOCK_METHOD( OptixResult, moduleGetCompilationState, ( OptixModule module, OptixModuleCompileState* state ) );
 #endif
+#if OPTIX_VERSION >= 90100
+    MOCK_METHOD( OptixResult, moduleCancelCreation, ( OptixModule module, OptixCreationFlags flags ) );
+    MOCK_METHOD( OptixResult, deviceContextCancelCreations, ( OptixDeviceContext context, OptixCreationFlags flags ) );
+#endif
     MOCK_METHOD( OptixResult, moduleDestroy, ( OptixModule module ) );
     MOCK_METHOD( OptixResult,
                  builtinISModuleGet,
@@ -127,6 +131,13 @@ class MockOptix
     MOCK_METHOD( OptixResult,
                  taskExecute,
                  ( OptixTask task, OptixTask* additionalTasks, unsigned int maxNumAdditionalTasks, unsigned int* numAdditionalTasksCreated ) );
+#endif
+#if OPTIX_VERSION >= 90100
+    MOCK_METHOD( OptixResult, taskGetSerializationKey, ( OptixTask task, void* key, size_t* size ) );
+    MOCK_METHOD( OptixResult, taskSerializeOutput, ( OptixTask task, void* data, size_t* size ) );
+    MOCK_METHOD( OptixResult,
+                 taskDeserializeOutput,
+                 ( OptixTask task, const void* data, size_t size, OptixTask* additionalTasks, unsigned int maxNumAdditionalTasks, unsigned int* numAdditionalTasksCreated ) );
 #endif
     MOCK_METHOD( OptixResult,
                  programGroupCreate,
@@ -156,6 +167,16 @@ class MockOptix
                    size_t*                            logStringSize,
                    OptixPipeline*                     pipeline ) );
     MOCK_METHOD( OptixResult, pipelineDestroy, ( OptixPipeline pipeline ) );
+#if OPTIX_VERSION >= 90100
+    MOCK_METHOD( OptixResult,
+                 pipelineSetStackSizeFromCallDepths,
+                 ( OptixPipeline pipeline,
+                   unsigned int  maxTraceDepth,
+                   unsigned int  maxContinuationCallableDepth,
+                   unsigned int  maxDirectCallableDepthFromState,
+                   unsigned int  maxDirectCallableDepthFromTraversal,
+                   unsigned int  maxTraversableGraphDepth ) );
+#endif
     MOCK_METHOD( OptixResult,
                  pipelineSetStackSize,
                  ( OptixPipeline pipeline,
@@ -163,6 +184,11 @@ class MockOptix
                    unsigned int  directCallableStackSizeFromState,
                    unsigned int  continuationStackSize,
                    unsigned int  maxTraversableGraphDepth ) );
+#if OPTIX_VERSION >= 90100
+    MOCK_METHOD( OptixResult,
+                 pipelineSymbolMemcpyAsync,
+                 ( OptixPipeline pipeline, const char* name, void* mem, size_t sizeInBytes, size_t offsetInBytes, OptixPipelineSymbolMemcpyKind kind, CUstream stream ) );
+#endif
     MOCK_METHOD( OptixResult,
                  accelComputeMemoryUsage,
                  ( OptixDeviceContext            context,
@@ -256,6 +282,34 @@ class MockOptix
                    CUdeviceptr                targetOpacityMicromapArray,
                    size_t                     targetOpacityMicromapArraySizeInBytes ) );
 #endif
+#if OPTIX_VERSION >= 70700 && OPTIX_VERSION < 90100
+    MOCK_METHOD( OptixResult,
+                 displacementMicromapArrayComputeMemoryUsage,
+                 ( OptixDeviceContext context, const OptixDisplacementMicromapArrayBuildInput* buildInput, OptixMicromapBufferSizes* bufferSizes ) );
+    MOCK_METHOD( OptixResult,
+                 displacementMicromapArrayBuild,
+                 ( OptixDeviceContext                              context,
+                   CUstream                                        stream,
+                   const OptixDisplacementMicromapArrayBuildInput* buildInput,
+                   const OptixMicromapBuffers*                     buffers ) );
+#endif
+#if OPTIX_VERSION >= 90000
+    MOCK_METHOD( OptixResult,
+                 clusterAccelComputeMemoryUsage,
+                 ( OptixDeviceContext                 context,
+                   OptixClusterAccelBuildMode         buildMode,
+                   const OptixClusterAccelBuildInput* buildInput,
+                   OptixAccelBufferSizes*             bufferSizes ) );
+    MOCK_METHOD( OptixResult,
+                 clusterAccelBuild,
+                 ( OptixDeviceContext                    context,
+                   CUstream                              stream,
+                   const OptixClusterAccelBuildModeDesc* buildModeDesc,
+                   const OptixClusterAccelBuildInput*    buildInput,
+                   CUdeviceptr                           argsArray,
+                   CUdeviceptr                           argsCount,
+                   unsigned int                          argsStrideInBytes ) );
+#endif
     MOCK_METHOD( OptixResult, sbtRecordPackHeader, ( OptixProgramGroup programGroup, void* sbtRecordHeaderHostPointer ) );
     MOCK_METHOD( OptixResult,
                  launch,
@@ -267,6 +321,28 @@ class MockOptix
                    unsigned int                   width,
                    unsigned int                   height,
                    unsigned int                   depth ) );
+#if OPTIX_VERSION >= 90000
+    MOCK_METHOD( OptixResult,
+                 coopVecMatrixConvert,
+                 ( OptixDeviceContext             context,
+                   CUstream                       stream,
+                   unsigned int                   numNetworks,
+                   const OptixNetworkDescription* inputNetworkDescription,
+                   CUdeviceptr                    inputNetworks,
+                   size_t                         inputNetworkStrideInBytes,
+                   const OptixNetworkDescription* outputNetworkDescription,
+                   CUdeviceptr                    outputNetworks,
+                   size_t                         outputNetworkStrideInBytes ) );
+    MOCK_METHOD( OptixResult,
+                 coopVecMatrixComputeSize,
+                 ( OptixDeviceContext       context,
+                   unsigned int             N,
+                   unsigned int             K,
+                   OptixCoopVecElemType     elementType,
+                   OptixCoopVecMatrixLayout layout,
+                   size_t                   rowColumnStrideInBytes,
+                   size_t*                  sizeInBytes ) );
+#endif
     MOCK_METHOD( OptixResult,
                  denoiserCreate,
                  ( OptixDeviceContext context, OptixDenoiserModelKind modelKind, const OptixDenoiserOptions* options, OptixDenoiser* returnHandle ) );
