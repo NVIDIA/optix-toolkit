@@ -13,14 +13,8 @@
 namespace fs = std::filesystem;
 
 #ifdef _WIN32
-static const char* DELETE_COMMAND = "del";
-static const char* FILE_SEPARATOR = "\\";
-static const char* MOVE_COMMAND = "ren";
-static const char* TO_DEV_NULL = "> NUL";
+static const char* TO_DEV_NULL = "> NUL:";
 #else
-static const char* DELETE_COMMAND = "rm";
-static const char* FILE_SEPARATOR = "/";
-static const char* MOVE_COMMAND = "mv";
 static const char* TO_DEV_NULL = "1>/dev/null 2>/dev/null";
 #endif
 
@@ -39,8 +33,7 @@ std::array<const char*, 6> EXR_TO_DDS_FORMATS_SMALL{"bc1", "bc4", "bc1", "bc1", 
 
 std::string CompressedTextureCacheManager::getCacheFilePath( const std::string& cacheFileName, const std::string& extension )
 {
-    std::string baseFileName = cacheFileName.substr( cacheFileName.find_last_of( "/\\") + 1 );
-    return m_options.cacheFolder + FILE_SEPARATOR + baseFileName + extension;
+    return ( fs::path( m_options.cacheFolder ) / fs::path( cacheFileName ).replace_extension( extension ) ).string();
 }
 
 bool CompressedTextureCacheManager::isSupportedFileType( const std::string& extension )
@@ -126,9 +119,10 @@ bool CompressedTextureCacheManager::cacheFileAsDDS( const std::string& inputFile
     {
         if( !m_options.saveTiled )
         {
-            std::string command = std::string(MOVE_COMMAND) + " " + inputFilePath + " " + cacheFilePath;
-            printCommand( command );
-            return ( std::system( command.c_str() ) == 0 );
+            printCommand( "move " + inputFilePath + ' ' + cacheFilePath );
+            std::error_code ec{};
+            fs::rename( inputFilePath, cacheFilePath, ec );
+            return !ec;
         }
         return convertDDSToTiledDDS( inputFilePath, cacheFilePath );
     }
@@ -468,11 +462,11 @@ bool CompressedTextureCacheManager::convertDDSToTiledDDS( const std::string& inF
     return reader.saveAsTiledFile( outFile.c_str() );
 }
 
-bool CompressedTextureCacheManager::deleteFile( const std::string &fileName )
+bool CompressedTextureCacheManager::deleteFile( const std::string& fileName )
 {
-    std::string command = std::string(DELETE_COMMAND) + " \"" + fileName + "\"";
-    printCommand( command );
-    return ( std::system( command.c_str() ) == 0 );
+    std::error_code ec{};
+    fs::remove( fileName, ec );
+    return !ec;
 }
 
 }  // namespace imageSource
