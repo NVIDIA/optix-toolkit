@@ -7,14 +7,14 @@ include(GoogleTest)
 include(ImageTest)
 
 add_executable(TestDemandPbrtSceneImpl
-    GeometryInstancePrinter.h
-    Matchers.h
-    MockDemandTextureCache.h
-    MockMaterialResolver.h
-    MockMeshLoader.h
-    MockProgramGroups.h
-    MockRenderer.h
-    ParamsPrinters.h
+    include/DemandPbrtScene/Testing/GeometryInstancePrinter.h
+    include/DemandPbrtScene/Testing/Matchers.h
+    include/DemandPbrtScene/Testing/MockDemandTextureCache.h
+    include/DemandPbrtScene/Testing/MockMaterialResolver.h
+    include/DemandPbrtScene/Testing/MockMeshLoader.h
+    include/DemandPbrtScene/Testing/MockProgramGroups.h
+    include/DemandPbrtScene/Testing/MockRenderer.h
+    include/DemandPbrtScene/Testing/ParamsPrinters.h
     TestDemandTextureCache.cpp
     TestGeometryCache.cpp
     TestGeometryResolver.cpp
@@ -36,6 +36,7 @@ if(MSVC)
     # error C1128: number of sections exceeded object file format limit: compile with /bigobj
     target_compile_options(TestDemandPbrtSceneImpl PUBLIC /bigobj)
 endif()
+target_include_directories(TestDemandPbrtSceneImpl PUBLIC include)
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
     OptiXToolkit::DemandGeometry::Testing

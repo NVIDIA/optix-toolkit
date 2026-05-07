@@ -6,7 +6,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "Matchers.h"
+#include <DemandPbrtScene/Testing/Matchers.h>
 
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/SyncVector.h>

@@ -6,11 +6,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "Matchers.h"
-#include "MockDemandTextureCache.h"
-#include "MockMaterialResolver.h"
-#include "MockRenderer.h"
-#include "ParamsPrinters.h"
+#include <DemandPbrtScene/Testing/Matchers.h>
+#include <DemandPbrtScene/Testing/MockDemandTextureCache.h>
+#include <DemandPbrtScene/Testing/MockMaterialResolver.h>
+#include <DemandPbrtScene/Testing/MockRenderer.h>
+#include <DemandPbrtScene/Testing/ParamsPrinters.h>
 
 #include <DemandPbrtScene/DemandTextureCache.h>
 #include <DemandPbrtScene/GeometryResolver.h>

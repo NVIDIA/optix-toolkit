@@ -4,10 +4,10 @@
 
 #include <DemandPbrtScene/MaterialResolver.h>
 
-#include "GeometryInstancePrinter.h"
-#include "MockDemandTextureCache.h"
-#include "MockProgramGroups.h"
-#include "ParamsPrinters.h"
+#include <DemandPbrtScene/Testing/GeometryInstancePrinter.h>
+#include <DemandPbrtScene/Testing/MockDemandTextureCache.h>
+#include <DemandPbrtScene/Testing/MockProgramGroups.h>
+#include <DemandPbrtScene/Testing/ParamsPrinters.h>
 
 #include <DemandPbrtScene/DemandTextureCache.h>
 #include <DemandPbrtScene/FrameStopwatch.h>
