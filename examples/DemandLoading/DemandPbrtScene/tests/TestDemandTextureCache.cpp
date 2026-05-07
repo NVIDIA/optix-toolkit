@@ -1,10 +1,8 @@
-// SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
 #include <DemandPbrtScene/DemandTextureCache.h>
-
-#include "MockImageSource.h"
 
 #include <DemandPbrtScene/Dependencies.h>
 #include <DemandPbrtScene/ImageSourceFactory.h>
@@ -12,6 +10,7 @@
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
 
 #include <gmock/gmock.h>
 

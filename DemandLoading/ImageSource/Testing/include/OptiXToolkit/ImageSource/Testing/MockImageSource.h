@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
@@ -9,12 +9,54 @@
 
 #include <gmock/gmock.h>
 
-#include <memory>
 #include <ostream>
 
 #define OUTPUT_ENUM( enum_ )                                                                                           \
     case enum_:                                                                                                        \
         return str << #enum_ << " (" << static_cast<int>( enum_ ) << ')'
+
+inline std::ostream& operator<<( std::ostream& str, CUarray_format val )
+{
+    switch( val )
+    {
+        OUTPUT_ENUM( CU_AD_FORMAT_UNSIGNED_INT8 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNSIGNED_INT16 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNSIGNED_INT32 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SIGNED_INT8 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SIGNED_INT16 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SIGNED_INT32 );
+        OUTPUT_ENUM( CU_AD_FORMAT_HALF );
+        OUTPUT_ENUM( CU_AD_FORMAT_FLOAT );
+        OUTPUT_ENUM( CU_AD_FORMAT_NV12 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNORM_INT8X1 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNORM_INT8X2 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNORM_INT8X4 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNORM_INT16X1 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNORM_INT16X2 );
+        OUTPUT_ENUM( CU_AD_FORMAT_UNORM_INT16X4 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SNORM_INT8X1 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SNORM_INT8X2 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SNORM_INT8X4 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SNORM_INT16X1 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SNORM_INT16X2 );
+        OUTPUT_ENUM( CU_AD_FORMAT_SNORM_INT16X4 );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC1_UNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC1_UNORM_SRGB );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC2_UNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC2_UNORM_SRGB );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC3_UNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC3_UNORM_SRGB );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC4_UNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC4_SNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC5_UNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC5_SNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC6H_UF16 );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC6H_SF16 );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC7_UNORM );
+        OUTPUT_ENUM( CU_AD_FORMAT_BC7_UNORM_SRGB );
+    }
+    return str << "? (" << static_cast<int>( val ) << ')';
+}
 
 inline std::ostream& operator<<( std::ostream& str, CUmemorytype val )
 {
@@ -89,8 +131,6 @@ class MockImageSource : public ::testing::StrictMock<imageSource::ImageSource>
     MOCK_METHOD( double, getTotalReadTime, (), ( const, override ) );
     MOCK_METHOD( bool, hasCascade, (), ( const override ) );
 };
-
-using MockImageSourcePtr = std::shared_ptr<MockImageSource>;
 
 }  // namespace testing
 }  // namespace otk

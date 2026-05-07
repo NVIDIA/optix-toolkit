@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
@@ -11,7 +11,6 @@ add_executable(TestDemandPbrtSceneImpl
     Matchers.h
     MockDemandTextureCache.h
     MockGeometryLoader.h
-    MockImageSource.h
     MockMaterialLoader.h
     MockMaterialResolver.h
     MockMeshLoader.h
@@ -43,6 +42,7 @@ endif()
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
     OptiXToolkit::DemandGeometry::Mocks
+    OptiXToolkit::ImageSource::Testing
     OptiXToolkit::Memory
     OptiXToolkit::ShaderUtil
     GTest::gmock_main)

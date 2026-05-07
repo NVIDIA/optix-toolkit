@@ -1,12 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
 #include <OptiXToolkit/ImageSource/CascadeImage.h>
+
 #include <OptiXToolkit/DemandLoading/TextureCascade.h>
-
-#include "MockImageSource.h"
-
+#include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 
 #include <gtest/gtest.h>
@@ -18,6 +17,8 @@ using namespace imageSource;
 
 namespace {
 
+using MockImageSourcePtr = std::shared_ptr<otk::testing::MockImageSource>;
+
 class TestCascadeImage : public Test
 {
   public:
@@ -26,10 +27,10 @@ class TestCascadeImage : public Test
   protected:
     void SetUp() override;
 
-    otk::testing::MockImageSourcePtr m_backingImage{ std::make_shared<otk::testing::MockImageSource>() };
-    TextureInfo                      m_backingInfo{};
-    std::shared_ptr<CascadeImage>    m_cascadeImage;
-    CUstream                         m_stream{ otk::bit_cast<CUstream>( 0xdeadbeefULL ) };
+    MockImageSourcePtr            m_backingImage{std::make_shared<otk::testing::MockImageSource>()};
+    TextureInfo                   m_backingInfo{};
+    std::shared_ptr<CascadeImage> m_cascadeImage;
+    CUstream                      m_stream{otk::bit_cast<CUstream>( 0xdeadbeefULL )};
 };
 
 void TestCascadeImage::SetUp()
