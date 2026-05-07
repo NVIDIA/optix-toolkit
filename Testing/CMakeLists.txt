@@ -43,6 +43,20 @@ target_link_libraries( Testing
   GTest::gmock
   )
 
+install(TARGETS Testing
+  EXPORT TestingTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/OptiXToolkit
+  FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT TestingTargets
+  FILE TestingTargets.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
+  NAMESPACE OptiXToolkit::
+)
+
 if( BUILD_TESTING )
   add_subdirectory( tests )
 endif()
