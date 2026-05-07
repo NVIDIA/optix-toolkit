@@ -5,7 +5,6 @@
 #include <DemandPbrtScene/ProgramGroups.h>
 
 #include "Matchers.h"
-#include "MockGeometryLoader.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
 
@@ -14,6 +13,7 @@
 #include <DemandPbrtScene/SceneProxy.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
+#include <OptiXToolkit/DemandGeometry/Testing/MockGeometryLoader.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/DemandMaterial/Testing/MockMaterialLoader.h>
 #include <OptiXToolkit/Testing/Matchers.h>
@@ -154,11 +154,10 @@ inline bool operator!=( const DeviceContext& lhs, const DeviceContext& rhs )
 
 namespace {
 
-using StrictMockOptix = StrictMock<MockOptix>;
-
-using ProgramGroupDescMatcher = Matcher<const OptixProgramGroupDesc*>;
-
+using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
 using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
+using ProgramGroupDescMatcher = Matcher<const OptixProgramGroupDesc*>;
+using StrictMockOptix = StrictMock<MockOptix>;
 
 class TestProgramGroups : public Test
 {
@@ -172,7 +171,7 @@ class TestProgramGroups : public Test
     ExpectationSet expectInitialize();
 
     StrictMockOptix       m_optix{};
-    MockGeometryLoaderPtr m_geometryLoader{ createMockGeometryLoader() };
+    MockGeometryLoaderPtr m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockMaterialLoaderPtr m_materialLoader{ std::make_shared<MockMaterialLoader>() };
     MockRendererPtr       m_renderer{ createMockRenderer() };
     ProgramGroupsPtr      m_programGroups{ createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) };

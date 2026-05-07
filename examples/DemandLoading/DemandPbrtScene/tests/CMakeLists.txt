@@ -10,7 +10,6 @@ add_executable(TestDemandPbrtSceneImpl
     GeometryInstancePrinter.h
     Matchers.h
     MockDemandTextureCache.h
-    MockGeometryLoader.h
     MockMaterialResolver.h
     MockMeshLoader.h
     MockProgramGroups.h
@@ -39,6 +38,7 @@ if(MSVC)
 endif()
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
+    OptiXToolkit::DemandGeometry::Testing
     OptiXToolkit::DemandLoading::Testing
     OptiXToolkit::DemandMaterial::Testing
     OptiXToolkit::ImageSource::Testing

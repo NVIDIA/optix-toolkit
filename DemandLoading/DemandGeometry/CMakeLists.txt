@@ -54,6 +54,8 @@ install(EXPORT DemandGeometryTargets
   NAMESPACE OptiXToolkit::
 )
 
+add_subdirectory( Testing )
+
 if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()

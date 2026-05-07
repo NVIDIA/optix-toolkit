@@ -8,7 +8,6 @@
 
 #include "GeometryInstancePrinter.h"
 #include "Matchers.h"
-#include "MockGeometryLoader.h"
 #include "MockMeshLoader.h"
 
 #include <DemandPbrtScene/GeometryCache.h>
@@ -17,6 +16,7 @@
 #include <DemandPbrtScene/Params.h>
 #include <DemandPbrtScene/SceneProxy.h>
 
+#include <OptiXToolkit/DemandGeometry/Testing/MockGeometryLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
@@ -685,6 +685,8 @@ TEST( TestSceneConstruction, sceneBoundsMultipleInstancesSingleShape )
 
 namespace {
 
+using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
+
 class TestSceneProxy : public Test
 {
   protected:
@@ -737,7 +739,7 @@ class TestSceneProxy : public Test
 
     CUstream               m_stream{ otk::bit_cast<CUstream>( 0xbaadfeedfeedfeedULL ) };
     uint_t                 m_pageId{ 10 };
-    MockGeometryLoaderPtr  m_geometryLoader{ createMockGeometryLoader() };
+    MockGeometryLoaderPtr  m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockGeometryCachePtr   m_geometryCache{ std::make_shared<MockGeometryCache>() };
     Options                m_options{};
     ProxyFactoryPtr        m_factory{ createProxyFactory( m_options, m_geometryLoader, m_geometryCache ) };

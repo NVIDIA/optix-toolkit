@@ -5,7 +5,6 @@
 #include <DemandPbrtScene/GeometryResolver.h>
 
 #include "MockDemandTextureCache.h"
-#include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
 #include "MockProgramGroups.h"
 
@@ -18,6 +17,7 @@
 #include <DemandPbrtScene/SceneSyncState.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
+#include <OptiXToolkit/DemandGeometry/Testing/MockGeometryLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
@@ -76,6 +76,8 @@ inline MockSceneProxyPtr createMockSceneProxy()
     return std::make_shared<MockSceneProxy>();
 }
 
+using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
+
 class TestGeometryResolver : public Test
 {
   public:
@@ -88,7 +90,7 @@ class TestGeometryResolver : public Test
     // Dependencies
     Options                   m_options{};
     MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
-    MockGeometryLoaderPtr     m_geometryLoader{ createMockGeometryLoader() };
+    MockGeometryLoaderPtr     m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockProxyFactoryPtr       m_proxyFactory{ createMockProxyFactory() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockMaterialResolverPtr   m_materialResolver{ createMockMaterialResolver() };

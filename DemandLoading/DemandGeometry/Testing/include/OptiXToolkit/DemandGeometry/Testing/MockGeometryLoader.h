@@ -6,14 +6,9 @@
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 
-#include <optix.h>
-
-#include <cuda.h>
-
 #include <gmock/gmock.h>
 
 #include <iostream>
-#include <memory>
 
 namespace demandGeometry {
 
@@ -57,13 +52,6 @@ class MockGeometryLoader : public ::testing::StrictMock<::demandGeometry::Geomet
     MOCK_METHOD( bool, getRecycleProxyIds, (), ( const, override ) );
     MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
 };
-
-using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
-
-inline MockGeometryLoaderPtr createMockGeometryLoader()
-{
-    return std::make_shared<MockGeometryLoader>();
-}
 
 }  // namespace testing
 }  // namespace otk
