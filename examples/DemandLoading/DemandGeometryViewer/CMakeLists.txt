@@ -8,6 +8,11 @@ include(FetchOptiX)
 
 find_package( CUDAToolkit 11.1 REQUIRED )
 
+if(OPTIX_VERSION LESS 70500 OR NOT TARGET OptiXToolkit::DemandGeometry)
+    message(WARNING "DemandGeometryViewer requires OptiX 7.5.0 or later; skipping.")
+    return()
+endif()
+
 embed_cuda(
     CONST HEADER DemandGeometryViewerKernelCuda.h
     OUTPUT_TARGET DemandGeometryViewerKernel

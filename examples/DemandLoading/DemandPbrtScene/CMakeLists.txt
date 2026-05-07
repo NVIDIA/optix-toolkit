@@ -11,6 +11,11 @@ include(SetCxxStandard)
 
 set_cxx_standard(17)
 
+if(OPTIX_VERSION LESS 70500)
+    message(WARNING "DemandPbrtScene requires OptiX 7.5.0 or later; skipping.")
+    return()
+endif()
+
 find_package(CUDAToolkit 11.1 REQUIRED)
 
 embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
