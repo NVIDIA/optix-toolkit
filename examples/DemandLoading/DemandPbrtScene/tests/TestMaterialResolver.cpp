@@ -6,7 +6,6 @@
 
 #include "GeometryInstancePrinter.h"
 #include "MockDemandTextureCache.h"
-#include "MockMaterialLoader.h"
 #include "MockProgramGroups.h"
 #include "ParamsPrinters.h"
 
@@ -21,6 +20,7 @@
 #include <DemandPbrtScene/SceneSyncState.h>
 
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
+#include <OptiXToolkit/DemandMaterial/Testing/MockMaterialLoader.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Testing/Matchers.h>
 
@@ -104,6 +104,8 @@ Options testOptions()
     return options;
 }
 
+using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
+
 class TestMaterialResolver : public Test
 {
   public:
@@ -111,7 +113,7 @@ class TestMaterialResolver : public Test
 
   protected:
     Options                   m_options{ testOptions() };
-    MockMaterialLoaderPtr     m_loader{ createMockMaterialLoader() };
+    MockMaterialLoaderPtr     m_loader{ std::make_shared<MockMaterialLoader>() };
     MockDemandTextureCachePtr m_demandTextureCache{ createMockDemandTextureCache() };
     MockProgramGroupsPtr      m_programGroups{ createMockProgramGroups() };
     MaterialResolverPtr m_resolver{ createMaterialResolver( m_options, m_loader, m_demandTextureCache, m_programGroups ) };

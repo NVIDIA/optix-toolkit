@@ -8,9 +8,7 @@
 
 #include <gmock/gmock.h>
 
-#include <memory>
-
-namespace demandPbrtScene {
+namespace otk {
 namespace testing {
 
 class MockMaterialLoader : public ::testing::StrictMock<demandMaterial::MaterialLoader>
@@ -19,20 +17,13 @@ class MockMaterialLoader : public ::testing::StrictMock<demandMaterial::Material
     ~MockMaterialLoader() override = default;
 
     MOCK_METHOD( const char*, getCHFunctionName, (), ( const, override ) );
-    MOCK_METHOD( uint_t, add, (), ( override ) );
-    MOCK_METHOD( void, remove, ( uint_t ), ( override ) );
-    MOCK_METHOD( std::vector<uint_t>, requestedMaterialIds, (), ( const, override ) );
+    MOCK_METHOD( demandMaterial::uint_t, add, (), ( override ) );
+    MOCK_METHOD( void, remove, ( demandMaterial::uint_t ), ( override ) );
+    MOCK_METHOD( std::vector<demandMaterial::uint_t>, requestedMaterialIds, (), ( const, override ) );
     MOCK_METHOD( void, clearRequestedMaterialIds, (), ( override ) );
     MOCK_METHOD( bool, getRecycleProxyIds, (), ( const, override ) );
     MOCK_METHOD( void, setRecycleProxyIds, (bool), ( override ) );
 };
 
-using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
-
-inline MockMaterialLoaderPtr createMockMaterialLoader()
-{
-    return std::make_shared<MockMaterialLoader>();
-}
-
 }  // namespace testing
-}  // namespace demandPbrtScene
+}  // namespace otk
