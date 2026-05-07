@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
@@ -10,12 +10,12 @@
 // For Bounds3f
 #include <core/geometry.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
-#include <OptiXToolkit/DemandGeometry/Mocks/OptixCompare.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>
+#include <OptiXToolkit/Testing/Matchers.h>
+#include <OptiXToolkit/Testing/OptixCompare.h>
 
 #include <optix.h>
 
