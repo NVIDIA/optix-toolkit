@@ -3,7 +3,7 @@
 #
 
 include(BuildConfig)
-include(FetchGTest)
+include(FetchGtest)
 
 otk_add_library( Testing STATIC
   include/OptiXToolkit/Testing/Matchers.h
