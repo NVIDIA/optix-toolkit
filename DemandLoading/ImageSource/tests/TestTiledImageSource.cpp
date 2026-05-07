@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
 
-#include "MockImageSource.h"
-
+#include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 
 #include <vector_functions.h>
@@ -19,6 +18,7 @@ using namespace imageSource;
 
 namespace {
 
+using MockImageSourcePtr  = std::shared_ptr<otk::testing::MockImageSource>;
 using TiledImageSourcePtr = std::shared_ptr<imageSource::TiledImageSource>;
 
 class TestTiledImageSource : public Test
@@ -38,10 +38,10 @@ class TestTiledImageSource : public Test
     }
     void expectLevelZeroFilledAfter( const ExpectationSet& before );
 
-    otk::testing::MockImageSourcePtr m_baseImage{ std::make_shared<otk::testing::MockImageSource>() };
-    imageSource::TextureInfo         m_baseInfo{};
-    TiledImageSourcePtr              m_tiledImage;
-    CUstream                         m_stream{ otk::bit_cast<CUstream>( 0xdeadbeefULL ) };
+    MockImageSourcePtr       m_baseImage{std::make_shared<otk::testing::MockImageSource>()};
+    imageSource::TextureInfo m_baseInfo{};
+    TiledImageSourcePtr      m_tiledImage;
+    CUstream                 m_stream{otk::bit_cast<CUstream>( 0xdeadbeefULL )};
 };
 
 void TestTiledImageSource::SetUp()

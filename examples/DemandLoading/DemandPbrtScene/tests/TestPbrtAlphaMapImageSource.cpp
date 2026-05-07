@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
 #include <DemandPbrtScene/PbrtAlphaMapImageSource.h>
 
-#include "MockImageSource.h"
-
+#include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 
 #include <gmock/gmock.h>
@@ -21,6 +20,7 @@ using namespace testing;
 
 namespace {
 
+using MockImageSourcePtr         = std::shared_ptr<otk::testing::MockImageSource>;
 using PbrtAlphaMapImageSourcePtr = std::shared_ptr<demandPbrtScene::PbrtAlphaMapImageSource>;
 
 class TestPbrtAlphaMapImageSource : public Test
@@ -35,9 +35,9 @@ class TestPbrtAlphaMapImageSource : public Test
     void           create();
     ExpectationSet expectOpen();
 
-    otk::testing::MockImageSourcePtr m_baseImage{ std::make_shared<otk::testing::MockImageSource>() };
-    imageSource::TextureInfo         m_baseInfo{};
-    PbrtAlphaMapImageSourcePtr       m_alphaImage;
+    MockImageSourcePtr         m_baseImage{std::make_shared<otk::testing::MockImageSource>()};
+    imageSource::TextureInfo   m_baseInfo{};
+    PbrtAlphaMapImageSourcePtr m_alphaImage;
 };
 
 void TestPbrtAlphaMapImageSource::SetUp()

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
@@ -9,7 +9,6 @@ include( GoogleTest )
 configure_file( ImageSourceTestConfig.h.in include/ImageSourceTestConfig.h @ONLY )
 
 otk_add_executable( testImageSource
-  MockImageSource.h
   TestCascadeImage.cpp
   TestCheckerBoardImage.cpp
   TestImageSourceCache.cpp
@@ -29,6 +28,7 @@ source_group("CMake Templates" REGULAR_EXPRESSION ".*\.in$")
 target_include_directories( testImageSource PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include )
 target_link_libraries( testImageSource PUBLIC
     ImageSource
+    ImageSourceTesting
     DemandLoading
     OptiXToolkit::ShaderUtil
     OpenEXR::OpenEXR # for half

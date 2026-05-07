@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
 #include <OptiXToolkit/ImageSource/MipMapImageSource.h>
 
-#include "MockImageSource.h"
-
+#include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 
 #include <gtest/gtest.h>
@@ -25,6 +24,7 @@ enum
 };
 
 using MipMapImageSourcePtr = std::shared_ptr<imageSource::MipMapImageSource>;
+using MockImageSourcePtr   = std::shared_ptr<otk::testing::MockImageSource>;
 
 class TestMipMapImageSource : public Test
 {
@@ -38,10 +38,10 @@ class TestMipMapImageSource : public Test
     void           create();
     ExpectationSet expectOpen();
 
-    otk::testing::MockImageSourcePtr m_baseImage{ std::make_shared<otk::testing::MockImageSource>() };
-    imageSource::TextureInfo         m_baseInfo{};
-    MipMapImageSourcePtr             m_mipMapImage;
-    CUstream                         m_stream{ otk::bit_cast<CUstream>( 0xdeadbeefULL ) };
+    MockImageSourcePtr       m_baseImage{std::make_shared<otk::testing::MockImageSource>()};
+    imageSource::TextureInfo m_baseInfo{};
+    MipMapImageSourcePtr     m_mipMapImage;
+    CUstream                 m_stream{otk::bit_cast<CUstream>( 0xdeadbeefULL )};
 };
 
 void TestMipMapImageSource::SetUp()
