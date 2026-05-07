@@ -4,9 +4,9 @@
 
 #include <DemandPbrtScene/GeometryResolver.h>
 
-#include "MockDemandTextureCache.h"
-#include "MockMaterialResolver.h"
-#include "MockProgramGroups.h"
+#include <DemandPbrtScene/Testing/MockDemandTextureCache.h>
+#include <DemandPbrtScene/Testing/MockMaterialResolver.h>
+#include <DemandPbrtScene/Testing/MockProgramGroups.h>
 
 #include <DemandPbrtScene/DemandTextureCache.h>
 #include <DemandPbrtScene/FrameStopwatch.h>

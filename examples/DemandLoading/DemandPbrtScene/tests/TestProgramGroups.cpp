@@ -4,9 +4,9 @@
 
 #include <DemandPbrtScene/ProgramGroups.h>
 
-#include "Matchers.h"
-#include "MockRenderer.h"
-#include "ParamsPrinters.h"
+#include <DemandPbrtScene/Testing/Matchers.h>
+#include <DemandPbrtScene/Testing/MockRenderer.h>
+#include <DemandPbrtScene/Testing/ParamsPrinters.h>
 
 #include <DemandPbrtScene/Renderer.h>
 #include <DemandPbrtScene/SceneAdapters.h>

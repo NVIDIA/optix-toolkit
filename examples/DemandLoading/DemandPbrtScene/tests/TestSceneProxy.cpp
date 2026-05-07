@@ -6,9 +6,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "GeometryInstancePrinter.h"
-#include "Matchers.h"
-#include "MockMeshLoader.h"
+#include <DemandPbrtScene/Testing/GeometryInstancePrinter.h>
+#include <DemandPbrtScene/Testing/Matchers.h>
+#include <DemandPbrtScene/Testing/MockMeshLoader.h>
 
 #include <DemandPbrtScene/GeometryCache.h>
 #include <DemandPbrtScene/MaterialAdapters.h>
