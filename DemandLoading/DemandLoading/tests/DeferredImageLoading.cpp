@@ -229,6 +229,9 @@ void DeferredImageLoadingTest::createPipeline()
     const uint_t             maxTraceDepth = 1;
     OptixPipelineLinkOptions options;
     options.maxTraceDepth = maxTraceDepth;
+#if OPTIX_VERSION >= 90100
+    options.maxTraversableGraphDepth = maxTraceDepth;
+#endif
     OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineOpts, &options, m_groups, NUM_GROUPS, LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
