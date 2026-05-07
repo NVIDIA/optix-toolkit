@@ -11,7 +11,6 @@ add_executable(TestDemandPbrtSceneImpl
     Matchers.h
     MockDemandTextureCache.h
     MockGeometryLoader.h
-    MockMaterialLoader.h
     MockMaterialResolver.h
     MockMeshLoader.h
     MockProgramGroups.h
@@ -41,6 +40,7 @@ endif()
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
     OptiXToolkit::DemandLoading::Testing
+    OptiXToolkit::DemandMaterial::Testing
     OptiXToolkit::ImageSource::Testing
     OptiXToolkit::Memory
     OptiXToolkit::ShaderUtil

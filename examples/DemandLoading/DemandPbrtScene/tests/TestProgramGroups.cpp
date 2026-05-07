@@ -6,7 +6,6 @@
 
 #include "Matchers.h"
 #include "MockGeometryLoader.h"
-#include "MockMaterialLoader.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
 
@@ -16,6 +15,7 @@
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
+#include <OptiXToolkit/DemandMaterial/Testing/MockMaterialLoader.h>
 #include <OptiXToolkit/Testing/Matchers.h>
 #include <OptiXToolkit/Testing/MockOptix.h>
 
@@ -158,6 +158,8 @@ using StrictMockOptix = StrictMock<MockOptix>;
 
 using ProgramGroupDescMatcher = Matcher<const OptixProgramGroupDesc*>;
 
+using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
+
 class TestProgramGroups : public Test
 {
   public:
@@ -171,7 +173,7 @@ class TestProgramGroups : public Test
 
     StrictMockOptix       m_optix{};
     MockGeometryLoaderPtr m_geometryLoader{ createMockGeometryLoader() };
-    MockMaterialLoaderPtr m_materialLoader{ createMockMaterialLoader() };
+    MockMaterialLoaderPtr m_materialLoader{ std::make_shared<MockMaterialLoader>() };
     MockRendererPtr       m_renderer{ createMockRenderer() };
     ProgramGroupsPtr      m_programGroups{ createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) };
     OptixPipelineCompileOptions    m_pipelineCompileOptions{};
