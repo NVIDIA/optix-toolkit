@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
@@ -70,13 +70,14 @@ function( checkSubDirectory subdir )
 endfunction()
 
 if( NOT OTK_LIBRARIES OR OTK_LIBRARIES STREQUAL "ALL" )
-    set( OTK_LIBRARIES "DemandLoading;Memory;OmmBaking;ShaderUtil;NeuralTextures" )
+    set( OTK_LIBRARIES "DemandLoading;Memory;NeuralTextures;OmmBaking;ShaderUtil;Testing" )
 endif()
-set( DemandLoading_DEPENDENCIES "Memory;ShaderUtil" )
-set(        Memory_DEPENDENCIES "" )
-set(     OmmBaking_DEPENDENCIES "Memory" )
-set(    ShaderUtil_DEPENDENCIES "Memory" )
+set(  DemandLoading_DEPENDENCIES "Memory;ShaderUtil;Testing" )
+set(         Memory_DEPENDENCIES "" )
 set( NeuralTextures_DEPENDENCIES "DemandLoading" )
+set(      OmmBaking_DEPENDENCIES "Memory" )
+set(     ShaderUtil_DEPENDENCIES "Memory" )
+set(        Testing_DEPENDENCIES "" )
 set( buildSubDirs "" )
 foreach( lib ${OTK_LIBRARIES} )
     if( NOT ${lib} IN_LIST buildSubDirs )

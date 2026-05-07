@@ -1,14 +1,14 @@
-// SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
+#include <OptiXToolkit/Testing/Matchers.h>
 #include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
-#include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Testing/MockOptix.h>
 
 #include <optix_stubs.h>
 

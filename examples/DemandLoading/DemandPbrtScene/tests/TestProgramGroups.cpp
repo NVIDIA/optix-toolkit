@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
@@ -15,9 +15,9 @@
 #include <DemandPbrtScene/SceneProxy.h>
 
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
-#include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
-#include <OptiXToolkit/DemandGeometry/Mocks/MockOptix.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
+#include <OptiXToolkit/Testing/Matchers.h>
+#include <OptiXToolkit/Testing/MockOptix.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

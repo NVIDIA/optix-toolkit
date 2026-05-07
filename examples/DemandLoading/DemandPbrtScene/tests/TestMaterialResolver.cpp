@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
@@ -20,9 +20,9 @@
 #include <DemandPbrtScene/SceneProxy.h>
 #include <DemandPbrtScene/SceneSyncState.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/Matchers.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Testing/Matchers.h>
 
 #include <vector_types.h>
 
