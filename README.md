@@ -29,7 +29,7 @@ If you cloned the OptiX Tookit repository prior to v1.0.0, we recommend cloning 
 - CMake 3.27 or later ([download](https://cmake.org/download/)).  
   - Using the latest CMake is highly recommended, to ensure up-to-date CUDA language support.
 - CUDA 11.1 or later ([download](https://developer.nvidia.com/cuda-downloads))
-- OptiX 7.3 or later ([download](https://developer.nvidia.com/designworks/optix/download))
+- OptiX 7.6 or later ([download](https://developer.nvidia.com/designworks/optix/download))
 - Other third-party libraries are downloaded and built on demand (see below).
 
 On some Linux systems it may be necessary to install some commonly used developer packages with the following commands:
