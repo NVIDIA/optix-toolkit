@@ -8,7 +8,6 @@
 
 #include "Matchers.h"
 #include "MockDemandTextureCache.h"
-#include "MockGeometryLoader.h"
 #include "MockMaterialResolver.h"
 #include "MockRenderer.h"
 #include "ParamsPrinters.h"
@@ -24,6 +23,7 @@
 #include <DemandPbrtScene/SceneAdapters.h>
 #include <DemandPbrtScene/SceneSyncState.h>
 
+#include <OptiXToolkit/DemandGeometry/Testing/MockGeometryLoader.h>
 #include <OptiXToolkit/DemandLoading/Testing/MockDemandLoader.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>

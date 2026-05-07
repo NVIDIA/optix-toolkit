@@ -4,11 +4,10 @@
 
 #include <DemandPbrtScene/OptixRenderer.h>
 
-#include "MockGeometryLoader.h"
-
 #include <DemandPbrtScene/Options.h>
 #include <DemandPbrtScene/Params.h>
 
+#include <OptiXToolkit/DemandGeometry/Testing/MockGeometryLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
@@ -40,6 +39,8 @@ inline OptixProgramGroup PG( unsigned int id )
     return otk::bit_cast<OptixProgramGroup>( static_cast<std::intptr_t>( id ) );
 };
 
+using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
+
 class TestOptixRenderer : public Test
 {
   protected:
@@ -51,7 +52,7 @@ class TestOptixRenderer : public Test
     ExpectationSet expectLaunchAfter( const ExpectationSet& before );
 
     Options                        m_options{};
-    MockGeometryLoaderPtr          m_geometryLoader{ createMockGeometryLoader() };
+    MockGeometryLoaderPtr          m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     StrictMockOptix                m_optix{};
     CUstream                       m_stream{};
     uchar4                         m_image[1]{};

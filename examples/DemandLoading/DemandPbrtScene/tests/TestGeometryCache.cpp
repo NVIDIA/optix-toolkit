@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include "Matchers.h"
-#include "MockGeometryLoader.h"
 #include "MockMeshLoader.h"
 #include "ParamsPrinters.h"
 
@@ -15,6 +14,7 @@
 #include <DemandPbrtScene/GeometryCache.h>
 #include <DemandPbrtScene/SceneProxy.h>
 
+#include <OptiXToolkit/DemandGeometry/Testing/MockGeometryLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
