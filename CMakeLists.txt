@@ -55,6 +55,10 @@ install( FILES ${OTK_PROJECT_BINARY_DIR}//CMake/OptiXToolkitConfig.cmake
 find_package( CUDAToolkit )
 include(FetchOptiX)
 
+if(OPTIX_VERSION LESS 70600)
+    message(FATAL_ERROR "OptiX 7.6 or later is required.")
+endif()
+
 #########################################################
 # Subdirectories
 
