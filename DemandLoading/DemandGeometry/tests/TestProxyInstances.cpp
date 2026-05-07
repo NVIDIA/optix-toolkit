@@ -4,10 +4,10 @@
 
 #include <OptiXToolkit/DemandGeometry/ProxyInstances.h>
 
-#include <OptiXToolkit/Testing/Matchers.h>
-#include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
+#include <OptiXToolkit/DemandLoading/Testing/MockDemandLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
+#include <OptiXToolkit/Testing/Matchers.h>
 #include <OptiXToolkit/Testing/MockOptix.h>
 
 #include <optix_stubs.h>

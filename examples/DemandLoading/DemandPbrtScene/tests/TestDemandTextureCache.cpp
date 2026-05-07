@@ -7,8 +7,8 @@
 #include <DemandPbrtScene/Dependencies.h>
 #include <DemandPbrtScene/ImageSourceFactory.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
+#include <OptiXToolkit/DemandLoading/Testing/MockDemandLoader.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
 

@@ -41,10 +41,11 @@ if(MSVC)
 endif()
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
-    OptiXToolkit::DemandGeometry::Mocks
+    OptiXToolkit::DemandLoading::Testing
     OptiXToolkit::ImageSource::Testing
     OptiXToolkit::Memory
     OptiXToolkit::ShaderUtil
+    OptiXToolkit::Testing
     GTest::gmock_main)
 set_target_properties(TestDemandPbrtSceneImpl PROPERTIES FOLDER Examples/DemandLoading/Tests)
 gtest_discover_tests(TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene)
