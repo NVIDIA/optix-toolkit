@@ -4,7 +4,7 @@
 
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
+#include <OptiXToolkit/DemandLoading/Testing/MockDemandLoader.h>
 
 #include <gmock/gmock.h>
 

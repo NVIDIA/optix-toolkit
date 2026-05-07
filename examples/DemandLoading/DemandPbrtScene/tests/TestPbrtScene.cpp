@@ -24,7 +24,7 @@
 #include <DemandPbrtScene/SceneAdapters.h>
 #include <DemandPbrtScene/SceneSyncState.h>
 
-#include <OptiXToolkit/DemandGeometry/Mocks/MockDemandLoader.h>
+#include <OptiXToolkit/DemandLoading/Testing/MockDemandLoader.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 #include <OptiXToolkit/Error/cudaErrorCheck.h>

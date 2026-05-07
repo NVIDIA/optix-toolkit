@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
@@ -12,7 +12,7 @@ otk_add_executable( TestDemandMaterial
 target_link_libraries( TestDemandMaterial
     PRIVATE
         OptiXToolkit::Error
-        OptiXToolkit::DemandGeometry::Mocks
+        OptiXToolkit::DemandLoading::Testing
         OptiXToolkit::DemandMaterial
         GTest::gmock_main )
 set_target_properties( TestDemandMaterial PROPERTIES 

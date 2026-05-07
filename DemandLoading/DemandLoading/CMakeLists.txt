@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
@@ -190,6 +190,8 @@ install(EXPORT DemandLoadingTargets
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OptiXToolkit
   NAMESPACE OptiXToolkit::
   )
+
+add_subdirectory( Testing )
 
 if( BUILD_TESTING )
   add_subdirectory( tests )
