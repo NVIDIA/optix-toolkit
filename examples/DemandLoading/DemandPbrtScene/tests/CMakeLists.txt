@@ -16,7 +16,6 @@ add_executable(TestDemandPbrtSceneImpl
     MockMeshLoader.h
     MockProgramGroups.h
     MockRenderer.h
-    NullCast.h
     ParamsPrinters.h
     TestDemandTextureCache.cpp
     TestGeometryCache.cpp
