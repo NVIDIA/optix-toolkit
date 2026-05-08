@@ -54,6 +54,8 @@ inline std::ostream& operator<<( std::ostream& str, CUarray_format val )
         OUTPUT_ENUM( CU_AD_FORMAT_BC6H_SF16 );
         OUTPUT_ENUM( CU_AD_FORMAT_BC7_UNORM );
         OUTPUT_ENUM( CU_AD_FORMAT_BC7_UNORM_SRGB );
+    default:
+        break;
     }
     return str << "? (" << static_cast<int>( val ) << ')';
 }
