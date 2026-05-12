@@ -1,8 +1,35 @@
 # OptiX Toolkit changes
 
-## Version 1.1.x
-* Improved CMake installation logic.
-* Added NeuralTextures library for neural texture compression support (see the [README](NeuralTextures/README.md)).
+## Version 1.3.0
+
+* Extracted testing facilities into various Testing libraries
+* Corrected minor build issues on Windows
+* Libraries are now forced to be `STATIC`
+* Various bug fixes and tests for cascading textures
+
+## Version 1.2.0
+
+* Added NeuralTextures library and NeuralTextureViewer example.
+* Renamed cubic texturing entry points to align with existing naming conventions.
+* Updated documentation for stochastic texture filtering.
+* OptiX SDK headers are automatically downloaded from GitHub if preinstalled SDK is not found.
+* Reduced Cmake configuration time overhead.
+* Improved CMake install/export logic, particularly when building a subset of libraries.
+* Fixed CMake 4.2 issue involving third-party dependencies with legacy CMake minimum versions.
+* PyOptiX submodule changes:
+  - CMake 4.x support.
+  - Windows installation improvements (DLL loading for Python 3.8+)
+  - Updated pybind11 to v2.13.6
+
+## Version 1.1.0
+
+- Improved OptiX SDK integration: Automatically downloads OptiX headers using FetchContent when find_package(OptiX) fails, simplifying the build process for projects without a locally installed SDK
+- Enhanced DDS file support: Added capability to read and write tiled DDS files, along with fixes to tile width calculations
+- Added compressed texture cache: Implemented compressed texture caching with automatic conversion retry logic and a new example application demonstrating the feature
+- Fixed texture filtering derivatives: Corrected derivative calculations in bilinear sampling where scale factors were incorrectly applied
+- Fixed cubic texture filtering: Resolved an issue where textures with large gradients (|grad| > 1) incorrectly returned resident=false, which could cause invalid texture lookups
+- Updated UDIM handling: Revised UDIM texture coordinate handling to better align with industry-standard practices
+- Improved build compatibility: Fixed MSVC build issues and updated vcpkg manifest to properly handle Boost dependencies for OpenImageIO
 
 ## Version 1.0.1
 * Added support for block compressed formats (.dds files) in the demand load library.
