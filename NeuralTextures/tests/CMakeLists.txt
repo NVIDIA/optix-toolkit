@@ -30,6 +30,8 @@ set_target_properties( testNeuralTextures PROPERTIES
   FOLDER NeuralTextures/Tests
 )
 
-# Register test cases with CTest.
-gtest_discover_tests(testNeuralTextures PROPERTIES LABELS NeuralTextures)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME testNeuralTextures COMMAND testNeuralTextures )
+set_tests_properties( testNeuralTextures PROPERTIES LABELS NeuralTextures )
 

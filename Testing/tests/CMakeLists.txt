@@ -20,4 +20,7 @@ set_target_properties(TestOptixMocks PROPERTIES
   CXX_STANDARD 14  # Required by latest gtest
   FOLDER Testing/Tests
   )
-gtest_discover_tests(TestOptixMocks PROPERTIES LABELS Testing)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME TestOptixMocks COMMAND TestOptixMocks )
+set_tests_properties( TestOptixMocks PROPERTIES LABELS Testing )

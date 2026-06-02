@@ -103,8 +103,10 @@ set_target_properties( testDemandLoading
 )
 
 
-# Register test cases with CTest.
-gtest_discover_tests(testDemandLoading PROPERTIES LABELS DemandLoading)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME testDemandLoading COMMAND testDemandLoading )
+set_tests_properties( testDemandLoading PROPERTIES LABELS DemandLoading )
 
 # The texture footprint test employs an OptiX kernel, which is compiled from CUDA to OPTIXIR.
 include( embed_cuda )
@@ -151,4 +153,5 @@ set_target_properties( testDemandLoading PROPERTIES
 )
 
 # Register test cases with CTest.
-gtest_discover_tests(testTextureFootprint PROPERTIES LABELS DemandLoading)
+add_test( NAME testTextureFootprint COMMAND testTextureFootprint )
+set_tests_properties( testTextureFootprint PROPERTIES LABELS DemandLoading )

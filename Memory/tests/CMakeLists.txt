@@ -33,8 +33,10 @@ set_target_properties( testMemory PROPERTIES
   FOLDER Memory/Tests
 )
 
-# Register test cases with CTest.
-gtest_discover_tests(testMemory PROPERTIES LABELS Memory)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME testMemory COMMAND testMemory )
+set_tests_properties( testMemory PROPERTIES LABELS Memory )
 
 otk_add_executable( testError
   TestError.cpp
@@ -45,7 +47,8 @@ target_link_libraries(testError
   GTest::gtest_main
 )
 set_property(TARGET testError PROPERTY FOLDER Memory/Tests)
-gtest_discover_tests(testError PROPERTIES LABELS Memory)
+add_test( NAME testError COMMAND testError )
+set_tests_properties( testError PROPERTIES LABELS Memory )
 
 otk_add_executable(testOptiXMemory
   TestBuilders.cpp
@@ -59,4 +62,5 @@ target_link_libraries(testOptiXMemory
   GTest::gtest_main
 )
 set_property(TARGET testOptiXMemory PROPERTY FOLDER Memory/Tests)
-gtest_discover_tests(testOptiXMemory PROPERTIES LABELS Memory)
+add_test( NAME testOptiXMemory COMMAND testOptiXMemory )
+set_tests_properties( testOptiXMemory PROPERTIES LABELS Memory )

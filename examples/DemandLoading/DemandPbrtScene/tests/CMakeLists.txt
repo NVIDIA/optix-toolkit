@@ -48,6 +48,9 @@ target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     OptiXToolkit::Testing
     GTest::gmock_main)
 set_target_properties(TestDemandPbrtSceneImpl PROPERTIES FOLDER Examples/DemandLoading/Tests)
-gtest_discover_tests(TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME TestDemandPbrtSceneImpl COMMAND TestDemandPbrtSceneImpl )
+set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene )
 
 add_subdirectory(images)

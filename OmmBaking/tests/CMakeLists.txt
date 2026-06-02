@@ -81,5 +81,7 @@ if( $<TARGET_RUNTIME_DLLS:testCuOmmBaking> )
     COMMAND_EXPAND_LISTS )
 endif()
 
-# Register test cases with CTest.
-gtest_discover_tests(testCuOmmBaking PROPERTIES LABELS OmmBaking)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME testCuOmmBaking COMMAND testCuOmmBaking )
+set_tests_properties( testCuOmmBaking PROPERTIES LABELS OmmBaking )

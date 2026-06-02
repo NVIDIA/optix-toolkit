@@ -65,8 +65,10 @@ if( $<TARGET_RUNTIME_DLLS:testSelfIntersectionAvoidance> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:testSelfIntersectionAvoidance> $<TARGET_FILE_DIR:testSelfIntersectionAvoidance>
     COMMAND_EXPAND_LISTS )
 endif()
-# Register test cases with CTest.
-gtest_discover_tests(testSelfIntersectionAvoidance PROPERTIES LABELS ShaderUtil)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME testSelfIntersectionAvoidance COMMAND testSelfIntersectionAvoidance )
+set_tests_properties( testSelfIntersectionAvoidance PROPERTIES LABELS ShaderUtil )
 
 
 embed_cuda(
@@ -110,4 +112,5 @@ if( $<TARGET_RUNTIME_DLLS:TestShaderUtil> )
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:TestShaderUtil> $<TARGET_FILE_DIR:TestShaderUtil>
     COMMAND_EXPAND_LISTS )
 endif()
-gtest_discover_tests(TestShaderUtil PROPERTIES LABELS ShaderUtil)
+add_test( NAME TestShaderUtil COMMAND TestShaderUtil )
+set_tests_properties( TestShaderUtil PROPERTIES LABELS ShaderUtil )

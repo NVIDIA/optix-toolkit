@@ -29,4 +29,7 @@ set_target_properties(TestDemandGeometry PROPERTIES
   CXX_STANDARD 14  # Required by latest gtest
   FOLDER DemandLoading/Tests
   )
-gtest_discover_tests(TestDemandGeometry PROPERTIES LABELS DemandLoading)
+# Single CTest entry per binary: this binary creates a CUDA/OptiX context that
+# is reused across cases, so one process pays context init once, not per case.
+add_test( NAME TestDemandGeometry COMMAND TestDemandGeometry )
+set_tests_properties( TestDemandGeometry PROPERTIES LABELS DemandLoading )
