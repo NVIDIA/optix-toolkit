@@ -661,7 +661,7 @@ TEST_F( SelfIntersectionAvoidanceTest, MMtrxInst )
     runTest( opt, "SelfIntersectionAvoidanceTest_MMtrxInst" );
 }
 
-TEST_F( SelfIntersectionAvoidanceTest, DISABLED_InstMtrx )
+TEST_F( SelfIntersectionAvoidanceTest, InstMtrx )
 {
     TestOptions opt = {};
     opt.transforms.push_back( getInstance() );
@@ -669,7 +669,7 @@ TEST_F( SelfIntersectionAvoidanceTest, DISABLED_InstMtrx )
     runTest( opt, "SelfIntersectionAvoidanceTest_InstMtrx" );
 }
 
-TEST_F( SelfIntersectionAvoidanceTest, DISABLED_InstSrt )
+TEST_F( SelfIntersectionAvoidanceTest, InstSrt )
 {
     TestOptions opt = {};
     opt.transforms.push_back( getInstance() );
@@ -677,7 +677,7 @@ TEST_F( SelfIntersectionAvoidanceTest, DISABLED_InstSrt )
     runTest( opt, "SelfIntersectionAvoidanceTest_InstSrt" );
 }
 
-TEST_F( SelfIntersectionAvoidanceTest, DISABLED_InstMMtrx )
+TEST_F( SelfIntersectionAvoidanceTest, InstMMtrx )
 {
     TestOptions opt = {};
     opt.transforms.push_back( getInstance() );

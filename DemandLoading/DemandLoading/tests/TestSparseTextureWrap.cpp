@@ -288,8 +288,7 @@ void TestSparseTextureWrap::testLargeSparseTexture( CUstream stream, unsigned in
     OTK_ERROR_CHECK( cuMemFree( reinterpret_cast<CUdeviceptr>( devOutput ) ) );
 }
 
-// This test is too slow for inclusion in the smoke tests.
-TEST_F( TestSparseTextureWrap, DISABLED_largeTextures )
+TEST_F( TestSparseTextureWrap, largeTextures )
 {
     // Skip test if sparse textures not supported
     if( m_deviceIndex == demandLoading::MAX_DEVICES )
