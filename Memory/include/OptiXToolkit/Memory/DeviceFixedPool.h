@@ -95,10 +95,15 @@ struct DeviceFixedPool
             }
             ptrBase = __shfl_sync( activeMask, ptrBase, leadLane );
 
-            if( allocMode == WARP_INTERLEAVED )
-                ptrBase += interleaveBytes * laneId;
-            else if ( allocMode == WARP_NON_INTERLEAVED )
-                ptrBase += itemSize * laneId;
+            // ptrBase == 0 means the pool is exhausted; return nullptr without applying
+            // the per-lane offset, which would otherwise produce a bogus non-null pointer.
+            if( ptrBase != 0ULL )
+            {
+                if( allocMode == WARP_INTERLEAVED )
+                    ptrBase += interleaveBytes * laneId;
+                else if ( allocMode == WARP_NON_INTERLEAVED )
+                    ptrBase += itemSize * laneId;
+            }
             return reinterpret_cast<char*>( ptrBase );
         }
 

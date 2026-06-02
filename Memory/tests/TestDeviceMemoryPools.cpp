@@ -78,8 +78,7 @@ TEST_F( TestDeviceMemoryPools, TestRingBuffer )
 }
 
 
-// Undiagnosed failure: Value of: pInt == 0 || pInt >= baseInt, Actual: false, Expected: true
-TEST_F( TestDeviceMemoryPools, DISABLED_TestFixedPool )
+TEST_F( TestDeviceMemoryPools, TestFixedPool )
 {
     // Create output buffer
     char** devOutput;
