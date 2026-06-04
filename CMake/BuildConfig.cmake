@@ -44,9 +44,17 @@ function(otk_target_options target_name)
     # /wd4305 truncation from 'double' to 'float'
     # /wd4245 conversion from [enum type] to 'unsigned int', signed/unsigned mismatch
     # /wd4201 nonstandard extension used: nameless struct/union
+    set(_otk_cuda_msvc_compiler_options "/wd4324,/wd4505")
+    if(WIN32 AND DEFINED CMAKE_CUDA_COMPILER_VERSION AND DEFINED MSVC_VERSION)
+      if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.3
+        AND MSVC_VERSION GREATER_EQUAL 1930
+      )
+        string(APPEND _otk_cuda_msvc_compiler_options ",/Zc:preprocessor")
+      endif()
+    endif()
     target_compile_options(${target_name} PRIVATE
       $<$<COMPILE_LANGUAGE:CXX>:/wd4267 /wd4505 /wd4324 /wd4996 /wd4305 /wd4245 /wd4201>
-      $<$<COMPILE_LANGUAGE:CUDA>:--compiler-options /wd4324,/wd4505>
+      $<$<COMPILE_LANGUAGE:CUDA>:--compiler-options ${_otk_cuda_msvc_compiler_options}>
     )
   else()
     target_compile_options(${target_name} PRIVATE -Wall -Wextra $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>)
