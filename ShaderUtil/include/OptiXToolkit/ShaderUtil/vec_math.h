@@ -1224,6 +1224,7 @@ namespace otk {
 
 } // namespace otk
 
+#if CUDART_VERSION >= 13000
 /* double4_16a operators */
 /******************************************************************************/
 
@@ -1361,6 +1362,7 @@ namespace otk {
 /******************************************************************************/
 
 } // namespace otk
+#endif // CUDART_VERSION >= 13000
 
 namespace otk {
 
@@ -3582,6 +3584,7 @@ namespace otk {
 
 } // namespace otk
 
+#if CUDART_VERSION >= 13000
 /* long4_16a operators */
 /******************************************************************************/
 
@@ -3851,6 +3854,7 @@ namespace otk {
 /******************************************************************************/
 
 } // namespace otk
+#endif // CUDART_VERSION >= 13000
 
 /* ulong2 operators */
 /******************************************************************************/
@@ -4515,6 +4519,7 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(longlong3& v, int i, int x)
 
 } // namespace otk
 
+#if CUDART_VERSION >= 13000
 /* longlong4_16a operators */
 /******************************************************************************/
 
@@ -4707,6 +4712,7 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(longlong4_16a& v, int i, long long x)
 }
 
 } // namespace otk
+#endif // CUDART_VERSION >= 13000
 
 /* ulonglong operators */
 /******************************************************************************/
@@ -5104,6 +5110,7 @@ OTK_INLINE OTK_HOSTDEVICE void setByIndex(ulonglong3& v, int i, unsigned long lo
 
 } // namespace otk
 
+#if CUDART_VERSION >= 13000
 /* ulonglong4_16a operators */
 /******************************************************************************/
 
@@ -5342,6 +5349,11 @@ OTK_INLINE OTK_HOSTDEVICE ulonglong4_16a make_ulonglong4_16a(const ulonglong2& v
 OTK_INLINE OTK_HOSTDEVICE ulonglong4_16a make_ulonglong4_16a(const unsigned long long v0, const ulonglong3& v1) { return make_ulonglong4_16a(v0, v1.x, v1.y, v1.z); }
 OTK_INLINE OTK_HOSTDEVICE ulonglong4_16a make_ulonglong4_16a(const ulonglong3& v0, const unsigned long long v1) { return make_ulonglong4_16a(v0.x, v0.y, v0.z, v1); }
 OTK_INLINE OTK_HOSTDEVICE ulonglong4_16a make_ulonglong4_16a(const ulonglong2& v0, const ulonglong2& v1) { return make_ulonglong4_16a(v0.x, v0.y, v1.x, v1.y); }
+
+} // namespace otk
+#endif // CUDART_VERSION >= 13000
+
+namespace otk {
 OTK_INLINE OTK_HOSTDEVICE float3 make_float3(const float2& v0, const float v1) { return ::make_float3(v0.x, v0.y, v1); }
 OTK_INLINE OTK_HOSTDEVICE float3 make_float3(const float v0, const float2& v1) { return ::make_float3( v0, v1.x, v1.y ); }
 OTK_INLINE OTK_HOSTDEVICE float4 make_float4(const float v0, const float v1, const float2& v2) { return ::make_float4( v0, v1, v2.x, v2.y ); }
