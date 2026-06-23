@@ -29,7 +29,17 @@ namespace demandLoading {
 
 void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
-    loadPage( stream, pageId, false );
+    try
+    {
+        loadPage( stream, pageId, false );
+    }
+    catch( const std::runtime_error& e )
+    {
+        // Report the failure (e.g. missing/unreadable image, unsupported format, or a texture too
+        // large to sample) through the logger instead of letting it propagate and terminate the
+        // worker thread.  Logged at level 0 so it is reported regardless of the configured log level.
+        DL_LOG( 0, e.what() );
+    }
 }
 
 void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident )

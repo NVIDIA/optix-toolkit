@@ -40,6 +40,7 @@ otk_add_executable( testDemandLoading
   TestPageTableManager.cpp
   TestPagingSystem.cpp
   TestPagingSystemKernels.cpp
+  TestRequestHandlerLogging.cpp
   TestSparseTexture.cpp
   TestSparseTexture.cu
   TestSparseTexture.h

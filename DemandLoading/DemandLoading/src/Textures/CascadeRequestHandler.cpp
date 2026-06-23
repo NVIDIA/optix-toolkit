@@ -25,7 +25,18 @@ namespace demandLoading {
 
 void CascadeRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
-    loadPage( stream, pageId, false );
+    try
+    {
+        loadPage( stream, pageId, false );
+    }
+    catch( const std::runtime_error& e )
+    {
+        // Report the failure (e.g. the grown texture is missing or too large to sample) through the
+        // logger instead of letting it propagate and terminate the worker thread.  Logged at level 0
+        // so it is reported regardless of the configured log level.  loadPage leaves the cascade page
+        // non-resident on failure, so the request will be retried.
+        DL_LOG( 0, e.what() );
+    }
 }
 
 void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident )
@@ -55,14 +66,18 @@ void CascadeRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     if( cascadeInfo.width >= backingInfo.width || ( cascadeInfo.width >= requestCascadeSize && cascadeInfo.height >= requestCascadeSize ) )
         return;
 
-    // Clear the backing image and page table entry on the device.
+    // Clear the backing image on the device.
     cascadeImage->setBackingImage( std::shared_ptr<imageSource::ImageSource>(nullptr) );
-    m_loader->setPageTableEntry( pageId, false, 0ULL );
 
     // Create a new cascadeImage and replace the current image with it.
     unsigned int newCascadeSize = requestCascadeSize;
     std::shared_ptr<imageSource::ImageSource> newCascadeImage( new imageSource::CascadeImage( backingImage, newCascadeSize ) );
     m_loader->replaceTexture( stream, samplerId, newCascadeImage, texture->getDescriptor(), true );
+
+    // Mark the cascade page resident only after the replacement succeeds.  If replaceTexture throws,
+    // the page is left non-resident so the cascade request will be retried rather than silently
+    // stranded as resident with a zero mapping.
+    m_loader->setPageTableEntry( pageId, false, 0ULL );
 }
 
 unsigned int CascadeRequestHandler::cascadeIdToSamplerId( unsigned int pageId )
