@@ -74,6 +74,8 @@ otk_add_library( DemandLoading STATIC
   src/Util/CudaCallback.h
   src/Util/CudaContext.h
   src/Util/Math.h
+  src/Util/MipmappedArrayCheck.cpp
+  src/Util/MipmappedArrayCheck.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
   src/Util/Stopwatch.h
@@ -138,6 +140,7 @@ source_group( "Header Files\\Implementation" FILES
   src/Util/CudaCallback.h
   src/Util/CudaContext.h
   src/Util/Math.h
+  src/Util/MipmappedArrayCheck.h
   src/Util/MutexArray.h
   src/Util/NVTXProfiling.h
   src/Util/Stopwatch.h

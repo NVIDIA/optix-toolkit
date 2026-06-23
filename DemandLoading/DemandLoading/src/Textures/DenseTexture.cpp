@@ -4,6 +4,7 @@
 
 #include "Textures/DenseTexture.h"
 #include "Util/ContextSaver.h"
+#include "Util/MipmappedArrayCheck.h"
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
@@ -39,8 +40,11 @@ void DenseTexture::init( const TextureDescriptor& descriptor, const imageSource:
     m_array = masterArray;
     if( m_array.get() == nullptr )
     {
-        CUmipmappedArray* array = new CUmipmappedArray();
-        OTK_ERROR_CHECK( cuMipmappedArrayCreate( array, &ad, m_info.numMipLevels ) );
+        // createMipmappedArray throws (before any allocation) if the requested size exceeds the
+        // device sampling limit, so the heap allocation below happens only on success.
+        CUmipmappedArray handle{};
+        createMipmappedArray( &handle, &ad, m_info.numMipLevels );
+        CUmipmappedArray* array = new CUmipmappedArray( handle );
 
         // Reset m_array with a deleter for the mipmapped array
         m_array.reset( array, [this]( CUmipmappedArray* array ) {

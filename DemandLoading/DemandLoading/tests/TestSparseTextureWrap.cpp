@@ -23,6 +23,7 @@
 #include <fstream>
 #include <math.h>
 #include <ostream>
+#include <stdexcept>
 
 using namespace demandLoading;
 using namespace imageSource;
@@ -294,7 +295,14 @@ TEST_F( TestSparseTextureWrap, largeTextures )
     if( m_deviceIndex == demandLoading::MAX_DEVICES )
         return;
 
-    testLargeSparseTexture( m_stream, 16384, 0, "largeSparse-16k-l0.ppm" );
-    testLargeSparseTexture( m_stream, 16384, 2, "largeSparse-16k-l2.ppm" );
+    // A 16384^2 float4 texture has a full mip chain of ~5.7 GB, which exceeds CUDA's 4 GiB
+    // mipmapped-array sampling limit. Such an array creates successfully but its coarse mip levels
+    // sample as black on the device, so the demand loader now rejects it at creation time.
+    EXPECT_THROW( testLargeSparseTexture( m_stream, 16384, 0, "largeSparse-16k-l0.ppm" ), std::runtime_error );
+    EXPECT_THROW( testLargeSparseTexture( m_stream, 16384, 2, "largeSparse-16k-l2.ppm" ), std::runtime_error );
+
+    // 14189^2 is the largest supported float4 square (its full mip chain stays just under 4 GiB),
+    // so creation and sampling -- including coarse mip levels -- succeed.
+    testLargeSparseTexture( m_stream, 14189, 2, "largeSparse-14k-l2.ppm" );
     testLargeSparseTexture( m_stream, 8194, 2, "largeSparse-8k-l2.ppm" );
 }

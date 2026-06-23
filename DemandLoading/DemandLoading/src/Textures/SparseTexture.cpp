@@ -4,6 +4,7 @@
 
 #include "Textures/SparseTexture.h"
 #include "Util/ContextSaver.h"
+#include "Util/MipmappedArrayCheck.h"
 
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
@@ -59,7 +60,9 @@ void SparseArray::init( const imageSource::TextureInfo& info )
     ad.Format      = m_info.format;
     ad.NumChannels = m_info.numChannels;
     ad.Flags       = CUDA_ARRAY3D_SPARSE;
-    OTK_ERROR_CHECK( cuMipmappedArrayCreate( &m_array, &ad, nominalNumMipLevels ) );
+    // Guard against the 4 GiB device-sampling limit using the nominal mip count, which is the number
+    // of levels the array is actually created with.
+    createMipmappedArray( &m_array, &ad, nominalNumMipLevels );
 
     // Get sparse texture properties
     OTK_ERROR_CHECK( cuMipmappedArrayGetSparseProperties( &m_properties, m_array ) );

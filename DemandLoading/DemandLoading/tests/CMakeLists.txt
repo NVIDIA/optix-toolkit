@@ -35,6 +35,7 @@ otk_add_executable( testDemandLoading
   TestDeviceContextImpl.cpp
   TestDrawTexture.cu
   TestDrawTexture.h
+  TestMipmappedArraySize.cpp
   TestMutexArray.cpp
   TestPageTableManager.cpp
   TestPagingSystem.cpp
