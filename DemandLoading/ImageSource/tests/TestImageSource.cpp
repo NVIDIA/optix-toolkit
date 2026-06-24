@@ -14,6 +14,7 @@
 #if OTK_USE_OIIO
 #include <OptiXToolkit/ImageSource/OIIOReader.h>
 #endif
+#include <OptiXToolkit/ImageSource/DDSImageReader.h>
 #include <OptiXToolkit/ShaderUtil/vec_printers.h>
 
 #include <gtest/gtest.h>
@@ -25,6 +26,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <string>
 #include <thread>
 #include <vector>
@@ -374,7 +376,9 @@ void runReadPartialTileNonSquare()
     const unsigned int numTilesY = ( levelHeight + tileHeight - 1 ) / tileHeight;
 
     ASSERT_TRUE( halfInfo.format == CU_AD_FORMAT_HALF && halfInfo.numChannels == 4 );
-    std::vector<char> buff( tileWidth * tileHeight * sizeof( half4 ) );
+    // Prefill nonzero so a passing black check proves readTile cleared the out-of-bounds region
+    // itself (not that the buffer happened to start zeroed).
+    std::vector<char> buff( tileWidth * tileHeight * sizeof( half4 ), char( 0xFF ) );
     ASSERT_NO_THROW( nonSquareReader.readTile( buff.data(), mipLevel,
                                                { numTilesX - 1, numTilesY - 1, tileWidth, tileHeight }, nullptr ) );
     const half4* texels = reinterpret_cast<const half4*>( buff.data() );
@@ -385,12 +389,94 @@ void runReadPartialTileNonSquare()
     half4 blue{ 0, 0, 1, 0 };
     EXPECT_EQ( blue, texels[0 * tileWidth + 0] );
 
-    // Pixels off the right/bottom edge of the level must stay black. OIIOReader previously
-    // mis-placed edge tile rows here; the single read_tiles() over the clamped region fixes it.
+    // Pixels off the right/bottom edge of the level must be black-filled by readTile.
     EXPECT_EQ( black, texels[( tileHeight - 1 ) * tileWidth + ( tileWidth - 1 )] );
 }
 
 INSTANTIATE_READER_TESTS( ReadPartialTileNonSquare )
+
+// Regression: open() locks m_mutex, so it must not call the now-locking isOpen() (which would
+// re-lock the non-recursive mutex and hang). A missing/failed open exercises the same path.
+TEST( TestDDSImageReader, OpenDoesNotDeadlock )
+{
+    DDSImageReader reader( getSourceDir() + "/Textures/does-not-exist.dds", /*readBaseColor=*/false );
+    TextureInfo    info = {};
+    reader.open( &info );  // would deadlock under the old open()/isOpen() lock pattern
+    EXPECT_FALSE( reader.isOpen() );
+}
+
+#ifdef OPTIX_SAMPLE_USE_CORE_EXR
+
+// CoreEXRReader decodes tiles lock-free, so verify that concurrent reads of one open reader are
+// correct and that close() safely drains in-flight reads instead of freeing the EXR context under
+// them (run under ThreadSanitizer to also catch races / use-after-free).
+TEST( TestCoreEXRReaderThreadSafety, ConcurrentReadAndClose )
+{
+    CoreEXRReader reader( getSourceDir() + "/Textures/TiledMipMappedHalf.exr" );
+    TextureInfo   info = {};
+    ASSERT_NO_THROW( reader.open( &info ) );
+
+    const unsigned int tw = reader.getTileWidth();
+    const unsigned int th = reader.getTileHeight();
+    ASSERT_GT( tw, 0u );
+    ASSERT_GT( th, 0u );
+
+    const unsigned int mipLevel  = 0;
+    const size_t       tileBytes = static_cast<size_t>( tw ) * th * sizeof( half4 );
+    const unsigned int numTilesX = ( info.width + tw - 1 ) / tw;
+    const unsigned int numTilesY = ( info.height + th - 1 ) / th;
+    const unsigned int numTiles  = numTilesX * numTilesY;
+
+    // Single-threaded reference for every tile.
+    std::vector<std::vector<char>> reference( numTiles, std::vector<char>( tileBytes, 0 ) );
+    for( unsigned int t = 0; t < numTiles; ++t )
+        ASSERT_NO_THROW( reader.readTile( reference[t].data(), mipLevel, { t % numTilesX, t / numTilesX, tw, th }, nullptr ) );
+
+    std::atomic<bool>        ok{ true };
+    std::atomic<bool>        stop{ false };
+    const unsigned int       numThreads = 8;
+    std::vector<std::thread> threads;
+    for( unsigned int thr = 0; thr < numThreads; ++thr )
+    {
+        threads.emplace_back( [&, thr] {
+            std::vector<char> buff( tileBytes, 0 );
+            unsigned int      t = thr;
+            while( !stop.load() )
+            {
+                const unsigned int idx = t++ % numTiles;
+                std::fill( buff.begin(), buff.end(), char( 0 ) );
+                bool read = false;
+                try
+                {
+                    read = reader.readTile( buff.data(), mipLevel, { idx % numTilesX, idx / numTilesX, tw, th }, nullptr );
+                }
+                catch( ... )
+                {
+                    ok.store( false );
+                    return;
+                }
+                // A successful read must match the reference; a false read means close() has run.
+                if( read && buff != reference[idx] )
+                {
+                    ok.store( false );
+                    return;
+                }
+            }
+        } );
+    }
+
+    // Let reads overlap, then close concurrently: the drain guard must wait for active decodes.
+    std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
+    reader.close();
+    stop.store( true );
+    for( auto& t : threads )
+        t.join();
+
+    EXPECT_TRUE( ok.load() );
+    EXPECT_FALSE( reader.isOpen() );
+}
+
+#endif  // OPTIX_SAMPLE_USE_CORE_EXR
 
 #if OTK_USE_OIIO
 

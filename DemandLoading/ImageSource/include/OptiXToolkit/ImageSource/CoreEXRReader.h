@@ -7,6 +7,7 @@
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/TextureInfo.h>
 
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -35,7 +36,11 @@ class CoreEXRReader : public ImageSourceBase
     void close() override;
 
     /// Check if image is currently open.
-    bool isOpen() const override { return static_cast<bool>( m_exrCtx ); }
+    bool isOpen() const override
+    {
+        std::lock_guard<std::mutex> lock( m_initMutex );
+        return static_cast<bool>( m_exrCtx );
+    }
 
     /// Get the image info.  Valid only after calling open().
     /// The caller should check the isValid struct member to determine
@@ -64,17 +69,52 @@ class CoreEXRReader : public ImageSourceBase
     unsigned int getTileHeight() const override { return m_tileHeight; }
 
     /// Returns the number of tiles that have been read.
-    unsigned long long getNumTilesRead() const override { return m_numTilesRead; }
+    unsigned long long getNumTilesRead() const override
+    {
+        std::lock_guard<std::mutex> lock( m_statsMutex );
+        return m_numTilesRead;
+    }
 
     /// Returns the number of bytes that have been read.
-    unsigned long long getNumBytesRead() const override { return m_numBytesRead; }
+    unsigned long long getNumBytesRead() const override
+    {
+        std::lock_guard<std::mutex> lock( m_statsMutex );
+        return m_numBytesRead;
+    }
 
     /// Returns the time in seconds spent reading image tiles.
-    double getTotalReadTime() const override { return m_totalReadTime; }
+    double getTotalReadTime() const override
+    {
+        std::lock_guard<std::mutex> lock( m_statsMutex );
+        return m_totalReadTime;
+    }
 
     int getNumExrChannels() { return m_numExrChannels; }
 
   private:
+    // Drain guard: reads decode lock-free on m_exrCtx, so close() must wait for in-flight reads
+    // to finish rather than calling exr_finish() under them. beginRead()/endRead() only briefly
+    // take m_initMutex; the decode itself runs without it.
+    bool beginRead();
+    void endRead();
+    class ReadScope
+    {
+      public:
+        explicit ReadScope( CoreEXRReader& reader )
+            : m_reader( reader )
+            , m_engaged( reader.beginRead() )
+        {
+        }
+        ~ReadScope() { if( m_engaged ) m_reader.endRead(); }
+        bool engaged() const { return m_engaged; }
+        ReadScope( const ReadScope& )            = delete;
+        ReadScope& operator=( const ReadScope& ) = delete;
+
+      private:
+        CoreEXRReader& m_reader;
+        bool           m_engaged;
+    };
+
     std::string        m_filename;
     exr_context_t      m_exrCtx = nullptr;
     bool               m_isScanline = false;
@@ -85,8 +125,11 @@ class CoreEXRReader : public ImageSourceBase
     float4             m_baseColor{};
     bool               m_readBaseColor    = false;
     bool               m_baseColorWasRead = false;
-    std::mutex         m_initMutex;
-    std::mutex         m_statsMutex;
+    mutable std::mutex      m_initMutex;
+    std::condition_variable m_readsDoneCv;  // guarded by m_initMutex
+    unsigned int            m_activeReads = 0;
+    bool                    m_closing     = false;
+    mutable std::mutex      m_statsMutex;
     unsigned long long m_numTilesRead  = 0;
     unsigned long long m_numBytesRead  = 0;
     double             m_totalReadTime = 0.0;

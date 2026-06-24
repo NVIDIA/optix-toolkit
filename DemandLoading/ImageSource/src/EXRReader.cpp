@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <mutex>
 #include <vector>
 
@@ -196,11 +197,11 @@ void EXRReader::setupFrameBuffer( ImfFrameBuffer& frameBuffer_, char* base, size
 // Close the image.
 void EXRReader::close()
 {
-    if( m_inputFile )
-        m_inputFile.reset();
-    
-    if( m_tiledInputFile )
-        m_tiledInputFile.reset();
+    // Reads hold m_mutex for their full duration, so take it here too: close() then waits for any
+    // in-flight read instead of resetting the file handles out from under it.
+    std::unique_lock<std::mutex> lock( m_mutex );
+    m_inputFile.reset();
+    m_tiledInputFile.reset();
 }
 
 void EXRReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
@@ -275,16 +276,23 @@ bool EXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, C
     const size_t       actualTileSize = actualTileWidth * actualTileHeight * bytesPerPixel;
 
     // Don't request non-existent tiles on the edge of the texture
-    unsigned int levelWidthInActualTiles  = ( m_tiledInputFile->levelWidth( mipLevel ) + actualTileWidth - 1 ) / actualTileWidth;
-    unsigned int levelHeightInActualTiles = ( m_tiledInputFile->levelHeight( mipLevel ) + actualTileHeight - 1 ) / actualTileHeight;
+    const unsigned int levelWidth             = m_tiledInputFile->levelWidth( mipLevel );
+    const unsigned int levelHeight            = m_tiledInputFile->levelHeight( mipLevel );
+    unsigned int       levelWidthInActualTiles  = ( levelWidth + actualTileWidth - 1 ) / actualTileWidth;
+    unsigned int       levelHeightInActualTiles = ( levelHeight + actualTileHeight - 1 ) / actualTileHeight;
     numTilesX                             = std::min( numTilesX, levelWidthInActualTiles - actualTileX );
     numTilesY                             = std::min( numTilesY, levelHeightInActualTiles - actualTileY );
-                
+
+    // Pixels outside the level must be black: zero the destination tile when the request crosses
+    // the right/bottom edge, since the loop below only fills the in-bounds source tiles.
+    if( tile.x * tile.width + tile.width > levelWidth || tile.y * tile.height + tile.height > levelHeight )
+        memset( dest, 0, static_cast<size_t>( tile.width ) * tile.height * bytesPerPixel );
+
     for( unsigned int j = 0; j < numTilesY; ++j )
     {
         for( unsigned int i = 0; i < numTilesX; ++i )
         {
-            char* start = dest + j * numTilesX * actualTileSize + i * actualTileWidth * bytesPerPixel;
+            char* start = dest + ( j * actualTileHeight ) * rowPitch + i * actualTileWidth * bytesPerPixel;
             readActualTile( start, rowPitch, mipLevel, actualTileX + i, actualTileY + j );
 
             // Stats tracking

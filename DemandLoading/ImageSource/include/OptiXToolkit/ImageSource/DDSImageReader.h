@@ -116,10 +116,20 @@ class DDSImageReader : public ImageSourceBase
     void open( imageSource::TextureInfo* info ) override;
 
     /// Close the image
-    void close() override { m_file.close(); }
+    void close() override
+    {
+        // Read paths use m_file under m_mutex, so take it here too rather than closing the
+        // stream out from under an in-flight read.
+        std::lock_guard<std::mutex> lock( m_mutex );
+        m_file.close();
+    }
 
     /// Check if image is currently open.
-    bool isOpen() const override { return m_file.is_open(); }
+    bool isOpen() const override
+    {
+        std::lock_guard<std::mutex> lock( m_mutex );
+        return m_file.is_open();
+    }
 
     /// Get the image info.  Valid only after calling open().
     const imageSource::TextureInfo& getInfo() const override { return m_info; }
@@ -168,7 +178,7 @@ class DDSImageReader : public ImageSourceBase
     double getTotalReadTime() const override { return m_totalReadTime; }
 
   private:
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::mutex m_mipCacheMutex;
     std::string m_fileName;
     std::ifstream m_file;

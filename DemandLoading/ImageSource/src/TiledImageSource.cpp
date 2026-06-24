@@ -7,6 +7,7 @@
 #include <OptiXToolkit/Error/ErrorCheck.h>
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -45,6 +46,8 @@ void TiledImageSource::open( TextureInfo* info )
 
 void TiledImageSource::close()
 {
+    // Hold m_dataMutex so close() can't race readTile's cache fill / m_tiledInfo access.
+    std::unique_lock<std::mutex> lock( m_dataMutex );
     WrappedImageSource::close();
     m_tiledInfo = TextureInfo{};
 }
@@ -70,7 +73,8 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
     }
 
     const char* mipLevelBuffer;
-    uint2 mipDimensions;
+    uint2       mipDimensions;
+    size_t      pixelSizeInBytes;
     {
         std::unique_lock<std::mutex> lock( m_dataMutex );
 
@@ -105,12 +109,12 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
         }
 
         ++m_numTilesRead;
-        mipLevelBuffer = m_mipLevels[mipLevel];
-        mipDimensions = m_mipDimensions[mipLevel];
+        mipLevelBuffer   = m_mipLevels[mipLevel];
+        mipDimensions    = m_mipDimensions[mipLevel];
+        pixelSizeInBytes = getBitsPerPixel( m_tiledInfo ) / BITS_PER_BYTE;  // m_tiledInfo read under lock
     }
 
     OTK_ASSERT_MSG( mipLevelBuffer != nullptr, ( "Bad pointer for level " + std::to_string( mipLevel ) ).c_str() );
-    const size_t        pixelSizeInBytes         = getBitsPerPixel( m_tiledInfo ) / BITS_PER_BYTE;
     // Partial tile dimensions might be less than the nominal dimensions.
     const size_t        sourceWidth              = std::min( tile.width, mipDimensions.x - tile.x * tile.width );
     const size_t        sourceHeight             = std::min( tile.height, mipDimensions.y - tile.y * tile.height );
@@ -119,6 +123,12 @@ bool TiledImageSource::readTile( char* dest, unsigned int mipLevel, const Tile& 
     const size_t        destTileRowStrideInBytes = tile.width * pixelSizeInBytes;
     const PixelPosition start                    = pixelPosition( tile );
     const char*         source = mipLevelBuffer + start.y * sourceRowStrideInBytes + start.x * pixelSizeInBytes;
+
+    // Pixels outside the mip level must be black: zero the destination tile first when this is a
+    // partial edge tile, since the copy below only writes the valid sourceWidth x sourceHeight region.
+    if( sourceWidth < tile.width || sourceHeight < tile.height )
+        memset( dest, 0, static_cast<size_t>( tile.width ) * tile.height * pixelSizeInBytes );
+
     for( unsigned int i = 0; i < sourceHeight; ++i )
     {
         std::copy_n( source, sourceRowWidthInBytes, dest );

@@ -26,7 +26,8 @@ DDSImageReader::DDSImageReader( const std::string& fileName, bool readBaseColor 
 void DDSImageReader::open( TextureInfo* info )
 {
     std::unique_lock<std::mutex> lock( m_mutex );
-    if( isOpen() )
+    // Check the stream directly: isOpen() would re-lock the (non-recursive) m_mutex we hold.
+    if( m_file.is_open() )
     {
         if( info != nullptr )
             *info = m_info;
@@ -275,7 +276,10 @@ bool DDSImageReader::readTileFlat( char* dest, unsigned int mipLevel, const Tile
         {
             m_mipCache[mipLevel].resize( getMipLevelSizeInBytes( mipLevel ) );
             if( !readMipLevelFlat( m_mipCache[mipLevel].data(), mipLevel ) )
+            {
+                m_mipCache[mipLevel].clear();  // don't cache a failed/partial read
                 return false;
+            }
         }
     }
 
@@ -288,6 +292,11 @@ bool DDSImageReader::readTileFlat( char* dest, unsigned int mipLevel, const Tile
     Tile blockTile = Tile{tile.x, tile.y, tileWidthInBlocks, tileHeightInBlocks};
     blockTile.width = std::min( blockTile.width, mipWidthInBlocks - blockTile.x * tileWidthInBlocks );
     blockTile.height = std::min( blockTile.height, mipHeightInBlocks - blockTile.y * tileHeightInBlocks );
+
+    // Blocks outside the mip level must be black: zero the destination tile first when this is a
+    // partial edge tile, since the copy below only writes the valid block rectangle.
+    if( blockTile.width < tileWidthInBlocks || blockTile.height < tileHeightInBlocks )
+        memset( dest, 0, static_cast<size_t>( tileWidthInBlocks ) * tileHeightInBlocks * m_blockSizeInBytes );
 
     for( uint32_t tileRow = 0; tileRow < blockTile.height; ++tileRow )
     {
@@ -314,6 +323,8 @@ bool DDSImageReader::readMipLevelFlat( char* dest, unsigned int mipLevel )
 
     m_file.seekg( getMipLevelOffsetInBytesFlat( mipLevel ) );
     m_file.read( reinterpret_cast<char*>( dest ), getMipLevelSizeInBytesFlat( mipLevel ) );
+    if( !m_file )
+        return false;  // truncated/failed read: don't report success or update stats
 
     // Stats tracking
     {
@@ -348,6 +359,8 @@ bool DDSImageReader::readTileTiled( char* dest, unsigned int mipLevel, const Til
     Stopwatch stopwatch;
     m_file.seekg( getTileOffsetInBytesTiled( mipLevel, tile ) );
     m_file.read( dest, TILE_SIZE_IN_BYTES );
+    if( !m_file )
+        return false;  // truncated/failed read: don't report success or update stats
 
     // Stats tracking
     {
@@ -434,6 +447,8 @@ bool DDSImageReader::readMipTailTiled( char* dest, unsigned int mipTailFirstLeve
     OTK_ASSERT_MSG( mipTailFirstLevel == static_cast<unsigned int>(getMipTailStartLevel()), "Improper mip tail first level for tiled file." );
     m_file.seekg( getMipLevelOffsetInBytesTiled( mipTailFirstLevel ) );
     m_file.read( dest, getMipTailSize() );
+    if( !m_file )
+        return false;  // truncated/failed read: don't report success or update stats
 
     // Stats tracking
     {

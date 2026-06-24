@@ -152,14 +152,37 @@ void CoreEXRReader::open( TextureInfo* info )
         *info = m_info;
 }
 
+bool CoreEXRReader::beginRead()
+{
+    std::lock_guard<std::mutex> lock( m_initMutex );
+    if( m_closing || m_exrCtx == nullptr )
+        return false;
+    ++m_activeReads;
+    return true;
+}
+
+void CoreEXRReader::endRead()
+{
+    std::lock_guard<std::mutex> lock( m_initMutex );
+    if( --m_activeReads == 0 )
+        m_readsDoneCv.notify_all();
+}
+
 // Close the image.
 void CoreEXRReader::close()
 {
+    // Reads decode lock-free on m_exrCtx, so block new reads and wait for in-flight ones to
+    // finish before freeing the context, rather than racing exr_finish() against a live decode.
+    std::unique_lock<std::mutex> lock( m_initMutex );
+    m_closing = true;
+    m_readsDoneCv.wait( lock, [this] { return m_activeReads == 0; } );
+
     if( m_exrCtx != nullptr )
     {
         OTK_ERROR_CHECK( exr_finish( &m_exrCtx ) );
     }
-    m_exrCtx = nullptr;
+    m_exrCtx  = nullptr;
+    m_closing = false;  // allow a subsequent open()
 }
 
 void CoreEXRReader::readActualTile( char* dest, int rowPitch, int mipLevel, int tileX, int tileY )
@@ -288,7 +311,11 @@ void CoreEXRReader::readScanlineData( char* dest )
 
 bool CoreEXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
-    OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    // Engage the lifecycle guard before any m_exrCtx access so close() can't free it mid-read.
+    ReadScope readScope( *this );
+    if( !readScope.engaged() )
+        return false;
+
     OTK_ASSERT_MSG( !m_isScanline, "Attempting to read tiled data from scanline image." );
 
     // Stats tracking
@@ -315,6 +342,14 @@ bool CoreEXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& til
     const int rowPitch       = tile.width * bytesPerPixel;
     const int sourceTileSize = sourceTileWidth * sourceTileHeight * bytesPerPixel;
 
+    // Pixels outside the level must be black: zero the destination tile when the request crosses
+    // the right/bottom edge, since readActualTile skips/clips source tiles beyond the level.
+    if( tile.x * tile.width + tile.width > static_cast<unsigned int>( m_levelWidths[mipLevel] )
+        || tile.y * tile.height + tile.height > static_cast<unsigned int>( m_levelHeights[mipLevel] ) )
+    {
+        memset( dest, 0, static_cast<size_t>( tile.width ) * tile.height * bytesPerPixel );
+    }
+
     for( int j = 0; j < numTilesY; ++j )
     {
         for( int i = 0; i < numTilesX; ++i )
@@ -335,7 +370,10 @@ bool CoreEXRReader::readTile( char* dest, unsigned int mipLevel, const Tile& til
 
 bool CoreEXRReader::readMipLevel( char* dest, unsigned int mipLevel, unsigned int expectedWidth, unsigned int expectedHeight, CUstream /*stream*/ )
 {
-    OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    // Engage the lifecycle guard before any m_exrCtx access so close() can't free it mid-read.
+    ReadScope readScope( *this );
+    if( !readScope.engaged() )
+        return false;
 
     // Stats tracking
     Stopwatch stopwatch;
