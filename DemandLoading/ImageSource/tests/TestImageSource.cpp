@@ -23,8 +23,10 @@
 #include <vector_functions.h> // CUDA
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace imageSource;
@@ -383,15 +385,8 @@ void runReadPartialTileNonSquare()
     half4 blue{ 0, 0, 1, 0 };
     EXPECT_EQ( blue, texels[0 * tileWidth + 0] );
 
-#if OTK_USE_OIIO    
-    // Early exit for OIIOReader.
-    if( std::is_same<ReaderType, OIIOReader>::value )
-    {
-        GTEST_SKIP() << "Warning: Skipped ReadPartialTileNonSquare<OIIOReader>";
-    }
-#endif    
-
-    // OIIOReader fails here: texel is (1.875, 0, 0,0)
+    // Pixels off the right/bottom edge of the level must stay black. OIIOReader previously
+    // mis-placed edge tile rows here; the single read_tiles() over the clamped region fixes it.
     EXPECT_EQ( black, texels[( tileHeight - 1 ) * tileWidth + ( tileWidth - 1 )] );
 }
 
@@ -454,5 +449,106 @@ TEST_P( TestReaderFileTypes, ReadTile )
 INSTANTIATE_TEST_SUITE_P( OIIO,
                           TestReaderFileTypes,
                           testing::Values( "TiledMipMappedFloat.tif", "level0.png", "level0.jpg" ) );
+
+// readTile is lock-free and thread-safe: many threads reading tiles of the same open reader
+// must each get bytes identical to a single-threaded reference read. (Run under ThreadSanitizer
+// to also catch data races.)
+TEST( TestOIIOReaderThreadSafety, ConcurrentReadTile )
+{
+    OIIOReader reader( getSourceDir() + "/Textures/TiledMipMappedHalf.exr" );
+
+    TextureInfo info = {};
+    ASSERT_NO_THROW( reader.open( &info ) );
+
+    // OIIOReader's constructor requests OIIO's lock-free OpenEXR Core reader.
+    EXPECT_EQ( 1, OIIO::get_int_attribute( "openexr:core" ) );
+
+    const unsigned int tw = reader.getTileWidth();
+    const unsigned int th = reader.getTileHeight();
+    ASSERT_GT( tw, 0u );
+    ASSERT_GT( th, 0u );
+
+    const unsigned int mipLevel  = 0;
+    const size_t       tileBytes = static_cast<size_t>( tw ) * th * sizeof( half4 );
+    const unsigned int numTilesX = ( info.width + tw - 1 ) / tw;
+    const unsigned int numTilesY = ( info.height + th - 1 ) / th;
+    const unsigned int numTiles  = numTilesX * numTilesY;
+
+    // Single-threaded reference for every tile.
+    std::vector<std::vector<char>> reference( numTiles, std::vector<char>( tileBytes, 0 ) );
+    for( unsigned int t = 0; t < numTiles; ++t )
+        ASSERT_NO_THROW( reader.readTile( reference[t].data(), mipLevel, { t % numTilesX, t / numTilesX, tw, th }, nullptr ) );
+
+    // Hammer the same open reader from many threads; each result must match the reference.
+    std::atomic<bool>        ok{ true };
+    const unsigned int       numThreads = 8;
+    const unsigned int       iterations = 16;
+    std::vector<std::thread> threads;
+    for( unsigned int thr = 0; thr < numThreads; ++thr )
+    {
+        threads.emplace_back( [&, thr] {
+            std::vector<char> buff( tileBytes, 0 );
+            for( unsigned int it = 0; it < iterations && ok.load(); ++it )
+            {
+                for( unsigned int t = 0; t < numTiles; ++t )
+                {
+                    const unsigned int idx = ( t + thr ) % numTiles;  // stagger access order per thread
+                    std::fill( buff.begin(), buff.end(), 0 );
+                    try
+                    {
+                        reader.readTile( buff.data(), mipLevel, { idx % numTilesX, idx / numTilesX, tw, th }, nullptr );
+                    }
+                    catch( ... )
+                    {
+                        ok.store( false );
+                        return;
+                    }
+                    if( buff != reference[idx] )
+                    {
+                        ok.store( false );
+                        return;
+                    }
+                }
+            }
+        } );
+    }
+    for( auto& t : threads )
+        t.join();
+
+    EXPECT_TRUE( ok.load() );
+}
+
+// readTile must fill out-of-bounds pixels with black itself, not rely on a pre-zeroed buffer.
+// Prefill the destination nonzero so a passing black check proves readTile cleared it.
+TEST( TestOIIOReaderEdge, PartialTileBlackFill )
+{
+    OIIOReader  reader( getSourceDir() + "/Textures/TiledMipMapped124x72.exr" );
+    TextureInfo info = {};
+    ASSERT_NO_THROW( reader.open( &info ) );
+
+    const unsigned int mipLevel   = 1;
+    const unsigned int tileWidth  = reader.getTileWidth();
+    const unsigned int tileHeight = reader.getTileHeight();
+    ASSERT_GT( tileWidth, 0u );
+    ASSERT_GT( tileHeight, 0u );
+
+    const unsigned int levelWidth  = info.width / ( 1 << mipLevel );
+    const unsigned int levelHeight = info.height / ( 1 << mipLevel );
+    const unsigned int numTilesX   = ( levelWidth + tileWidth - 1 ) / tileWidth;
+    const unsigned int numTilesY   = ( levelHeight + tileHeight - 1 ) / tileHeight;
+
+    ASSERT_TRUE( info.format == CU_AD_FORMAT_HALF && info.numChannels == 4 );
+
+    std::vector<char> buff( tileWidth * tileHeight * sizeof( half4 ), char( 0xFF ) );
+    ASSERT_NO_THROW( reader.readTile( buff.data(), mipLevel,
+                                      { numTilesX - 1, numTilesY - 1, tileWidth, tileHeight }, nullptr ) );
+    const half4* texels = reinterpret_cast<const half4*>( buff.data() );
+
+    // Pattern is blue/white checkerboard with 16x16 squares; off-image pixels must be black.
+    half4 black{ 0, 0, 0, 0 };
+    half4 blue{ 0, 0, 1, 0 };
+    EXPECT_EQ( blue, texels[0] );                                                   // in-bounds
+    EXPECT_EQ( black, texels[( tileHeight - 1 ) * tileWidth + ( tileWidth - 1 )] );  // off-image corner
+}
 
 #endif  // OTK_USE_OIIO

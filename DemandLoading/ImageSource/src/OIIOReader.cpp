@@ -10,8 +10,13 @@
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <half.h>
+#include <iostream>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -75,11 +80,56 @@ float toFloat( const char* src, const CUarray_format format )
 
     return 0.f;
 }
+
+// Best-effort capability probe: OIIO's lock-free OpenEXR Core reader needs the package to
+// have been built against OpenEXR >= 3.1.10. OIIO exposes no direct "core compiled" query,
+// so we parse the linked OpenEXR version out of "library_list" and warn if it's too old.
+void warnIfExrCoreUnavailable()
+{
+    std::string libs = OIIO::get_string_attribute( "library_list" );
+    std::transform( libs.begin(), libs.end(), libs.begin(), []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+
+    // "library_list" is "name:descr version;name:descr version;...", e.g. "openexr:openexr 3.3.2",
+    // so scan for the first numeric token after the "openexr:" key (not immediately after it).
+    const std::string key = "openexr:";
+    const size_t      pos = libs.find( key );
+    std::string       version = "unknown";
+    if( pos != std::string::npos )
+    {
+        const size_t      start = pos + key.size();
+        const size_t      end   = libs.find( ';', start );
+        const std::string entry = libs.substr( start, end == std::string::npos ? std::string::npos : end - start );
+        const size_t      digit = entry.find_first_of( "0123456789" );
+        if( digit != std::string::npos )
+        {
+            version = entry.substr( digit );
+
+            int major = 0, minor = 0, patch = 0;
+            if( std::sscanf( version.c_str(), "%d.%d.%d", &major, &minor, &patch ) >= 2 )
+            {
+                if( ( major > 3 ) || ( major == 3 && ( minor > 1 || ( minor == 1 && patch >= 10 ) ) ) )
+                    return;
+            }
+        }
+    }
+
+    std::cerr << "OIIOReader: OpenImageIO's linked OpenEXR (" << version
+              << ") may lack the lock-free OpenEXR Core reader (need >= 3.1.10); "
+                 "EXR tile reads may fall back to the serialized C++ reader.\n";
+}
 }
 
 // Open the image and read header info, including dimensions and format.
 void OIIOReader::open( TextureInfo* info )
 {
+    // Prefer OIIO's lock-free OpenEXR Core reader. The attribute is process-wide and is
+    // consulted when the EXR plugin is instantiated (during open), so set it once up front.
+    static std::once_flag exrCoreOnce;
+    std::call_once( exrCoreOnce, [] {
+        OIIO::attribute( "openexr:core", 1 );
+        warnIfExrCoreUnavailable();
+    } );
+
     {
         std::unique_lock<std::mutex> lock( m_mutex );
 
@@ -103,22 +153,42 @@ void OIIOReader::open( TextureInfo* info )
             // CUDA textures don't support float3, so we round up to four channels.
             m_info.numChannels = ( spec.nchannels >= 3 ) ? 4 : spec.nchannels;
 
+            // Cache the file pixel layout (assumed uniform across mip levels; validated below).
+            m_pixelFormat     = spec.format;
+            m_numFileChannels = spec.nchannels;
+            m_filePixelBytes  = static_cast<unsigned int>( m_pixelFormat.size() ) * m_numFileChannels;
+
+            // Enumerate mip levels, caching per-level geometry so the lock-free, stateless
+            // read paths never need seek_subimage()/spec().
             m_info.numMipLevels = 0;
             while( m_input->seek_subimage( 0, m_info.numMipLevels ) )
             {
                 spec = m_input->spec();
+
+                // m_info carries a single format/channel count, so every level must match.
+                if( spec.format != m_pixelFormat || spec.nchannels != m_numFileChannels )
+                    throw std::runtime_error( "OIIOReader: mip levels have differing pixel format or channel count: " + m_filename );
+
                 ++m_info.numMipLevels;
                 m_levelWidths.push_back( spec.width );
                 m_levelHeights.push_back( spec.height );
+                m_levelDepths.push_back( spec.depth );
+                m_tileWidths.push_back( spec.tile_width );
+                m_tileHeights.push_back( spec.tile_height );
+                m_tileDepths.push_back( spec.tile_depth );
             }
 
             m_levelWidths.shrink_to_fit();
             m_levelHeights.shrink_to_fit();
+            m_levelDepths.shrink_to_fit();
+            m_tileWidths.shrink_to_fit();
+            m_tileHeights.shrink_to_fit();
+            m_tileDepths.shrink_to_fit();
 
-            m_info.isTiled = spec.tile_width > 0;
+            m_info.isTiled = !m_tileWidths.empty() && m_tileWidths.front() > 0;
             m_info.isValid = true;
-            m_tileWidth    = spec.tile_width;
-            m_tileHeight   = spec.tile_height;
+            m_tileWidth    = m_tileWidths.empty() ? 0u : static_cast<unsigned int>( m_tileWidths.front() );
+            m_tileHeight   = m_tileHeights.empty() ? 0u : static_cast<unsigned int>( m_tileHeights.front() );
         }
     }
 
@@ -144,44 +214,49 @@ void OIIOReader::open( TextureInfo* info )
 // Close the image.
 void OIIOReader::close()
 {
+    // Drop our reference under the lock. We must not call m_input->close() here: a concurrent
+    // read may still be decoding through its own shared_ptr copy. The OIIO ImageInput closes the
+    // file in its destructor, which runs once the last in-flight read releases its copy.
     std::lock_guard<std::mutex> guard( m_mutex );
-    if( m_input )
-    {
-        m_input->close();
-        m_input.reset();
-    }
-}
-
-void OIIOReader::readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY )
-{
-    std::lock_guard<std::mutex> guard( m_mutex );
-    OTK_ASSERT( m_input.get() );
-
-    OIIO::ImageSpec spec;
-    m_input->seek_subimage( 0, mipLevel );
-    spec = m_input->spec();
-    m_input->read_tile( tileX * spec.tile_width, tileY * spec.tile_height, 0, spec.format, dest,
-                        getBitsPerPixel( m_info ) / BITS_PER_BYTE, rowPitch );
+    m_input.reset();
 }
 
 bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, CUstream /*stream*/  )
 {
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
+    OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read missing mip level" );
 
-    Stopwatch stopwatch;
-    OIIO::ImageSpec spec;
+    // Copy the input handle under the lock, then decode without it: reads run concurrently, and a
+    // racing close() that resets m_input can't free the input out from under an in-flight decode.
+    std::shared_ptr<OIIO::ImageInput> input;
     {
         std::lock_guard<std::mutex> guard( m_mutex );
-        m_input->seek_subimage( 0, mipLevel );
-        spec = m_input->spec();
+        input = m_input;
+    }
+    if( !input )
+        return false;
+
+    Stopwatch stopwatch;
+
+    // All metadata is cached in open(); the read uses the stateless, thread-safe overloads
+    // (explicit subimage/miplevel) so concurrent tile reads run in parallel.
+    const unsigned int bytesPerPixel    = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
+    const int          levelWidth       = m_levelWidths[mipLevel];
+    const int          levelHeight      = m_levelHeights[mipLevel];
+    const unsigned int actualTileWidth  = static_cast<unsigned int>( m_tileWidths[mipLevel] );
+    const unsigned int actualTileHeight = static_cast<unsigned int>( m_tileHeights[mipLevel] );
+
+    // Pixels outside the level must be black. The reads below only fill the in-bounds rectangle,
+    // so zero the destination tile first when the request crosses the right/bottom edge.
+    if( tile.x * tile.width + tile.width > static_cast<unsigned int>( levelWidth )
+        || tile.y * tile.height + tile.height > static_cast<unsigned int>( levelHeight ) )
+    {
+        memset( dest, 0, static_cast<size_t>( tile.width ) * tile.height * bytesPerPixel );
     }
 
-    if( spec.tile_width && spec.tile_height )
+    if( actualTileWidth && actualTileHeight )
     {
         // We require that the requested tile size is an integer multiple of the file's tile size.
-        const unsigned int actualTileWidth  = spec.tile_width;
-        const unsigned int actualTileHeight = spec.tile_height;
-
         if( actualTileWidth > tile.width || tile.width % actualTileWidth != 0
             || actualTileHeight > tile.height || tile.height % actualTileHeight != 0 )
         {
@@ -191,45 +266,38 @@ bool OIIOReader::readTile( char* dest, unsigned int mipLevel, const Tile& tile, 
             throw std::runtime_error( str.str().c_str() );
         }
 
-        const unsigned int actualTileX    = tile.x * tile.width / actualTileWidth;
-        const unsigned int actualTileY    = tile.y * tile.height / actualTileHeight;
-        const unsigned int bytesPerPixel  = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
-        const unsigned int rowPitch       = tile.width * bytesPerPixel;
-        const size_t       actualTileSize = actualTileWidth * actualTileHeight * bytesPerPixel;
+        const unsigned int rowPitch = tile.width * bytesPerPixel;
 
-        // Don't request non-existent tiles on the edge of the texture
-        unsigned int levelWidthInSourceTiles  = ( m_levelWidths[mipLevel] + actualTileWidth - 1 ) / actualTileWidth;
-        unsigned int levelHeightInSourceTiles = ( m_levelHeights[mipLevel] + actualTileHeight - 1 ) / actualTileHeight;
-        const unsigned int numTilesX = std::min( tile.width / actualTileWidth, levelWidthInSourceTiles - actualTileX );
-        const unsigned int numTilesY = std::min( tile.height / actualTileHeight, levelHeightInSourceTiles - actualTileY );
+        // Read the (possibly multi-source-tile) region in a single stateless call. Clamp to
+        // the level bounds so non-existent edge tiles aren't requested; OIIO places each
+        // source tile at the correct destination offset via the strides.
+        const int x0 = tile.x * tile.width;
+        const int y0 = tile.y * tile.height;
+        const int x1 = std::min<int>( x0 + tile.width, levelWidth );
+        const int y1 = std::min<int>( y0 + tile.height, levelHeight );
 
-        for( unsigned int j = 0; j < numTilesY; ++j )
+        if( x1 > x0 && y1 > y0
+            && !input->read_tiles( 0, mipLevel, x0, x1, y0, y1, 0, 1, 0, m_numFileChannels, m_pixelFormat, dest,
+                                   /*xstride=*/bytesPerPixel, /*ystride=*/rowPitch ) )
         {
-            for( unsigned int i = 0; i < numTilesX; ++i )
-            {
-                char* start = dest + j * numTilesX * actualTileSize + i * actualTileWidth * bytesPerPixel;
-                readActualTile( start, rowPitch, mipLevel, actualTileX + i, actualTileY + j );
-            }
+            throw std::runtime_error( input->geterror() );
         }
     }
     else  // Scanline image
     {
         const unsigned int start_x = tile.x * tile.width;
-        const unsigned int end_x   = std::min<int>( spec.width, start_x + tile.width );
+        const unsigned int end_x   = std::min<int>( levelWidth, start_x + tile.width );
         const unsigned int start_y = tile.y * tile.height;
-        const unsigned int end_y   = std::min<int>( spec.height, start_y + tile.height );
+        const unsigned int end_y   = std::min<int>( levelHeight, start_y + tile.height );
 
-        const unsigned int bytesPerPixel    = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
-        const unsigned int file_pixel_bytes = spec.pixel_bytes();
-        std::vector<char>  tmp( spec.width * file_pixel_bytes );
+        const unsigned int file_pixel_bytes = m_filePixelBytes;
+        std::vector<char>  tmp( levelWidth * file_pixel_bytes );
 
         char* _dest = dest;
         for( unsigned int y = start_y; y < end_y; ++y )
         {
-            {
-                std::lock_guard<std::mutex> guard( m_mutex );
-                m_input->read_scanline( y, 0, spec.format, tmp.data() );
-            }
+            if( !input->read_scanlines( 0, mipLevel, y, y + 1, 0, 0, m_numFileChannels, m_pixelFormat, tmp.data() ) )
+                throw std::runtime_error( input->geterror() );
 
             for( unsigned int x = start_x; x < end_x; ++x )
             {
@@ -270,35 +338,45 @@ bool OIIOReader::readMipLevel( char*        dest,
     OTK_ASSERT_MSG( isOpen(), "Attempting to read from image that isn't open." );
     OTK_ASSERT_MSG( mipLevel < m_info.numMipLevels, "Attempt to read missing mip level" );
 
-    Stopwatch stopwatch;
-    OIIO::ImageSpec spec;
-    unsigned int    bytesPerPixel;
+    // Copy the input handle under the lock, then decode without it (see readTile).
+    std::shared_ptr<OIIO::ImageInput> input;
     {
         std::lock_guard<std::mutex> guard( m_mutex );
-        m_input->seek_subimage( 0, mipLevel );
-        spec = m_input->spec();
-
-        OTK_ASSERT( spec.width == static_cast<int>( expectedWidth ) );
-        OTK_ASSERT( spec.height == static_cast<int>( expectedHeight ) );
-        OTK_ASSERT( spec.depth == static_cast<int>( expectedDepth ) );
-        (void)expectedWidth;  // silence unused variable warning.
-        (void)expectedHeight;
-        (void)expectedDepth;
-
-        bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
-
-        m_input->read_image( 0, mipLevel, 0, spec.nchannels, spec.format, dest, bytesPerPixel );
+        input = m_input;
     }
+    if( !input )
+        return false;
 
-    if( spec.tile_width )
+    Stopwatch stopwatch;
+
+    // Metadata is cached in open(); the whole-level read uses the stateless, thread-safe
+    // read_image overload (explicit subimage/miplevel) and holds no lock.
+    const int levelWidth  = m_levelWidths[mipLevel];
+    const int levelHeight = m_levelHeights[mipLevel];
+    const int levelDepth  = m_levelDepths[mipLevel];
+
+    OTK_ASSERT( levelWidth == static_cast<int>( expectedWidth ) );
+    OTK_ASSERT( levelHeight == static_cast<int>( expectedHeight ) );
+    OTK_ASSERT( levelDepth == static_cast<int>( expectedDepth ) );
+    (void)expectedWidth;  // silence unused variable warning.
+    (void)expectedHeight;
+    (void)expectedDepth;
+
+    const unsigned int bytesPerPixel = getBitsPerPixel( m_info ) / BITS_PER_BYTE;
+
+    if( !input->read_image( 0, mipLevel, 0, m_numFileChannels, m_pixelFormat, dest, bytesPerPixel ) )
+        throw std::runtime_error( input->geterror() );
+
+    const unsigned int actualTileWidth = static_cast<unsigned int>( m_tileWidths[mipLevel] );
+    if( actualTileWidth )
     {
-        const unsigned int actualTileWidth  = spec.tile_width;
-        const unsigned int actualTileHeight = spec.tile_height;
-        const unsigned int actualTileDepth  = spec.tile_depth;
-        const size_t       actualTileSize   = spec.tile_bytes();
-        const int          numXTiles        = 1 + ( ( spec.width - 1 ) / actualTileWidth );
-        const int          numYTiles        = 1 + ( ( spec.height - 1 ) / actualTileHeight );
-        const int          numZTiles        = 1 + ( ( spec.depth - 1 ) / actualTileDepth );
+        const unsigned int actualTileHeight = static_cast<unsigned int>( m_tileHeights[mipLevel] );
+        const unsigned int actualTileDepth  = static_cast<unsigned int>( m_tileDepths[mipLevel] );
+        const size_t       actualTileSize =
+            static_cast<size_t>( actualTileWidth ) * actualTileHeight * actualTileDepth * m_filePixelBytes;
+        const int numXTiles = 1 + ( ( levelWidth - 1 ) / static_cast<int>( actualTileWidth ) );
+        const int numYTiles = 1 + ( ( levelHeight - 1 ) / static_cast<int>( actualTileHeight ) );
+        const int numZTiles = 1 + ( ( levelDepth - 1 ) / static_cast<int>( actualTileDepth ) );
 
         std::lock_guard<std::mutex> guard( m_statsMutex );
         m_numTilesRead += numXTiles * numYTiles * numZTiles;
@@ -309,7 +387,7 @@ bool OIIOReader::readMipLevel( char*        dest,
     {
         std::lock_guard<std::mutex> guard( m_statsMutex );
         m_numTilesRead += 1;
-        m_numBytesRead += spec.width * spec.height * spec.depth * bytesPerPixel;
+        m_numBytesRead += static_cast<unsigned long long>( levelWidth ) * levelHeight * levelDepth * bytesPerPixel;
         m_totalReadTime += stopwatch.elapsed();
     }
     return true;

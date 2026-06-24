@@ -113,22 +113,38 @@ if( OTK_USE_OPENEXR )
 endif()
 
 if( OTK_USE_OIIO )
-    find_package(OpenImageIO QUIET)
-    if(OpenImageIO_FOUND)
-        set(Boost_NO_WARN_NEW_VERSIONS ON)
-        find_package(Boost CONFIG COMPONENTS system filesystem thread REQUIRED)
-        target_sources(ImageSource PRIVATE 
-            src/OIIOReader.cpp 
-            include/OptiXToolkit/ImageSource/OIIOReader.h
-        )
-        target_link_libraries(ImageSource
-            PUBLIC # TODO: make this private
-            OpenImageIO::OpenImageIO
-        )
-    else()
-        message( WARNING "OTK_USE_OIIO is ON, but OpenImageIO not found; skipping OIIOReader and forcing to OFF." )
-        set( OTK_USE_OIIO OFF CACHE BOOL "Use OpenImageIO to allow DemandLoading to read PNGs and JPGs" FORCE )
+    # >= 2.5.3: OIIO selects the lock-free OpenEXR Core reader by default (see OIIOReader.cpp).
+    # Check the version explicitly rather than via find_package(): OIIO's package uses
+    # SameMajorVersion compatibility, so a 2.5.3 version request would reject a 3.x install.
+    find_package(OpenImageIO CONFIG QUIET)
+    if(NOT OpenImageIO_FOUND OR OpenImageIO_VERSION VERSION_LESS 2.5.3)
+        message( FATAL_ERROR
+            "OTK_USE_OIIO requires OpenImageIO >= 2.5.3 for lock-free EXR tile reads "
+            "(OIIO OpenEXR Core path); found '${OpenImageIO_VERSION}'." )
     endif()
+
+    # Lock-free EXR reads also require OIIO to have been built against OpenEXR >= 3.1.10.
+    # Best-effort check (OIIOReader also probes at runtime): in vcpkg builds OIIO links the
+    # same OpenEXR, so verify its version here; warn (do not fail) if it is too old/unknown.
+    if( NOT DEFINED OpenEXR_VERSION )
+        find_package( OpenEXR 3.1.10 CONFIG QUIET )
+    endif()
+    if( DEFINED OpenEXR_VERSION AND OpenEXR_VERSION VERSION_LESS 3.1.10 )
+        message( WARNING
+            "OTK_USE_OIIO: linked OpenEXR ${OpenEXR_VERSION} < 3.1.10; OIIO EXR reads may use "
+            "the serialized C++ reader rather than the lock-free Core reader." )
+    endif()
+
+    set(Boost_NO_WARN_NEW_VERSIONS ON)
+    find_package(Boost CONFIG COMPONENTS system filesystem thread REQUIRED)
+    target_sources(ImageSource PRIVATE
+        src/OIIOReader.cpp
+        include/OptiXToolkit/ImageSource/OIIOReader.h
+    )
+    target_link_libraries(ImageSource
+        PUBLIC # TODO: make this private
+        OpenImageIO::OpenImageIO
+    )
 endif()
 
 # Define OTK_USE_OPENEXR and OTK_USE_OIIO in Config.h

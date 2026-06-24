@@ -37,7 +37,11 @@ class OIIOReader : public ImageSourceBase
     void close() override;
 
     /// Check if image is currently open.
-    bool isOpen() const override { return static_cast<bool>( m_input ); }
+    bool isOpen() const override
+    {
+        std::lock_guard<std::mutex> guard( m_mutex );
+        return static_cast<bool>( m_input );
+    }
 
     /// Get the image info.  Valid only after calling open().
     const TextureInfo& getInfo() const override { return m_info; }
@@ -89,17 +93,27 @@ class OIIOReader : public ImageSourceBase
     }
 
   private:
-    void readActualTile( char* dest, unsigned int rowPitch, unsigned int mipLevel, unsigned int tileX, unsigned int tileY );
-
     std::string                       m_filename;
-    std::unique_ptr<OIIO::ImageInput> m_input;
+    // shared_ptr (not unique_ptr) so a read can hold a lifetime guard: reads copy it under
+    // m_mutex then decode lock-free, and a racing close() that resets it can't free the input
+    // mid-decode (the file closes when the last in-flight read releases its copy).
+    std::shared_ptr<OIIO::ImageInput> m_input;
     TextureInfo                       m_info{};
     unsigned int                      m_depth{1};
-    unsigned int                      m_tileWidth{ 0 };
+    // Representative (level 0) tile size, exposed via getTileWidth/getTileHeight (test only).
+    unsigned int                      m_tileWidth{0};
     unsigned int                      m_tileHeight{0};
-    mutable std::mutex                m_mutex;
+    mutable std::mutex                m_mutex;  // guards open()/close() only; reads are lock-free.
 
-    std::vector<int> m_levelWidths, m_levelHeights;
+    // File pixel layout, assumed uniform across mip levels and validated in open().
+    OIIO::TypeDesc m_pixelFormat{};
+    int            m_numFileChannels{0};
+    unsigned int   m_filePixelBytes{0};
+
+    // Per-level geometry cached in open() so the stateless read paths never call
+    // seek_subimage()/spec().
+    std::vector<int> m_levelWidths, m_levelHeights, m_levelDepths;
+    std::vector<int> m_tileWidths, m_tileHeights, m_tileDepths;
 
     float4 m_baseColor{};
     bool   m_readBaseColor    = false;

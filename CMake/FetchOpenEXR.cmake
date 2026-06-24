@@ -5,7 +5,9 @@
 if(OTK_USE_VCPKG)
     # An overlay port for OpenEXR fixes the above compilation flags.
     find_package(Imath CONFIG REQUIRED)
-    find_package(OpenEXR CONFIG REQUIRED)
+    # >= 3.1.10: OpenEXR Core C API w/ DWA support; enables the lock-free EXR tile reader
+    # (CoreEXRReader directly, and OIIO's reader when built against this OpenEXR).
+    find_package(OpenEXR 3.1.10 CONFIG REQUIRED)
     return()
 endif()
 
@@ -49,7 +51,8 @@ if(TARGET OpenEXR::OpenEXR)
 endif()
 
 if( NOT OTK_FETCH_CONTENT )
-  find_package( OpenEXR 3.1 REQUIRED )
+  # >= 3.1.10: OpenEXR Core C API w/ DWA support; enables the lock-free EXR tile reader.
+  find_package( OpenEXR 3.1.10 REQUIRED )
 else()
   include(FetchContent)
 
@@ -85,7 +88,8 @@ else()
     GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
     GIT_TAG v3.3.2
     GIT_SHALLOW TRUE
-    FIND_PACKAGE_ARGS 3.1
+    # >= 3.1.10: OpenEXR Core C API w/ DWA support; enables the lock-free EXR tile reader.
+    FIND_PACKAGE_ARGS 3.1.10
   )
   FetchContent_MakeAvailable(OpenEXR)
   # Let find_package know we have it
