@@ -189,7 +189,7 @@ void DemandTextureImpl::initSampler()
     m_sampler.desc.wrapMode0        = static_cast<int>( m_descriptor.addressMode[0] );
     m_sampler.desc.wrapMode1        = static_cast<int>( m_descriptor.addressMode[1] );
     m_sampler.desc.mipmapFilterMode = m_descriptor.mipmapFilterMode;
-    m_sampler.desc.maxAnisotropy    = m_descriptor.maxAnisotropy;
+    m_sampler.desc.maxAnisotropy    = std::min(m_descriptor.maxAnisotropy, MAX_STORABLE_ANISOTROPY);
 
     // Dimensions
     m_sampler.width             = m_info.width;
