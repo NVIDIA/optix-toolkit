@@ -47,6 +47,10 @@ void DDSImageReader::open( TextureInfo* info )
     if( m_ddsFileHeader.magicNumber != DDS_MAGIC_NUMBER )
         return;
 
+    // Image width and height must be >= 4 for this reader
+    if( m_ddsFileHeader.width < 4 || m_ddsFileHeader.height < 4 )
+        return;
+
     // Read the file header extension if the fourCC code is "DX10"
     m_ddsHeaderExtension = DDSHeaderExtension{};
     char* fourCC = m_ddsFileHeader.pixelFormat.fourCCcode;
