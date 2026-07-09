@@ -17,6 +17,7 @@ using CUtexObject = unsigned long long;
 namespace demandLoading {
 
 const unsigned int MAX_TILE_LEVELS = 9;
+const unsigned int MAX_STORABLE_ANISOTROPY = 31;
 
 /// Device-side texture info.
 struct TextureSampler
