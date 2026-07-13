@@ -45,8 +45,7 @@ install(EXPORT DemandMaterialTargets
   NAMESPACE OptiXToolkit::
 )
 
-add_subdirectory( Testing )
-
 if( BUILD_TESTING )
+    add_subdirectory( Testing )
     add_subdirectory( tests )
 endif()
