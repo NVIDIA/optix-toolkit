@@ -228,7 +228,33 @@ The `maxTextures` option defines the maximum number of CUDA textures that can be
 
 ## Final frame vs. interactive rendering
 
-By default, the Options struct is set up for final frame rendering (`maxRequestedPages` and associated fields (`maxFilledPages, maxStalePages, maxInvalidatedPages, maxStagedPages, maxRequestQueueSize`) are in the thousands). Individual applications may wish to tweak these based on their exact requirements. The options can be set for interactive rendering by reducing `maxRequestedPages` to a smaller value, such as 64 or 128. Currently, there is no option to guarantee a stable framerate, however.
+By default, the Options struct is set up for final frame rendering (`maxRequestedPages` and associated fields (`maxFilledPages, maxStalePages, maxInvalidatedPages, maxStagedPages, maxRequestQueueSize`) are in the thousands). A typical final frame render loop keeps a large value for `maxRequestedPages`, and waits on the demand load `ticket` to make sure the requests are all filled before performing the next OptiX launch:
+
+```
+ticket.wait();
+demandLoader.launchPrepare(...);
+optixLaunch(...);
+ticket = demandLoader.processRequests(...);
+```
+
+Interactive applications that need to maintain a stable framerate should set `maxRequestedPages` to a lower value (such as 64 or 512), and poll the ticket rather than waiting on it:
+
+```
+demandLoader.launchPrepare(...);
+optixLaunch(...);
+if( ticket.numTasksRemaining() <= 0 )
+    ticket = demandLoader.processRequests(...);
+```
+
+Things to note for interactive workloads:
+
+- Calling `launchPrepare` before all requests are processed is fine. The call will update the page table with whatever requests have been filled, and the request processor will continue working on the batch.
+
+- Polling the ticket before calling `processRequests()` is not strictly necessary, but it prevents redundant requests.
+
+- The length of the request queue is related to `maxRequestedPages`. If it is set too high, requests in the queue may move out of the frame before they are filled, wasting work.
+
+- Some texture tiles will be missing if a render loop re-launches without waiting on the ticket. Applications may wish to sample a coarser mip level or the mip tail to avoid texture glitches in these cases.
 
 ## Other options
 
