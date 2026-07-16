@@ -286,18 +286,30 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
 
 std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const MaterialGroup& group, const SceneSyncState& syncState ) const
 {
+    const bool hasDiffuseMap{ flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP ) };
+    const bool hasAlphaMap{ flagSet( group.material.flags, MaterialFlags::ALPHA_MAP ) };
+
     // Check for loaded diffuse map
-    if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP )
-        && !m_demandTextureCache->hasDiffuseTextureForFile( group.diffuseMapFileName ) )
+    if( hasDiffuseMap && !m_demandTextureCache->hasDiffuseTextureForFile( group.diffuseMapFileName ) )
     {
         return {};
     }
 
     // Check for loaded alpha map
-    if( flagSet( group.material.flags, MaterialFlags::ALPHA_MAP )
-        && !m_demandTextureCache->hasAlphaTextureForFile( group.alphaMapFileName ) )
+    if( hasAlphaMap && !m_demandTextureCache->hasAlphaTextureForFile( group.alphaMapFileName ) )
     {
         return {};
+    }
+
+    std::optional<uint_t> diffuseTextureId;
+    if( hasDiffuseMap )
+    {
+        diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( group.diffuseMapFileName );
+    }
+    std::optional<uint_t> alphaTextureId;
+    if( hasAlphaMap )
+    {
+        alphaTextureId = m_demandTextureCache->createAlphaTextureFromFile( group.alphaMapFileName );
     }
 
     // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
@@ -309,7 +321,9 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Material
                    && group.material.Kr == entry.Kr              //
                    && group.material.phongExp == entry.phongExp  //
                    && ( group.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
-                          == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) );
+                          == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+                   && ( !diffuseTextureId || diffuseTextureId == entry.diffuseTextureId )
+                   && ( !alphaTextureId || alphaTextureId == entry.alphaTextureId );
         } );
     if( it != syncState.realizedMaterials.cend() )
     {
