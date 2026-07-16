@@ -252,6 +252,28 @@ static ListenerPredicate<OptixBuildInputSphereArray> hasDeviceSphereVertices( co
     };
 }
 
+static ListenerPredicate<OptixBuildInputSphereArray> hasDeviceSphereRadii( const std::vector<float>& expectedRadii )
+{
+    return [expectedRadii]( MatchResultListener* listener, const OptixBuildInputSphereArray& spheres ) {
+        if( spheres.radiusBuffers == nullptr || spheres.radiusBuffers[0] == CUdeviceptr{} )
+        {
+            *listener << "has no sphere radius buffer";
+            return false;
+        }
+        std::vector<float> actualRadii( expectedRadii.size() );
+        OTK_ERROR_CHECK( cudaMemcpy( actualRadii.data(), otk::bit_cast<void*>( spheres.radiusBuffers[0] ),
+                                     sizeof( float ) * actualRadii.size(), cudaMemcpyDeviceToHost ) );
+        if( actualRadii != expectedRadii )
+        {
+            *listener << "has sphere radii " << PrintToString( actualRadii ) << ", expected "
+                      << PrintToString( expectedRadii );
+            return false;
+        }
+        *listener << "has sphere radii " << PrintToString( expectedRadii );
+        return true;
+    };
+}
+
 MATCHER_P( hasDeviceTriangleUVs, triangleMesh, "" )
 {
     if( arg == nullptr )
@@ -1330,4 +1352,53 @@ TEST_F( TestGeometryCache, constructSphereASForObjectOneTriMeshOneSphere )
     EXPECT_EQ( 0, stats.numNormals );
     EXPECT_EQ( 0, stats.numUVs );
     EXPECT_EQ( 0, stats.totalBytesRead );
+}
+
+TEST_F( TestGeometryCache, constructSphereASForCoarseObjectTwoSpheres )
+{
+    ShapeDefinition first{ singleSphere() };
+    first.sphere.radius = 2.0f;
+    first.transform     = pbrt::Translate( pbrt::Vector3f( 1.0f, 2.0f, 3.0f ) );
+    ShapeDefinition second{ singleSphere() };
+    second.sphere.radius = 5.0f;
+    second.transform     = pbrt::Translate( pbrt::Vector3f( -4.0f, 5.0f, -6.0f ) );
+
+    const ObjectDefinition    object{ "twoSpheres", {} };
+    const ShapeList           shapes{ first, second };
+    const std::vector<float3> expectedCenters{ make_float3( 1.0f, 2.0f, 3.0f ), make_float3( -4.0f, 5.0f, -6.0f ) };
+    const std::vector<float>  expectedRadii{ 2.0f, 5.0f };
+    unsigned int              actualNumVertices{};
+    unsigned int              actualSingleRadius{};
+    const ListenerPredicate<OptixBuildInputSphereArray> captureSphereDescription{
+        [&]( MatchResultListener* listener, const OptixBuildInputSphereArray& spheres ) {
+            actualNumVertices  = spheres.numVertices;
+            actualSingleRadius = spheres.singleRadius;
+            *listener << "captured sphere count and radius mode";
+            return true;
+        } };
+    const auto expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto expectedInput{
+        AllOf( NotNull(), hasSphereBuildInput( 0, hasAll( hasDeviceSphereVertices( expectedCenters ),
+                                                         hasDeviceSphereRadii( expectedRadii ),
+                                                         captureSphereDescription ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getObject( m_fakeContext, m_stream, object, shapes, GeometryPrimitive::SPHERE,
+                                         MaterialFlags::NONE );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+
+    EXPECT_EQ( 2U, actualNumVertices );
+    EXPECT_EQ( 0U, actualSingleRadius );
+    EXPECT_NE( CUdeviceptr{}, m_geom.accelBuffer );
+    EXPECT_EQ( m_fakeGeomAS, m_geom.traversable );
+    ASSERT_EQ( 2U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
+    EXPECT_EQ( 2U, m_geom.primitiveGroupEndIndices[1] );
+    const Stats stats{ m_geometryCache->getStatistics() };
+    EXPECT_EQ( 1, stats.numTraversables );
+    EXPECT_EQ( 0, stats.numTriangles );
+    EXPECT_EQ( 2, stats.numSpheres );
+    EXPECT_EQ( 0, stats.numNormals );
+    EXPECT_EQ( 0, stats.numUVs );
 }

@@ -423,6 +423,7 @@ void GeometryCacheImpl::appendSphere( const pbrt::Transform& transform, const Sp
 
 GeometryCacheEntry GeometryCacheImpl::buildSphereGAS( OptixDeviceContext context, CUstream stream )
 {
+    const uint_t numSpheres{ containerSize( m_vertices ) };
     m_vertices.copyToDeviceAsync( stream );
     m_radii.copyToDeviceAsync( stream );
 
@@ -433,10 +434,10 @@ GeometryCacheEntry GeometryCacheImpl::buildSphereGAS( OptixDeviceContext context
 
     CUdeviceptr vertexBuffers[]{ m_vertices.detach() };
     spheres.vertexBuffers = vertexBuffers;
-    spheres.numVertices   = 1;
+    spheres.numVertices   = numSpheres;
     CUdeviceptr radiusBuffers[]{ m_radii.detach() };
     spheres.radiusBuffers = radiusBuffers;
-    spheres.singleRadius  = 1;
+    spheres.singleRadius  = numSpheres == 1U ? 1 : 0;
     const uint_t flags    = OPTIX_GEOMETRY_FLAG_NONE;
     spheres.flags         = &flags;
     spheres.numSbtRecords = 1;
