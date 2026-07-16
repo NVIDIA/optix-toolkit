@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <iterator>
 #include <type_traits>
 
@@ -84,7 +85,8 @@ MATCHER_P( hasDeviceTriangleNormals, triangleMesh, "" )
     }
     std::vector<TriangleNormals> actual;
     actual.resize( triangleMesh->indices.size() / 3 );
-    OTK_ERROR_CHECK( cudaMemcpy( actual.data(), arg, sizeof( TriangleNormals ) * actual.size(), cudaMemcpyDeviceToHost ) );
+    OTK_ERROR_CHECK(
+        cudaMemcpy( actual.data(), arg, sizeof( TriangleNormals ) * actual.size(), cudaMemcpyDeviceToHost ) );
     bool       result{ true };
     const auto toFloat3{ []( const pbrt::Point3f& val ) { return make_float3( val.x, val.y, val.z ); } };
     for( size_t tri = 0; tri < actual.size(); ++tri )
@@ -148,6 +150,37 @@ MATCHER_P( hasDevicePlyNormals, buffers, "" )
         *result_listener << "has expected device ply normals";
     }
     return result;
+}
+
+MATCHER_P( hasDeviceNormalsNear, expected, "" )
+{
+    if( arg == nullptr )
+    {
+        *result_listener << "pointer to triangle normals is nullptr";
+        return false;
+    }
+    std::vector<TriangleNormals> actual( expected.size() );
+    OTK_ERROR_CHECK(
+        cudaMemcpy( actual.data(), arg, sizeof( TriangleNormals ) * actual.size(), cudaMemcpyDeviceToHost ) );
+    constexpr float tolerance{ 1.0e-5f };
+    for( size_t tri = 0; tri < actual.size(); ++tri )
+    {
+        for( int vert = 0; vert < 3; ++vert )
+        {
+            const float3& actualNormal{ actual[tri].N[vert] };
+            const float3& expectedNormal{ expected[tri].N[vert] };
+            if( std::abs( actualNormal.x - expectedNormal.x ) > tolerance
+                || std::abs( actualNormal.y - expectedNormal.y ) > tolerance
+                || std::abs( actualNormal.z - expectedNormal.z ) > tolerance )
+            {
+                *result_listener << "triangle " << tri << ", vertex " << vert << " has normal " << actualNormal
+                                 << ", expected " << expectedNormal;
+                return false;
+            }
+        }
+    }
+    *result_listener << "has expected device triangle normals";
+    return true;
 }
 
 MATCHER_P( hasDevicePlyUVs, buffers, "" )
@@ -703,6 +736,59 @@ TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithNormals )
     EXPECT_EQ( 0, stats.numUVs );
     ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
     EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
+}
+
+TEST_F( TestGeometryCache, constructTriangleASForCoarseObjectTransformsPlyNormals )
+{
+    expectPlyFileSizeReturned();
+    MockMeshLoaderPtr meshLoader{ createMockMeshLoader() };
+    MeshData          buffers;
+    MeshInfo          info{};
+    ShapeDefinition   shape{ singleTrianglePlyMeshWithNormals( meshLoader, buffers, info ) };
+    shape.transform = pbrt::RotateZ( 90.0f ) * pbrt::Scale( 2.0f, 3.0f, 4.0f );
+
+    std::vector<float> expectedVertices;
+    for( size_t coord = 0; coord < buffers.vertexCoords.size(); coord += COORDS_PER_VERT )
+    {
+        const pbrt::Point3f point{ buffers.vertexCoords[coord], buffers.vertexCoords[coord + 1],
+                                  buffers.vertexCoords[coord + 2] };
+        const pbrt::Point3f transformed{ shape.transform( point ) };
+        expectedVertices.push_back( transformed.x );
+        expectedVertices.push_back( transformed.y );
+        expectedVertices.push_back( transformed.z );
+    }
+    TriangleNormals expectedNormalValues{};
+    for( size_t vert = 0; vert < VERTS_PER_TRI; ++vert )
+    {
+        const size_t index{ static_cast<size_t>( buffers.indices[vert] ) * COORDS_PER_VERT };
+        const pbrt::Normal3f normal{ buffers.normalCoords[index], buffers.normalCoords[index + 1],
+                                    buffers.normalCoords[index + 2] };
+        const pbrt::Normal3f transformed{ shape.transform( normal ) };
+        expectedNormalValues.N[vert] = make_float3( transformed.x, transformed.y, transformed.z );
+    }
+    const std::vector<TriangleNormals> expectedNormals{ expectedNormalValues };
+    const ObjectDefinition             object{ "transformedPly", {} };
+    const ShapeList                    shapes{ shape };
+    const auto                         expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( expectedVertices ),
+                                                           hasDeviceIndices( buffers.indices ),
+                                                           hasSbtFlags( m_expectedFlags ),
+                                                           hasNoPreTransform(), hasNoSbtIndexOffsets(),
+                                                           hasNoPrimitiveIndexOffset(), hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getObject( m_fakeContext, m_stream, object, shapes, GeometryPrimitive::TRIANGLE,
+                                         MaterialFlags::NONE );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+
+    EXPECT_THAT( m_geom.devNormals, hasDeviceNormalsNear( expectedNormals ) );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
+    const Stats stats{ m_geometryCache->getStatistics() };
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 3, stats.numNormals );
 }
 
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
