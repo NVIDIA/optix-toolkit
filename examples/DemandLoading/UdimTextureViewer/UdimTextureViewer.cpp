@@ -198,7 +198,8 @@ void printUsage( const char* program )
         "   --dim=<width>x<height>      Specify rendering dimensions.\n"
         "   --file <outputfile>         Render to output file and exit.\n"
         "   --no-gl-interop             Disable OpenGL interop.\n"
-        "   --log <level>               Set demand load log level (0-10)\n";
+        "   --log <level>               Set demand load log level (0-10)\n"
+        "   --wait-for-ticket           Wait for demand load ticket in interactive mode.\n";
     // clang-format on
 
     exit(0);
@@ -233,6 +234,7 @@ int main( int argc, char* argv[] )
     const char* outFileName  = "";
     bool        glInterop    = true;
     int         logLevel     = 0;
+    bool        waitForTicket = false;
 
     int  texWidth = 8192;
     int  texHeight = 8192;
@@ -274,6 +276,8 @@ int main( int argc, char* argv[] )
             options.coalesceDuplicateImages = true;
         else if( arg == "--log" && !lastArg )
             logLevel = atoi( argv[++i] );
+        else if( arg == "--wait-for-ticket" )
+            waitForTicket = true;
         else
             printUsage( argv[0] );
     }
@@ -282,7 +286,7 @@ int main( int argc, char* argv[] )
     bool interactive = strlen( outFileName ) == 0;
 
     options.maxTexMemPerDevice  = interactive ? 2ULL << 30 : 0ULL;
-    options.maxRequestedPages   = interactive ? 64 : 4096;
+    options.maxRequestedPages   = interactive ? 256 : 4096;
     options.maxStalePages       = options.maxRequestedPages * 2;
     options.maxInvalidatedPages = options.maxRequestedPages * 2;
     options.maxStagedPages      = options.maxRequestedPages * 2;
@@ -301,6 +305,7 @@ int main( int argc, char* argv[] )
     app.createScene();
     app.resetAccumulator();
     app.initOptixPipelines( UdimTextureViewerCudaText(), UdimTextureViewerCudaSize );
+    app.setWaitForTicket( !interactive || waitForTicket );
     app.startLaunchLoop();
     app.printDemandLoadingStats();
 

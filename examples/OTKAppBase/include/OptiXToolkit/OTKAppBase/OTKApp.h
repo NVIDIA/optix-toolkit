@@ -44,6 +44,7 @@ class OTKApp
     void resetAccumulator();
     void setMipScale( float scale ) { m_mipScale = scale; }
     void setMaxSubframes( int maxSubframes ) { m_maxSubframes = maxSubframes; }
+    void setWaitForTicket( bool waitForTicket ) { m_waitForTicket = waitForTicket; }
 
     SurfaceTexture makeSurfaceTex( int kd, int kdtex, int ks, int kstex, int kt, int kttex, float roughness, float ior );
     void addShapeToScene( std::vector<Vert>& shape, unsigned int materialId );
@@ -120,6 +121,7 @@ class OTKApp
     int                       m_minLaunches = 2;
     bool                      m_useSparseTextures = true;
     bool                      m_useCascadingTextureSizes = false;
+    bool                      m_waitForTicket = true;
 
     // Number of subframes to do
     int m_maxSubframes = 1000000;

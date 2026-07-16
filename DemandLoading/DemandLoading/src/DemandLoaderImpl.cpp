@@ -447,14 +447,14 @@ bool DemandLoaderImpl::pageResident( unsigned int pageId )
     return pagingSystem->isResident( pageId );
 }
 
-bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& context )
+bool DemandLoaderImpl::launchPrepare( CUstream stream, DeviceContext& dlContext )
 {
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
-    return m_pageLoader->pushMappings( stream, context );
+    return m_pageLoader->pushMappings( stream, dlContext );
 }
 
-Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& context )
+Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& dlContext )
 {
     SCOPED_NVTX_RANGE_FUNCTION_NAME();
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
@@ -464,7 +464,7 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     // Early exit if no textures or resources have been created.
     if( !m_isActive )
     {
-	getDeviceMemoryManager()->freeDeviceContext( const_cast<DeviceContext*>( &context ) );
+	    getDeviceMemoryManager()->freeDeviceContext( const_cast<DeviceContext*>( &dlContext ) );
         return Ticket();  // default-constructed Ticket has zero tasks.
     }
 
@@ -473,9 +473,14 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     const unsigned int id = m_ticketId++;
     m_requestProcessor.setTicket( id, ticket);
 
-    m_pageLoader->pullRequests( stream, context, id );
+    m_pageLoader->pullRequests( stream, dlContext, id );
 
     return ticket;
+}
+
+void DemandLoaderImpl::freeDeviceContext( DeviceContext& dlContext )
+{
+    getDeviceMemoryManager()->freeDeviceContext( const_cast<DeviceContext*>( &dlContext ) );
 }
 
 void DemandLoaderImpl::abort()

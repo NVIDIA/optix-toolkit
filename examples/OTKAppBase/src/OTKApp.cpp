@@ -586,11 +586,12 @@ unsigned int OTKApp::performLaunches( )
     {
         // Wait on the ticket from the previous launch
         OTK_ERROR_CHECK( cudaSetDevice( state.device_idx ) );
-        state.ticket.wait();
-        numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
+        if( m_waitForTicket )
+            state.ticket.wait();
 
-        // Call launchPrepare to synchronize new texture samplers and texture info to device memory,
-        // and allocate device memory for the demand texture context.
+        // Call launchPrepare to synchronize new texture samplers and texture info to device memory.
+        // launchPrepare also allocates device memory for a new demand texture context that can
+        // be used to pull requests from the device.
         if( state.demandLoader )
             state.demandLoader->launchPrepare( state.stream, state.params.demand_texture_context );
 
@@ -614,11 +615,21 @@ unsigned int OTKApp::performLaunches( )
                                   1                                                 // launch depth
                                   ) );
 
-        // Begin to process demand load requests. This asynchronously pulls a batch of requests 
-        // from the device and places them in a queue for processing.  The progress of the batch
-        // can be polled using the returned ticket.
-        if( state.demandLoader )
+        // Poll the ticket to see if the previous batch of requests is filled. If the app waited
+        // on the ticket, it will be ready. If not, it may take several launches to fill all of
+        // the requests.
+        if( state.demandLoader && state.ticket.numTasksRemaining() == 0 )
+        {
+            numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
+            // Start an asynchronous pull of a new batch of requests from the device.
+            // processRequests also releases the device context so it can be reused.
             state.ticket = state.demandLoader->processRequests( state.stream, state.params.demand_texture_context );
+        }
+        else
+        {
+            // Release the device context that was allocated in launchPrepare, but not used.
+            state.demandLoader->freeDeviceContext( state.params.demand_texture_context );
+        }
 
         // Unmap the output buffer. The device pointer from map should not be used after this call.
         m_outputBuffer->unmap();

@@ -232,29 +232,33 @@ By default, the Options struct is set up for final frame rendering (`maxRequeste
 
 ```
 ticket.wait();
-demandLoader.launchPrepare(...);
+demandLoader.launchPrepare(stream, deviceContext);
 optixLaunch(...);
-ticket = demandLoader.processRequests(...);
+ticket = demandLoader.processRequests(stream, deviceContext);
 ```
 
-Interactive applications that need to maintain a stable framerate should set `maxRequestedPages` to a lower value (such as 64 or 512), and poll the ticket rather than waiting on it:
+Interactive applications that need to maintain a stable framerate should set `maxRequestedPages` to a lower value (such as 64 or 512), and poll the ticket rather than waiting on it. After an OptiX launch, the application should call `processRequests` to get a fresh batch of requests if the previous batch is done, or call `freeDeviceContext` to release the device memory reserved in launchPrepare:
 
 ```
-demandLoader.launchPrepare(...);
+demandLoader.launchPrepare(stream, deviceContext);
 optixLaunch(...);
-if( ticket.numTasksRemaining() <= 0 )
-    ticket = demandLoader.processRequests(...);
+if( ticket.numTasksRemaining() == 0 ) {
+    ticket = demandLoader.processRequests(stream, deviceContext);
+}
+else {
+    demandLoader.freeDeviceContext(deviceContext)
+}
 ```
 
 Things to note for interactive workloads:
 
 - Calling `launchPrepare` before all requests are processed is fine. The call will update the page table with whatever requests have been filled, and the request processor will continue working on the batch.
 
-- Polling the ticket before calling `processRequests()` is not strictly necessary, but it prevents redundant requests.
+- `launchPrepare` allocates memory for a `DeviceContext` on the device. This memory must be freed by calling either `processRequests` or `freeDeviceContext` after the launch.
 
 - The length of the request queue is related to `maxRequestedPages`. If it is set too high, requests in the queue may move out of the frame before they are filled, wasting work.
 
-- Some texture tiles will be missing if a render loop re-launches without waiting on the ticket. Applications may wish to sample a coarser mip level or the mip tail to avoid texture glitches in these cases.
+- Some requested texture tiles will be missing if a render loop re-launches without waiting on the ticket. Applications may wish to sample a coarser mip level or the mip tail to avoid texture glitches in these cases.
 
 ## Other options
 

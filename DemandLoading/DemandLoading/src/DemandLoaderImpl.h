@@ -112,14 +112,17 @@ class DemandLoaderImpl : public DemandLoader
     /// successful, returns a DeviceContext via result parameter, which should be copied to device
     /// memory (typically along with OptiX kernel launch parameters), so that it can be passed to
     /// Tex2D().
-    bool launchPrepare( CUstream stream, DeviceContext& demandTextureContext ) override;
+    bool launchPrepare( CUstream stream, DeviceContext& dlContext ) override;
 
     /// Fetch page requests from the given device context and enqueue them for background
     /// processing.  The caller must ensure that the current CUDA context matches the given stream.
     /// The given DeviceContext must reside in host memory.  The given stream is used when copying
     /// tile data to the device.  Returns a ticket that is notified when the requests have been
     /// filled on the host side.
-    Ticket processRequests( CUstream stream, const DeviceContext& deviceContext ) override;
+    Ticket processRequests( CUstream stream, const DeviceContext& dlContext ) override;
+
+    /// Free the given device context without pulling requests from the device.
+    void freeDeviceContext( DeviceContext& dlContext ) override;
 
     /// Abort demand loading, with minimal cleanup and no CUDA calls.  Halts asynchronous request
     /// processing.  Useful in case of catastrophic CUDA error or corruption.
