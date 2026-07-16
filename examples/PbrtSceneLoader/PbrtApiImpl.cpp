@@ -219,6 +219,9 @@ void PbrtApiImpl::integrator( const std::string& name, const ParamSet& params )
 
 void PbrtApiImpl::camera( const std::string& name, const ParamSet& cameraParams )
 {
+    const ::pbrt::Transform cameraToWorld{ Inverse( m_currentTransform ) };
+    m_coordinateSystems["camera"] = cameraToWorld;
+
     if( name == "perspective" )
     {
         // TODO: use current transformation matrix to identify lookAt, etc.
@@ -228,11 +231,12 @@ void PbrtApiImpl::camera( const std::string& name, const ParamSet& cameraParams 
         const float* focalDistanceVal = cameraParams.FindFloat( "focaldistance", &numVals );
         const float* lensRadiusVal    = cameraParams.FindFloat( "lensradius", &numVals );
 
+        m_scene->camera.defined        = true;
         const float fov                = halfFOVVal ? 2.0f * *halfFOVVal : fovVal ? *fovVal : 90.0f;
         m_scene->camera.fov            = fov;
         m_scene->camera.focalDistance  = focalDistanceVal ? *focalDistanceVal : 1.0e30f;
         m_scene->camera.lensRadius     = lensRadiusVal ? *lensRadiusVal : 0.0f;
-        m_scene->camera.cameraToWorld  = m_currentTransform;
+        m_scene->camera.cameraToWorld  = cameraToWorld;
         m_scene->camera.cameraToScreen = ::pbrt::Perspective( fov, 1e-2f, 1000.f );
     }
     else if( name == "orthographic" )
