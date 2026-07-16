@@ -199,7 +199,25 @@ void PbrtApiImpl::pixelFilter( const std::string& name, const ParamSet& params )
 
 void PbrtApiImpl::film( const std::string& type, const ParamSet& params )
 {
-    PBRT_WARNING( "Film '" + type + "' not implemented." );
+    if( type == "image" )
+    {
+        m_scene->film             = FilmDefinition{};
+        m_scene->film.defined     = true;
+        m_scene->film.xResolution = params.FindOneInt( "xresolution", 1280 );
+        m_scene->film.yResolution = params.FindOneInt( "yresolution", 720 );
+
+        ParamSet unsupportedParams{ params };
+        unsupportedParams.EraseInt( "xresolution" );
+        unsupportedParams.EraseInt( "yresolution" );
+        if( !unsupportedParams.ToString().empty() )
+        {
+            PBRT_WARNING( "Film 'image' parameters other than xresolution and yresolution are not implemented." );
+        }
+    }
+    else
+    {
+        PBRT_WARNING( "Film '" + type + "' not implemented." );
+    }
 }
 
 void PbrtApiImpl::sampler( const std::string& name, const ParamSet& params )
@@ -230,14 +248,29 @@ void PbrtApiImpl::camera( const std::string& name, const ParamSet& cameraParams 
         const float* halfFOVVal       = cameraParams.FindFloat( "halffov", &numVals );
         const float* focalDistanceVal = cameraParams.FindFloat( "focaldistance", &numVals );
         const float* lensRadiusVal    = cameraParams.FindFloat( "lensradius", &numVals );
+        int          frameAspectRatioCount{};
+        const float* frameAspectRatioVal = cameraParams.FindFloat( "frameaspectratio", &frameAspectRatioCount );
+        int          screenWindowCount{};
+        const float* screenWindowVal = cameraParams.FindFloat( "screenwindow", &screenWindowCount );
 
         m_scene->camera.defined        = true;
         const float fov                = halfFOVVal ? 2.0f * *halfFOVVal : fovVal ? *fovVal : 90.0f;
         m_scene->camera.fov            = fov;
-        m_scene->camera.focalDistance  = focalDistanceVal ? *focalDistanceVal : 1.0e30f;
+        m_scene->camera.focalDistance  = focalDistanceVal ? *focalDistanceVal : 1.0e6f;
         m_scene->camera.lensRadius     = lensRadiusVal ? *lensRadiusVal : 0.0f;
         m_scene->camera.cameraToWorld  = cameraToWorld;
         m_scene->camera.cameraToScreen = ::pbrt::Perspective( fov, 1e-2f, 1000.f );
+
+        if( frameAspectRatioVal && frameAspectRatioCount == 1 )
+        {
+            m_scene->camera.frameAspectRatioSpecified = true;
+            m_scene->camera.frameAspectRatio          = *frameAspectRatioVal;
+        }
+        if( screenWindowVal && screenWindowCount == 4 )
+        {
+            m_scene->camera.screenWindowSpecified = true;
+            std::copy( screenWindowVal, screenWindowVal + 4, m_scene->camera.screenWindow );
+        }
     }
     else if( name == "orthographic" )
     {
