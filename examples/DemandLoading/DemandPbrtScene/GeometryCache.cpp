@@ -315,9 +315,11 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
             {
                 // 3 coords per vertex
                 // 3 vertices per face, 3 indices per face
-                const int idx{ buffers.indices[face * VERTS_PER_TRI + vert] * 3 };
-                normals.N[vert] = make_float3( buffers.normalCoords[idx + 0], buffers.normalCoords[idx + 1],
-                                               buffers.normalCoords[idx + 2] );
+                const int            idx{ buffers.indices[face * VERTS_PER_TRI + vert] * 3 };
+                const pbrt::Normal3f normal{ buffers.normalCoords[idx + 0], buffers.normalCoords[idx + 1],
+                                             buffers.normalCoords[idx + 2] };
+                const pbrt::Normal3f transformed{ transform( normal ) };
+                normals.N[vert] = make_float3( transformed.x, transformed.y, transformed.z );
             }
             m_normals.push_back( normals );
         }
