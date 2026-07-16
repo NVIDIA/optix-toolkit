@@ -395,6 +395,71 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedMaterialsForCoarseGeometry
     EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances.back().traversableHandle );
 }
 
+TEST_F( TestMaterialResolverForGeometry, coarseGeometryRetainsTextureIdentityForEqualPhongMaterials )
+{
+    const uint_t        proxyGeomId{ 1111U };
+    const uint_t        firstMaterialIndex{ 0U };
+    const uint_t        secondMaterialIndex{ 1U };
+    const uint_t        firstDiffuseTextureId{ 101U };
+    const uint_t        secondDiffuseTextureId{ 102U };
+    const uint_t        firstAlphaTextureId{ 201U };
+    const uint_t        secondAlphaTextureId{ 202U };
+    const char* const   secondDiffuseMapPath{ "diffuseMap2.png" };
+    const char* const   secondAlphaMapPath{ "alphaMap2.png" };
+    const MaterialFlags mapFlags{ MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP };
+    const MaterialFlags realizedMapFlags{ mapFlags | MaterialFlags::ALPHA_MAP_ALLOCATED | MaterialFlags::DIFFUSE_MAP_ALLOCATED };
+
+    m_geom.groups[0].material.flags     = mapFlags;
+    m_geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
+    m_geom.groups[0].alphaMapFileName   = ALPHA_MAP_PATH;
+    m_geom.groups.push_back( MaterialGroup{ arbitraryPhongMaterial(), secondDiffuseMapPath, secondAlphaMapPath,
+                                            ARBITRARY_PRIMITIVE_INDEX_END2 } );
+    m_geom.groups[1].material.flags = mapFlags;
+
+    PhongMaterial firstMaterial{ arbitraryPhongMaterial() };
+    firstMaterial.flags            = realizedMapFlags;
+    firstMaterial.diffuseTextureId = firstDiffuseTextureId;
+    firstMaterial.alphaTextureId   = firstAlphaTextureId;
+    PhongMaterial secondMaterial{ arbitraryPhongMaterial() };
+    secondMaterial.flags            = realizedMapFlags;
+    secondMaterial.diffuseTextureId = secondDiffuseTextureId;
+    secondMaterial.alphaTextureId   = secondAlphaTextureId;
+    m_sync.realizedMaterials.push_back( firstMaterial );
+    m_sync.realizedMaterials.push_back( secondMaterial );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1U, 0U } );
+    m_sync.materialIndices.push_back( MaterialIndex{ 1U, 1U } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, firstMaterialIndex } );
+    m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, secondMaterialIndex } );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+    m_sync.topLevelInstances.push_back( OptixInstance{} );
+
+    EXPECT_CALL( *m_loader, add() ).Times( 0 );
+    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( ALPHA_MAP_PATH ) ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( secondDiffuseMapPath ) ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_demandTextureCache, hasAlphaTextureForFile( StrEq( secondAlphaMapPath ) ) ).WillOnce( Return( true ) );
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_PATH ) ) )
+        .Times( AnyNumber() )
+        .WillRepeatedly( Return( firstDiffuseTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( ALPHA_MAP_PATH ) ) ).Times( AnyNumber() ).WillRepeatedly( Return( firstAlphaTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( secondDiffuseMapPath ) ) )
+        .Times( AnyNumber() )
+        .WillRepeatedly( Return( secondDiffuseTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createAlphaTextureFromFile( StrEq( secondAlphaMapPath ) ) )
+        .Times( AnyNumber() )
+        .WillRepeatedly( Return( secondAlphaTextureId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+
+    const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
+
+    EXPECT_TRUE( result );
+    ASSERT_EQ( 3U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 2U, 2U } ), m_sync.materialIndices.back() );
+    ASSERT_EQ( 4U, m_sync.primitiveMaterials.size() );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, firstMaterialIndex } ), m_sync.primitiveMaterials[2] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, secondMaterialIndex } ), m_sync.primitiveMaterials[3] );
+}
+
 TEST_F( TestMaterialResolverRequestedProxyIds, noRequestedProxyMaterials )
 {
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
