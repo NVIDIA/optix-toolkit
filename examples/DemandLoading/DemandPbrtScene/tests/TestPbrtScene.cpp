@@ -417,6 +417,19 @@ Options testOptions()
     return options;
 }
 
+::pbrt::Transform landscapeCameraToWorld()
+{
+    const float             transform[16]{ 0.798635483f,  -0.0210030414f, 0.601448417f,  0.0f,
+                                           0.0f,          0.999390841f,   0.0348994955f, 0.0f,
+                                           -0.601815045f, -0.0278719775f, 0.79814899f,   0.0f,
+                                           594.658691f,   -171.667648f,   3053.42725f,   1.0f };
+    const ::pbrt::Matrix4x4 matrix( transform[0], transform[4], transform[8], transform[12],   //
+                                    transform[1], transform[5], transform[9], transform[13],   //
+                                    transform[2], transform[6], transform[10], transform[14],  //
+                                    transform[3], transform[7], transform[11], transform[15] );
+    return Inverse( ::pbrt::Transform( matrix ) );
+}
+
 class TestPbrtScene : public Test
 {
   public:
@@ -468,10 +481,11 @@ void TestPbrtScene::SetUp()
     lookAt.lookAt         = P3( 111.0f, 222.0f, 3333.0f );
     lookAt.eye            = P3( 444.0f, 555.0f, 666.0f );
     lookAt.up             = Normalize( V3( 1.0f, 2.0f, 3.0f ) );
+    camera.defined        = true;
     camera.fov            = 45.0f;
     camera.focalDistance  = 3000.0f;
     camera.lensRadius     = 0.125f;
-    camera.cameraToWorld  = LookAt( lookAt.eye, lookAt.lookAt, lookAt.up );
+    camera.cameraToWorld  = Inverse( LookAt( lookAt.eye, lookAt.lookAt, lookAt.up ) );
     camera.cameraToScreen = pbrt::Perspective( camera.fov, 1e-2f, 1000.f );
     m_sceneDesc->bounds   = toBounds3( m_sceneBounds );
 
@@ -642,9 +656,12 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
                                                                                   hasInstanceId( fakeInstanceId ) ) ) ) ) );
     expectAccelComputeMemoryUsage( NotNull(), isIAS );
     expectAccelBuild( NotNull(), isIAS, m_fakeTopLevelTraversable );
-    const otk::pbrt::LookAtDefinition&            lookAt = m_sceneDesc->lookAt;
     const otk::pbrt::PerspectiveCameraDefinition& camera = m_sceneDesc->camera;
-    EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( lookAt.eye ), hasLookAt( lookAt.lookAt ), hasUp( lookAt.up ) ) ) );
+    const P3                                      expectedEye{ camera.cameraToWorld( P3( 0.0f, 0.0f, 0.0f ) ) };
+    const V3 expectedDirection{ Normalize( camera.cameraToWorld( V3( 0.0f, 0.0f, 1.0f ) ) ) };
+    const V3 expectedUp{ Normalize( camera.cameraToWorld( V3( 0.0f, 1.0f, 0.0f ) ) ) };
+    EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( expectedEye ), hasLookAt( expectedEye + expectedDirection ),
+                                                hasUp( expectedUp ) ) ) );
     EXPECT_CALL( *m_renderer, setCamera( AllOf( hasCameraToWorldTransform( camera.cameraToWorld ),
                                                 hasWorldToCameraTransform( Inverse( camera.cameraToWorld ) ),
                                                 hasCameraToScreenTransform( camera.cameraToScreen ), hasFov( camera.fov ) ) ) );
@@ -654,15 +671,65 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
 
 TEST_F( TestPbrtScene, initializeSetsDefaultCameraWhenMissingFromScene )
 {
+    m_sceneDesc->camera = {};
+    m_sceneDesc->lookAt = {};
     expectInitializeCreatesOptixState();
-    const otk::pbrt::LookAtDefinition& lookAt = m_sceneDesc->lookAt;
-    EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( lookAt.eye ), hasLookAt( lookAt.lookAt ), hasUp( lookAt.up ) ) ) );
+    EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( P3( 0.0f, 0.0f, 0.0f ) ), hasLookAt( P3( 0.0f, 0.0f, -3.0f ) ),
+                                                hasUp( V3( 0.0f, 1.0f, 0.0f ) ) ) ) );
     const otk::pbrt::PerspectiveCameraDefinition& camera = m_sceneDesc->camera;
     EXPECT_CALL( *m_renderer,
                  setCamera( AllOf( hasFov( camera.fov ), hasFocalDistance( camera.focalDistance ),
                                    hasLensRadius( camera.lensRadius ), hasCameraToWorldTransform( camera.cameraToWorld ) ) ) );
 
     m_scene->initialize( m_stream );
+}
+
+TEST_F( TestPbrtScene, initializeDerivesLookAtFromLandscapeCameraTransform )
+{
+    m_sceneDesc->lookAt               = {};
+    m_sceneDesc->camera.defined       = true;
+    m_sceneDesc->camera.cameraToWorld = landscapeCameraToWorld();
+    expectInitializeCreatesOptixState();
+    LookAtParams actual{};
+    EXPECT_CALL( *m_renderer, setLookAt( _ ) ).WillOnce( SaveArg<0>( &actual ) );
+    EXPECT_CALL( *m_renderer, setCamera( _ ) );
+
+    m_scene->initialize( m_stream );
+
+    EXPECT_NEAR( -2315.0f, actual.eye.x, 1.0e-3f );
+    EXPECT_NEAR( 65.0f, actual.eye.y, 1.0e-3f );
+    EXPECT_NEAR( -2084.0f, actual.eye.z, 1.0e-3f );
+    const float3 direction{ otk::normalize( actual.lookAt - actual.eye ) };
+    EXPECT_NEAR( 0.601448f, direction.x, 2.0e-4f );
+    EXPECT_NEAR( 0.0348995f, direction.y, 2.0e-4f );
+    EXPECT_NEAR( 0.798149f, direction.z, 2.0e-4f );
+    EXPECT_NEAR( -0.021003f, actual.up.x, 1.0e-6f );
+    EXPECT_NEAR( 0.999391f, actual.up.y, 1.0e-6f );
+    EXPECT_NEAR( -0.027872f, actual.up.z, 1.0e-6f );
+}
+
+TEST_F( TestPbrtScene, initializeUsesComposedCameraTransformInsteadOfRawLookAt )
+{
+    otk::pbrt::LookAtDefinition& rawLookAt = m_sceneDesc->lookAt;
+    rawLookAt.eye                          = P3( 0.0f, 0.0f, 0.0f );
+    rawLookAt.lookAt                       = P3( 0.0f, 0.0f, 1.0f );
+    rawLookAt.up                           = V3( 0.0f, 1.0f, 0.0f );
+    m_sceneDesc->camera.defined            = true;
+    m_sceneDesc->camera.cameraToWorld      = ::pbrt::Translate( V3( 10.0f, 20.0f, 30.0f ) )
+                                        * Inverse( LookAt( rawLookAt.eye, rawLookAt.lookAt, rawLookAt.up ) )
+                                        * ::pbrt::Rotate( 90.0f, V3( 0.0f, 1.0f, 0.0f ) );
+    expectInitializeCreatesOptixState();
+    LookAtParams actual{};
+    EXPECT_CALL( *m_renderer, setLookAt( _ ) ).WillOnce( SaveArg<0>( &actual ) );
+    EXPECT_CALL( *m_renderer, setCamera( _ ) );
+
+    m_scene->initialize( m_stream );
+
+    EXPECT_EQ( make_float3( 10.0f, 20.0f, 30.0f ), actual.eye );
+    EXPECT_NEAR( 1.0f, actual.lookAt.x - actual.eye.x, 1.0e-6f );
+    EXPECT_NEAR( 0.0f, actual.lookAt.y - actual.eye.y, 1.0e-6f );
+    EXPECT_NEAR( 0.0f, actual.lookAt.z - actual.eye.z, 1.0e-6f );
+    EXPECT_EQ( make_float3( 0.0f, 1.0f, 0.0f ), actual.up );
 }
 
 TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsInitialParams )

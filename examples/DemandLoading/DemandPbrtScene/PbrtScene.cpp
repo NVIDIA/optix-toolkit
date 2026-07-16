@@ -41,6 +41,26 @@ namespace demandPbrtScene {
 
 namespace {
 
+LookAtParams cameraToLookAt( const otk::pbrt::PerspectiveCameraDefinition& camera )
+{
+    LookAtParams lookAt;
+    if( !camera.defined )
+    {
+        lookAt.lookAt = make_float3( 0.0f, 0.0f, -3.0f );
+        lookAt.eye    = make_float3( 0.0f, 0.0f, 0.0f );
+        lookAt.up     = make_float3( 0.0f, 1.0f, 0.0f );
+        return lookAt;
+    }
+
+    const pbrt::Point3f  eye{ camera.cameraToWorld( pbrt::Point3f( 0.0f, 0.0f, 0.0f ) ) };
+    const pbrt::Vector3f direction{ Normalize( camera.cameraToWorld( pbrt::Vector3f( 0.0f, 0.0f, 1.0f ) ) ) };
+    const pbrt::Vector3f up{ Normalize( camera.cameraToWorld( pbrt::Vector3f( 0.0f, 1.0f, 0.0f ) ) ) };
+    lookAt.eye    = make_float3( eye.x, eye.y, eye.z );
+    lookAt.lookAt = make_float3( eye.x + direction.x, eye.y + direction.y, eye.z + direction.z );
+    lookAt.up     = make_float3( up.x, up.y, up.z );
+    return lookAt;
+}
+
 class PbrtScene : public Scene
 {
   public:
@@ -134,27 +154,9 @@ void PbrtScene::realizeInfiniteLights()
 
 void PbrtScene::setCamera()
 {
-    auto fromPoint3f  = []( const pbrt::Point3f& pt ) { return make_float3( pt.x, pt.y, pt.z ); };
-    auto fromVector3f = []( const pbrt::Vector3f& vec ) { return make_float3( vec.x, vec.y, vec.z ); };
-
-    PerspectiveCamera camera;
-    LookAtParams      lookAt;
-    // TODO: handle lookAt and camera keywords from file properly with current transformation matrix
-    const otk::pbrt::LookAtDefinition& sceneLookAt = m_scene->lookAt;
-    if( sceneLookAt.lookAt == ::pbrt::Point3f() && sceneLookAt.eye == ::pbrt::Point3f() && sceneLookAt.up == ::pbrt::Vector3f() )
-    {
-        lookAt.lookAt = make_float3( 0.0f, 0.0f, -3.0f );
-        lookAt.eye    = make_float3( 0.0f, 0.0f, 0.0f );
-        lookAt.up     = make_float3( 0.0f, 1.0f, 0.0f );
-    }
-    else
-    {
-        lookAt.lookAt = fromPoint3f( sceneLookAt.lookAt );
-        lookAt.eye    = fromPoint3f( sceneLookAt.eye );
-        lookAt.up     = fromVector3f( sceneLookAt.up );
-    }
-    m_renderer->setLookAt( lookAt );
+    PerspectiveCamera                             camera;
     const otk::pbrt::PerspectiveCameraDefinition& sceneCamera = m_scene->camera;
+    m_renderer->setLookAt( cameraToLookAt( sceneCamera ) );
 
     camera.fovY          = sceneCamera.fov;
     camera.focalDistance = sceneCamera.focalDistance;
