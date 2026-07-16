@@ -21,6 +21,7 @@ using MeshLoaderPtr = std::shared_ptr<MeshLoader>;
 
 struct PerspectiveCameraDefinition
 {
+    bool              defined{};       // true when a perspective camera was specified
     float             fov;             // field of view in Y axis
     float             focalDistance;   //
     float             lensRadius;      //

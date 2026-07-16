@@ -173,6 +173,7 @@ TEST_F( TestPbrtApiEmptyScene, cameraZeroed )
 {
     const PerspectiveCameraDefinition camera{ m_scene->camera };
 
+    ASSERT_FALSE( camera.defined );
     ASSERT_EQ( 0.0f, camera.fov );
     ASSERT_EQ( 0.0f, camera.focalDistance );
     ASSERT_EQ( 0.0f, camera.lensRadius );
@@ -223,7 +224,7 @@ TEST_F( TestPbrtApi, perspectiveCameraToWorldTransform )
         )pbrt" ) };
 
     const PerspectiveCameraDefinition& camera{ scene->camera };
-    ASSERT_EQ( ::pbrt::LookAt( Point3( 1.0f, 2.0f, 3.0f ), Point3( 4.0f, 5.0f, 6.0f ), Vector3( 7.0f, 8.0f, 9.0f ) ),
+    ASSERT_EQ( Inverse( ::pbrt::LookAt( Point3( 1.0f, 2.0f, 3.0f ), Point3( 4.0f, 5.0f, 6.0f ), Vector3( 7.0f, 8.0f, 9.0f ) ) ),
                camera.cameraToWorld );
 }
 
@@ -263,6 +264,7 @@ TEST_F( TestPbrtApi, perspectiveCamera )
         )pbrt" ) };
 
     const PerspectiveCameraDefinition& camera{ scene->camera };
+    ASSERT_TRUE( camera.defined );
     ASSERT_EQ( 44.0f, camera.fov );
     ASSERT_EQ( 3000.0f, camera.focalDistance );
     ASSERT_EQ( 0.125f, camera.lensRadius );
@@ -302,7 +304,46 @@ TEST_F( TestPbrtApi, cameraMatrix )
             "float lensradius" [ 0.125 ]
         )pbrt" ) };
 
-    EXPECT_EQ( ::pbrt::Translate( Vector3( 10.0, 20.0, 30.0 ) ), scene->camera.cameraToWorld );
+    EXPECT_EQ( ::pbrt::Translate( Vector3( -10.0, -20.0, -30.0 ) ), scene->camera.cameraToWorld );
+}
+
+TEST_F( TestPbrtApi, landscapeCameraMatrix )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
+        ConcatTransform [
+            0.798635483 -0.0210030414  0.601448417 0
+            0           0.999390841   0.0348994955 0
+           -0.601815045 -0.0278719775  0.79814899  0
+            594.658691 -171.667648 3053.42725     1
+        ]
+        Camera "perspective"
+        )pbrt" ) };
+
+    const ::pbrt::Transform& cameraToWorld{ scene->camera.cameraToWorld };
+    const Point3             eye{ cameraToWorld( Point3( 0.0f, 0.0f, 0.0f ) ) };
+    const Vector3            forward{ Normalize( cameraToWorld( Vector3( 0.0f, 0.0f, 1.0f ) ) ) };
+
+    EXPECT_NEAR( -2315.0f, eye.x, 1.0e-3f );
+    EXPECT_NEAR( 65.0f, eye.y, 1.0e-3f );
+    EXPECT_NEAR( -2084.0f, eye.z, 1.0e-3f );
+    EXPECT_NEAR( 0.601448f, forward.x, 1.0e-6f );
+    EXPECT_NEAR( 0.0348995f, forward.y, 1.0e-6f );
+    EXPECT_NEAR( 0.798149f, forward.z, 1.0e-6f );
+}
+
+TEST_F( TestPbrtApi, cameraCoordinateSystemUsesCameraToWorldTransform )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
+        Translate 10 20 30
+        Camera "perspective"
+        WorldBegin
+        CoordSysTransform "camera"
+        Shape "sphere"
+        WorldEnd
+        )pbrt" ) };
+
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+    EXPECT_EQ( ::pbrt::Translate( Vector3( -10.0f, -20.0f, -30.0f ) ), scene->freeShapes.front().transform );
 }
 
 TEST_F( TestPbrtApi, sceneBoundsFromSingleMeshAtDefaultPosition )
@@ -565,7 +606,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedShape )
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
-    EXPECT_EQ( object.bounds, instance.bounds );
+    EXPECT_EQ( object.bounds , instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
     const Bounds3 expectedInstanceBounds{ shape.transform( m_meshBounds ) };
     EXPECT_EQ( expectedInstanceBounds, instance.bounds ) << expectedInstanceBounds << " != " << instance.bounds;
@@ -603,7 +644,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedObject )
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
-    EXPECT_EQ( object.bounds , instance.bounds );
+    EXPECT_EQ( object.bounds, instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
 }
 
