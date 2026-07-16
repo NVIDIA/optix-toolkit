@@ -356,13 +356,19 @@ void GeometryCacheImpl::appendPlyMesh( const pbrt::Transform& transform, const P
 
 void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, const TriangleMeshData& triangleMesh )
 {
-    const auto   toFloat3{ [&]( const pbrt::Point3f& point ) {
+    const auto toVertex{ [&]( const pbrt::Point3f& point ) {
         const pbrt::Point3f pt{ transform( point ) };
         return make_float3( pt.x, pt.y, pt.z );
     } };
+    const auto toNormal{ [&]( const pbrt::Point3f& point ) {
+        const pbrt::Normal3f normal{ point.x, point.y, point.z };
+        const pbrt::Normal3f transformed{ transform( normal ) };
+        return make_float3( transformed.x, transformed.y, transformed.z );
+    } };
     const uint_t indexOffset{ toUInt( m_vertices.size() ) };
     growContainer( m_vertices, triangleMesh.points.size() );
-    std::transform( triangleMesh.points.begin(), triangleMesh.points.end(), std::back_inserter( m_vertices ), toFloat3 );
+    std::transform( triangleMesh.points.begin(), triangleMesh.points.end(), std::back_inserter( m_vertices ),
+                    toVertex );
     growContainer( m_indices, triangleMesh.indices.size() );
     std::transform( triangleMesh.indices.begin(), triangleMesh.indices.end(), std::back_inserter( m_indices ),
                     [=]( const int index ) { return static_cast<std::uint32_t>( index + indexOffset ); } );
@@ -382,7 +388,7 @@ void GeometryCacheImpl::appendTriangleMesh( const pbrt::Transform& transform, co
             TriangleNormals normals;
             for( int j = 0; j < VERTS_PER_TRI; ++j )
             {
-                normals.N[j] = toFloat3( transform( triangleMesh.normals[triangleMesh.indices[i * VERTS_PER_TRI + j]] ) );
+                normals.N[j] = toNormal( triangleMesh.normals[triangleMesh.indices[i * VERTS_PER_TRI + j]] );
             }
             m_normals.push_back( normals );
         }
