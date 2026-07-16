@@ -288,8 +288,71 @@ TEST_F( TestPbrtApi, perspectiveCameraDefaults )
     const PerspectiveCameraDefinition& camera{ scene->camera };
     // Default values from pbrt v3 scene description documentation
     ASSERT_EQ( 90.0f, camera.fov );
-    ASSERT_EQ( 1.0e30f, camera.focalDistance );
+    ASSERT_EQ( 1.0e6f, camera.focalDistance );
     ASSERT_EQ( 0.0f, camera.lensRadius );
+}
+
+TEST_F( TestPbrtApi, perspectiveCameraFramingParameters )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
+        Camera "perspective"
+            "float frameaspectratio" [ 1.5 ]
+            "float screenwindow" [ -2 2 -1 1 ]
+        )pbrt" ) };
+
+    const PerspectiveCameraDefinition& camera{ scene->camera };
+    ASSERT_TRUE( camera.frameAspectRatioSpecified );
+    EXPECT_EQ( 1.5f, camera.frameAspectRatio );
+    ASSERT_TRUE( camera.screenWindowSpecified );
+    EXPECT_EQ( -2.0f, camera.screenWindow[0] );
+    EXPECT_EQ( 2.0f, camera.screenWindow[1] );
+    EXPECT_EQ( -1.0f, camera.screenWindow[2] );
+    EXPECT_EQ( 1.0f, camera.screenWindow[3] );
+}
+
+TEST_F( TestPbrtApi, perspectiveCameraFramingParametersOmitted )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(Camera "perspective")pbrt" ) };
+
+    const PerspectiveCameraDefinition& camera{ scene->camera };
+    EXPECT_FALSE( camera.frameAspectRatioSpecified );
+    EXPECT_FALSE( camera.screenWindowSpecified );
+}
+
+TEST_F( TestPbrtApi, imageFilmDefaults )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(Film "image")pbrt" ) };
+
+    ASSERT_TRUE( scene->film.defined );
+    EXPECT_EQ( 1280, scene->film.xResolution );
+    EXPECT_EQ( 720, scene->film.yResolution );
+}
+
+TEST_F( TestPbrtApi, imageFilmResolution )
+{
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
+        Film "image"
+            "integer xresolution" [ 2048 ]
+            "integer yresolution" [ 1152 ]
+        )pbrt" ) };
+
+    ASSERT_TRUE( scene->film.defined );
+    EXPECT_EQ( 2048, scene->film.xResolution );
+    EXPECT_EQ( 1152, scene->film.yResolution );
+}
+
+TEST_F( TestPbrtApi, imageFilmPreservesResolutionWithUnsupportedParameters )
+{
+    expectWarnings( 1 );
+    SceneDescriptionPtr scene{ m_api->parseString( R"pbrt(
+        Film "image"
+            "integer xresolution" [ 640 ]
+            "integer yresolution" [ 360 ]
+            "string filename" [ "frame.exr" ]
+        )pbrt" ) };
+
+    EXPECT_EQ( 640, scene->film.xResolution );
+    EXPECT_EQ( 360, scene->film.yResolution );
 }
 
 TEST_F( TestPbrtApi, cameraMatrix )

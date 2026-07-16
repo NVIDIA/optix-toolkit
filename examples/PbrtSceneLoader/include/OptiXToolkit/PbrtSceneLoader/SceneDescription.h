@@ -21,12 +21,23 @@ using MeshLoaderPtr = std::shared_ptr<MeshLoader>;
 
 struct PerspectiveCameraDefinition
 {
-    bool              defined{};       // true when a perspective camera was specified
-    float             fov;             // field of view in Y axis
-    float             focalDistance;   //
-    float             lensRadius;      //
-    ::pbrt::Transform cameraToWorld;   // camera to world space transform
-    ::pbrt::Transform cameraToScreen;  // camera to screen space transform
+    bool              defined{};                    // true when a perspective camera was specified
+    bool              frameAspectRatioSpecified{};  // true when frameaspectratio was specified
+    bool              screenWindowSpecified{};      // true when screenwindow was specified
+    float             fov;                          // field of view in Y axis
+    float             focalDistance;                //
+    float             lensRadius;                   //
+    float             frameAspectRatio;             // explicit frame aspect ratio
+    float             screenWindow[4]{};            // explicit xmin, xmax, ymin, ymax
+    ::pbrt::Transform cameraToWorld;                // camera to world space transform
+    ::pbrt::Transform cameraToScreen;               // camera to screen space transform
+};
+
+struct FilmDefinition
+{
+    bool defined{};            // true when an image film was specified
+    int  xResolution{ 1280 };  // PBRT v3 default horizontal resolution
+    int  yResolution{ 720 };   // PBRT v3 default vertical resolution
 };
 
 struct DistantLightDefinition
@@ -132,6 +143,7 @@ struct SceneDescription
     int                         errors;           // number of errors found during parse
     LookAtDefinition            lookAt;           // last parameters to LookAt
     PerspectiveCameraDefinition camera;           // camera parameters
+    FilmDefinition              film;             // image film parameters
     DistantLightList            distantLights;    // distant light definitions
     InfiniteLightList           infiniteLights;   // infinite light definitions
     ::pbrt::Bounds3f            bounds;           // world space bounds of all object instances and free shapes
