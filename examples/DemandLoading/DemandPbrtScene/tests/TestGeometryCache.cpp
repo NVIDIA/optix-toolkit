@@ -791,6 +791,54 @@ TEST_F( TestGeometryCache, constructTriangleASForCoarseObjectTransformsPlyNormal
     EXPECT_EQ( 3, stats.numNormals );
 }
 
+TEST_F( TestGeometryCache, constructCoarseObjectTransformsTriangleMeshNormalsExactlyOnce )
+{
+    MeshData        buffers;
+    ShapeDefinition shape{ singleTriangleTriangleMeshWithNormals( buffers ) };
+    shape.transform = pbrt::Translate( pbrt::Vector3f( 10.0f, 20.0f, 30.0f ) ) * pbrt::RotateZ( 90.0f )
+                      * pbrt::Scale( 2.0f, 3.0f, 4.0f );
+
+    std::vector<float> expectedVertices;
+    for( const pbrt::Point3f& point : shape.triangleMesh.points )
+    {
+        const pbrt::Point3f transformed{ shape.transform( point ) };
+        expectedVertices.push_back( transformed.x );
+        expectedVertices.push_back( transformed.y );
+        expectedVertices.push_back( transformed.z );
+    }
+    TriangleNormals expectedNormalValues{};
+    for( size_t vert = 0; vert < VERTS_PER_TRI; ++vert )
+    {
+        const pbrt::Point3f& source{ shape.triangleMesh.normals[shape.triangleMesh.indices[vert]] };
+        const pbrt::Normal3f normal{ source.x, source.y, source.z };
+        const pbrt::Normal3f transformed{ shape.transform( normal ) };
+        expectedNormalValues.N[vert] = make_float3( transformed.x, transformed.y, transformed.z );
+    }
+    const std::vector<TriangleNormals> expectedNormals{ expectedNormalValues };
+    const ObjectDefinition             object{ "transformedTriangleMesh", {} };
+    const ShapeList                    shapes{ shape };
+    const auto                         expectedOptions{ buildAllowsRandomVertexAccess() };
+    const auto expectedInput{
+        AllOf( NotNull(), hasTriangleBuildInput( 0, hasAll( hasDeviceVertexCoords( expectedVertices ),
+                                                           hasDeviceIndices( buffers.indices ),
+                                                           hasSbtFlags( m_expectedFlags ), hasNoPreTransform(),
+                                                           hasNoSbtIndexOffsets(), hasNoPrimitiveIndexOffset(),
+                                                           hasNoOpacityMap() ) ) ) };
+    configureAccelComputeMemoryUsage( expectedOptions, expectedInput );
+    configureAccelBuild( expectedOptions, expectedInput );
+
+    m_geom = m_geometryCache->getObject( m_fakeContext, m_stream, object, shapes, GeometryPrimitive::TRIANGLE,
+                                         MaterialFlags::NONE );
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+
+    EXPECT_THAT( m_geom.devNormals, hasDeviceNormalsNear( expectedNormals ) );
+    ASSERT_EQ( 1U, m_geom.primitiveGroupEndIndices.size() );
+    EXPECT_EQ( 1U, m_geom.primitiveGroupEndIndices[0] );
+    const Stats stats{ m_geometryCache->getStatistics() };
+    EXPECT_EQ( 1, stats.numTriangles );
+    EXPECT_EQ( 3, stats.numNormals );
+}
+
 TEST_F( TestGeometryCache, constructTriangleASForPlyMeshWithUVs )
 {
     expectPlyFileSizeReturned();
