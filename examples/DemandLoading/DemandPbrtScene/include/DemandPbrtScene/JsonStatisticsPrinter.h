@@ -205,7 +205,6 @@ inline std::ostream& operator<<( std::ostream& str, const Json<Options>& json )
     DUMP_JSON_OBJECT( verboseTextureCreation ) << ',';
     DUMP_JSON_OBJECT( sortProxies ) << ',';
     DUMP_JSON_OBJECT( sync ) << ',';
-    DUMP_JSON_OBJECT( usePinholeCamera ) << ',';
     DUMP_JSON_OBJECT( faceForward ) << ',';
     DUMP_JSON_OBJECT( debug ) << ',';
     DUMP_JSON_OBJECT( oneShotDebug ) << ',';

@@ -4,7 +4,6 @@
 
 #include "DemandPbrtScene/Scene.h"
 
-#include "DemandPbrtScene/CameraMath.h"
 #include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
@@ -159,18 +158,8 @@ void PbrtScene::setCamera()
     const otk::pbrt::PerspectiveCameraDefinition& sceneCamera = m_scene->camera;
     m_renderer->setLookAt( cameraToLookAt( sceneCamera ) );
 
-    camera.fovY          = sceneCamera.fov;
-    camera.focalDistance = sceneCamera.focalDistance;
-    camera.lensRadius    = sceneCamera.lensRadius;
-    camera.aspectRatio   = static_cast<float>( m_options.width ) / static_cast<float>( m_options.height );
-    const float4 explicitScreenWindow{ make_float4( sceneCamera.screenWindow[0], sceneCamera.screenWindow[1],
-                                                    sceneCamera.screenWindow[2], sceneCamera.screenWindow[3] ) };
-    camera.screenWindow = getPbrtScreenWindow( camera.aspectRatio, sceneCamera.frameAspectRatioSpecified,
-                                               sceneCamera.frameAspectRatio, sceneCamera.screenWindowSpecified,
-                                               explicitScreenWindow );
-    toFloat4Transform( camera.cameraToWorld.m, sceneCamera.cameraToWorld.GetMatrix() );
-    toFloat4Transform( camera.worldToCamera.m, sceneCamera.cameraToWorld.GetInverseMatrix() );
-    toFloat4Transform( camera.cameraToScreen.m, sceneCamera.cameraToScreen.GetMatrix() );
+    camera.fovY        = sceneCamera.fov;
+    camera.aspectRatio = static_cast<float>( m_options.width ) / static_cast<float>( m_options.height );
     m_renderer->setCamera( camera );
 }
 
@@ -285,7 +274,6 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
 
     params.ambientColor        = make_float3( 0.4f, 0.4f, 0.4f );
     params.sceneEpsilon        = 0.005f;
-    params.usePinholeCamera    = m_options.usePinholeCamera;
     params.traversable         = m_topLevelTraversable;
     params.demandGeomContext   = m_geometryResolver->getContext();
     const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
