@@ -81,6 +81,7 @@ private:
     // Notion of a pbrt texture: a texture type and a bag of parameters
     struct TextureDefinition
     {
+        std::string      valueType;
         std::string      type;
         ::pbrt::ParamSet params;
     };
@@ -122,6 +123,17 @@ private:
     ShapeDefinition createSphere( const ::pbrt::ParamSet& params );
     PlasticMaterial getShapeMaterial( const ::pbrt::ParamSet& params ) const;
     PbrtMaterial     getShapePbrtMaterial() const;
+    PbrtMaterialGraph getShapePbrtMaterialGraph( const PbrtMaterial& material ) const;
+    void              collectMaterialGraphReferences( const std::string& type, const ::pbrt::ParamSet& params,
+                                                      PbrtMaterialGraph& graph, std::vector<std::string>& materialStack,
+                                                      std::vector<std::string>& textureStack ) const;
+    void              collectNamedMaterialGraph( const std::string& name, PbrtMaterialGraph& graph,
+                                                 std::vector<std::string>& materialStack,
+                                                 std::vector<std::string>& textureStack ) const;
+    void              collectTextureGraphReferences( const ::pbrt::ParamSet& params, PbrtMaterialGraph& graph,
+                                                     std::vector<std::string>& textureStack ) const;
+    void              collectTextureGraph( const std::string& name, PbrtMaterialGraph& graph,
+                                           std::vector<std::string>& textureStack ) const;
     ::pbrt::Point3f lookupParam( const std::string& name, const ::pbrt::ParamSet& params, ::pbrt::Point3f def ) const;
     std::string     lookupTextureName( const std::string& name, const ::pbrt::ParamSet& params ) const;
     std::string     lookupSpectrumTextureFileName( const std::string& name, const ::pbrt::ParamSet& params ) const;

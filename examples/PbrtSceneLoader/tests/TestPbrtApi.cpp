@@ -606,6 +606,135 @@ TEST_F( TestPbrtApi, namedPbrtMaterialIntentIsPreserved )
     EXPECT_EQ( 1.5f, eta[0] );
 }
 
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNamedMaterialReferences )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "frontColor" "spectrum" "imagemap"
+            "string filename" [ "front.png" ]
+        MakeNamedMaterial "front"
+            "string type" [ "uber" ]
+            "texture Kd" [ "frontColor" ]
+        MakeNamedMaterial "back"
+            "string type" [ "translucent" ]
+            "rgb transmit" [ 1 1 1 ]
+        Material "mix"
+            "string namedmaterial1" [ "front" ]
+            "string namedmaterial2" [ "back" ]
+            "float amount" [ 0.25 ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterialGraph& graph{ m_scene->freeShapes[0].pbrtMaterial.graph };
+
+    ASSERT_EQ( 2U, graph.namedMaterials.size() );
+    EXPECT_EQ( "uber", graph.namedMaterials.at( "front" ).type );
+    EXPECT_EQ( "translucent", graph.namedMaterials.at( "back" ).type );
+
+    const auto texture = graph.textures.find( "spectrum:frontColor" );
+    ASSERT_NE( graph.textures.end(), texture );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_THAT( texture->second.params.FindOneFilename( "filename", "" ), EndsWith( "front.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNestedTextureReferences )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "baseColor" "spectrum" "imagemap"
+            "string filename" [ "base.png" ]
+        Texture "scaledColor" "color" "scale"
+            "texture tex1" [ "baseColor" ]
+            "rgb tex2" [ 0.5 0.5 0.5 ]
+        Material "matte"
+            "texture Kd" [ "scaledColor" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterialGraph& graph{ m_scene->freeShapes[0].pbrtMaterial.graph };
+
+    const auto scaledTexture = graph.textures.find( "color:scaledColor" );
+    ASSERT_NE( graph.textures.end(), scaledTexture );
+    EXPECT_EQ( "scale", scaledTexture->second.type );
+    EXPECT_EQ( "baseColor", scaledTexture->second.params.FindTexture( "tex1" ) );
+
+    const auto baseTexture = graph.textures.find( "spectrum:baseColor" );
+    ASSERT_NE( graph.textures.end(), baseTexture );
+    EXPECT_EQ( "imagemap", baseTexture->second.type );
+    EXPECT_THAT( baseTexture->second.params.FindOneFilename( "filename", "" ), EndsWith( "base.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, missingNamedMaterialReferenceIsPreservedAsFallbackReason )
+{
+    expectWarnings( 1 );
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "matte"
+            "rgb Kd" [ 0.2 0.3 0.4 ]
+        NamedMaterial "missing"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), shape.material.Kd );
+
+    const PbrtMaterial& material{ shape.pbrtMaterial };
+    EXPECT_TRUE( material.type.empty() );
+    EXPECT_EQ( "missing", material.namedMaterialName );
+    EXPECT_THAT( material.graph.fallbackReasons, Contains( HasSubstr( "Missing named material 'missing'" ) ) );
+}
+
+TEST_F( TestPbrtApi, missingTextureReferenceIsPreservedAsFallbackReason )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "matte"
+            "texture Kd" [ "missingColor" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_THAT( material.graph.fallbackReasons, Contains( HasSubstr( "Missing texture 'missingColor'" ) ) );
+}
+
+TEST_F( TestPbrtApi, recursiveNamedMaterialReferenceIsPreservedAsFallbackReason )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        MakeNamedMaterial "a"
+            "string type" [ "mix" ]
+            "string namedmaterial1" [ "b" ]
+            "string namedmaterial2" [ "b" ]
+        MakeNamedMaterial "b"
+            "string type" [ "mix" ]
+            "string namedmaterial1" [ "a" ]
+            "string namedmaterial2" [ "a" ]
+        NamedMaterial "a"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterialGraph& graph{ m_scene->freeShapes[0].pbrtMaterial.graph };
+    ASSERT_EQ( 2U, graph.namedMaterials.size() );
+    EXPECT_THAT( graph.fallbackReasons, Contains( HasSubstr( "Recursive named material reference 'a'" ) ) );
+}
+
 TEST_F( TestPbrtApi, freeMeshGetsAlphaTexture )
 {
     configureMeshOneInfo( 1 );

@@ -71,11 +71,37 @@ struct PlasticMaterial
     std::string     specularMapFileName;
 };
 
+struct PbrtNamedMaterial
+{
+    std::string      name;
+    std::string      type;
+    ::pbrt::ParamSet params;
+};
+
+struct PbrtTexture
+{
+    std::string      name;
+    std::string      valueType;
+    std::string      type;
+    ::pbrt::ParamSet params;
+};
+
+using PbrtNamedMaterialMap = std::map<std::string, PbrtNamedMaterial>;
+using PbrtTextureMap       = std::map<std::string, PbrtTexture>;
+
+struct PbrtMaterialGraph
+{
+    PbrtNamedMaterialMap  namedMaterials;
+    PbrtTextureMap        textures;
+    std::vector<std::string> fallbackReasons;
+};
+
 struct PbrtMaterial
 {
     std::string      type;
     std::string      namedMaterialName;
     ::pbrt::ParamSet params;
+    PbrtMaterialGraph graph;
 };
 
 struct PlyMeshData

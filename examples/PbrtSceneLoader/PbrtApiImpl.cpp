@@ -159,6 +159,43 @@ void PbrtApiImpl::error( std::string text, const char* file, int line ) const
 #define PBRT_WARNING( text_ ) warning( text_, __FILE__, __LINE__ )
 #define PBRT_ERROR( text_ ) error( text_, __FILE__, __LINE__ )
 
+namespace {
+
+const char* const MATERIAL_TEXTURE_PARAMS[] = {
+    "Kd",
+    "Ks",
+    "Kr",
+    "Kt",
+    "eta",
+    "index",
+    "roughness",
+    "uroughness",
+    "vroughness",
+    "alpha",
+    "shadowalpha",
+    "opacity",
+    "bumpmap",
+    "amount",
+    "reflect",
+    "transmit",
+};
+
+const char* const TEXTURE_TEXTURE_PARAMS[] = { "tex1", "tex2", "amount" };
+
+const char* const NAMED_MATERIAL_PARAMS[] = { "namedmaterial1", "namedmaterial2" };
+
+std::string makeTextureGraphKey( const std::string& valueType, const std::string& name )
+{
+    return valueType + ":" + name;
+}
+
+bool containsString( const std::vector<std::string>& values, const std::string& value )
+{
+    return std::find( values.begin(), values.end(), value ) != values.end();
+}
+
+}  // namespace
+
 void PbrtApiImpl::coordSysTransform( const std::string& name )
 {
     const auto it = m_coordinateSystems.find( name );
@@ -351,11 +388,11 @@ void PbrtApiImpl::texture( const std::string& name, const std::string& type, con
     requireInWorld( "Texture" );
     if( type == "float" )
     {
-        m_graphicsState.floatTextures[name] = TextureDefinition{ tex_type, params };
+        m_graphicsState.floatTextures[name] = TextureDefinition{ type, tex_type, params };
     }
     else if( type == "color" || type == "spectrum" )
     {
-        m_graphicsState.spectrumTextures[name] = TextureDefinition{ tex_type, params };
+        m_graphicsState.spectrumTextures[name] = TextureDefinition{ type, tex_type, params };
     }
     else
     {
@@ -384,6 +421,8 @@ void PbrtApiImpl::namedMaterial( const std::string& name )
     if( it == m_graphicsState.namedMaterials.end() )
     {
         PBRT_WARNING( "Unknown named material '" + name + "'" );
+        m_graphicsState.currentNamedMaterial = name;
+        m_graphicsState.currentMaterial      = MaterialDefinition{};
         return;
     }
     m_graphicsState.currentNamedMaterial = name;
@@ -655,15 +694,154 @@ PbrtMaterial PbrtApiImpl::getShapePbrtMaterial() const
         auto it = m_graphicsState.namedMaterials.find( m_graphicsState.currentNamedMaterial );
         if( it != m_graphicsState.namedMaterials.end() )
         {
-            return { it->second.params.FindOneString( "type", std::string{} ), m_graphicsState.currentNamedMaterial,
-                     it->second.params };
+            PbrtMaterial material{ it->second.params.FindOneString( "type", std::string{} ),
+                                   m_graphicsState.currentNamedMaterial, it->second.params, PbrtMaterialGraph{} };
+            material.graph = getShapePbrtMaterialGraph( material );
+            return material;
         }
+        PbrtMaterial material{
+            std::string{}, m_graphicsState.currentNamedMaterial, ::pbrt::ParamSet{}, PbrtMaterialGraph{} };
+        material.graph.fallbackReasons.push_back( "Missing named material '" + m_graphicsState.currentNamedMaterial
+                                                  + "'" );
+        return material;
     }
     if( !m_graphicsState.currentMaterial.name.empty() )
     {
-        return { m_graphicsState.currentMaterial.name, std::string{}, m_graphicsState.currentMaterial.params };
+        PbrtMaterial material{ m_graphicsState.currentMaterial.name,
+                               std::string{},
+                               m_graphicsState.currentMaterial.params,
+                               PbrtMaterialGraph{} };
+        material.graph = getShapePbrtMaterialGraph( material );
+        return material;
     }
     return {};
+}
+
+PbrtMaterialGraph PbrtApiImpl::getShapePbrtMaterialGraph( const PbrtMaterial& material ) const
+{
+    PbrtMaterialGraph        graph;
+    std::vector<std::string> materialStack;
+    std::vector<std::string> textureStack;
+
+    if( !material.namedMaterialName.empty() )
+    {
+        collectNamedMaterialGraph( material.namedMaterialName, graph, materialStack, textureStack );
+    }
+    collectMaterialGraphReferences( material.type, material.params, graph, materialStack, textureStack );
+    return graph;
+}
+
+void PbrtApiImpl::collectMaterialGraphReferences( const std::string&       type,
+                                                  const ::pbrt::ParamSet&  params,
+                                                  PbrtMaterialGraph&       graph,
+                                                  std::vector<std::string>& materialStack,
+                                                  std::vector<std::string>& textureStack ) const
+{
+    static_cast<void>( type );
+
+    for( const char* paramName : MATERIAL_TEXTURE_PARAMS )
+    {
+        const std::string textureName{ params.FindTexture( paramName ) };
+        if( !textureName.empty() )
+        {
+            collectTextureGraph( textureName, graph, textureStack );
+        }
+    }
+
+    for( const char* paramName : NAMED_MATERIAL_PARAMS )
+    {
+        const std::string materialName{ params.FindOneString( paramName, std::string{} ) };
+        if( !materialName.empty() )
+        {
+            collectNamedMaterialGraph( materialName, graph, materialStack, textureStack );
+        }
+    }
+}
+
+void PbrtApiImpl::collectNamedMaterialGraph( const std::string&        name,
+                                             PbrtMaterialGraph&        graph,
+                                             std::vector<std::string>& materialStack,
+                                             std::vector<std::string>& textureStack ) const
+{
+    if( containsString( materialStack, name ) )
+    {
+        graph.fallbackReasons.push_back( "Recursive named material reference '" + name + "'" );
+        return;
+    }
+
+    const auto it = m_graphicsState.namedMaterials.find( name );
+    if( it == m_graphicsState.namedMaterials.end() )
+    {
+        graph.fallbackReasons.push_back( "Missing named material '" + name + "'" );
+        return;
+    }
+
+    const std::string type{ it->second.params.FindOneString( "type", std::string{} ) };
+    const auto        inserted =
+        graph.namedMaterials.insert( std::make_pair( name, PbrtNamedMaterial{ name, type, it->second.params } ) );
+    if( !inserted.second )
+    {
+        return;
+    }
+
+    materialStack.push_back( name );
+    collectMaterialGraphReferences( type, it->second.params, graph, materialStack, textureStack );
+    materialStack.pop_back();
+}
+
+void PbrtApiImpl::collectTextureGraphReferences( const ::pbrt::ParamSet&  params,
+                                                 PbrtMaterialGraph&       graph,
+                                                 std::vector<std::string>& textureStack ) const
+{
+    for( const char* paramName : TEXTURE_TEXTURE_PARAMS )
+    {
+        const std::string textureName{ params.FindTexture( paramName ) };
+        if( !textureName.empty() )
+        {
+            collectTextureGraph( textureName, graph, textureStack );
+        }
+    }
+}
+
+void PbrtApiImpl::collectTextureGraph( const std::string&        name,
+                                       PbrtMaterialGraph&        graph,
+                                       std::vector<std::string>& textureStack ) const
+{
+    bool found{};
+    const auto collectTexture = [&]( const std::map<std::string, TextureDefinition>& textures ) {
+        const auto it = textures.find( name );
+        if( it == textures.end() )
+        {
+            return;
+        }
+
+        found = true;
+        const PbrtTexture texture{ name, it->second.valueType, it->second.type, it->second.params };
+        const std::string key{ makeTextureGraphKey( texture.valueType, texture.name ) };
+        if( containsString( textureStack, key ) )
+        {
+            graph.fallbackReasons.push_back( "Recursive texture reference '" + name + "'" );
+            return;
+        }
+
+        const auto inserted = graph.textures.insert( std::make_pair( key, texture ) );
+        if( !inserted.second )
+        {
+            return;
+        }
+
+        textureStack.push_back( key );
+        collectTextureGraphReferences( it->second.params, graph, textureStack );
+        textureStack.pop_back();
+    };
+
+    collectTexture( m_graphicsState.floatTextures );
+    collectTexture( m_graphicsState.spectrumTextures );
+
+    if( !found )
+    {
+        graph.fallbackReasons.push_back( "Missing texture '" + name + "'" );
+    }
 }
 
 static bool findParamInSet( const std::string& name, const ::pbrt::ParamSet& params, ::pbrt::Point3f& result )
@@ -849,7 +1027,7 @@ std::string PbrtApiImpl::lookupSpectrumTextureFileName( const std::string& name,
     {
         return it->second.params.FindOneFilename( "filename", "" );
     }
-    for( std::size_t i = m_graphicsStateStack.size() - 1; i > 0; --i )
+    for( std::size_t i = m_graphicsStateStack.size(); i > 0; --i )
     {
         it = m_graphicsStateStack[i - 1].spectrumTextures.find( textureName );
         if( it != m_graphicsStateStack[i - 1].spectrumTextures.end() )
@@ -873,7 +1051,7 @@ std::string PbrtApiImpl::lookupFloatTextureFileName( const std::string& name, co
     {
         return it->second.params.FindOneFilename( "filename", "" );
     }
-    for( std::size_t i = m_graphicsStateStack.size() - 1; i > 0; --i )
+    for( std::size_t i = m_graphicsStateStack.size(); i > 0; --i )
     {
         it = m_graphicsStateStack[i - 1].floatTextures.find( texture_name );
         if( it != m_graphicsStateStack[i - 1].floatTextures.end() )
