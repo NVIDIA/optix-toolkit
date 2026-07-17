@@ -8,7 +8,6 @@
 
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
 #include <OptiXToolkit/ShaderUtil/DebugLocation.h>
-#include <OptiXToolkit/ShaderUtil/Transform4.h>
 #include <OptiXToolkit/ShaderUtil/vec_math.h>
 
 #include <optix.h>
@@ -229,14 +228,8 @@ struct LookAtParams
 
 struct PerspectiveCamera
 {
-    float           fovY;
-    float           focalDistance;
-    float           lensRadius;
-    float           aspectRatio;
-    float4          screenWindow;
-    otk::Transform4 cameraToWorld;
-    otk::Transform4 worldToCamera;
-    otk::Transform4 cameraToScreen;
+    float fovY;
+    float aspectRatio;
 };
 
 struct MaterialIndex
@@ -269,7 +262,6 @@ struct Params
     float3                        ambientColor;
     float3                        proxyFaceColors[6];
     float                         sceneEpsilon;
-    bool                          usePinholeCamera;
     bool                          useFaceForward;
     OptixTraversableHandle        traversable;
     demandLoading::DeviceContext  demandContext;

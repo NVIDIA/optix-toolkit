@@ -38,11 +38,6 @@ target_sources( DemandPbrtSceneKernelCuda
         include/DemandPbrtScene/PhongShade.h
 )
 
-option(DEMANDPBRTSCENE_PBRT_CAMERA "Enable interactive switch to pbrt camera model (WIP)" OFF)
-mark_as_advanced(DEMANDPBRTSCENE_PBRT_CAMERA)
-
-configure_file(include/DemandPbrtScene/Config.h.in include/DemandPbrtScene/Config.h)
-
 add_library(DemandPbrtSceneImpl STATIC
     Application.cpp
     CudaContext.cpp
@@ -59,11 +54,8 @@ add_library(DemandPbrtSceneImpl STATIC
     ProgramGroups.cpp
     SceneProxy.cpp
     Statistics.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/include/DemandPbrtScene/Config.h
     include/DemandPbrtScene/Accumulator.h
     include/DemandPbrtScene/Application.h
-    include/DemandPbrtScene/CameraMath.h
-    include/DemandPbrtScene/Config.h.in
     include/DemandPbrtScene/Conversions.h
     include/DemandPbrtScene/CudaContext.h
     include/DemandPbrtScene/DemandTextureCache.h

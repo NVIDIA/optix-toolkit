@@ -32,7 +32,6 @@ struct Options
     bool             verboseTextureCreation{};
     bool             sortProxies{};
     bool             sync{};
-    bool             usePinholeCamera{ true };
     bool             faceForward{};
     bool             debug{};
     bool             oneShotDebug{};

@@ -6,7 +6,6 @@
 
 #include "DemandPbrtScene/ImGuiUserInterface.h"
 
-#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/FrameRate.h"
 #include "DemandPbrtScene/JsonStatisticsPrinter.h"
 #include "DemandPbrtScene/Renderer.h"
@@ -254,9 +253,6 @@ void ImGuiUserInterface::renderOptions()
         if( ImGui::TreeNode( "Rendering Options" ) )
         {
             renderToggleOption( m_options.faceForward, "Face forward" );
-#ifdef DEMANDPBRTSCENE_PBRT_CAMERA
-            renderToggleOption( m_options.usePinholeCamera, "Use pinhole camera, not pbrt camera" );
-#endif
             if( ImGui::TreeNode( "Render Mode" ) )
             {
                 const int currentRenderMode{ +m_options.renderMode };

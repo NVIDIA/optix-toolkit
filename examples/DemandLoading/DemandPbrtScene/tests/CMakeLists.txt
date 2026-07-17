@@ -15,7 +15,6 @@ add_executable(TestDemandPbrtSceneImpl
     include/DemandPbrtScene/Testing/MockProgramGroups.h
     include/DemandPbrtScene/Testing/MockRenderer.h
     include/DemandPbrtScene/Testing/ParamsPrinters.h
-    TestCameraMath.cpp
     TestDemandTextureCache.cpp
     TestGeometryCache.cpp
     TestGeometryResolver.cpp

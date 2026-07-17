@@ -165,7 +165,6 @@ TEST_F(TestJsonStatisticsPrinter, printOptions)
     options.verboseTextureCreation = true;
     options.sortProxies = true;
     options.sync = true;
-    options.usePinholeCamera = true;
     options.faceForward = true;
     options.debug = true;
     options.oneShotDebug = true;
@@ -193,7 +192,6 @@ TEST_F(TestJsonStatisticsPrinter, printOptions)
         R"json("verboseTextureCreation":true,)json"
         R"json("sortProxies":true,)json"
         R"json("sync":true,)json"
-        R"json("usePinholeCamera":true,)json"
         R"json("faceForward":true,)json"
         R"json("debug":true,)json"
         R"json("oneShotDebug":true,)json"

@@ -163,24 +163,6 @@ inline bool operator!=( const DeviceContext& lhs, const DeviceContext& rhs )
 
 }  // namespace demandLoading
 
-namespace otk {
-
-std::ostream& operator<<( std::ostream& str, const Transform4& transform )
-{
-    str << "[ ";
-    for( int row = 0; row < 4; ++row )
-    {
-        str << "[ " << transform.m[row] << " ]";
-        if( row != 3 )
-        {
-            str << ", ";
-        }
-    }
-    return str << " ]";
-}
-
-}  // namespace otk
-
 static demandGeometry::Context fakeDemandGeometryContext()
 {
     return demandGeometry::Context{ reinterpret_cast<OptixAabb*>( static_cast<std::uintptr_t>( 0xdeadbeefU ) ) };
@@ -280,51 +262,6 @@ MATCHER_P( hasUp, value, "" )
     return true;
 }
 
-MATCHER_P( hasCameraToWorldTransform, pbrtTransform, "" )
-{
-    otk::Transform4 lhs;
-    toFloat4Transform( lhs.m, pbrtTransform );
-    const otk::Transform4 rhs{ arg.cameraToWorld };
-    if( lhs != rhs )
-    {
-        *result_listener << "expected camera to world transform " << lhs << ", got " << rhs;
-        return false;
-    }
-
-    *result_listener << "has camera to world transform " << lhs;
-    return true;
-}
-
-MATCHER_P( hasWorldToCameraTransform, pbrtTransform, "" )
-{
-    otk::Transform4 lhs;
-    toFloat4Transform( lhs.m, pbrtTransform );
-    const otk::Transform4 rhs{ arg.worldToCamera };
-    if( lhs != rhs )
-    {
-        *result_listener << "expected world to camera transform " << lhs << ", got " << rhs;
-        return false;
-    }
-
-    *result_listener << "has world to camera transform " << lhs;
-    return true;
-}
-
-MATCHER_P( hasCameraToScreenTransform, pbrtTransform, "" )
-{
-    otk::Transform4 lhs;
-    toFloat4Transform( lhs.m, pbrtTransform );
-    const otk::Transform4 rhs{ arg.cameraToScreen };
-    if( lhs != rhs )
-    {
-        *result_listener << "expected camera to screen transform " << lhs << ", got " << rhs;
-        return false;
-    }
-
-    *result_listener << "has camera to screen transform " << lhs;
-    return true;
-}
-
 MATCHER_P( hasFov, fov, "" )
 {
     if( arg.fovY != fov )
@@ -334,42 +271,6 @@ MATCHER_P( hasFov, fov, "" )
     }
 
     *result_listener << "has field of view angle " << fov;
-    return true;
-}
-
-MATCHER_P( hasFocalDistance, value, "" )
-{
-    if( arg.focalDistance != value )
-    {
-        *result_listener << "expected focal distance " << value << ", got " << arg.focalDistance;
-        return false;
-    }
-
-    *result_listener << "has focal distance " << value;
-    return true;
-}
-
-MATCHER_P( hasLensRadius, value, "" )
-{
-    if( arg.lensRadius != value )
-    {
-        *result_listener << "expected lens radius " << value << ", got " << arg.lensRadius;
-        return false;
-    }
-
-    *result_listener << "has lens radius " << value;
-    return true;
-}
-
-MATCHER_P( hasScreenWindow, value, "" )
-{
-    if( arg.screenWindow != value )
-    {
-        *result_listener << "expected screen window " << value << ", got " << arg.screenWindow;
-        return false;
-    }
-
-    *result_listener << "has screen window " << value;
     return true;
 }
 
@@ -490,21 +391,13 @@ void TestPbrtScene::SetUp()
     otk::pbrt::LookAtDefinition&            lookAt = m_sceneDesc->lookAt;
     otk::pbrt::PerspectiveCameraDefinition& camera = m_sceneDesc->camera;
 
-    lookAt.lookAt                = P3( 111.0f, 222.0f, 3333.0f );
-    lookAt.eye                   = P3( 444.0f, 555.0f, 666.0f );
-    lookAt.up                    = Normalize( V3( 1.0f, 2.0f, 3.0f ) );
-    camera.defined               = true;
-    camera.fov                   = 45.0f;
-    camera.focalDistance         = 3000.0f;
-    camera.lensRadius            = 0.125f;
-    camera.screenWindowSpecified = true;
-    camera.screenWindow[0]       = -2.0f;
-    camera.screenWindow[1]       = 3.0f;
-    camera.screenWindow[2]       = -4.0f;
-    camera.screenWindow[3]       = 5.0f;
-    camera.cameraToWorld         = Inverse( LookAt( lookAt.eye, lookAt.lookAt, lookAt.up ) );
-    camera.cameraToScreen        = pbrt::Perspective( camera.fov, 1e-2f, 1000.f );
-    m_sceneDesc->bounds          = toBounds3( m_sceneBounds );
+    lookAt.lookAt        = P3( 111.0f, 222.0f, 3333.0f );
+    lookAt.eye           = P3( 444.0f, 555.0f, 666.0f );
+    lookAt.up            = Normalize( V3( 1.0f, 2.0f, 3.0f ) );
+    camera.defined       = true;
+    camera.fov           = 45.0f;
+    camera.cameraToWorld = Inverse( LookAt( lookAt.eye, lookAt.lookAt, lookAt.up ) );
+    m_sceneDesc->bounds  = toBounds3( m_sceneBounds );
 
     m_topLevelASSizes.tempSizeInBytes   = 1234U;
     m_topLevelASSizes.outputSizeInBytes = 5678U;
@@ -679,11 +572,7 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
     const V3 expectedUp{ Normalize( camera.cameraToWorld( V3( 0.0f, 1.0f, 0.0f ) ) ) };
     EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( expectedEye ), hasLookAt( expectedEye + expectedDirection ),
                                                 hasUp( expectedUp ) ) ) );
-    EXPECT_CALL( *m_renderer, setCamera( AllOf( hasCameraToWorldTransform( camera.cameraToWorld ),
-                                                hasWorldToCameraTransform( Inverse( camera.cameraToWorld ) ),
-                                                hasCameraToScreenTransform( camera.cameraToScreen ),
-                                                hasFov( camera.fov ),
-                                                hasScreenWindow( make_float4( -2.0f, 3.0f, -4.0f, 5.0f ) ) ) ) );
+    EXPECT_CALL( *m_renderer, setCamera( hasFov( camera.fov ) ) );
 
     m_scene->initialize( m_stream );
 }
@@ -696,9 +585,7 @@ TEST_F( TestPbrtScene, initializeSetsDefaultCameraWhenMissingFromScene )
     EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( P3( 0.0f, 0.0f, 0.0f ) ), hasLookAt( P3( 0.0f, 0.0f, -3.0f ) ),
                                                 hasUp( V3( 0.0f, 1.0f, 0.0f ) ) ) ) );
     const otk::pbrt::PerspectiveCameraDefinition& camera = m_sceneDesc->camera;
-    EXPECT_CALL( *m_renderer,
-                 setCamera( AllOf( hasFov( camera.fov ), hasFocalDistance( camera.focalDistance ),
-                                   hasLensRadius( camera.lensRadius ), hasCameraToWorldTransform( camera.cameraToWorld ) ) ) );
+    EXPECT_CALL( *m_renderer, setCamera( hasFov( camera.fov ) ) );
 
     m_scene->initialize( m_stream );
 }

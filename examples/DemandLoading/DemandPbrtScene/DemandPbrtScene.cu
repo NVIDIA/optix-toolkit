@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
-#include "DemandPbrtScene/CameraMath.h"
 #include "DemandPbrtScene/DeviceTriangles.h"
 #include "DemandPbrtScene/Params.h"
 #include "DemandPbrtScene/PhongShade.h"
@@ -154,22 +153,14 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const int                subframe{ static_cast<int>( params.accumulator[pixel].w ) };
     unsigned int             rseed{ srand( idx.x, idx.y, subframe ) };
 
-    // Compute ray as pbrt would.
-    const otk::Transform4 screenToRaster{ makePbrtScreenToRaster( camera.screenWindow, imageSize ) };
-    const otk::Transform4 rasterToScreen{ inverse( screenToRaster ) };
-    const otk::Transform4 rasterToCamera{
-        makePbrtRasterToCamera( camera.cameraToScreen, camera.screenWindow, imageSize ) };
-    const float3               filmPos{ static_cast<float>( idx.x ), static_cast<float>( idx.y ), 0.0f };
-    const PerspectiveCameraRay pbrtRay{ makePbrtPerspectiveCameraRay( camera.cameraToWorld, rasterToCamera, filmPos ) };
-
     // Compute ray using look at parameters.
     const float2 d = make_float2( idx.x + rnd( rseed ), idx.y + rnd( rseed ) ) / imageSize * 2.f - 1.f;
     float3       u;
     float3       v;
     float3       w;
     uvwFrame( lookAt, camera, u, v, w );
-    const float3 pinholeRayOrigin = lookAt.eye;
-    const float3 pinholeRayDir    = otk::normalize( d.x * u + d.y * v + w );
+    float3 rayOrigin    = lookAt.eye;
+    float3 rayDirection = otk::normalize( d.x * u + d.y * v + w );
 
     const float         tMin         = params.sceneEpsilon;
     const float         tMax         = 1e16f;
@@ -178,66 +169,28 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     const uint_t        sbtOffset    = RAYTYPE_RADIANCE;
     const uint_t        missSbtIndex = RAYTYPE_RADIANCE;
 
-    const bool usePinhole{ params.usePinholeCamera };
     if( otk::atDebugIndex( params.debug, idx ) )
     {
-        if( usePinhole )
-        {
-            printf(
-                "pinhole raygen [%u,%u] "                                    //
-                "org: (%g, %g, %g), "                                        //
-                "dir: <%g, %g, %g>, "                                        //
-                "LA: E(%g, %g, %g), "                                        //
-                "A(%g, %g, %g), "                                            //
-                "U<%g, %g, %g>, "                                            //
-                "Cam: U:<%3g, %3g, %3g>, "                                   //
-                "V:<%3g, %3g, %3g>, "                                        //
-                "W:<%3g, %3g, %3g>\n",                                       //
-                idx.x, idx.y,                                                //
-                pinholeRayOrigin.x, pinholeRayOrigin.y, pinholeRayOrigin.z,  //
-                pinholeRayDir.x, pinholeRayDir.y, pinholeRayDir.z,           //
-                lookAt.eye.x, lookAt.eye.y, lookAt.eye.z,                    //
-                lookAt.lookAt.x, lookAt.lookAt.y, lookAt.lookAt.z,           //
-                lookAt.up.x, lookAt.up.y, lookAt.up.z,                       //
-                u.x, u.y, u.z,                                               //
-                v.x, v.y, v.z,                                               //
-                w.x, w.y, w.z                                                //
-            );
-        }
-        else
-        {
-            printf(
-                "pbrt raygen [%g,%g] "                                               //
-                "org: (%g, %g, %g), "                                                //
-                "dir: <%g, %g, %g> "                                                 //
-                "filmPos: (%g, %g, %g), "                                            //
-                "cameraPos: (%g, %g, %g)\n",                                         //
-                filmPos.x, filmPos.y,                                                //
-                pbrtRay.origin.x, pbrtRay.origin.y, pbrtRay.origin.z,                //
-                pbrtRay.direction.x, pbrtRay.direction.y, pbrtRay.direction.z,       //
-                filmPos.x, filmPos.y, filmPos.z,                                     //
-                pbrtRay.cameraPoint.x, pbrtRay.cameraPoint.y, pbrtRay.cameraPoint.z  //
-            );
-            auto printMatrix = []( const char* label, const otk::Transform4& transform ) {
-                printf(
-                    "    %s:\n"                                                              //
-                    "        %g, %g, %g, %g\n"                                               //
-                    "        %g, %g, %g, %g\n"                                               //
-                    "        %g, %g, %g, %g\n"                                               //
-                    "        %g, %g, %g, %g\n",                                              //
-                    label,                                                                   //
-                    transform.m[0].x, transform.m[0].y, transform.m[0].z, transform.m[0].w,  //
-                    transform.m[1].x, transform.m[1].y, transform.m[1].z, transform.m[1].w,  //
-                    transform.m[2].x, transform.m[2].y, transform.m[2].z, transform.m[2].w,  //
-                    transform.m[3].x, transform.m[3].y, transform.m[3].z, transform.m[3].w   //
-                );
-            };
-            printf( "pbrt matrices\n" );
-            printMatrix( "screenToRaster", screenToRaster );
-            printMatrix( "cameraToScreen", camera.cameraToScreen );
-            printMatrix( "rasterToScreen", rasterToScreen );
-            printMatrix( "rasterToCamera", rasterToCamera );
-        }
+        printf(
+            "pinhole raygen [%u,%u] "                           //
+            "org: (%g, %g, %g), "                               //
+            "dir: <%g, %g, %g>, "                               //
+            "LA: E(%g, %g, %g), "                               //
+            "A(%g, %g, %g), "                                   //
+            "U<%g, %g, %g>, "                                   //
+            "Cam: U:<%3g, %3g, %3g>, "                          //
+            "V:<%3g, %3g, %3g>, "                               //
+            "W:<%3g, %3g, %3g>\n",                              //
+            idx.x, idx.y,                                       //
+            rayOrigin.x, rayOrigin.y, rayOrigin.z,              //
+            rayDirection.x, rayDirection.y, rayDirection.z,     //
+            lookAt.eye.x, lookAt.eye.y, lookAt.eye.z,           //
+            lookAt.lookAt.x, lookAt.lookAt.y, lookAt.lookAt.z,  //
+            lookAt.up.x, lookAt.up.y, lookAt.up.z,              //
+            u.x, u.y, u.z,                                      //
+            v.x, v.y, v.z,                                      //
+            w.x, w.y, w.z                                       //
+        );
     }
 
     RayPayload   prd{};
@@ -246,8 +199,6 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     packPointer( &prd, u0, u1 );
 
     prd.rayDistance = tMax;
-    float3  rayOrigin{ usePinhole ? pinholeRayOrigin : pbrtRay.origin };
-    float3  rayDirection{ usePinhole ? pinholeRayDir : pbrtRay.direction };
     RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
