@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/Scene.h"
 
+#include "DemandPbrtScene/CameraMath.h"
 #include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
@@ -162,6 +163,11 @@ void PbrtScene::setCamera()
     camera.focalDistance = sceneCamera.focalDistance;
     camera.lensRadius    = sceneCamera.lensRadius;
     camera.aspectRatio   = static_cast<float>( m_options.width ) / static_cast<float>( m_options.height );
+    const float4 explicitScreenWindow{ make_float4( sceneCamera.screenWindow[0], sceneCamera.screenWindow[1],
+                                                    sceneCamera.screenWindow[2], sceneCamera.screenWindow[3] ) };
+    camera.screenWindow = getPbrtScreenWindow( camera.aspectRatio, sceneCamera.frameAspectRatioSpecified,
+                                               sceneCamera.frameAspectRatio, sceneCamera.screenWindowSpecified,
+                                               explicitScreenWindow );
     toFloat4Transform( camera.cameraToWorld.m, sceneCamera.cameraToWorld.GetMatrix() );
     toFloat4Transform( camera.worldToCamera.m, sceneCamera.cameraToWorld.GetInverseMatrix() );
     toFloat4Transform( camera.cameraToScreen.m, sceneCamera.cameraToScreen.GetMatrix() );
