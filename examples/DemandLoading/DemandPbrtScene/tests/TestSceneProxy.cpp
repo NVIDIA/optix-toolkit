@@ -734,6 +734,38 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtDiffuseTextures )
     }
 }
 
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardDiffuseTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "checkerboard"
+            "rgb tex1" [ 1 0 0 ]
+            "rgb tex2" [ 0 1 0 ]
+            "float uscale" [ 2 ]
+            "float vscale" [ 4 ]
+        Material "matte"
+            "texture Kd" [ "diffuseTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtCheckerboardDefinition definition{ parsePbrtCheckerboardTextureKey( material.diffuseMapFileName ) };
+
+    EXPECT_TRUE( isPbrtCheckerboardTextureKey( material.diffuseMapFileName ) );
+    EXPECT_FLOAT_EQ( 1.0f, definition.tex1.x );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex1.y );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex1.z );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex2.x );
+    EXPECT_FLOAT_EQ( 1.0f, definition.tex2.y );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex2.z );
+    EXPECT_FLOAT_EQ( 2.0f, definition.uscale );
+    EXPECT_FLOAT_EQ( 4.0f, definition.vscale );
+    EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
 TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtAlphaTextureParameters )
 {
     for( const char* paramName : { "alpha", "shadowalpha", "opacity" } )
@@ -749,6 +781,34 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtAlphaTextureParameters )
         EXPECT_THAT( material.alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
         EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( shape ) );
     }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardAlphaTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "checkerboard"
+            "float tex1" [ 1 ]
+            "float tex2" [ 0 ]
+            "float uscale" [ 2 ]
+            "float vscale" [ 2 ]
+        Material "uber"
+            "texture opacity" [ "alphaTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtCheckerboardDefinition definition{ parsePbrtCheckerboardTextureKey( material.alphaMapFileName ) };
+
+    EXPECT_TRUE( isPbrtCheckerboardTextureKey( material.alphaMapFileName ) );
+    EXPECT_FLOAT_EQ( 1.0f, definition.tex1.x );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex2.x );
+    EXPECT_FLOAT_EQ( 2.0f, definition.uscale );
+    EXPECT_FLOAT_EQ( 2.0f, definition.vscale );
+    EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 
 TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtAlphaCutouts )

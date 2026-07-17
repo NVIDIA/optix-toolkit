@@ -50,6 +50,7 @@ add_library(DemandPbrtSceneImpl STATIC
     Options.cpp
     OptixRenderer.cpp
     PbrtAlphaMapImageSource.cpp
+    PbrtCheckerboardImageSource.cpp
     PbrtScene.cpp
     ProgramGroups.cpp
     SceneProxy.cpp
@@ -79,6 +80,7 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/OptixRenderer.h
     include/DemandPbrtScene/Params.h
     include/DemandPbrtScene/PbrtAlphaMapImageSource.h
+    include/DemandPbrtScene/PbrtCheckerboardImageSource.h
     include/DemandPbrtScene/Primitive.h
     include/DemandPbrtScene/ProgramGroups.h
     include/DemandPbrtScene/ProxyFactoryStatistics.h

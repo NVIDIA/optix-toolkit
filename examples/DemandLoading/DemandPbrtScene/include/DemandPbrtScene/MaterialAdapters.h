@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/PbrtCheckerboardImageSource.h"
 
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 
@@ -50,19 +51,27 @@ inline const otk::pbrt::PbrtTexture* findPbrtTexture( const otk::pbrt::PbrtMater
     return nullptr;
 }
 
-inline std::string imageMapFileName( const otk::pbrt::PbrtTexture* texture )
+inline std::string pbrtTextureMapName( const otk::pbrt::PbrtTexture* texture )
 {
-    if( texture == nullptr || texture->type != "imagemap" )
+    if( texture == nullptr )
     {
         return {};
     }
-    return texture->params.FindOneFilename( "filename", "" );
+    if( texture->type == "imagemap" )
+    {
+        return texture->params.FindOneFilename( "filename", "" );
+    }
+    if( texture->type == "checkerboard" )
+    {
+        return pbrtCheckerboardTextureKey( *texture );
+    }
+    return {};
 }
 
 inline std::string pbrtDiffuseMapFileName( const otk::pbrt::PbrtMaterial& material )
 {
     const std::string textureName{ material.params.FindTexture( "Kd" ) };
-    return imageMapFileName( findPbrtTexture( material, textureName, { "spectrum", "color" } ) );
+    return pbrtTextureMapName( findPbrtTexture( material, textureName, { "spectrum", "color" } ) );
 }
 
 inline std::string pbrtAlphaMapFileName( const otk::pbrt::PbrtMaterial& material )
@@ -70,7 +79,7 @@ inline std::string pbrtAlphaMapFileName( const otk::pbrt::PbrtMaterial& material
     for( const char* paramName : { "alpha", "shadowalpha", "opacity" } )
     {
         const std::string textureName{ material.params.FindTexture( paramName ) };
-        const std::string fileName{ imageMapFileName( findPbrtTexture( material, textureName, { "float" } ) ) };
+        const std::string fileName{ pbrtTextureMapName( findPbrtTexture( material, textureName, { "float" } ) ) };
         if( !fileName.empty() )
         {
             return fileName;

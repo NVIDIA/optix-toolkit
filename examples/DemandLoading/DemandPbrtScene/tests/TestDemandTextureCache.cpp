@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+// gtest has to come before pbrt stuff
+#include <gmock/gmock.h>
+
 #include <DemandPbrtScene/DemandTextureCache.h>
 
 #include <DemandPbrtScene/Dependencies.h>
 #include <DemandPbrtScene/ImageSourceFactory.h>
+#include <DemandPbrtScene/PbrtCheckerboardImageSource.h>
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/Testing/MockDemandLoader.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/Testing/MockImageSource.h>
-
-#include <gmock/gmock.h>
 
 using namespace testing;
 using namespace demandPbrtScene;
@@ -137,6 +139,47 @@ TEST_F( TestDemandTextureCache, cachesDiffuseTexture )
     EXPECT_EQ( 1, stats.numDiffuseTexturesCreated );
 }
 
+TEST_F( TestDemandTextureCache, cachesProceduralDiffuseTexture )
+{
+    const std::string key{ makePbrtCheckerboardTextureKey(
+        { float4{ 1.0f, 0.0f, 0.0f, 1.0f }, float4{ 0.0f, 1.0f, 0.0f, 1.0f }, 2.0f, 2.0f, 0.0f, 0.0f } ) };
+    EXPECT_CALL( *m_demandLoader, createTexture( NotNull(), expectedTextureDesc() ) )
+        .WillOnce( ReturnRef( m_diffuseTexture ) );
+    EXPECT_CALL( m_diffuseTexture, getId() ).WillOnce( Return( m_diffuseTextureId ) );
+
+    const uint_t result       = m_cache->createDiffuseTextureFromFile( key );
+    const uint_t cachedResult = m_cache->createDiffuseTextureFromFile( key );
+    const Stats  stats        = m_cache->getStatistics();
+
+    EXPECT_EQ( m_diffuseTextureId, result );
+    EXPECT_EQ( m_diffuseTextureId, cachedResult );
+    EXPECT_EQ( 1, stats.numDiffuseTexturesCreated );
+}
+
+TEST_F( TestDemandTextureCache, differentProceduralDiffuseKeysCreateDifferentTextures )
+{
+    const PbrtCheckerboardDefinition firstDefinition{
+        float4{ 1.0f, 0.0f, 0.0f, 1.0f }, float4{ 0.0f, 1.0f, 0.0f, 1.0f }, 2.0f, 2.0f, 0.0f, 0.0f };
+    PbrtCheckerboardDefinition secondDefinition{ firstDefinition };
+    secondDefinition.uscale = 4.0f;
+    const std::string firstKey{ makePbrtCheckerboardTextureKey( firstDefinition ) };
+    const std::string secondKey{ makePbrtCheckerboardTextureKey( secondDefinition ) };
+    EXPECT_CALL( *m_demandLoader, createTexture( NotNull(), expectedTextureDesc() ) )
+        .WillOnce( ReturnRef( m_diffuseTexture ) )
+        .WillOnce( ReturnRef( m_alphaTexture ) );
+    EXPECT_CALL( m_diffuseTexture, getId() ).WillOnce( Return( m_diffuseTextureId ) );
+    EXPECT_CALL( m_alphaTexture, getId() ).WillOnce( Return( m_alphaTextureId ) );
+
+    const uint_t first  = m_cache->createDiffuseTextureFromFile( firstKey );
+    const uint_t second = m_cache->createDiffuseTextureFromFile( secondKey );
+    const Stats  stats  = m_cache->getStatistics();
+
+    EXPECT_EQ( m_diffuseTextureId, first );
+    EXPECT_EQ( m_alphaTextureId, second );
+    EXPECT_NE( first, second );
+    EXPECT_EQ( 2, stats.numDiffuseTexturesCreated );
+}
+
 TEST_F( TestDemandTextureCache, cachesAlphaTexture )
 {
     expectAlphaTextureCreated();
@@ -147,6 +190,21 @@ TEST_F( TestDemandTextureCache, cachesAlphaTexture )
 
     EXPECT_EQ( m_alphaTextureId, result );
     EXPECT_EQ( m_alphaTextureId, cachedResult );
+    EXPECT_EQ( 1, stats.numAlphaTexturesCreated );
+}
+
+TEST_F( TestDemandTextureCache, createsProceduralAlphaTexture )
+{
+    const std::string key{ makePbrtCheckerboardTextureKey(
+        { float4{ 1.0f, 1.0f, 1.0f, 1.0f }, float4{ 0.0f, 0.0f, 0.0f, 1.0f }, 2.0f, 2.0f, 0.0f, 0.0f } ) };
+    EXPECT_CALL( *m_demandLoader, createTexture( NotNull(), expectedTextureDesc() ) )
+        .WillOnce( ReturnRef( m_alphaTexture ) );
+    EXPECT_CALL( m_alphaTexture, getId() ).WillOnce( Return( m_alphaTextureId ) );
+
+    const uint_t result = m_cache->createAlphaTextureFromFile( key );
+    const Stats  stats  = m_cache->getStatistics();
+
+    EXPECT_EQ( m_alphaTextureId, result );
     EXPECT_EQ( 1, stats.numAlphaTexturesCreated );
 }
 

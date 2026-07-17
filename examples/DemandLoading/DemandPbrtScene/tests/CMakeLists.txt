@@ -25,6 +25,7 @@ add_executable(TestDemandPbrtSceneImpl
     TestOptixRenderer.cpp
     TestParams.cpp
     TestPbrtAlphaMapImageSource.cpp
+    TestPbrtCheckerboardImageSource.cpp
     TestPbrtScene.cpp
     TestProgramGroups.cpp
     TestIdRangePrinter.cpp

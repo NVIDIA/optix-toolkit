@@ -5,6 +5,8 @@
 #include "DemandPbrtScene/DemandTextureCache.h"
 
 #include "DemandPbrtScene/ImageSourceFactory.h"
+#include "DemandPbrtScene/PbrtAlphaMapImageSource.h"
+#include "DemandPbrtScene/PbrtCheckerboardImageSource.h"
 
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
@@ -47,8 +49,11 @@ class DemandTextureCacheImpl : public DemandTextureCache
         {
             return it->second;
         }
-        const ImageSourcePtr imageSource = m_imageSourceFactory->createDiffuseImageFromFile( path );
-        const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( imageSource, textureDescription() );
+        const ImageSourcePtr imageSource = isPbrtCheckerboardTextureKey( path )
+                                               ? createPbrtCheckerboardImageSource( path )
+                                               : m_imageSourceFactory->createDiffuseImageFromFile( path );
+        const demandLoading::DemandTexture& texture =
+            m_demandLoader->createTexture( imageSource, textureDescription() );
         ++m_stats.numDiffuseTexturesCreated;
         const uint_t id = texture.getId();
         m_diffuseCache[path] = id;
@@ -66,8 +71,12 @@ class DemandTextureCacheImpl : public DemandTextureCache
         {
             return it->second;
         }
-        const ImageSourcePtr imageSource = m_imageSourceFactory->createAlphaImageFromFile( path );
-        const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( imageSource, textureDescription() );
+        const ImageSourcePtr imageSource =
+            isPbrtCheckerboardTextureKey( path )
+                ? std::make_shared<PbrtAlphaMapImageSource>( createPbrtCheckerboardImageSource( path ) )
+                : m_imageSourceFactory->createAlphaImageFromFile( path );
+        const demandLoading::DemandTexture& texture =
+            m_demandLoader->createTexture( imageSource, textureDescription() );
         ++m_stats.numAlphaTexturesCreated;
         const uint_t id = texture.getId();
         m_alphaCache[path] = id;
@@ -86,7 +95,8 @@ class DemandTextureCacheImpl : public DemandTextureCache
             return it->second;
         }
         const ImageSourcePtr imageSource = m_imageSourceFactory->createSkyboxImageFromFile( path );
-        const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( imageSource, textureDescription() );
+        const demandLoading::DemandTexture& texture =
+            m_demandLoader->createTexture( imageSource, textureDescription() );
         ++m_stats.numSkyboxTexturesCreated;
         const uint_t id = texture.getId();
         m_skyboxCache[path] = id;
@@ -111,7 +121,8 @@ private:
 
 }  // namespace
 
-DemandTextureCachePtr createDemandTextureCache( DemandLoaderPtr demandLoader, ImageSourceFactoryPtr imageSourceFactory )
+DemandTextureCachePtr createDemandTextureCache( DemandLoaderPtr demandLoader,
+                                                ImageSourceFactoryPtr imageSourceFactory )
 {
     return std::make_shared<DemandTextureCacheImpl>( std::move( demandLoader ), std::move( imageSourceFactory ) );
 }
