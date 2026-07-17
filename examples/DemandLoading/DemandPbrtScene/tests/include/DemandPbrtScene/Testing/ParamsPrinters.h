@@ -40,6 +40,48 @@ inline std::ostream& operator<<( std::ostream& str, const PartialMaterial& value
     return str << "PartialMaterial{ " << value.alphaTextureId << " }";
 }
 
+inline std::ostream& operator<<( std::ostream& str, MaterialBackend value )
+{
+    switch( value )
+    {
+        case MaterialBackend::NONE:
+            return str << "None";
+        case MaterialBackend::LOCAL_FALLBACK:
+            return str << "LocalFallback";
+        case MaterialBackend::MDL_READY:
+            return str << "MdlReady";
+        case MaterialBackend::MDL_PENDING:
+            return str << "MdlPending";
+        case MaterialBackend::MDL_FAILED:
+            return str << "MdlFailed";
+    }
+    return str << "UnknownMaterialBackend{ " << +value << " }";
+}
+
+inline std::ostream& operator<<( std::ostream& str, MaterialFallbackReason value )
+{
+    switch( value )
+    {
+        case MaterialFallbackReason::NONE:
+            return str << "None";
+        case MaterialFallbackReason::NO_MDL_BACKEND:
+            return str << "NoMdlBackend";
+        case MaterialFallbackReason::MDL_PENDING:
+            return str << "MdlPending";
+        case MaterialFallbackReason::MDL_FAILED:
+            return str << "MdlFailed";
+        case MaterialFallbackReason::UNSUPPORTED:
+            return str << "Unsupported";
+    }
+    return str << "UnknownMaterialFallbackReason{ " << +value << " }";
+}
+
+inline std::ostream& operator<<( std::ostream& str, const MaterialState& value )
+{
+    return str << "MaterialState{ id: " << value.materialId << ", backend: " << value.backend
+               << ", shaderKey: " << value.shaderKey << ", fallbackReason: " << value.fallbackReason << " }";
+}
+
 inline std::ostream& operator<<( std::ostream& str, const MaterialFlags val )
 {
     str << "MaterialFlags{ ";

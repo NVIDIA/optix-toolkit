@@ -278,6 +278,7 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     params.demandGeomContext   = m_geometryResolver->getContext();
     const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
     params.demandMaterialColor = yellow;
+    setSpan( params.numMaterialStates, params.materialStates, m_sync.materialStates );
     setSpan( params.numPartialMaterials, params.partialMaterials, m_sync.partialMaterials );
     setSpan( params.numRealizedMaterials, params.realizedMaterials, m_sync.realizedMaterials );
     setSpan( params.numMaterialIndices, params.materialIndices, m_sync.materialIndices );

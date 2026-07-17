@@ -160,6 +160,55 @@ inline bool operator!=( const PartialMaterial& lhs, const PartialMaterial& rhs )
     return !( lhs == rhs );
 }
 
+enum class MaterialBackend : uint_t
+{
+    NONE           = 0,
+    LOCAL_FALLBACK = 1,
+    MDL_READY      = 2,
+    MDL_PENDING    = 3,
+    MDL_FAILED     = 4,
+};
+
+inline uint_t operator+( MaterialBackend value )
+{
+    return static_cast<uint_t>( value );
+}
+
+enum class MaterialFallbackReason : uint_t
+{
+    NONE           = 0,
+    NO_MDL_BACKEND = 1,
+    MDL_PENDING    = 2,
+    MDL_FAILED     = 3,
+    UNSUPPORTED    = 4,
+};
+
+inline uint_t operator+( MaterialFallbackReason value )
+{
+    return static_cast<uint_t>( value );
+}
+
+struct MaterialState
+{
+    uint_t                 materialId;
+    MaterialBackend        backend;
+    uint_t                 shaderKey;
+    MaterialFallbackReason fallbackReason;
+};
+
+inline bool operator==( const MaterialState& lhs, const MaterialState& rhs )
+{
+    return lhs.materialId == rhs.materialId  //
+           && lhs.backend == rhs.backend     //
+           && lhs.shaderKey == rhs.shaderKey
+           && lhs.fallbackReason == rhs.fallbackReason;
+}
+
+inline bool operator!=( const MaterialState& lhs, const MaterialState& rhs )
+{
+    return !( lhs == rhs );
+}
+
 struct PhongMaterial
 {
     float3        Ka;
@@ -267,6 +316,8 @@ struct Params
     demandLoading::DeviceContext  demandContext;
     demandGeometry::Context       demandGeomContext;
     float3                        demandMaterialColor;
+    uint_t                        numMaterialStates;  //
+    const MaterialState*          materialStates;     // indexed by materialId
     uint_t                        numPartialMaterials;     //
     const PartialMaterial*        partialMaterials;        // indexed by materialId
     uint_t                        numRealizedMaterials;    //

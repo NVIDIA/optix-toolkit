@@ -97,6 +97,28 @@ std::string toString( const std::vector<uint_t>& ids )
     return result;
 }
 
+MaterialState localFallbackState( uint_t materialId )
+{
+    return MaterialState{ materialId, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::NO_MDL_BACKEND };
+}
+
+void setMaterialState( SceneSyncState& sync, uint_t materialId, MaterialState state )
+{
+    grow( sync.materialStates, materialId + 1 );
+    sync.materialStates[materialId] = state;
+}
+
+bool isReadyLocalFallback( const SceneSyncState& sync, uint_t materialId )
+{
+    if( materialId >= sync.materialStates.size() )
+    {
+        return false;
+    }
+
+    const MaterialState& state{ sync.materialStates[materialId] };
+    return state.materialId == materialId && state.backend == MaterialBackend::LOCAL_FALLBACK;
+}
+
 MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_t>&    requestedMaterials,
                                                                SceneSyncState&         sync,
                                                                const SceneGeometryPtr& geom,
@@ -130,6 +152,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             grow( sync.partialUVs, numProxyMaterials );
             sync.partialMaterials[groupMaterialId].alphaTextureId = group.material.alphaTextureId;
             sync.partialUVs[groupMaterialId]                      = geom->instance.devUVs;
+            setMaterialState( sync, groupMaterialId, localFallbackState( groupMaterialId ) );
             geom->instance.instance.sbtOffset                     = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
@@ -162,8 +185,10 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     }
 
     geom->instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( geom->instance );
-    const uint_t materialId{ containerSize( sync.realizedMaterials ) };
-    sync.realizedMaterials.push_back( group.material );
+    const uint_t materialId{ groupMaterialId };
+    grow( sync.realizedMaterials, materialId + 1 );
+    sync.realizedMaterials[materialId] = group.material;
+    setMaterialState( sync, materialId, localFallbackState( materialId ) );
     const uint_t materialIndex{ geom->instance.instance.instanceId };
     OTK_ASSERT( materialIndex < sync.materialIndices.size() );
     sync.primitiveMaterials[sync.materialIndices[materialIndex].primitiveMaterialBegin + index].materialId = materialId;
@@ -269,10 +294,12 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
         case MaterialResolution::NONE:
             break;
         case MaterialResolution::PARTIAL:
+            syncState.materialStates.copyToDeviceAsync( stream );
             syncState.partialMaterials.copyToDeviceAsync( stream );
             syncState.partialUVs.copyToDeviceAsync( stream );
             break;
         case MaterialResolution::FULL:
+            syncState.materialStates.copyToDeviceAsync( stream );
             syncState.partialMaterials.copyToDeviceAsync( stream );
             syncState.partialUVs.copyToDeviceAsync( stream );
             syncState.realizedNormals.copyToDeviceAsync( stream );
@@ -313,28 +340,33 @@ std::optional<uint_t> PbrtMaterialResolver::findResolvedMaterial( const Material
     }
 
     // TODO: consider a sorted container for binary search instead of linear search of m_realizedMaterials
-    const auto it =
-        std::find_if( syncState.realizedMaterials.cbegin(), syncState.realizedMaterials.cend(), [&]( const PhongMaterial& entry ) {
-            return group.material.Ka == entry.Ka                 //
-                   && group.material.Kd == entry.Kd              //
-                   && group.material.Ks == entry.Ks              //
-                   && group.material.Kr == entry.Kr              //
-                   && group.material.phongExp == entry.phongExp  //
-                   && ( group.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
-                          == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
-                   && ( !diffuseTextureId || diffuseTextureId == entry.diffuseTextureId )
-                   && ( !alphaTextureId || alphaTextureId == entry.alphaTextureId );
-        } );
-    if( it != syncState.realizedMaterials.cend() )
+    for( uint_t materialId = 0; materialId < syncState.realizedMaterials.size(); ++materialId )
     {
-        return { toUInt( std::distance( syncState.realizedMaterials.cbegin(), it ) ) };
+        if( !isReadyLocalFallback( syncState, materialId ) )
+        {
+            continue;
+        }
+
+        const PhongMaterial& entry{ syncState.realizedMaterials[materialId] };
+        if( group.material.Ka == entry.Ka                 //
+            && group.material.Kd == entry.Kd              //
+            && group.material.Ks == entry.Ks              //
+            && group.material.Kr == entry.Kr              //
+            && group.material.phongExp == entry.phongExp  //
+            && ( group.material.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+                   == ( entry.flags & ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP ) )
+            && ( !diffuseTextureId || diffuseTextureId == entry.diffuseTextureId )
+            && ( !alphaTextureId || alphaTextureId == entry.alphaTextureId ) )
+        {
+            return { materialId };
+        }
     }
 
     return {};
 }
 
 bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
-                                                              uint_t                  materialIndex,
+                                                              uint_t                  materialId,
                                                               const SceneGeometryPtr& geom,
                                                               MaterialGroup&          group,
                                                               SceneSyncState&         syncState )
@@ -352,8 +384,9 @@ bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t            
     markAllocated( MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED );
 
     // reuse already realized material
-    geom->materialIds.push_back( materialIndex );
-    OTK_ASSERT( materialIndex < syncState.materialIndices.size() );
+    geom->materialIds.push_back( materialId );
+    OTK_ASSERT( materialId < syncState.realizedMaterials.size() );
+    OTK_ASSERT( isReadyLocalFallback( syncState, materialId ) );
     const uint_t index{ geom->instance.instance.instanceId };
     grow( syncState.realizedNormals, index + 1 );
     grow( syncState.realizedUVs, index + 1 );
@@ -361,14 +394,14 @@ bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t            
     OTK_ASSERT( index < syncState.realizedUVs.size() );
     syncState.realizedNormals[index] = geom->instance.devNormals;
     syncState.realizedUVs[index] = geom->instance.devUVs;
-    syncState.primitiveMaterials.push_back( PrimitiveMaterialRange{ group.primitiveIndexEnd, materialIndex } );
-    m_proxyMaterialGeometries[materialIndex] = geom;
+    syncState.primitiveMaterials.push_back( PrimitiveMaterialRange{ group.primitiveIndexEnd, materialId } );
+    m_proxyMaterialGeometries[materialId] = geom;
     ++m_stats.numMaterialsReused;
 
     if( m_options.verboseProxyGeometryResolution )
     {
         std::cout << "Resolved proxy geometry id " << proxyGeomId << " to geometry instance id " << geom->instanceIndex
-                  << " with existing material id " << materialIndex << '\n';
+                  << " with existing material id " << materialId << '\n';
     }
 
     return true;
@@ -382,6 +415,7 @@ void PbrtMaterialResolver::resolveGeometryToProxyMaterial( uint_t               
     const uint_t materialId{ m_materialLoader->add() };
     geom->materialIds.push_back( materialId );
     syncState.primitiveMaterials.push_back( PrimitiveMaterialRange{ group.primitiveIndexEnd, materialId } );
+    setMaterialState( syncState, materialId, localFallbackState( materialId ) );
     m_proxyMaterialGeometries[materialId] = geom;
     if( m_options.verboseProxyGeometryResolution )
     {

@@ -68,6 +68,20 @@ PhongMaterial arbitraryThirdPhongMaterial()
     return result;
 }
 
+MaterialState localFallbackState( uint_t materialId )
+{
+    return MaterialState{ materialId, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::NO_MDL_BACKEND };
+}
+
+void setLocalFallbackState( SceneSyncState& sync, uint_t materialId )
+{
+    if( sync.materialStates.size() <= materialId )
+    {
+        sync.materialStates.resize( materialId + 1 );
+    }
+    sync.materialStates[materialId] = localFallbackState( materialId );
+}
+
 inline ListenerPredicate<GeometryInstance> hasMaterialFlags( MaterialFlags value )
 {
     return [=]( MatchResultListener* listener, const GeometryInstance& arg ) {
@@ -191,6 +205,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialForGeometry
     EXPECT_EQ( 1U, m_sync.primitiveMaterials.size() );
     EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
     EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialsForCoarseGeometry )
@@ -215,6 +231,9 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialsForCoarseG
     EXPECT_EQ( 2U, m_sync.primitiveMaterials.size() );
     EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId1 } ), m_sync.primitiveMaterials[0] );
     EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, proxyMaterialId2 } ), m_sync.primitiveMaterials[1] );
+    ASSERT_LT( proxyMaterialId2, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId1 ), m_sync.materialStates[proxyMaterialId1] );
+    EXPECT_EQ( localFallbackState( proxyMaterialId2 ), m_sync.materialStates[proxyMaterialId2] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeometry )
@@ -237,6 +256,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseMaterialForGeomet
     EXPECT_EQ( 1U, m_sync.materialIndices.size() );
     EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
     EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGeometry )
@@ -259,6 +280,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyAlphaCutOutMaterialForGe
     EXPECT_EQ( 1U, m_sync.materialIndices.size() );
     EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
     EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMaterialForGeometry )
@@ -283,6 +306,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyDiffuseAlphaCutOutMateri
     EXPECT_EQ( 1U, m_sync.materialIndices.size() );
     EXPECT_EQ( ( MaterialIndex{ 1, 0 } ), m_sync.materialIndices[0] );
     EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
 
 TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
@@ -294,6 +319,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
     const uint_t        otherMaterialId{ 0 };
     m_sync.realizedMaterials.push_back( otherMaterial );
     m_sync.realizedMaterials.push_back( existingMaterial );
+    setLocalFallbackState( m_sync, otherMaterialId );
+    setLocalFallbackState( m_sync, existingMaterialId );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
     m_sync.topLevelInstances.push_back( OptixInstance{} );
@@ -320,6 +347,32 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedPhongMaterialForGeometry )
     ASSERT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, existingMaterialId } ), m_sync.primitiveMaterials[4] );
 }
 
+TEST_F( TestMaterialResolverForGeometry, resolveSharedSparseMaterialIdForGeometry )
+{
+    const uint_t        proxyGeomId{ 1111 };
+    const PhongMaterial existingMaterial{ arbitraryPhongMaterial() };
+    const uint_t        existingMaterialId{ 4444U };
+    m_sync.realizedMaterials.resize( existingMaterialId + 1 );
+    m_sync.realizedMaterials[existingMaterialId] = existingMaterial;
+    setLocalFallbackState( m_sync, existingMaterialId );
+    EXPECT_CALL( *m_loader, add() ).Times( 0 );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) )
+        .WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+
+    const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
+
+    EXPECT_TRUE( result );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( 0U, m_sync.topLevelInstances.back().instanceId );
+    EXPECT_EQ( m_geom.instance.traversableHandle, m_sync.topLevelInstances.back().traversableHandle );
+    EXPECT_EQ( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_EQ( 1U, m_sync.materialIndices.size() );
+    EXPECT_EQ( ( MaterialIndex{ 1U, 0U } ), m_sync.materialIndices[0] );
+    ASSERT_EQ( 1U, m_sync.primitiveMaterials.size() );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, existingMaterialId } ),
+               m_sync.primitiveMaterials[0] );
+}
+
 TEST_F( TestMaterialResolverForGeometry, resolveOneProxyOneSharedMaterialForCoarseGeometry )
 {
     const uint_t         proxyGeomId{ 1111U };
@@ -334,6 +387,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveOneProxyOneSharedMaterialForCoar
     const uint_t        otherMaterialId{ 0 };
     m_sync.realizedMaterials.push_back( otherExistingMaterial );
     m_sync.realizedMaterials.push_back( existingMaterial );
+    setLocalFallbackState( m_sync, otherMaterialId );
+    setLocalFallbackState( m_sync, existingMaterialId );
     m_sync.materialIndices.push_back( MaterialIndex{ 1, 0 } );
     m_sync.materialIndices.push_back( MaterialIndex{ 1, 1 } );
     m_sync.materialIndices.push_back( MaterialIndex{ 1, 2 } );
@@ -370,6 +425,8 @@ TEST_F( TestMaterialResolverForGeometry, resolveSharedMaterialsForCoarseGeometry
     const uint_t        otherMaterialIndex{ 1U };
     m_sync.realizedMaterials.push_back( existingMaterial );
     m_sync.realizedMaterials.push_back( otherExistingMaterial );
+    setLocalFallbackState( m_sync, existingMaterialIndex );
+    setLocalFallbackState( m_sync, otherMaterialIndex );
     m_sync.materialIndices.push_back( MaterialIndex{ 1, 0 } );
     m_sync.materialIndices.push_back( MaterialIndex{ 1, 1 } );
     m_sync.materialIndices.push_back( MaterialIndex{ 1, 2 } );
@@ -426,6 +483,8 @@ TEST_F( TestMaterialResolverForGeometry, coarseGeometryRetainsTextureIdentityFor
     secondMaterial.alphaTextureId   = secondAlphaTextureId;
     m_sync.realizedMaterials.push_back( firstMaterial );
     m_sync.realizedMaterials.push_back( secondMaterial );
+    setLocalFallbackState( m_sync, firstMaterialIndex );
+    setLocalFallbackState( m_sync, secondMaterialIndex );
     m_sync.materialIndices.push_back( MaterialIndex{ 1U, 0U } );
     m_sync.materialIndices.push_back( MaterialIndex{ 1U, 1U } );
     m_sync.primitiveMaterials.push_back( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, firstMaterialIndex } );
@@ -485,7 +544,10 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
     EXPECT_EQ( MaterialResolution::FULL, result );
-    EXPECT_EQ( 1U, m_sync.realizedMaterials.size() );
+    ASSERT_EQ( proxyMaterialId + 1, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( arbitraryPhongMaterial(), m_sync.realizedMaterials[proxyMaterialId] );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
     EXPECT_EQ( 1U, m_sync.realizedNormals.size() );
     EXPECT_EQ( 1U, m_sync.realizedUVs.size() );
     const OptixInstance& instance{ m_sync.topLevelInstances.back() };
@@ -494,7 +556,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
     ASSERT_EQ( 1U, m_sync.materialIndices.size() );
     EXPECT_EQ( ( MaterialIndex{ 1U, 0U } ), m_sync.materialIndices[0] );
     ASSERT_EQ( 1U, m_sync.primitiveMaterials.size() );
-    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, 0U } ), m_sync.primitiveMaterials[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId } ), m_sync.primitiveMaterials[0] );
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numMaterialsRealized );
 }
@@ -517,9 +579,12 @@ TEST_F( TestMaterialResolverRequestedProxyIdsGroups, resolvePhongMaterialGroups 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
     EXPECT_EQ( MaterialResolution::FULL, result );
-    ASSERT_EQ( 2U, m_sync.realizedMaterials.size() );
-    EXPECT_EQ( arbitraryPhongMaterial(), m_sync.realizedMaterials[0] );
-    EXPECT_EQ( arbitraryOtherPhongMaterial(), m_sync.realizedMaterials[1] );
+    ASSERT_EQ( proxyMaterialId2 + 1, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( arbitraryPhongMaterial(), m_sync.realizedMaterials[proxyMaterialId1] );
+    EXPECT_EQ( arbitraryOtherPhongMaterial(), m_sync.realizedMaterials[proxyMaterialId2] );
+    ASSERT_LT( proxyMaterialId2, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId1 ), m_sync.materialStates[proxyMaterialId1] );
+    EXPECT_EQ( localFallbackState( proxyMaterialId2 ), m_sync.materialStates[proxyMaterialId2] );
     EXPECT_EQ( 1U, m_sync.realizedNormals.size() );
     EXPECT_EQ( 1U, m_sync.realizedUVs.size() );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
@@ -529,8 +594,8 @@ TEST_F( TestMaterialResolverRequestedProxyIdsGroups, resolvePhongMaterialGroups 
     ASSERT_EQ( 1U, m_sync.materialIndices.size() );
     EXPECT_EQ( ( MaterialIndex{ 2U, 0U } ), m_sync.materialIndices[0] );
     ASSERT_EQ( 2U, m_sync.primitiveMaterials.size() );
-    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, 0U } ), m_sync.primitiveMaterials[0] );
-    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, 1U } ), m_sync.primitiveMaterials[1] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END, proxyMaterialId1 } ), m_sync.primitiveMaterials[0] );
+    EXPECT_EQ( ( PrimitiveMaterialRange{ ARBITRARY_PRIMITIVE_INDEX_END2, proxyMaterialId2 } ), m_sync.primitiveMaterials[1] );
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 2U, stats.numMaterialsRealized );
 }
@@ -561,6 +626,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialPartial
     ASSERT_FALSE( m_sync.partialUVs.empty() );
     EXPECT_EQ( alphaTextureId, m_sync.partialMaterials.back().alphaTextureId );
     EXPECT_EQ( fakeUVs, m_sync.partialUVs.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA, m_sync.topLevelInstances.back().sbtOffset );
 }
@@ -601,8 +668,10 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveAlphaCutOutMaterialFull )
     const OptixInstance& topLevel{ m_sync.topLevelInstances.back() };
     EXPECT_EQ( +HitGroupIndex::REALIZED_MATERIAL_START, topLevel.sbtOffset );
     EXPECT_EQ( 0U, topLevel.instanceId );
-    ASSERT_FALSE( m_sync.realizedMaterials.empty() );
-    EXPECT_EQ( m_geom.groups[0].material, m_sync.realizedMaterials.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( m_geom.groups[0].material, m_sync.realizedMaterials[proxyMaterialId] );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
@@ -637,15 +706,17 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolveDiffuseMaterial )
     EXPECT_EQ( diffuseTextureId, m_sync.maxDiffuseTextureId );
     ASSERT_TRUE( m_sync.partialMaterials.empty() );
     ASSERT_TRUE( m_sync.partialUVs.empty() );
-    ASSERT_FALSE( m_sync.realizedMaterials.empty() );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
     ASSERT_FALSE( m_sync.realizedNormals.empty() );
     ASSERT_FALSE( m_sync.realizedUVs.empty() );
-    EXPECT_EQ( diffuseTextureId, m_sync.realizedMaterials.back().diffuseTextureId );
+    EXPECT_EQ( diffuseTextureId, m_sync.realizedMaterials[proxyMaterialId].diffuseTextureId );
     EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
     EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( +HitGroupIndex::REALIZED_MATERIAL_START, m_sync.topLevelInstances.back().sbtOffset );
-    EXPECT_TRUE( flagSet( m_sync.realizedMaterials.back().flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) );
+    EXPECT_TRUE( flagSet( m_sync.realizedMaterials[proxyMaterialId].flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, oneShotNotTriggeredDoesNothing )
