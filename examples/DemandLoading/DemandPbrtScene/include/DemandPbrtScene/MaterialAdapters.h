@@ -10,6 +10,9 @@
 
 #include <cuda_runtime.h>
 
+#include <initializer_list>
+#include <string>
+
 namespace demandPbrtScene {
 
 inline MaterialFlags plasticMaterialFlags( const otk::pbrt::PlasticMaterial& material )
@@ -22,9 +25,82 @@ inline MaterialFlags plasticMaterialFlags( const otk::pbrt::PlasticMaterial& mat
     return flags;
 }
 
+inline std::string pbrtTextureGraphKey( const std::string& valueType, const std::string& textureName )
+{
+    return valueType + ":" + textureName;
+}
+
+inline const otk::pbrt::PbrtTexture* findPbrtTexture( const otk::pbrt::PbrtMaterial& material,
+                                                      const std::string&             textureName,
+                                                      std::initializer_list<const char*> valueTypes )
+{
+    if( textureName.empty() )
+    {
+        return nullptr;
+    }
+
+    for( const char* valueType : valueTypes )
+    {
+        const auto it = material.graph.textures.find( pbrtTextureGraphKey( valueType, textureName ) );
+        if( it != material.graph.textures.end() )
+        {
+            return &it->second;
+        }
+    }
+    return nullptr;
+}
+
+inline std::string imageMapFileName( const otk::pbrt::PbrtTexture* texture )
+{
+    if( texture == nullptr || texture->type != "imagemap" )
+    {
+        return {};
+    }
+    return texture->params.FindOneFilename( "filename", "" );
+}
+
+inline std::string pbrtDiffuseMapFileName( const otk::pbrt::PbrtMaterial& material )
+{
+    const std::string textureName{ material.params.FindTexture( "Kd" ) };
+    return imageMapFileName( findPbrtTexture( material, textureName, { "spectrum", "color" } ) );
+}
+
+inline std::string pbrtAlphaMapFileName( const otk::pbrt::PbrtMaterial& material )
+{
+    for( const char* paramName : { "alpha", "shadowalpha", "opacity" } )
+    {
+        const std::string textureName{ material.params.FindTexture( paramName ) };
+        const std::string fileName{ imageMapFileName( findPbrtTexture( material, textureName, { "float" } ) ) };
+        if( !fileName.empty() )
+        {
+            return fileName;
+        }
+    }
+    return {};
+}
+
+inline otk::pbrt::PlasticMaterial fallbackMaterialForShape( const otk::pbrt::ShapeDefinition& shape )
+{
+    otk::pbrt::PlasticMaterial result{ shape.material };
+
+    const std::string diffuseMapFileName{ pbrtDiffuseMapFileName( shape.pbrtMaterial ) };
+    if( !diffuseMapFileName.empty() )
+    {
+        result.diffuseMapFileName = diffuseMapFileName;
+    }
+
+    const std::string alphaMapFileName{ pbrtAlphaMapFileName( shape.pbrtMaterial ) };
+    if( !alphaMapFileName.empty() )
+    {
+        result.alphaMapFileName = alphaMapFileName;
+    }
+
+    return result;
+}
+
 inline MaterialFlags shapeMaterialFlags( const otk::pbrt::ShapeDefinition& shape )
 {
-    return plasticMaterialFlags( shape.material );
+    return plasticMaterialFlags( fallbackMaterialForShape( shape ) );
 }
 
 }  // namespace demandPbrtScene

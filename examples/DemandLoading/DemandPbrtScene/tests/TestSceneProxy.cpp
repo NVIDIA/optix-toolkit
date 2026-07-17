@@ -22,7 +22,9 @@
 #include <OptiXToolkit/Memory/BitCast.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
+#include <OptiXToolkit/PbrtSceneLoader/Logger.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/Testing/Matchers.h>
 #include <OptiXToolkit/Testing/OptixCompare.h>
 
@@ -34,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <memory>
 
 using namespace demandPbrtScene;
 using namespace otk::pbrt;
@@ -48,6 +51,35 @@ using B3 = pbrt::Bounds3f;
 constexpr const char* DIFFUSE_MAP_FILENAME{ "diffuse.png" };
 constexpr const char* ALPHA_MAP_FILENAME{ "alpha.png" };
 constexpr uint_t      ARBITRARY_PRIMITIVE_GROUP_END{ 222U };
+
+namespace {
+
+class NullLogger : public Logger
+{
+  public:
+    void start( const char* programName ) override { static_cast<void>( programName ); }
+    void stop() override {}
+    void info( std::string text, const char* file, int line ) const override
+    {
+        static_cast<void>( text );
+        static_cast<void>( file );
+        static_cast<void>( line );
+    }
+    void warning( std::string text, const char* file, int line ) const override
+    {
+        static_cast<void>( text );
+        static_cast<void>( file );
+        static_cast<void>( line );
+    }
+    void error( std::string text, const char* file, int line ) const override
+    {
+        static_cast<void>( text );
+        static_cast<void>( file );
+        static_cast<void>( line );
+    }
+};
+
+}  // namespace
 
 template <typename Thing>
 B3 transformBounds( const Thing& thing )
@@ -208,6 +240,36 @@ static SceneDescriptionPtr singleTriangleWithDiffuseMapScene()
     SceneDescriptionPtr scene{ singleTriangleWithUVsScene() };
     scene->freeShapes[0].material.diffuseMapFileName = "diffuse.png";
     return scene;
+}
+
+static SceneDescriptionPtr parsePbrtScene( const std::string& text )
+{
+    std::shared_ptr<SceneLoader> loader{
+        createSceneLoader( "TestDemandPbrtSceneImpl", std::make_shared<NullLogger>(), nullptr ) };
+    return loader->parseString( text );
+}
+
+static void addStringParameter( ::pbrt::ParamSet& params, const std::string& name, const std::string& value )
+{
+    std::unique_ptr<std::string[]> values{ new std::string[1] };
+    values[0] = value;
+    params.AddString( name, std::move( values ), 1 );
+}
+
+static void addPbrtImageMapTexture( ShapeDefinition& shape,
+                                    const std::string& materialParam,
+                                    const std::string& valueType,
+                                    const std::string& textureName,
+                                    const std::string& fileName )
+{
+    shape.pbrtMaterial.params.AddTexture( materialParam, textureName );
+
+    PbrtTexture texture{};
+    texture.name      = textureName;
+    texture.valueType = valueType;
+    texture.type      = "imagemap";
+    addStringParameter( texture.params, "filename", fileName );
+    shape.pbrtMaterial.graph.textures[valueType + ":" + textureName] = texture;
 }
 
 static SceneDescriptionPtr twoShapeScene()
@@ -614,6 +676,128 @@ TEST( TestSceneConstruction, constructSingleDiffuseMapTriangleScene )
     EXPECT_FALSE( shape.material.diffuseMapFileName.empty() );
 }
 
+TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtDiffuseTextureForCommonMaterialTypes )
+{
+    struct DiffuseCase
+    {
+        const char* materialType;
+        const char* valueType;
+    };
+
+    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
+                                      DiffuseCase{ "uber", "spectrum" } } )
+    {
+        SCOPED_TRACE( value.materialType );
+        ShapeDefinition shape{ singleTriangleShape() };
+        shape.material.diffuseMapFileName = "legacy-diffuse.png";
+        shape.pbrtMaterial.type           = value.materialType;
+        addPbrtImageMapTexture( shape, "Kd", value.valueType, "diffuseTexture", "pbrt-diffuse.png" );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( shape ) };
+
+        EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( shape ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtDiffuseTextures )
+{
+    struct DiffuseCase
+    {
+        const char* materialType;
+        const char* valueType;
+    };
+
+    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
+                                      DiffuseCase{ "uber", "spectrum" } } )
+    {
+        SCOPED_TRACE( value.materialType );
+        const std::string sceneText{ std::string( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" ")pbrt" )
+                                     + value.valueType + R"pbrt(" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Material ")pbrt"
+                                     + value.materialType + R"pbrt("
+            "texture Kd" [ "diffuseTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" };
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+
+        EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtAlphaTextureParameters )
+{
+    for( const char* paramName : { "alpha", "shadowalpha", "opacity" } )
+    {
+        SCOPED_TRACE( paramName );
+        ShapeDefinition shape{ singleTriangleShape() };
+        shape.material.alphaMapFileName = "legacy-alpha.png";
+        shape.pbrtMaterial.type         = "uber";
+        addPbrtImageMapTexture( shape, paramName, "float", "alphaTexture", "pbrt-alpha.png" );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( shape ) };
+
+        EXPECT_THAT( material.alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
+        EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( shape ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtAlphaCutouts )
+{
+    const char* const sceneTexts[] = {
+        R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "imagemap"
+            "string filename" [ "pbrt-alpha.png" ]
+        Material "matte"
+        Shape "trianglemesh"
+            "texture alpha" [ "alphaTexture" ]
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt",
+        R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "imagemap"
+            "string filename" [ "pbrt-alpha.png" ]
+        Material "plastic"
+        Shape "trianglemesh"
+            "texture shadowalpha" [ "alphaTexture" ]
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt",
+        R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "imagemap"
+            "string filename" [ "pbrt-alpha.png" ]
+        Material "uber"
+            "texture opacity" [ "alphaTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt",
+    };
+
+    for( const char* sceneText : sceneTexts )
+    {
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+
+        EXPECT_THAT( material.alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
+        EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+    }
+}
+
 TEST( TestSceneConstruction, sceneBoundsTwoShapeScene )
 {
     SceneDescriptionPtr scene{ twoShapeScene() };
@@ -921,6 +1105,29 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
     EXPECT_TRUE( geom.groups[0].alphaMapFileName.empty() );
     EXPECT_FALSE( geom.groups[0].diffuseMapFileName.empty() );
     EXPECT_EQ( geom.groups[0].material.flags, MaterialFlags::DIFFUSE_MAP );
+}
+
+TEST_F( TestSceneProxy, constructTriangleASUsesPbrtMaterialTextures )
+{
+    m_scene = singleTriangleWithUVsScene();
+    ShapeDefinition& shape{ m_scene->freeShapes[0] };
+    shape.material.diffuseMapFileName = "legacy-diffuse.png";
+    shape.material.alphaMapFileName   = "legacy-alpha.png";
+    shape.pbrtMaterial.type           = "uber";
+    addPbrtImageMapTexture( shape, "Kd", "color", "diffuseTexture", "pbrt-diffuse.png" );
+    addPbrtImageMapTexture( shape, "shadowalpha", "float", "alphaTexture", "pbrt-alpha.png" );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
+
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+
+    EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
+    ASSERT_EQ( 1U, geom.groups.size() );
+    EXPECT_THAT( geom.groups[0].diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+    EXPECT_THAT( geom.groups[0].alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
+    EXPECT_EQ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP, geom.groups[0].material.flags );
 }
 
 TEST_F( TestSceneProxy, constructWholeSceneProxyForMultipleShapes )

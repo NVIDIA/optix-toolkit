@@ -681,7 +681,15 @@ PlasticMaterial PbrtApiImpl::getShapeMaterial( const ::pbrt::ParamSet& params ) 
     const ::pbrt::Point3f Ka                  = lookupParam( "Ka", params, zero );
     const ::pbrt::Point3f Kd                  = lookupParam( "Kd", params, ::pbrt::Point3f( 1.0f, 1.0f, 1.0f ) );
     const ::pbrt::Point3f Ks                  = lookupParam( "Ks", params, zero );
-    const std::string     alphaMapFileName    = lookupFloatTextureFileName( "alpha", params );
+    std::string           alphaMapFileName    = lookupFloatTextureFileName( "alpha", params );
+    if( alphaMapFileName.empty() )
+    {
+        alphaMapFileName = lookupFloatTextureFileName( "shadowalpha", params );
+    }
+    if( alphaMapFileName.empty() )
+    {
+        alphaMapFileName = lookupFloatTextureFileName( "opacity", params );
+    }
     const std::string     diffuseMapFileName  = lookupSpectrumTextureFileName( "Kd", params );
     const std::string     specularMapFileName = lookupSpectrumTextureFileName( "Ks", params );
     return { Ka, Kd, Ks, alphaMapFileName, diffuseMapFileName, specularMapFileName };
