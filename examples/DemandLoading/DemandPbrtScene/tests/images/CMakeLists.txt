@@ -27,6 +27,9 @@ pbrtImageTest(cube1 1 cube.pbrt)
 # Render realized geometry with realized material
 pbrtImageTest(cube2 2 cube.pbrt)
 
+# Render realized geometry with material selected through NamedMaterial
+pbrtImageTest(named-material2 2 named-material.pbrt RESOURCES cube-geom.pbrt)
+
 # Render scene proxy
 pbrtImageTest(two-cubes0 0 two-cubes.pbrt RESOURCES cube-geom.pbrt)
 # Render decomposed proxies
