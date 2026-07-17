@@ -24,6 +24,12 @@ configure_file(
     @ONLY
 )
 
+if(OTK_USE_MDL)
+    find_package(mdl CONFIG REQUIRED)
+    set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES MdlSmokeMaterial.cu)
+    set(DEMAND_PBRT_SCENE_MDL_LIBRARIES mdl::mdl_sdk)
+endif()
+
 embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
     OUTPUT_TARGET DemandPbrtSceneKernel
     LIBRARIES
@@ -31,9 +37,11 @@ embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
         OptiXToolkit::DemandLoading
         OptiXToolkit::DemandMaterial
         OptiXToolkit::ShaderUtil
+        ${DEMAND_PBRT_SCENE_MDL_LIBRARIES}
     SOURCES
         DemandPbrtScene.cu
         PhongMaterial.cu
+        ${DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES}
     INCLUDES
         include
     FOLDER Examples/DemandLoading
@@ -125,11 +133,20 @@ target_link_libraries(DemandPbrtSceneImpl PUBLIC
     OptiXToolkit::ShaderUtil
     OptiXToolkit::Util
     OptiX::OptiX
+    ${DEMAND_PBRT_SCENE_MDL_LIBRARIES}
 )
 
 add_executable(DemandPbrtScene main.cpp ReadMe.md)
 target_link_libraries(DemandPbrtScene PUBLIC DemandPbrtSceneImpl)
 set_target_properties(DemandPbrtScene PROPERTIES FOLDER "Examples/DemandLoading")
+
+if(WIN32 AND OTK_USE_MDL)
+    add_custom_command(TARGET DemandPbrtScene POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:DemandPbrtScene>
+            $<TARGET_FILE_DIR:DemandPbrtScene>
+        COMMAND_EXPAND_LISTS)
+endif()
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

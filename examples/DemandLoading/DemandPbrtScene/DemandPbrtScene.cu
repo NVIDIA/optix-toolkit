@@ -230,6 +230,11 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     // Phong shading
     if( renderMode == RenderMode::PRIMARY_RAY )
     {
+        if( prd.hasDirectColor )
+        {
+            accumulateValue( pixel, prd.color );
+            return;
+        }
         if( prd.material == nullptr )
         {
             showAccumulatorValue( pixel, float3{ 1.0f, 1.0f, 0.0f } );
@@ -565,9 +570,9 @@ struct ProxyMaterialDebugInfo
         {
             const demandPbrtScene::MaterialState& state{ params.materialStates[pageId] };
             printf( "    MaterialState: id %u, backend %u, shaderKey %u, fallbackReason %u\n",  //
-                    state.materialId,                                                          //
+                    state.materialId,                                                           //
                     static_cast<unsigned int>( state.backend ),                                 //
-                    state.shaderKey,                                                           //
+                    state.shaderKey,                                                            //
                     static_cast<unsigned int>( state.fallbackReason ) );                        //
         }
     }

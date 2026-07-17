@@ -9,6 +9,7 @@
 namespace demandPbrtScene {
 
 struct GeometryInstance;
+struct Options;
 
 class ProgramGroups
 {
@@ -21,6 +22,6 @@ class ProgramGroups
     virtual uint_t getRealizedMaterialSbtOffset( const GeometryInstance& instance ) = 0;
 };
 
-ProgramGroupsPtr createProgramGroups( GeometryLoaderPtr geometryLoader, MaterialLoaderPtr materialLoader, RendererPtr renderer );
+ProgramGroupsPtr createProgramGroups( const Options& options, GeometryLoaderPtr geometryLoader, MaterialLoaderPtr materialLoader, RendererPtr renderer );
 
 }  // namespace demandPbrtScene

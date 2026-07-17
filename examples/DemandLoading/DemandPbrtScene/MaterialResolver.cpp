@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/MaterialResolver.h"
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
@@ -69,7 +70,7 @@ class PbrtMaterialResolver : public MaterialResolver
                                                              const SceneGeometryPtr& geom,
                                                              MaterialGroup&          group,
                                                              SceneSyncState&         syncState );
-    void resolveGeometryToProxyMaterial( uint_t proxyGeomId, const SceneGeometryPtr& geom, const MaterialGroup& group, SceneSyncState& syncState );
+    void                  resolveGeometryToProxyMaterial( uint_t proxyGeomId, const SceneGeometryPtr& geom, const MaterialGroup& group, SceneSyncState& syncState );
 
     // Dependencies
     const Options&        m_options;
@@ -101,6 +102,20 @@ MaterialState localFallbackState( uint_t materialId )
 {
     return makeMaterialState( materialId, MaterialBackend::LOCAL_FALLBACK );
 }
+
+#ifdef OTK_USE_MDL
+MaterialState mdlSmokeState( uint_t materialId )
+{
+    constexpr uint_t MDL_SMOKE_SHADER_KEY = 1U;
+    return makeMaterialState( materialId, MaterialBackend::MDL_READY, MDL_SMOKE_SHADER_KEY );
+}
+
+bool usesMdlSmokeMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
+{
+    return options.mdlSmokeMaterial && instance.primitive == GeometryPrimitive::TRIANGLE && instance.groups.size() == 1
+           && group.material.flags == MaterialFlags::NONE;
+}
+#endif
 
 void setMaterialState( SceneSyncState& sync, uint_t materialId, MaterialState state )
 {
@@ -153,7 +168,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             sync.partialMaterials[groupMaterialId].alphaTextureId = group.material.alphaTextureId;
             sync.partialUVs[groupMaterialId]                      = geom->instance.devUVs;
             setMaterialState( sync, groupMaterialId, localFallbackState( groupMaterialId ) );
-            geom->instance.instance.sbtOffset                     = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
+            geom->instance.instance.sbtOffset = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE_ALPHA;
             if( m_options.verboseProxyMaterialResolution )
             {
                 std::cout << "Resolved proxy material id " << groupMaterialId << " for instance id "
@@ -177,8 +192,8 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             && !flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
         {
             const uint_t diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( group.diffuseMapFileName );
-            sync.minDiffuseTextureId        = std::min( diffuseTextureId, sync.minDiffuseTextureId );
-            sync.maxDiffuseTextureId        = std::max( diffuseTextureId, sync.maxDiffuseTextureId );
+            sync.minDiffuseTextureId      = std::min( diffuseTextureId, sync.minDiffuseTextureId );
+            sync.maxDiffuseTextureId      = std::max( diffuseTextureId, sync.maxDiffuseTextureId );
             group.material.diffuseTextureId = diffuseTextureId;
             group.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
         }
@@ -188,7 +203,14 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     const uint_t materialId{ groupMaterialId };
     grow( sync.realizedMaterials, materialId + 1 );
     sync.realizedMaterials[materialId] = group.material;
-    setMaterialState( sync, materialId, localFallbackState( materialId ) );
+    MaterialState materialState{ localFallbackState( materialId ) };
+#ifdef OTK_USE_MDL
+    if( usesMdlSmokeMaterial( m_options, geom->instance, group ) )
+    {
+        materialState = mdlSmokeState( materialId );
+    }
+#endif
+    setMaterialState( sync, materialId, materialState );
     const uint_t materialIndex{ geom->instance.instance.instanceId };
     OTK_ASSERT( materialIndex < sync.materialIndices.size() );
     sync.primitiveMaterials[sync.materialIndices[materialIndex].primitiveMaterialBegin + index].materialId = materialId;
@@ -196,7 +218,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     {
         std::cout << "Resolved proxy material id " << groupMaterialId << " for instance id "
                   << geom->instance.instance.instanceId << ", material group " << index;
-        if (flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
+        if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
         {
             std::cout << " with diffuse texture id " << group.material.diffuseTextureId;
         }
@@ -393,7 +415,7 @@ bool PbrtMaterialResolver::resolveGeometryToExistingMaterial( uint_t            
     OTK_ASSERT( index < syncState.realizedNormals.size() );
     OTK_ASSERT( index < syncState.realizedUVs.size() );
     syncState.realizedNormals[index] = geom->instance.devNormals;
-    syncState.realizedUVs[index] = geom->instance.devUVs;
+    syncState.realizedUVs[index]     = geom->instance.devUVs;
     syncState.primitiveMaterials.push_back( PrimitiveMaterialRange{ group.primitiveIndexEnd, materialId } );
     m_proxyMaterialGeometries[materialId] = geom;
     ++m_stats.numMaterialsReused;

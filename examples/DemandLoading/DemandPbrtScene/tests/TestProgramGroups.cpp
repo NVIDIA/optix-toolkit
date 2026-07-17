@@ -4,6 +4,7 @@
 
 #include <DemandPbrtScene/ProgramGroups.h>
 
+#include <DemandPbrtScene/Options.h>
 #include <DemandPbrtScene/Testing/Matchers.h>
 #include <DemandPbrtScene/Testing/MockRenderer.h>
 #include <DemandPbrtScene/Testing/ParamsPrinters.h>
@@ -154,10 +155,10 @@ inline bool operator!=( const DeviceContext& lhs, const DeviceContext& rhs )
 
 namespace {
 
-using MockGeometryLoaderPtr = std::shared_ptr<MockGeometryLoader>;
-using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
+using MockGeometryLoaderPtr   = std::shared_ptr<MockGeometryLoader>;
+using MockMaterialLoaderPtr   = std::shared_ptr<MockMaterialLoader>;
 using ProgramGroupDescMatcher = Matcher<const OptixProgramGroupDesc*>;
-using StrictMockOptix = StrictMock<MockOptix>;
+using StrictMockOptix         = StrictMock<MockOptix>;
 
 class TestProgramGroups : public Test
 {
@@ -174,7 +175,8 @@ class TestProgramGroups : public Test
     MockGeometryLoaderPtr m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
     MockMaterialLoaderPtr m_materialLoader{ std::make_shared<MockMaterialLoader>() };
     MockRendererPtr       m_renderer{ createMockRenderer() };
-    ProgramGroupsPtr      m_programGroups{ createProgramGroups( m_geometryLoader, m_materialLoader, m_renderer ) };
+    Options               m_options{};
+    ProgramGroupsPtr m_programGroups{ createProgramGroups( m_options, m_geometryLoader, m_materialLoader, m_renderer ) };
     OptixPipelineCompileOptions    m_pipelineCompileOptions{};
     OptixDeviceContext             m_fakeContext{ fakeOptixDeviceContext() };
     OptixModule                    m_sceneModule{ reinterpret_cast<OptixModule>( 0x1111U ) };
@@ -236,7 +238,7 @@ class TestProgramGroupsInitialized : public TestProgramGroups
   protected:
     void SetUp() override;
 
-    Expectation expectModuleCreatedAfter( OptixModule module, const ExpectationSet& before );
+    Expectation    expectModuleCreatedAfter( OptixModule module, const ExpectationSet& before );
     ExpectationSet expectProgramGroupAddedAfter( const ProgramGroupDescMatcher& desc, OptixProgramGroup result, const ExpectationSet& before );
 
     ExpectationSet                 m_init;

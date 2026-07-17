@@ -228,6 +228,15 @@ TEST_F( TestOptions, verboseTextureCreation )
     EXPECT_TRUE( options.verboseTextureCreation );
 }
 
+#ifdef OTK_USE_MDL
+TEST_F( TestOptions, mdlSmokeMaterial )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--mdl-smoke-material", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.mdlSmokeMaterial );
+}
+#endif
+
 TEST_F( TestOptions, verboseLogging )
 {
     const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--verbose", "scene.pbrt" } );
@@ -457,8 +466,7 @@ TEST_F( TestOptions, missingProxyGranularity )
 {
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "missing proxy granularity value" ) ) ).Times( 1 );
 
-    const demandPbrtScene::Options options =
-        getOptions( { "DemandPbrtScene", "--proxy-granularity=", "scene.pbrt" } );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--proxy-granularity=", "scene.pbrt" } );
 }
 
 TEST_F( TestOptions, unknownProxyGranularity )

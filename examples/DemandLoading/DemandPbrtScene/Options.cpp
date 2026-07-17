@@ -44,6 +44,9 @@ namespace demandPbrtScene {
         "   --proxy-material            Enable verbose logging of resolution of proxy materials\n"
         "   --scene-decomposition       Enable verbose logging of scene hierarchy decomposition\n"
         "   --texture-creation          Enable verbose logging of texture creation\n"
+#ifdef OTK_USE_MDL
+        "   --mdl-smoke-material        Render one realized diffuse material through generated MDL\n"
+#endif
         "   --verbose-loading           Enable verbose logging of mesh reading\n"
         "   --verbose                   Enables all verbose logging\n"
         "   --sort-proxies              Sort proxies before resolving\n"
@@ -176,6 +179,12 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         {
             options.verboseTextureCreation = true;
         }
+#ifdef OTK_USE_MDL
+        else if( arg == "--mdl-smoke-material" )
+        {
+            options.mdlSmokeMaterial = true;
+        }
+#endif
         else if( arg == "--verbose" )
         {
             options.verboseLoading                 = true;

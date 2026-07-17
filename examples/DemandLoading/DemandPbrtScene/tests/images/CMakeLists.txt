@@ -27,6 +27,11 @@ pbrtImageTest(cube1 1 cube.pbrt)
 # Render realized geometry with realized material
 pbrtImageTest(cube2 2 cube.pbrt)
 
+if(OTK_USE_MDL)
+    # Render realized geometry with a synchronously compiled MDL smoke material
+    pbrtImageTest(mdl-smoke2 2 cube.pbrt OPTIONS --mdl-smoke-material)
+endif()
+
 # Render realized geometry with material selected through NamedMaterial
 pbrtImageTest(named-material2 2 named-material.pbrt RESOURCES cube-geom.pbrt)
 

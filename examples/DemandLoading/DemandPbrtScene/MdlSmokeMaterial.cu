@@ -1,0 +1,106 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+//
+
+#include "DemandPbrtScene/DeviceTriangles.h"
+#include "DemandPbrtScene/Params.h"
+#include "DemandPbrtScene/PhongShade.h"
+
+#include <optix.h>
+
+#define TARGET_CODE_USE_CUDA_TYPES
+#include <mi/neuraylib/target_code_types.h>
+
+#include <vector_functions.h>
+
+#include <cassert>
+
+using namespace otk;  // for vec_math operators
+
+namespace demandPbrtScene {
+
+__device__ __forceinline__ uint_t getMdlSmokeMaterialId( const Params& params, uint_t instanceId )
+{
+#ifndef NDEBUG
+    if( instanceId >= params.numMaterialIndices )
+    {
+        printf( "Instance id %u exceeds number of MaterialIndex entries %u\n", instanceId, params.numMaterialIndices );
+        assert( instanceId < params.numMaterialIndices );
+    }
+#endif
+    const MaterialIndex groups{ params.materialIndices[instanceId] };
+    const uint_t        primIdx{ optixGetPrimitiveIndex() };
+    uint_t              matIdx{ groups.primitiveMaterialBegin };
+    for( uint_t i = 0; i < groups.numPrimitiveGroups; ++i )
+    {
+#ifndef NDEBUG
+        if( matIdx >= params.numPrimitiveMaterials )
+        {
+            printf( "Material index %u exceeds number of PrimitiveMaterialRange entries %u\n", matIdx, params.numPrimitiveMaterials );
+            assert( matIdx < params.numPrimitiveMaterials );
+        }
+#endif
+        const PrimitiveMaterialRange& group{ params.primitiveMaterials[matIdx] };
+        if( primIdx < group.primitiveEnd )
+        {
+            return group.materialId;
+        }
+        ++matIdx;
+    }
+#ifndef NDEBUG
+    printf( "Requested material for instance id %u, primitive index %u not found in MaterialIndex{%u, %u}\n",
+            instanceId, primIdx, groups.numPrimitiveGroups, groups.primitiveMaterialBegin );
+    assert( false );
+#endif
+    return ~0U;
+}
+
+extern "C" __global__ void __closesthit__mdlMesh()
+{
+    float3 worldNormal;
+    float3 vertices[3];
+    getTriangleData( vertices, worldNormal );
+
+    if( triMeshMaterialDebugInfo( vertices, worldNormal, optixGetTriangleBarycentrics() ) )
+    {
+        return;
+    }
+
+    const Params& params{ PARAMS_VAR_NAME };
+    const uint_t  instanceId{ optixGetInstanceId() };
+    const uint_t  materialId{ getMdlSmokeMaterialId( params, instanceId ) };
+#ifndef NDEBUG
+    if( materialId >= params.numRealizedMaterials )
+    {
+        printf( "Material id %u exceeds numRealizedMaterials %u\n", materialId, params.numRealizedMaterials );
+        assert( materialId < params.numRealizedMaterials );
+    }
+#endif
+
+    const float3 rayOrigin{ optixGetWorldRayOrigin() };
+    const float3 rayDirection{ optixGetWorldRayDirection() };
+    const float  rayT{ optixGetRayTmax() };
+
+    mi::neuraylib::Shading_state_material state{};
+    state.normal      = worldNormal;
+    state.geom_normal = worldNormal;
+    state.position    = rayOrigin + rayT * rayDirection;
+
+    mi::neuraylib::Resource_data resourceData{};
+    mi::neuraylib::tct_float3    tint{};
+    optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
+        0, &tint, &state, &resourceData, nullptr );
+
+    PhongMaterial material{ params.realizedMaterials[materialId] };
+    material.Kd = make_float3( tint.x, tint.y, tint.z );
+
+    RayPayload* prd       = getRayPayload();
+    prd->diffuseTextureId = 0xffffffff;
+    prd->material         = nullptr;
+    prd->normal           = worldNormal;
+    prd->rayDistance      = rayT;
+    prd->color            = phongShade( material, worldNormal, rayDirection );
+    prd->hasDirectColor   = true;
+}
+
+}  // namespace demandPbrtScene

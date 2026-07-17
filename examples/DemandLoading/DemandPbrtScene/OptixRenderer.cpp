@@ -48,6 +48,13 @@ void OptixRenderer::setProgramGroups( const std::vector<OptixProgramGroup>& valu
     m_sbtChanged      = true;
 }
 
+void OptixRenderer::setCallableProgramGroups( const std::vector<OptixProgramGroup>& value )
+{
+    m_callableProgramGroups = value;
+    m_pipelineChanged       = true;
+    m_sbtChanged            = true;
+}
+
 void OptixRenderer::createOptixContext()
 {
     CUcontext                 cuCtx{};  // zero means take the current context
@@ -56,7 +63,7 @@ void OptixRenderer::createOptixContext()
 #ifndef NDEBUG
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
 #else
-    options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;    
+    options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
 #endif
     OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &m_context ) );
 }
@@ -89,14 +96,22 @@ void OptixRenderer::initializeParamsFromOptions()
 
 void OptixRenderer::createPipeline()
 {
+    if( m_pipeline )
+    {
+        OTK_ERROR_CHECK( optixPipelineDestroy( m_pipeline ) );
+        m_pipeline = nullptr;
+    }
+
     const uint_t             maxTraceDepth{ 1 };
     OptixPipelineLinkOptions linkOptions{};
     linkOptions.maxTraceDepth = maxTraceDepth;
-    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineCompileOptions, &linkOptions, m_programGroups.data(),
-                                              m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
+    std::vector<OptixProgramGroup> pipelineProgramGroups{ m_programGroups };
+    std::copy( m_callableProgramGroups.cbegin(), m_callableProgramGroups.cend(), std::back_inserter( pipelineProgramGroups ) );
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineCompileOptions, &linkOptions, pipelineProgramGroups.data(),
+                                              pipelineProgramGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
 
     OptixStackSizes stackSizes{};
-    for( OptixProgramGroup group : m_programGroups )
+    for( OptixProgramGroup group : pipelineProgramGroups )
     {
 #if OPTIX_VERSION < 70700
         OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
@@ -104,10 +119,11 @@ void OptixRenderer::createPipeline()
         OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, m_pipeline ) );
 #endif
     }
-    uint_t directCallableTraversalStackSize{};
-    uint_t directCallableStateStackSize{};
-    uint_t continuationStackSize{};
-    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stackSizes, maxTraceDepth, 0, 0, &directCallableTraversalStackSize,
+    uint_t       directCallableTraversalStackSize{};
+    uint_t       directCallableStateStackSize{};
+    uint_t       continuationStackSize{};
+    const uint_t maxDirectCallableDepth{ m_callableProgramGroups.empty() ? 0U : 1U };
+    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stackSizes, maxTraceDepth, 0, maxDirectCallableDepth, &directCallableTraversalStackSize,
                                                  &directCallableStateStackSize, &continuationStackSize ) );
     const uint_t maxTraversableDepth = 3;
     OTK_ERROR_CHECK( optixPipelineSetStackSize( m_pipeline, directCallableTraversalStackSize, directCallableStateStackSize,
@@ -151,15 +167,31 @@ void OptixRenderer::writeHitGroupRecords( CUstream stream )
     m_hitGroupRecords.copyToDeviceAsync( stream );
 }
 
+void OptixRenderer::writeCallableRecords( CUstream stream )
+{
+    m_callableRecords.resize( m_callableProgramGroups.size() );
+    for( size_t i = 0; i < m_callableProgramGroups.size(); ++i )
+    {
+        m_callableRecords.packHeader( i, m_callableProgramGroups[i] );
+    }
+    if( !m_callableProgramGroups.empty() )
+    {
+        m_callableRecords.copyToDeviceAsync( stream );
+    }
+}
+
 void OptixRenderer::writeSbt()
 {
-    m_sbt.raygenRecord                = m_rayGenRecord;
-    m_sbt.missRecordBase              = m_missRecord;
-    m_sbt.missRecordStrideInBytes     = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
-    m_sbt.missRecordCount             = containerSize( m_missRecord );
-    m_sbt.hitgroupRecordBase          = m_hitGroupRecords;
-    m_sbt.hitgroupRecordCount         = containerSize( m_hitGroupRecords );
-    m_sbt.hitgroupRecordStrideInBytes = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    m_sbt.raygenRecord                 = m_rayGenRecord;
+    m_sbt.missRecordBase               = m_missRecord;
+    m_sbt.missRecordStrideInBytes      = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    m_sbt.missRecordCount              = containerSize( m_missRecord );
+    m_sbt.hitgroupRecordBase           = m_hitGroupRecords;
+    m_sbt.hitgroupRecordCount          = containerSize( m_hitGroupRecords );
+    m_sbt.hitgroupRecordStrideInBytes  = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    m_sbt.callablesRecordBase          = m_callableRecords;
+    m_sbt.callablesRecordCount         = containerSize( m_callableRecords );
+    m_sbt.callablesRecordStrideInBytes = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
 }
 
 void OptixRenderer::buildShaderBindingTable( CUstream stream )
@@ -167,6 +199,7 @@ void OptixRenderer::buildShaderBindingTable( CUstream stream )
     writeRayGenRecords( stream );
     writeMissRecords( stream );
     writeHitGroupRecords( stream );
+    writeCallableRecords( stream );
     writeSbt();
 }
 
@@ -222,9 +255,9 @@ void OptixRenderer::launch( CUstream stream, uchar4* image )
         m_accumulator.clear();
         m_clearAccumulator = false;
     }
-    m_params[0].image = image;
+    m_params[0].image       = image;
     m_params[0].accumulator = m_accumulator.getBuffer();
-    m_params[0].renderMode = m_options.renderMode;
+    m_params[0].renderMode  = m_options.renderMode;
     m_params.copyToDevice();
     OTK_ERROR_CHECK( optixLaunch( m_pipeline, stream, m_params, sizeof( Params ), &m_sbt, m_options.width,
                                   m_options.height, /*depth=*/1 ) );

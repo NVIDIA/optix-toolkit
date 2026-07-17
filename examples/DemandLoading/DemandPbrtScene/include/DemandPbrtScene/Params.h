@@ -200,8 +200,7 @@ inline bool operator==( const MaterialState& lhs, const MaterialState& rhs )
 {
     return lhs.materialId == rhs.materialId  //
            && lhs.backend == rhs.backend     //
-           && lhs.shaderKey == rhs.shaderKey
-           && lhs.fallbackReason == rhs.fallbackReason;
+           && lhs.shaderKey == rhs.shaderKey && lhs.fallbackReason == rhs.fallbackReason;
 }
 
 inline bool operator!=( const MaterialState& lhs, const MaterialState& rhs )
@@ -313,7 +312,7 @@ inline bool flagSet( FallbackShaderFeature value, FallbackShaderFeature flag )
 
 struct FallbackShaderContract
 {
-    FallbackShaderFeature featureMask;
+    FallbackShaderFeature  featureMask;
     MaterialFallbackReason reason;
 };
 
@@ -427,16 +426,16 @@ struct Params
     demandLoading::DeviceContext  demandContext;
     demandGeometry::Context       demandGeomContext;
     float3                        demandMaterialColor;
-    uint_t                        numMaterialStates;  //
-    const MaterialState*          materialStates;     // indexed by materialId
-    uint_t                        numPartialMaterials;     //
-    const PartialMaterial*        partialMaterials;        // indexed by materialId
-    uint_t                        numRealizedMaterials;    //
-    const PhongMaterial*          realizedMaterials;       // indexed by materialId
-    uint_t                        numMaterialIndices;      //
-    const MaterialIndex*          materialIndices;         // indexed by instanceId, one entry per instance
-    uint_t                        numPrimitiveMaterials;   // one entry per material group per instance
-    const PrimitiveMaterialRange* primitiveMaterials;      // indexed by MaterialIndex::primitiveMaterialBegin
+    uint_t                        numMaterialStates;      //
+    const MaterialState*          materialStates;         // indexed by materialId
+    uint_t                        numPartialMaterials;    //
+    const PartialMaterial*        partialMaterials;       // indexed by materialId
+    uint_t                        numRealizedMaterials;   //
+    const PhongMaterial*          realizedMaterials;      // indexed by materialId
+    uint_t                        numMaterialIndices;     //
+    const MaterialIndex*          materialIndices;        // indexed by instanceId, one entry per instance
+    uint_t                        numPrimitiveMaterials;  // one entry per material group per instance
+    const PrimitiveMaterialRange* primitiveMaterials;     // indexed by MaterialIndex::primitiveMaterialBegin
 
     // An array of pointers to arrays of per-face data, one per geometry instance.
     // If the pointer is nullptr, then the instance has no per-face data.
@@ -476,6 +475,7 @@ struct RayPayload
     bool                 isDebug;
     bool                 isBackground;
     bool                 discardRay;
+    bool                 hasDirectColor;
 };
 
 #if __CUDACC__

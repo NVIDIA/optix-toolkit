@@ -62,6 +62,7 @@ class OptixRenderer : public Renderer
         m_params[0].lookAt = value;
     }
     void setProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
+    void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
 
     void beforeLaunch( CUstream stream ) override;
     void launch( CUstream stream, uchar4* image ) override;
@@ -79,6 +80,7 @@ class OptixRenderer : public Renderer
     void writeRayGenRecords( CUstream stream );
     void writeMissRecords( CUstream stream );
     void writeHitGroupRecords( CUstream stream );
+    void writeCallableRecords( CUstream stream );
     void writeSbt();
     void buildShaderBindingTable( CUstream stream );
 
@@ -87,10 +89,12 @@ class OptixRenderer : public Renderer
     OptixDeviceContext              m_context{};
     OptixPipelineCompileOptions     m_pipelineCompileOptions{};
     std::vector<OptixProgramGroup>  m_programGroups;
+    std::vector<OptixProgramGroup>  m_callableProgramGroups;
     OptixPipeline                   m_pipeline{};
     otk::SyncRecord<otk::EmptyData> m_rayGenRecord{ 1 };
     otk::SyncRecord<otk::EmptyData> m_missRecord{ 1 };
     otk::SyncRecord<otk::EmptyData> m_hitGroupRecords{ +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS };
+    otk::SyncRecord<otk::EmptyData> m_callableRecords;
     OptixShaderBindingTable         m_sbt{};
     otk::SyncVector<Params>         m_params{ 1 };
     bool                            m_pipelineChanged{ true };
