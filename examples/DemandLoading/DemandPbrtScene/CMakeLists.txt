@@ -28,6 +28,10 @@ if(OTK_USE_MDL)
     find_package(mdl CONFIG REQUIRED)
     set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES MdlSmokeMaterial.cu)
     set(DEMAND_PBRT_SCENE_MDL_LIBRARIES mdl::mdl_sdk)
+    set(DEMAND_PBRT_SCENE_MDL_SOURCES
+        MdlShaderCache.cpp
+        include/DemandPbrtScene/MdlShaderCache.h
+    )
 endif()
 
 embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
@@ -115,6 +119,7 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/UserInterface.h
     include/DemandPbrtScene/UserInterfaceStatistics.h
     ${CMAKE_CURRENT_BINARY_DIR}/include/DemandPbrtScene/Config.h
+    ${DEMAND_PBRT_SCENE_MDL_SOURCES}
 )
 source_group("CMake Template Files" REGULAR_EXPRESSION "^.*\.in$")
 set_target_properties(DemandPbrtSceneImpl PROPERTIES FOLDER "Examples/DemandLoading")

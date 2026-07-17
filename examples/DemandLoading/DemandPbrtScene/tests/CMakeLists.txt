@@ -55,6 +55,7 @@ add_test( NAME TestDemandPbrtSceneImpl COMMAND TestDemandPbrtSceneImpl )
 set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene )
 
 if(OTK_USE_MDL)
+    target_sources(TestDemandPbrtSceneImpl PRIVATE TestMdlShaderCache.cpp)
     find_package(mdl CONFIG REQUIRED)
     add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
     target_link_libraries(TestDemandPbrtSceneMdlSdk PUBLIC
