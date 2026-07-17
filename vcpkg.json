@@ -35,6 +35,15 @@
         "boost-thread"
       ]
     },
+    "otk-mdl": {
+      "description": "MDL SDK support for generated material shaders",
+      "dependencies": [
+        {
+          "name": "mdl-sdk",
+          "default-features": false
+        }
+      ]
+    },
     "otk-neuraltextures": {
       "description": "NeuralTextures support for neural texture compression",
       "dependencies": [

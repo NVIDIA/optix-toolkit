@@ -123,6 +123,7 @@ Variable | Type | Default | Description
 `OTK_USE_VCPKG` | `BOOL` | `ON` | Use [vcpkg](https://vcpkg.io/) for [dependencies](README.md#third-party-libraries).
 `OTK_USE_VCPKG_OPENEXR` | `BOOL` | `${OTK_USE_VCPKG}` | Obtain OpenEXR via vcpkg.
 `OTK_USE_OIIO` | `BOOL` | `OFF` | Use [OpenImageIO](https://openimageio.readthedocs.io/) to read PNG and JPEG files as image sources.
+`OTK_USE_MDL` | `BOOL` | `OFF` | Use the NVIDIA MDL SDK for generated material support.
 `OTK_FETCH_CONTENT` | `BOOL` | `ON` | Use [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html) for [dependencies](README.md#third-party-libraries) if `OTK_USE_VCPKG` is `OFF`.
 `OTK_BUILD_EXAMPLES` | `BOOL` | `ON` | Build the examples.
 `OTK_BUILD_TESTS` | `BOOL` | `ON` | Build the tests.

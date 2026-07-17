@@ -18,6 +18,12 @@ endif()
 
 find_package(CUDAToolkit 11.1 REQUIRED)
 
+configure_file(
+    include/DemandPbrtScene/Config.h.in
+    include/DemandPbrtScene/Config.h
+    @ONLY
+)
+
 embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
     OUTPUT_TARGET DemandPbrtSceneKernel
     LIBRARIES
@@ -57,6 +63,7 @@ add_library(DemandPbrtSceneImpl STATIC
     Statistics.cpp
     include/DemandPbrtScene/Accumulator.h
     include/DemandPbrtScene/Application.h
+    include/DemandPbrtScene/Config.h.in
     include/DemandPbrtScene/Conversions.h
     include/DemandPbrtScene/CudaContext.h
     include/DemandPbrtScene/DemandTextureCache.h
@@ -99,11 +106,12 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/Timer.h
     include/DemandPbrtScene/UserInterface.h
     include/DemandPbrtScene/UserInterfaceStatistics.h
+    ${CMAKE_CURRENT_BINARY_DIR}/include/DemandPbrtScene/Config.h
 )
 source_group("CMake Template Files" REGULAR_EXPRESSION "^.*\.in$")
 set_target_properties(DemandPbrtSceneImpl PROPERTIES FOLDER "Examples/DemandLoading")
 target_include_directories(DemandPbrtSceneImpl PUBLIC include)
-target_include_directories(DemandPbrtSceneImpl PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
+target_include_directories(DemandPbrtSceneImpl PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
 target_link_libraries(DemandPbrtSceneImpl PUBLIC 
     PbrtSceneLoader
     DemandPbrtSceneKernel

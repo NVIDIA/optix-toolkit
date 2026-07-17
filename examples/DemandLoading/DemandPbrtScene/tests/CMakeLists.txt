@@ -54,4 +54,15 @@ set_target_properties(TestDemandPbrtSceneImpl PROPERTIES FOLDER Examples/DemandL
 add_test( NAME TestDemandPbrtSceneImpl COMMAND TestDemandPbrtSceneImpl )
 set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene )
 
+if(OTK_USE_MDL)
+    find_package(mdl CONFIG REQUIRED)
+    add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
+    target_link_libraries(TestDemandPbrtSceneMdlSdk PUBLIC
+        mdl::mdl_sdk
+        GTest::gmock_main)
+    set_target_properties(TestDemandPbrtSceneMdlSdk PROPERTIES FOLDER Examples/DemandLoading/Tests)
+    add_test( NAME TestDemandPbrtSceneMdlSdk COMMAND TestDemandPbrtSceneMdlSdk )
+    set_tests_properties( TestDemandPbrtSceneMdlSdk PROPERTIES LABELS "DemandPbrtScene;MDL" )
+endif()
+
 add_subdirectory(images)
