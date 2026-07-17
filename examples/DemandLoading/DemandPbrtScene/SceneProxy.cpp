@@ -72,7 +72,9 @@ inline MaterialGroup materialGroupForMaterial( const PlasticMaterial& material, 
 
 inline MaterialGroup materialGroupForShape( const ShapeDefinition& shape, uint_t primitiveIndexEnd )
 {
-    return materialGroupForMaterial( fallbackMaterialForShape( shape ), primitiveIndexEnd );
+    MaterialGroup result{ materialGroupForMaterial( fallbackMaterialForShape( shape ), primitiveIndexEnd ) };
+    result.pbrtMaterial = std::make_shared<PbrtMaterial>( shape.pbrtMaterial );
+    return result;
 }
 
 inline uint_t proxyMaterialSbtOffsetForPrimitive( GeometryPrimitive primitive )

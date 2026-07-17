@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/Dependencies.h"
 
 namespace demandPbrtScene {
@@ -20,6 +21,9 @@ class ProgramGroups
     virtual void cleanup()    = 0;
 
     virtual uint_t getRealizedMaterialSbtOffset( const GeometryInstance& instance ) = 0;
+#ifdef OTK_USE_MDL
+    virtual uint_t getFallbackMaterialSbtOffset( const GeometryInstance& instance ) = 0;
+#endif
 };
 
 ProgramGroupsPtr createProgramGroups( const Options& options, GeometryLoaderPtr geometryLoader, MaterialLoaderPtr materialLoader, RendererPtr renderer );

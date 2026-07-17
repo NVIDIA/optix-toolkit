@@ -377,11 +377,15 @@ class PbrtProgramGroups : public ProgramGroups
     void cleanup() override;
 
     uint_t getRealizedMaterialSbtOffset( const GeometryInstance& instance ) override;
+#ifdef OTK_USE_MDL
+    uint_t getFallbackMaterialSbtOffset( const GeometryInstance& instance ) override;
+#endif
 
   private:
     OptixModule createModule( const char* optixir, size_t optixirSize );
     void        createModules();
     void        createProgramGroups();
+    void        ensurePhongModule();
     uint_t      getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
     uint_t      getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
 #ifdef OTK_USE_MDL
@@ -655,12 +659,34 @@ uint_t PbrtProgramGroups::getSphereRealizedMaterialSbtOffset()
     return m_sphereHitGroupIndex;
 }
 
-uint_t PbrtProgramGroups::getRealizedMaterialSbtOffset( const GeometryInstance& instance )
+void PbrtProgramGroups::ensurePhongModule()
 {
     if( m_phongModule == nullptr )
     {
         m_phongModule = createModule( PhongMaterialCudaText(), PhongMaterialCudaSize );
     }
+}
+
+#ifdef OTK_USE_MDL
+uint_t PbrtProgramGroups::getFallbackMaterialSbtOffset( const GeometryInstance& instance )
+{
+    ensurePhongModule();
+
+    if( instance.primitive == GeometryPrimitive::TRIANGLE )
+    {
+        return getTriangleFallbackRealizedMaterialSbtOffset( instance.groups[0].material.flags );
+    }
+    if( instance.primitive == GeometryPrimitive::SPHERE )
+    {
+        return getSphereRealizedMaterialSbtOffset();
+    }
+    throw std::runtime_error( "Unimplemented primitive type " + std::to_string( +instance.primitive ) );
+}
+#endif
+
+uint_t PbrtProgramGroups::getRealizedMaterialSbtOffset( const GeometryInstance& instance )
+{
+    ensurePhongModule();
 
     if( instance.primitive == GeometryPrimitive::TRIANGLE )
     {

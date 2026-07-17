@@ -49,6 +49,13 @@ void TestJsonStatisticsPrinter::SetUp()
     m_stats.materials.numMaterialsRealized = 21;
     m_stats.materials.numMaterialsReused = 22;
     m_stats.materials.numProxyMaterialsCreated = 23;
+#ifdef OTK_USE_MDL
+    m_stats.materials.mdlShaders.numMissingShaders = 29;
+    m_stats.materials.mdlShaders.numQueuedShaders = 30;
+    m_stats.materials.mdlShaders.numCompilingShaders = 31;
+    m_stats.materials.mdlShaders.numReadyShaders = 32;
+    m_stats.materials.mdlShaders.numFailedShaders = 33;
+#endif
     m_stats.scene.fileName = R"path(C:\scenes\"scene".pbrt)path";
     m_stats.scene.parseTime = 24;
     m_stats.scene.numFreeShapes = 25;
@@ -85,6 +92,10 @@ void TestJsonStatisticsPrinter::SetUp()
             R"json("numMaterialsRealized":21,)json"
             R"json("numMaterialsReused":22,)json"
             R"json("numProxyMaterialsCreated":23)json"
+#ifdef OTK_USE_MDL
+            R"json(,)json"
+            R"json("mdlShaders":{"numMissingShaders":29,"numQueuedShaders":30,"numCompilingShaders":31,"numReadyShaders":32,"numFailedShaders":33})json"
+#endif
         R"json(},)json"
         R"json("scene":{)json"
             R"json("fileName":"C:\\scenes\\\"scene\".pbrt",)json"

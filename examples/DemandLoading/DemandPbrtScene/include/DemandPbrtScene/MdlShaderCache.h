@@ -7,6 +7,7 @@
 #include "DemandPbrtScene/Config.h"
 
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/MdlShaderCompileCacheStatistics.h"
 
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 
@@ -47,16 +48,8 @@ enum class MdlShaderCompileState
 struct MdlShaderCompileRecord
 {
     MdlShaderCompileState state{ MdlShaderCompileState::MISSING };
+    unsigned int          shaderKeyId{};
     std::string           diagnostics;
-};
-
-struct MdlShaderCompileCacheStatistics
-{
-    unsigned int numMissingShaders{};
-    unsigned int numQueuedShaders{};
-    unsigned int numCompilingShaders{};
-    unsigned int numReadyShaders{};
-    unsigned int numFailedShaders{};
 };
 
 class MdlShaderCompileCache
@@ -64,6 +57,7 @@ class MdlShaderCompileCache
   public:
     const MdlShaderCompileRecord& getOrCreate( const MdlShaderKey& key );
     MdlShaderCompileState         state( const MdlShaderKey& key ) const;
+    unsigned int                  shaderKeyId( const MdlShaderKey& key ) const;
     std::string                   diagnostics( const MdlShaderKey& key ) const;
 
     bool requestCompile( const MdlShaderKey& key );
@@ -79,6 +73,7 @@ class MdlShaderCompileCache
     MdlShaderCompileRecord& getOrCreateRecord( const MdlShaderKey& key );
 
     std::map<MdlShaderKey, MdlShaderCompileRecord> m_records;
+    unsigned int                                   m_nextShaderKeyId{ 1U };
 };
 
 class MdlGeneratedSourceCache

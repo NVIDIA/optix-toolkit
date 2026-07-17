@@ -1188,6 +1188,9 @@ TEST_F( TestSceneProxy, constructTriangleASUsesPbrtMaterialTextures )
     EXPECT_THAT( geom.groups[0].diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
     EXPECT_THAT( geom.groups[0].alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
     EXPECT_EQ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP, geom.groups[0].material.flags );
+    ASSERT_TRUE( geom.groups[0].pbrtMaterial );
+    EXPECT_EQ( "uber", geom.groups[0].pbrtMaterial->type );
+    EXPECT_EQ( "diffuseTexture", geom.groups[0].pbrtMaterial->params.FindTexture( "Kd" ) );
 }
 
 TEST_F( TestSceneProxy, constructWholeSceneProxyForMultipleShapes )

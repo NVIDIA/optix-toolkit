@@ -282,7 +282,9 @@ MdlShaderCompileRecord& MdlShaderCompileCache::getOrCreateRecord( const MdlShade
     std::map<MdlShaderKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
     if( it == m_records.end() )
     {
-        it = m_records.insert( std::make_pair( key, MdlShaderCompileRecord{} ) ).first;
+        MdlShaderCompileRecord record{};
+        record.shaderKeyId = m_nextShaderKeyId++;
+        it                 = m_records.insert( std::make_pair( key, record ) ).first;
     }
     return it->second;
 }
@@ -296,6 +298,12 @@ MdlShaderCompileState MdlShaderCompileCache::state( const MdlShaderKey& key ) co
 {
     std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
     return it == m_records.end() ? MdlShaderCompileState::MISSING : it->second.state;
+}
+
+unsigned int MdlShaderCompileCache::shaderKeyId( const MdlShaderKey& key ) const
+{
+    std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
+    return it == m_records.end() ? 0U : it->second.shaderKeyId;
 }
 
 std::string MdlShaderCompileCache::diagnostics( const MdlShaderKey& key ) const
@@ -375,6 +383,7 @@ std::size_t MdlShaderCompileCache::size() const
 void MdlShaderCompileCache::clear()
 {
     m_records.clear();
+    m_nextShaderKeyId = 1U;
 }
 
 const GeneratedMdlSource& MdlGeneratedSourceCache::getOrCreate( const MdlShaderKey& key )

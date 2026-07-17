@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+#include <DemandPbrtScene/Config.h>
 #include <DemandPbrtScene/MaterialResolver.h>
 
 #include <DemandPbrtScene/Testing/GeometryInstancePrinter.h>
@@ -30,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
+#include <stdexcept>
 
 constexpr const char* ALPHA_MAP_PATH{ "alphaMap.png" };
 constexpr const char* DIFFUSE_MAP_PATH{ "diffuseMap.png" };
@@ -72,6 +74,18 @@ MaterialState localFallbackState( uint_t materialId )
 {
     return makeMaterialState( materialId, MaterialBackend::LOCAL_FALLBACK );
 }
+
+#ifdef OTK_USE_MDL
+MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
+{
+    return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
+}
+
+MaterialState mdlFailedState( uint_t materialId, uint_t shaderKeyId )
+{
+    return makeMaterialState( materialId, MaterialBackend::MDL_FAILED, shaderKeyId );
+}
+#endif
 
 void setLocalFallbackState( SceneSyncState& sync, uint_t materialId )
 {
@@ -117,6 +131,17 @@ Options testOptions()
     options.outFile   = "out.png";
     return options;
 }
+
+#ifdef OTK_USE_MDL
+void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
+{
+    EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
+}
+#endif
 
 using MockMaterialLoaderPtr = std::shared_ptr<MockMaterialLoader>;
 
@@ -208,6 +233,23 @@ TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialForGeometry
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
 }
+
+#ifdef OTK_USE_MDL
+TEST_F( TestMaterialResolverForGeometry, resolveNewProxyMdlMaterialForGeometryDoesNotCompileShader )
+{
+    m_options.mdlSmokeMaterial = true;
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+
+    const bool result{ m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) };
+
+    EXPECT_FALSE( result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( localFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    expectNoMdlShadersCompiled( m_resolver->getStatistics() );
+}
+#endif
 
 TEST_F( TestMaterialResolverForGeometry, resolveNewProxyPhongMaterialsForCoarseGeometry )
 {
@@ -529,6 +571,24 @@ TEST_F( TestMaterialResolverRequestedProxyIds, noRequestedProxyMaterials )
     EXPECT_EQ( MaterialResolution::NONE, result );
 }
 
+#ifdef OTK_USE_MDL
+TEST_F( TestMaterialResolverRequestedProxyIds, unrequestedMdlMaterialDoesNotCompileShader )
+{
+    m_options.mdlSmokeMaterial = true;
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{} ) );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::NONE, result );
+    expectNoMdlShadersCompiled( m_resolver->getStatistics() );
+}
+#endif
+
 TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
 {
     const uint_t proxyGeomId{ 1111 };
@@ -560,6 +620,68 @@ TEST_F( TestMaterialResolverRequestedProxyIds, resolvePhongMaterial )
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numMaterialsRealized );
 }
+
+#ifdef OTK_USE_MDL
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCompilesShaderOnce )
+{
+    m_options.mdlSmokeMaterial = true;
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    const uint_t mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 7U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialFallsBackWhenCompileFails )
+{
+    m_options.mdlSmokeMaterial = true;
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    const uint_t fallbackSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 3U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) )
+        .WillOnce( Throw( std::runtime_error( "compile failed" ) ) );
+    EXPECT_CALL( *m_programGroups, getFallbackMaterialSbtOffset( _ ) ).WillOnce( Return( fallbackSbtOffset ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlFailedState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( fallbackSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numFailedShaders );
+}
+#endif
 
 TEST_F( TestMaterialResolverRequestedProxyIdsGroups, resolvePhongMaterialGroups )
 {

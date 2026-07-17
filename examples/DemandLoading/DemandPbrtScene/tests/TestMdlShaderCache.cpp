@@ -155,7 +155,9 @@ TEST( TestMdlShaderCompileCache, lookupCreatesMissingRecordWithoutQueueingCompil
 
     const MdlShaderCompileRecord& record{ cache.getOrCreate( key ) };
     EXPECT_EQ( MdlShaderCompileState::MISSING, record.state );
+    EXPECT_EQ( 1U, record.shaderKeyId );
     EXPECT_EQ( MdlShaderCompileState::MISSING, cache.state( key ) );
+    EXPECT_EQ( 1U, cache.shaderKeyId( key ) );
     EXPECT_EQ( 1U, cache.size() );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
@@ -175,6 +177,7 @@ TEST( TestMdlShaderCompileCache, duplicateRequestsDoNotQueueDuplicateCompiles )
     EXPECT_TRUE( cache.requestCompile( key ) );
     EXPECT_FALSE( cache.requestCompile( equivalentKey ) );
     EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( key ) );
+    EXPECT_EQ( 1U, cache.shaderKeyId( equivalentKey ) );
     EXPECT_EQ( 1U, cache.size() );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };

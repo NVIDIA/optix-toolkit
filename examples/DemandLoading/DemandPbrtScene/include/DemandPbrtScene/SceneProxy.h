@@ -29,6 +29,7 @@ struct MaterialGroup
     std::string   diffuseMapFileName;
     std::string   alphaMapFileName;
     uint_t        primitiveIndexEnd;
+    std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtMaterial;
 };
 
 struct GeometryInstance

@@ -4,6 +4,12 @@
 
 #pragma once
 
+#include "DemandPbrtScene/Config.h"
+
+#ifdef OTK_USE_MDL
+#include "DemandPbrtScene/MdlShaderCompileCacheStatistics.h"
+#endif
+
 namespace demandPbrtScene {
 
 struct MaterialResolverStats
@@ -12,6 +18,9 @@ struct MaterialResolverStats
     unsigned int numMaterialsRealized;
     unsigned int numMaterialsReused;
     unsigned int numProxyMaterialsCreated;
+#ifdef OTK_USE_MDL
+    MdlShaderCompileCacheStatistics mdlShaders;
+#endif
 };
 
 }
