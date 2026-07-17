@@ -72,3 +72,97 @@ TEST_F( TestParamPrinters, infiniteLight )
 
     EXPECT_EQ( "InfiniteLight{ color: (1, 2, 3), scale: (4, 5, 6), textureId: 1234 }", m_str.str() );
 }
+
+TEST( TestFallbackShaderContract, localFallbackDefaultsToNoMdlBackendReason )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::LOCAL_FALLBACK ) };
+
+    EXPECT_EQ( 42U, state.materialId );
+    EXPECT_EQ( MaterialBackend::LOCAL_FALLBACK, state.backend );
+    EXPECT_EQ( 0U, state.shaderKey );
+    EXPECT_EQ( MaterialFallbackReason::NO_MDL_BACKEND, state.fallbackReason );
+    EXPECT_TRUE( usesFallbackShader( state ) );
+}
+
+TEST( TestFallbackShaderContract, mdlReadyDoesNotUseFallback )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::MDL_READY, 1234U ) };
+
+    EXPECT_EQ( 42U, state.materialId );
+    EXPECT_EQ( MaterialBackend::MDL_READY, state.backend );
+    EXPECT_EQ( 1234U, state.shaderKey );
+    EXPECT_EQ( MaterialFallbackReason::NONE, state.fallbackReason );
+    EXPECT_FALSE( usesFallbackShader( state ) );
+}
+
+TEST( TestFallbackShaderContract, mdlPendingDefaultsToPendingReason )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::MDL_PENDING, 1234U ) };
+
+    EXPECT_EQ( MaterialFallbackReason::MDL_PENDING, state.fallbackReason );
+    EXPECT_TRUE( usesFallbackShader( state ) );
+}
+
+TEST( TestFallbackShaderContract, mdlFailedDefaultsToFailedReason )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::MDL_FAILED, 1234U ) };
+
+    EXPECT_EQ( MaterialFallbackReason::MDL_FAILED, state.fallbackReason );
+    EXPECT_TRUE( usesFallbackShader( state ) );
+}
+
+TEST( TestFallbackShaderContract, explicitReasonOverridesBackendDefault )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::UNSUPPORTED ) };
+
+    EXPECT_EQ( MaterialFallbackReason::UNSUPPORTED, state.fallbackReason );
+    EXPECT_TRUE( usesFallbackShader( state ) );
+}
+
+TEST( TestFallbackShaderContract, defaultMaterialUsesConstantKdOnly )
+{
+    const PhongMaterial material{};
+
+    const FallbackShaderFeature features{ fallbackFeaturesForMaterial( material ) };
+
+    EXPECT_TRUE( flagSet( features, FallbackShaderFeature::CONSTANT_KD ) );
+    EXPECT_FALSE( flagSet( features, FallbackShaderFeature::DIFFUSE_TEXTURE ) );
+    EXPECT_FALSE( flagSet( features, FallbackShaderFeature::ALPHA_CUTOUT ) );
+}
+
+TEST( TestFallbackShaderContract, allocatedDiffuseAndAlphaMapsEnableTextureFeatures )
+{
+    PhongMaterial material{};
+    material.flags = MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED | MaterialFlags::ALPHA_MAP
+                     | MaterialFlags::ALPHA_MAP_ALLOCATED;
+
+    const FallbackShaderFeature features{ fallbackFeaturesForMaterial( material ) };
+
+    EXPECT_TRUE( flagSet( features, FallbackShaderFeature::CONSTANT_KD ) );
+    EXPECT_TRUE( flagSet( features, FallbackShaderFeature::DIFFUSE_TEXTURE ) );
+    EXPECT_TRUE( flagSet( features, FallbackShaderFeature::ALPHA_CUTOUT ) );
+}
+
+TEST( TestFallbackShaderContract, unallocatedTextureRequestsAreNotFallbackTextureFeatures )
+{
+    PhongMaterial material{};
+    material.flags = MaterialFlags::DIFFUSE_MAP | MaterialFlags::ALPHA_MAP;
+
+    const FallbackShaderFeature features{ fallbackFeaturesForMaterial( material ) };
+
+    EXPECT_TRUE( flagSet( features, FallbackShaderFeature::CONSTANT_KD ) );
+    EXPECT_FALSE( flagSet( features, FallbackShaderFeature::DIFFUSE_TEXTURE ) );
+    EXPECT_FALSE( flagSet( features, FallbackShaderFeature::ALPHA_CUTOUT ) );
+}
+
+TEST( TestFallbackShaderContract, unsupportedFallbackAddsDiagnosticColorFeature )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::UNSUPPORTED ) };
+    const PhongMaterial material{};
+
+    const FallbackShaderContract contract{ fallbackShaderContract( state, material ) };
+
+    EXPECT_EQ( MaterialFallbackReason::UNSUPPORTED, contract.reason );
+    EXPECT_TRUE( flagSet( contract.featureMask, FallbackShaderFeature::CONSTANT_KD ) );
+    EXPECT_TRUE( flagSet( contract.featureMask, FallbackShaderFeature::DIAGNOSTIC_COLOR ) );
+}

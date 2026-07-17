@@ -560,6 +560,16 @@ struct ProxyMaterialDebugInfo
                 launchIndex.x, launchIndex.y,                                   //
                 pageId,                                                         //
                 isResident ? "true" : "false" );
+        const demandPbrtScene::Params& params{ demandPbrtScene::PARAMS_VAR_NAME };
+        if( params.materialStates != nullptr && pageId < params.numMaterialStates )
+        {
+            const demandPbrtScene::MaterialState& state{ params.materialStates[pageId] };
+            printf( "    MaterialState: id %u, backend %u, shaderKey %u, fallbackReason %u\n",  //
+                    state.materialId,                                                          //
+                    static_cast<unsigned int>( state.backend ),                                 //
+                    state.shaderKey,                                                           //
+                    static_cast<unsigned int>( state.fallbackReason ) );                        //
+        }
     }
     __device__ __forceinline__ void setColor( float r, float g, float b ) const
     {

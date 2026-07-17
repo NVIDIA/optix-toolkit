@@ -70,7 +70,7 @@ PhongMaterial arbitraryThirdPhongMaterial()
 
 MaterialState localFallbackState( uint_t materialId )
 {
-    return MaterialState{ materialId, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::NO_MDL_BACKEND };
+    return makeMaterialState( materialId, MaterialBackend::LOCAL_FALLBACK );
 }
 
 void setLocalFallbackState( SceneSyncState& sync, uint_t materialId )

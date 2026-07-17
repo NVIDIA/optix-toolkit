@@ -209,6 +209,41 @@ inline bool operator!=( const MaterialState& lhs, const MaterialState& rhs )
     return !( lhs == rhs );
 }
 
+inline MaterialFallbackReason defaultFallbackReason( MaterialBackend backend )
+{
+    switch( backend )
+    {
+        case MaterialBackend::NONE:
+            return MaterialFallbackReason::UNSUPPORTED;
+        case MaterialBackend::LOCAL_FALLBACK:
+            return MaterialFallbackReason::NO_MDL_BACKEND;
+        case MaterialBackend::MDL_READY:
+            return MaterialFallbackReason::NONE;
+        case MaterialBackend::MDL_PENDING:
+            return MaterialFallbackReason::MDL_PENDING;
+        case MaterialBackend::MDL_FAILED:
+            return MaterialFallbackReason::MDL_FAILED;
+    }
+    return MaterialFallbackReason::UNSUPPORTED;
+}
+
+inline MaterialState makeMaterialState( uint_t                 materialId,
+                                        MaterialBackend        backend,
+                                        uint_t                 shaderKey      = 0U,
+                                        MaterialFallbackReason fallbackReason = MaterialFallbackReason::NONE )
+{
+    if( fallbackReason == MaterialFallbackReason::NONE )
+    {
+        fallbackReason = defaultFallbackReason( backend );
+    }
+    return MaterialState{ materialId, backend, shaderKey, fallbackReason };
+}
+
+inline bool usesFallbackShader( const MaterialState& state )
+{
+    return state.backend != MaterialBackend::MDL_READY;
+}
+
 struct PhongMaterial
 {
     float3        Ka;
@@ -238,6 +273,82 @@ inline bool operator==( const PhongMaterial& lhs, const PhongMaterial& rhs )
 inline bool operator!=( const PhongMaterial& lhs, const PhongMaterial& rhs )
 {
     return !( lhs == rhs );
+}
+
+enum class FallbackShaderFeature : uint_t
+{
+    NONE             = 0,
+    CONSTANT_KD      = 1,
+    DIFFUSE_TEXTURE  = 2,
+    ALPHA_CUTOUT     = 4,
+    DIAGNOSTIC_COLOR = 8,
+    MASK             = 0xF,
+};
+
+inline uint_t operator+( FallbackShaderFeature value )
+{
+    return static_cast<uint_t>( value );
+}
+
+inline FallbackShaderFeature operator|( FallbackShaderFeature lhs, FallbackShaderFeature rhs )
+{
+    return static_cast<FallbackShaderFeature>( +lhs | +rhs );
+}
+
+inline FallbackShaderFeature& operator|=( FallbackShaderFeature& lhs, FallbackShaderFeature rhs )
+{
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+inline FallbackShaderFeature operator&( FallbackShaderFeature lhs, FallbackShaderFeature rhs )
+{
+    return static_cast<FallbackShaderFeature>( +lhs & +rhs );
+}
+
+inline bool flagSet( FallbackShaderFeature value, FallbackShaderFeature flag )
+{
+    return ( value & flag ) == flag;
+}
+
+struct FallbackShaderContract
+{
+    FallbackShaderFeature featureMask;
+    MaterialFallbackReason reason;
+};
+
+inline bool operator==( const FallbackShaderContract& lhs, const FallbackShaderContract& rhs )
+{
+    return lhs.featureMask == rhs.featureMask && lhs.reason == rhs.reason;
+}
+
+inline bool operator!=( const FallbackShaderContract& lhs, const FallbackShaderContract& rhs )
+{
+    return !( lhs == rhs );
+}
+
+inline FallbackShaderFeature fallbackFeaturesForMaterial( const PhongMaterial& material )
+{
+    FallbackShaderFeature features{ FallbackShaderFeature::CONSTANT_KD };
+    if( flagSet( material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
+    {
+        features |= FallbackShaderFeature::DIFFUSE_TEXTURE;
+    }
+    if( flagSet( material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
+    {
+        features |= FallbackShaderFeature::ALPHA_CUTOUT;
+    }
+    return features;
+}
+
+inline FallbackShaderContract fallbackShaderContract( const MaterialState& state, const PhongMaterial& material )
+{
+    FallbackShaderFeature features{ fallbackFeaturesForMaterial( material ) };
+    if( usesFallbackShader( state ) && state.fallbackReason != MaterialFallbackReason::NO_MDL_BACKEND )
+    {
+        features |= FallbackShaderFeature::DIAGNOSTIC_COLOR;
+    }
+    return FallbackShaderContract{ features, state.fallbackReason };
 }
 
 struct TriangleUVs

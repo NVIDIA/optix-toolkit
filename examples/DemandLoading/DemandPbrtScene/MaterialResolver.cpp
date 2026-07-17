@@ -99,7 +99,7 @@ std::string toString( const std::vector<uint_t>& ids )
 
 MaterialState localFallbackState( uint_t materialId )
 {
-    return MaterialState{ materialId, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::NO_MDL_BACKEND };
+    return makeMaterialState( materialId, MaterialBackend::LOCAL_FALLBACK );
 }
 
 void setMaterialState( SceneSyncState& sync, uint_t materialId, MaterialState state )
