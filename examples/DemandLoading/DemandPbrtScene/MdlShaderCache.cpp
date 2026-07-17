@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <iterator>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 namespace demandPbrtScene {
@@ -274,6 +275,106 @@ MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material )
     appendMaterialSignature( signature, material.type, material.params, material.graph, materialStack, textureStack );
 
     return MdlShaderKey{ signature.str() };
+}
+
+MdlShaderCompileRecord& MdlShaderCompileCache::getOrCreateRecord( const MdlShaderKey& key )
+{
+    std::map<MdlShaderKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
+    if( it == m_records.end() )
+    {
+        it = m_records.insert( std::make_pair( key, MdlShaderCompileRecord{} ) ).first;
+    }
+    return it->second;
+}
+
+const MdlShaderCompileRecord& MdlShaderCompileCache::getOrCreate( const MdlShaderKey& key )
+{
+    return getOrCreateRecord( key );
+}
+
+MdlShaderCompileState MdlShaderCompileCache::state( const MdlShaderKey& key ) const
+{
+    std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
+    return it == m_records.end() ? MdlShaderCompileState::MISSING : it->second.state;
+}
+
+std::string MdlShaderCompileCache::diagnostics( const MdlShaderKey& key ) const
+{
+    std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
+    return it == m_records.end() ? std::string{} : it->second.diagnostics;
+}
+
+bool MdlShaderCompileCache::requestCompile( const MdlShaderKey& key )
+{
+    MdlShaderCompileRecord& record = getOrCreateRecord( key );
+    if( record.state != MdlShaderCompileState::MISSING )
+    {
+        return false;
+    }
+
+    record.state = MdlShaderCompileState::QUEUED;
+    record.diagnostics.clear();
+    return true;
+}
+
+void MdlShaderCompileCache::markCompiling( const MdlShaderKey& key )
+{
+    MdlShaderCompileRecord& record = getOrCreateRecord( key );
+    record.state = MdlShaderCompileState::COMPILING;
+    record.diagnostics.clear();
+}
+
+void MdlShaderCompileCache::markReady( const MdlShaderKey& key )
+{
+    MdlShaderCompileRecord& record = getOrCreateRecord( key );
+    record.state = MdlShaderCompileState::READY;
+    record.diagnostics.clear();
+}
+
+void MdlShaderCompileCache::markFailed( const MdlShaderKey& key, const std::string& diagnostics )
+{
+    MdlShaderCompileRecord& record = getOrCreateRecord( key );
+    record.state       = MdlShaderCompileState::FAILED;
+    record.diagnostics = diagnostics;
+}
+
+MdlShaderCompileCacheStatistics MdlShaderCompileCache::getStatistics() const
+{
+    MdlShaderCompileCacheStatistics stats{};
+    for( std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.begin();
+         it != m_records.end();
+         ++it )
+    {
+        switch( it->second.state )
+        {
+        case MdlShaderCompileState::MISSING:
+            ++stats.numMissingShaders;
+            break;
+        case MdlShaderCompileState::QUEUED:
+            ++stats.numQueuedShaders;
+            break;
+        case MdlShaderCompileState::COMPILING:
+            ++stats.numCompilingShaders;
+            break;
+        case MdlShaderCompileState::READY:
+            ++stats.numReadyShaders;
+            break;
+        case MdlShaderCompileState::FAILED:
+            ++stats.numFailedShaders;
+            break;
+        }
+    }
+    return stats;
+}
+
+std::size_t MdlShaderCompileCache::size() const
+{
+    return m_records.size();
+}
+
+void MdlShaderCompileCache::clear()
+{
+    m_records.clear();
 }
 
 const GeneratedMdlSource& MdlGeneratedSourceCache::getOrCreate( const MdlShaderKey& key )

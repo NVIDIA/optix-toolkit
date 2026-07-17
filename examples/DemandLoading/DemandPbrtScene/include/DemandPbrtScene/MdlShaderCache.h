@@ -35,6 +35,52 @@ struct GeneratedMdlSource
     std::string source;
 };
 
+enum class MdlShaderCompileState
+{
+    MISSING,
+    QUEUED,
+    COMPILING,
+    READY,
+    FAILED,
+};
+
+struct MdlShaderCompileRecord
+{
+    MdlShaderCompileState state{ MdlShaderCompileState::MISSING };
+    std::string           diagnostics;
+};
+
+struct MdlShaderCompileCacheStatistics
+{
+    unsigned int numMissingShaders{};
+    unsigned int numQueuedShaders{};
+    unsigned int numCompilingShaders{};
+    unsigned int numReadyShaders{};
+    unsigned int numFailedShaders{};
+};
+
+class MdlShaderCompileCache
+{
+  public:
+    const MdlShaderCompileRecord& getOrCreate( const MdlShaderKey& key );
+    MdlShaderCompileState         state( const MdlShaderKey& key ) const;
+    std::string                   diagnostics( const MdlShaderKey& key ) const;
+
+    bool requestCompile( const MdlShaderKey& key );
+    void markCompiling( const MdlShaderKey& key );
+    void markReady( const MdlShaderKey& key );
+    void markFailed( const MdlShaderKey& key, const std::string& diagnostics );
+
+    MdlShaderCompileCacheStatistics getStatistics() const;
+    std::size_t                     size() const;
+    void                            clear();
+
+  private:
+    MdlShaderCompileRecord& getOrCreateRecord( const MdlShaderKey& key );
+
+    std::map<MdlShaderKey, MdlShaderCompileRecord> m_records;
+};
+
 class MdlGeneratedSourceCache
 {
   public:
