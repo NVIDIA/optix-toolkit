@@ -581,7 +581,8 @@ ShapeDefinition PbrtApiImpl::createPlyMesh( const ::pbrt::ParamSet& params )
              bounds,
              PlyMeshData{ filename, m_infoReader->getLoader( filename ) },
              TriangleMeshData{},
-             SphereData{} };
+             SphereData{},
+             getShapePbrtMaterial() };
 }
 
 ShapeDefinition PbrtApiImpl::createTriangleMesh( const ::pbrt::ParamSet& params )
@@ -607,7 +608,7 @@ ShapeDefinition PbrtApiImpl::createTriangleMesh( const ::pbrt::ParamSet& params 
         data.uvs.push_back( ::pbrt::Point2f( uvs[i * 2], uvs[i * 2 + 1] ) );
     }
     return { SHAPE_TYPE_TRIANGLE_MESH, m_currentTransform, getShapeMaterial( params ), bounds, PlyMeshData{},
-             std::move( data ),        SphereData{} };
+             std::move( data ),        SphereData{},        getShapePbrtMaterial() };
 }
 
 ShapeDefinition PbrtApiImpl::createSphere( const ::pbrt::ParamSet& params )
@@ -630,7 +631,8 @@ ShapeDefinition PbrtApiImpl::createSphere( const ::pbrt::ParamSet& params )
                                ::pbrt::Point3f{ -data.radius, -data.radius, -data.radius } },
              PlyMeshData{},
              TriangleMeshData{},
-             data };
+             data,
+             getShapePbrtMaterial() };
 }
 
 PlasticMaterial PbrtApiImpl::getShapeMaterial( const ::pbrt::ParamSet& params ) const
@@ -644,6 +646,24 @@ PlasticMaterial PbrtApiImpl::getShapeMaterial( const ::pbrt::ParamSet& params ) 
     const std::string     diffuseMapFileName  = lookupSpectrumTextureFileName( "Kd", params );
     const std::string     specularMapFileName = lookupSpectrumTextureFileName( "Ks", params );
     return { Ka, Kd, Ks, alphaMapFileName, diffuseMapFileName, specularMapFileName };
+}
+
+PbrtMaterial PbrtApiImpl::getShapePbrtMaterial() const
+{
+    if( !m_graphicsState.currentNamedMaterial.empty() )
+    {
+        auto it = m_graphicsState.namedMaterials.find( m_graphicsState.currentNamedMaterial );
+        if( it != m_graphicsState.namedMaterials.end() )
+        {
+            return { it->second.params.FindOneString( "type", std::string{} ), m_graphicsState.currentNamedMaterial,
+                     it->second.params };
+        }
+    }
+    if( !m_graphicsState.currentMaterial.name.empty() )
+    {
+        return { m_graphicsState.currentMaterial.name, std::string{}, m_graphicsState.currentMaterial.params };
+    }
+    return {};
 }
 
 static bool findParamInSet( const std::string& name, const ::pbrt::ParamSet& params, ::pbrt::Point3f& result )

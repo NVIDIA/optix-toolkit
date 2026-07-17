@@ -513,6 +513,99 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterial )
     EXPECT_THAT( shape.material.specularMapFileName.c_str(), EndsWith( "color2.png" ) );
 }
 
+TEST_F( TestPbrtApi, pbrtMaterialTypesArePreserved )
+{
+    const char* materialTypes[] = { "matte", "plastic", "uber", "glass", "metal", "mix", "translucent", "unknown" };
+
+    for( const char* materialType : materialTypes )
+    {
+        SCOPED_TRACE( materialType );
+        const std::string sceneText{ std::string( R"pbrt(
+        WorldBegin
+        Material ")pbrt" ) + materialType
+                                     + R"pbrt("
+            "rgb Kd" [ 0.1 0.2 0.3 ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" };
+        parseScene( sceneText.c_str() );
+
+        ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+        const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+        EXPECT_EQ( std::string( materialType ), material.type );
+        EXPECT_TRUE( material.namedMaterialName.empty() );
+    }
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialParametersArePreserved )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "uber"
+            "rgb Kd" [ 0.2 0.3 0.4 ]
+            "float roughness" [ 0.25 ]
+            "bool remaproughness" [ "false" ]
+            "string label" [ "coated" ]
+            "texture bumpmap" [ "bumpTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_EQ( "uber", material.type );
+    EXPECT_TRUE( material.namedMaterialName.empty() );
+
+    int          floatCount{};
+    const float* roughness{ material.params.FindFloat( "roughness", &floatCount ) };
+    ASSERT_EQ( 1, floatCount );
+    ASSERT_NE( nullptr, roughness );
+    EXPECT_EQ( 0.25f, roughness[0] );
+
+    ::pbrt::Spectrum Kd{ material.params.FindOneSpectrum( "Kd", ::pbrt::Spectrum( 0.0f ) ) };
+    float            rgb[3]{};
+    Kd.ToRGB( rgb );
+    EXPECT_FLOAT_EQ( 0.2f, rgb[0] );
+    EXPECT_FLOAT_EQ( 0.3f, rgb[1] );
+    EXPECT_FLOAT_EQ( 0.4f, rgb[2] );
+
+    EXPECT_FALSE( material.params.FindOneBool( "remaproughness", true ) );
+    EXPECT_EQ( "coated", material.params.FindOneString( "label", "" ) );
+    EXPECT_EQ( "bumpTexture", material.params.FindTexture( "bumpmap" ) );
+}
+
+TEST_F( TestPbrtApi, namedPbrtMaterialIntentIsPreserved )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        MakeNamedMaterial "blueGlass"
+            "string type" [ "glass" ]
+            "rgb Kd" [ 0.1 0.2 0.3 ]
+            "float eta" [ 1.5 ]
+        NamedMaterial "blueGlass"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
+    EXPECT_EQ( Point3( 0.1f, 0.2f, 0.3f ), shape.material.Kd );
+
+    const PbrtMaterial& material{ shape.pbrtMaterial };
+    EXPECT_EQ( "glass", material.type );
+    EXPECT_EQ( "blueGlass", material.namedMaterialName );
+    EXPECT_EQ( "glass", material.params.FindOneString( "type", "" ) );
+
+    int          etaCount{};
+    const float* eta{ material.params.FindFloat( "eta", &etaCount ) };
+    ASSERT_EQ( 1, etaCount );
+    ASSERT_NE( nullptr, eta );
+    EXPECT_EQ( 1.5f, eta[0] );
+}
+
 TEST_F( TestPbrtApi, freeMeshGetsAlphaTexture )
 {
     configureMeshOneInfo( 1 );

@@ -71,6 +71,13 @@ struct PlasticMaterial
     std::string     specularMapFileName;
 };
 
+struct PbrtMaterial
+{
+    std::string      type;
+    std::string      namedMaterialName;
+    ::pbrt::ParamSet params;
+};
+
 struct PlyMeshData
 {
     std::string   fileName;
@@ -106,6 +113,7 @@ struct ShapeDefinition
     PlyMeshData       plyMesh;       //
     TriangleMeshData  triangleMesh;  //
     SphereData        sphere;        //
+    PbrtMaterial      pbrtMaterial;  //
 };
 
 using ShapeList = std::vector<ShapeDefinition>;

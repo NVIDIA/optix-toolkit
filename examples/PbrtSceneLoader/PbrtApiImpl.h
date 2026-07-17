@@ -121,6 +121,7 @@ private:
     ShapeDefinition createTriangleMesh( const ::pbrt::ParamSet& params );
     ShapeDefinition createSphere( const ::pbrt::ParamSet& params );
     PlasticMaterial getShapeMaterial( const ::pbrt::ParamSet& params ) const;
+    PbrtMaterial     getShapePbrtMaterial() const;
     ::pbrt::Point3f lookupParam( const std::string& name, const ::pbrt::ParamSet& params, ::pbrt::Point3f def ) const;
     std::string     lookupTextureName( const std::string& name, const ::pbrt::ParamSet& params ) const;
     std::string     lookupSpectrumTextureFileName( const std::string& name, const ::pbrt::ParamSet& params ) const;
