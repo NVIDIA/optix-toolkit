@@ -62,6 +62,7 @@ add_library(DemandPbrtSceneImpl STATIC
     ${CMAKE_CURRENT_BINARY_DIR}/include/DemandPbrtScene/Config.h
     include/DemandPbrtScene/Accumulator.h
     include/DemandPbrtScene/Application.h
+    include/DemandPbrtScene/CameraMath.h
     include/DemandPbrtScene/Config.h.in
     include/DemandPbrtScene/Conversions.h
     include/DemandPbrtScene/CudaContext.h

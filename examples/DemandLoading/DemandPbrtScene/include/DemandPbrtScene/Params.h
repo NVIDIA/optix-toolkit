@@ -233,6 +233,7 @@ struct PerspectiveCamera
     float           focalDistance;
     float           lensRadius;
     float           aspectRatio;
+    float4          screenWindow;
     otk::Transform4 cameraToWorld;
     otk::Transform4 worldToCamera;
     otk::Transform4 cameraToScreen;

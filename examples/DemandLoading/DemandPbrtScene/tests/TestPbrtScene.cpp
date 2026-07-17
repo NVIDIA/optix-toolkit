@@ -361,6 +361,18 @@ MATCHER_P( hasLensRadius, value, "" )
     return true;
 }
 
+MATCHER_P( hasScreenWindow, value, "" )
+{
+    if( arg.screenWindow != value )
+    {
+        *result_listener << "expected screen window " << value << ", got " << arg.screenWindow;
+        return false;
+    }
+
+    *result_listener << "has screen window " << value;
+    return true;
+}
+
 bool hasDirectionalLight( MatchResultListener* result_listener, const DirectionalLight& light, const DirectionalLight& actual )
 {
     if( actual != light )
@@ -478,16 +490,21 @@ void TestPbrtScene::SetUp()
     otk::pbrt::LookAtDefinition&            lookAt = m_sceneDesc->lookAt;
     otk::pbrt::PerspectiveCameraDefinition& camera = m_sceneDesc->camera;
 
-    lookAt.lookAt         = P3( 111.0f, 222.0f, 3333.0f );
-    lookAt.eye            = P3( 444.0f, 555.0f, 666.0f );
-    lookAt.up             = Normalize( V3( 1.0f, 2.0f, 3.0f ) );
-    camera.defined        = true;
-    camera.fov            = 45.0f;
-    camera.focalDistance  = 3000.0f;
-    camera.lensRadius     = 0.125f;
-    camera.cameraToWorld  = Inverse( LookAt( lookAt.eye, lookAt.lookAt, lookAt.up ) );
-    camera.cameraToScreen = pbrt::Perspective( camera.fov, 1e-2f, 1000.f );
-    m_sceneDesc->bounds   = toBounds3( m_sceneBounds );
+    lookAt.lookAt                = P3( 111.0f, 222.0f, 3333.0f );
+    lookAt.eye                   = P3( 444.0f, 555.0f, 666.0f );
+    lookAt.up                    = Normalize( V3( 1.0f, 2.0f, 3.0f ) );
+    camera.defined               = true;
+    camera.fov                   = 45.0f;
+    camera.focalDistance         = 3000.0f;
+    camera.lensRadius            = 0.125f;
+    camera.screenWindowSpecified = true;
+    camera.screenWindow[0]       = -2.0f;
+    camera.screenWindow[1]       = 3.0f;
+    camera.screenWindow[2]       = -4.0f;
+    camera.screenWindow[3]       = 5.0f;
+    camera.cameraToWorld         = Inverse( LookAt( lookAt.eye, lookAt.lookAt, lookAt.up ) );
+    camera.cameraToScreen        = pbrt::Perspective( camera.fov, 1e-2f, 1000.f );
+    m_sceneDesc->bounds          = toBounds3( m_sceneBounds );
 
     m_topLevelASSizes.tempSizeInBytes   = 1234U;
     m_topLevelASSizes.outputSizeInBytes = 5678U;
@@ -664,7 +681,9 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
                                                 hasUp( expectedUp ) ) ) );
     EXPECT_CALL( *m_renderer, setCamera( AllOf( hasCameraToWorldTransform( camera.cameraToWorld ),
                                                 hasWorldToCameraTransform( Inverse( camera.cameraToWorld ) ),
-                                                hasCameraToScreenTransform( camera.cameraToScreen ), hasFov( camera.fov ) ) ) );
+                                                hasCameraToScreenTransform( camera.cameraToScreen ),
+                                                hasFov( camera.fov ),
+                                                hasScreenWindow( make_float4( -2.0f, 3.0f, -4.0f, 5.0f ) ) ) ) );
 
     m_scene->initialize( m_stream );
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+#include "DemandPbrtScene/CameraMath.h"
 #include "DemandPbrtScene/DeviceTriangles.h"
 #include "DemandPbrtScene/Params.h"
 #include "DemandPbrtScene/PhongShade.h"
@@ -154,15 +155,12 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     unsigned int             rseed{ srand( idx.x, idx.y, subframe ) };
 
     // Compute ray as pbrt would.
-    const otk::Transform4 screenToRaster{ otk::scale( imageSize.x, imageSize.y, 1.0f )
-                                          * otk::scale( 1.0f / imageSize.x, -1.0f / imageSize.y, 1.0f )
-                                          * otk::translate( 0.0f, -imageSize.y, 0.0f ) };
+    const otk::Transform4 screenToRaster{ makePbrtScreenToRaster( camera.screenWindow, imageSize ) };
     const otk::Transform4 rasterToScreen{ inverse( screenToRaster ) };
-    const otk::Transform4 rasterToCamera{ inverse( camera.cameraToScreen ) * rasterToScreen };
-    const float3          filmPos{ static_cast<float>( idx.x ), static_cast<float>( idx.y ), 0.0f };
-    const float4          cameraPos{ rasterToCamera * filmPos };
-    const float4          pbrtRayDir{ camera.cameraToWorld * otk::normalize( cameraPos ) };
-    const float4          pbrtRayPos{ camera.cameraToWorld * make_float4( 0.0f, 0.0f, 0.0f, 1.0f ) };
+    const otk::Transform4 rasterToCamera{
+        makePbrtRasterToCamera( camera.cameraToScreen, camera.screenWindow, imageSize ) };
+    const float3               filmPos{ static_cast<float>( idx.x ), static_cast<float>( idx.y ), 0.0f };
+    const PerspectiveCameraRay pbrtRay{ makePbrtPerspectiveCameraRay( camera.cameraToWorld, rasterToCamera, filmPos ) };
 
     // Compute ray using look at parameters.
     const float2 d = make_float2( idx.x + rnd( rseed ), idx.y + rnd( rseed ) ) / imageSize * 2.f - 1.f;
@@ -209,16 +207,16 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         else
         {
             printf(
-                "pbrt raygen [%g,%g] "                                   //
-                "org: (%g, %g, %g, %g), "                                //
-                "dir: <%g, %g, %g, %g> "                                 //
-                "filmPos: (%g, %g, %g), "                                //
-                "cameraPos: (%g, %g, %g, %g)\n",                         //
-                filmPos.x, filmPos.y,                                    //
-                pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z, pbrtRayPos.w,  //
-                pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z, pbrtRayDir.w,  //
-                filmPos.x, filmPos.y, filmPos.z,                         //
-                cameraPos.x, cameraPos.y, cameraPos.z, cameraPos.w       //
+                "pbrt raygen [%g,%g] "                                               //
+                "org: (%g, %g, %g), "                                                //
+                "dir: <%g, %g, %g> "                                                 //
+                "filmPos: (%g, %g, %g), "                                            //
+                "cameraPos: (%g, %g, %g)\n",                                         //
+                filmPos.x, filmPos.y,                                                //
+                pbrtRay.origin.x, pbrtRay.origin.y, pbrtRay.origin.z,                //
+                pbrtRay.direction.x, pbrtRay.direction.y, pbrtRay.direction.z,       //
+                filmPos.x, filmPos.y, filmPos.z,                                     //
+                pbrtRay.cameraPoint.x, pbrtRay.cameraPoint.y, pbrtRay.cameraPoint.z  //
             );
             auto printMatrix = []( const char* label, const otk::Transform4& transform ) {
                 printf(
@@ -248,8 +246,8 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     packPointer( &prd, u0, u1 );
 
     prd.rayDistance = tMax;
-    float3  rayOrigin{ usePinhole ? pinholeRayOrigin : make_float3( pbrtRayPos.x, pbrtRayPos.y, pbrtRayPos.z ) };
-    float3  rayDirection{ usePinhole ? pinholeRayDir : make_float3( pbrtRayDir.x, pbrtRayDir.y, pbrtRayDir.z ) };
+    float3  rayOrigin{ usePinhole ? pinholeRayOrigin : pbrtRay.origin };
+    float3  rayDirection{ usePinhole ? pinholeRayDir : pbrtRay.direction };
     RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
