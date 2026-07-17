@@ -60,6 +60,13 @@ if(OTK_USE_MDL)
     target_link_libraries(TestDemandPbrtSceneMdlSdk PUBLIC
         mdl::mdl_sdk
         GTest::gmock_main)
+    if(WIN32)
+        add_custom_command(TARGET TestDemandPbrtSceneMdlSdk POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:TestDemandPbrtSceneMdlSdk>
+                $<TARGET_FILE_DIR:TestDemandPbrtSceneMdlSdk>
+            COMMAND_EXPAND_LISTS)
+    endif()
     set_target_properties(TestDemandPbrtSceneMdlSdk PROPERTIES FOLDER Examples/DemandLoading/Tests)
     add_test( NAME TestDemandPbrtSceneMdlSdk COMMAND TestDemandPbrtSceneMdlSdk )
     set_tests_properties( TestDemandPbrtSceneMdlSdk PROPERTIES LABELS "DemandPbrtScene;MDL" )
