@@ -21,8 +21,8 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
-#include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 #include <OptiXToolkit/PbrtSceneLoader/Logger.h>
+#include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/Testing/Matchers.h>
@@ -244,8 +244,7 @@ static SceneDescriptionPtr singleTriangleWithDiffuseMapScene()
 
 static SceneDescriptionPtr parsePbrtScene( const std::string& text )
 {
-    std::shared_ptr<SceneLoader> loader{
-        createSceneLoader( "TestDemandPbrtSceneImpl", std::make_shared<NullLogger>(), nullptr ) };
+    std::shared_ptr<SceneLoader> loader{ createSceneLoader( "TestDemandPbrtSceneImpl", std::make_shared<NullLogger>(), nullptr ) };
     return loader->parseString( text );
 }
 
@@ -256,7 +255,7 @@ static void addStringParameter( ::pbrt::ParamSet& params, const std::string& nam
     params.AddString( name, std::move( values ), 1 );
 }
 
-static void addPbrtImageMapTexture( ShapeDefinition& shape,
+static void addPbrtImageMapTexture( ShapeDefinition&   shape,
                                     const std::string& materialParam,
                                     const std::string& valueType,
                                     const std::string& textureName,
@@ -684,8 +683,8 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtDiffuseTextureForCommonMater
         const char* valueType;
     };
 
-    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
-                                      DiffuseCase{ "uber", "spectrum" } } )
+    for( const DiffuseCase& value :
+         { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" }, DiffuseCase{ "uber", "spectrum" } } )
     {
         SCOPED_TRACE( value.materialType );
         ShapeDefinition shape{ singleTriangleShape() };
@@ -708,17 +707,17 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtDiffuseTextures )
         const char* valueType;
     };
 
-    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
-                                      DiffuseCase{ "uber", "spectrum" } } )
+    for( const DiffuseCase& value :
+         { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" }, DiffuseCase{ "uber", "spectrum" } } )
     {
         SCOPED_TRACE( value.materialType );
-        const std::string sceneText{ std::string( R"pbrt(
+        const std::string         sceneText{ std::string( R"pbrt(
         WorldBegin
         Texture "diffuseTexture" ")pbrt" )
-                                     + value.valueType + R"pbrt(" "imagemap"
+                                             + value.valueType + R"pbrt(" "imagemap"
             "string filename" [ "pbrt-diffuse.png" ]
-        Material ")pbrt"
-                                     + value.materialType + R"pbrt("
+        Material ")pbrt" + value.materialType
+                                             + R"pbrt("
             "texture Kd" [ "diffuseTexture" ]
         Shape "trianglemesh"
             "integer indices" [0 2 1]
@@ -751,7 +750,7 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardDiffuseTex
         WorldEnd)pbrt" ) };
     ASSERT_EQ( 1U, scene->freeShapes.size() );
 
-    const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PlasticMaterial            material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
     const PbrtCheckerboardDefinition definition{ parsePbrtCheckerboardTextureKey( material.diffuseMapFileName ) };
 
     EXPECT_TRUE( isPbrtCheckerboardTextureKey( material.diffuseMapFileName ) );
@@ -763,6 +762,26 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardDiffuseTex
     EXPECT_FLOAT_EQ( 0.0f, definition.tex2.z );
     EXPECT_FLOAT_EQ( 2.0f, definition.uscale );
     EXPECT_FLOAT_EQ( 4.0f, definition.vscale );
+    EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedMirrorReflectanceTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "reflectanceTexture" "color" "imagemap"
+            "string filename" [ "pbrt-reflectance.png" ]
+        Material "mirror"
+            "texture Kr" [ "reflectanceTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+
+    EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-reflectance.png" ) );
     EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 
@@ -800,7 +819,7 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardAlphaTextu
         WorldEnd)pbrt" ) };
     ASSERT_EQ( 1U, scene->freeShapes.size() );
 
-    const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PlasticMaterial            material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
     const PbrtCheckerboardDefinition definition{ parsePbrtCheckerboardTextureKey( material.alphaMapFileName ) };
 
     EXPECT_TRUE( isPbrtCheckerboardTextureKey( material.alphaMapFileName ) );

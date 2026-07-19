@@ -221,6 +221,13 @@ void usePbrtDiffuseImagemapMaterial( GeometryInstance& geom, const std::string& 
     geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
 }
 
+void usePbrtMirrorReflectanceImagemapMaterial( GeometryInstance& geom )
+{
+    geom.groups[0].pbrtMaterial       = pbrtImagemapMaterialOfType( "mirror", "Kr", "color", DIFFUSE_MAP_PATH );
+    geom.groups[0].material.flags     = MaterialFlags::DIFFUSE_MAP;
+    geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
+}
+
 void usePbrtAlphaImagemapMaterial( GeometryInstance& geom, const std::string& type = "matte" )
 {
     geom.groups[0].pbrtMaterial     = pbrtImagemapMaterialOfType( type, "opacity", "float", ALPHA_MAP_PATH );
@@ -1141,10 +1148,10 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksUnsuppo
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
 }
 
-TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTextureBackedSpecularMaterialUnsupported )
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTextureBackedNonMirrorSpecularMaterialUnsupported )
 {
     m_options.useMdlMaterials = true;
-    usePbrtTexturedMaterialOfType( m_geom, "mirror", "Kr" );
+    usePbrtTexturedMaterialOfType( m_geom, "glass", "Kr" );
     const uint_t proxyGeomId{ 1111 };
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
@@ -1229,6 +1236,58 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterial
     EXPECT_EQ( diffuseTextureId, m_sync.maxDiffuseTextureId );
     ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
     EXPECT_EQ( diffuseTextureId, m_sync.realizedMaterials[proxyMaterialId].diffuseTextureId );
+    EXPECT_TRUE( flagSet( m_sync.realizedMaterials[proxyMaterialId].flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) );
+    EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
+    EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMirrorMaterialBindsReflectanceDemandTexture )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtMirrorReflectanceImagemapMaterial( m_geom );
+    TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
+    TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
+    m_geom.devUVs     = fakeUVs;
+    m_geom.devNormals = fakeNormals;
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    const uint_t reflectanceTextureId{ 333U };
+    const uint_t mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( false ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( reflectanceTextureId ) );
+    EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( hasGeometryInstance(
+                                       hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
+                                               hasDiffuseTextureId( reflectanceTextureId ) ) ) ) )
+        .WillOnce( Return( mdlSbtOffset ) );
+    EXPECT_CALL( *m_programGroups,
+                 realizeMdlMaterialShader( hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
+                                                                        hasDiffuseTextureId( reflectanceTextureId ) ) ),
+                                           1U ) )
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    EXPECT_EQ( reflectanceTextureId, m_sync.minDiffuseTextureId );
+    EXPECT_EQ( reflectanceTextureId, m_sync.maxDiffuseTextureId );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( reflectanceTextureId, m_sync.realizedMaterials[proxyMaterialId].diffuseTextureId );
     EXPECT_TRUE( flagSet( m_sync.realizedMaterials[proxyMaterialId].flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) );
     EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
     EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );

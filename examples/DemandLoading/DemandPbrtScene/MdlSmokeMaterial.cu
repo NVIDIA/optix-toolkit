@@ -23,10 +23,9 @@ using namespace otk;  // for vec_math operators
 namespace demandPbrtScene {
 
 constexpr uint_t MDL_BSDF_INIT_CALLABLE_OFFSET{ 1U };
+constexpr uint_t MDL_BSDF_SAMPLE_CALLABLE_OFFSET{ 2U };
 constexpr uint_t MDL_BSDF_EVALUATE_CALLABLE_OFFSET{ 3U };
 constexpr uint_t MDL_BSDF_CALLABLE_COUNT{ 4U };
-constexpr float  INV_PI{ 0.31830988618379067154f };
-constexpr float  PI{ 3.14159265358979323846f };
 constexpr float  DISPLAY_GAMMA{ 1.0f / 2.2f };
 
 // Flip V because PBRT texture coordinate space has (0,0) at the lower left corner.
@@ -112,45 +111,6 @@ __device__ __forceinline__ float3 displayEncodeMdlColor( const float3& color )
     return make_float3( powf( fmaxf( color.x, 0.0f ), DISPLAY_GAMMA ),  //
                         powf( fmaxf( color.y, 0.0f ), DISPLAY_GAMMA ),  //
                         powf( fmaxf( color.z, 0.0f ), DISPLAY_GAMMA ) );
-}
-
-__device__ __forceinline__ float2 concentricMapping( float2 u )
-{
-    float a = 2.0f * u.x - 1.0f;
-    if( a == 0.0f )
-        a = 1.0f;
-    float b = 2.0f * u.y - 1.0f;
-    if( b == 0.0f )
-        b = 1.0f;
-
-    float r, phi;
-    if( a * a > b * b )
-    {
-        r   = a;
-        phi = ( PI / 4.0f ) * ( b / a );
-    }
-    else
-    {
-        r   = b;
-        phi = ( PI / 2.0f ) - ( PI / 4.0f ) * ( a / b );
-    }
-    return float2{ r * cosf( phi ), r * sinf( phi ) };
-}
-
-__device__ __forceinline__ void makeOrthoBasis( float3 n, float3& s, float3& t )
-{
-    s = ( fabsf( n.x ) + fabsf( n.y ) > fabsf( n.z ) ) ? float3{ -n.y, n.x, 0.0f } : float3{ 0.0f, -n.z, n.y };
-    s = otk::normalize( s );
-    t = otk::cross( s, n );
-}
-
-__device__ __forceinline__ float3 sampleDiffuseDirection( const float4& xi, const float3& n )
-{
-    float3       s, t;
-    const float3 normal{ otk::normalize( n ) };
-    makeOrthoBasis( normal, s, t );
-    const float2 st{ concentricMapping( make_float2( xi.x, xi.y ) ) };
-    return otk::normalize( ( st.x * s ) + ( st.y * t ) + ( sqrtf( 1.0f - otk::dot( st, st ) ) * normal ) );
 }
 
 __device__ __forceinline__ float getWorldSpaceTextureSize( const float3 ( &vertices )[3], const TriangleUVs& uvs )
@@ -288,20 +248,28 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
 __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&                     shader,
                                                const mi::neuraylib::Shading_state_material& state,
                                                const mi::neuraylib::Resource_data&          resourceData,
-                                               const float3&                                worldNormal,
                                                const float3&                                outgoing,
                                                const float4&                                xi,
                                                const float3&                                textureScale,
                                                float3&                                      direction,
                                                float3&                                      throughput )
 {
-    direction       = sampleDiffuseDirection( xi, worldNormal );
-    const float pdf = fmaxf( otk::dot( worldNormal, direction ), 0.0f ) * INV_PI;
-    if( pdf <= 0.0f )
+    mi::neuraylib::Bsdf_sample_data sampleData{};
+    sampleData.ior1  = make_float3( 1.0f );
+    sampleData.ior2  = make_float3( 1.0f );
+    sampleData.k1    = outgoing;
+    sampleData.xi    = xi;
+    sampleData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT;
+    optixDirectCall<void, mi::neuraylib::Bsdf_sample_data*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
+        shader.callableBaseIndex + MDL_BSDF_SAMPLE_CALLABLE_OFFSET, &sampleData, &state, &resourceData, nullptr );
+
+    if( sampleData.event_type == mi::neuraylib::BSDF_EVENT_ABSORB )
     {
         return false;
     }
-    throughput = evaluateMdlBsdf( shader, state, resourceData, outgoing, direction, textureScale ) / pdf;
+
+    direction  = sampleData.k2;
+    throughput = sampleData.bsdf_over_pdf * textureScale;
     return otk::dot( throughput, throughput ) > 0.0f;
 }
 
@@ -432,8 +400,9 @@ extern "C" __global__ void __closesthit__mdlMesh()
         initializeMdlBsdf( shader, state, resourceData );
         prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, worldNormal, rayDirection, diffuseTextureScale ) );
         prd->hasDirectColor = true;
-        prd->hasMdlBsdfSample = sampleMdlBsdf( shader, state, resourceData, worldNormal, -rayDirection, prd->mdlBsdfSampleXi,
-                                               diffuseTextureScale, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
+        prd->hasMdlBsdfSample = PARAMS_VAR_NAME.renderMode == RenderMode::PATH_TRACING
+                                && sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi,
+                                                  diffuseTextureScale, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
         return;
     }
 

@@ -284,6 +284,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     // Ambient Occlusion and Diffuse Path Tracing
     const float rayTmax     = ( renderMode == RenderMode::NEAR_AO ) ? 128.0f : 1000000.0f;
     const float maxRayDepth = ( renderMode != RenderMode::PATH_TRACING ) ? 1 : 3;
+    float3      pathBackground{ params.background };
 
     for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )
     {
@@ -318,7 +319,10 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
         // Ray hit sky, break
         if( prd.rayDistance >= rayTmax )
+        {
+            pathBackground = prd.color;
             break;
+        }
 
         // Multiply by diffuse color
         if( prd.diffuseTextureId != 0xffffffff )
@@ -343,7 +347,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     if( renderMode == RenderMode::PATH_TRACING )
     {
         // Background is the light source in path tracing mode
-        sampleColor *= params.background;
+        sampleColor *= pathBackground;
     }
     else
     {

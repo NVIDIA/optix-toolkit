@@ -743,8 +743,9 @@ TEST( TestMdlGeneratedSource, mapsMirrorMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: mirror" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Kr = color(1.0, 1.0, 1.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kr: texture_0()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_mirror_approximation_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: pbrt_mirror_approximation_tint(texture_0())" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "scattering: ::df::specular_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_reflect" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "reflectance.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );

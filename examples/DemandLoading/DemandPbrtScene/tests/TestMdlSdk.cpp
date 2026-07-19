@@ -718,6 +718,61 @@ TEST( TestMdlSdk, compilesGeneratedMatteBsdfCallablesWithBoundKd )
     EXPECT_EQ( 0, session.shutdown() );
 }
 
+TEST( TestMdlSdk, compilesGeneratedMirrorBsdfCallablesWithBoundKr )
+{
+    const otk::pbrt::PbrtMaterial       material{ mirrorMaterial() };
+    const demandPbrtScene::MdlShaderKey key{ demandPbrtScene::makeMdlShaderKey( material ) };
+
+    demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
+    const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( material ) };
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::specular_bsdf" ) );
+    const std::string sourceDescription{ describeGeneratedSource( generated, key ) };
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> parameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( material ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, key, parameters ) );
+        ASSERT_TRUE( compiledMaterial.is_valid_interface() );
+
+        const demandPbrtScene::MdlBsdfCallablePtx bsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), compiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_mirror_bsdf" ) };
+
+        EXPECT_EQ( "pbrt_mirror_bsdf_init", bsdf.initFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_mirror_bsdf_sample", bsdf.sampleFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_mirror_bsdf_evaluate", bsdf.evaluateFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_mirror_bsdf_pdf", bsdf.pdfFunctionName ) << sourceDescription;
+        EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.initFunctionName ) );
+        EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.sampleFunctionName ) );
+        EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.evaluateFunctionName ) );
+        EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.pdfFunctionName ) );
+
+        compiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
 TEST( TestMdlSdk, compilesOpaqueGeneratedMaterialsWithBoundConstants )
 {
     MdlSdkSession session;

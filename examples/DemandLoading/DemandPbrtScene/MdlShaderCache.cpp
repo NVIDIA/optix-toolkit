@@ -1074,13 +1074,11 @@ MdlMaterialModel makeMirrorMaterialModel( const otk::pbrt::PbrtMaterial& materia
 
     model.comments.push_back( "pbrt material model: mirror" );
     model.comments.push_back( "pbrt material input Kr: " + kr );
-    model.comments.push_back( "pbrt material approximation: perfect specular reflection is represented as tint" );
-    model.helperDefinitions = "color pbrt_mirror_approximation_tint(color kr) = kr;\n\n";
     model.body =
         "    surface: material_surface(\n"
-        "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        "            tint: pbrt_mirror_approximation_tint("
-        + kr + ")))\n";
+        "        scattering: ::df::specular_bsdf(\n"
+        "            tint: " + kr + ",\n"
+        "            mode: ::df::scatter_reflect))\n";
     return model;
 }
 

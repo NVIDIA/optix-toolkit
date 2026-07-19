@@ -31,8 +31,8 @@ inline std::string pbrtTextureGraphKey( const std::string& valueType, const std:
     return valueType + ":" + textureName;
 }
 
-inline const otk::pbrt::PbrtTexture* findPbrtTexture( const otk::pbrt::PbrtMaterial& material,
-                                                      const std::string&             textureName,
+inline const otk::pbrt::PbrtTexture* findPbrtTexture( const otk::pbrt::PbrtMaterial&     material,
+                                                      const std::string&                 textureName,
                                                       std::initializer_list<const char*> valueTypes )
 {
     if( textureName.empty() )
@@ -68,10 +68,20 @@ inline std::string pbrtTextureMapName( const otk::pbrt::PbrtTexture* texture )
     return {};
 }
 
+inline std::string pbrtColorMapFileName( const otk::pbrt::PbrtMaterial& material, const char* paramName )
+{
+    const std::string textureName{ material.params.FindTexture( paramName ) };
+    return pbrtTextureMapName( findPbrtTexture( material, textureName, { "spectrum", "color" } ) );
+}
+
 inline std::string pbrtDiffuseMapFileName( const otk::pbrt::PbrtMaterial& material )
 {
-    const std::string textureName{ material.params.FindTexture( "Kd" ) };
-    return pbrtTextureMapName( findPbrtTexture( material, textureName, { "spectrum", "color" } ) );
+    return pbrtColorMapFileName( material, "Kd" );
+}
+
+inline std::string pbrtMirrorReflectanceMapFileName( const otk::pbrt::PbrtMaterial& material )
+{
+    return material.type == "mirror" ? pbrtColorMapFileName( material, "Kr" ) : std::string{};
 }
 
 inline std::string pbrtAlphaMapFileName( const otk::pbrt::PbrtMaterial& material )
@@ -96,6 +106,14 @@ inline otk::pbrt::PlasticMaterial fallbackMaterialForShape( const otk::pbrt::Sha
     if( !diffuseMapFileName.empty() )
     {
         result.diffuseMapFileName = diffuseMapFileName;
+    }
+    else
+    {
+        const std::string reflectanceMapFileName{ pbrtMirrorReflectanceMapFileName( shape.pbrtMaterial ) };
+        if( !reflectanceMapFileName.empty() )
+        {
+            result.diffuseMapFileName = reflectanceMapFileName;
+        }
     }
 
     const std::string alphaMapFileName{ pbrtAlphaMapFileName( shape.pbrtMaterial ) };

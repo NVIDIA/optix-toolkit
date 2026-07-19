@@ -275,6 +275,14 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
             }
             continue;
         }
+        if( paramName == "Kr" && material.type == "mirror" )
+        {
+            if( !hasDiffuseMap )
+            {
+                return false;
+            }
+            continue;
+        }
         if( paramName == "alpha" || paramName == "shadowalpha" || paramName == "opacity" )
         {
             if( !hasAlphaMap )

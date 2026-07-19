@@ -20,6 +20,7 @@ set(referenceMaterials
 
 set(pbrtReferenceComparableMaterials
     matte
+    mirror
 )
 
 add_custom_target(DemandPbrtScenePbrtReferenceResources)
@@ -49,7 +50,7 @@ image_test_get_resource_dir(resourceDir DemandPbrtScene)
 if(OTK_USE_MDL)
     function(add_pbrt_reference_image_test name)
         set(oneValueArgs MATERIAL SCENE WARMUP DIFF_THRESHOLD ALLOWED_PERCENTAGE TOLERANCE_REASON)
-        cmake_parse_arguments(PBRT_REF "" "${oneValueArgs}" "RESOURCES" ${ARGN})
+        cmake_parse_arguments(PBRT_REF "" "${oneValueArgs}" "OPTIONS;RESOURCES" ${ARGN})
         if(PBRT_REF_UNPARSED_ARGUMENTS)
             message(FATAL_ERROR "Unknown arguments to add_pbrt_reference_image_test: ${PBRT_REF_UNPARSED_ARGUMENTS}")
         endif()
@@ -93,7 +94,8 @@ if(OTK_USE_MDL)
                 --warmup=${PBRT_REF_WARMUP}
                 ${resourceDir}/${PBRT_REF_SCENE}
                 --use-mdl-materials
-                --mdl-synchronous-compilation)
+                --mdl-synchronous-compilation
+                ${PBRT_REF_OPTIONS})
         set(toleranceReason "${PBRT_REF_TOLERANCE_REASON}")
         string(APPEND toleranceReason " (diff threshold ${PBRT_REF_DIFF_THRESHOLD}")
         string(APPEND toleranceReason ", allowed percentage ${PBRT_REF_ALLOWED_PERCENTAGE})")
@@ -113,6 +115,13 @@ if(OTK_USE_MDL)
         SCENE matte-checkerboard.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, CPU checkerboard demand texture feeds the generated MDL matte path")
+    add_pbrt_reference_image_test(mirror
+        MATERIAL mirror
+        SCENE mirror.pbrt
+        WARMUP 4
+        OPTIONS --render-mode=path
+        ALLOWED_PERCENTAGE 8
+        TOLERANCE_REASON "Silhouette tolerance, generated MDL mirror uses specular BSDF sampling")
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte
