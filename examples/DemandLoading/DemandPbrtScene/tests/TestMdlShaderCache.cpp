@@ -49,6 +49,15 @@ PbrtMaterial matteMaterial( float kd )
     return material;
 }
 
+PbrtMaterial matteMaterialWithSigmaAndCutout()
+{
+    PbrtMaterial material{ matteMaterial( 0.2f ) };
+    addFloat( material.params, "sigma", 20.0f );
+    addFloat( material.params, "alpha", 0.8f );
+    addFloat( material.params, "opacity", 0.7f );
+    return material;
+}
+
 PbrtTexture imageMapTexture( const std::string& name,
                              const std::string& fileName,
                              const std::string& valueType = "spectrum" )
@@ -514,13 +523,40 @@ TEST( TestMdlGeneratedSource, mapsMatteMaterialModel )
 {
     const GeneratedMdlSource generated{ generateMdlSource( matteMaterial( 0.2f ) ) };
 
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mdl 1.10" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: matte" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Kd = color(0.8, 0.8, 0.8)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float sigma = 0.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float alpha = 1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float opacity = 1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: Kd" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input sigma: sigma" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: sigma degrees map to MDL "
+                                                       "Oren-Nayar roughness sigma / 90" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input alpha: alpha; texture=none" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input shadowalpha: any-hit texture=none" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input opacity: opacity; texture=none" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float pbrt_matte_sigma_roughness(float sigma_degrees) = "
+                                                       "::math::clamp(sigma_degrees / 90.0, 0.0, 1.0);" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "tint: Kd" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness: pbrt_matte_sigma_roughness(sigma)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "geometry: material_geometry" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha * opacity" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "0.2" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsMatteSigmaAndCutoutParameters )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( matteMaterialWithSigmaAndCutout() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float sigma = 0.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float alpha = 1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float opacity = 1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness: pbrt_matte_sigma_roughness(sigma)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha * opacity" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "20.0" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "0.7" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
@@ -581,6 +617,17 @@ TEST( TestMdlBoundMaterialParameters, bindsPlasticConstants )
     expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
     expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
     expectBoundFloat( parameters, "roughness", 0.25f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsMatteSigmaAndCutoutConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( matteMaterialWithSigmaAndCutout() ) };
+
+    EXPECT_EQ( 4U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundFloat( parameters, "sigma", 20.0f );
+    expectBoundFloat( parameters, "alpha", 0.8f );
+    expectBoundFloat( parameters, "opacity", 0.7f );
 }
 
 TEST( TestMdlBoundMaterialParameters, bindsUberConstants )

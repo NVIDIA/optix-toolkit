@@ -220,6 +220,13 @@ otk::pbrt::PbrtMaterial matteMaterial( float red, float green, float blue )
     return material;
 }
 
+otk::pbrt::PbrtMaterial matteMaterialWithSigma( float red, float green, float blue, float sigma )
+{
+    otk::pbrt::PbrtMaterial material{ matteMaterial( red, green, blue ) };
+    addFloat( material.params, "sigma", sigma );
+    return material;
+}
+
 otk::pbrt::PbrtMaterial plasticMaterial()
 {
     otk::pbrt::PbrtMaterial material;
@@ -631,9 +638,12 @@ TEST( TestMdlSdk, compilesGeneratedMatteBsdfCallablesWithBoundKd )
 {
     const otk::pbrt::PbrtMaterial firstMaterial{ matteMaterial( PBRT_KD_RED, PBRT_KD_GREEN, PBRT_KD_BLUE ) };
     const otk::pbrt::PbrtMaterial secondMaterial{ matteMaterial( PBRT_KD_ALT_RED, PBRT_KD_ALT_GREEN, PBRT_KD_ALT_BLUE ) };
+    const otk::pbrt::PbrtMaterial roughMaterial{ matteMaterialWithSigma( PBRT_KD_RED, PBRT_KD_GREEN, PBRT_KD_BLUE, 45.0f ) };
     const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
     const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
+    const demandPbrtScene::MdlShaderKey roughKey{ demandPbrtScene::makeMdlShaderKey( roughMaterial ) };
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( roughKey ) );
 
     demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
     const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
@@ -662,6 +672,8 @@ TEST( TestMdlSdk, compilesGeneratedMatteBsdfCallablesWithBoundKd )
             demandPbrtScene::makeMdlBoundMaterialParameters( firstMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> secondParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( secondMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> roughParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( roughMaterial ) };
         mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, firstParameters ) );
         ASSERT_TRUE( firstCompiledMaterial.is_valid_interface() );
@@ -670,11 +682,18 @@ TEST( TestMdlSdk, compilesGeneratedMatteBsdfCallablesWithBoundKd )
             session.neuray(), transaction.get(), context.get(), generated, firstKey, secondParameters ) );
         ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
 
+        mi::base::Handle<mi::neuraylib::ICompiled_material> roughCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, roughParameters ) );
+        ASSERT_TRUE( roughCompiledMaterial.is_valid_interface() );
+
         const demandPbrtScene::MdlBsdfCallablePtx firstBsdf{
             demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), firstCompiledMaterial.get(),
                                                            context.get(), "surface.scattering", "pbrt_matte_bsdf" ) };
         const demandPbrtScene::MdlBsdfCallablePtx secondBsdf{
             demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), secondCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_matte_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx roughBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), roughCompiledMaterial.get(),
                                                            context.get(), "surface.scattering", "pbrt_matte_bsdf" ) };
 
         EXPECT_EQ( "pbrt_matte_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
@@ -686,10 +705,13 @@ TEST( TestMdlSdk, compilesGeneratedMatteBsdfCallablesWithBoundKd )
         EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.evaluateFunctionName ) );
         EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
         EXPECT_FALSE( secondBsdf.ptx.empty() );
+        EXPECT_FALSE( roughBsdf.ptx.empty() );
         EXPECT_NE( firstBsdf.ptx, secondBsdf.ptx );
+        EXPECT_NE( firstBsdf.ptx, roughBsdf.ptx );
 
         firstCompiledMaterial.reset();
         secondCompiledMaterial.reset();
+        roughCompiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
 

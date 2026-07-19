@@ -956,17 +956,34 @@ MdlMaterialModel makeMatteMaterialModel( const otk::pbrt::PbrtMaterial& material
     MdlMaterialModel model;
     appendMaterialParameter( model, "color", "Kd", "color(0.8, 0.8, 0.8)" );
     appendMaterialParameter( model, "float", "sigma", "0.0" );
+    appendMaterialParameter( model, "float", "alpha", "1.0" );
+    appendMaterialParameter( model, "float", "opacity", "1.0" );
 
     const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
+    const std::string alphaTexture{
+        materialTextureCommentExpression( textureGraph, material.params, "alpha", "float" ) };
+    const std::string shadowAlphaTexture{
+        materialTextureCommentExpression( textureGraph, material.params, "shadowalpha", "float" ) };
+    const std::string opacityTexture{
+        materialTextureCommentExpression( textureGraph, material.params, "opacity", "float" ) };
 
     model.comments.push_back( "pbrt material model: matte" );
     model.comments.push_back( "pbrt material input Kd: " + kd );
     model.comments.push_back( "pbrt material input sigma: sigma" );
+    model.comments.push_back( "pbrt material approximation: sigma degrees map to MDL Oren-Nayar roughness sigma / 90" );
+    model.comments.push_back( "pbrt material input alpha: alpha; texture=" + alphaTexture );
+    model.comments.push_back( "pbrt material input shadowalpha: any-hit texture=" + shadowAlphaTexture );
+    model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
+    model.helperDefinitions =
+        "float pbrt_matte_sigma_roughness(float sigma_degrees) = ::math::clamp(sigma_degrees / 90.0, 0.0, 1.0);\n\n";
     model.body =
         "    surface: material_surface(\n"
         "        scattering: ::df::diffuse_reflection_bsdf(\n"
         "            tint: "
-        + kd + "))\n";
+        + kd + ",\n"
+               "            roughness: pbrt_matte_sigma_roughness(sigma))),\n"
+               "    geometry: material_geometry(\n"
+               "        cutout_opacity: alpha * opacity)\n";
     return model;
 }
 
@@ -1336,8 +1353,9 @@ GeneratedMdlSource generateSource( const MdlShaderKey& key )
     result.materialName = "material_" + suffix;
 
     std::ostringstream source;
-    source << "mdl 1.6;\n"
+    source << "mdl 1.10;\n"
            << "import ::df::*;\n"
+           << "import ::math::*;\n"
            << "\n"
            << "export material " << result.materialName << "() = material(\n"
            << "    surface: material_surface(\n"
@@ -1435,6 +1453,8 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
     static const BoundParameterSpec matteParams[] = {
         { MdlBoundParameterType::COLOR, "Kd" },
         { MdlBoundParameterType::FLOAT, "sigma" },
+        { MdlBoundParameterType::FLOAT, "alpha" },
+        { MdlBoundParameterType::FLOAT, "opacity" },
     };
     static const BoundParameterSpec plasticParams[] = {
         { MdlBoundParameterType::COLOR, "Kd" },
@@ -1586,8 +1606,9 @@ GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
     const MdlMaterialModel   materialModel{ makeMaterialModel( material, textureGraph, result ) };
 
     std::ostringstream source;
-    source << "mdl 1.6;\n"
+    source << "mdl 1.10;\n"
            << "import ::df::*;\n"
+           << "import ::math::*;\n"
            << "\n";
     for( std::vector<std::string>::const_iterator it = materialModel.comments.begin(); it != materialModel.comments.end(); ++it )
     {
