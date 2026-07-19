@@ -764,8 +764,15 @@ TEST( TestMdlGeneratedSource, mapsGlassMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kr: Kr" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kt: Kt" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_glass_approximation_tint(Kr, Kt, roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: rough glass microfacet behavior is not "
+                                                       "implemented; roughness inputs are bound but the MDL glass "
+                                                       "lobe is specular" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(index, index, index)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "scattering: ::df::tint" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::specular_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_reflect_transmit" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_glass_approximation_tint" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "diffuse_reflection_bsdf" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 

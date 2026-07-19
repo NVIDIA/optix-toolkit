@@ -21,6 +21,7 @@ set(referenceMaterials
 set(pbrtReferenceComparableMaterials
     matte
     mirror
+    glass
 )
 
 add_custom_target(DemandPbrtScenePbrtReferenceResources)
@@ -122,6 +123,13 @@ if(OTK_USE_MDL)
         OPTIONS --render-mode=path
         ALLOWED_PERCENTAGE 8
         TOLERANCE_REASON "Silhouette tolerance, generated MDL mirror uses specular BSDF sampling")
+    add_pbrt_reference_image_test(glass
+        MATERIAL glass
+        SCENE glass.pbrt
+        WARMUP 4
+        OPTIONS --render-mode=path
+        ALLOWED_PERCENTAGE 8
+        TOLERANCE_REASON "Silhouette tolerance, generated MDL glass uses specular transmission sampling")
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte

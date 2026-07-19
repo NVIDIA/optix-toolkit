@@ -274,17 +274,22 @@ otk::pbrt::PbrtMaterial mirrorMaterial()
     return material;
 }
 
-otk::pbrt::PbrtMaterial glassMaterial()
+otk::pbrt::PbrtMaterial glassMaterial( float index, float roughness, float uroughness, float vroughness )
 {
     otk::pbrt::PbrtMaterial material;
     material.type = "glass";
     addRgbSpectrum( material.params, "Kr", 0.9f, 0.9f, 0.9f );
     addRgbSpectrum( material.params, "Kt", 0.7f, 0.8f, 1.0f );
-    addFloat( material.params, "index", 1.5f );
-    addFloat( material.params, "roughness", 0.05f );
-    addFloat( material.params, "uroughness", 0.04f );
-    addFloat( material.params, "vroughness", 0.06f );
+    addFloat( material.params, "index", index );
+    addFloat( material.params, "roughness", roughness );
+    addFloat( material.params, "uroughness", uroughness );
+    addFloat( material.params, "vroughness", vroughness );
     return material;
+}
+
+otk::pbrt::PbrtMaterial glassMaterial()
+{
+    return glassMaterial( 1.5f, 0.05f, 0.04f, 0.06f );
 }
 
 otk::pbrt::PbrtMaterial metalMaterial()
@@ -496,10 +501,11 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterialWith
     return compiledMaterial;
 }
 
-void expectTintMatchesColor( const mi::neuraylib::ICompiled_material* compiledMaterial, const BoundMdlColor& expected )
+void expectColorExpressionMatches( const mi::neuraylib::ICompiled_material* compiledMaterial,
+                                   const char*                              expressionPath,
+                                   const BoundMdlColor&                     expected )
 {
-    mi::base::Handle<const mi::neuraylib::IExpression> tintExpression(
-        compiledMaterial->lookup_sub_expression( "surface.scattering.tint" ) );
+    mi::base::Handle<const mi::neuraylib::IExpression> tintExpression( compiledMaterial->lookup_sub_expression( expressionPath ) );
     ASSERT_TRUE( tintExpression.is_valid_interface() );
     ASSERT_EQ( mi::neuraylib::IExpression::EK_CONSTANT, tintExpression->get_kind() );
 
@@ -522,9 +528,34 @@ void expectTintMatchesColor( const mi::neuraylib::ICompiled_material* compiledMa
     EXPECT_NEAR( expected.blue, blue->get_value(), 1.0e-6f );
 }
 
+void expectTintMatchesColor( const mi::neuraylib::ICompiled_material* compiledMaterial, const BoundMdlColor& expected )
+{
+    expectColorExpressionMatches( compiledMaterial, "surface.scattering.tint", expected );
+}
+
 void expectTintMatchesPbrtKd( const mi::neuraylib::ICompiled_material* compiledMaterial, const BoundMdlColor& kd )
 {
     expectTintMatchesColor( compiledMaterial, kd );
+}
+
+void expectIorMatchesFloat( const mi::neuraylib::ICompiled_material* compiledMaterial, float index )
+{
+    expectColorExpressionMatches( compiledMaterial, "ior", BoundMdlColor{ index, index, index } );
+}
+
+const char* findPreviewColorExpressionPath( const mi::neuraylib::ICompiled_material* compiledMaterial )
+{
+    static const char* const paths[] = { "surface.scattering.tint", "ior" };
+    for( const char* path : paths )
+    {
+        mi::base::Handle<const mi::neuraylib::IExpression> expression( compiledMaterial->lookup_sub_expression( path ) );
+        if( expression.is_valid_interface() )
+        {
+            return path;
+        }
+    }
+    ADD_FAILURE() << "Compiled material has no preview color expression";
+    return "";
 }
 
 std::string translateTintExpressionToPtx( mi::neuraylib::INeuray*                  neuray,
@@ -543,8 +574,13 @@ std::string translateTintExpressionToPtx( mi::neuraylib::INeuray*               
         return {};
 
     context->clear_messages();
+    const char* const previewColorExpressionPath{ findPreviewColorExpressionPath( compiledMaterial ) };
+    if( previewColorExpressionPath[0] == '\0' )
+    {
+        return {};
+    }
     mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode( ptxBackend->translate_material_expression(
-        transaction, compiledMaterial, "surface.scattering.tint", "evaluate_tint", context ) );
+        transaction, compiledMaterial, previewColorExpressionPath, "evaluate_tint", context ) );
     EXPECT_TRUE( targetCode.is_valid_interface() ) << describeContextMessages( context );
     if( !targetCode.is_valid_interface() )
         return {};
@@ -773,6 +809,83 @@ TEST( TestMdlSdk, compilesGeneratedMirrorBsdfCallablesWithBoundKr )
     EXPECT_EQ( 0, session.shutdown() );
 }
 
+TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
+{
+    const otk::pbrt::PbrtMaterial       firstMaterial{ glassMaterial() };
+    const otk::pbrt::PbrtMaterial       secondMaterial{ glassMaterial( 1.1f, 0.2f, 0.3f, 0.4f ) };
+    const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
+    const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
+
+    demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
+    const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::tint" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::specular_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::scatter_reflect_transmit" ) );
+    const std::string sourceDescription{ describeGeneratedSource( generated, firstKey ) };
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> firstParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( firstMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> secondParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( secondMaterial ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, firstParameters ) );
+        ASSERT_TRUE( firstCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, secondParameters ) );
+        ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
+        expectIorMatchesFloat( firstCompiledMaterial.get(), 1.5f );
+        expectIorMatchesFloat( secondCompiledMaterial.get(), 1.1f );
+
+        const std::string tintPtx{ translateTintExpressionToPtx( session.neuray(), transaction.get(),
+                                                                 firstCompiledMaterial.get(), context.get() ) };
+        EXPECT_FALSE( tintPtx.empty() );
+
+        const demandPbrtScene::MdlBsdfCallablePtx firstBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), firstCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_glass_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx secondBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), secondCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_glass_bsdf" ) };
+
+        EXPECT_EQ( "pbrt_glass_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_glass_bsdf_sample", firstBsdf.sampleFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_glass_bsdf_evaluate", firstBsdf.evaluateFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_glass_bsdf_pdf", firstBsdf.pdfFunctionName ) << sourceDescription;
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.initFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.sampleFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.evaluateFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
+        EXPECT_FALSE( secondBsdf.ptx.empty() );
+
+        firstCompiledMaterial.reset();
+        secondCompiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
 TEST( TestMdlSdk, compilesOpaqueGeneratedMaterialsWithBoundConstants )
 {
     MdlSdkSession session;
@@ -810,7 +923,6 @@ TEST( TestMdlSdk, compilesOpaqueGeneratedMaterialsWithBoundConstants )
         expectCompiledTint( uberMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
         expectCompiledTint( substrateMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
         expectCompiledTint( mirrorMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
-        expectCompiledTint( glassMaterial(), BoundMdlColor{ 0.8f, 0.85f, 0.95f } );
         expectCompiledTint( metalMaterial(), BoundMdlColor{ 2.2f / 2.4f, 2.8f / 3.1f, 3.4f / 3.85f } );
         expectCompiledTint( translucentMaterial(), BoundMdlColor{ 0.1f, 0.15f, 0.2f } );
         expectCompiledTint( mixMaterial(), BoundMdlColor{ 0.35f, 0.35f, 0.35f } );

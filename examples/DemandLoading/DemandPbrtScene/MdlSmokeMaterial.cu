@@ -205,10 +205,10 @@ __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&     
 {
     mi::neuraylib::Bsdf_evaluate_data<mi::neuraylib::DF_HSM_NONE> evalData{};
     evalData.ior1  = make_float3( 1.0f );
-    evalData.ior2  = make_float3( 1.0f );
+    evalData.ior2  = make_float3( MI_NEURAYLIB_BSDF_USE_MATERIAL_IOR );
     evalData.k1    = outgoing;
     evalData.k2    = incoming;
-    evalData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT;
+    evalData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT_AND_TRANSMIT;
     optixDirectCall<void, mi::neuraylib::Bsdf_evaluate_data_base*, const mi::neuraylib::Shading_state_material*,
                     const mi::neuraylib::Resource_data*, const char*>( shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET,
                                                                        &evalData, &state, &resourceData, nullptr );
@@ -256,10 +256,10 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
 {
     mi::neuraylib::Bsdf_sample_data sampleData{};
     sampleData.ior1  = make_float3( 1.0f );
-    sampleData.ior2  = make_float3( 1.0f );
+    sampleData.ior2  = make_float3( MI_NEURAYLIB_BSDF_USE_MATERIAL_IOR );
     sampleData.k1    = outgoing;
     sampleData.xi    = xi;
-    sampleData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT;
+    sampleData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT_AND_TRANSMIT;
     optixDirectCall<void, mi::neuraylib::Bsdf_sample_data*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
         shader.callableBaseIndex + MDL_BSDF_SAMPLE_CALLABLE_OFFSET, &sampleData, &state, &resourceData, nullptr );
 

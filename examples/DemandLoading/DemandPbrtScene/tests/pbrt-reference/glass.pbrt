@@ -4,14 +4,37 @@
 
 Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["glass.png"]
 Sampler "halton" "integer pixelsamples" [4]
-Integrator "path" "integer maxdepth" [6]
+Integrator "path" "integer maxdepth" [5]
 LookAt 0 0 4  0 0 0  0 1 0
 Camera "perspective" "float fov" [30]
 
 WorldBegin
-    LightSource "infinite" "rgb L" [0.25 0.28 0.35]
-    LightSource "distant" "rgb L" [3 3 3] "point from" [1 2 4] "point to" [0 0 0]
+    LightSource "infinite" "rgb L" [1 1 1]
 
-    Material "glass" "rgb Kr" [0.95 0.95 0.95] "rgb Kt" [0.75 0.85 1.0] "float index" [1.5]
-    Shape "sphere" "float radius" [1]
+    Material "glass" "rgb Kr" [1 1 1] "rgb Kt" [1 0 0] "float index" [1]
+    Shape "trianglemesh"
+        "point P" [
+            -1 -1 -0.05
+             1 -1 -0.05
+             1  1 -0.05
+            -1  1 -0.05
+            -1 -1  0.05
+             1 -1  0.05
+             1  1  0.05
+            -1  1  0.05
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
 WorldEnd

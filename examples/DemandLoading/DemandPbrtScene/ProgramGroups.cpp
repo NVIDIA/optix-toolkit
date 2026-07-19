@@ -479,6 +479,20 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
     return compiledMaterial;
 }
 
+const char* findMdlPreviewColorExpressionPath( const mi::neuraylib::ICompiled_material* compiledMaterial )
+{
+    static const char* const paths[] = { "surface.scattering.tint", "ior" };
+    for( const char* path : paths )
+    {
+        mi::base::Handle<const mi::neuraylib::IExpression> expression( compiledMaterial->lookup_sub_expression( path ) );
+        if( expression.is_valid_interface() )
+        {
+            return path;
+        }
+    }
+    failMdl( "Generated MDL material has no preview color expression" );
+}
+
 MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, bool includeBsdfCallables )
 {
     MdlSdkSession session;
@@ -510,6 +524,7 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
         const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( pbrtMaterial ) };
         mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
             compileGeneratedMaterial( session.neuray(), transaction.get(), context.get(), source, key, parameters ) );
+        const char* const previewColorExpressionPath{ findMdlPreviewColorExpressionPath( compiledMaterial.get() ) };
 
         mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi(
             session.neuray()->get_api_component<mi::neuraylib::IMdl_backend_api>() );
@@ -522,9 +537,9 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
                     "Failed to set MDL CUDA PTX target architecture" );
 
         context->clear_messages();
-        mi::base::Handle<const mi::neuraylib::ITarget_code> tintTargetCode( ptxBackend->translate_material_expression(
-            transaction.get(), compiledMaterial.get(), "surface.scattering.tint", MDL_MATERIAL_TINT_FUNCTION_NAME,
-            context.get() ) );
+        mi::base::Handle<const mi::neuraylib::ITarget_code> tintTargetCode(
+            ptxBackend->translate_material_expression( transaction.get(), compiledMaterial.get(), previewColorExpressionPath,
+                                                       MDL_MATERIAL_TINT_FUNCTION_NAME, context.get() ) );
         requireMdl( tintTargetCode.is_valid_interface(), "Failed to translate MDL tint expression to PTX", context.get() );
         requireMdl( tintTargetCode->get_code_size() > 0U, "MDL generated empty PTX target code" );
         requireMdl( tintTargetCode->get_callable_function_count() == 1U,

@@ -1102,18 +1102,20 @@ MdlMaterialModel makeGlassMaterialModel( const otk::pbrt::PbrtMaterial& material
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input uroughness: uroughness" );
     model.comments.push_back( "pbrt material input vroughness: vroughness" );
-    appendRoughnessGapComment( model );
     model.comments.push_back(
-        "pbrt material approximation: reflection, transmission, Fresnel, and roughness are "
-        "represented but not connected" );
-    model.helperDefinitions =
-        "color pbrt_glass_approximation_tint(color kr, color kt, float roughness) = (kr + kt) * 0.5;\n\n";
+        "pbrt material gap: rough glass microfacet behavior is not implemented; roughness inputs "
+        "are bound but the MDL glass lobe is specular" );
     model.body =
         "    ior: color(index, index, index),\n"
         "    surface: material_surface(\n"
-        "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        "            tint: pbrt_glass_approximation_tint("
-        + kr + ", " + kt + ", roughness)))\n";
+        "        scattering: ::df::tint(\n"
+        "            "
+        + kr + ",\n"
+        "            " + kt
+        + ",\n"
+          "            ::df::specular_bsdf(\n"
+          "                tint: color(1.0, 1.0, 1.0),\n"
+          "                mode: ::df::scatter_reflect_transmit)))\n";
     return model;
 }
 
