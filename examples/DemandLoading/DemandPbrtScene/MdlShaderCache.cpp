@@ -1125,8 +1125,8 @@ MdlMaterialModel makeMetalMaterialModel( const otk::pbrt::PbrtMaterial& material
     appendMaterialParameter( model, "color", "eta", "color(0.2, 0.2, 0.2)" );
     appendMaterialParameter( model, "color", "k", "color(3.0, 3.0, 3.0)" );
     appendMaterialParameter( model, "float", "roughness", "0.1" );
-    appendMaterialParameter( model, "float", "uroughness", "0.1" );
-    appendMaterialParameter( model, "float", "vroughness", "0.1" );
+    appendMaterialParameter( model, "float", "uroughness", "-1.0" );
+    appendMaterialParameter( model, "float", "vroughness", "-1.0" );
 
     const std::string eta{ textureGraph.materialColorExpression( material.params, "eta", "color", "eta" ) };
     const std::string k{ textureGraph.materialColorExpression( material.params, "k", "color", "k" ) };
@@ -1140,14 +1140,23 @@ MdlMaterialModel makeMetalMaterialModel( const otk::pbrt::PbrtMaterial& material
     model.comments.push_back( "pbrt material gap: PBRT-exact spectral conductor behavior is approximated" );
     appendRoughnessGapComment( model );
     model.comments.push_back(
-        "pbrt material approximation: conductor Fresnel and anisotropic roughness are represented but not connected" );
+        "pbrt material approximation: RGB eta/k maps to MDL microfacet tint using normal-incidence conductor "
+        "reflectance" );
     model.helperDefinitions =
-        "color pbrt_metal_approximation_tint(color eta, color k, float roughness) = k / (eta + k);\n\n";
+        "float pbrt_metal_resolved_roughness(float roughness, float axis_roughness) = "
+        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n"
+        "color pbrt_metal_conductor_tint(color eta, color k) =\n"
+        "    ((eta - color(1.0, 1.0, 1.0)) * (eta - color(1.0, 1.0, 1.0)) + k * k) /\n"
+        "    ((eta + color(1.0, 1.0, 1.0)) * (eta + color(1.0, 1.0, 1.0)) + k * k);\n\n";
     model.body =
         "    surface: material_surface(\n"
-        "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        "            tint: pbrt_metal_approximation_tint("
-        + eta + ", " + k + ", roughness)))\n";
+        "        scattering: ::df::microfacet_ggx_smith_bsdf(\n"
+        "            roughness_u: pbrt_metal_resolved_roughness(roughness, uroughness),\n"
+        "            roughness_v: pbrt_metal_resolved_roughness(roughness, vroughness),\n"
+        "            tint: pbrt_metal_conductor_tint("
+        + eta + ", " + k
+        + "),\n"
+          "            mode: ::df::scatter_reflect))\n";
     return model;
 }
 

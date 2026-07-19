@@ -784,16 +784,25 @@ TEST( TestMdlGeneratedSource, mapsMetalMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "color eta = color(0.2, 0.2, 0.2)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color k = color(3.0, 3.0, 3.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.1" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = 0.1" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = -1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = -1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input eta: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input k: texture_1()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact spectral conductor behavior "
                                                        "is approximated" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact roughness/remapping "
                                                        "behavior is approximated" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_metal_approximation_tint(texture_0(), texture_1(), "
-                                                       "roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_metal_resolved_roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_metal_conductor_tint" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "scattering: ::df::microfacet_ggx_smith_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_u: pbrt_metal_resolved_roughness(roughness, "
+                                                       "uroughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_v: pbrt_metal_resolved_roughness(roughness, "
+                                                       "vroughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: pbrt_metal_conductor_tint(texture_0(), texture_1())" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_reflect" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_metal_approximation_tint" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "diffuse_reflection_bsdf" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "eta.exr" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "k.exr" ) ) );

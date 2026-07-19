@@ -3,15 +3,29 @@
 #
 
 Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["metal.png"]
-Sampler "halton" "integer pixelsamples" [4]
+Sampler "halton" "integer pixelsamples" [64]
 Integrator "path" "integer maxdepth" [5]
 LookAt 0 0 4  0 0 0  0 1 0
 Camera "perspective" "float fov" [30]
 
 WorldBegin
-    LightSource "infinite" "rgb L" [0.25 0.28 0.35]
-    LightSource "distant" "rgb L" [3 3 3] "point from" [1 2 4] "point to" [0 0 0]
+    LightSource "infinite" "rgb L" [1 1 1]
 
-    Material "metal" "rgb eta" [0.2 0.3 0.45] "rgb k" [2.2 2.8 3.4] "float roughness" [0.18]
-    Shape "sphere" "float radius" [1]
+    Material "metal"
+        "rgb eta" [0 0 0]
+        "rgb k" [1 1 1]
+        "float roughness" [0.001]
+        "float uroughness" [0.001]
+        "float vroughness" [0.001]
+    Shape "trianglemesh"
+        "point P" [
+            -1 -1 0
+             1 -1 0
+             1  1 0
+            -1  1 0
+        ]
+        "integer indices" [
+            0 1 2
+            0 2 3
+        ]
 WorldEnd
