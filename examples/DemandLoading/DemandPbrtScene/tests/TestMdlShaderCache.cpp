@@ -571,10 +571,18 @@ TEST( TestMdlGeneratedSource, mapsPlasticMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact roughness/remapping "
                                                        "behavior is approximated" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: glossy lobe is represented but "
-                                                       "not connected" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_plastic_approximation_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: pbrt_plastic_approximation_tint(Kd, Ks, roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: diffuse and glossy reflection "
+                                                       "use an MDL color-normalized mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kd" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_u: roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_v: roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "component: ::df::diffuse_reflection_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_plastic_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );

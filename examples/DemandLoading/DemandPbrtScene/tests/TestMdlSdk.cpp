@@ -240,14 +240,19 @@ otk::pbrt::PbrtMaterial matteMaterialWithSigma( float red, float green, float bl
     return material;
 }
 
-otk::pbrt::PbrtMaterial plasticMaterial()
+otk::pbrt::PbrtMaterial plasticMaterial( const BoundMdlColor& kd, const BoundMdlColor& ks, float roughness )
 {
     otk::pbrt::PbrtMaterial material;
     material.type = "plastic";
-    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
-    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
-    addFloat( material.params, "roughness", 0.25f );
+    addRgbSpectrum( material.params, "Kd", kd.red, kd.green, kd.blue );
+    addRgbSpectrum( material.params, "Ks", ks.red, ks.green, ks.blue );
+    addFloat( material.params, "roughness", roughness );
     return material;
+}
+
+otk::pbrt::PbrtMaterial plasticMaterial()
+{
+    return plasticMaterial( BoundMdlColor{ 0.2f, 0.3f, 0.4f }, BoundMdlColor{ 0.5f, 0.6f, 0.7f }, 0.25f );
 }
 
 otk::pbrt::PbrtMaterial uberMaterial()
@@ -827,6 +832,97 @@ TEST( TestMdlSdk, compilesGeneratedMirrorBsdfCallablesWithBoundKr )
     EXPECT_EQ( 0, session.shutdown() );
 }
 
+TEST( TestMdlSdk, compilesGeneratedPlasticBsdfCallablesWithBoundDiffuseAndGlossyInputs )
+{
+    const BoundMdlColor                 firstKd{ 0.2f, 0.3f, 0.4f };
+    const BoundMdlColor                 firstKs{ 0.5f, 0.6f, 0.7f };
+    const BoundMdlColor                 secondKd{ 0.6f, 0.2f, 0.1f };
+    const BoundMdlColor                 secondKs{ 0.1f, 0.2f, 0.3f };
+    const otk::pbrt::PbrtMaterial       firstMaterial{ plasticMaterial( firstKd, firstKs, 0.25f ) };
+    const otk::pbrt::PbrtMaterial       secondMaterial{ plasticMaterial( secondKd, secondKs, 0.25f ) };
+    const otk::pbrt::PbrtMaterial       roughMaterial{ plasticMaterial( firstKd, firstKs, 0.45f ) };
+    const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
+    const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
+    const demandPbrtScene::MdlShaderKey roughKey{ demandPbrtScene::makeMdlShaderKey( roughMaterial ) };
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( roughKey ) );
+
+    demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
+    const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "component: ::df::diffuse_reflection_bsdf" ) );
+    const std::string sourceDescription{ describeGeneratedSource( generated, firstKey ) };
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> firstParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( firstMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> secondParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( secondMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> roughParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( roughMaterial ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, firstParameters ) );
+        ASSERT_TRUE( firstCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, secondParameters ) );
+        ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> roughCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, roughParameters ) );
+        ASSERT_TRUE( roughCompiledMaterial.is_valid_interface() );
+
+        const demandPbrtScene::MdlBsdfCallablePtx firstBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), firstCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_plastic_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx secondBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), secondCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_plastic_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx roughBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), roughCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_plastic_bsdf" ) };
+
+        EXPECT_EQ( "pbrt_plastic_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_plastic_bsdf_sample", firstBsdf.sampleFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_plastic_bsdf_evaluate", firstBsdf.evaluateFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_plastic_bsdf_pdf", firstBsdf.pdfFunctionName ) << sourceDescription;
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.initFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.sampleFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.evaluateFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
+        EXPECT_FALSE( secondBsdf.ptx.empty() );
+        EXPECT_FALSE( roughBsdf.ptx.empty() );
+        EXPECT_NE( firstBsdf.ptx, secondBsdf.ptx );
+        EXPECT_NE( firstBsdf.ptx, roughBsdf.ptx );
+
+        firstCompiledMaterial.reset();
+        secondCompiledMaterial.reset();
+        roughCompiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
 TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
 {
     const otk::pbrt::PbrtMaterial       firstMaterial{ glassMaterial() };
@@ -1032,7 +1128,6 @@ TEST( TestMdlSdk, compilesOpaqueGeneratedMaterialsWithBoundConstants )
             expectTintMatchesColor( compiledMaterial.get(), expected );
         };
 
-        expectCompiledTint( plasticMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
         expectCompiledTint( uberMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
         expectCompiledTint( substrateMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
         expectCompiledTint( mirrorMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );

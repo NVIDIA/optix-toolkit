@@ -40,6 +40,17 @@ __device__ __forceinline__ float2 interpolateMdlUVs( const TriangleUVs& uv )
     return adjustMdlUV( uv.UV[0] ) * ( 1.0f - bc.x - bc.y ) + adjustMdlUV( uv.UV[1] ) * bc.x + adjustMdlUV( uv.UV[2] ) * bc.y;
 }
 
+__device__ __forceinline__ float3 makeMdlTangentU( const float3& normal )
+{
+    const float3 helper{ fabsf( normal.z ) < 0.999f ? make_float3( 0.0f, 0.0f, 1.0f ) : make_float3( 1.0f, 0.0f, 0.0f ) };
+    return otk::normalize( otk::cross( helper, normal ) );
+}
+
+__device__ __forceinline__ float3 makeMdlTangentV( const float3& normal, const float3& tangentU )
+{
+    return otk::normalize( otk::cross( normal, tangentU ) );
+}
+
 __device__ __forceinline__ const TriangleUVs* getMdlTriangleUVArray( TriangleUVs** uvs, const uint_t index )
 {
 #ifndef NDEBUG
@@ -359,6 +370,13 @@ extern "C" __global__ void __closesthit__mdlMesh()
     float2                    uv{};
     float                     worldSpaceTextureSize{};
     mi::neuraylib::tct_float3 textCoords[1]{};
+    mi::neuraylib::tct_float3 tangentU[1]{};
+    mi::neuraylib::tct_float3 tangentV[1]{};
+    tangentU[0]       = makeMdlTangentU( worldNormal );
+    tangentV[0]       = makeMdlTangentV( worldNormal, tangentU[0] );
+    state.text_coords = textCoords;
+    state.tangent_u   = tangentU;
+    state.tangent_v   = tangentV;
     if( hasDiffuseTexture )
     {
 #ifndef NDEBUG
@@ -372,7 +390,6 @@ extern "C" __global__ void __closesthit__mdlMesh()
         uv                    = interpolateMdlUVs( triangleUVs );
         worldSpaceTextureSize = getWorldSpaceTextureSize( vertices, triangleUVs );
         textCoords[0]         = make_float3( uv.x, uv.y, 0.0f );
-        state.text_coords     = textCoords;
     }
 
     mi::neuraylib::Resource_data resourceData{};

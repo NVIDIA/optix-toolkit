@@ -1004,13 +1004,23 @@ MdlMaterialModel makePlasticMaterialModel( const otk::pbrt::PbrtMaterial& materi
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
     appendRoughnessGapComment( model );
-    model.comments.push_back( "pbrt material approximation: glossy lobe is represented but not connected" );
-    model.helperDefinitions = "color pbrt_plastic_approximation_tint(color kd, color ks, float roughness) = kd;\n\n";
+    model.comments.push_back(
+        "pbrt material approximation: diffuse and glossy reflection use an MDL color-normalized mix" );
     model.body =
         "    surface: material_surface(\n"
-        "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        "            tint: pbrt_plastic_approximation_tint("
-        + kd + ", " + ks + ", roughness)))\n";
+        "        scattering: ::df::color_normalized_mix(\n"
+        "            components: ::df::color_bsdf_component[](\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kd + ",\n"
+        "                    component: ::df::diffuse_reflection_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + ks + ",\n"
+        "                    component: ::df::simple_glossy_bsdf(\n"
+        "                        roughness_u: roughness,\n"
+        "                        roughness_v: roughness,\n"
+        "                        tint: color(1.0, 1.0, 1.0),\n"
+        "                        mode: ::df::scatter_reflect)))))\n";
     return model;
 }
 

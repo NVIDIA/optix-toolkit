@@ -20,6 +20,7 @@ set(referenceMaterials
 
 set(pbrtReferenceComparableMaterials
     matte
+    plastic
     mirror
     glass
     metal
@@ -117,6 +118,11 @@ if(OTK_USE_MDL)
         SCENE matte-checkerboard.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, CPU checkerboard demand texture feeds the generated MDL matte path")
+    add_pbrt_reference_image_test(plastic
+        MATERIAL plastic
+        SCENE plastic.pbrt
+        WARMUP 4
+        TOLERANCE_REASON "Default tolerance, generated MDL plastic uses the diffuse/glossy BSDF callable path")
     add_pbrt_reference_image_test(mirror
         MATERIAL mirror
         SCENE mirror.pbrt
