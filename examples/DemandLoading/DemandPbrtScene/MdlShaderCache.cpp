@@ -853,6 +853,21 @@ std::string namedMaterialColorExpression( MdlMaterialModel&                   mo
     return textureGraph.materialColorExpression( material.params, paramName, "color", parameterName );
 }
 
+std::string namedMaterialFloatExpression( MdlMaterialModel&                   model,
+                                          const otk::pbrt::PbrtNamedMaterial& material,
+                                          unsigned int                        index,
+                                          const std::string&                  paramName,
+                                          const std::string&                  defaultValue )
+{
+    const std::string parameterName{ namedMaterialParameterName( index, paramName ) };
+    appendMaterialParameter( model, "float", parameterName, defaultValue );
+    if( !material.params.FindTexture( paramName ).empty() )
+    {
+        return defaultValue;
+    }
+    return parameterName;
+}
+
 std::string namedMaterialType( const otk::pbrt::PbrtNamedMaterial& material )
 {
     if( !material.type.empty() )
@@ -862,93 +877,299 @@ std::string namedMaterialType( const otk::pbrt::PbrtNamedMaterial& material )
     return material.params.FindOneString( "type", std::string{} );
 }
 
-std::string namedMaterialTintExpression( MdlMaterialModel&                   model,
+std::string namedMaterialMatteBsdfExpression( MdlMaterialModel&                   model,
+                                              MdlTextureGraphGenerator&           textureGraph,
+                                              const otk::pbrt::PbrtNamedMaterial& material,
+                                              unsigned int                        index )
+{
+    const std::string kd{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
+    const std::string sigma{ namedMaterialFloatExpression( model, material, index, "sigma", "0.0" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input sigma: " + sigma );
+    return "::df::diffuse_reflection_bsdf(\n"
+           "                        tint: "
+           + kd
+           + ",\n"
+             "                        roughness: pbrt_mix_matte_sigma_roughness("
+           + sigma + "))";
+}
+
+std::string namedMaterialPlasticBsdfExpression( MdlMaterialModel&                   model,
+                                                MdlTextureGraphGenerator&           textureGraph,
+                                                const otk::pbrt::PbrtNamedMaterial& material,
+                                                unsigned int                        index )
+{
+    const std::string kd{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
+    const std::string ks{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Ks", "color(0.0, 0.0, 0.0)" ) };
+    const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.1" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
+    return "::df::color_normalized_mix(\n"
+           "                        components: ::df::color_bsdf_component[](\n"
+           "                            ::df::color_bsdf_component(\n"
+           "                                weight: "
+           + kd
+           + ",\n"
+             "                                component: ::df::diffuse_reflection_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0))),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + ks
+           + ",\n"
+             "                                component: ::df::simple_glossy_bsdf(\n"
+             "                                    roughness_u: "
+           + roughness
+           + ",\n"
+             "                                    roughness_v: "
+           + roughness
+           + ",\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_reflect))))";
+}
+
+std::string namedMaterialSubstrateBsdfExpression( MdlMaterialModel&                   model,
+                                                  MdlTextureGraphGenerator&           textureGraph,
+                                                  const otk::pbrt::PbrtNamedMaterial& material,
+                                                  unsigned int                        index )
+{
+    const std::string kd{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.5, 0.5, 0.5)" ) };
+    const std::string ks{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Ks", "color(0.5, 0.5, 0.5)" ) };
+    const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.1" ) };
+    const std::string uroughness{ namedMaterialFloatExpression( model, material, index, "uroughness", "-1.0" ) };
+    const std::string vroughness{ namedMaterialFloatExpression( model, material, index, "vroughness", "-1.0" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input uroughness: " + uroughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input vroughness: " + vroughness );
+    return "::df::color_weighted_layer(\n"
+           "                        weight: "
+           + ks
+           + ",\n"
+             "                        layer: ::df::simple_glossy_bsdf(\n"
+             "                            roughness_u: pbrt_mix_resolved_roughness("
+           + roughness + ", " + uroughness
+           + "),\n"
+             "                            roughness_v: pbrt_mix_resolved_roughness("
+           + roughness + ", " + vroughness
+           + "),\n"
+             "                            tint: color(1.0, 1.0, 1.0),\n"
+             "                            mode: ::df::scatter_reflect),\n"
+             "                        base: ::df::diffuse_reflection_bsdf(\n"
+             "                            tint: "
+           + kd + "))";
+}
+
+std::string namedMaterialUberBsdfExpression( MdlMaterialModel&                   model,
+                                             MdlTextureGraphGenerator&           textureGraph,
+                                             const otk::pbrt::PbrtNamedMaterial& material,
+                                             unsigned int                        index )
+{
+    const std::string kd{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
+    const std::string ks{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Ks", "color(0.0, 0.0, 0.0)" ) };
+    const std::string kr{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(0.0, 0.0, 0.0)" ) };
+    const std::string kt{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kt", "color(0.0, 0.0, 0.0)" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kt: " + kt );
+    model.comments.push_back( "pbrt named material " + std::to_string( index )
+                              + " approximation: uber currently contributes diffuse Kd" );
+    return "::df::diffuse_reflection_bsdf(\n"
+           "                        tint: "
+           + kd + ")";
+}
+
+std::string namedMaterialMirrorBsdfExpression( MdlMaterialModel&                   model,
+                                               MdlTextureGraphGenerator&           textureGraph,
+                                               const otk::pbrt::PbrtNamedMaterial& material,
+                                               unsigned int                        index )
+{
+    const std::string kr{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(1.0, 1.0, 1.0)" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
+    return "::df::specular_bsdf(\n"
+           "                        tint: "
+           + kr
+           + ",\n"
+             "                        mode: ::df::scatter_reflect)";
+}
+
+std::string namedMaterialGlassBsdfExpression( MdlMaterialModel&                   model,
+                                              MdlTextureGraphGenerator&           textureGraph,
+                                              const otk::pbrt::PbrtNamedMaterial& material,
+                                              unsigned int                        index )
+{
+    const std::string kr{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(1.0, 1.0, 1.0)" ) };
+    const std::string kt{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kt", "color(1.0, 1.0, 1.0)" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kt: " + kt );
+    return "::df::tint(\n"
+           "                        "
+           + kr
+           + ",\n"
+             "                        "
+           + kt
+           + ",\n"
+             "                        ::df::specular_bsdf(\n"
+             "                            tint: color(1.0, 1.0, 1.0),\n"
+             "                            mode: ::df::scatter_reflect_transmit))";
+}
+
+std::string namedMaterialMetalBsdfExpression( MdlMaterialModel&                   model,
+                                              MdlTextureGraphGenerator&           textureGraph,
+                                              const otk::pbrt::PbrtNamedMaterial& material,
+                                              unsigned int                        index )
+{
+    const std::string eta{
+        namedMaterialColorExpression( model, textureGraph, material, index, "eta", "color(0.2, 0.2, 0.2)" ) };
+    const std::string k{
+        namedMaterialColorExpression( model, textureGraph, material, index, "k", "color(3.0, 3.0, 3.0)" ) };
+    const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.1" ) };
+    const std::string uroughness{ namedMaterialFloatExpression( model, material, index, "uroughness", "-1.0" ) };
+    const std::string vroughness{ namedMaterialFloatExpression( model, material, index, "vroughness", "-1.0" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input eta: " + eta );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input k: " + k );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input uroughness: " + uroughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input vroughness: " + vroughness );
+    return "::df::microfacet_ggx_smith_bsdf(\n"
+           "                        roughness_u: pbrt_mix_resolved_roughness("
+           + roughness + ", " + uroughness
+           + "),\n"
+             "                        roughness_v: pbrt_mix_resolved_roughness("
+           + roughness + ", " + vroughness
+           + "),\n"
+             "                        tint: pbrt_mix_metal_conductor_tint("
+           + eta + ", " + k
+           + "),\n"
+             "                        mode: ::df::scatter_reflect)";
+}
+
+std::string namedMaterialTranslucentBsdfExpression( MdlMaterialModel&                   model,
+                                                    MdlTextureGraphGenerator&           textureGraph,
+                                                    const otk::pbrt::PbrtNamedMaterial& material,
+                                                    unsigned int                        index )
+{
+    const std::string kd{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
+    const std::string ks{
+        namedMaterialColorExpression( model, textureGraph, material, index, "Ks", "color(0.0, 0.0, 0.0)" ) };
+    const std::string reflect{
+        namedMaterialColorExpression( model, textureGraph, material, index, "reflect", "color(0.5, 0.5, 0.5)" ) };
+    const std::string transmit{
+        namedMaterialColorExpression( model, textureGraph, material, index, "transmit", "color(0.5, 0.5, 0.5)" ) };
+    const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.1" ) };
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input reflect: " + reflect );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input transmit: " + transmit );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
+    return "::df::color_normalized_mix(\n"
+           "                        components: ::df::color_bsdf_component[](\n"
+           "                            ::df::color_bsdf_component(\n"
+           "                                weight: "
+           + kd + " * " + reflect
+           + ",\n"
+             "                                component: ::df::diffuse_reflection_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0))),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + kd + " * " + transmit
+           + ",\n"
+             "                                component: ::df::diffuse_transmission_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0))),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + ks + " * " + reflect
+           + ",\n"
+             "                                component: ::df::simple_glossy_bsdf(\n"
+             "                                    roughness_u: "
+           + roughness
+           + ",\n"
+             "                                    roughness_v: "
+           + roughness
+           + ",\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_reflect)),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + ks + " * " + transmit
+           + ",\n"
+             "                                component: ::df::simple_glossy_bsdf(\n"
+             "                                    roughness_u: "
+           + roughness
+           + ",\n"
+             "                                    roughness_v: "
+           + roughness
+           + ",\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_transmit))))";
+}
+
+std::string unsupportedNamedMaterialBsdfExpression()
+{
+    return "::df::diffuse_reflection_bsdf(\n"
+           "                        tint: color(1.0, 0.0, 1.0))";
+}
+
+std::string namedMaterialBsdfExpression( MdlMaterialModel&                   model,
                                          MdlTextureGraphGenerator&           textureGraph,
                                          GeneratedMdlSource&                 result,
                                          const otk::pbrt::PbrtNamedMaterial& material,
                                          unsigned int                        index )
 {
-    const std::string functionName{ "pbrt_named_material_" + std::to_string( index ) + "_tint" };
     const std::string type{ namedMaterialType( material ) };
     const std::string typeComment{ type.empty() ? std::string{ "<empty>" } : type };
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " model: " + typeComment );
 
     if( type == "matte" )
     {
-        const std::string kd{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
-        return functionName + "(" + kd + ")";
+        return namedMaterialMatteBsdfExpression( model, textureGraph, material, index );
     }
-    if( type == "plastic" || type == "substrate" )
+    if( type == "plastic" )
     {
-        const std::string kd{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
-        const std::string ks{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Ks", "color(0.0, 0.0, 0.0)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
-        return functionName + "((" + kd + " + " + ks + ") * 0.5)";
+        return namedMaterialPlasticBsdfExpression( model, textureGraph, material, index );
+    }
+    if( type == "substrate" )
+    {
+        return namedMaterialSubstrateBsdfExpression( model, textureGraph, material, index );
     }
     if( type == "uber" )
     {
-        const std::string kd{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
-        const std::string ks{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Ks", "color(0.0, 0.0, 0.0)" ) };
-        const std::string kr{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(0.0, 0.0, 0.0)" ) };
-        const std::string kt{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kt", "color(0.0, 0.0, 0.0)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kt: " + kt );
-        return functionName + "((" + kd + " + " + ks + " + " + kr + " + " + kt + ") * 0.25)";
+        return namedMaterialUberBsdfExpression( model, textureGraph, material, index );
     }
     if( type == "mirror" )
     {
-        const std::string kr{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(1.0, 1.0, 1.0)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
-        return functionName + "(" + kr + ")";
+        return namedMaterialMirrorBsdfExpression( model, textureGraph, material, index );
     }
     if( type == "glass" )
     {
-        const std::string kr{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(1.0, 1.0, 1.0)" ) };
-        const std::string kt{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kt", "color(1.0, 1.0, 1.0)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kt: " + kt );
-        return functionName + "((" + kr + " + " + kt + ") * 0.5)";
+        return namedMaterialGlassBsdfExpression( model, textureGraph, material, index );
     }
     if( type == "metal" )
     {
-        const std::string eta{
-            namedMaterialColorExpression( model, textureGraph, material, index, "eta", "color(0.2, 0.2, 0.2)" ) };
-        const std::string k{
-            namedMaterialColorExpression( model, textureGraph, material, index, "k", "color(3.0, 3.0, 3.0)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input eta: " + eta );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input k: " + k );
-        return functionName + "(" + k + " / (" + eta + " + " + k + "))";
+        return namedMaterialMetalBsdfExpression( model, textureGraph, material, index );
     }
     if( type == "translucent" )
     {
-        const std::string kd{
-            namedMaterialColorExpression( model, textureGraph, material, index, "Kd", "color(0.8, 0.8, 0.8)" ) };
-        const std::string reflect{
-            namedMaterialColorExpression( model, textureGraph, material, index, "reflect", "color(0.5, 0.5, 0.5)" ) };
-        const std::string transmit{
-            namedMaterialColorExpression( model, textureGraph, material, index, "transmit", "color(0.5, 0.5, 0.5)" ) };
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input reflect: " + reflect );
-        model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input transmit: " + transmit );
-        return functionName + "((" + kd + " + " + reflect + " + " + transmit + ") / 3.0)";
+        return namedMaterialTranslucentBsdfExpression( model, textureGraph, material, index );
     }
 
     appendUnsupportedReason( result, "Unsupported PBRT named material type " + typeComment );
-    return functionName + "(color(1.0, 0.0, 1.0))";
+    return unsupportedNamedMaterialBsdfExpression();
 }
 
 MdlMaterialModel makeMatteMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
@@ -1238,34 +1459,55 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    model.comments.push_back( "pbrt material input eta: fixed 1.5" );
     appendRoughnessGapComment( model );
     model.comments.push_back(
-        "pbrt material approximation: reflection and transmission lobes are represented but not connected" );
-    model.helperDefinitions =
-        "color pbrt_translucent_approximation_tint(color kd, color ks, color reflect, "
-        "color transmit, float roughness) = kd * (reflect + transmit) * 0.5;\n\n";
-    model.body = "    surface: material_surface(\n"
-                 "        scattering: ::df::diffuse_reflection_bsdf(\n"
-                 "            tint: pbrt_translucent_approximation_tint("
-                 + kd + ", " + ks + ", " + reflect + ", " + transmit + ", roughness))),\n"
-                 "    geometry: material_geometry(\n"
-                 "        cutout_opacity: opacity)\n";
+        "pbrt material approximation: diffuse/glossy reflection and transmission use an MDL color-normalized mix" );
+    model.body =
+        "    ior: color(1.5, 1.5, 1.5),\n"
+        "    surface: material_surface(\n"
+        "        scattering: ::df::color_normalized_mix(\n"
+        "            components: ::df::color_bsdf_component[](\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kd + " * " + reflect + ",\n"
+        "                    component: ::df::diffuse_reflection_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kd + " * " + transmit + ",\n"
+        "                    component: ::df::diffuse_transmission_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + ks + " * " + reflect + ",\n"
+        "                    component: ::df::simple_glossy_bsdf(\n"
+        "                        roughness_u: roughness,\n"
+        "                        roughness_v: roughness,\n"
+        "                        tint: color(1.0, 1.0, 1.0),\n"
+        "                        mode: ::df::scatter_reflect)),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + ks + " * " + transmit + ",\n"
+        "                    component: ::df::simple_glossy_bsdf(\n"
+        "                        roughness_u: roughness,\n"
+        "                        roughness_v: roughness,\n"
+        "                        tint: color(1.0, 1.0, 1.0),\n"
+        "                        mode: ::df::scatter_transmit))))),\n"
+        "    geometry: material_geometry(\n"
+        "        cutout_opacity: opacity)\n";
     return model;
 }
 
-std::string mixNamedMaterialExpression( MdlMaterialModel&              model,
-                                        MdlTextureGraphGenerator&      textureGraph,
-                                        GeneratedMdlSource&            result,
-                                        const otk::pbrt::PbrtMaterial& material,
-                                        const std::string&             paramName,
-                                        unsigned int                   index )
+std::string mixNamedMaterialBsdfExpression( MdlMaterialModel&              model,
+                                            MdlTextureGraphGenerator&      textureGraph,
+                                            GeneratedMdlSource&            result,
+                                            const otk::pbrt::PbrtMaterial& material,
+                                            const std::string&             paramName,
+                                            unsigned int                   index )
 {
     const std::string materialName{ material.params.FindOneString( paramName, std::string{} ) };
     if( materialName.empty() )
     {
         model.comments.push_back( "pbrt material input " + paramName + ": missing" );
         appendUnsupportedReason( result, "Missing PBRT mix " + paramName );
-        return "pbrt_named_material_" + std::to_string( index ) + "_tint(color(1.0, 0.0, 1.0))";
+        return unsupportedNamedMaterialBsdfExpression();
     }
 
     model.comments.push_back( "pbrt material input " + paramName + ": named material " + std::to_string( index ) );
@@ -1273,10 +1515,10 @@ std::string mixNamedMaterialExpression( MdlMaterialModel&              model,
     if( namedMaterial == material.graph.namedMaterials.end() )
     {
         appendUnsupportedReason( result, "Missing PBRT named material reference" );
-        return "pbrt_named_material_" + std::to_string( index ) + "_tint(color(1.0, 0.0, 1.0))";
+        return unsupportedNamedMaterialBsdfExpression();
     }
 
-    return namedMaterialTintExpression( model, textureGraph, result, namedMaterial->second, index );
+    return namedMaterialBsdfExpression( model, textureGraph, result, namedMaterial->second, index );
 }
 
 MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph, GeneratedMdlSource& result )
@@ -1285,24 +1527,34 @@ MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, 
     appendMaterialParameter( model, "float", "amount", "0.5" );
 
     model.comments.push_back( "pbrt material model: mix" );
-    const std::string first{ mixNamedMaterialExpression( model, textureGraph, result, material, "namedmaterial1", 0U ) };
-    const std::string second{ mixNamedMaterialExpression( model, textureGraph, result, material, "namedmaterial2", 1U ) };
+    const std::string first{ mixNamedMaterialBsdfExpression( model, textureGraph, result, material, "namedmaterial1", 0U ) };
+    const std::string second{ mixNamedMaterialBsdfExpression( model, textureGraph, result, material, "namedmaterial2", 1U ) };
     const std::string amountTexture{
         materialTextureCommentExpression( textureGraph, material.params, "amount", "float" ) };
 
     model.comments.push_back( "pbrt material input amount: amount; texture=" + amountTexture );
-    model.comments.push_back(
-        "pbrt material approximation: named material graph structure is represented as mixed tint" );
+    model.comments.push_back( "pbrt material weighting: namedmaterial1 uses amount; namedmaterial2 uses 1 - amount" );
+    model.comments.push_back( "pbrt material approximation: mix composes supported named material MDL closures" );
     model.helperDefinitions =
-        "color pbrt_named_material_0_tint(color tint) = tint;\n"
-        "color pbrt_named_material_1_tint(color tint) = tint;\n"
-        "color pbrt_mix_approximation_tint(color material1, color material2, float amount) =\n"
-        "    material1 * (1.0 - amount) + material2 * amount;\n\n";
+        "float pbrt_mix_matte_sigma_roughness(float sigma_degrees) = ::math::clamp(sigma_degrees / 90.0, 0.0, 1.0);\n\n"
+        "float pbrt_mix_resolved_roughness(float roughness, float axis_roughness) = "
+        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n"
+        "color pbrt_mix_metal_conductor_tint(color eta, color k) =\n"
+        "    ((eta - color(1.0, 1.0, 1.0)) * (eta - color(1.0, 1.0, 1.0)) + k * k) /\n"
+        "    ((eta + color(1.0, 1.0, 1.0)) * (eta + color(1.0, 1.0, 1.0)) + k * k);\n\n";
     model.body =
         "    surface: material_surface(\n"
-        "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        "            tint: pbrt_mix_approximation_tint("
-        + first + ", " + second + ", amount)))\n";
+        "        scattering: ::df::color_normalized_mix(\n"
+        "            components: ::df::color_bsdf_component[](\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: color(amount, amount, amount),\n"
+        "                    component: "
+        + first
+        + "),\n"
+          "                ::df::color_bsdf_component(\n"
+          "                    weight: color(1.0 - amount, 1.0 - amount, 1.0 - amount),\n"
+          "                    component: "
+        + second + "))))\n";
     return model;
 }
 

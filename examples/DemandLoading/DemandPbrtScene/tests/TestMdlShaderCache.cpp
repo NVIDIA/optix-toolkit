@@ -323,14 +323,26 @@ PbrtNamedMaterial namedMatte( const std::string& name, float kd )
     return material;
 }
 
-PbrtMaterial mixMaterial( const std::string& firstName, const std::string& secondName )
+PbrtMaterial mixMaterial( const std::string& firstName, const std::string& secondName, float firstKd, float secondKd )
 {
     PbrtMaterial material;
     material.type = "mix";
     addString( material.params, "namedmaterial1", firstName );
     addString( material.params, "namedmaterial2", secondName );
-    material.graph.namedMaterials[firstName]  = namedMatte( firstName, 0.2f );
-    material.graph.namedMaterials[secondName] = namedMatte( secondName, 0.8f );
+    material.graph.namedMaterials[firstName]  = namedMatte( firstName, firstKd );
+    material.graph.namedMaterials[secondName] = namedMatte( secondName, secondKd );
+    return material;
+}
+
+PbrtMaterial mixMaterial( const std::string& firstName, const std::string& secondName )
+{
+    return mixMaterial( firstName, secondName, 0.2f, 0.8f );
+}
+
+PbrtMaterial mixMaterial( const std::string& firstName, const std::string& secondName, float firstKd, float secondKd, float amount )
+{
+    PbrtMaterial material{ mixMaterial( firstName, secondName, firstKd, secondKd ) };
+    addFloat( material.params, "amount", amount );
     return material;
 }
 
@@ -457,6 +469,26 @@ TEST( TestMdlMaterialInstanceKey, textureParameterValuesProduceDifferentInstance
     EXPECT_NE( firstKey, secondKey );
     EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "first.png" ) );
     EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "second.png" ) );
+}
+
+TEST( TestMdlMaterialInstanceKey, mixNamedMaterialValuesProduceDifferentInstanceKeys )
+{
+    const PbrtMaterial first{ mixMaterial( "front", "back", 0.2f, 0.8f, 0.25f ) };
+    const PbrtMaterial second{ mixMaterial( "front", "back", 0.4f, 0.8f, 0.25f ) };
+    const PbrtMaterial third{ mixMaterial( "front", "back", 0.2f, 0.8f, 0.75f ) };
+
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( first ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( second ) };
+    const MdlMaterialInstanceKey thirdKey{ makeMdlMaterialInstanceKey( third ) };
+
+    EXPECT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    EXPECT_EQ( firstKey.sourceKey, thirdKey.sourceKey );
+    EXPECT_NE( firstKey, secondKey );
+    EXPECT_NE( firstKey, thirdKey );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "front" ) );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "0.25" ) );
+    EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "0.4" ) );
+    EXPECT_THAT( toString( thirdKey ), testing::HasSubstr( "0.75" ) );
 }
 TEST( TestMdlShaderKey, textureStructureChangesProduceDifferentKeys )
 {
@@ -878,10 +910,23 @@ TEST( TestMdlGeneratedSource, mapsTranslucentMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input transmit: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input opacity: opacity; "
                                                        "texture=texture_1()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_translucent_approximation_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_translucent_approximation_tint(Kd, Ks, reflect, "
-                                                       "texture_0(), roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input eta: fixed 1.5" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: diffuse/glossy reflection "
+                                                       "and transmission use an MDL color-normalized mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(1.5, 1.5, 1.5)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kd * reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kd * texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks * reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks * texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_reflection_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_transmission_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_transmit" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: opacity" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_translucent_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "leaf-transmit.exr" ) ) );
@@ -901,14 +946,21 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
     EXPECT_THAT( generated.source, testing::HasSubstr( "color named_0_Kd = color(0.8, 0.8, 0.8)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 input Kd: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 model: translucent" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color named_1_Ks = color(0.0, 0.0, 0.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color named_1_transmit = color(0.5, 0.5, 0.5)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 input transmit: texture_1()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_named_material_0_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_named_material_1_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_mix_approximation_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_named_material_0_tint((texture_0() + named_0_Ks" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_named_material_1_tint((named_1_Kd + "
-                                                       "named_1_reflect + texture_1()) / 3.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material weighting: namedmaterial1 uses amount; "
+                                                       "namedmaterial2 uses 1 - amount" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(amount, amount, amount)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(1.0 - amount, 1.0 - amount, 1.0 - amount)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "component: ::df::diffuse_reflection_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_transmission_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: named_1_Kd * texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_named_material_0_tint" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_named_material_1_tint" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_mix_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "front.png" ) ) );

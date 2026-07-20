@@ -3,18 +3,40 @@
 #
 
 Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["mix.png"]
-Sampler "halton" "integer pixelsamples" [4]
-Integrator "path" "integer maxdepth" [4]
+Sampler "halton" "integer pixelsamples" [1]
+Integrator "directlighting"
 LookAt 0 0 4  0 0 0  0 1 0
 Camera "perspective" "float fov" [30]
 
 WorldBegin
-    LightSource "infinite" "rgb L" [0.25 0.28 0.35]
-    LightSource "distant" "rgb L" [3 3 3] "point from" [1 2 4] "point to" [0 0 0]
+    LightSource "distant" "rgb L" [1 1 1] "point from" [0 0 4] "point to" [0 0 0]
 
     MakeNamedMaterial "front" "string type" ["matte"] "rgb Kd" [0.8 0.2 0.2]
-    MakeNamedMaterial "back" "string type" ["plastic"] "rgb Kd" [0.2 0.3 0.8]
-        "rgb Ks" [0.5 0.5 0.5] "float roughness" [0.2]
-    Material "mix" "string namedmaterial1" ["front"] "string namedmaterial2" ["back"] "float amount" [0.35]
-    Shape "sphere" "float radius" [1]
+    MakeNamedMaterial "back" "string type" ["matte"] "rgb Kd" [0.2 0.45 0.75]
+    Material "mix" "string namedmaterial1" ["front"] "string namedmaterial2" ["back"]
+    Shape "trianglemesh"
+        "point P" [
+            -2 -2 -0.05
+             2 -2 -0.05
+             2  2 -0.05
+            -2  2 -0.05
+            -2 -2  0.05
+             2 -2  0.05
+             2  2  0.05
+            -2  2  0.05
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
 WorldEnd

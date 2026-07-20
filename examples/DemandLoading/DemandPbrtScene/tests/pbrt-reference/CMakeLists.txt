@@ -25,6 +25,8 @@ set(pbrtReferenceComparableMaterials
     glass
     metal
     substrate
+    translucent
+    mix
 )
 
 add_custom_target(DemandPbrtScenePbrtReferenceResources)
@@ -152,6 +154,16 @@ if(OTK_USE_MDL)
         WARMUP 4
         DIFF_THRESHOLD 9
         TOLERANCE_REASON "PBRT FresnelBlend diffuse tolerance, generated MDL substrate uses a layered diffuse/glossy BSDF")
+    add_pbrt_reference_image_test(translucent
+        MATERIAL translucent
+        SCENE translucent.pbrt
+        WARMUP 4
+        TOLERANCE_REASON "Default tolerance, generated MDL translucent uses diffuse reflection/transmission BSDF callables")
+    add_pbrt_reference_image_test(mix
+        MATERIAL mix
+        SCENE mix.pbrt
+        WARMUP 4
+        TOLERANCE_REASON "Default tolerance, generated MDL mix composes named-material BSDF callables")
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte
