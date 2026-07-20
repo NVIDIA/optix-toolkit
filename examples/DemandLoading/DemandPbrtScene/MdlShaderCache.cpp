@@ -432,9 +432,27 @@ class MdlTextureGraphGenerator
         return textureReference( textureName, preferredValueType );
     }
 
+    std::string materialFloatExpression( const ::pbrt::ParamSet& params,
+                                         const std::string&      paramName,
+                                         const std::string&      preferredValueType,
+                                         const std::string&      defaultExpression )
+    {
+        const std::string textureName{ params.FindTexture( paramName ) };
+        if( textureName.empty() )
+        {
+            return defaultExpression;
+        }
+        m_usesTextureFloat = true;
+        return "pbrt_texture_float(" + textureReference( textureName, preferredValueType ) + ")";
+    }
+
     std::string sourcePreamble() const
     {
         std::ostringstream out;
+        if( m_usesTextureFloat )
+        {
+            out << "float pbrt_texture_float(color value) = ::math::luminance(value);\n";
+        }
         if( m_usesDemandTexture )
         {
             out << "color pbrt_demand_texture_2d(int texture_id) = color(1.0, 1.0, 1.0);\n";
@@ -447,7 +465,7 @@ class MdlTextureGraphGenerator
         {
             out << "color pbrt_unsupported_texture() = color(1.0, 0.0, 1.0);\n";
         }
-        if( !m_usesDemandTexture && !m_usesCheckerboard && !m_usesUnsupported )
+        if( !m_usesTextureFloat && !m_usesDemandTexture && !m_usesCheckerboard && !m_usesUnsupported )
         {
             return std::string{};
         }
@@ -594,6 +612,7 @@ class MdlTextureGraphGenerator
     std::vector<std::string>            m_functions;
     unsigned int                        m_nextTextureFunction{};
     unsigned int                        m_nextImageParameter{};
+    bool                                m_usesTextureFloat{};
     bool                                m_usesDemandTexture{};
     bool                                m_usesCheckerboard{};
     bool                                m_usesUnsupported{};
@@ -834,6 +853,61 @@ std::string materialTextureCommentExpression( MdlTextureGraphGenerator& textureG
         return "none";
     }
     return textureGraph.materialColorExpression( params, paramName, preferredValueType, "none" );
+}
+
+std::string materialBumpmapExpression( MdlTextureGraphGenerator& textureGraph, const ::pbrt::ParamSet& params )
+{
+    if( params.FindTexture( "bumpmap" ).empty() )
+    {
+        return "none";
+    }
+    return textureGraph.materialFloatExpression( params, "bumpmap", "float", "0.0" );
+}
+
+bool hasBumpmapExpression( const std::string& bumpmap )
+{
+    return bumpmap != "none";
+}
+
+void appendBumpmapCommentsAndHelpers( MdlMaterialModel& model, const std::string& bumpmap )
+{
+    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    if( !hasBumpmapExpression( bumpmap ) )
+    {
+        return;
+    }
+
+    model.comments.push_back(
+        "pbrt material approximation: bumpmap perturbs the MDL shading normal with a single height sample" );
+    model.helperDefinitions +=
+        "float3 pbrt_bump_normal(float height) =\n"
+        "    ::math::normalize(::state::normal() + ::state::texture_tangent_u(0) * (height - 0.5) * 0.1);\n\n";
+}
+
+std::string materialGeometryExpression( const std::string& cutoutOpacity, const std::string& bumpmap )
+{
+    if( cutoutOpacity.empty() && !hasBumpmapExpression( bumpmap ) )
+    {
+        return std::string{};
+    }
+
+    std::ostringstream out;
+    out << "    geometry: material_geometry(\n";
+    if( hasBumpmapExpression( bumpmap ) )
+    {
+        out << "        normal: pbrt_bump_normal(" << bumpmap << ")";
+        if( !cutoutOpacity.empty() )
+        {
+            out << ",";
+        }
+        out << "\n";
+    }
+    if( !cutoutOpacity.empty() )
+    {
+        out << "        cutout_opacity: " << cutoutOpacity << "\n";
+    }
+    out << "    )\n";
+    return out.str();
 }
 
 std::string namedMaterialParameterName( unsigned int index, const std::string& paramName )
@@ -1235,6 +1309,7 @@ MdlMaterialModel makeMatteMaterialModel( const otk::pbrt::PbrtMaterial& material
         materialTextureCommentExpression( textureGraph, material.params, "shadowalpha", "float" ) };
     const std::string opacityTexture{
         materialTextureCommentExpression( textureGraph, material.params, "opacity", "float" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
 
     model.comments.push_back( "pbrt material model: matte" );
     model.comments.push_back( "pbrt material input Kd: " + kd );
@@ -1243,16 +1318,17 @@ MdlMaterialModel makeMatteMaterialModel( const otk::pbrt::PbrtMaterial& material
     model.comments.push_back( "pbrt material input alpha: alpha; texture=" + alphaTexture );
     model.comments.push_back( "pbrt material input shadowalpha: any-hit texture=" + shadowAlphaTexture );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
     model.helperDefinitions =
-        "float pbrt_matte_sigma_roughness(float sigma_degrees) = ::math::clamp(sigma_degrees / 90.0, 0.0, 1.0);\n\n";
+        "float pbrt_matte_sigma_roughness(float sigma_degrees) = ::math::clamp(sigma_degrees / 90.0, 0.0, 1.0);\n\n"
+        + model.helperDefinitions;
     model.body =
         "    surface: material_surface(\n"
         "        scattering: ::df::diffuse_reflection_bsdf(\n"
         "            tint: "
         + kd + ",\n"
                "            roughness: pbrt_matte_sigma_roughness(sigma))),\n"
-               "    geometry: material_geometry(\n"
-               "        cutout_opacity: alpha * opacity)\n";
+        + materialGeometryExpression( "alpha * opacity", bumpmap );
     return model;
 }
 
@@ -1265,13 +1341,13 @@ MdlMaterialModel makePlasticMaterialModel( const otk::pbrt::PbrtMaterial& materi
 
     const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
     const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
-    const std::string bumpmap{ materialTextureCommentExpression( textureGraph, material.params, "bumpmap", "float" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
 
     model.comments.push_back( "pbrt material model: plastic" );
     model.comments.push_back( "pbrt material input Kd: " + kd );
     model.comments.push_back( "pbrt material input Ks: " + ks );
     model.comments.push_back( "pbrt material input roughness: roughness" );
-    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
     appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: diffuse and glossy reflection use an MDL color-normalized mix" );
@@ -1289,7 +1365,8 @@ MdlMaterialModel makePlasticMaterialModel( const otk::pbrt::PbrtMaterial& materi
         "                        roughness_u: roughness,\n"
         "                        roughness_v: roughness,\n"
         "                        tint: color(1.0, 1.0, 1.0),\n"
-        "                        mode: ::df::scatter_reflect)))))\n";
+        "                        mode: ::df::scatter_reflect)))))"
+        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
     return model;
 }
 
@@ -1315,7 +1392,7 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
         materialTextureCommentExpression( textureGraph, material.params, "alpha", "float" ) };
     const std::string opacityTexture{
         materialTextureCommentExpression( textureGraph, material.params, "opacity", "float" ) };
-    const std::string bumpmap{ materialTextureCommentExpression( textureGraph, material.params, "bumpmap", "float" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
 
     model.comments.push_back( "pbrt material model: uber" );
     model.comments.push_back( "pbrt material input Kd: " + kd );
@@ -1328,7 +1405,7 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     model.comments.push_back( "pbrt material input index: index" );
     model.comments.push_back( "pbrt material input alpha: alpha; texture=" + alphaTexture );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
-    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
     appendRoughnessGapComment( model );
     model.comments.push_back( "pbrt material approximation: PBRT uber lobes use an MDL color-normalized mix" );
     model.comments.push_back(
@@ -1343,7 +1420,8 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
         "pbrt_uber_clamped_opacity(opacity));\n\n"
         "color pbrt_uber_transparency_weight(float opacity) =\n"
         "    color(1.0 - pbrt_uber_clamped_opacity(opacity), 1.0 - pbrt_uber_clamped_opacity(opacity), "
-        "1.0 - pbrt_uber_clamped_opacity(opacity));\n\n";
+        "1.0 - pbrt_uber_clamped_opacity(opacity));\n\n"
+        + model.helperDefinitions;
     model.body = std::string{ "    ior: color(index, index, index),\n"
                               "    surface: material_surface(\n"
                               "        scattering: ::df::color_normalized_mix(\n"
@@ -1382,8 +1460,7 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
                    "                    component: ::df::specular_bsdf(\n"
                    "                        tint: color(1.0, 1.0, 1.0),\n"
                    "                        mode: ::df::scatter_transmit))))),\n"
-                 "    geometry: material_geometry(\n"
-                 "        cutout_opacity: alpha)\n";
+        + materialGeometryExpression( "alpha", bumpmap );
     return model;
 }
 
@@ -1493,7 +1570,7 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
 
     const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
     const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
-    const std::string bumpmap{ materialTextureCommentExpression( textureGraph, material.params, "bumpmap", "float" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
 
     model.comments.push_back( "pbrt material model: substrate" );
     model.comments.push_back( "pbrt material input Kd: " + kd );
@@ -1501,13 +1578,14 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input uroughness: uroughness" );
     model.comments.push_back( "pbrt material input vroughness: vroughness" );
-    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
     appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: diffuse base and glossy layer use an MDL color-weighted layer" );
     model.helperDefinitions =
         "float pbrt_substrate_resolved_roughness(float roughness, float axis_roughness) = "
-        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n";
+        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n"
+        + model.helperDefinitions;
     model.body =
         "    surface: material_surface(\n"
         "        scattering: ::df::color_weighted_layer(\n"
@@ -1519,7 +1597,8 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
         "                mode: ::df::scatter_reflect),\n"
         "            base: ::df::diffuse_reflection_bsdf(\n"
         "                tint: "
-        + kd + ")))\n";
+        + kd + ")))"
+        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
     return model;
 }
 
@@ -1540,7 +1619,7 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
         textureGraph.materialColorExpression( material.params, "transmit", "color", "transmit" ) };
     const std::string opacityTexture{
         materialTextureCommentExpression( textureGraph, material.params, "opacity", "float" ) };
-    const std::string bumpmap{ materialTextureCommentExpression( textureGraph, material.params, "bumpmap", "float" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
 
     model.comments.push_back( "pbrt material model: translucent" );
     model.comments.push_back( "pbrt material input Kd: " + kd );
@@ -1549,7 +1628,7 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
     model.comments.push_back( "pbrt material input transmit: " + transmit );
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
-    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
     model.comments.push_back( "pbrt material input eta: fixed 1.5" );
     appendRoughnessGapComment( model );
     model.comments.push_back(
@@ -1581,8 +1660,7 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
         "                        roughness_v: roughness,\n"
         "                        tint: color(1.0, 1.0, 1.0),\n"
         "                        mode: ::df::scatter_transmit))))),\n"
-        "    geometry: material_geometry(\n"
-        "        cutout_opacity: opacity)\n";
+        + materialGeometryExpression( "opacity", bumpmap );
     return model;
 }
 
@@ -1987,6 +2065,7 @@ GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
     source << "mdl 1.10;\n"
            << "import ::df::*;\n"
            << "import ::math::*;\n"
+           << "import ::state::*;\n"
            << "\n";
     for( std::vector<std::string>::const_iterator it = materialModel.comments.begin(); it != materialModel.comments.end(); ++it )
     {

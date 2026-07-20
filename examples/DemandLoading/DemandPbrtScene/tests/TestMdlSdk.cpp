@@ -225,6 +225,16 @@ void addString( ::pbrt::ParamSet& params, const std::string& name, const std::st
     params.AddString( name, std::move( values ), 1 );
 }
 
+otk::pbrt::PbrtTexture imageMapTexture( const std::string& name, const std::string& fileName, const std::string& valueType )
+{
+    otk::pbrt::PbrtTexture texture;
+    texture.name      = name;
+    texture.valueType = valueType;
+    texture.type      = "imagemap";
+    addString( texture.params, "filename", fileName );
+    return texture;
+}
+
 otk::pbrt::PbrtMaterial matteMaterial( float red, float green, float blue )
 {
     otk::pbrt::PbrtMaterial material;
@@ -237,6 +247,14 @@ otk::pbrt::PbrtMaterial matteMaterialWithSigma( float red, float green, float bl
 {
     otk::pbrt::PbrtMaterial material{ matteMaterial( red, green, blue ) };
     addFloat( material.params, "sigma", sigma );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial matteMaterialWithBumpmap()
+{
+    otk::pbrt::PbrtMaterial material{ matteMaterial( 0.2f, 0.3f, 0.4f ) };
+    material.params.AddTexture( "bumpmap", "height" );
+    material.graph.textures["float:height"] = imageMapTexture( "height", "height.exr", "float" );
     return material;
 }
 
@@ -688,6 +706,35 @@ std::string translateTintExpressionToPtx( mi::neuraylib::INeuray*               
     return std::string{ targetCode->get_code(), static_cast<std::size_t>( targetCode->get_code_size() ) };
 }
 
+std::string translateNormalExpressionToPtx( mi::neuraylib::INeuray*                  neuray,
+                                            mi::neuraylib::ITransaction*             transaction,
+                                            const mi::neuraylib::ICompiled_material* compiledMaterial,
+                                            mi::neuraylib::IMdl_execution_context*   context )
+{
+    mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi( neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
+    EXPECT_TRUE( backendApi.is_valid_interface() );
+    if( !backendApi.is_valid_interface() )
+        return {};
+
+    mi::base::Handle<mi::neuraylib::IMdl_backend> ptxBackend( backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
+    EXPECT_TRUE( ptxBackend.is_valid_interface() );
+    if( !ptxBackend.is_valid_interface() )
+        return {};
+
+    context->clear_messages();
+    mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode(
+        ptxBackend->translate_material_expression( transaction, compiledMaterial, "geometry.normal", "evaluate_normal", context ) );
+    EXPECT_TRUE( targetCode.is_valid_interface() ) << describeContextMessages( context );
+    if( !targetCode.is_valid_interface() )
+        return {};
+    EXPECT_GT( targetCode->get_code_size(), 0U );
+    EXPECT_EQ( 1U, targetCode->get_callable_function_count() );
+    if( targetCode->get_callable_function_count() != 1U )
+        return {};
+    EXPECT_STREQ( "evaluate_normal", targetCode->get_callable_function( 0 ) );
+    return std::string{ targetCode->get_code(), static_cast<std::size_t>( targetCode->get_code_size() ) };
+}
+
 }  // namespace
 
 TEST( TestMdlSdk, headerProvidesVersionMetadata )
@@ -759,6 +806,53 @@ TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithBoundKd )
         EXPECT_NE( firstPtx, secondPtx );
 
         secondCompiledMaterial.reset();
+        compiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
+TEST( TestMdlSdk, compilesGeneratedBumpmapNormalExpression )
+{
+    const otk::pbrt::PbrtMaterial              sourceMaterial{ matteMaterialWithBumpmap() };
+    const demandPbrtScene::MdlShaderKey        key{ demandPbrtScene::makeMdlShaderKey( sourceMaterial ) };
+    demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
+    const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( sourceMaterial ) };
+    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::state::texture_tangent_u(0)" ) );
+    const std::string sourceDescription{ describeGeneratedSource( generated, key ) };
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> parameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( sourceMaterial ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, key, parameters ) );
+        ASSERT_TRUE( compiledMaterial.is_valid_interface() ) << sourceDescription;
+
+        const std::string normalPtx{ translateNormalExpressionToPtx( session.neuray(), transaction.get(),
+                                                                     compiledMaterial.get(), context.get() ) };
+        EXPECT_FALSE( normalPtx.empty() ) << sourceDescription;
+        EXPECT_THAT( normalPtx, testing::HasSubstr( "evaluate_normal" ) ) << sourceDescription;
+
         compiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
