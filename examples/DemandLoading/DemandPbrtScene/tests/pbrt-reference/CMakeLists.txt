@@ -21,6 +21,7 @@ set(referenceMaterials
 set(pbrtReferenceComparableMaterials
     matte
     plastic
+    uber
     mirror
     glass
     metal
@@ -126,6 +127,11 @@ if(OTK_USE_MDL)
         SCENE plastic.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, generated MDL plastic uses the diffuse/glossy BSDF callable path")
+    add_pbrt_reference_image_test(uber
+        MATERIAL uber
+        SCENE uber.pbrt
+        WARMUP 4
+        TOLERANCE_REASON "Default tolerance, generated MDL uber uses the diffuse/glossy BSDF callable path")
     add_pbrt_reference_image_test(mirror
         MATERIAL mirror
         SCENE mirror.pbrt

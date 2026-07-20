@@ -979,15 +979,39 @@ std::string namedMaterialUberBsdfExpression( MdlMaterialModel&                  
         namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(0.0, 0.0, 0.0)" ) };
     const std::string kt{
         namedMaterialColorExpression( model, textureGraph, material, index, "Kt", "color(0.0, 0.0, 0.0)" ) };
+    const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.1" ) };
+    const std::string uroughness{ namedMaterialFloatExpression( model, material, index, "uroughness", "-1.0" ) };
+    const std::string vroughness{ namedMaterialFloatExpression( model, material, index, "vroughness", "-1.0" ) };
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kt: " + kt );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input uroughness: " + uroughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input vroughness: " + vroughness );
     model.comments.push_back( "pbrt named material " + std::to_string( index )
-                              + " approximation: uber currently contributes diffuse Kd" );
-    return "::df::diffuse_reflection_bsdf(\n"
-           "                        tint: "
-           + kd + ")";
+                              + " gap: uber Kr/Kt reflection and transmission are deferred" );
+    return "::df::color_normalized_mix(\n"
+           "                        components: ::df::color_bsdf_component[](\n"
+           "                            ::df::color_bsdf_component(\n"
+           "                                weight: "
+           + kd
+           + ",\n"
+             "                                component: ::df::diffuse_reflection_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0))),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + ks
+           + ",\n"
+             "                                component: ::df::simple_glossy_bsdf(\n"
+             "                                    roughness_u: pbrt_mix_resolved_roughness("
+           + roughness + ", " + uroughness
+           + "),\n"
+             "                                    roughness_v: pbrt_mix_resolved_roughness("
+           + roughness + ", " + vroughness
+           + "),\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_reflect))))";
 }
 
 std::string namedMaterialMirrorBsdfExpression( MdlMaterialModel&                   model,
@@ -1253,8 +1277,8 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     appendMaterialParameter( model, "color", "Kr", "color(0.0, 0.0, 0.0)" );
     appendMaterialParameter( model, "color", "Kt", "color(0.0, 0.0, 0.0)" );
     appendMaterialParameter( model, "float", "roughness", "0.1" );
-    appendMaterialParameter( model, "float", "uroughness", "0.1" );
-    appendMaterialParameter( model, "float", "vroughness", "0.1" );
+    appendMaterialParameter( model, "float", "uroughness", "-1.0" );
+    appendMaterialParameter( model, "float", "vroughness", "-1.0" );
     appendMaterialParameter( model, "float", "index", "1.5" );
     appendMaterialParameter( model, "float", "alpha", "1.0" );
     appendMaterialParameter( model, "float", "opacity", "1.0" );
@@ -1283,14 +1307,30 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
     appendRoughnessGapComment( model );
     model.comments.push_back(
-        "pbrt material approximation: specular, reflection, and transmission lobes are represented but not connected" );
+        "pbrt material approximation: diffuse and glossy reflection use an MDL color-normalized mix" );
+    model.comments.push_back( "pbrt material gap: uber Kr/Kt reflection and transmission lobes are deferred" );
     model.helperDefinitions =
-        "color pbrt_uber_approximation_tint(color kd, color ks, color kr, color kt, float roughness) = kd;\n\n";
+        "float pbrt_uber_resolved_roughness(float roughness, float axis_roughness) = "
+        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n";
     model.body = "    ior: color(index, index, index),\n"
                  "    surface: material_surface(\n"
-                 "        scattering: ::df::diffuse_reflection_bsdf(\n"
-                 "            tint: pbrt_uber_approximation_tint("
-                 + kd + ", " + ks + ", " + kr + ", " + kt + ", roughness))),\n"
+                 "        scattering: ::df::color_normalized_mix(\n"
+                 "            components: ::df::color_bsdf_component[](\n"
+                 "                ::df::color_bsdf_component(\n"
+                 "                    weight: "
+                 + kd
+                 + ",\n"
+                   "                    component: ::df::diffuse_reflection_bsdf(\n"
+                   "                        tint: color(1.0, 1.0, 1.0))),\n"
+                   "                ::df::color_bsdf_component(\n"
+                   "                    weight: "
+                 + ks
+                 + ",\n"
+                   "                    component: ::df::simple_glossy_bsdf(\n"
+                   "                        roughness_u: pbrt_uber_resolved_roughness(roughness, uroughness),\n"
+                   "                        roughness_v: pbrt_uber_resolved_roughness(roughness, vroughness),\n"
+                   "                        tint: color(1.0, 1.0, 1.0),\n"
+                   "                        mode: ::df::scatter_reflect))))),\n"
                  "    geometry: material_geometry(\n"
                  "        cutout_opacity: alpha * opacity)\n";
     return model;

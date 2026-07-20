@@ -3,16 +3,43 @@
 #
 
 Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["uber.png"]
-Sampler "halton" "integer pixelsamples" [4]
-Integrator "path" "integer maxdepth" [4]
+Sampler "halton" "integer pixelsamples" [1]
+Integrator "directlighting"
 LookAt 0 0 4  0 0 0  0 1 0
 Camera "perspective" "float fov" [30]
 
 WorldBegin
-    LightSource "infinite" "rgb L" [0.25 0.28 0.35]
-    LightSource "distant" "rgb L" [3 3 3] "point from" [1 2 4] "point to" [0 0 0]
+    LightSource "distant" "rgb L" [1 1 1] "point from" [0 0 4] "point to" [0 0 0]
 
-    Material "uber" "rgb Kd" [0.5 0.2 0.7] "rgb Ks" [0.25 0.25 0.25]
-        "rgb Kr" [0.1 0.1 0.1] "rgb Kt" [0 0 0] "float roughness" [0.2] "float index" [1.4]
-    Shape "sphere" "float radius" [1]
+    Material "uber"
+        "rgb Kd" [0.35 0.25 0.55]
+        "rgb Ks" [0 0 0]
+        "rgb Kr" [0 0 0]
+        "rgb Kt" [0 0 0]
+        "float roughness" [0.3]
+    Shape "trianglemesh"
+        "point P" [
+            -2 -2 -0.05
+             2 -2 -0.05
+             2  2 -0.05
+            -2  2 -0.05
+            -2 -2  0.05
+             2 -2  0.05
+             2  2  0.05
+            -2  2  0.05
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
 WorldEnd
