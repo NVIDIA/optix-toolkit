@@ -429,6 +429,10 @@ class MdlTextureGraphGenerator
         {
             return defaultExpression;
         }
+        if( isFoldableTextureReference( textureName, preferredValueType ) )
+        {
+            return defaultExpression;
+        }
         return textureReference( textureName, preferredValueType );
     }
 
@@ -439,6 +443,10 @@ class MdlTextureGraphGenerator
     {
         const std::string textureName{ params.FindTexture( paramName ) };
         if( textureName.empty() )
+        {
+            return defaultExpression;
+        }
+        if( isFoldableTextureReference( textureName, preferredValueType ) && defaultExpression != "0.0" )
         {
             return defaultExpression;
         }
@@ -587,6 +595,52 @@ class MdlTextureGraphGenerator
         return texture.type == "imagemap" || ( texture.type == "checkerboard" && !pbrtCheckerboardTextureKey( texture ).empty() );
     }
 
+    bool isFoldableTextureReference( const std::string& textureName, const std::string& preferredValueType ) const
+    {
+        std::vector<std::string> textureStack;
+        return isFoldableTextureReference( textureName, preferredValueType, textureStack );
+    }
+
+    bool isFoldableTextureReference( const std::string&        textureName,
+                                     const std::string&        preferredValueType,
+                                     std::vector<std::string>& textureStack ) const
+    {
+        const TextureLookup lookup{ findTexture( m_graph, textureName, preferredValueType ) };
+        if( lookup.texture == nullptr || contains( textureStack, lookup.graphKey ) )
+        {
+            return false;
+        }
+
+        textureStack.push_back( lookup.graphKey );
+        const bool result{ isFoldableTexture( *lookup.texture, textureStack ) };
+        textureStack.pop_back();
+        return result;
+    }
+
+    bool isFoldableTextureInput( const otk::pbrt::PbrtTexture& texture, const char* paramName, std::vector<std::string>& textureStack ) const
+    {
+        const std::string textureName{ texture.params.FindTexture( paramName ) };
+        return textureName.empty() || isFoldableTextureReference( textureName, texture.valueType, textureStack );
+    }
+
+    bool isFoldableTexture( const otk::pbrt::PbrtTexture& texture, std::vector<std::string>& textureStack ) const
+    {
+        if( texture.type == "constant" )
+        {
+            return true;
+        }
+        if( texture.type == "scale" )
+        {
+            return isFoldableTextureInput( texture, "tex1", textureStack ) && isFoldableTextureInput( texture, "tex2", textureStack );
+        }
+        if( texture.type == "mix" )
+        {
+            return isFoldableTextureInput( texture, "tex1", textureStack ) && isFoldableTextureInput( texture, "tex2", textureStack )
+                   && isFoldableTextureInput( texture, "amount", textureStack );
+        }
+        return false;
+    }
+
     std::string textureInputExpression( const otk::pbrt::PbrtTexture& texture, const std::string& paramName, const std::string& defaultExpression )
     {
         const std::string textureName{ texture.params.FindTexture( paramName ) };
@@ -648,6 +702,24 @@ struct BoundParameterSpec
     const char*           name;
 };
 
+struct FoldedColor
+{
+    float red{};
+    float green{};
+    float blue{};
+};
+
+FoldedColor operator*( const FoldedColor& lhs, const FoldedColor& rhs )
+{
+    return FoldedColor{ lhs.red * rhs.red, lhs.green * rhs.green, lhs.blue * rhs.blue };
+}
+
+FoldedColor mix( const FoldedColor& lhs, const FoldedColor& rhs, float amount )
+{
+    return FoldedColor{ lhs.red * ( 1.0f - amount ) + rhs.red * amount, lhs.green * ( 1.0f - amount ) + rhs.green * amount,
+                        lhs.blue * ( 1.0f - amount ) + rhs.blue * amount };
+}
+
 bool findConstantColor( const ::pbrt::ParamSet& params, const char* name, float& red, float& green, float& blue )
 {
     if( !params.FindTexture( name ).empty() )
@@ -688,14 +760,191 @@ bool findConstantFloat( const ::pbrt::ParamSet& params, const char* name, float&
     return true;
 }
 
-bool findConstantTextureFloat( const otk::pbrt::PbrtMaterialGraph& graph, const std::string& textureName, float& value )
+bool findTextureColorValue( const ::pbrt::ParamSet& params, const char* name, const FoldedColor& defaultValue, FoldedColor& value )
 {
-    const TextureLookup lookup{ findTexture( graph, textureName, "float" ) };
-    if( lookup.texture == nullptr || lookup.texture->valueType != "float" || lookup.texture->type != "constant" )
+    if( findConstantColor( params, name, value.red, value.green, value.blue ) )
+    {
+        return true;
+    }
+
+    float floatValue{};
+    if( findConstantFloat( params, name, floatValue ) )
+    {
+        value = FoldedColor{ floatValue, floatValue, floatValue };
+        return true;
+    }
+
+    value = defaultValue;
+    return true;
+}
+
+bool findTextureFloatValue( const ::pbrt::ParamSet& params, const char* name, float defaultValue, float& value )
+{
+    if( findConstantFloat( params, name, value ) )
+    {
+        return true;
+    }
+
+    FoldedColor color{};
+    if( findConstantColor( params, name, color.red, color.green, color.blue ) )
+    {
+        value = ( color.red + color.green + color.blue ) / 3.0f;
+        return true;
+    }
+
+    value = defaultValue;
+    return true;
+}
+
+bool findFoldableTextureColor( const otk::pbrt::PbrtMaterialGraph& graph,
+                               const std::string&                  textureName,
+                               const std::string&                  preferredValueType,
+                               std::vector<std::string>&           textureStack,
+                               FoldedColor&                        value );
+
+bool findFoldableTextureFloat( const otk::pbrt::PbrtMaterialGraph& graph,
+                               const std::string&                  textureName,
+                               std::vector<std::string>&           textureStack,
+                               float&                              value );
+
+bool findTextureInputColor( const otk::pbrt::PbrtMaterialGraph& graph,
+                            const otk::pbrt::PbrtTexture&       texture,
+                            const char*                         name,
+                            const FoldedColor&                  defaultValue,
+                            std::vector<std::string>&           textureStack,
+                            FoldedColor&                        value )
+{
+    const std::string inputTextureName{ texture.params.FindTexture( name ) };
+    if( !inputTextureName.empty() )
+    {
+        return findFoldableTextureColor( graph, inputTextureName, texture.valueType, textureStack, value );
+    }
+    return findTextureColorValue( texture.params, name, defaultValue, value );
+}
+
+bool findTextureInputFloat( const otk::pbrt::PbrtMaterialGraph& graph,
+                            const otk::pbrt::PbrtTexture&       texture,
+                            const char*                         name,
+                            float                               defaultValue,
+                            std::vector<std::string>&           textureStack,
+                            float&                              value )
+{
+    const std::string inputTextureName{ texture.params.FindTexture( name ) };
+    if( !inputTextureName.empty() )
+    {
+        return findFoldableTextureFloat( graph, inputTextureName, textureStack, value );
+    }
+    return findTextureFloatValue( texture.params, name, defaultValue, value );
+}
+
+bool findFoldableTextureColor( const otk::pbrt::PbrtMaterialGraph& graph,
+                               const std::string&                  textureName,
+                               const std::string&                  preferredValueType,
+                               std::vector<std::string>&           textureStack,
+                               FoldedColor&                        value )
+{
+    const TextureLookup lookup{ findTexture( graph, textureName, preferredValueType ) };
+    if( lookup.texture == nullptr || contains( textureStack, lookup.graphKey ) )
     {
         return false;
     }
-    return findConstantFloat( lookup.texture->params, "value", value );
+
+    textureStack.push_back( lookup.graphKey );
+    const otk::pbrt::PbrtTexture& texture{ *lookup.texture };
+    bool                          folded{ false };
+    if( texture.type == "constant" )
+    {
+        folded = findTextureColorValue( texture.params, "value", FoldedColor{ 1.0f, 1.0f, 1.0f }, value );
+    }
+    else if( texture.type == "scale" )
+    {
+        FoldedColor tex1{};
+        FoldedColor tex2{};
+        folded = findTextureInputColor( graph, texture, "tex1", FoldedColor{ 1.0f, 1.0f, 1.0f }, textureStack, tex1 )
+                 && findTextureInputColor( graph, texture, "tex2", FoldedColor{ 1.0f, 1.0f, 1.0f }, textureStack, tex2 );
+        if( folded )
+        {
+            value = tex1 * tex2;
+        }
+    }
+    else if( texture.type == "mix" )
+    {
+        FoldedColor tex1{};
+        FoldedColor tex2{};
+        float       amount{};
+        folded = findTextureInputColor( graph, texture, "tex1", FoldedColor{ 1.0f, 1.0f, 1.0f }, textureStack, tex1 )
+                 && findTextureInputColor( graph, texture, "tex2", FoldedColor{ 1.0f, 1.0f, 1.0f }, textureStack, tex2 )
+                 && findTextureInputFloat( graph, texture, "amount", 0.5f, textureStack, amount );
+        if( folded )
+        {
+            value = mix( tex1, tex2, amount );
+        }
+    }
+
+    textureStack.pop_back();
+    return folded;
+}
+
+bool findFoldableTextureFloat( const otk::pbrt::PbrtMaterialGraph& graph,
+                               const std::string&                  textureName,
+                               std::vector<std::string>&           textureStack,
+                               float&                              value )
+{
+    const TextureLookup lookup{ findTexture( graph, textureName, "float" ) };
+    if( lookup.texture == nullptr || contains( textureStack, lookup.graphKey ) )
+    {
+        return false;
+    }
+
+    textureStack.push_back( lookup.graphKey );
+    const otk::pbrt::PbrtTexture& texture{ *lookup.texture };
+    bool                          folded{ false };
+    if( texture.type == "constant" )
+    {
+        folded = findTextureFloatValue( texture.params, "value", 1.0f, value );
+    }
+    else if( texture.type == "scale" )
+    {
+        float tex1{};
+        float tex2{};
+        folded = findTextureInputFloat( graph, texture, "tex1", 1.0f, textureStack, tex1 )
+                 && findTextureInputFloat( graph, texture, "tex2", 1.0f, textureStack, tex2 );
+        if( folded )
+        {
+            value = tex1 * tex2;
+        }
+    }
+    else if( texture.type == "mix" )
+    {
+        float tex1{};
+        float tex2{};
+        float amount{};
+        folded = findTextureInputFloat( graph, texture, "tex1", 1.0f, textureStack, tex1 )
+                 && findTextureInputFloat( graph, texture, "tex2", 1.0f, textureStack, tex2 )
+                 && findTextureInputFloat( graph, texture, "amount", 0.5f, textureStack, amount );
+        if( folded )
+        {
+            value = tex1 * ( 1.0f - amount ) + tex2 * amount;
+        }
+    }
+
+    textureStack.pop_back();
+    return folded;
+}
+
+bool findFoldableTextureColor( const otk::pbrt::PbrtMaterialGraph& graph,
+                               const std::string&                  textureName,
+                               const std::string&                  preferredValueType,
+                               FoldedColor&                        value )
+{
+    std::vector<std::string> textureStack;
+    return findFoldableTextureColor( graph, textureName, preferredValueType, textureStack, value );
+}
+
+bool findFoldableTextureFloat( const otk::pbrt::PbrtMaterialGraph& graph, const std::string& textureName, float& value )
+{
+    std::vector<std::string> textureStack;
+    return findFoldableTextureFloat( graph, textureName, textureStack, value );
 }
 
 void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const ::pbrt::ParamSet& params, const BoundParameterSpec& spec )
@@ -718,6 +967,38 @@ void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const
     }
 }
 
+void appendTextureBackedBoundParameter( std::vector<MdlBoundMaterialParameter>& result,
+                                        const otk::pbrt::PbrtMaterial&          material,
+                                        const BoundParameterSpec&               spec )
+{
+    const std::string textureName{ material.params.FindTexture( spec.name ) };
+    if( textureName.empty() )
+    {
+        return;
+    }
+
+    MdlBoundMaterialParameter parameter{};
+    parameter.name = spec.name;
+    parameter.type = spec.type;
+    if( spec.type == MdlBoundParameterType::COLOR )
+    {
+        FoldedColor value{};
+        if( findFoldableTextureColor( material.graph, textureName, "color", value ) )
+        {
+            parameter.red   = value.red;
+            parameter.green = value.green;
+            parameter.blue  = value.blue;
+            result.push_back( parameter );
+        }
+        return;
+    }
+
+    if( findFoldableTextureFloat( material.graph, textureName, parameter.value ) )
+    {
+        result.push_back( parameter );
+    }
+}
+
 void appendBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
                             const ::pbrt::ParamSet&                 params,
                             const BoundParameterSpec*               begin,
@@ -729,22 +1010,15 @@ void appendBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
     }
 }
 
-void appendTextureBackedBoundFloatParameter( std::vector<MdlBoundMaterialParameter>& result,
-                                             const otk::pbrt::PbrtMaterial&          material,
-                                             const char*                             name )
+void appendMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
+                                    const otk::pbrt::PbrtMaterial&          material,
+                                    const BoundParameterSpec*               begin,
+                                    const BoundParameterSpec*               end )
 {
-    const std::string textureName{ material.params.FindTexture( name ) };
-    if( textureName.empty() )
+    for( const BoundParameterSpec* it = begin; it != end; ++it )
     {
-        return;
-    }
-
-    MdlBoundMaterialParameter parameter{};
-    parameter.name = name;
-    parameter.type = MdlBoundParameterType::FLOAT;
-    if( findConstantTextureFloat( material.graph, textureName, parameter.value ) )
-    {
-        result.push_back( parameter );
+        appendBoundParameter( result, material.params, *it );
+        appendTextureBackedBoundParameter( result, material, *it );
     }
 }
 
@@ -2009,40 +2283,39 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
 
     if( material.type == "matte" )
     {
-        appendBoundParameters( result, material.params, std::begin( matteParams ), std::end( matteParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( matteParams ), std::end( matteParams ) );
     }
     else if( material.type == "plastic" )
     {
-        appendBoundParameters( result, material.params, std::begin( plasticParams ), std::end( plasticParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( plasticParams ), std::end( plasticParams ) );
     }
     else if( material.type == "uber" )
     {
-        appendBoundParameters( result, material.params, std::begin( uberParams ), std::end( uberParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( uberParams ), std::end( uberParams ) );
     }
     else if( material.type == "mirror" )
     {
-        appendBoundParameters( result, material.params, std::begin( mirrorParams ), std::end( mirrorParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( mirrorParams ), std::end( mirrorParams ) );
     }
     else if( material.type == "glass" )
     {
-        appendBoundParameters( result, material.params, std::begin( glassParams ), std::end( glassParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( glassParams ), std::end( glassParams ) );
     }
     else if( material.type == "metal" )
     {
-        appendBoundParameters( result, material.params, std::begin( metalParams ), std::end( metalParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( metalParams ), std::end( metalParams ) );
     }
     else if( material.type == "substrate" )
     {
-        appendBoundParameters( result, material.params, std::begin( substrateParams ), std::end( substrateParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( substrateParams ), std::end( substrateParams ) );
     }
     else if( material.type == "translucent" )
     {
-        appendBoundParameters( result, material.params, std::begin( translucentParams ), std::end( translucentParams ) );
+        appendMaterialBoundParameters( result, material, std::begin( translucentParams ), std::end( translucentParams ) );
     }
     else if( material.type == "mix" )
     {
-        appendBoundParameters( result, material.params, std::begin( mixParams ), std::end( mixParams ) );
-        appendTextureBackedBoundFloatParameter( result, material, "amount" );
+        appendMaterialBoundParameters( result, material, std::begin( mixParams ), std::end( mixParams ) );
         appendNamedMaterialParameters( "namedmaterial1", 0U );
         appendNamedMaterialParameters( "namedmaterial2", 1U );
     }

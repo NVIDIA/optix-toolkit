@@ -81,14 +81,19 @@ PbrtTexture checkerboardTexture( const std::string& name, float tex1, float tex2
     return texture;
 }
 
-PbrtTexture constantTexture( const std::string& name )
+PbrtTexture constantTexture( const std::string& name, float red, float green, float blue )
 {
     PbrtTexture texture;
     texture.name      = name;
     texture.valueType = "color";
     texture.type      = "constant";
-    addRgbSpectrum( texture.params, "value", 0.5f, 0.5f, 0.5f );
+    addRgbSpectrum( texture.params, "value", red, green, blue );
     return texture;
+}
+
+PbrtTexture constantTexture( const std::string& name )
+{
+    return constantTexture( name, 0.5f, 0.5f, 0.5f );
 }
 
 PbrtTexture constantFloatTexture( const std::string& name, float value )
@@ -615,6 +620,19 @@ TEST( TestMdlGeneratedSource, mapsMatteMaterialModel )
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
+TEST( TestMdlGeneratedSource, foldsConstantKdTextureGraphToMaterialParameter )
+{
+    PbrtMaterial material{ materialWithKdTexture( "albedo" ) };
+    material.graph.textures["color:albedo"] = constantTexture( "albedo", 0.25f, 0.5f, 0.75f );
+
+    const GeneratedMdlSource generated{ generateMdlSource( material ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: Kd" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: Kd" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "// pbrt texture node:" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
 TEST( TestMdlGeneratedSource, mapsImagemapBumpmapToMdlGeometryNormal )
 {
     const GeneratedMdlSource generated{ generateMdlSource( matteMaterialWithBumpmap() ) };
@@ -870,6 +888,56 @@ TEST( TestMdlBoundMaterialParameters, bindsMixConstantAmountTexture )
     expectBoundFloat( parameters, "amount", 0.25f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsConstantColorTextureGraph )
+{
+    PbrtMaterial material{ materialWithKdTexture( "albedo" ) };
+    material.graph.textures["color:albedo"] = constantTexture( "albedo", 0.25f, 0.5f, 0.75f );
+
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
+
+    ASSERT_EQ( 1U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.25f, 0.5f, 0.75f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsNestedConstantColorTextureGraph )
+{
+    PbrtMaterial material{ materialWithKdTexture( "mixed" ) };
+    material.graph.textures["color:mixed"]  = mixTexture( "mixed", "dark", "scaled" );
+    material.graph.textures["color:dark"]   = constantTexture( "dark", 0.2f, 0.2f, 0.2f );
+    material.graph.textures["color:scaled"] = scaleTexture( "scaled", "bright" );
+    material.graph.textures["color:bright"] = constantTexture( "bright", 0.8f, 0.8f, 0.8f );
+
+    const GeneratedMdlSource                     generated{ generateMdlSource( material ) };
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: Kd" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "// pbrt texture node:" ) ) );
+    ASSERT_EQ( 1U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.3f, 0.3f, 0.3f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsNestedConstantFloatTextureGraph )
+{
+    PbrtMaterial material;
+    material.type = "plastic";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    material.params.AddTexture( "roughness", "scaledRoughness" );
+    material.graph.textures["float:scaledRoughness"] = scaleFloatTexture( "scaledRoughness", "baseRoughness" );
+    material.graph.textures["float:baseRoughness"]   = constantFloatTexture( "baseRoughness", 0.4f );
+
+    const GeneratedMdlSource                     generated{ generateMdlSource( material ) };
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input roughness: roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_u: roughness" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_texture_float" ) ) );
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+    expectBoundFloat( parameters, "roughness", 0.2f );
 }
 
 TEST( TestMdlBoundMaterialParameters, skipsTextureBackedInputsUntilTextureBindingExists )

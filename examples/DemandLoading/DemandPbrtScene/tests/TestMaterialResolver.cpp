@@ -103,6 +103,15 @@ void addFloat( ::pbrt::ParamSet& params, const std::string& name, float value )
     params.AddFloat( name, std::move( values ), 1 );
 }
 
+void addRgbSpectrum( ::pbrt::ParamSet& params, const std::string& name, float red, float green, float blue )
+{
+    std::unique_ptr<::pbrt::Float[]> values{ new ::pbrt::Float[3] };
+    values[0] = red;
+    values[1] = green;
+    values[2] = blue;
+    params.AddRGBSpectrum( name, std::move( values ), 3 );
+}
+
 std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtImagemapMaterialOfType( const std::string& type,
                                                                            const std::string& textureParam,
                                                                            const std::string& valueType,
@@ -168,6 +177,16 @@ otk::pbrt::PbrtTexture pbrtConstantFloatTexture( const std::string& name, float 
     return texture;
 }
 
+otk::pbrt::PbrtTexture pbrtConstantColorTexture( const std::string& name, float red, float green, float blue )
+{
+    otk::pbrt::PbrtTexture texture{};
+    texture.name      = name;
+    texture.valueType = "color";
+    texture.type      = "constant";
+    addRgbSpectrum( texture.params, "value", red, green, blue );
+    return texture;
+}
+
 otk::pbrt::PbrtTexture pbrtImagemapFloatTexture( const std::string& name, const std::string& fileName )
 {
     otk::pbrt::PbrtTexture texture{};
@@ -188,6 +207,15 @@ std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtMixMaterialWithConstantAmount
     material->graph.namedMaterials["front"]  = pbrtNamedMatteMaterial( "front", 0.2f );
     material->graph.namedMaterials["back"]   = pbrtNamedMatteMaterial( "back", 0.8f );
     material->graph.textures["float:weight"] = pbrtConstantFloatTexture( "weight", 0.25f );
+    return material;
+}
+
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtMatteMaterialWithConstantKdTexture()
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = "matte";
+    material->params.AddTexture( "Kd", "albedo" );
+    material->graph.textures["color:albedo"] = pbrtConstantColorTexture( "albedo", 0.25f, 0.5f, 0.75f );
     return material;
 }
 
@@ -248,6 +276,11 @@ void usePbrtMixMaterial( GeometryInstance& geom, float amount )
 void usePbrtMixMaterialWithConstantAmountTexture( GeometryInstance& geom )
 {
     geom.groups[0].pbrtMaterial = pbrtMixMaterialWithConstantAmountTexture();
+}
+
+void usePbrtMatteMaterialWithConstantKdTexture( GeometryInstance& geom )
+{
+    geom.groups[0].pbrtMaterial = pbrtMatteMaterialWithConstantKdTexture();
 }
 
 void usePbrtMixMaterialWithImagemapAmountTexture( GeometryInstance& geom )
@@ -866,6 +899,44 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialCo
     EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialFoldsConstantKdTexture )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtMatteMaterialWithConstantKdTexture( m_geom );
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    const uint_t mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 11U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( hasGeometryInstance( hasMaterialFlags( MaterialFlags::NONE ) ) ) )
+        .WillOnce( Return( mdlSbtOffset ) );
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( hasGeometryInstance( hasMaterialFlags( MaterialFlags::NONE ) ), 1U ) )
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( MaterialFlags::NONE, m_sync.realizedMaterials[proxyMaterialId].flags );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 0U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedOpaqueMaterialFamiliesCompileShaders )

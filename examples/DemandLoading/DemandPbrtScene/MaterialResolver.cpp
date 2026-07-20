@@ -196,15 +196,32 @@ bool hasGeneratedMdlMaterialTextureReference( const ::pbrt::ParamSet& params )
 
 bool hasGeneratedMdlConstantFloatTexture( const otk::pbrt::PbrtMaterial& material, const std::string& textureName )
 {
-    for( otk::pbrt::PbrtTextureMap::const_iterator it = material.graph.textures.begin(); it != material.graph.textures.end(); ++it )
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
+    for( const MdlBoundMaterialParameter& parameter : parameters )
     {
-        if( it->second.name != textureName || it->second.valueType != "float" || it->second.type != "constant" )
+        if( parameter.name == "amount" && parameter.type == MdlBoundParameterType::FLOAT
+            && material.params.FindTexture( "amount" ) == textureName )
         {
-            continue;
+            return true;
         }
-        int          count{};
-        const float* values = it->second.params.FindFloat( "value", &count );
-        return count > 0 && values != nullptr;
+    }
+    return false;
+}
+
+bool hasGeneratedMdlFoldableTextureParameter( const otk::pbrt::PbrtMaterial& material, const std::string& paramName, MdlBoundParameterType type )
+{
+    if( material.params.FindTexture( paramName ).empty() )
+    {
+        return false;
+    }
+
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
+    for( const MdlBoundMaterialParameter& parameter : parameters )
+    {
+        if( parameter.name == paramName && parameter.type == type )
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -267,6 +284,14 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
             continue;
         }
         const std::string paramName{ param };
+        if( hasGeneratedMdlFoldableTextureParameter( material, paramName, MdlBoundParameterType::COLOR ) )
+        {
+            continue;
+        }
+        if( hasGeneratedMdlFoldableTextureParameter( material, paramName, MdlBoundParameterType::FLOAT ) )
+        {
+            continue;
+        }
         if( paramName == "Kd" )
         {
             if( !hasDiffuseMap )
