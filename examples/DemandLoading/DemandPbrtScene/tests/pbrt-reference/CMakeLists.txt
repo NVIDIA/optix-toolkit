@@ -10,6 +10,7 @@ set(referenceMaterials
     matte-checkerboard
     plastic
     uber
+    uber-transmission
     mirror
     glass
     metal
@@ -132,6 +133,13 @@ if(OTK_USE_MDL)
         SCENE uber.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, generated MDL uber uses the diffuse/glossy BSDF callable path")
+    add_pbrt_reference_image_test(uber-transmission
+        MATERIAL uber
+        SCENE uber-transmission.pbrt
+        WARMUP 4
+        OPTIONS --render-mode=path
+        ALLOWED_PERCENTAGE 8
+        TOLERANCE_REASON "Silhouette tolerance, generated MDL uber uses Kt specular transmission sampling")
     add_pbrt_reference_image_test(mirror
         MATERIAL mirror
         SCENE mirror.pbrt

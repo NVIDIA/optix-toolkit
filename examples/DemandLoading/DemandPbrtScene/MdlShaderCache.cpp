@@ -982,6 +982,8 @@ std::string namedMaterialUberBsdfExpression( MdlMaterialModel&                  
     const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.1" ) };
     const std::string uroughness{ namedMaterialFloatExpression( model, material, index, "uroughness", "-1.0" ) };
     const std::string vroughness{ namedMaterialFloatExpression( model, material, index, "vroughness", "-1.0" ) };
+    const std::string alpha{ namedMaterialFloatExpression( model, material, index, "alpha", "1.0" ) };
+    const std::string opacity{ namedMaterialFloatExpression( model, material, index, "opacity", "1.0" ) };
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kd: " + kd );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Ks: " + ks );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
@@ -989,19 +991,20 @@ std::string namedMaterialUberBsdfExpression( MdlMaterialModel&                  
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input uroughness: " + uroughness );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input vroughness: " + vroughness );
-    model.comments.push_back( "pbrt named material " + std::to_string( index )
-                              + " gap: uber Kr/Kt reflection and transmission are deferred" );
-    return "::df::color_normalized_mix(\n"
-           "                        components: ::df::color_bsdf_component[](\n"
-           "                            ::df::color_bsdf_component(\n"
-           "                                weight: "
-           + kd
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input opacity: " + opacity );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input alpha: " + alpha
+                              + "; cutout does not compose through mix" );
+    return std::string{ "::df::color_normalized_mix(\n"
+                        "                        components: ::df::color_bsdf_component[](\n"
+                        "                            ::df::color_bsdf_component(\n"
+                        "                                weight: " }
+           + "pbrt_mix_opacity_weight(" + opacity + ") * " + kd
            + ",\n"
              "                                component: ::df::diffuse_reflection_bsdf(\n"
              "                                    tint: color(1.0, 1.0, 1.0))),\n"
              "                            ::df::color_bsdf_component(\n"
              "                                weight: "
-           + ks
+           + "pbrt_mix_opacity_weight(" + opacity + ") * " + ks
            + ",\n"
              "                                component: ::df::simple_glossy_bsdf(\n"
              "                                    roughness_u: pbrt_mix_resolved_roughness("
@@ -1011,7 +1014,28 @@ std::string namedMaterialUberBsdfExpression( MdlMaterialModel&                  
            + roughness + ", " + vroughness
            + "),\n"
              "                                    tint: color(1.0, 1.0, 1.0),\n"
-             "                                    mode: ::df::scatter_reflect))))";
+             "                                    mode: ::df::scatter_reflect)),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + "pbrt_mix_opacity_weight(" + opacity + ") * " + kr
+           + ",\n"
+             "                                component: ::df::specular_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_reflect)),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: "
+           + "pbrt_mix_opacity_weight(" + opacity + ") * " + kt
+           + ",\n"
+             "                                component: ::df::specular_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_transmit)),\n"
+             "                            ::df::color_bsdf_component(\n"
+             "                                weight: pbrt_mix_transparency_weight("
+           + opacity
+           + "),\n"
+             "                                component: ::df::specular_bsdf(\n"
+             "                                    tint: color(1.0, 1.0, 1.0),\n"
+             "                                    mode: ::df::scatter_transmit))))";
 }
 
 std::string namedMaterialMirrorBsdfExpression( MdlMaterialModel&                   model,
@@ -1306,33 +1330,60 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
     appendRoughnessGapComment( model );
+    model.comments.push_back( "pbrt material approximation: PBRT uber lobes use an MDL color-normalized mix" );
     model.comments.push_back(
-        "pbrt material approximation: diffuse and glossy reflection use an MDL color-normalized mix" );
-    model.comments.push_back( "pbrt material gap: uber Kr/Kt reflection and transmission lobes are deferred" );
+        "pbrt material approximation: opacity weights BSDF lobes and adds transparent transmission; alpha remains "
+        "cutout" );
     model.helperDefinitions =
         "float pbrt_uber_resolved_roughness(float roughness, float axis_roughness) = "
-        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n";
-    model.body = "    ior: color(index, index, index),\n"
-                 "    surface: material_surface(\n"
-                 "        scattering: ::df::color_normalized_mix(\n"
-                 "            components: ::df::color_bsdf_component[](\n"
-                 "                ::df::color_bsdf_component(\n"
-                 "                    weight: "
-                 + kd
+        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n"
+        "float pbrt_uber_clamped_opacity(float opacity) = ::math::clamp(opacity, 0.0, 1.0);\n\n"
+        "color pbrt_uber_opacity_weight(float opacity) =\n"
+        "    color(pbrt_uber_clamped_opacity(opacity), pbrt_uber_clamped_opacity(opacity), "
+        "pbrt_uber_clamped_opacity(opacity));\n\n"
+        "color pbrt_uber_transparency_weight(float opacity) =\n"
+        "    color(1.0 - pbrt_uber_clamped_opacity(opacity), 1.0 - pbrt_uber_clamped_opacity(opacity), "
+        "1.0 - pbrt_uber_clamped_opacity(opacity));\n\n";
+    model.body = std::string{ "    ior: color(index, index, index),\n"
+                              "    surface: material_surface(\n"
+                              "        scattering: ::df::color_normalized_mix(\n"
+                              "            components: ::df::color_bsdf_component[](\n"
+                              "                ::df::color_bsdf_component(\n"
+                              "                    weight: " }
+                 + "pbrt_uber_opacity_weight(opacity) * " + kd
                  + ",\n"
                    "                    component: ::df::diffuse_reflection_bsdf(\n"
                    "                        tint: color(1.0, 1.0, 1.0))),\n"
                    "                ::df::color_bsdf_component(\n"
                    "                    weight: "
-                 + ks
+                 + "pbrt_uber_opacity_weight(opacity) * " + ks
                  + ",\n"
                    "                    component: ::df::simple_glossy_bsdf(\n"
                    "                        roughness_u: pbrt_uber_resolved_roughness(roughness, uroughness),\n"
                    "                        roughness_v: pbrt_uber_resolved_roughness(roughness, vroughness),\n"
                    "                        tint: color(1.0, 1.0, 1.0),\n"
-                   "                        mode: ::df::scatter_reflect))))),\n"
+                   "                        mode: ::df::scatter_reflect)),\n"
+                   "                ::df::color_bsdf_component(\n"
+                   "                    weight: pbrt_uber_opacity_weight(opacity) * "
+                 + kr
+                 + ",\n"
+                   "                    component: ::df::specular_bsdf(\n"
+                   "                        tint: color(1.0, 1.0, 1.0),\n"
+                   "                        mode: ::df::scatter_reflect)),\n"
+                   "                ::df::color_bsdf_component(\n"
+                   "                    weight: pbrt_uber_opacity_weight(opacity) * "
+                 + kt
+                 + ",\n"
+                   "                    component: ::df::specular_bsdf(\n"
+                   "                        tint: color(1.0, 1.0, 1.0),\n"
+                   "                        mode: ::df::scatter_transmit)),\n"
+                   "                ::df::color_bsdf_component(\n"
+                   "                    weight: pbrt_uber_transparency_weight(opacity),\n"
+                   "                    component: ::df::specular_bsdf(\n"
+                   "                        tint: color(1.0, 1.0, 1.0),\n"
+                   "                        mode: ::df::scatter_transmit))))),\n"
                  "    geometry: material_geometry(\n"
-                 "        cutout_opacity: alpha * opacity)\n";
+                 "        cutout_opacity: alpha)\n";
     return model;
 }
 
@@ -1579,6 +1630,13 @@ MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, 
         "float pbrt_mix_matte_sigma_roughness(float sigma_degrees) = ::math::clamp(sigma_degrees / 90.0, 0.0, 1.0);\n\n"
         "float pbrt_mix_resolved_roughness(float roughness, float axis_roughness) = "
         "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n"
+        "float pbrt_mix_clamped_opacity(float opacity) = ::math::clamp(opacity, 0.0, 1.0);\n\n"
+        "color pbrt_mix_opacity_weight(float opacity) =\n"
+        "    color(pbrt_mix_clamped_opacity(opacity), pbrt_mix_clamped_opacity(opacity), "
+        "pbrt_mix_clamped_opacity(opacity));\n\n"
+        "color pbrt_mix_transparency_weight(float opacity) =\n"
+        "    color(1.0 - pbrt_mix_clamped_opacity(opacity), 1.0 - pbrt_mix_clamped_opacity(opacity), "
+        "1.0 - pbrt_mix_clamped_opacity(opacity));\n\n"
         "color pbrt_mix_metal_conductor_tint(color eta, color k) =\n"
         "    ((eta - color(1.0, 1.0, 1.0)) * (eta - color(1.0, 1.0, 1.0)) + k * k) /\n"
         "    ((eta + color(1.0, 1.0, 1.0)) * (eta + color(1.0, 1.0, 1.0)) + k * k);\n\n";

@@ -639,24 +639,32 @@ TEST( TestMdlGeneratedSource, mapsSimpleUberMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: texture_1()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input uroughness: uroughness" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input vroughness: vroughness" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: diffuse and glossy reflection "
-                                                       "use an MDL color-normalized mix" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: uber Kr/Kt reflection and transmission "
-                                                       "lobes are deferred" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: PBRT uber lobes use an MDL "
+                                                       "color-normalized mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: opacity weights BSDF lobes "
+                                                       "and adds transparent transmission; alpha remains cutout" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_resolved_roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_clamped_opacity" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_opacity_weight" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_transparency_weight" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: texture_0()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_opacity_weight(opacity) * texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_opacity_weight(opacity) * Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_opacity_weight(opacity) * Kr" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_opacity_weight(opacity) * Kt" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_transparency_weight(opacity)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::specular_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_u: pbrt_uber_resolved_roughness(roughness, "
                                                        "uroughness)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_v: pbrt_uber_resolved_roughness(roughness, "
                                                        "vroughness)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_transmit" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(index, index, index)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "geometry: material_geometry" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha * opacity" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_uber_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
@@ -961,11 +969,14 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
     EXPECT_THAT( generated.source, testing::HasSubstr( "float named_0_roughness = 0.1" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float named_0_uroughness = -1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float named_0_vroughness = -1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float named_0_alpha = 1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float named_0_opacity = 1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 input Kd: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 input roughness: "
                                                        "named_0_roughness" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 gap: uber Kr/Kt reflection and "
-                                                       "transmission are deferred" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 input opacity: named_0_opacity" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 input alpha: named_0_alpha; "
+                                                       "cutout does not compose through mix" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 model: translucent" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color named_1_Ks = color(0.0, 0.0, 0.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color named_1_transmit = color(0.5, 0.5, 0.5)" ) );
@@ -976,12 +987,22 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(amount, amount, amount)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(1.0 - amount, 1.0 - amount, 1.0 - amount)" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: texture_0()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: named_0_Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_mix_opacity_weight" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_mix_transparency_weight" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_mix_opacity_weight(named_0_opacity) * "
+                                                       "texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_mix_opacity_weight(named_0_opacity) * "
+                                                       "named_0_Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_mix_opacity_weight(named_0_opacity) * "
+                                                       "named_0_Kr" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_mix_opacity_weight(named_0_opacity) * "
+                                                       "named_0_Kt" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_mix_transparency_weight(named_0_opacity)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_u: pbrt_mix_resolved_roughness(named_0_roughness, "
                                                        "named_0_uroughness)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "component: ::df::diffuse_reflection_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::specular_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_transmission_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "weight: named_1_Kd * texture_1()" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_named_material_0_tint" ) ) );
