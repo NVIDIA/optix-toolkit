@@ -1176,8 +1176,8 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
     appendMaterialParameter( model, "color", "Kd", "color(0.5, 0.5, 0.5)" );
     appendMaterialParameter( model, "color", "Ks", "color(0.5, 0.5, 0.5)" );
     appendMaterialParameter( model, "float", "roughness", "0.1" );
-    appendMaterialParameter( model, "float", "uroughness", "0.1" );
-    appendMaterialParameter( model, "float", "vroughness", "0.1" );
+    appendMaterialParameter( model, "float", "uroughness", "-1.0" );
+    appendMaterialParameter( model, "float", "vroughness", "-1.0" );
 
     const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
     const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
@@ -1192,13 +1192,22 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
     appendRoughnessGapComment( model );
     model.comments.push_back(
-        "pbrt material approximation: layered diffuse and glossy lobes are represented but not connected" );
-    model.helperDefinitions = "color pbrt_substrate_approximation_tint(color kd, color ks, float roughness) = kd;\n\n";
+        "pbrt material approximation: diffuse base and glossy layer use an MDL color-weighted layer" );
+    model.helperDefinitions =
+        "float pbrt_substrate_resolved_roughness(float roughness, float axis_roughness) = "
+        "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n";
     model.body =
         "    surface: material_surface(\n"
-        "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        "            tint: pbrt_substrate_approximation_tint("
-        + kd + ", " + ks + ", roughness)))\n";
+        "        scattering: ::df::color_weighted_layer(\n"
+        "            weight: " + ks + ",\n"
+        "            layer: ::df::simple_glossy_bsdf(\n"
+        "                roughness_u: pbrt_substrate_resolved_roughness(roughness, uroughness),\n"
+        "                roughness_v: pbrt_substrate_resolved_roughness(roughness, vroughness),\n"
+        "                tint: color(1.0, 1.0, 1.0),\n"
+        "                mode: ::df::scatter_reflect),\n"
+        "            base: ::df::diffuse_reflection_bsdf(\n"
+        "                tint: "
+        + kd + ")))\n";
     return model;
 }
 

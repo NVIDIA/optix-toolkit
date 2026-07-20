@@ -825,12 +825,43 @@ TEST( TestMdlGeneratedSource, mapsSubstrateMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Kd = color(0.5, 0.5, 0.5)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Ks = color(0.5, 0.5, 0.5)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.1" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = 0.1" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = -1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = -1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: texture_0()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_substrate_approximation_tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: pbrt_substrate_approximation_tint(Kd, Ks, roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: diffuse base and glossy layer "
+                                                       "use an MDL color-weighted layer" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_substrate_resolved_roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_weighted_layer" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_u: pbrt_substrate_resolved_roughness(roughness, "
+                                                       "uroughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "roughness_v: pbrt_substrate_resolved_roughness(roughness, "
+                                                       "vroughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "base: ::df::diffuse_reflection_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: Kd" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_substrate_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsSubstrateDirectDiffuseTextureInput )
+{
+    PbrtMaterial material{ substrateMaterial() };
+    material.params.AddTexture( "Kd", "albedo" );
+    material.graph.textures["spectrum:albedo"] = imageMapTexture( "albedo", "albedo.exr", "spectrum" );
+
+    const GeneratedMdlSource generated{ generateMdlSource( material ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_weighted_layer" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }

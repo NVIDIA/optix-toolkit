@@ -24,6 +24,7 @@ set(pbrtReferenceComparableMaterials
     mirror
     glass
     metal
+    substrate
 )
 
 add_custom_target(DemandPbrtScenePbrtReferenceResources)
@@ -145,6 +146,12 @@ if(OTK_USE_MDL)
         DIFF_THRESHOLD 3
         ALLOWED_PERCENTAGE 8
         TOLERANCE_REASON "Silhouette and PBRT sampling tolerance, generated MDL metal uses GGX conductor sampling")
+    add_pbrt_reference_image_test(substrate
+        MATERIAL substrate
+        SCENE substrate.pbrt
+        WARMUP 4
+        DIFF_THRESHOLD 9
+        TOLERANCE_REASON "PBRT FresnelBlend diffuse tolerance, generated MDL substrate uses a layered diffuse/glossy BSDF")
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte
