@@ -147,7 +147,7 @@ D_INLINE bool requestTexFootprint2DRect( const TextureSampler& sampler,
     if( mipLevel + 1 >= sampler.mipTailFirstLevel )
     {
         pagingRequest( referenceBits, sampler.startPage );
-        return checkBitSet( sampler.startPage, residenceBits ) || isResident;
+        return checkBitSet( sampler.startPage, residenceBits ) && isResident;
     }
 
     // Request bits in coarse mip level
