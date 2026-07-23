@@ -589,6 +589,9 @@ unsigned int OTKApp::performLaunches( )
         if( m_waitForTicket )
             state.ticket.wait();
 
+        // Get the number of tasks remaining before the launchPrepare call.
+        int numTasksRemaining = state.ticket.numTasksRemaining();
+
         // Call launchPrepare to synchronize new texture samplers and texture info to device memory.
         // launchPrepare also allocates device memory for a new demand texture context that can
         // be used to pull requests from the device.
@@ -615,10 +618,8 @@ unsigned int OTKApp::performLaunches( )
                                   1                                                 // launch depth
                                   ) );
 
-        // Poll the ticket to see if the previous batch of requests is filled. If the app waited
-        // on the ticket, it will be ready. If not, it may take several launches to fill all of
-        // the requests.
-        if( state.demandLoader && state.ticket.numTasksRemaining() == 0 )
+        // If the batch of requests was filled before calling launchPrepare, call processRequests to start a new batch.
+        if( state.demandLoader && numTasksRemaining == 0 )
         {
             numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
             // Start an asynchronous pull of a new batch of requests from the device.

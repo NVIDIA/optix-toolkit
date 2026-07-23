@@ -155,6 +155,11 @@ class SparseTexture
     std::shared_ptr<SparseArray> m_array;
     CUtexObject                  m_texture{};
 
+    // A reference to the old array that the texture was using before being re-initialized.
+    // The array may be needed until the current batch of requests is complete. The reference
+    // keeps it from being destroyed immediately when the texture is replaced.
+    std::shared_ptr<SparseArray> m_oldArray;
+
     // Get the dimensions of the specified tile, which might be a partial tile.
     uint2 getTileDimensions( unsigned int mipLevel, unsigned int tileX, unsigned int tileY ) const;
 
