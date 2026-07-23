@@ -77,6 +77,14 @@ bool contains( const std::vector<std::string>& values, const std::string& value 
     return std::find( values.begin(), values.end(), value ) != values.end();
 }
 
+void appendUnsupportedReason( GeneratedMdlSource& result, const std::string& reason )
+{
+    if( !contains( result.unsupportedReasons, reason ) )
+    {
+        result.unsupportedReasons.push_back( reason );
+    }
+}
+
 void appendTextureSignature( std::ostringstream&                 out,
                              const std::string&                  graphKey,
                              const otk::pbrt::PbrtTexture&       texture,
@@ -266,16 +274,19 @@ class MdlTextureGraphGenerator
         for( std::vector<std::string>::const_iterator it = m_graph.fallbackReasons.begin();
              it != m_graph.fallbackReasons.end(); ++it )
         {
-            addUnsupportedReason( "PBRT material graph fallback: " + *it );
+            appendUnsupportedReason( m_result, "PBRT material graph fallback: " + *it );
         }
     }
 
-    std::string materialTextureExpression( const ::pbrt::ParamSet& params, const std::string& paramName, const std::string& preferredValueType )
+    std::string materialColorExpression( const ::pbrt::ParamSet& params,
+                                         const std::string&      paramName,
+                                         const std::string&      preferredValueType,
+                                         const std::string&      defaultExpression )
     {
         const std::string textureName{ params.FindTexture( paramName ) };
         if( textureName.empty() )
         {
-            return "color(0.8, 0.8, 0.8)";
+            return defaultExpression;
         }
         return textureReference( textureName, preferredValueType );
     }
@@ -319,12 +330,12 @@ class MdlTextureGraphGenerator
         const TextureLookup lookup{ findTexture( m_graph, textureName, preferredValueType ) };
         if( lookup.texture == nullptr )
         {
-            addUnsupportedReason( "Missing PBRT texture '" + textureName + "'" );
+            appendUnsupportedReason( m_result, "Missing PBRT texture '" + textureName + "'" );
             return unsupportedTextureExpression();
         }
         if( contains( m_textureStack, lookup.graphKey ) )
         {
-            addUnsupportedReason( "Recursive PBRT texture reference '" + textureName + "'" );
+            appendUnsupportedReason( m_result, "Recursive PBRT texture reference '" + textureName + "'" );
             return unsupportedTextureExpression();
         }
 
@@ -384,7 +395,7 @@ class MdlTextureGraphGenerator
         {
             if( texture.params.FindOneString( "dimension", "2d" ) != "2d" )
             {
-                addUnsupportedReason( "Unsupported PBRT checkerboard dimension in " + textureKind( texture ) );
+                appendUnsupportedReason( m_result, "Unsupported PBRT checkerboard dimension in " + textureKind( texture ) );
                 return unsupportedTextureExpression();
             }
             m_usesCheckerboard = true;
@@ -395,11 +406,11 @@ class MdlTextureGraphGenerator
 
         if( isUnsupportedProceduralTexture( texture ) )
         {
-            addUnsupportedReason( "Unsupported PBRT texture type " + textureKind( texture ) );
+            appendUnsupportedReason( m_result, "Unsupported PBRT texture type " + textureKind( texture ) );
             return unsupportedTextureExpression();
         }
 
-        addUnsupportedReason( "Unsupported PBRT texture type " + textureKind( texture ) );
+        appendUnsupportedReason( m_result, "Unsupported PBRT texture type " + textureKind( texture ) );
         return unsupportedTextureExpression();
     }
 
@@ -421,14 +432,6 @@ class MdlTextureGraphGenerator
 
     static std::string defaultColorExpression() { return "color(1.0, 1.0, 1.0)"; }
 
-    void addUnsupportedReason( const std::string& reason )
-    {
-        if( !contains( m_result.unsupportedReasons, reason ) )
-        {
-            m_result.unsupportedReasons.push_back( reason );
-        }
-    }
-
     const otk::pbrt::PbrtMaterialGraph& m_graph;
     GeneratedMdlSource&                 m_result;
     std::vector<std::string>            m_textureStack;
@@ -440,6 +443,182 @@ class MdlTextureGraphGenerator
     bool                                m_usesCheckerboard{};
     bool                                m_usesUnsupported{};
 };
+
+struct MdlMaterialParameter
+{
+    std::string type;
+    std::string name;
+    std::string defaultValue;
+};
+
+struct MdlMaterialModel
+{
+    std::vector<MdlMaterialParameter> parameters;
+    std::vector<std::string>          comments;
+    std::string                       helperDefinitions;
+    std::string                       body;
+};
+
+void appendMaterialParameter( MdlMaterialModel& model, const std::string& type, const std::string& name, const std::string& defaultValue )
+{
+    model.parameters.push_back( MdlMaterialParameter{ type, name, defaultValue } );
+}
+
+std::string mdlParameterList( const std::vector<MdlMaterialParameter>& parameters )
+{
+    if( parameters.empty() )
+    {
+        return "()";
+    }
+
+    std::ostringstream out;
+    out << "(\n";
+    for( std::vector<MdlMaterialParameter>::const_iterator it = parameters.begin(); it != parameters.end(); ++it )
+    {
+        out << "    " << it->type << " " << it->name << " = " << it->defaultValue;
+        if( it + 1 != parameters.end() )
+        {
+            out << ",";
+        }
+        out << "\n";
+    }
+    out << ")";
+    return out.str();
+}
+
+std::string materialTextureCommentExpression( MdlTextureGraphGenerator& textureGraph,
+                                              const ::pbrt::ParamSet&   params,
+                                              const std::string&        paramName,
+                                              const std::string&        preferredValueType )
+{
+    if( params.FindTexture( paramName ).empty() )
+    {
+        return "none";
+    }
+    return textureGraph.materialColorExpression( params, paramName, preferredValueType, "none" );
+}
+
+MdlMaterialModel makeMatteMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kd", "color(0.8, 0.8, 0.8)" );
+    appendMaterialParameter( model, "float", "sigma", "0.0" );
+
+    const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
+
+    model.comments.push_back( "pbrt material model: matte" );
+    model.comments.push_back( "pbrt material input Kd: " + kd );
+    model.comments.push_back( "pbrt material input sigma: sigma" );
+    model.body =
+        "    surface: material_surface(\n"
+        "        scattering: ::df::diffuse_reflection_bsdf(\n"
+        "            tint: "
+        + kd + "))\n";
+    return model;
+}
+
+MdlMaterialModel makePlasticMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kd", "color(0.8, 0.8, 0.8)" );
+    appendMaterialParameter( model, "color", "Ks", "color(0.0, 0.0, 0.0)" );
+    appendMaterialParameter( model, "float", "roughness", "0.1" );
+
+    const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
+    const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
+    const std::string bumpmap{ materialTextureCommentExpression( textureGraph, material.params, "bumpmap", "float" ) };
+
+    model.comments.push_back( "pbrt material model: plastic" );
+    model.comments.push_back( "pbrt material input Kd: " + kd );
+    model.comments.push_back( "pbrt material input Ks: " + ks );
+    model.comments.push_back( "pbrt material input roughness: roughness" );
+    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    model.comments.push_back( "pbrt material approximation: glossy lobe is represented but not connected" );
+    model.helperDefinitions = "color pbrt_plastic_approximation_tint(color kd, color ks, float roughness) = kd;\n\n";
+    model.body =
+        "    surface: material_surface(\n"
+        "        scattering: ::df::diffuse_reflection_bsdf(\n"
+        "            tint: pbrt_plastic_approximation_tint("
+        + kd + ", " + ks + ", roughness)))\n";
+    return model;
+}
+
+MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kd", "color(0.8, 0.8, 0.8)" );
+    appendMaterialParameter( model, "color", "Ks", "color(0.0, 0.0, 0.0)" );
+    appendMaterialParameter( model, "color", "Kr", "color(0.0, 0.0, 0.0)" );
+    appendMaterialParameter( model, "color", "Kt", "color(0.0, 0.0, 0.0)" );
+    appendMaterialParameter( model, "float", "roughness", "0.1" );
+    appendMaterialParameter( model, "float", "index", "1.5" );
+    appendMaterialParameter( model, "float", "alpha", "1.0" );
+    appendMaterialParameter( model, "float", "opacity", "1.0" );
+
+    const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
+    const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
+    const std::string kr{ textureGraph.materialColorExpression( material.params, "Kr", "color", "Kr" ) };
+    const std::string kt{ textureGraph.materialColorExpression( material.params, "Kt", "color", "Kt" ) };
+    const std::string alphaTexture{
+        materialTextureCommentExpression( textureGraph, material.params, "alpha", "float" ) };
+    const std::string opacityTexture{
+        materialTextureCommentExpression( textureGraph, material.params, "opacity", "float" ) };
+    const std::string bumpmap{ materialTextureCommentExpression( textureGraph, material.params, "bumpmap", "float" ) };
+
+    model.comments.push_back( "pbrt material model: uber" );
+    model.comments.push_back( "pbrt material input Kd: " + kd );
+    model.comments.push_back( "pbrt material input Ks: " + ks );
+    model.comments.push_back( "pbrt material input Kr: " + kr );
+    model.comments.push_back( "pbrt material input Kt: " + kt );
+    model.comments.push_back( "pbrt material input roughness: roughness" );
+    model.comments.push_back( "pbrt material input index: index" );
+    model.comments.push_back( "pbrt material input alpha: alpha; texture=" + alphaTexture );
+    model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
+    model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    model.comments.push_back(
+        "pbrt material approximation: specular, reflection, and transmission lobes are represented but not connected" );
+    model.helperDefinitions =
+        "color pbrt_uber_approximation_tint(color kd, color ks, color kr, color kt, float roughness) = kd;\n\n";
+    model.body = "    ior: color(index, index, index),\n"
+                 "    surface: material_surface(\n"
+                 "        scattering: ::df::diffuse_reflection_bsdf(\n"
+                 "            tint: pbrt_uber_approximation_tint("
+                 + kd + ", " + ks + ", " + kr + ", " + kt + ", roughness))),\n"
+                 "    geometry: material_geometry(\n"
+                 "        cutout_opacity: alpha * opacity)\n";
+    return model;
+}
+
+MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& material, GeneratedMdlSource& result )
+{
+    const std::string type{ material.type.empty() ? std::string{ "<empty>" } : material.type };
+    appendUnsupportedReason( result, "Unsupported PBRT material type " + type );
+
+    MdlMaterialModel model;
+    model.comments.push_back( "pbrt material model: " + type );
+    model.body =
+        "    surface: material_surface(\n"
+        "        scattering: ::df::diffuse_reflection_bsdf(\n"
+        "            tint: color(1.0, 0.0, 1.0)))\n";
+    return model;
+}
+
+MdlMaterialModel makeMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph, GeneratedMdlSource& result )
+{
+    if( material.type == "matte" )
+    {
+        return makeMatteMaterialModel( material, textureGraph );
+    }
+    if( material.type == "plastic" )
+    {
+        return makePlasticMaterialModel( material, textureGraph );
+    }
+    if( material.type == "uber" )
+    {
+        return makeUberMaterialModel( material, textureGraph );
+    }
+    return makeUnsupportedMaterialModel( material, result );
+}
 
 GeneratedMdlSource generateSource( const MdlShaderKey& key )
 {
@@ -509,12 +688,20 @@ GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
     result.materialName = "material_" + suffix;
 
     MdlTextureGraphGenerator textureGraph{ material.graph, result };
-    const std::string        tintExpression{ textureGraph.materialTextureExpression( material.params, "Kd", "color" ) };
+    const MdlMaterialModel   materialModel{ makeMaterialModel( material, textureGraph, result ) };
 
     std::ostringstream source;
     source << "mdl 1.6;\n"
            << "import ::df::*;\n"
            << "\n";
+    for( std::vector<std::string>::const_iterator it = materialModel.comments.begin(); it != materialModel.comments.end(); ++it )
+    {
+        source << "// " << *it << "\n";
+    }
+    if( !materialModel.comments.empty() )
+    {
+        source << "\n";
+    }
     for( std::vector<std::string>::const_iterator it = result.unsupportedReasons.begin();
          it != result.unsupportedReasons.end(); ++it )
     {
@@ -524,11 +711,9 @@ GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
     {
         source << "\n";
     }
-    source << textureGraph.sourcePreamble() << textureGraph.functionDefinitions() << "export material "
-           << result.materialName << "() = material(\n"
-           << "    surface: material_surface(\n"
-           << "        scattering: ::df::diffuse_reflection_bsdf(\n"
-           << "            tint: " << tintExpression << ")));\n";
+    source << textureGraph.sourcePreamble() << materialModel.helperDefinitions << textureGraph.functionDefinitions()
+           << "export material " << result.materialName << mdlParameterList( materialModel.parameters ) << " = material(\n"
+           << materialModel.body << ");\n";
     result.source = source.str();
     return result;
 }
