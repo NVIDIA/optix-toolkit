@@ -73,6 +73,9 @@ void TestOptixRenderer::SetUp()
 
 void TestOptixRenderer::TearDown()
 {
+    OTK_ERROR_CHECK( cuStreamSynchronize( m_stream ) );
+    EXPECT_CALL( m_optix, pipelineDestroy( _ ) ).Times( AtMost( 2 ) ).WillRepeatedly( Return( OPTIX_SUCCESS ) );
+    m_renderer.reset();
     OTK_ERROR_CHECK( cuStreamDestroy( m_stream ) );
 }
 
@@ -266,6 +269,33 @@ TEST_F( TestOptixRenderer, beforeLaunchUsesAdoptedPipelineStateWithoutRelinking 
     m_renderer->setPipelineState( fakePipeline, m_fakeProgramGroups, {} );
 
     m_renderer->beforeLaunch( m_stream );
+}
+
+TEST_F( TestOptixRenderer, setPipelineStateSwapsAtNextBeforeLaunch )
+{
+    OptixPipeline       updatedPipeline{ otk::bit_cast<OptixPipeline>( 0xbaadf00eULL ) };
+    ExpectationSet      init              = expectInitialize();
+    ExpectationSet      beforeFirstLaunch = expectBeforeLaunchAfter( init );
+    const Expectation   oldLaunch =
+        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) )
+            .After( beforeFirstLaunch )
+            .WillOnce( Return( OPTIX_SUCCESS ) );
+
+    m_renderer->setPipelineState( updatedPipeline, m_fakeProgramGroups, {} );
+    m_renderer->launch( m_stream, m_image );
+
+    for( OptixProgramGroup group : m_fakeProgramGroups )
+    {
+        EXPECT_CALL( m_optix, sbtRecordPackHeader( group, NotNull() ) ).After( oldLaunch ).WillOnce( Return( OPTIX_SUCCESS ) );
+    }
+    EXPECT_CALL( m_optix, pipelineDestroy( fakePipeline ) )
+        .Times( AtMost( 1 ) )
+        .After( oldLaunch )
+        .WillRepeatedly( Return( OPTIX_SUCCESS ) );
+    m_renderer->beforeLaunch( m_stream );
+
+    EXPECT_CALL( m_optix, launch( updatedPipeline, m_stream, _, _, _, _, _, _ ) ).WillOnce( Return( OPTIX_SUCCESS ) );
+    m_renderer->launch( m_stream, m_image );
 }
 #endif
 
