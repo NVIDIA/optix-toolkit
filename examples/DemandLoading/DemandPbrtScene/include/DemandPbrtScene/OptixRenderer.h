@@ -26,6 +26,7 @@
 
 #include <cuda.h>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -39,6 +40,19 @@ class OptixRenderer : public Renderer
   public:
     OptixRenderer( const Options& options, int numAttributes );
     ~OptixRenderer() override = default;
+
+    class LaunchCompletion
+    {
+      public:
+        virtual ~LaunchCompletion()                         = default;
+        virtual void record( CUstream stream )               = 0;
+        virtual bool isComplete() const                      = 0;
+        virtual void wait() const                            = 0;
+    };
+    using LaunchCompletionPtr     = std::shared_ptr<LaunchCompletion>;
+    using LaunchCompletionFactory = std::function<LaunchCompletionPtr()>;
+
+    OptixRenderer( const Options& options, int numAttributes, LaunchCompletionFactory launchCompletionFactory );
 
     void initialize( CUstream stream ) override;
     void cleanup() override;
@@ -82,7 +96,8 @@ class OptixRenderer : public Renderer
     {
         PipelineState( OptixPipeline pipeline,
                        std::vector<OptixProgramGroup> programGroups,
-                       std::vector<OptixProgramGroup> callableProgramGroups );
+                       std::vector<OptixProgramGroup> callableProgramGroups,
+                       LaunchCompletionPtr launchCompletion );
         ~PipelineState();
 
         PipelineState( const PipelineState& )            = delete;
@@ -93,7 +108,7 @@ class OptixRenderer : public Renderer
         void waitForLaunchComplete() const;
 
         OptixPipeline                   pipeline{};
-        CUevent                         launchCompleteEvent{};
+        LaunchCompletionPtr             launchCompletion;
         std::vector<OptixProgramGroup>  programGroups;
         std::vector<OptixProgramGroup>  callableProgramGroups;
         otk::SyncRecord<otk::EmptyData> rayGenRecord;
@@ -126,6 +141,7 @@ class OptixRenderer : public Renderer
     OptixPipelineCompileOptions     m_pipelineCompileOptions{};
     std::vector<OptixProgramGroup>  m_programGroups;
     std::vector<OptixProgramGroup>  m_callableProgramGroups;
+    LaunchCompletionFactory         m_launchCompletionFactory;
     PipelineStatePtr                m_activeState;
     PipelineStatePtr                m_pendingState;
     std::vector<PipelineStatePtr>   m_retiredStates;

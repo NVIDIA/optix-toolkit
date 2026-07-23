@@ -29,10 +29,73 @@
 
 namespace demandPbrtScene {
 
+namespace {
+
+class CudaLaunchCompletion : public OptixRenderer::LaunchCompletion
+{
+  public:
+    ~CudaLaunchCompletion() override
+    {
+        if( m_event )
+        {
+            OTK_ERROR_CHECK_NOTHROW( cuEventDestroy( m_event ) );
+        }
+    }
+
+    void record( CUstream stream ) override
+    {
+        if( !m_event )
+        {
+            OTK_ERROR_CHECK( cuEventCreate( &m_event, CU_EVENT_DISABLE_TIMING ) );
+        }
+        OTK_ERROR_CHECK( cuEventRecord( m_event, stream ) );
+    }
+
+    bool isComplete() const override
+    {
+        if( !m_event )
+        {
+            return true;
+        }
+
+        const CUresult result = cuEventQuery( m_event );
+        if( result == CUDA_SUCCESS )
+        {
+            return true;
+        }
+        if( result == CUDA_ERROR_NOT_READY )
+        {
+            return false;
+        }
+        OTK_ERROR_CHECK( result );
+        return false;
+    }
+
+    void wait() const override
+    {
+        if( m_event )
+        {
+            OTK_ERROR_CHECK( cuEventSynchronize( m_event ) );
+        }
+    }
+
+  private:
+    CUevent m_event{};
+};
+
+OptixRenderer::LaunchCompletionPtr createCudaLaunchCompletion()
+{
+    return std::make_shared<CudaLaunchCompletion>();
+}
+
+}  // namespace
+
 OptixRenderer::PipelineState::PipelineState( OptixPipeline                         pipeline_,
                                              std::vector<OptixProgramGroup>        programGroups_,
-                                             std::vector<OptixProgramGroup>        callableProgramGroups_ )
+                                             std::vector<OptixProgramGroup>        callableProgramGroups_,
+                                             LaunchCompletionPtr                   launchCompletion_ )
     : pipeline( pipeline_ )
+    , launchCompletion( std::move( launchCompletion_ ) )
     , programGroups( std::move( programGroups_ ) )
     , callableProgramGroups( std::move( callableProgramGroups_ ) )
     , rayGenRecord( 1 )
@@ -43,10 +106,6 @@ OptixRenderer::PipelineState::PipelineState( OptixPipeline                      
 
 OptixRenderer::PipelineState::~PipelineState()
 {
-    if( launchCompleteEvent )
-    {
-        OTK_ERROR_CHECK_NOTHROW( cuEventDestroy( launchCompleteEvent ) );
-    }
     if( pipeline )
     {
         OTK_ERROR_CHECK_NOTHROW( optixPipelineDestroy( pipeline ) );
@@ -55,44 +114,28 @@ OptixRenderer::PipelineState::~PipelineState()
 
 void OptixRenderer::PipelineState::recordLaunchCompleteEvent( CUstream stream )
 {
-    if( !launchCompleteEvent )
-    {
-        OTK_ERROR_CHECK( cuEventCreate( &launchCompleteEvent, CU_EVENT_DISABLE_TIMING ) );
-    }
-    OTK_ERROR_CHECK( cuEventRecord( launchCompleteEvent, stream ) );
+    launchCompletion->record( stream );
 }
 
 bool OptixRenderer::PipelineState::launchComplete() const
 {
-    if( !launchCompleteEvent )
-    {
-        return true;
-    }
-
-    const CUresult result = cuEventQuery( launchCompleteEvent );
-    if( result == CUDA_SUCCESS )
-    {
-        return true;
-    }
-    if( result == CUDA_ERROR_NOT_READY )
-    {
-        return false;
-    }
-    OTK_ERROR_CHECK( result );
-    return false;
+    return launchCompletion->isComplete();
 }
 
 void OptixRenderer::PipelineState::waitForLaunchComplete() const
 {
-    if( launchCompleteEvent )
-    {
-        OTK_ERROR_CHECK( cuEventSynchronize( launchCompleteEvent ) );
-    }
+    launchCompletion->wait();
 }
 
 OptixRenderer::OptixRenderer( const Options& options, int numAttributes )
+    : OptixRenderer( options, numAttributes, createCudaLaunchCompletion )
+{
+}
+
+OptixRenderer::OptixRenderer( const Options& options, int numAttributes, LaunchCompletionFactory launchCompletionFactory )
     : m_options( options )
     , m_numAttributes( numAttributes )
+    , m_launchCompletionFactory( std::move( launchCompletionFactory ) )
 {
 }
 
@@ -124,7 +167,7 @@ void OptixRenderer::setPipelineState( OptixPipeline                         pipe
                                       const std::vector<OptixProgramGroup>& programGroups,
                                       const std::vector<OptixProgramGroup>& callableProgramGroups )
 {
-    m_pendingState          = std::make_shared<PipelineState>( pipeline, programGroups, callableProgramGroups );
+    m_pendingState          = std::make_shared<PipelineState>( pipeline, programGroups, callableProgramGroups, m_launchCompletionFactory() );
     m_programGroups         = programGroups;
     m_callableProgramGroups = callableProgramGroups;
     m_pipelineChanged       = false;
@@ -201,7 +244,7 @@ std::shared_ptr<OptixRenderer::PipelineState> OptixRenderer::createPipelineState
     const uint_t maxTraversableDepth = 3;
     OTK_ERROR_CHECK( optixPipelineSetStackSize( pipeline, directCallableTraversalStackSize, directCallableStateStackSize,
                                                 continuationStackSize, maxTraversableDepth ) );
-    return std::make_shared<PipelineState>( pipeline, m_programGroups, m_callableProgramGroups );
+    return std::make_shared<PipelineState>( pipeline, m_programGroups, m_callableProgramGroups, m_launchCompletionFactory() );
 }
 
 void OptixRenderer::writeRayGenRecords( CUstream stream, PipelineState& state )
