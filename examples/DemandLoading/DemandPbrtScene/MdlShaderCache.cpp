@@ -291,6 +291,11 @@ MdlShaderCompileRecord& MdlShaderCompileCache::getMutableRecord( const MdlShader
 
 const MdlShaderCompileRecord& MdlShaderCompileCache::getRecord( const MdlShaderKey& key )
 {
+    ++m_stats.numShaderRequests;
+    if( m_records.find( key ) != m_records.end() )
+    {
+        ++m_stats.numShaderCacheHits;
+    }
     return getMutableRecord( key );
 }
 
@@ -314,7 +319,14 @@ std::string MdlShaderCompileCache::diagnostics( const MdlShaderKey& key ) const
 
 bool MdlShaderCompileCache::requestCompile( const MdlShaderKey& key )
 {
-    MdlShaderCompileRecord& record = getMutableRecord( key );
+    std::map<MdlShaderKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
+    if( it != m_records.end() && it->second.state != MdlShaderCompileState::MISSING )
+    {
+        ++m_stats.numShaderCacheHits;
+        return false;
+    }
+
+    MdlShaderCompileRecord& record = it == m_records.end() ? getMutableRecord( key ) : it->second;
     if( record.state != MdlShaderCompileState::MISSING )
     {
         return false;
@@ -322,6 +334,7 @@ bool MdlShaderCompileCache::requestCompile( const MdlShaderKey& key )
 
     record.state = MdlShaderCompileState::QUEUED;
     record.diagnostics.clear();
+    ++m_stats.numCompileRequests;
     return true;
 }
 
@@ -335,7 +348,11 @@ void MdlShaderCompileCache::markCompiling( const MdlShaderKey& key )
 void MdlShaderCompileCache::markReady( const MdlShaderKey& key )
 {
     MdlShaderCompileRecord& record = getMutableRecord( key );
-    record.state                   = MdlShaderCompileState::READY;
+    if( record.state != MdlShaderCompileState::READY )
+    {
+        ++m_stats.numCompletedCompiles;
+    }
+    record.state = MdlShaderCompileState::READY;
     record.diagnostics.clear();
 }
 
@@ -348,7 +365,7 @@ void MdlShaderCompileCache::markFailed( const MdlShaderKey& key, const std::stri
 
 MdlShaderCompileCacheStatistics MdlShaderCompileCache::getStatistics() const
 {
-    MdlShaderCompileCacheStatistics stats{};
+    MdlShaderCompileCacheStatistics stats{ m_stats };
     for( std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.begin(); it != m_records.end(); ++it )
     {
         switch( it->second.state )
@@ -381,6 +398,7 @@ std::size_t MdlShaderCompileCache::size() const
 void MdlShaderCompileCache::clear()
 {
     m_records.clear();
+    m_stats           = MdlShaderCompileCacheStatistics{};
     m_nextShaderKeyId = 1U;
 }
 

@@ -14,13 +14,15 @@ namespace demandPbrtScene {
 
 struct MaterialResolverStats
 {
-    unsigned int numPartialMaterialsRealized;
-    unsigned int numMaterialsRealized;
-    unsigned int numMaterialsReused;
-    unsigned int numProxyMaterialsCreated;
+    unsigned int                    numPartialMaterialsRealized;
+    unsigned int                    numMaterialsRealized;
+    unsigned int                    numMaterialsReused;
+    unsigned int                    numProxyMaterialsCreated;
+    unsigned int                    numRequestedMaterialPages;
 #ifdef OTK_USE_MDL
+    unsigned int                    numMdlFallbackShaders;
     MdlShaderCompileCacheStatistics mdlShaders;
 #endif
 };
 
-}
+}  // namespace demandPbrtScene

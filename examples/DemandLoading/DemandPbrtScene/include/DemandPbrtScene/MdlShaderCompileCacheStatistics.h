@@ -12,6 +12,10 @@ namespace demandPbrtScene {
 
 struct MdlShaderCompileCacheStatistics
 {
+    unsigned int numShaderRequests{};
+    unsigned int numShaderCacheHits{};
+    unsigned int numCompileRequests{};
+    unsigned int numCompletedCompiles{};
     unsigned int numMissingShaders{};
     unsigned int numQueuedShaders{};
     unsigned int numCompilingShaders{};

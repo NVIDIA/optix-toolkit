@@ -235,6 +235,14 @@ TEST_F( TestOptions, mdlSmokeMaterial )
 
     EXPECT_TRUE( options.mdlSmokeMaterial );
 }
+
+TEST_F( TestOptions, mdlSmokeDelay )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--mdl-smoke-delay", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.mdlSmokeMaterial );
+    EXPECT_TRUE( options.mdlSmokeDelay );
+}
 #endif
 
 TEST_F( TestOptions, verboseLogging )

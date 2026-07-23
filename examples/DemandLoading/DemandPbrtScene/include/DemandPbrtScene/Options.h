@@ -33,6 +33,7 @@ struct Options
     bool             verboseTextureCreation{};
 #ifdef OTK_USE_MDL
     bool             mdlSmokeMaterial{};
+    bool             mdlSmokeDelay{};
 #endif
     bool             sortProxies{};
     bool             sync{};

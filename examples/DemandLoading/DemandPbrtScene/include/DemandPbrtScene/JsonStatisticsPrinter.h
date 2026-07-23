@@ -88,6 +88,10 @@ inline std::ostream& operator<<( std::ostream& str, const Json<GeometryResolverS
 inline std::ostream& operator<<( std::ostream& str, const Json<MdlShaderCompileCacheStatistics>& json )
 {
     str << '{';
+    DUMP_JSON_MEMBER( numShaderRequests ) << ',';
+    DUMP_JSON_MEMBER( numShaderCacheHits ) << ',';
+    DUMP_JSON_MEMBER( numCompileRequests ) << ',';
+    DUMP_JSON_MEMBER( numCompletedCompiles ) << ',';
     DUMP_JSON_MEMBER( numMissingShaders ) << ',';
     DUMP_JSON_MEMBER( numQueuedShaders ) << ',';
     DUMP_JSON_MEMBER( numCompilingShaders ) << ',';
@@ -104,9 +108,11 @@ inline std::ostream& operator<<( std::ostream& str, const Json<MaterialResolverS
     DUMP_JSON_MEMBER( numPartialMaterialsRealized ) << ',';
     DUMP_JSON_MEMBER( numMaterialsRealized ) << ',';
     DUMP_JSON_MEMBER( numMaterialsReused ) << ',';
-    DUMP_JSON_MEMBER( numProxyMaterialsCreated );
+    DUMP_JSON_MEMBER( numProxyMaterialsCreated ) << ',';
+    DUMP_JSON_MEMBER( numRequestedMaterialPages );
 #ifdef OTK_USE_MDL
     str << ',';
+    DUMP_JSON_MEMBER( numMdlFallbackShaders ) << ',';
     DUMP_JSON_OBJECT( mdlShaders );
 #endif
     str << '}';

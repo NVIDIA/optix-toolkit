@@ -73,6 +73,7 @@ class MdlShaderCompileCache
     MdlShaderCompileRecord& getMutableRecord( const MdlShaderKey& key );
 
     std::map<MdlShaderKey, MdlShaderCompileRecord> m_records;
+    MdlShaderCompileCacheStatistics                m_stats{};
     unsigned int                                   m_nextShaderKeyId{ 1U };
 };
 

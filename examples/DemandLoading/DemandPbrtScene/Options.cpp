@@ -46,6 +46,7 @@ namespace demandPbrtScene {
         "   --texture-creation          Enable verbose logging of texture creation\n"
 #ifdef OTK_USE_MDL
         "   --mdl-smoke-material        Render one realized diffuse material through generated MDL\n"
+        "   --mdl-smoke-delay           Render one MDL smoke material frame through fallback before compiling\n"
 #endif
         "   --verbose-loading           Enable verbose logging of mesh reading\n"
         "   --verbose                   Enables all verbose logging\n"
@@ -183,6 +184,11 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         else if( arg == "--mdl-smoke-material" )
         {
             options.mdlSmokeMaterial = true;
+        }
+        else if( arg == "--mdl-smoke-delay" )
+        {
+            options.mdlSmokeMaterial = true;
+            options.mdlSmokeDelay    = true;
         }
 #endif
         else if( arg == "--verbose" )

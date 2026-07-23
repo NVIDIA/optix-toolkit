@@ -161,6 +161,10 @@ TEST( TestMdlShaderCompileCache, lookupCreatesMissingRecordWithoutQueueingCompil
     EXPECT_EQ( 1U, cache.size() );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
+    EXPECT_EQ( 1U, stats.numShaderRequests );
+    EXPECT_EQ( 0U, stats.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.numCompileRequests );
+    EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 1U, stats.numMissingShaders );
     EXPECT_EQ( 0U, stats.numQueuedShaders );
     EXPECT_EQ( 0U, stats.numCompilingShaders );
@@ -181,6 +185,10 @@ TEST( TestMdlShaderCompileCache, duplicateRequestsDoNotQueueDuplicateCompiles )
     EXPECT_EQ( 1U, cache.size() );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
+    EXPECT_EQ( 0U, stats.numShaderRequests );
+    EXPECT_EQ( 1U, stats.numShaderCacheHits );
+    EXPECT_EQ( 1U, stats.numCompileRequests );
+    EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );
     EXPECT_EQ( 1U, stats.numQueuedShaders );
     EXPECT_EQ( 0U, stats.numCompilingShaders );
@@ -203,6 +211,10 @@ TEST( TestMdlShaderCompileCache, tracksCompileStateTransitions )
     EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( secondKey ) );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
+    EXPECT_EQ( 0U, stats.numShaderRequests );
+    EXPECT_EQ( 0U, stats.numShaderCacheHits );
+    EXPECT_EQ( 2U, stats.numCompileRequests );
+    EXPECT_EQ( 1U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );
     EXPECT_EQ( 1U, stats.numQueuedShaders );
     EXPECT_EQ( 0U, stats.numCompilingShaders );
@@ -224,6 +236,10 @@ TEST( TestMdlShaderCompileCache, failedCompilesStayCachedWithDiagnostics )
     EXPECT_EQ( "mdl compile failed", cache.diagnostics( key ) );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
+    EXPECT_EQ( 0U, stats.numShaderRequests );
+    EXPECT_EQ( 1U, stats.numShaderCacheHits );
+    EXPECT_EQ( 1U, stats.numCompileRequests );
+    EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );
     EXPECT_EQ( 0U, stats.numQueuedShaders );
     EXPECT_EQ( 0U, stats.numCompilingShaders );

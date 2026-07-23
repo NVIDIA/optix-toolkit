@@ -6,6 +6,7 @@
 
 #include "DemandPbrtScene/ImGuiUserInterface.h"
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/FrameRate.h"
 #include "DemandPbrtScene/JsonStatisticsPrinter.h"
 #include "DemandPbrtScene/Renderer.h"
@@ -21,9 +22,9 @@
 
 #include <GLFW/glfw3.h>
 
-#include <iomanip>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <utility>
 
 namespace demandPbrtScene {
@@ -43,7 +44,7 @@ void ImGuiUserInterface::initialize( const LookAtParams& lookAt, const Perspecti
     m_debug = m_renderer->getDebugLocation();
     createWindow();
     createUI();
-    initCamera( lookAt, camera);
+    initCamera( lookAt, camera );
     m_frameRate.reset();
 }
 
@@ -113,12 +114,13 @@ void ImGuiUserInterface::renderToggleOption( bool& option, const char* label )
 void ImGuiUserInterface::renderFPS() const
 {
     std::stringstream text;
-    text << "fps: " << std::fixed << std::setw(4) << std::setprecision(0) << m_frameRate.getFPS();
+    text << "fps: " << std::fixed << std::setw( 4 ) << std::setprecision( 0 ) << m_frameRate.getFPS();
     setNextWindowBackground();
     const float height = ImGui::GetTextLineHeightWithSpacing() + ImGui::GetStyle().WindowPadding.y * 2;
     ImGui::SetNextWindowPos( ImVec2( 0.0f, ImGui::GetIO().DisplaySize.y - height ) );
-    ImGui::Begin( "Text", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove
-                  | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing );
+    ImGui::Begin( "Text", nullptr,
+                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove
+                      | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing );
     ImGui::Text( "%s", text.str().c_str() );
     ImGui::End();
 }
@@ -206,6 +208,24 @@ void ImGuiUserInterface::renderSceneStatistics() const
         ImGui::Text( "Partial materials realized: %u", materials.numPartialMaterialsRealized );
         ImGui::Text( "Materials realized: %u", materials.numMaterialsRealized );
         ImGui::Text( "Materials reused: %u", materials.numMaterialsReused );
+        ImGui::Text( "Requested material pages: %u", materials.numRequestedMaterialPages );
+#ifdef OTK_USE_MDL
+        ImGui::Text( "MDL fallback shader uses: %u", materials.numMdlFallbackShaders );
+        if( ImGui::TreeNode( "MDL shaders" ) )
+        {
+            const MdlShaderCompileCacheStatistics& mdl{ materials.mdlShaders };
+            ImGui::Text( "Shader requests: %u", mdl.numShaderRequests );
+            ImGui::Text( "Shader cache hits: %u", mdl.numShaderCacheHits );
+            ImGui::Text( "Compile requests: %u", mdl.numCompileRequests );
+            ImGui::Text( "Completed compiles: %u", mdl.numCompletedCompiles );
+            ImGui::Text( "Missing shaders: %u", mdl.numMissingShaders );
+            ImGui::Text( "Queued shaders: %u", mdl.numQueuedShaders );
+            ImGui::Text( "Compiling shaders: %u", mdl.numCompilingShaders );
+            ImGui::Text( "Ready shaders: %u", mdl.numReadyShaders );
+            ImGui::Text( "Failed shaders: %u", mdl.numFailedShaders );
+            ImGui::TreePop();
+        }
+#endif
         ImGui::TreePop();
         ImGui::Spacing();
     }
@@ -216,10 +236,10 @@ void ImGuiUserInterface::renderStatistics() const
     ImGui::SetNextWindowPos( ImVec2( 0.0f, m_optionsHeight ) );
     ImGui::SetNextWindowCollapsed( true, ImGuiCond_Once );
     if( ImGui::Begin( "Statistics", nullptr,
-        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-        | ImGuiWindowFlags_NoFocusOnAppearing ) )
+                      ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
+                          | ImGuiWindowFlags_NoFocusOnAppearing ) )
     {
-        ImGui::Text( "Frames rendered: %u" , m_stats.numFramesRendered );
+        ImGui::Text( "Frames rendered: %u", m_stats.numFramesRendered );
         renderGeometryCacheStatistics();
         renderImageSourceFactoryStatistics();
         renderProxyFactoryStatistics();
@@ -256,7 +276,7 @@ void ImGuiUserInterface::renderOptions()
             if( ImGui::TreeNode( "Render Mode" ) )
             {
                 const int currentRenderMode{ +m_options.renderMode };
-                int newRenderMode{ currentRenderMode };
+                int       newRenderMode{ currentRenderMode };
                 ImGui::RadioButton( "Primary ray", &newRenderMode, +RenderMode::PRIMARY_RAY );
                 ImGui::RadioButton( "Near AO", &newRenderMode, +RenderMode::NEAR_AO );
                 ImGui::RadioButton( "Distant AO", &newRenderMode, +RenderMode::DISTANT_AO );
@@ -382,9 +402,9 @@ void ImGuiUserInterface::displayOutput( OutputBuffer& output )
 
 void ImGuiUserInterface::printLookAtKeywordValues()
 {
-    const float3 eye = m_trackballCamera.getCameraEye();
+    const float3 eye    = m_trackballCamera.getCameraEye();
     const float3 lookAt = m_trackballCamera.getCameraLookAt();
-    const float3 up = m_trackballCamera.getCameraUp();
+    const float3 up     = m_trackballCamera.getCameraUp();
     std::cout << "LookAt\n"                                                              //
               << "    " << eye.x << "    " << eye.y << "    " << eye.z << '\n'           //
               << "    " << lookAt.x << "    " << lookAt.y << "    " << lookAt.z << '\n'  //
@@ -393,7 +413,7 @@ void ImGuiUserInterface::printLookAtKeywordValues()
 
 void ImGuiUserInterface::togglePause()
 {
-    m_paused = !m_paused;
+    m_paused                  = !m_paused;
     m_options.oneShotGeometry = m_paused;
     m_options.oneShotMaterial = m_paused;
 }
@@ -571,7 +591,7 @@ void ImGuiUserInterface::handleKey( GLFWwindow* window, int32_t key, int32_t sca
             case GLFW_KEY_SPACE:  // toggle pause
                 togglePause();
                 break;
-                
+
             default:
                 break;
         }
