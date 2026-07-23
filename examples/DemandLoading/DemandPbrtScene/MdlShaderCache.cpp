@@ -38,6 +38,7 @@ const std::vector<std::string>& materialTextureParamNames()
         "bumpmap",
         "eta",
         "index",
+        "k",
         "opacity",
         "roughness",
         "shadowalpha",
@@ -589,6 +590,89 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     return model;
 }
 
+MdlMaterialModel makeMirrorMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kr", "color(1.0, 1.0, 1.0)" );
+
+    const std::string kr{ textureGraph.materialColorExpression( material.params, "Kr", "color", "Kr" ) };
+
+    model.comments.push_back( "pbrt material model: mirror" );
+    model.comments.push_back( "pbrt material input Kr: " + kr );
+    model.comments.push_back( "pbrt material approximation: perfect specular reflection is represented as tint" );
+    model.helperDefinitions = "color pbrt_mirror_approximation_tint(color kr) = kr;\n\n";
+    model.body =
+        "    surface: material_surface(\n"
+        "        scattering: ::df::diffuse_reflection_bsdf(\n"
+        "            tint: pbrt_mirror_approximation_tint("
+        + kr + ")))\n";
+    return model;
+}
+
+MdlMaterialModel makeGlassMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kr", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "color", "Kt", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "float", "index", "1.5" );
+    appendMaterialParameter( model, "float", "roughness", "0.0" );
+    appendMaterialParameter( model, "float", "uroughness", "0.0" );
+    appendMaterialParameter( model, "float", "vroughness", "0.0" );
+
+    const std::string kr{ textureGraph.materialColorExpression( material.params, "Kr", "color", "Kr" ) };
+    const std::string kt{ textureGraph.materialColorExpression( material.params, "Kt", "color", "Kt" ) };
+
+    model.comments.push_back( "pbrt material model: glass" );
+    model.comments.push_back( "pbrt material input Kr: " + kr );
+    model.comments.push_back( "pbrt material input Kt: " + kt );
+    model.comments.push_back( "pbrt material input index/eta: index" );
+    model.comments.push_back( "pbrt material input roughness: roughness" );
+    model.comments.push_back( "pbrt material input uroughness: uroughness" );
+    model.comments.push_back( "pbrt material input vroughness: vroughness" );
+    model.comments.push_back(
+        "pbrt material approximation: reflection, transmission, Fresnel, and roughness are "
+        "represented but not connected" );
+    model.helperDefinitions =
+        "color pbrt_glass_approximation_tint(color kr, color kt, float roughness) = (kr + kt) * 0.5;\n\n";
+    model.body =
+        "    ior: color(index, index, index),\n"
+        "    surface: material_surface(\n"
+        "        scattering: ::df::diffuse_reflection_bsdf(\n"
+        "            tint: pbrt_glass_approximation_tint("
+        + kr + ", " + kt + ", roughness)))\n";
+    return model;
+}
+
+MdlMaterialModel makeMetalMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "eta", "color(0.2, 0.2, 0.2)" );
+    appendMaterialParameter( model, "color", "k", "color(3.0, 3.0, 3.0)" );
+    appendMaterialParameter( model, "float", "roughness", "0.1" );
+    appendMaterialParameter( model, "float", "uroughness", "0.1" );
+    appendMaterialParameter( model, "float", "vroughness", "0.1" );
+
+    const std::string eta{ textureGraph.materialColorExpression( material.params, "eta", "color", "eta" ) };
+    const std::string k{ textureGraph.materialColorExpression( material.params, "k", "color", "k" ) };
+
+    model.comments.push_back( "pbrt material model: metal" );
+    model.comments.push_back( "pbrt material input eta: " + eta );
+    model.comments.push_back( "pbrt material input k: " + k );
+    model.comments.push_back( "pbrt material input roughness: roughness" );
+    model.comments.push_back( "pbrt material input uroughness: uroughness" );
+    model.comments.push_back( "pbrt material input vroughness: vroughness" );
+    model.comments.push_back(
+        "pbrt material approximation: conductor Fresnel and anisotropic roughness are represented but not connected" );
+    model.helperDefinitions =
+        "color pbrt_metal_approximation_tint(color eta, color k, float roughness) = k / (eta + k);\n\n";
+    model.body =
+        "    surface: material_surface(\n"
+        "        scattering: ::df::diffuse_reflection_bsdf(\n"
+        "            tint: pbrt_metal_approximation_tint("
+        + eta + ", " + k + ", roughness)))\n";
+    return model;
+}
+
 MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& material, GeneratedMdlSource& result )
 {
     const std::string type{ material.type.empty() ? std::string{ "<empty>" } : material.type };
@@ -616,6 +700,18 @@ MdlMaterialModel makeMaterialModel( const otk::pbrt::PbrtMaterial& material, Mdl
     if( material.type == "uber" )
     {
         return makeUberMaterialModel( material, textureGraph );
+    }
+    if( material.type == "mirror" )
+    {
+        return makeMirrorMaterialModel( material, textureGraph );
+    }
+    if( material.type == "glass" )
+    {
+        return makeGlassMaterialModel( material, textureGraph );
+    }
+    if( material.type == "metal" )
+    {
+        return makeMetalMaterialModel( material, textureGraph );
     }
     return makeUnsupportedMaterialModel( material, result );
 }

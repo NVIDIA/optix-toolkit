@@ -152,6 +152,44 @@ PbrtMaterial uberMaterial()
     return material;
 }
 
+PbrtMaterial mirrorMaterial()
+{
+    PbrtMaterial material;
+    material.type = "mirror";
+    material.params.AddTexture( "Kr", "reflectance" );
+    material.graph.textures["color:reflectance"] = imageMapTexture( "reflectance", "reflectance.exr", "color" );
+    return material;
+}
+
+PbrtMaterial glassMaterial()
+{
+    PbrtMaterial material;
+    material.type = "glass";
+    addRgbSpectrum( material.params, "Kr", 0.9f, 0.9f, 0.9f );
+    addRgbSpectrum( material.params, "Kt", 0.8f, 0.9f, 1.0f );
+    addFloat( material.params, "index", 1.5f );
+    addFloat( material.params, "roughness", 0.05f );
+    addFloat( material.params, "uroughness", 0.04f );
+    addFloat( material.params, "vroughness", 0.06f );
+    return material;
+}
+
+PbrtMaterial metalMaterial()
+{
+    PbrtMaterial material;
+    material.type = "metal";
+    addRgbSpectrum( material.params, "eta", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "k", 2.0f, 2.5f, 3.0f );
+    addFloat( material.params, "roughness", 0.2f );
+    addFloat( material.params, "uroughness", 0.15f );
+    addFloat( material.params, "vroughness", 0.25f );
+    material.params.AddTexture( "eta", "etaMap" );
+    material.params.AddTexture( "k", "kMap" );
+    material.graph.textures["color:etaMap"] = imageMapTexture( "etaMap", "eta.exr", "color" );
+    material.graph.textures["color:kMap"]   = imageMapTexture( "kMap", "k.exr", "color" );
+    return material;
+}
+
 PbrtMaterial texturedMatteMaterial( const std::string& textureType, const std::string& fileName )
 {
     PbrtMaterial material;
@@ -303,6 +341,58 @@ TEST( TestMdlGeneratedSource, mapsSimpleUberMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha * opacity" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsMirrorMaterialModel )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( mirrorMaterial() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: mirror" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kr = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kr: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_mirror_approximation_tint" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: pbrt_mirror_approximation_tint(texture_0())" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "reflectance.exr" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsGlassMaterialModel )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( glassMaterial() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: glass" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kr = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kt = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float index = 1.5" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = 0.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kr: Kr" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kt: Kt" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_glass_approximation_tint(Kr, Kt, roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(index, index, index)" ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsMetalMaterialModel )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( metalMaterial() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: metal" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color eta = color(0.2, 0.2, 0.2)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color k = color(3.0, 3.0, 3.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input eta: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input k: texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_metal_approximation_tint(texture_0(), texture_1(), "
+                                                       "roughness)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "eta.exr" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "k.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
