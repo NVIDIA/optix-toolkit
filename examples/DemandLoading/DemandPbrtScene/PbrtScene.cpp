@@ -4,6 +4,7 @@
 
 #include "DemandPbrtScene/Scene.h"
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/Conversions.h"
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
@@ -175,11 +176,11 @@ void PbrtScene::createTopLevelTraversable( CUstream stream )
     OptixBuildInput inputs[NUM_BUILD_INPUTS]{};
     otk::BuildInputBuilder( inputs ).instanceArray( m_sync.topLevelInstances, m_sync.topLevelInstances.size() );
 
-    OptixDeviceContext           context = m_renderer->getDeviceContext();
+    OptixDeviceContext context = m_renderer->getDeviceContext();
     const OptixAccelBuildOptions options = { OPTIX_BUILD_FLAG_NONE,        // buildFlags
                                              OPTIX_BUILD_OPERATION_BUILD,  // operation
                                              OptixMotionOptions{ /*numKeys=*/0, /*flags=*/0, /*timeBegin=*/0.f, /*timeEnd=*/0.f } };
-    OptixAccelBufferSizes        sizes{};
+    OptixAccelBufferSizes sizes{};
     OTK_ERROR_CHECK( optixAccelComputeMemoryUsage( context, &options, inputs, NUM_BUILD_INPUTS, &sizes ) );
     if( m_options.sync )
     {
@@ -201,11 +202,11 @@ static SceneStatistics getSceneStatistics( const std::string& filePath, SceneDes
 {
     const auto      asUInt{ []( const size_t value ) { return static_cast<unsigned int>( value ); } };
     SceneStatistics stats{};
-    stats.fileName           = std::filesystem::path( filePath ).filename().string();
-    stats.numFreeShapes      = asUInt( scene->freeShapes.size() );
-    stats.numObjects         = asUInt( scene->objects.size() );
-    stats.numObjectShapes    = asUInt( std::accumulate( scene->objectShapes.begin(), scene->objectShapes.end(), 0U,
-                                                        []( std::size_t val, const otk::pbrt::ObjectShapeMap::value_type& it ) {
+    stats.fileName      = std::filesystem::path( filePath ).filename().string();
+    stats.numFreeShapes = asUInt( scene->freeShapes.size() );
+    stats.numObjects    = asUInt( scene->objects.size() );
+    stats.numObjectShapes = asUInt( std::accumulate( scene->objectShapes.begin(), scene->objectShapes.end(), 0U,
+                                                     []( std::size_t val, const otk::pbrt::ObjectShapeMap::value_type& it ) {
                                                          return val + it.second.size();
                                                      } ) );
     stats.numObjectInstances = asUInt( scene->objectInstances.size() );
@@ -279,6 +280,9 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     const float3 yellow        = make_float3( 1.0f, 1.0f, 0.0 );
     params.demandMaterialColor = yellow;
     setSpan( params.numMaterialStates, params.materialStates, m_sync.materialStates );
+#ifdef OTK_USE_MDL
+    setSpan( params.numMdlMaterialShaders, params.mdlMaterialShaders, m_sync.mdlMaterialShaders );
+#endif
     setSpan( params.numPartialMaterials, params.partialMaterials, m_sync.partialMaterials );
     setSpan( params.numRealizedMaterials, params.realizedMaterials, m_sync.realizedMaterials );
     setSpan( params.numMaterialIndices, params.materialIndices, m_sync.materialIndices );

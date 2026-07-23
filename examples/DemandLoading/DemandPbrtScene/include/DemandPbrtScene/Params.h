@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/RenderMode.h"
 
 #include <OptiXToolkit/DemandGeometry/DemandGeometry.h>
@@ -243,6 +244,24 @@ inline bool usesFallbackShader( const MaterialState& state )
     return state.backend != MaterialBackend::MDL_READY;
 }
 
+#ifdef OTK_USE_MDL
+struct MdlMaterialShader
+{
+    uint_t callableBaseIndex;
+    uint_t callableCount;
+};
+
+inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
+{
+    return lhs.callableBaseIndex == rhs.callableBaseIndex && lhs.callableCount == rhs.callableCount;
+}
+
+inline bool operator!=( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
+{
+    return !( lhs == rhs );
+}
+#endif
+
 struct PhongMaterial
 {
     float3        Ka;
@@ -428,6 +447,10 @@ struct Params
     float3                        demandMaterialColor;
     uint_t                        numMaterialStates;      //
     const MaterialState*          materialStates;         // indexed by materialId
+#ifdef OTK_USE_MDL
+    uint_t                        numMdlMaterialShaders;  //
+    const MdlMaterialShader*      mdlMaterialShaders;     // indexed by MaterialState::shaderKey
+#endif
     uint_t                        numPartialMaterials;    //
     const PartialMaterial*        partialMaterials;       // indexed by materialId
     uint_t                        numRealizedMaterials;   //

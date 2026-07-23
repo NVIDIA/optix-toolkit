@@ -21,6 +21,8 @@ class MockProgramGroups : public ::testing::StrictMock<ProgramGroups>
     MOCK_METHOD( void, cleanup, (), ( override ) );
 #ifdef OTK_USE_MDL
     MOCK_METHOD( uint_t, getFallbackMaterialSbtOffset, (const GeometryInstance&), ( override ) );
+    MOCK_METHOD( uint_t, getMdlMaterialSbtOffset, (const GeometryInstance&), ( override ) );
+    MOCK_METHOD( MdlMaterialShader, realizeMdlMaterialShader, ( const GeometryInstance&, uint_t ), ( override ) );
 #endif
     MOCK_METHOD( uint_t, getRealizedMaterialSbtOffset, (const GeometryInstance&), ( override ) );
     MOCK_METHOD( void, initialize, (), ( override ) );

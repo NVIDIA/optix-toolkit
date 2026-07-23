@@ -6,6 +6,9 @@
 
 #include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/Dependencies.h"
+#ifdef OTK_USE_MDL
+#include "DemandPbrtScene/Params.h"
+#endif
 
 namespace demandPbrtScene {
 
@@ -22,7 +25,9 @@ class ProgramGroups
 
     virtual uint_t getRealizedMaterialSbtOffset( const GeometryInstance& instance ) = 0;
 #ifdef OTK_USE_MDL
-    virtual uint_t getFallbackMaterialSbtOffset( const GeometryInstance& instance ) = 0;
+    virtual uint_t            getFallbackMaterialSbtOffset( const GeometryInstance& instance )                 = 0;
+    virtual uint_t            getMdlMaterialSbtOffset( const GeometryInstance& instance )                      = 0;
+    virtual MdlMaterialShader realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId ) = 0;
 #endif
 };
 

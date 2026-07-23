@@ -68,15 +68,15 @@ class PbrtMaterialResolver : public MaterialResolver
     }
 
   private:
-    MaterialResolution    resolveMaterialGroup( std::vector<uint_t>&    requestedMaterials,
-                                                SceneSyncState&         sync,
-                                                const SceneGeometryPtr& geom,
-                                                size_t                  index,
-                                                std::vector<uint_t>&    resolvedMaterialIds );
-    MaterialResolution    resolveMaterial( std::vector<uint_t>& requestedMaterials, SceneSyncState& sync );
-    MaterialState         resolveMaterialState( GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
+    MaterialResolution resolveMaterialGroup( std::vector<uint_t>&    requestedMaterials,
+                                             SceneSyncState&         sync,
+                                             const SceneGeometryPtr& geom,
+                                             size_t                  index,
+                                             std::vector<uint_t>&    resolvedMaterialIds );
+    MaterialResolution resolveMaterial( std::vector<uint_t>& requestedMaterials, SceneSyncState& sync );
+    MaterialState resolveMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
 #ifdef OTK_USE_MDL
-    MaterialState         resolveMdlMaterialState( GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
+    MaterialState resolveMdlMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
 #endif
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, const SceneSyncState& syncState ) const;
     bool                  resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
@@ -84,7 +84,7 @@ class PbrtMaterialResolver : public MaterialResolver
                                                              const SceneGeometryPtr& geom,
                                                              MaterialGroup&          group,
                                                              SceneSyncState&         syncState );
-    void                  resolveGeometryToProxyMaterial( uint_t proxyGeomId, const SceneGeometryPtr& geom, const MaterialGroup& group, SceneSyncState& syncState );
+    void resolveGeometryToProxyMaterial( uint_t proxyGeomId, const SceneGeometryPtr& geom, const MaterialGroup& group, SceneSyncState& syncState );
 
     // Dependencies
     const Options&        m_options;
@@ -160,32 +160,33 @@ bool isReadyLocalFallback( const SceneSyncState& sync, uint_t materialId )
 }
 
 #ifdef OTK_USE_MDL
-MaterialState PbrtMaterialResolver::resolveMdlMaterialState( GeometryInstance&     instance,
+MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&      sync,
+                                                             GeometryInstance&    instance,
                                                              const MaterialGroup& group,
                                                              uint_t               materialId )
 {
-    const MdlShaderKey              shaderKey{ makeMaterialGroupMdlShaderKey( group ) };
-    const MdlShaderCompileRecord&   record{ m_mdlShaderCompileCache.getOrCreate( shaderKey ) };
-    const uint_t                    shaderKeyId{ record.shaderKeyId };
-    const MdlShaderCompileState     state{ record.state };
-    const auto                      bindFallback = [&]() {
-        instance.instance.sbtOffset = m_programGroups->getFallbackMaterialSbtOffset( instance );
+    const MdlShaderKey            shaderKey{ makeMaterialGroupMdlShaderKey( group ) };
+    const MdlShaderCompileRecord& record{ m_mdlShaderCompileCache.getOrCreate( shaderKey ) };
+    const uint_t                  shaderKeyId{ record.shaderKeyId };
+    const MdlShaderCompileState   state{ record.state };
+    const auto                    bindMdlProgram = [&]() {
+        instance.instance.sbtOffset = m_programGroups->getMdlMaterialSbtOffset( instance );
     };
-    const auto bindMdl = [&]() {
-        instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( instance );
+    const auto bindMdlShader = [&]() {
+        const MdlMaterialShader shader{ m_programGroups->realizeMdlMaterialShader( instance, shaderKeyId ) };
+        grow( sync.mdlMaterialShaders, shaderKeyId + 1 );
+        sync.mdlMaterialShaders[shaderKeyId] = shader;
     };
 
+    bindMdlProgram();
     switch( state )
     {
         case MdlShaderCompileState::READY:
-            bindMdl();
             return mdlSmokeState( materialId, shaderKeyId );
         case MdlShaderCompileState::QUEUED:
         case MdlShaderCompileState::COMPILING:
-            bindFallback();
             return makeMaterialState( materialId, MaterialBackend::MDL_PENDING, shaderKeyId );
         case MdlShaderCompileState::FAILED:
-            bindFallback();
             return makeMaterialState( materialId, MaterialBackend::MDL_FAILED, shaderKeyId );
         case MdlShaderCompileState::MISSING:
             break;
@@ -198,7 +199,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( GeometryInstance&  
 
     try
     {
-        bindMdl();
+        bindMdlShader();
         m_mdlShaderCompileCache.markReady( shaderKey );
         return mdlSmokeState( materialId, shaderKeyId );
     }
@@ -211,19 +212,16 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( GeometryInstance&  
         m_mdlShaderCompileCache.markFailed( shaderKey, "Unknown MDL shader compile failure" );
     }
 
-    bindFallback();
     return makeMaterialState( materialId, MaterialBackend::MDL_FAILED, shaderKeyId );
 }
 #endif
 
-MaterialState PbrtMaterialResolver::resolveMaterialState( GeometryInstance&    instance,
-                                                          const MaterialGroup& group,
-                                                          uint_t               materialId )
+MaterialState PbrtMaterialResolver::resolveMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId )
 {
 #ifdef OTK_USE_MDL
     if( usesMdlSmokeMaterial( m_options, instance, group ) )
     {
-        return resolveMdlMaterialState( instance, group, materialId );
+        return resolveMdlMaterialState( sync, instance, group, materialId );
     }
 #endif
 
@@ -289,8 +287,8 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             && !flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
         {
             const uint_t diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( group.diffuseMapFileName );
-            sync.minDiffuseTextureId      = std::min( diffuseTextureId, sync.minDiffuseTextureId );
-            sync.maxDiffuseTextureId      = std::max( diffuseTextureId, sync.maxDiffuseTextureId );
+            sync.minDiffuseTextureId        = std::min( diffuseTextureId, sync.minDiffuseTextureId );
+            sync.maxDiffuseTextureId        = std::max( diffuseTextureId, sync.maxDiffuseTextureId );
             group.material.diffuseTextureId = diffuseTextureId;
             group.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
         }
@@ -299,7 +297,7 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     const uint_t materialId{ groupMaterialId };
     grow( sync.realizedMaterials, materialId + 1 );
     sync.realizedMaterials[materialId] = group.material;
-    setMaterialState( sync, materialId, resolveMaterialState( geom->instance, group, materialId ) );
+    setMaterialState( sync, materialId, resolveMaterialState( sync, geom->instance, group, materialId ) );
     const uint_t materialIndex{ geom->instance.instance.instanceId };
     OTK_ASSERT( materialIndex < sync.materialIndices.size() );
     sync.primitiveMaterials[sync.materialIndices[materialIndex].primitiveMaterialBegin + index].materialId = materialId;
@@ -406,11 +404,17 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
             break;
         case MaterialResolution::PARTIAL:
             syncState.materialStates.copyToDeviceAsync( stream );
+#ifdef OTK_USE_MDL
+            syncState.mdlMaterialShaders.copyToDeviceAsync( stream );
+#endif
             syncState.partialMaterials.copyToDeviceAsync( stream );
             syncState.partialUVs.copyToDeviceAsync( stream );
             break;
         case MaterialResolution::FULL:
             syncState.materialStates.copyToDeviceAsync( stream );
+#ifdef OTK_USE_MDL
+            syncState.mdlMaterialShaders.copyToDeviceAsync( stream );
+#endif
             syncState.partialMaterials.copyToDeviceAsync( stream );
             syncState.partialUVs.copyToDeviceAsync( stream );
             syncState.realizedNormals.copyToDeviceAsync( stream );

@@ -49,6 +49,7 @@ embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
         ${DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES}
     INCLUDES
         include
+        ${CMAKE_CURRENT_BINARY_DIR}/include
     FOLDER Examples/DemandLoading
 )
 target_sources( DemandPbrtSceneKernelCuda

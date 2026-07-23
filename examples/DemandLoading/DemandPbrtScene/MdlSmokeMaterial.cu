@@ -55,6 +55,35 @@ __device__ __forceinline__ uint_t getMdlSmokeMaterialId( const Params& params, u
     return ~0U;
 }
 
+__device__ __forceinline__ bool useMdlShader( const Params& params, uint_t materialId, MdlMaterialShader& shader )
+{
+    if( params.materialStates == nullptr || materialId >= params.numMaterialStates )
+    {
+        return false;
+    }
+
+    const MaterialState& state{ params.materialStates[materialId] };
+    if( state.backend != MaterialBackend::MDL_READY )
+    {
+        return false;
+    }
+
+#ifndef NDEBUG
+    if( state.shaderKey >= params.numMdlMaterialShaders )
+    {
+        printf( "Shader key %u exceeds number of MDL material shader entries %u\n", state.shaderKey, params.numMdlMaterialShaders );
+        assert( state.shaderKey < params.numMdlMaterialShaders );
+    }
+#endif
+    if( state.shaderKey >= params.numMdlMaterialShaders || params.mdlMaterialShaders == nullptr )
+    {
+        return false;
+    }
+
+    shader = params.mdlMaterialShaders[state.shaderKey];
+    return shader.callableCount == 1U;
+}
+
 extern "C" __global__ void __closesthit__mdlMesh()
 {
     float3 worldNormal;
@@ -77,9 +106,24 @@ extern "C" __global__ void __closesthit__mdlMesh()
     }
 #endif
 
-    const float3 rayOrigin{ optixGetWorldRayOrigin() };
-    const float3 rayDirection{ optixGetWorldRayDirection() };
-    const float  rayT{ optixGetRayTmax() };
+    const float3      rayOrigin{ optixGetWorldRayOrigin() };
+    const float3      rayDirection{ optixGetWorldRayDirection() };
+    const float       rayT{ optixGetRayTmax() };
+    PhongMaterial     material{ params.realizedMaterials[materialId] };
+    RayPayload* const prd{ getRayPayload() };
+    MdlMaterialShader shader{};
+
+    prd->diffuseTextureId = 0xffffffff;
+    prd->material         = nullptr;
+    prd->normal           = worldNormal;
+    prd->rayDistance      = rayT;
+
+    if( !useMdlShader( params, materialId, shader ) )
+    {
+        prd->color          = phongShade( material, worldNormal, rayDirection );
+        prd->hasDirectColor = true;
+        return;
+    }
 
     mi::neuraylib::Shading_state_material state{};
     state.normal      = worldNormal;
@@ -89,18 +133,12 @@ extern "C" __global__ void __closesthit__mdlMesh()
     mi::neuraylib::Resource_data resourceData{};
     mi::neuraylib::tct_float3    tint{};
     optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-        0, &tint, &state, &resourceData, nullptr );
+        shader.callableBaseIndex, &tint, &state, &resourceData, nullptr );
 
-    PhongMaterial material{ params.realizedMaterials[materialId] };
     material.Kd = make_float3( tint.x, tint.y, tint.z );
 
-    RayPayload* prd       = getRayPayload();
-    prd->diffuseTextureId = 0xffffffff;
-    prd->material         = nullptr;
-    prd->normal           = worldNormal;
-    prd->rayDistance      = rayT;
-    prd->color            = phongShade( material, worldNormal, rayDirection );
-    prd->hasDirectColor   = true;
+    prd->color          = phongShade( material, worldNormal, rayDirection );
+    prd->hasDirectColor = true;
 }
 
 }  // namespace demandPbrtScene

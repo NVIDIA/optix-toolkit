@@ -35,6 +35,9 @@
 #include <filesystem>
 #include <iomanip>
 #include <iterator>
+#ifdef OTK_USE_MDL
+#include <map>
+#endif
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -280,7 +283,7 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedDiffuseMater
         transaction->access<mi::neuraylib::IFunction_definition>( materialDbName ) );
     requireMdl( materialDefinition.is_valid_interface(), "Failed to access generated MDL material definition" );
 
-    mi::Sint32                                      callResult = 0;
+    mi::Sint32 callResult = 0;
     mi::base::Handle<mi::neuraylib::IFunction_call> materialCall( materialDefinition->create_function_call( nullptr, &callResult ) );
     requireMdl( callResult == 0 && materialCall.is_valid_interface(), "Failed to create generated MDL material call" );
 
@@ -378,7 +381,9 @@ class PbrtProgramGroups : public ProgramGroups
 
     uint_t getRealizedMaterialSbtOffset( const GeometryInstance& instance ) override;
 #ifdef OTK_USE_MDL
-    uint_t getFallbackMaterialSbtOffset( const GeometryInstance& instance ) override;
+    uint_t            getFallbackMaterialSbtOffset( const GeometryInstance& instance ) override;
+    uint_t            getMdlMaterialSbtOffset( const GeometryInstance& instance ) override;
+    MdlMaterialShader realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId ) override;
 #endif
 
   private:
@@ -389,9 +394,10 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t      getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
     uint_t      getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
 #ifdef OTK_USE_MDL
-    uint_t      getTriangleMdlSmokeMaterialSbtOffset( const PhongMaterial& material );
+    uint_t            getTriangleMdlSmokeMaterialSbtOffset();
+    MdlMaterialShader realizeTriangleMdlSmokeMaterialShader( const PhongMaterial& material, uint_t shaderKeyId );
 #endif
-    uint_t      getSphereRealizedMaterialSbtOffset();
+    uint_t getSphereRealizedMaterialSbtOffset();
 
     // Dependencies
     const Options&    m_options;
@@ -402,14 +408,15 @@ class PbrtProgramGroups : public ProgramGroups
     OptixModule                    m_sceneModule{};
     OptixModule                    m_phongModule{};
 #ifdef OTK_USE_MDL
-    OptixModule                    m_mdlSmokeClosestHitModule{};
-    OptixModule                    m_mdlSmokeTintModule{};
+    OptixModule                         m_mdlSmokeClosestHitModule{};
+    std::vector<OptixModule>            m_mdlSmokeTintModules;
 #endif
     OptixModule                    m_triangleModule{};
     OptixModule                    m_sphereModule{};
     std::vector<OptixProgramGroup> m_programGroups;
 #ifdef OTK_USE_MDL
-    std::vector<OptixProgramGroup> m_callableProgramGroups;
+    std::vector<OptixProgramGroup>      m_callableProgramGroups;
+    std::map<uint_t, MdlMaterialShader> m_mdlMaterialShaders;
 #endif
     size_t                         m_triangleHitGroupIndex{};
 #ifdef OTK_USE_MDL
@@ -497,9 +504,9 @@ void PbrtProgramGroups::cleanup()
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
     }
 #ifdef OTK_USE_MDL
-    if( m_mdlSmokeTintModule )
+    for( OptixModule module : m_mdlSmokeTintModules )
     {
-        OTK_ERROR_CHECK( optixModuleDestroy( m_mdlSmokeTintModule ) );
+        OTK_ERROR_CHECK( optixModuleDestroy( module ) );
     }
     if( m_mdlSmokeClosestHitModule )
     {
@@ -585,29 +592,15 @@ uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( Material
 }
 
 #ifdef OTK_USE_MDL
-uint_t PbrtProgramGroups::getTriangleMdlSmokeMaterialSbtOffset( const PhongMaterial& material )
+uint_t PbrtProgramGroups::getTriangleMdlSmokeMaterialSbtOffset()
 {
     if( m_triangleMdlSmokeHitGroupIndex == 0 )
     {
-        const Stopwatch   compileTimer;
-        const std::string ptx{ compileMdlSmokeTintPtx( material ) };
-        const double      compileTime{ compileTimer.elapsed() };
-
         const Stopwatch optixTimer;
-        m_mdlSmokeTintModule       = createModule( ptx.data(), ptx.size() );
         m_mdlSmokeClosestHitModule = createModule( MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
 
         OptixProgramGroupOptions options{};
         OptixDeviceContext       context = m_renderer->getDeviceContext();
-
-        OptixProgramGroupDesc callableDesc{};
-        callableDesc.kind                          = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
-        callableDesc.callables.moduleDC            = m_mdlSmokeTintModule;
-        callableDesc.callables.entryFunctionNameDC = MDL_SMOKE_TINT_FUNCTION_NAME;
-        OptixProgramGroup callableGroup{};
-        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, &callableDesc, 1, &options, LOG, &LOG_SIZE, &callableGroup ) );
-        m_callableProgramGroups.push_back( callableGroup );
-        m_renderer->setCallableProgramGroups( m_callableProgramGroups );
 
         OptixProgramGroupDesc groupDesc[1]{};
         OptixProgramGroup     group{};
@@ -620,9 +613,44 @@ uint_t PbrtProgramGroups::getTriangleMdlSmokeMaterialSbtOffset( const PhongMater
         m_renderer->setProgramGroups( m_programGroups );
 
         const double optixTime{ optixTimer.elapsed() };
-        std::cout << "Synchronous MDL smoke material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
+        std::cout << "MDL smoke material hit group setup: " << optixTime << " s\n";
     }
     return m_triangleMdlSmokeHitGroupIndex;
+}
+
+MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( const PhongMaterial& material, uint_t shaderKeyId )
+{
+    std::map<uint_t, MdlMaterialShader>::const_iterator it = m_mdlMaterialShaders.find( shaderKeyId );
+    if( it != m_mdlMaterialShaders.end() )
+    {
+        return it->second;
+    }
+
+    const Stopwatch   compileTimer;
+    const std::string ptx{ compileMdlSmokeTintPtx( material ) };
+    const double      compileTime{ compileTimer.elapsed() };
+
+    const Stopwatch optixTimer;
+    OptixModule     tintModule{ createModule( ptx.data(), ptx.size() ) };
+
+    OptixProgramGroupOptions options{};
+    OptixDeviceContext       context = m_renderer->getDeviceContext();
+
+    OptixProgramGroupDesc callableDesc{};
+    callableDesc.kind                          = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
+    callableDesc.callables.moduleDC            = tintModule;
+    callableDesc.callables.entryFunctionNameDC = MDL_SMOKE_TINT_FUNCTION_NAME;
+    OptixProgramGroup callableGroup{};
+    OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, &callableDesc, 1, &options, LOG, &LOG_SIZE, &callableGroup ) );
+    const MdlMaterialShader shader{ static_cast<uint_t>( m_callableProgramGroups.size() ), 1U };
+    m_mdlSmokeTintModules.push_back( tintModule );
+    m_callableProgramGroups.push_back( callableGroup );
+    m_mdlMaterialShaders[shaderKeyId] = shader;
+    m_renderer->setCallableProgramGroups( m_callableProgramGroups );
+
+    const double optixTime{ optixTimer.elapsed() };
+    std::cout << "Synchronous MDL smoke material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
+    return shader;
 }
 #endif
 
@@ -632,7 +660,7 @@ uint_t PbrtProgramGroups::getTriangleRealizedMaterialSbtOffset( const GeometryIn
 #ifdef OTK_USE_MDL
     if( m_options.mdlSmokeMaterial && instance.groups.size() == 1 && flags == MaterialFlags::NONE )
     {
-        return getTriangleMdlSmokeMaterialSbtOffset( instance.groups[0].material );
+        return getTriangleMdlSmokeMaterialSbtOffset();
     }
 #endif
 
@@ -681,6 +709,30 @@ uint_t PbrtProgramGroups::getFallbackMaterialSbtOffset( const GeometryInstance& 
         return getSphereRealizedMaterialSbtOffset();
     }
     throw std::runtime_error( "Unimplemented primitive type " + std::to_string( +instance.primitive ) );
+}
+#endif
+
+#ifdef OTK_USE_MDL
+uint_t PbrtProgramGroups::getMdlMaterialSbtOffset( const GeometryInstance& instance )
+{
+    ensurePhongModule();
+
+    if( instance.primitive == GeometryPrimitive::TRIANGLE )
+    {
+        return getTriangleMdlSmokeMaterialSbtOffset();
+    }
+    throw std::runtime_error( "MDL materials are only implemented for triangle primitives" );
+}
+
+MdlMaterialShader PbrtProgramGroups::realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId )
+{
+    if( instance.primitive != GeometryPrimitive::TRIANGLE || instance.groups.empty() )
+    {
+        throw std::runtime_error( "MDL materials are only implemented for triangle primitives" );
+    }
+
+    getTriangleMdlSmokeMaterialSbtOffset();
+    return realizeTriangleMdlSmokeMaterialShader( instance.groups[0].material, shaderKeyId );
 }
 #endif
 
