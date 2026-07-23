@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+#include <gmock/gmock.h>
+
+#include "DemandPbrtScene/MdlShaderCache.h"
+
 #include <mi/mdl_sdk.h>
 
 #ifdef _WIN32
@@ -10,17 +14,27 @@
 #include <dlfcn.h>
 #endif
 
-#include <gtest/gtest.h>
-
 #include <cstring>
+#include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 
 namespace {
 
-constexpr mi::Float32 PBRT_KD_RED   = 0.25f;
-constexpr mi::Float32 PBRT_KD_GREEN = 0.50f;
-constexpr mi::Float32 PBRT_KD_BLUE  = 0.75f;
+constexpr mi::Float32 PBRT_KD_RED       = 0.25f;
+constexpr mi::Float32 PBRT_KD_GREEN     = 0.50f;
+constexpr mi::Float32 PBRT_KD_BLUE      = 0.75f;
+constexpr mi::Float32 PBRT_KD_ALT_RED   = 0.75f;
+constexpr mi::Float32 PBRT_KD_ALT_GREEN = 0.20f;
+constexpr mi::Float32 PBRT_KD_ALT_BLUE  = 0.10f;
+
+struct BoundMdlColor
+{
+    mi::Float32 red{};
+    mi::Float32 green{};
+    mi::Float32 blue{};
+};
 
 std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context* context )
 {
@@ -51,7 +65,7 @@ std::string lastLibraryError()
 MdlLibraryHandle loadMdlSdkLibrary( std::string& error )
 {
     const char* const libraryName = "libmdl_sdk" MI_BASE_DLL_FILE_EXT;
-    MdlLibraryHandle handle       = LoadLibraryA( libraryName );
+    MdlLibraryHandle  handle      = LoadLibraryA( libraryName );
     if( handle )
         return handle;
 
@@ -85,7 +99,7 @@ using MdlLibraryHandle = void*;
 MdlLibraryHandle loadMdlSdkLibrary( std::string& error )
 {
     const char* const libraryName = "libmdl_sdk" MI_BASE_DLL_FILE_EXT;
-    MdlLibraryHandle handle      = dlopen( libraryName, RTLD_LAZY );
+    MdlLibraryHandle  handle      = dlopen( libraryName, RTLD_LAZY );
     if( !handle )
         error = dlerror();
     return handle;
@@ -123,12 +137,10 @@ class MdlSdkSession
         m_neuray = mi::neuraylib::mi_factory<mi::neuraylib::INeuray>( symbol );
         if( !m_neuray.is_valid_interface() )
         {
-            mi::base::Handle<const mi::neuraylib::IVersion> version(
-                mi::neuraylib::mi_factory<mi::neuraylib::IVersion>( symbol ) );
-            m_error = version.is_valid_interface()
-                          ? "MDL SDK library version does not match header version "
-                                + std::string( MI_NEURAYLIB_PRODUCT_VERSION_STRING )
-                          : "MDL SDK library is incompatible with this header";
+            mi::base::Handle<const mi::neuraylib::IVersion> version( mi::neuraylib::mi_factory<mi::neuraylib::IVersion>( symbol ) );
+            m_error = version.is_valid_interface() ? "MDL SDK library version does not match header version "
+                                                         + std::string( MI_NEURAYLIB_PRODUCT_VERSION_STRING ) :
+                                                     "MDL SDK library is incompatible with this header";
             return;
         }
 
@@ -169,112 +181,145 @@ class MdlSdkSession
     }
 
   private:
-    MdlLibraryHandle m_library{};
+    MdlLibraryHandle                         m_library{};
     mi::base::Handle<mi::neuraylib::INeuray> m_neuray;
-    std::string m_error;
-    bool m_started{ false };
+    std::string                              m_error;
+    bool                                     m_started{ false };
 };
 
-std::string makeDiffuseMdlModuleFromPbrtKd()
+void addRgbSpectrum( ::pbrt::ParamSet& params, const std::string& name, float red, float green, float blue )
 {
-    std::ostringstream out;
-    out << "mdl 1.6;\n"
-        << "import ::df::*;\n"
-        << "export material pbrt_diffuse() = material(\n"
-        << "    surface: material_surface(\n"
-        << "        scattering: ::df::diffuse_reflection_bsdf(\n"
-        << "            tint: color(" << PBRT_KD_RED << ", " << PBRT_KD_GREEN << ", " << PBRT_KD_BLUE
-        << "))));\n";
-    return out.str();
+    std::unique_ptr<::pbrt::Float[]> values{ new ::pbrt::Float[3] };
+    values[0] = red;
+    values[1] = green;
+    values[2] = blue;
+    params.AddRGBSpectrum( name, std::move( values ), 3 );
 }
 
-mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedDiffuseMaterial(
-    mi::neuraylib::INeuray* neuray,
-    mi::neuraylib::ITransaction* transaction,
-    mi::neuraylib::IMdl_execution_context* context )
+otk::pbrt::PbrtMaterial matteMaterial( float red, float green, float blue )
 {
-    mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory(
-        neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
-    EXPECT_TRUE( mdlFactory.is_valid_interface() );
+    otk::pbrt::PbrtMaterial material;
+    material.type = "matte";
+    addRgbSpectrum( material.params, "Kd", red, green, blue );
+    return material;
+}
+
+std::string describeGeneratedSource( const demandPbrtScene::GeneratedMdlSource& source, const demandPbrtScene::MdlShaderKey& key )
+{
+    return "module=" + source.moduleName + ", material=" + source.materialName + ", key=" + demandPbrtScene::toString( key );
+}
+
+mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMatteMaterial( mi::neuraylib::INeuray* neuray,
+                                                                                   mi::neuraylib::ITransaction* transaction,
+                                                                                   mi::neuraylib::IMdl_execution_context* context,
+                                                                                   const demandPbrtScene::GeneratedMdlSource& source,
+                                                                                   const demandPbrtScene::MdlShaderKey& key,
+                                                                                   const BoundMdlColor& kd )
+{
+    const std::string sourceDescription{ describeGeneratedSource( source, key ) };
+    mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
+    EXPECT_TRUE( mdlFactory.is_valid_interface() ) << sourceDescription;
     if( !mdlFactory.is_valid_interface() )
         return {};
 
-    mi::base::Handle<mi::neuraylib::IMdl_impexp_api> mdlImpexpApi(
-        neuray->get_api_component<mi::neuraylib::IMdl_impexp_api>() );
-    EXPECT_TRUE( mdlImpexpApi.is_valid_interface() );
+    mi::base::Handle<mi::neuraylib::IMdl_impexp_api> mdlImpexpApi( neuray->get_api_component<mi::neuraylib::IMdl_impexp_api>() );
+    EXPECT_TRUE( mdlImpexpApi.is_valid_interface() ) << sourceDescription;
     if( !mdlImpexpApi.is_valid_interface() )
         return {};
 
-    const std::string moduleSource = makeDiffuseMdlModuleFromPbrtKd();
-    const char* const moduleName   = "::otk::pbrt_generated_test";
-    context->clear_messages();
-    const mi::Sint32 loadResult =
-        mdlImpexpApi->load_module_from_string( transaction, moduleName, moduleSource.c_str(), context );
-    EXPECT_EQ( 0, loadResult ) << describeContextMessages( context );
-    if( loadResult != 0 )
-        return {};
-
-    mi::base::Handle<const mi::IString> moduleDbName( mdlFactory->get_db_module_name( moduleName ) );
-    EXPECT_TRUE( moduleDbName.is_valid_interface() );
+    mi::base::Handle<const mi::IString> moduleDbName( mdlFactory->get_db_module_name( source.moduleName.c_str() ) );
+    EXPECT_TRUE( moduleDbName.is_valid_interface() ) << sourceDescription;
     if( !moduleDbName.is_valid_interface() )
         return {};
 
-    mi::base::Handle<const mi::neuraylib::IModule> module(
-        transaction->access<mi::neuraylib::IModule>( moduleDbName->get_c_str() ) );
-    EXPECT_TRUE( module.is_valid_interface() );
+    mi::base::Handle<const mi::neuraylib::IModule> module( transaction->access<mi::neuraylib::IModule>( moduleDbName->get_c_str() ) );
+    if( !module.is_valid_interface() )
+    {
+        context->clear_messages();
+        const mi::Sint32 loadResult =
+            mdlImpexpApi->load_module_from_string( transaction, source.moduleName.c_str(), source.source.c_str(), context );
+        EXPECT_EQ( 0, loadResult ) << sourceDescription << '\n' << describeContextMessages( context );
+        if( loadResult != 0 )
+            return {};
+
+        module = transaction->access<mi::neuraylib::IModule>( moduleDbName->get_c_str() );
+    }
+    EXPECT_TRUE( module.is_valid_interface() ) << sourceDescription;
     if( !module.is_valid_interface() )
         return {};
 
-    EXPECT_EQ( 1U, module->get_material_count() );
+    EXPECT_EQ( 1U, module->get_material_count() ) << sourceDescription;
     const char* const materialDbName = module->get_material( 0 );
-    EXPECT_NE( nullptr, materialDbName );
+    EXPECT_NE( nullptr, materialDbName ) << sourceDescription;
     if( !materialDbName )
         return {};
 
     mi::base::Handle<const mi::neuraylib::IFunction_definition> materialDefinition(
         transaction->access<mi::neuraylib::IFunction_definition>( materialDbName ) );
-    EXPECT_TRUE( materialDefinition.is_valid_interface() );
+    EXPECT_TRUE( materialDefinition.is_valid_interface() ) << sourceDescription;
     if( !materialDefinition.is_valid_interface() )
         return {};
 
     mi::Sint32 callResult = 0;
-    mi::base::Handle<mi::neuraylib::IFunction_call> materialCall(
-        materialDefinition->create_function_call( nullptr, &callResult ) );
-    EXPECT_EQ( 0, callResult );
-    EXPECT_TRUE( materialCall.is_valid_interface() );
+    mi::base::Handle<mi::neuraylib::IFunction_call> materialCall( materialDefinition->create_function_call( nullptr, &callResult ) );
+    EXPECT_EQ( 0, callResult ) << sourceDescription;
+    EXPECT_TRUE( materialCall.is_valid_interface() ) << sourceDescription;
     if( !materialCall.is_valid_interface() )
         return {};
 
+    mi::base::Handle<mi::neuraylib::IValue_factory> valueFactory( mdlFactory->create_value_factory( transaction ) );
+    EXPECT_TRUE( valueFactory.is_valid_interface() ) << sourceDescription;
+    if( !valueFactory.is_valid_interface() )
+        return {};
+
+    mi::base::Handle<mi::neuraylib::IExpression_factory> expressionFactory( mdlFactory->create_expression_factory( transaction ) );
+    EXPECT_TRUE( expressionFactory.is_valid_interface() ) << sourceDescription;
+    if( !expressionFactory.is_valid_interface() )
+        return {};
+
+    mi::base::Handle<mi::neuraylib::IValue_color> kdValue( valueFactory->create_color( kd.red, kd.green, kd.blue ) );
+    EXPECT_TRUE( kdValue.is_valid_interface() ) << sourceDescription;
+    if( !kdValue.is_valid_interface() )
+        return {};
+
+    mi::base::Handle<mi::neuraylib::IExpression_constant> kdExpression( expressionFactory->create_constant( kdValue.get() ) );
+    EXPECT_TRUE( kdExpression.is_valid_interface() ) << sourceDescription;
+    if( !kdExpression.is_valid_interface() )
+        return {};
+
+    EXPECT_EQ( 0, materialCall->set_argument( "Kd", kdExpression.get() ) ) << sourceDescription;
+
     mi::base::Handle<mi::neuraylib::IMaterial_instance> materialInstance(
         materialCall->get_interface<mi::neuraylib::IMaterial_instance>() );
-    EXPECT_TRUE( materialInstance.is_valid_interface() );
+    EXPECT_TRUE( materialInstance.is_valid_interface() ) << sourceDescription;
     if( !materialInstance.is_valid_interface() )
         return {};
 
     mi::base::Handle<mi::neuraylib::IType_factory> typeFactory( mdlFactory->create_type_factory( transaction ) );
-    EXPECT_TRUE( typeFactory.is_valid_interface() );
+    EXPECT_TRUE( typeFactory.is_valid_interface() ) << sourceDescription;
     if( !typeFactory.is_valid_interface() )
         return {};
 
     mi::base::Handle<const mi::neuraylib::IType> standardMaterialType(
         typeFactory->get_predefined_struct( mi::neuraylib::IType_struct::SID_MATERIAL ) );
-    EXPECT_TRUE( standardMaterialType.is_valid_interface() );
+    EXPECT_TRUE( standardMaterialType.is_valid_interface() ) << sourceDescription;
     if( !standardMaterialType.is_valid_interface() )
         return {};
 
     context->clear_messages();
     const mi::Sint32 targetTypeResult = context->set_option( "target_type", standardMaterialType.get() );
-    EXPECT_EQ( 0, targetTypeResult ) << describeContextMessages( context );
+    EXPECT_EQ( 0, targetTypeResult ) << sourceDescription << '\n' << describeContextMessages( context );
     if( targetTypeResult != 0 )
         return {};
 
     mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
         materialInstance->create_compiled_material( mi::neuraylib::IMaterial_instance::DEFAULT_OPTIONS, context ) );
-    EXPECT_TRUE( compiledMaterial.is_valid_interface() ) << describeContextMessages( context );
+    EXPECT_TRUE( compiledMaterial.is_valid_interface() ) << sourceDescription << '\n'
+                                                         << describeContextMessages( context );
     return compiledMaterial;
 }
 
-void expectTintMatchesPbrtKd( const mi::neuraylib::ICompiled_material* compiledMaterial )
+void expectTintMatchesPbrtKd( const mi::neuraylib::ICompiled_material* compiledMaterial, const BoundMdlColor& kd )
 {
     mi::base::Handle<const mi::neuraylib::IExpression> tintExpression(
         compiledMaterial->lookup_sub_expression( "surface.scattering.tint" ) );
@@ -285,8 +330,7 @@ void expectTintMatchesPbrtKd( const mi::neuraylib::ICompiled_material* compiledM
         tintExpression->get_interface<mi::neuraylib::IExpression_constant>() );
     ASSERT_TRUE( tintConstant.is_valid_interface() );
 
-    mi::base::Handle<const mi::neuraylib::IValue_color> tintValue(
-        tintConstant->get_value<mi::neuraylib::IValue_color>() );
+    mi::base::Handle<const mi::neuraylib::IValue_color> tintValue( tintConstant->get_value<mi::neuraylib::IValue_color>() );
     ASSERT_TRUE( tintValue.is_valid_interface() );
 
     mi::base::Handle<const mi::neuraylib::IValue_float> red( tintValue->get_value( 0 ) );
@@ -296,33 +340,38 @@ void expectTintMatchesPbrtKd( const mi::neuraylib::ICompiled_material* compiledM
     ASSERT_TRUE( green.is_valid_interface() );
     ASSERT_TRUE( blue.is_valid_interface() );
 
-    EXPECT_FLOAT_EQ( PBRT_KD_RED, red->get_value() );
-    EXPECT_FLOAT_EQ( PBRT_KD_GREEN, green->get_value() );
-    EXPECT_FLOAT_EQ( PBRT_KD_BLUE, blue->get_value() );
+    EXPECT_FLOAT_EQ( kd.red, red->get_value() );
+    EXPECT_FLOAT_EQ( kd.green, green->get_value() );
+    EXPECT_FLOAT_EQ( kd.blue, blue->get_value() );
 }
 
-void expectPtxGeneratedForTintExpression(
-    mi::neuraylib::INeuray* neuray,
-    mi::neuraylib::ITransaction* transaction,
-    const mi::neuraylib::ICompiled_material* compiledMaterial,
-    mi::neuraylib::IMdl_execution_context* context )
+std::string translateTintExpressionToPtx( mi::neuraylib::INeuray*                  neuray,
+                                          mi::neuraylib::ITransaction*             transaction,
+                                          const mi::neuraylib::ICompiled_material* compiledMaterial,
+                                          mi::neuraylib::IMdl_execution_context*   context )
 {
-    mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi(
-        neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
-    ASSERT_TRUE( backendApi.is_valid_interface() );
+    mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi( neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
+    EXPECT_TRUE( backendApi.is_valid_interface() );
+    if( !backendApi.is_valid_interface() )
+        return {};
 
-    mi::base::Handle<mi::neuraylib::IMdl_backend> ptxBackend(
-        backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
-    ASSERT_TRUE( ptxBackend.is_valid_interface() );
+    mi::base::Handle<mi::neuraylib::IMdl_backend> ptxBackend( backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
+    EXPECT_TRUE( ptxBackend.is_valid_interface() );
+    if( !ptxBackend.is_valid_interface() )
+        return {};
 
     context->clear_messages();
-    mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode(
-        ptxBackend->translate_material_expression(
-            transaction, compiledMaterial, "surface.scattering.tint", "evaluate_tint", context ) );
-    ASSERT_TRUE( targetCode.is_valid_interface() ) << describeContextMessages( context );
+    mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode( ptxBackend->translate_material_expression(
+        transaction, compiledMaterial, "surface.scattering.tint", "evaluate_tint", context ) );
+    EXPECT_TRUE( targetCode.is_valid_interface() ) << describeContextMessages( context );
+    if( !targetCode.is_valid_interface() )
+        return {};
     EXPECT_GT( targetCode->get_code_size(), 0U );
-    ASSERT_EQ( 1U, targetCode->get_callable_function_count() );
+    EXPECT_EQ( 1U, targetCode->get_callable_function_count() );
+    if( targetCode->get_callable_function_count() != 1U )
+        return {};
     EXPECT_STREQ( "evaluate_tint", targetCode->get_callable_function( 0 ) );
+    return std::string{ targetCode->get_code(), static_cast<std::size_t>( targetCode->get_code_size() ) };
 }
 
 }  // namespace
@@ -340,14 +389,23 @@ TEST( TestMdlSdk, headerProvidesNeurayInterfaceId )
     EXPECT_NE( 0U, id.m_id1 | id.m_id2 | id.m_id3 | id.m_id4 );
 }
 
-TEST( TestMdlSdk, compilesGeneratedDiffuseMaterial )
+TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithBoundKd )
 {
+    const otk::pbrt::PbrtMaterial       sourceMaterial{ matteMaterial( PBRT_KD_RED, PBRT_KD_GREEN, PBRT_KD_BLUE ) };
+    const demandPbrtScene::MdlShaderKey key{ demandPbrtScene::makeMdlShaderKey( sourceMaterial ) };
+    demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
+    const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( sourceMaterial ) };
+    const std::string                          sourceDescription{ describeGeneratedSource( generated, key ) };
+    EXPECT_THAT( sourceDescription, testing::HasSubstr( generated.moduleName ) );
+    EXPECT_THAT( sourceDescription, testing::HasSubstr( generated.materialName ) );
+    EXPECT_THAT( sourceDescription, testing::HasSubstr( demandPbrtScene::toString( key ) ) );
+    EXPECT_THAT( sourceDescription, testing::Not( testing::HasSubstr( ":\\" ) ) );
+
     MdlSdkSession session;
     ASSERT_TRUE( session.isStarted() ) << session.error();
 
     {
-        mi::base::Handle<mi::neuraylib::IDatabase> database(
-            session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
         ASSERT_TRUE( database.is_valid_interface() );
 
         mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
@@ -356,22 +414,34 @@ TEST( TestMdlSdk, compilesGeneratedDiffuseMaterial )
         mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
         ASSERT_TRUE( transaction.is_valid_interface() );
 
-        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory(
-            session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
         ASSERT_TRUE( mdlFactory.is_valid_interface() );
 
-        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context(
-            mdlFactory->create_execution_context() );
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
         ASSERT_TRUE( context.is_valid_interface() );
 
+        const BoundMdlColor firstKd{ PBRT_KD_RED, PBRT_KD_GREEN, PBRT_KD_BLUE };
+        const BoundMdlColor secondKd{ PBRT_KD_ALT_RED, PBRT_KD_ALT_GREEN, PBRT_KD_ALT_BLUE };
         mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
-            compileGeneratedDiffuseMaterial( session.neuray(), transaction.get(), context.get() ) );
+            compileGeneratedMatteMaterial( session.neuray(), transaction.get(), context.get(), generated, key, firstKd ) );
         ASSERT_TRUE( compiledMaterial.is_valid_interface() );
 
-        expectTintMatchesPbrtKd( compiledMaterial.get() );
-        expectPtxGeneratedForTintExpression(
-            session.neuray(), transaction.get(), compiledMaterial.get(), context.get() );
+        mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial(
+            compileGeneratedMatteMaterial( session.neuray(), transaction.get(), context.get(), generated, key, secondKd ) );
+        ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
 
+        expectTintMatchesPbrtKd( compiledMaterial.get(), firstKd );
+        expectTintMatchesPbrtKd( secondCompiledMaterial.get(), secondKd );
+        const std::string firstPtx{
+            translateTintExpressionToPtx( session.neuray(), transaction.get(), compiledMaterial.get(), context.get() ) };
+        const std::string secondPtx{ translateTintExpressionToPtx( session.neuray(), transaction.get(),
+                                                                   secondCompiledMaterial.get(), context.get() ) };
+        EXPECT_FALSE( firstPtx.empty() );
+        EXPECT_FALSE( secondPtx.empty() );
+        EXPECT_NE( firstPtx, secondPtx );
+
+        secondCompiledMaterial.reset();
+        compiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
 

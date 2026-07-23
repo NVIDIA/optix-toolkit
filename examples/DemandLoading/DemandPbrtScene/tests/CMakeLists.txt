@@ -59,6 +59,7 @@ if(OTK_USE_MDL)
     find_package(mdl CONFIG REQUIRED)
     add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
     target_link_libraries(TestDemandPbrtSceneMdlSdk PUBLIC
+        DemandPbrtSceneImpl
         mdl::mdl_sdk
         GTest::gmock_main)
     if(WIN32)
