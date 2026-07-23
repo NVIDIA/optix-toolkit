@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["translucent.png"]
+Sampler "halton" "integer pixelsamples" [4]
+Integrator "path" "integer maxdepth" [5]
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "infinite" "rgb L" [0.25 0.28 0.35]
+    LightSource "distant" "rgb L" [3 3 3] "point from" [1 2 4] "point to" [0 0 0]
+
+    Material "translucent" "rgb Kd" [0.25 0.7 0.35] "rgb Ks" [0.2 0.2 0.2]
+        "rgb reflect" [0.45 0.45 0.45] "rgb transmit" [0.6 0.8 0.6] "float roughness" [0.2]
+    Shape "sphere" "float radius" [1]
+WorldEnd

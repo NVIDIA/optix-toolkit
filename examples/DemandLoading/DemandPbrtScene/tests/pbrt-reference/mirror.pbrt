@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["mirror.png"]
+Sampler "halton" "integer pixelsamples" [4]
+Integrator "path" "integer maxdepth" [5]
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "infinite" "rgb L" [0.2 0.35 0.75]
+    LightSource "distant" "rgb L" [3 3 3] "point from" [1 2 4] "point to" [0 0 0]
+
+    AttributeBegin
+        Translate 0 0 5
+        Material "matte" "rgb Kd" [0.8 0.15 0.1]
+        Shape "trianglemesh"
+            "integer indices" [0 1 2 0 2 3]
+            "point P" [-2 -2 0  2 -2 0  2 2 0  -2 2 0]
+    AttributeEnd
+
+    Material "mirror" "rgb Kr" [0.95 0.95 0.95]
+    Shape "sphere" "float radius" [1]
+WorldEnd

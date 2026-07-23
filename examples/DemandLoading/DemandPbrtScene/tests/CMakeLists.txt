@@ -71,6 +71,7 @@ if(OTK_USE_MDL)
     set_target_properties(TestDemandPbrtSceneMdlSdk PROPERTIES FOLDER Examples/DemandLoading/Tests)
     add_test( NAME TestDemandPbrtSceneMdlSdk COMMAND TestDemandPbrtSceneMdlSdk )
     set_tests_properties( TestDemandPbrtSceneMdlSdk PROPERTIES LABELS "DemandPbrtScene;MDL" )
+    add_subdirectory(pbrt-reference)
 endif()
 
 add_subdirectory(images)
