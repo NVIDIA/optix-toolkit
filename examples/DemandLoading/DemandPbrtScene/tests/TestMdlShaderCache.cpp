@@ -130,7 +130,7 @@ TEST( TestMdlGeneratedSourceCache, cachesGeneratedSourceByShaderKey )
     MdlGeneratedSourceCache cache;
 
     const MdlShaderKey        firstKey{ makeMdlShaderKey( matteMaterial( 0.1f ) ) };
-    const GeneratedMdlSource& first{ cache.getOrCreate( firstKey ) };
+    const GeneratedMdlSource& first{ cache.getSource( firstKey ) };
     EXPECT_TRUE( cache.contains( firstKey ) );
     EXPECT_EQ( 1U, cache.size() );
     EXPECT_THAT( first.moduleName, testing::StartsWith( "::otk::demand_pbrt_scene::pbrt_" ) );
@@ -138,13 +138,13 @@ TEST( TestMdlGeneratedSourceCache, cachesGeneratedSourceByShaderKey )
     EXPECT_THAT( first.source, testing::HasSubstr( "export material " + first.materialName ) );
 
     const MdlShaderKey        equivalentKey{ makeMdlShaderKey( matteMaterial( 0.9f ) ) };
-    const GeneratedMdlSource& equivalent{ cache.getOrCreate( equivalentKey ) };
+    const GeneratedMdlSource& equivalent{ cache.getSource( equivalentKey ) };
     EXPECT_EQ( 1U, cache.size() );
     EXPECT_EQ( first.moduleName, equivalent.moduleName );
     EXPECT_EQ( first.materialName, equivalent.materialName );
     EXPECT_EQ( first.source, equivalent.source );
 
-    cache.getOrCreate( makeMdlShaderKey( texturedMatteMaterial( "imagemap", "albedo.png" ) ) );
+    cache.getSource( makeMdlShaderKey( texturedMatteMaterial( "imagemap", "albedo.png" ) ) );
     EXPECT_EQ( 2U, cache.size() );
 }
 
@@ -153,7 +153,7 @@ TEST( TestMdlShaderCompileCache, lookupCreatesMissingRecordWithoutQueueingCompil
     MdlShaderCompileCache cache;
     const MdlShaderKey    key{ makeMdlShaderKey( matteMaterial( 0.1f ) ) };
 
-    const MdlShaderCompileRecord& record{ cache.getOrCreate( key ) };
+    const MdlShaderCompileRecord& record{ cache.getRecord( key ) };
     EXPECT_EQ( MdlShaderCompileState::MISSING, record.state );
     EXPECT_EQ( 1U, record.shaderKeyId );
     EXPECT_EQ( MdlShaderCompileState::MISSING, cache.state( key ) );

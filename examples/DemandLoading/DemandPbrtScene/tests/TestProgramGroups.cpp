@@ -238,7 +238,7 @@ class TestProgramGroupsInitialized : public TestProgramGroups
   protected:
     void SetUp() override;
 
-    Expectation    expectModuleCreatedAfter( OptixModule module, const ExpectationSet& before );
+    Expectation expectModuleCreatedAfter( OptixModule module, const ExpectationSet& before );
     ExpectationSet expectProgramGroupAddedAfter( const ProgramGroupDescMatcher& desc, OptixProgramGroup result, const ExpectationSet& before );
 
     ExpectationSet                 m_init;

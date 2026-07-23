@@ -55,7 +55,7 @@ struct MdlShaderCompileRecord
 class MdlShaderCompileCache
 {
   public:
-    const MdlShaderCompileRecord& getOrCreate( const MdlShaderKey& key );
+    const MdlShaderCompileRecord& getRecord( const MdlShaderKey& key );
     MdlShaderCompileState         state( const MdlShaderKey& key ) const;
     unsigned int                  shaderKeyId( const MdlShaderKey& key ) const;
     std::string                   diagnostics( const MdlShaderKey& key ) const;
@@ -70,7 +70,7 @@ class MdlShaderCompileCache
     void                            clear();
 
   private:
-    MdlShaderCompileRecord& getOrCreateRecord( const MdlShaderKey& key );
+    MdlShaderCompileRecord& getMutableRecord( const MdlShaderKey& key );
 
     std::map<MdlShaderKey, MdlShaderCompileRecord> m_records;
     unsigned int                                   m_nextShaderKeyId{ 1U };
@@ -79,7 +79,7 @@ class MdlShaderCompileCache
 class MdlGeneratedSourceCache
 {
   public:
-    const GeneratedMdlSource& getOrCreate( const MdlShaderKey& key );
+    const GeneratedMdlSource& getSource( const MdlShaderKey& key );
     bool                      contains( const MdlShaderKey& key ) const;
     std::size_t               size() const;
     void                      clear();

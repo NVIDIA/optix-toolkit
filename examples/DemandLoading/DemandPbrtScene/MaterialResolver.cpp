@@ -166,7 +166,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
                                                              uint_t               materialId )
 {
     const MdlShaderKey            shaderKey{ makeMaterialGroupMdlShaderKey( group ) };
-    const MdlShaderCompileRecord& record{ m_mdlShaderCompileCache.getOrCreate( shaderKey ) };
+    const MdlShaderCompileRecord& record{ m_mdlShaderCompileCache.getRecord( shaderKey ) };
     const uint_t                  shaderKeyId{ record.shaderKeyId };
     const MdlShaderCompileState   state{ record.state };
     const auto                    bindMdlProgram = [&]() {
