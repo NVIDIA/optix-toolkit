@@ -20,6 +20,9 @@
 #include <OptiXToolkit/DemandGeometry/GeometryLoader.h>
 #include <OptiXToolkit/DemandLoading/DemandLoader.h>
 #include <OptiXToolkit/DemandMaterial/MaterialLoader.h>
+#ifdef OTK_USE_MDL
+#include <OptiXToolkit/Error/cuErrorCheck.h>
+#endif
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
@@ -27,11 +30,19 @@
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 
+#ifdef OTK_USE_MDL
+#include <optix_stack_size.h>
+#endif
 #include <optix_stubs.h>
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#ifdef OTK_USE_MDL
+#include <condition_variable>
+#include <deque>
+#endif
+#include <exception>
 #include <filesystem>
 #include <iomanip>
 #include <iterator>
@@ -39,9 +50,16 @@
 #include <map>
 #endif
 #include <memory>
+#ifdef OTK_USE_MDL
+#include <mutex>
+#include <set>
+#endif
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#ifdef OTK_USE_MDL
+#include <thread>
+#endif
 #include <utility>
 
 #ifdef OTK_USE_MDL
@@ -68,6 +86,56 @@ static OptixModuleCompileOptions getCompileOptions()
 
     return compileOptions;
 }
+
+OptixModule createOptixModule( OptixDeviceContext                 context,
+                               const OptixPipelineCompileOptions& pipelineCompileOptions,
+                               const char*                        optixir,
+                               size_t                             optixirSize )
+{
+    const OptixModuleCompileOptions compileOptions{ getCompileOptions() };
+    OptixModule                     module{};
+    OTK_ERROR_CHECK_LOG( optixModuleCreate( context, &compileOptions, &pipelineCompileOptions, optixir, optixirSize,
+                                            LOG, &LOG_SIZE, &module ) );
+    return module;
+}
+
+#ifdef OTK_USE_MDL
+OptixPipeline createOptixPipeline( OptixDeviceContext                    context,
+                                   const OptixPipelineCompileOptions&    pipelineCompileOptions,
+                                   const std::vector<OptixProgramGroup>& programGroups,
+                                   const std::vector<OptixProgramGroup>& callableProgramGroups )
+{
+    const uint_t             maxTraceDepth{ 1 };
+    OptixPipelineLinkOptions linkOptions{};
+    linkOptions.maxTraceDepth = maxTraceDepth;
+    std::vector<OptixProgramGroup> pipelineProgramGroups{ programGroups };
+    std::copy( callableProgramGroups.cbegin(), callableProgramGroups.cend(), std::back_inserter( pipelineProgramGroups ) );
+
+    OptixPipeline pipeline{};
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( context, &pipelineCompileOptions, &linkOptions, pipelineProgramGroups.data(),
+                                              pipelineProgramGroups.size(), LOG, &LOG_SIZE, &pipeline ) );
+
+    OptixStackSizes stackSizes{};
+    for( OptixProgramGroup group : pipelineProgramGroups )
+    {
+#if OPTIX_VERSION < 70700
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
+#else
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, pipeline ) );
+#endif
+    }
+    uint_t       directCallableTraversalStackSize{};
+    uint_t       directCallableStateStackSize{};
+    uint_t       continuationStackSize{};
+    const uint_t maxDirectCallableDepth{ callableProgramGroups.empty() ? 0U : 1U };
+    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stackSizes, maxTraceDepth, 0, maxDirectCallableDepth, &directCallableTraversalStackSize,
+                                                 &directCallableStateStackSize, &continuationStackSize ) );
+    const uint_t maxTraversableDepth{ 3 };
+    OTK_ERROR_CHECK( optixPipelineSetStackSize( pipeline, directCallableTraversalStackSize, directCallableStateStackSize,
+                                                continuationStackSize, maxTraversableDepth ) );
+    return pipeline;
+}
+#endif
 
 namespace {
 
@@ -363,6 +431,195 @@ std::string compileMdlSmokeTintPtx( const PhongMaterial& material )
     return ptx;
 }
 
+struct MdlSmokeBuildJob
+{
+    uint_t                         shaderKeyId{};
+    PhongMaterial                  material{};
+    CUcontext                      cudaContext{};
+    OptixDeviceContext             optixContext{};
+    OptixPipelineCompileOptions    pipelineCompileOptions{};
+    std::vector<OptixProgramGroup> programGroups;
+    std::vector<OptixProgramGroup> callableProgramGroups;
+};
+
+struct MdlSmokeBuildResult
+{
+    uint_t                         shaderKeyId{};
+    MdlMaterialShader              shader{};
+    OptixModule                    tintModule{};
+    OptixProgramGroup              callableProgramGroup{};
+    OptixPipeline                  pipeline{};
+    std::vector<OptixProgramGroup> programGroups;
+    std::vector<OptixProgramGroup> callableProgramGroups;
+    std::string                    diagnostics;
+};
+
+void destroyMdlSmokeBuildResultNoThrow( MdlSmokeBuildResult& result )
+{
+    if( result.pipeline )
+    {
+        OTK_ERROR_CHECK_NOTHROW( optixPipelineDestroy( result.pipeline ) );
+        result.pipeline = nullptr;
+    }
+    if( result.callableProgramGroup )
+    {
+        OTK_ERROR_CHECK_NOTHROW( optixProgramGroupDestroy( result.callableProgramGroup ) );
+        result.callableProgramGroup = nullptr;
+    }
+    if( result.tintModule )
+    {
+        OTK_ERROR_CHECK_NOTHROW( optixModuleDestroy( result.tintModule ) );
+        result.tintModule = nullptr;
+    }
+}
+
+MdlSmokeBuildResult buildMdlSmokePipelineState( const MdlSmokeBuildJob& job )
+{
+    MdlSmokeBuildResult result{};
+    result.shaderKeyId = job.shaderKeyId;
+    try
+    {
+        if( job.cudaContext )
+        {
+            OTK_ERROR_CHECK( cuCtxSetCurrent( job.cudaContext ) );
+        }
+
+        const Stopwatch   compileTimer;
+        const std::string ptx{ compileMdlSmokeTintPtx( job.material ) };
+        const double      compileTime{ compileTimer.elapsed() };
+
+        const Stopwatch optixTimer;
+        result.tintModule = createOptixModule( job.optixContext, job.pipelineCompileOptions, ptx.data(), ptx.size() );
+
+        OptixProgramGroupOptions options{};
+
+        OptixProgramGroupDesc callableDesc{};
+        callableDesc.kind                          = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
+        callableDesc.callables.moduleDC            = result.tintModule;
+        callableDesc.callables.entryFunctionNameDC = MDL_SMOKE_TINT_FUNCTION_NAME;
+        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( job.optixContext, &callableDesc, 1, &options, LOG, &LOG_SIZE,
+                                                      &result.callableProgramGroup ) );
+
+        result.programGroups         = job.programGroups;
+        result.callableProgramGroups = job.callableProgramGroups;
+        result.shader = MdlMaterialShader{ static_cast<uint_t>( result.callableProgramGroups.size() ), 1U };
+        result.callableProgramGroups.push_back( result.callableProgramGroup );
+        result.pipeline = createOptixPipeline( job.optixContext, job.pipelineCompileOptions, result.programGroups,
+                                               result.callableProgramGroups );
+
+        const double optixTime{ optixTimer.elapsed() };
+        std::cout << "Asynchronous MDL smoke material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
+    }
+    catch( const std::exception& e )
+    {
+        result.diagnostics = e.what();
+        destroyMdlSmokeBuildResultNoThrow( result );
+    }
+    catch( ... )
+    {
+        result.diagnostics = "Unknown asynchronous MDL smoke material build failure";
+        destroyMdlSmokeBuildResultNoThrow( result );
+    }
+    return result;
+}
+
+class MdlSmokeBuildWorker
+{
+  public:
+    MdlSmokeBuildWorker()
+        : m_thread( &MdlSmokeBuildWorker::run, this )
+    {
+    }
+
+    ~MdlSmokeBuildWorker() { shutdown(); }
+
+    bool enqueue( const MdlSmokeBuildJob& job )
+    {
+        std::lock_guard<std::mutex> lock( m_mutex );
+        if( m_stop || m_queuedShaderKeys.count( job.shaderKeyId ) || m_inFlightShaderKeys.count( job.shaderKeyId )
+            || m_results.count( job.shaderKeyId ) )
+        {
+            return false;
+        }
+
+        m_jobs.push_back( job );
+        m_queuedShaderKeys.insert( job.shaderKeyId );
+        m_condition.notify_one();
+        return true;
+    }
+
+    bool takeResult( uint_t shaderKeyId, MdlSmokeBuildResult& result )
+    {
+        std::lock_guard<std::mutex> lock( m_mutex );
+        auto                        it = m_results.find( shaderKeyId );
+        if( it == m_results.end() )
+        {
+            return false;
+        }
+
+        result = std::move( it->second );
+        m_results.erase( it );
+        return true;
+    }
+
+    void shutdown()
+    {
+        {
+            std::lock_guard<std::mutex> lock( m_mutex );
+            m_stop = true;
+            m_condition.notify_one();
+        }
+        if( m_thread.joinable() )
+        {
+            m_thread.join();
+        }
+
+        std::lock_guard<std::mutex> lock( m_mutex );
+        for( auto& entry : m_results )
+        {
+            destroyMdlSmokeBuildResultNoThrow( entry.second );
+        }
+        m_results.clear();
+    }
+
+  private:
+    void run()
+    {
+        for( ;; )
+        {
+            MdlSmokeBuildJob job;
+            {
+                std::unique_lock<std::mutex> lock( m_mutex );
+                m_condition.wait( lock, [&]() { return m_stop || !m_jobs.empty(); } );
+                if( m_stop && m_jobs.empty() )
+                {
+                    return;
+                }
+
+                job = m_jobs.front();
+                m_jobs.pop_front();
+                m_queuedShaderKeys.erase( job.shaderKeyId );
+                m_inFlightShaderKeys.insert( job.shaderKeyId );
+            }
+
+            MdlSmokeBuildResult result{ buildMdlSmokePipelineState( job ) };
+
+            std::lock_guard<std::mutex> lock( m_mutex );
+            m_inFlightShaderKeys.erase( job.shaderKeyId );
+            m_results[job.shaderKeyId] = std::move( result );
+        }
+    }
+
+    std::mutex                            m_mutex;
+    std::condition_variable               m_condition;
+    std::deque<MdlSmokeBuildJob>          m_jobs;
+    std::set<uint_t>                      m_queuedShaderKeys;
+    std::set<uint_t>                      m_inFlightShaderKeys;
+    std::map<uint_t, MdlSmokeBuildResult> m_results;
+    bool                                  m_stop{};
+    std::thread                           m_thread;
+};
+
 #endif  // OTK_USE_MDL
 
 class PbrtProgramGroups : public ProgramGroups
@@ -394,6 +651,8 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t      getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
     uint_t      getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
 #ifdef OTK_USE_MDL
+    void              requestMdlSmokeBuild( const PhongMaterial& material, uint_t shaderKeyId );
+    bool              installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMaterialShader& shader );
     uint_t            getTriangleMdlSmokeMaterialSbtOffset();
     MdlMaterialShader realizeTriangleMdlSmokeMaterialShader( const PhongMaterial& material, uint_t shaderKeyId );
 #endif
@@ -410,6 +669,7 @@ class PbrtProgramGroups : public ProgramGroups
 #ifdef OTK_USE_MDL
     OptixModule                         m_mdlSmokeClosestHitModule{};
     std::vector<OptixModule>            m_mdlSmokeTintModules;
+    std::unique_ptr<MdlSmokeBuildWorker> m_mdlSmokeBuildWorker;
 #endif
     OptixModule                    m_triangleModule{};
     OptixModule                    m_sphereModule{};
@@ -430,14 +690,9 @@ class PbrtProgramGroups : public ProgramGroups
 
 OptixModule PbrtProgramGroups::createModule( const char* optixir, size_t optixirSize )
 {
-    const OptixModuleCompileOptions    compileOptions{ getCompileOptions() };
     const OptixPipelineCompileOptions& pipelineCompileOptions{ m_renderer->getPipelineCompileOptions() };
-
-    OptixModule        module;
-    OptixDeviceContext context = m_renderer->getDeviceContext();
-    OTK_ERROR_CHECK_LOG( optixModuleCreate( context, &compileOptions, &pipelineCompileOptions, optixir, optixirSize,
-                                            LOG, &LOG_SIZE, &module ) );
-    return module;
+    OptixDeviceContext                 context = m_renderer->getDeviceContext();
+    return createOptixModule( context, pipelineCompileOptions, optixir, optixirSize );
 }
 
 void PbrtProgramGroups::createModules()
@@ -494,6 +749,7 @@ void PbrtProgramGroups::initialize()
 void PbrtProgramGroups::cleanup()
 {
 #ifdef OTK_USE_MDL
+    m_mdlSmokeBuildWorker.reset();
     for( OptixProgramGroup group : m_callableProgramGroups )
     {
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
@@ -626,6 +882,17 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( cons
         return it->second;
     }
 
+    if( m_options.mdlSmokeDelay )
+    {
+        requestMdlSmokeBuild( material, shaderKeyId );
+        MdlMaterialShader shader{};
+        if( installPendingMdlSmokeBuild( shaderKeyId, shader ) )
+        {
+            return shader;
+        }
+        throw MdlMaterialBuildPending( "MDL smoke material build is still pending" );
+    }
+
     const Stopwatch   compileTimer;
     const std::string ptx{ compileMdlSmokeTintPtx( material ) };
     const double      compileTime{ compileTimer.elapsed() };
@@ -696,6 +963,75 @@ void PbrtProgramGroups::ensurePhongModule()
 }
 
 #ifdef OTK_USE_MDL
+void PbrtProgramGroups::requestMdlSmokeBuild( const PhongMaterial& material, uint_t shaderKeyId )
+{
+    if( !m_options.mdlSmokeDelay )
+    {
+        return;
+    }
+    if( m_mdlMaterialShaders.count( shaderKeyId ) )
+    {
+        return;
+    }
+
+    CUcontext cudaContext{};
+    OTK_ERROR_CHECK( cuCtxGetCurrent( &cudaContext ) );
+    if( !m_mdlSmokeBuildWorker )
+    {
+        m_mdlSmokeBuildWorker.reset( new MdlSmokeBuildWorker{} );
+    }
+
+    MdlSmokeBuildJob job{};
+    job.shaderKeyId            = shaderKeyId;
+    job.material               = material;
+    job.cudaContext            = cudaContext;
+    job.optixContext           = m_renderer->getDeviceContext();
+    job.pipelineCompileOptions = m_renderer->getPipelineCompileOptions();
+    job.programGroups          = m_programGroups;
+    job.callableProgramGroups  = m_callableProgramGroups;
+    m_mdlSmokeBuildWorker->enqueue( job );
+}
+
+bool PbrtProgramGroups::installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMaterialShader& shader )
+{
+    if( !m_options.mdlSmokeDelay )
+    {
+        return false;
+    }
+    const std::map<uint_t, MdlMaterialShader>::const_iterator existing = m_mdlMaterialShaders.find( shaderKeyId );
+    if( existing != m_mdlMaterialShaders.end() )
+    {
+        shader = existing->second;
+        return true;
+    }
+    if( !m_mdlSmokeBuildWorker )
+    {
+        return false;
+    }
+
+    MdlSmokeBuildResult result{};
+    if( !m_mdlSmokeBuildWorker->takeResult( shaderKeyId, result ) )
+    {
+        return false;
+    }
+
+    if( !result.diagnostics.empty() )
+    {
+        throw std::runtime_error( result.diagnostics );
+    }
+
+    shader                            = result.shader;
+    m_mdlMaterialShaders[shaderKeyId] = shader;
+    m_mdlSmokeTintModules.push_back( result.tintModule );
+    m_programGroups         = std::move( result.programGroups );
+    m_callableProgramGroups = std::move( result.callableProgramGroups );
+    m_renderer->setPipelineState( result.pipeline, m_programGroups, m_callableProgramGroups );
+    result.tintModule           = nullptr;
+    result.callableProgramGroup = nullptr;
+    result.pipeline             = nullptr;
+    return true;
+}
+
 uint_t PbrtProgramGroups::getFallbackMaterialSbtOffset( const GeometryInstance& instance )
 {
     ensurePhongModule();

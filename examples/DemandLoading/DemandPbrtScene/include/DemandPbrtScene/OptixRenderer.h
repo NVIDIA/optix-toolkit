@@ -63,6 +63,11 @@ class OptixRenderer : public Renderer
     }
     void setProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
     void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
+#ifdef OTK_USE_MDL
+    void setPipelineState( OptixPipeline                         pipeline,
+                           const std::vector<OptixProgramGroup>& programGroups,
+                           const std::vector<OptixProgramGroup>& callableProgramGroups ) override;
+#endif
 
     void beforeLaunch( CUstream stream ) override;
     void launch( CUstream stream, uchar4* image ) override;

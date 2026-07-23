@@ -228,8 +228,8 @@ TEST_F( TestOptixRenderer, beforeFirstLaunchCreatesPipelineAndPacksSbtRecords )
                                  hasPrimitiveTypes( OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM | OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE
                                                     | OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE ),
                                  opacityMaps );
-    auto linkOptions    = AllOf( NotNull(), hasMaxTraceDepth( 1 ) );
-    auto programGroups  = NotNull();
+    auto linkOptions   = AllOf( NotNull(), hasMaxTraceDepth( 1 ) );
+    auto programGroups = NotNull();
     EXPECT_CALL( m_optix, pipelineCreate( m_fakeDeviceContext, compileOptions, linkOptions, programGroups,
                                           m_fakeProgramGroups.size(), NotNull(), NotNull(), NotNull() ) )
         .After( init )
@@ -254,6 +254,20 @@ TEST_F( TestOptixRenderer, beforeFirstLaunchCreatesPipelineAndPacksSbtRecords )
 
     m_renderer->beforeLaunch( m_stream );
 }
+
+#ifdef OTK_USE_MDL
+TEST_F( TestOptixRenderer, beforeLaunchUsesAdoptedPipelineStateWithoutRelinking )
+{
+    ExpectationSet init = expectInitialize();
+    for( OptixProgramGroup group : m_fakeProgramGroups )
+    {
+        EXPECT_CALL( m_optix, sbtRecordPackHeader( group, NotNull() ) ).After( init ).WillOnce( Return( OPTIX_SUCCESS ) );
+    }
+    m_renderer->setPipelineState( fakePipeline, m_fakeProgramGroups, {} );
+
+    m_renderer->beforeLaunch( m_stream );
+}
+#endif
 
 ListenerPredicate<Params> hasImage( uchar4* image )
 {

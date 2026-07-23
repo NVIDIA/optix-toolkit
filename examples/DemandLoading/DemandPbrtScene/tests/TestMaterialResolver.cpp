@@ -719,7 +719,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCanRenderFall
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
-    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) ).Times( 0 );
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) )
+        .WillOnce( Throw( MdlMaterialBuildPending( "queued" ) ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
@@ -742,6 +743,30 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCanRenderFall
     EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
     EXPECT_EQ( 1U, stats.mdlShaders.numQueuedShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
+
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) )
+        .WillOnce( Throw( MdlMaterialBuildPending( "still building" ) ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).Times( 0 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 0 );
+
+    const MaterialResolution pendingResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::NONE, pendingResult );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlPendingState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+
+    stats = m_resolver->getStatistics();
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompletedCompiles );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompilingShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
 

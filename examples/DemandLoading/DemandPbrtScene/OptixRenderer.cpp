@@ -55,6 +55,23 @@ void OptixRenderer::setCallableProgramGroups( const std::vector<OptixProgramGrou
     m_sbtChanged            = true;
 }
 
+#ifdef OTK_USE_MDL
+void OptixRenderer::setPipelineState( OptixPipeline                         pipeline,
+                                      const std::vector<OptixProgramGroup>& programGroups,
+                                      const std::vector<OptixProgramGroup>& callableProgramGroups )
+{
+    if( m_pipeline )
+    {
+        OTK_ERROR_CHECK( optixPipelineDestroy( m_pipeline ) );
+    }
+    m_pipeline              = pipeline;
+    m_programGroups         = programGroups;
+    m_callableProgramGroups = callableProgramGroups;
+    m_pipelineChanged       = false;
+    m_sbtChanged            = true;
+}
+#endif
+
 void OptixRenderer::createOptixContext()
 {
     CUcontext                 cuCtx{};  // zero means take the current context

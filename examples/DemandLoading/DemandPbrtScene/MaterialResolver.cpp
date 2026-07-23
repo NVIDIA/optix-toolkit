@@ -217,6 +217,10 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
         }
         m_mdlShaderCompileCache.markReady( shaderKey );
     }
+    catch( const MdlMaterialBuildPending& )
+    {
+        return MaterialResolution::NONE;
+    }
     catch( const std::exception& e )
     {
         m_mdlShaderCompileCache.markFailed( shaderKey, e.what() );
@@ -292,8 +296,26 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     {
         if( m_options.mdlSmokeDelay )
         {
-            queuePending();
-            return fallbackState( MaterialBackend::MDL_PENDING );
+            try
+            {
+                bindMdlShader();
+                m_mdlShaderCompileCache.markReady( shaderKey );
+                return mdlSmokeState( materialId, shaderKeyId );
+            }
+            catch( const MdlMaterialBuildPending& )
+            {
+                queuePending();
+                return fallbackState( MaterialBackend::MDL_PENDING );
+            }
+            catch( const std::exception& e )
+            {
+                m_mdlShaderCompileCache.markFailed( shaderKey, e.what() );
+            }
+            catch( ... )
+            {
+                m_mdlShaderCompileCache.markFailed( shaderKey, "Unknown MDL shader compile failure" );
+            }
+            return fallbackState( MaterialBackend::MDL_FAILED );
         }
         m_mdlShaderCompileCache.markCompiling( shaderKey );
     }
@@ -475,7 +497,13 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
 {
     MaterialResolution resolution{ MaterialResolution::NONE };
 #ifdef OTK_USE_MDL
+    const bool hadPendingMdlMaterial{ !m_pendingMdlMaterials.empty() };
     resolution = resolvePendingMdlMaterial( syncState );
+
+    if( hadPendingMdlMaterial && resolution == MaterialResolution::NONE )
+    {
+        return MaterialResolution::NONE;
+    }
 #endif
 
     if( resolution == MaterialResolution::NONE && m_options.oneShotMaterial && !m_resolveOneMaterial )

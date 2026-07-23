@@ -8,12 +8,26 @@
 #include "DemandPbrtScene/Dependencies.h"
 #ifdef OTK_USE_MDL
 #include "DemandPbrtScene/Params.h"
+
+#include <stdexcept>
+#include <string>
 #endif
 
 namespace demandPbrtScene {
 
 struct GeometryInstance;
 struct Options;
+
+#ifdef OTK_USE_MDL
+class MdlMaterialBuildPending : public std::runtime_error
+{
+  public:
+    explicit MdlMaterialBuildPending( const std::string& message )
+        : std::runtime_error( message )
+    {
+    }
+};
+#endif
 
 class ProgramGroups
 {
