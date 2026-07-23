@@ -219,6 +219,228 @@ std::string stableHash( const std::string& text )
     return out.str();
 }
 
+struct TextureLookup
+{
+    std::string                   graphKey;
+    const otk::pbrt::PbrtTexture* texture;
+};
+
+TextureLookup findTexture( const otk::pbrt::PbrtMaterialGraph& graph, const std::string& textureName, const std::string& preferredValueType )
+{
+    TextureLookup fallback{ std::string{}, nullptr };
+    for( otk::pbrt::PbrtTextureMap::const_iterator it = graph.textures.begin(); it != graph.textures.end(); ++it )
+    {
+        if( it->second.name != textureName )
+        {
+            continue;
+        }
+        if( preferredValueType.empty() || it->second.valueType == preferredValueType )
+        {
+            return TextureLookup{ it->first, &it->second };
+        }
+        if( fallback.texture == nullptr )
+        {
+            fallback = TextureLookup{ it->first, &it->second };
+        }
+    }
+    return fallback;
+}
+
+std::string textureKind( const otk::pbrt::PbrtTexture& texture )
+{
+    return texture.valueType + ":" + texture.type;
+}
+
+bool isUnsupportedProceduralTexture( const otk::pbrt::PbrtTexture& texture )
+{
+    return texture.type == "marble" || texture.type == "fbm" || texture.type == "windy" || texture.type == "wrinkled";
+}
+
+class MdlTextureGraphGenerator
+{
+  public:
+    MdlTextureGraphGenerator( const otk::pbrt::PbrtMaterialGraph& graph, GeneratedMdlSource& result )
+        : m_graph( graph )
+        , m_result( result )
+    {
+        for( std::vector<std::string>::const_iterator it = m_graph.fallbackReasons.begin();
+             it != m_graph.fallbackReasons.end(); ++it )
+        {
+            addUnsupportedReason( "PBRT material graph fallback: " + *it );
+        }
+    }
+
+    std::string materialTextureExpression( const ::pbrt::ParamSet& params, const std::string& paramName, const std::string& preferredValueType )
+    {
+        const std::string textureName{ params.FindTexture( paramName ) };
+        if( textureName.empty() )
+        {
+            return "color(0.8, 0.8, 0.8)";
+        }
+        return textureReference( textureName, preferredValueType );
+    }
+
+    std::string sourcePreamble() const
+    {
+        std::ostringstream out;
+        if( m_usesImageMap )
+        {
+            out << "color pbrt_demand_texture_2d(int texture_id) = color(0.8, 0.8, 0.8);\n";
+        }
+        if( m_usesCheckerboard )
+        {
+            out << "color pbrt_checkerboard_2d(color tex1, color tex2) = (tex1 + tex2) * 0.5;\n";
+        }
+        if( m_usesUnsupported )
+        {
+            out << "color pbrt_unsupported_texture() = color(1.0, 0.0, 1.0);\n";
+        }
+        if( !m_usesImageMap && !m_usesCheckerboard && !m_usesUnsupported )
+        {
+            return std::string{};
+        }
+        out << "\n";
+        return out.str();
+    }
+
+    std::string functionDefinitions() const
+    {
+        std::ostringstream out;
+        for( std::vector<std::string>::const_iterator it = m_functions.begin(); it != m_functions.end(); ++it )
+        {
+            out << *it << "\n";
+        }
+        return out.str();
+    }
+
+  private:
+    std::string textureReference( const std::string& textureName, const std::string& preferredValueType )
+    {
+        const TextureLookup lookup{ findTexture( m_graph, textureName, preferredValueType ) };
+        if( lookup.texture == nullptr )
+        {
+            addUnsupportedReason( "Missing PBRT texture '" + textureName + "'" );
+            return unsupportedTextureExpression();
+        }
+        if( contains( m_textureStack, lookup.graphKey ) )
+        {
+            addUnsupportedReason( "Recursive PBRT texture reference '" + textureName + "'" );
+            return unsupportedTextureExpression();
+        }
+
+        std::map<std::string, std::string>::const_iterator cached = m_textureFunctions.find( lookup.graphKey );
+        if( cached != m_textureFunctions.end() )
+        {
+            return cached->second + "()";
+        }
+
+        m_textureStack.push_back( lookup.graphKey );
+        const std::string functionName{ defineTextureFunction( lookup.graphKey, *lookup.texture ) };
+        m_textureStack.pop_back();
+        m_textureFunctions.insert( std::make_pair( lookup.graphKey, functionName ) );
+        return functionName + "()";
+    }
+
+    std::string defineTextureFunction( const std::string& /*graphKey*/, const otk::pbrt::PbrtTexture& texture )
+    {
+        const std::string functionName{ "texture_" + std::to_string( m_nextTextureFunction++ ) };
+        const std::string expression{ textureExpression( texture ) };
+
+        std::ostringstream out;
+        out << "// pbrt texture node: " << textureKind( texture ) << "\n";
+        if( texture.type == "imagemap" )
+        {
+            out << "// demand texture parameter: texture_2d image_" << ( m_nextImageParameter - 1U ) << "\n";
+        }
+        out << "color " << functionName << "() = " << expression << ";\n";
+        m_functions.push_back( out.str() );
+        return functionName;
+    }
+
+    std::string textureExpression( const otk::pbrt::PbrtTexture& texture )
+    {
+        if( texture.type == "imagemap" )
+        {
+            m_usesImageMap = true;
+            return "pbrt_demand_texture_2d(" + std::to_string( m_nextImageParameter++ ) + ")";
+        }
+        if( texture.type == "constant" )
+        {
+            return defaultColorExpression();
+        }
+        if( texture.type == "scale" )
+        {
+            const std::string tex1{ textureInputExpression( texture, "tex1", defaultColorExpression() ) };
+            const std::string tex2{ textureInputExpression( texture, "tex2", defaultColorExpression() ) };
+            return tex1 + " * " + tex2;
+        }
+        if( texture.type == "mix" )
+        {
+            const std::string tex1{ textureInputExpression( texture, "tex1", defaultColorExpression() ) };
+            const std::string tex2{ textureInputExpression( texture, "tex2", defaultColorExpression() ) };
+            return tex1 + " * (1.0 - 0.5) + " + tex2 + " * 0.5";
+        }
+        if( texture.type == "checkerboard" )
+        {
+            if( texture.params.FindOneString( "dimension", "2d" ) != "2d" )
+            {
+                addUnsupportedReason( "Unsupported PBRT checkerboard dimension in " + textureKind( texture ) );
+                return unsupportedTextureExpression();
+            }
+            m_usesCheckerboard = true;
+            const std::string tex1{ textureInputExpression( texture, "tex1", "color(1.0, 1.0, 1.0)" ) };
+            const std::string tex2{ textureInputExpression( texture, "tex2", "color(0.0, 0.0, 0.0)" ) };
+            return "pbrt_checkerboard_2d(" + tex1 + ", " + tex2 + ")";
+        }
+
+        if( isUnsupportedProceduralTexture( texture ) )
+        {
+            addUnsupportedReason( "Unsupported PBRT texture type " + textureKind( texture ) );
+            return unsupportedTextureExpression();
+        }
+
+        addUnsupportedReason( "Unsupported PBRT texture type " + textureKind( texture ) );
+        return unsupportedTextureExpression();
+    }
+
+    std::string textureInputExpression( const otk::pbrt::PbrtTexture& texture, const std::string& paramName, const std::string& defaultExpression )
+    {
+        const std::string textureName{ texture.params.FindTexture( paramName ) };
+        if( textureName.empty() )
+        {
+            return defaultExpression;
+        }
+        return textureReference( textureName, texture.valueType );
+    }
+
+    std::string unsupportedTextureExpression()
+    {
+        m_usesUnsupported = true;
+        return "pbrt_unsupported_texture()";
+    }
+
+    static std::string defaultColorExpression() { return "color(1.0, 1.0, 1.0)"; }
+
+    void addUnsupportedReason( const std::string& reason )
+    {
+        if( !contains( m_result.unsupportedReasons, reason ) )
+        {
+            m_result.unsupportedReasons.push_back( reason );
+        }
+    }
+
+    const otk::pbrt::PbrtMaterialGraph& m_graph;
+    GeneratedMdlSource&                 m_result;
+    std::vector<std::string>            m_textureStack;
+    std::map<std::string, std::string>  m_textureFunctions;
+    std::vector<std::string>            m_functions;
+    unsigned int                        m_nextTextureFunction{};
+    unsigned int                        m_nextImageParameter{};
+    bool                                m_usesImageMap{};
+    bool                                m_usesCheckerboard{};
+    bool                                m_usesUnsupported{};
+};
+
 GeneratedMdlSource generateSource( const MdlShaderKey& key )
 {
     const std::string suffix{ stableHash( key.signature ) };
@@ -275,6 +497,40 @@ MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material )
     appendMaterialSignature( signature, material.type, material.params, material.graph, materialStack, textureStack );
 
     return MdlShaderKey{ signature.str() };
+}
+
+GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
+{
+    const MdlShaderKey key{ makeMdlShaderKey( material ) };
+    const std::string  suffix{ stableHash( key.signature ) };
+
+    GeneratedMdlSource result;
+    result.moduleName   = "::otk::demand_pbrt_scene::pbrt_" + suffix;
+    result.materialName = "material_" + suffix;
+
+    MdlTextureGraphGenerator textureGraph{ material.graph, result };
+    const std::string        tintExpression{ textureGraph.materialTextureExpression( material.params, "Kd", "color" ) };
+
+    std::ostringstream source;
+    source << "mdl 1.6;\n"
+           << "import ::df::*;\n"
+           << "\n";
+    for( std::vector<std::string>::const_iterator it = result.unsupportedReasons.begin();
+         it != result.unsupportedReasons.end(); ++it )
+    {
+        source << "// unsupported: " << *it << "\n";
+    }
+    if( !result.unsupportedReasons.empty() )
+    {
+        source << "\n";
+    }
+    source << textureGraph.sourcePreamble() << textureGraph.functionDefinitions() << "export material "
+           << result.materialName << "() = material(\n"
+           << "    surface: material_surface(\n"
+           << "        scattering: ::df::diffuse_reflection_bsdf(\n"
+           << "            tint: " << tintExpression << ")));\n";
+    result.source = source.str();
+    return result;
 }
 
 MdlShaderCompileRecord& MdlShaderCompileCache::getMutableRecord( const MdlShaderKey& key )
@@ -408,6 +664,17 @@ const GeneratedMdlSource& MdlGeneratedSourceCache::getSource( const MdlShaderKey
     if( it == m_sources.end() )
     {
         it = m_sources.insert( std::make_pair( key, generateSource( key ) ) ).first;
+    }
+    return it->second;
+}
+
+const GeneratedMdlSource& MdlGeneratedSourceCache::getSource( const otk::pbrt::PbrtMaterial& material )
+{
+    const MdlShaderKey                                   key{ makeMdlShaderKey( material ) };
+    std::map<MdlShaderKey, GeneratedMdlSource>::iterator it = m_sources.find( key );
+    if( it == m_sources.end() )
+    {
+        it = m_sources.insert( std::make_pair( key, generateMdlSource( material ) ) ).first;
     }
     return it->second;
 }

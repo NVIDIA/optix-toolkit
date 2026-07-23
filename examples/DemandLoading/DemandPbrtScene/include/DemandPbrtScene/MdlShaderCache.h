@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace demandPbrtScene {
 
@@ -31,10 +32,13 @@ MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material );
 
 struct GeneratedMdlSource
 {
-    std::string moduleName;
-    std::string materialName;
-    std::string source;
+    std::string              moduleName;
+    std::string              materialName;
+    std::string              source;
+    std::vector<std::string> unsupportedReasons;
 };
+
+GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material );
 
 enum class MdlShaderCompileState
 {
@@ -81,6 +85,7 @@ class MdlGeneratedSourceCache
 {
   public:
     const GeneratedMdlSource& getSource( const MdlShaderKey& key );
+    const GeneratedMdlSource& getSource( const otk::pbrt::PbrtMaterial& material );
     bool                      contains( const MdlShaderKey& key ) const;
     std::size_t               size() const;
     void                      clear();
