@@ -14,6 +14,8 @@ struct MdlShaderCompileCacheStatistics
 {
     unsigned int numShaderRequests{};
     unsigned int numShaderCacheHits{};
+    unsigned int numSourceCacheHits{};
+    unsigned int numMaterialInstanceCacheHits{};
     unsigned int numCompileRequests{};
     unsigned int numCompletedCompiles{};
     unsigned int numMissingShaders{};

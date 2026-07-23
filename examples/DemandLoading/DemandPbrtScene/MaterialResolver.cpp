@@ -97,7 +97,7 @@ class PbrtMaterialResolver : public MaterialResolver
 #ifdef OTK_USE_MDL
     MaterialResolution resolvePendingMdlMaterial( SceneSyncState& sync );
     MaterialState resolveMdlMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
-    void                  queuePendingMdlMaterial( const MdlShaderKey& key, const PendingMdlMaterial& material );
+    void queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material );
 #endif
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, const SceneSyncState& syncState ) const;
     bool                  resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
@@ -113,11 +113,11 @@ class PbrtMaterialResolver : public MaterialResolver
     DemandTextureCachePtr m_demandTextureCache;
     ProgramGroupsPtr      m_programGroups;
 
-    bool                               m_resolveOneMaterial{};
-    MaterialResolverStats              m_stats{};
+    bool                  m_resolveOneMaterial{};
+    MaterialResolverStats m_stats{};
 #ifdef OTK_USE_MDL
-    MdlShaderCompileCache              m_mdlShaderCompileCache;
-    std::map<MdlShaderKey, std::vector<PendingMdlMaterial>> m_pendingMdlMaterials;
+    MdlShaderCompileCache                                             m_mdlShaderCompileCache;
+    std::map<MdlMaterialInstanceKey, std::vector<PendingMdlMaterial>> m_pendingMdlMaterials;
 #endif
     std::map<uint_t, SceneGeometryPtr> m_proxyMaterialGeometries;  // indexed by proxy material id
 };
@@ -154,13 +154,14 @@ bool usesMdlSmokeMaterial( const Options& options, const GeometryInstance& insta
            && group.material.flags == MaterialFlags::NONE;
 }
 
-MdlShaderKey makeMaterialGroupMdlShaderKey( const MaterialGroup& group )
+MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )
 {
     if( group.pbrtMaterial )
     {
-        return makeMdlShaderKey( *group.pbrtMaterial );
+        return makeMdlMaterialInstanceKey( *group.pbrtMaterial );
     }
-    return MdlShaderKey{ "pbrt-mdl-v1|missing-pbrt-material" };
+    const MdlShaderKey sourceKey{ "pbrt-mdl-v1|missing-pbrt-material" };
+    return MdlMaterialInstanceKey{ sourceKey, "pbrt-mdl-instance-v1|missing-pbrt-material" };
 }
 #endif
 
@@ -182,7 +183,7 @@ bool isReadyLocalFallback( const SceneSyncState& sync, uint_t materialId )
 }
 
 #ifdef OTK_USE_MDL
-void PbrtMaterialResolver::queuePendingMdlMaterial( const MdlShaderKey& key, const PendingMdlMaterial& material )
+void PbrtMaterialResolver::queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material )
 {
     std::vector<PendingMdlMaterial>& materials{ m_pendingMdlMaterials[key] };
     const auto exists = std::find_if( materials.begin(), materials.end(), [&]( const PendingMdlMaterial& pending ) {
@@ -201,12 +202,12 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
         return MaterialResolution::NONE;
     }
 
-    const MdlShaderKey                    shaderKey{ m_pendingMdlMaterials.begin()->first };
+    const MdlMaterialInstanceKey          materialKey{ m_pendingMdlMaterials.begin()->first };
     const std::vector<PendingMdlMaterial> pendingMaterials{ m_pendingMdlMaterials.begin()->second };
     const PendingMdlMaterial&             firstMaterial{ pendingMaterials.front() };
     try
     {
-        m_mdlShaderCompileCache.markCompiling( shaderKey );
+        m_mdlShaderCompileCache.markCompiling( materialKey );
         const MdlMaterialShader shader{ m_programGroups->realizeMdlMaterialShader( firstMaterial.instance, firstMaterial.shaderKeyId ) };
         grow( sync.mdlMaterialShaders, firstMaterial.shaderKeyId + 1 );
         sync.mdlMaterialShaders[firstMaterial.shaderKeyId] = shader;
@@ -215,7 +216,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
             OTK_ASSERT( material.shaderKeyId == firstMaterial.shaderKeyId );
             setMaterialState( sync, material.materialId, mdlSmokeState( material.materialId, material.shaderKeyId ) );
         }
-        m_mdlShaderCompileCache.markReady( shaderKey );
+        m_mdlShaderCompileCache.markReady( materialKey );
     }
     catch( const MdlMaterialBuildPending& )
     {
@@ -223,7 +224,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     }
     catch( const std::exception& e )
     {
-        m_mdlShaderCompileCache.markFailed( shaderKey, e.what() );
+        m_mdlShaderCompileCache.markFailed( materialKey, e.what() );
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
             setMaterialState( sync, material.materialId,
@@ -233,7 +234,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     }
     catch( ... )
     {
-        m_mdlShaderCompileCache.markFailed( shaderKey, "Unknown MDL shader compile failure" );
+        m_mdlShaderCompileCache.markFailed( materialKey, "Unknown MDL shader compile failure" );
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
             setMaterialState( sync, material.materialId,
@@ -242,7 +243,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
         }
     }
 
-    m_pendingMdlMaterials.erase( shaderKey );
+    m_pendingMdlMaterials.erase( materialKey );
     return MaterialResolution::FULL;
 }
 
@@ -251,8 +252,8 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
                                                              const MaterialGroup& group,
                                                              uint_t               materialId )
 {
-    const MdlShaderKey            shaderKey{ makeMaterialGroupMdlShaderKey( group ) };
-    const MdlShaderCompileRecord& record{ m_mdlShaderCompileCache.getRecord( shaderKey ) };
+    const MdlMaterialInstanceKey  materialKey{ makeMaterialGroupMdlMaterialInstanceKey( group ) };
+    const MdlShaderCompileRecord& record{ m_mdlShaderCompileCache.getRecord( materialKey ) };
     const uint_t                  shaderKeyId{ record.shaderKeyId };
     const MdlShaderCompileState   state{ record.state };
     const auto                    bindMdlProgram = [&]() {
@@ -264,7 +265,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
         return makeMaterialState( materialId, backend, shaderKeyId );
     };
     const auto queuePending = [&]() {
-        queuePendingMdlMaterial( shaderKey, PendingMdlMaterial{ instance, materialId, shaderKeyId } );
+        queuePendingMdlMaterial( materialKey, PendingMdlMaterial{ instance, materialId, shaderKeyId } );
     };
     const auto bindMdlShader = [&]() {
         const MdlMaterialShader shader{ m_programGroups->realizeMdlMaterialShader( instance, shaderKeyId ) };
@@ -292,14 +293,14 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
             break;
     }
 
-    if( m_mdlShaderCompileCache.requestCompile( shaderKey ) )
+    if( m_mdlShaderCompileCache.requestCompile( materialKey ) )
     {
         if( m_options.mdlSmokeDelay )
         {
             try
             {
                 bindMdlShader();
-                m_mdlShaderCompileCache.markReady( shaderKey );
+                m_mdlShaderCompileCache.markReady( materialKey );
                 return mdlSmokeState( materialId, shaderKeyId );
             }
             catch( const MdlMaterialBuildPending& )
@@ -309,30 +310,30 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
             }
             catch( const std::exception& e )
             {
-                m_mdlShaderCompileCache.markFailed( shaderKey, e.what() );
+                m_mdlShaderCompileCache.markFailed( materialKey, e.what() );
             }
             catch( ... )
             {
-                m_mdlShaderCompileCache.markFailed( shaderKey, "Unknown MDL shader compile failure" );
+                m_mdlShaderCompileCache.markFailed( materialKey, "Unknown MDL shader compile failure" );
             }
             return fallbackState( MaterialBackend::MDL_FAILED );
         }
-        m_mdlShaderCompileCache.markCompiling( shaderKey );
+        m_mdlShaderCompileCache.markCompiling( materialKey );
     }
 
     try
     {
         bindMdlShader();
-        m_mdlShaderCompileCache.markReady( shaderKey );
+        m_mdlShaderCompileCache.markReady( materialKey );
         return mdlSmokeState( materialId, shaderKeyId );
     }
     catch( const std::exception& e )
     {
-        m_mdlShaderCompileCache.markFailed( shaderKey, e.what() );
+        m_mdlShaderCompileCache.markFailed( materialKey, e.what() );
     }
     catch( ... )
     {
-        m_mdlShaderCompileCache.markFailed( shaderKey, "Unknown MDL shader compile failure" );
+        m_mdlShaderCompileCache.markFailed( materialKey, "Unknown MDL shader compile failure" );
     }
 
     return fallbackState( MaterialBackend::MDL_FAILED );

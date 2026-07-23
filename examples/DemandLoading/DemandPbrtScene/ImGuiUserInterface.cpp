@@ -216,6 +216,8 @@ void ImGuiUserInterface::renderSceneStatistics() const
             const MdlShaderCompileCacheStatistics& mdl{ materials.mdlShaders };
             ImGui::Text( "Shader requests: %u", mdl.numShaderRequests );
             ImGui::Text( "Shader cache hits: %u", mdl.numShaderCacheHits );
+            ImGui::Text( "Source cache hits: %u", mdl.numSourceCacheHits );
+            ImGui::Text( "Material instance cache hits: %u", mdl.numMaterialInstanceCacheHits );
             ImGui::Text( "Compile requests: %u", mdl.numCompileRequests );
             ImGui::Text( "Completed compiles: %u", mdl.numCompletedCompiles );
             ImGui::Text( "Missing shaders: %u", mdl.numMissingShaders );

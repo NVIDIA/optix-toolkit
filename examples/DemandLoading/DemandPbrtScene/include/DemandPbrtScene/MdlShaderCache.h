@@ -30,6 +30,18 @@ bool operator<( const MdlShaderKey& lhs, const MdlShaderKey& rhs );
 std::string  toString( const MdlShaderKey& key );
 MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material );
 
+struct MdlMaterialInstanceKey
+{
+    MdlShaderKey sourceKey;
+    std::string  signature;
+};
+
+bool operator==( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
+bool operator!=( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
+bool operator<( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
+
+std::string            toString( const MdlMaterialInstanceKey& key );
+MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial& material );
 struct GeneratedMdlSource
 {
     std::string              moduleName;
@@ -52,6 +64,7 @@ enum class MdlShaderCompileState
 struct MdlShaderCompileRecord
 {
     MdlShaderCompileState state{ MdlShaderCompileState::MISSING };
+    MdlShaderKey          sourceKey;
     unsigned int          shaderKeyId{};
     std::string           diagnostics;
 };
@@ -59,26 +72,27 @@ struct MdlShaderCompileRecord
 class MdlShaderCompileCache
 {
   public:
-    const MdlShaderCompileRecord& getRecord( const MdlShaderKey& key );
-    MdlShaderCompileState         state( const MdlShaderKey& key ) const;
-    unsigned int                  shaderKeyId( const MdlShaderKey& key ) const;
-    std::string                   diagnostics( const MdlShaderKey& key ) const;
+    const MdlShaderCompileRecord& getRecord( const MdlMaterialInstanceKey& key );
+    MdlShaderCompileState         state( const MdlMaterialInstanceKey& key ) const;
+    unsigned int                  shaderKeyId( const MdlMaterialInstanceKey& key ) const;
+    std::string                   diagnostics( const MdlMaterialInstanceKey& key ) const;
 
-    bool requestCompile( const MdlShaderKey& key );
-    void markCompiling( const MdlShaderKey& key );
-    void markReady( const MdlShaderKey& key );
-    void markFailed( const MdlShaderKey& key, const std::string& diagnostics );
+    bool requestCompile( const MdlMaterialInstanceKey& key );
+    void markCompiling( const MdlMaterialInstanceKey& key );
+    void markReady( const MdlMaterialInstanceKey& key );
+    void markFailed( const MdlMaterialInstanceKey& key, const std::string& diagnostics );
 
     MdlShaderCompileCacheStatistics getStatistics() const;
     std::size_t                     size() const;
     void                            clear();
 
   private:
-    MdlShaderCompileRecord& getMutableRecord( const MdlShaderKey& key );
+    MdlShaderCompileRecord& getMutableRecord( const MdlMaterialInstanceKey& key );
 
-    std::map<MdlShaderKey, MdlShaderCompileRecord> m_records;
-    MdlShaderCompileCacheStatistics                m_stats{};
-    unsigned int                                   m_nextShaderKeyId{ 1U };
+    std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord> m_records;
+    std::map<MdlShaderKey, unsigned int>                     m_sourceKeyUseCounts;
+    MdlShaderCompileCacheStatistics                          m_stats{};
+    unsigned int                                             m_nextShaderKeyId{ 1U };
 };
 
 class MdlGeneratedSourceCache

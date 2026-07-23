@@ -217,6 +217,142 @@ void appendMaterialSignature( std::ostringstream&                 out,
     out << ")";
 }
 
+std::string paramSetToString( const ::pbrt::ParamSet& params )
+{
+    ::pbrt::ParamSet copy{ params };
+    return copy.ToString();
+}
+
+void appendTextureInstanceSignature( std::ostringstream&                 out,
+                                     const std::string&                  graphKey,
+                                     const otk::pbrt::PbrtTexture&       texture,
+                                     const otk::pbrt::PbrtMaterialGraph& graph,
+                                     std::vector<std::string>&           textureStack );
+
+void appendTextureInstanceReference( std::ostringstream&                 out,
+                                     const std::string&                  paramName,
+                                     const std::string&                  textureName,
+                                     const otk::pbrt::PbrtMaterialGraph& graph,
+                                     std::vector<std::string>&           textureStack )
+{
+    out << "|texture-ref(" << paramName << ")=" << textureName << ':';
+    bool found{ false };
+    for( otk::pbrt::PbrtTextureMap::const_iterator it = graph.textures.begin(); it != graph.textures.end(); ++it )
+    {
+        if( it->second.name == textureName )
+        {
+            if( found )
+                out << ",";
+            appendTextureInstanceSignature( out, it->first, it->second, graph, textureStack );
+            found = true;
+        }
+    }
+    if( !found )
+    {
+        out << "missing";
+    }
+}
+
+void appendTextureInstanceReferences( std::ostringstream&                 out,
+                                      const ::pbrt::ParamSet&             params,
+                                      const std::vector<std::string>&     paramNames,
+                                      const otk::pbrt::PbrtMaterialGraph& graph,
+                                      std::vector<std::string>&           textureStack )
+{
+    for( std::vector<std::string>::const_iterator it = paramNames.begin(); it != paramNames.end(); ++it )
+    {
+        const std::string textureName{ params.FindTexture( *it ) };
+        if( !textureName.empty() )
+        {
+            appendTextureInstanceReference( out, *it, textureName, graph, textureStack );
+        }
+    }
+}
+
+void appendMaterialInstanceSignature( std::ostringstream&                 out,
+                                      const std::string&                  type,
+                                      const ::pbrt::ParamSet&             params,
+                                      const otk::pbrt::PbrtMaterialGraph& graph,
+                                      std::vector<std::string>&           materialStack,
+                                      std::vector<std::string>&           textureStack );
+
+void appendMaterialInstanceReference( std::ostringstream&                 out,
+                                      const std::string&                  paramName,
+                                      const std::string&                  materialName,
+                                      const otk::pbrt::PbrtMaterialGraph& graph,
+                                      std::vector<std::string>&           materialStack,
+                                      std::vector<std::string>&           textureStack )
+{
+    out << "|material-ref(" << paramName << ")=" << materialName << ':';
+    if( contains( materialStack, materialName ) )
+    {
+        out << "recursive";
+        return;
+    }
+
+    const otk::pbrt::PbrtNamedMaterialMap::const_iterator material = graph.namedMaterials.find( materialName );
+    if( material == graph.namedMaterials.end() )
+    {
+        out << "missing";
+        return;
+    }
+
+    materialStack.push_back( materialName );
+    appendMaterialInstanceSignature( out, material->second.type, material->second.params, graph, materialStack, textureStack );
+    materialStack.pop_back();
+}
+
+void appendMaterialInstanceReferences( std::ostringstream&                 out,
+                                       const ::pbrt::ParamSet&             params,
+                                       const otk::pbrt::PbrtMaterialGraph& graph,
+                                       std::vector<std::string>&           materialStack,
+                                       std::vector<std::string>&           textureStack )
+{
+    const std::vector<std::string>& paramNames{ namedMaterialParamNames() };
+    for( std::vector<std::string>::const_iterator it = paramNames.begin(); it != paramNames.end(); ++it )
+    {
+        const std::string materialName{ params.FindOneString( *it, std::string{} ) };
+        if( !materialName.empty() )
+        {
+            appendMaterialInstanceReference( out, *it, materialName, graph, materialStack, textureStack );
+        }
+    }
+}
+
+void appendTextureInstanceSignature( std::ostringstream&                 out,
+                                     const std::string&                  graphKey,
+                                     const otk::pbrt::PbrtTexture&       texture,
+                                     const otk::pbrt::PbrtMaterialGraph& graph,
+                                     std::vector<std::string>&           textureStack )
+{
+    if( contains( textureStack, graphKey ) )
+    {
+        out << "texture(key=" << graphKey << ",name=" << texture.name << ",kind=" << texture.valueType << ':'
+            << texture.type << ";recursive)";
+        return;
+    }
+
+    textureStack.push_back( graphKey );
+    out << "texture(key=" << graphKey << ",name=" << texture.name << ",kind=" << texture.valueType << ':'
+        << texture.type << "|params=" << paramSetToString( texture.params );
+    appendTextureInstanceReferences( out, texture.params, textureTextureParamNames(), graph, textureStack );
+    out << ")";
+    textureStack.pop_back();
+}
+
+void appendMaterialInstanceSignature( std::ostringstream&                 out,
+                                      const std::string&                  type,
+                                      const ::pbrt::ParamSet&             params,
+                                      const otk::pbrt::PbrtMaterialGraph& graph,
+                                      std::vector<std::string>&           materialStack,
+                                      std::vector<std::string>&           textureStack )
+{
+    out << "material(" << type << "|params=" << paramSetToString( params );
+    appendTextureInstanceReferences( out, params, materialTextureParamNames(), graph, textureStack );
+    appendMaterialInstanceReferences( out, params, graph, materialStack, textureStack );
+    out << ")";
+}
+
 std::string stableHash( const std::string& text )
 {
     std::uint64_t hash{ 14695981039346656037ULL };
@@ -1075,6 +1211,51 @@ MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material )
     return MdlShaderKey{ signature.str() };
 }
 
+bool operator==( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs )
+{
+    return lhs.sourceKey == rhs.sourceKey && lhs.signature == rhs.signature;
+}
+
+bool operator!=( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs )
+{
+    return !( lhs == rhs );
+}
+
+bool operator<( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs )
+{
+    if( lhs.sourceKey != rhs.sourceKey )
+    {
+        return lhs.sourceKey < rhs.sourceKey;
+    }
+    return lhs.signature < rhs.signature;
+}
+
+std::string toString( const MdlMaterialInstanceKey& key )
+{
+    return "source=" + toString( key.sourceKey ) + "|instance=" + key.signature;
+}
+
+MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial& material )
+{
+    MdlMaterialInstanceKey result;
+    result.sourceKey = makeMdlShaderKey( material );
+
+    std::ostringstream       signature;
+    std::vector<std::string> materialStack;
+    std::vector<std::string> textureStack;
+
+    signature << "pbrt-mdl-instance-v1";
+    for( std::vector<std::string>::const_iterator it = material.graph.fallbackReasons.begin();
+         it != material.graph.fallbackReasons.end(); ++it )
+    {
+        signature << "|graph-fallback=" << *it;
+    }
+    appendMaterialInstanceSignature( signature, material.type, material.params, material.graph, materialStack, textureStack );
+
+    result.signature = signature.str();
+    return result;
+}
+
 GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
 {
     const MdlShaderKey key{ makeMdlShaderKey( material ) };
@@ -1115,51 +1296,67 @@ GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material )
     return result;
 }
 
-MdlShaderCompileRecord& MdlShaderCompileCache::getMutableRecord( const MdlShaderKey& key )
+MdlShaderCompileRecord& MdlShaderCompileCache::getMutableRecord( const MdlMaterialInstanceKey& key )
 {
-    std::map<MdlShaderKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
+    std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
     if( it == m_records.end() )
     {
         MdlShaderCompileRecord record{};
+        record.sourceKey   = key.sourceKey;
         record.shaderKeyId = m_nextShaderKeyId++;
-        it                 = m_records.insert( std::make_pair( key, record ) ).first;
+
+        std::map<MdlShaderKey, unsigned int>::iterator source = m_sourceKeyUseCounts.find( key.sourceKey );
+        if( source == m_sourceKeyUseCounts.end() )
+        {
+            m_sourceKeyUseCounts.insert( std::make_pair( key.sourceKey, 1U ) );
+        }
+        else
+        {
+            ++source->second;
+            ++m_stats.numSourceCacheHits;
+            ++m_stats.numShaderCacheHits;
+        }
+
+        it = m_records.insert( std::make_pair( key, record ) ).first;
     }
     return it->second;
 }
 
-const MdlShaderCompileRecord& MdlShaderCompileCache::getRecord( const MdlShaderKey& key )
+const MdlShaderCompileRecord& MdlShaderCompileCache::getRecord( const MdlMaterialInstanceKey& key )
 {
     ++m_stats.numShaderRequests;
     if( m_records.find( key ) != m_records.end() )
     {
+        ++m_stats.numMaterialInstanceCacheHits;
         ++m_stats.numShaderCacheHits;
     }
     return getMutableRecord( key );
 }
 
-MdlShaderCompileState MdlShaderCompileCache::state( const MdlShaderKey& key ) const
+MdlShaderCompileState MdlShaderCompileCache::state( const MdlMaterialInstanceKey& key ) const
 {
-    std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
+    std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
     return it == m_records.end() ? MdlShaderCompileState::MISSING : it->second.state;
 }
 
-unsigned int MdlShaderCompileCache::shaderKeyId( const MdlShaderKey& key ) const
+unsigned int MdlShaderCompileCache::shaderKeyId( const MdlMaterialInstanceKey& key ) const
 {
-    std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
+    std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
     return it == m_records.end() ? 0U : it->second.shaderKeyId;
 }
 
-std::string MdlShaderCompileCache::diagnostics( const MdlShaderKey& key ) const
+std::string MdlShaderCompileCache::diagnostics( const MdlMaterialInstanceKey& key ) const
 {
-    std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
+    std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
     return it == m_records.end() ? std::string{} : it->second.diagnostics;
 }
 
-bool MdlShaderCompileCache::requestCompile( const MdlShaderKey& key )
+bool MdlShaderCompileCache::requestCompile( const MdlMaterialInstanceKey& key )
 {
-    std::map<MdlShaderKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
+    std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::iterator it = m_records.find( key );
     if( it != m_records.end() && it->second.state != MdlShaderCompileState::MISSING )
     {
+        ++m_stats.numMaterialInstanceCacheHits;
         ++m_stats.numShaderCacheHits;
         return false;
     }
@@ -1176,14 +1373,14 @@ bool MdlShaderCompileCache::requestCompile( const MdlShaderKey& key )
     return true;
 }
 
-void MdlShaderCompileCache::markCompiling( const MdlShaderKey& key )
+void MdlShaderCompileCache::markCompiling( const MdlMaterialInstanceKey& key )
 {
     MdlShaderCompileRecord& record = getMutableRecord( key );
     record.state                   = MdlShaderCompileState::COMPILING;
     record.diagnostics.clear();
 }
 
-void MdlShaderCompileCache::markReady( const MdlShaderKey& key )
+void MdlShaderCompileCache::markReady( const MdlMaterialInstanceKey& key )
 {
     MdlShaderCompileRecord& record = getMutableRecord( key );
     if( record.state != MdlShaderCompileState::READY )
@@ -1194,7 +1391,7 @@ void MdlShaderCompileCache::markReady( const MdlShaderKey& key )
     record.diagnostics.clear();
 }
 
-void MdlShaderCompileCache::markFailed( const MdlShaderKey& key, const std::string& diagnostics )
+void MdlShaderCompileCache::markFailed( const MdlMaterialInstanceKey& key, const std::string& diagnostics )
 {
     MdlShaderCompileRecord& record = getMutableRecord( key );
     record.state                   = MdlShaderCompileState::FAILED;
@@ -1204,7 +1401,8 @@ void MdlShaderCompileCache::markFailed( const MdlShaderKey& key, const std::stri
 MdlShaderCompileCacheStatistics MdlShaderCompileCache::getStatistics() const
 {
     MdlShaderCompileCacheStatistics stats{ m_stats };
-    for( std::map<MdlShaderKey, MdlShaderCompileRecord>::const_iterator it = m_records.begin(); it != m_records.end(); ++it )
+    for( std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.begin();
+         it != m_records.end(); ++it )
     {
         switch( it->second.state )
         {
@@ -1236,6 +1434,7 @@ std::size_t MdlShaderCompileCache::size() const
 void MdlShaderCompileCache::clear()
 {
     m_records.clear();
+    m_sourceKeyUseCounts.clear();
     m_stats           = MdlShaderCompileCacheStatistics{};
     m_nextShaderKeyId = 1U;
 }

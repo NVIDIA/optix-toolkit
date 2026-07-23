@@ -144,6 +144,8 @@ void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
     EXPECT_EQ( 0U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
@@ -660,6 +662,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCompilesShade
     EXPECT_EQ( 0U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
@@ -697,6 +701,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialFallsBackWhen
     EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
@@ -738,6 +744,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCanRenderFall
     EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
@@ -762,6 +770,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCanRenderFall
     EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );
@@ -789,6 +799,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedMdlMaterialCanRenderFall
     EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
     EXPECT_EQ( 1U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numMissingShaders );

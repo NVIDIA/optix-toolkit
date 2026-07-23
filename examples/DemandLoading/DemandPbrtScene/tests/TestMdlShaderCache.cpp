@@ -317,6 +317,33 @@ TEST( TestMdlShaderKey, parameterOnlyTextureChangesProduceSameKey )
                makeMdlShaderKey( texturedMatteMaterial( "imagemap", "second.png" ) ) );
 }
 
+TEST( TestMdlMaterialInstanceKey, parameterOnlyMaterialChangesProduceDifferentInstanceKeys )
+{
+    const PbrtMaterial first{ matteMaterial( 0.1f ) };
+    const PbrtMaterial second{ matteMaterial( 0.9f ) };
+
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( first ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( second ) };
+
+    EXPECT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    EXPECT_NE( firstKey, secondKey );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "0.1" ) );
+    EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "0.899" ) );
+}
+
+TEST( TestMdlMaterialInstanceKey, textureParameterValuesProduceDifferentInstanceKeys )
+{
+    const PbrtMaterial first{ texturedMatteMaterial( "imagemap", "first.png" ) };
+    const PbrtMaterial second{ texturedMatteMaterial( "imagemap", "second.png" ) };
+
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( first ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( second ) };
+
+    EXPECT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    EXPECT_NE( firstKey, secondKey );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "first.png" ) );
+    EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "second.png" ) );
+}
 TEST( TestMdlShaderKey, textureStructureChangesProduceDifferentKeys )
 {
     EXPECT_NE( makeMdlShaderKey( texturedMatteMaterial( "imagemap", "albedo.png" ) ),
@@ -635,11 +662,13 @@ TEST( TestMdlGeneratedSourceCache, materialSourceCacheIgnoresTextureParameterVal
 
 TEST( TestMdlShaderCompileCache, lookupCreatesMissingRecordWithoutQueueingCompile )
 {
-    MdlShaderCompileCache cache;
-    const MdlShaderKey    key{ makeMdlShaderKey( matteMaterial( 0.1f ) ) };
+    MdlShaderCompileCache        cache;
+    const PbrtMaterial           material{ matteMaterial( 0.1f ) };
+    const MdlMaterialInstanceKey key{ makeMdlMaterialInstanceKey( material ) };
 
     const MdlShaderCompileRecord& record{ cache.getRecord( key ) };
     EXPECT_EQ( MdlShaderCompileState::MISSING, record.state );
+    EXPECT_EQ( makeMdlShaderKey( material ), record.sourceKey );
     EXPECT_EQ( 1U, record.shaderKeyId );
     EXPECT_EQ( MdlShaderCompileState::MISSING, cache.state( key ) );
     EXPECT_EQ( 1U, cache.shaderKeyId( key ) );
@@ -648,6 +677,8 @@ TEST( TestMdlShaderCompileCache, lookupCreatesMissingRecordWithoutQueueingCompil
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
     EXPECT_EQ( 1U, stats.numShaderRequests );
     EXPECT_EQ( 0U, stats.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.numMaterialInstanceCacheHits );
     EXPECT_EQ( 0U, stats.numCompileRequests );
     EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 1U, stats.numMissingShaders );
@@ -657,21 +688,23 @@ TEST( TestMdlShaderCompileCache, lookupCreatesMissingRecordWithoutQueueingCompil
     EXPECT_EQ( 0U, stats.numFailedShaders );
 }
 
-TEST( TestMdlShaderCompileCache, duplicateRequestsDoNotQueueDuplicateCompiles )
+TEST( TestMdlShaderCompileCache, duplicateMaterialInstanceRequestsDoNotQueueDuplicateCompiles )
 {
-    MdlShaderCompileCache cache;
-    const MdlShaderKey    key{ makeMdlShaderKey( matteMaterial( 0.1f ) ) };
-    const MdlShaderKey    equivalentKey{ makeMdlShaderKey( matteMaterial( 0.9f ) ) };
+    MdlShaderCompileCache        cache;
+    const MdlMaterialInstanceKey key{ makeMdlMaterialInstanceKey( matteMaterial( 0.1f ) ) };
+    const MdlMaterialInstanceKey duplicateKey{ makeMdlMaterialInstanceKey( matteMaterial( 0.1f ) ) };
 
     EXPECT_TRUE( cache.requestCompile( key ) );
-    EXPECT_FALSE( cache.requestCompile( equivalentKey ) );
+    EXPECT_FALSE( cache.requestCompile( duplicateKey ) );
     EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( key ) );
-    EXPECT_EQ( 1U, cache.shaderKeyId( equivalentKey ) );
+    EXPECT_EQ( 1U, cache.shaderKeyId( duplicateKey ) );
     EXPECT_EQ( 1U, cache.size() );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
     EXPECT_EQ( 0U, stats.numShaderRequests );
     EXPECT_EQ( 1U, stats.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.numSourceCacheHits );
+    EXPECT_EQ( 1U, stats.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.numCompileRequests );
     EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );
@@ -681,11 +714,41 @@ TEST( TestMdlShaderCompileCache, duplicateRequestsDoNotQueueDuplicateCompiles )
     EXPECT_EQ( 0U, stats.numFailedShaders );
 }
 
+TEST( TestMdlShaderCompileCache, differentBoundValuesReuseSourceButQueueDistinctCompiles )
+{
+    MdlShaderCompileCache        cache;
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( matteMaterial( 0.1f ) ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( matteMaterial( 0.9f ) ) };
+
+    ASSERT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    ASSERT_NE( firstKey, secondKey );
+
+    EXPECT_TRUE( cache.requestCompile( firstKey ) );
+    EXPECT_TRUE( cache.requestCompile( secondKey ) );
+    EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( firstKey ) );
+    EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( secondKey ) );
+    EXPECT_NE( cache.shaderKeyId( firstKey ), cache.shaderKeyId( secondKey ) );
+    EXPECT_EQ( 2U, cache.size() );
+
+    const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
+    EXPECT_EQ( 0U, stats.numShaderRequests );
+    EXPECT_EQ( 1U, stats.numShaderCacheHits );
+    EXPECT_EQ( 1U, stats.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.numMaterialInstanceCacheHits );
+    EXPECT_EQ( 2U, stats.numCompileRequests );
+    EXPECT_EQ( 0U, stats.numCompletedCompiles );
+    EXPECT_EQ( 0U, stats.numMissingShaders );
+    EXPECT_EQ( 2U, stats.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.numCompilingShaders );
+    EXPECT_EQ( 0U, stats.numReadyShaders );
+    EXPECT_EQ( 0U, stats.numFailedShaders );
+}
+
 TEST( TestMdlShaderCompileCache, tracksCompileStateTransitions )
 {
-    MdlShaderCompileCache cache;
-    const MdlShaderKey    firstKey{ makeMdlShaderKey( matteMaterial( 0.1f ) ) };
-    const MdlShaderKey    secondKey{ makeMdlShaderKey( texturedMatteMaterial( "checkerboard", "" ) ) };
+    MdlShaderCompileCache        cache;
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( matteMaterial( 0.1f ) ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( texturedMatteMaterial( "checkerboard", "" ) ) };
 
     EXPECT_TRUE( cache.requestCompile( firstKey ) );
     EXPECT_TRUE( cache.requestCompile( secondKey ) );
@@ -698,6 +761,8 @@ TEST( TestMdlShaderCompileCache, tracksCompileStateTransitions )
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
     EXPECT_EQ( 0U, stats.numShaderRequests );
     EXPECT_EQ( 0U, stats.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.numMaterialInstanceCacheHits );
     EXPECT_EQ( 2U, stats.numCompileRequests );
     EXPECT_EQ( 1U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );
@@ -709,8 +774,8 @@ TEST( TestMdlShaderCompileCache, tracksCompileStateTransitions )
 
 TEST( TestMdlShaderCompileCache, failedCompilesStayCachedWithDiagnostics )
 {
-    MdlShaderCompileCache cache;
-    const MdlShaderKey    key{ makeMdlShaderKey( matteMaterial( 0.1f ) ) };
+    MdlShaderCompileCache        cache;
+    const MdlMaterialInstanceKey key{ makeMdlMaterialInstanceKey( matteMaterial( 0.1f ) ) };
 
     EXPECT_TRUE( cache.requestCompile( key ) );
     cache.markCompiling( key );
@@ -723,6 +788,8 @@ TEST( TestMdlShaderCompileCache, failedCompilesStayCachedWithDiagnostics )
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
     EXPECT_EQ( 0U, stats.numShaderRequests );
     EXPECT_EQ( 1U, stats.numShaderCacheHits );
+    EXPECT_EQ( 0U, stats.numSourceCacheHits );
+    EXPECT_EQ( 1U, stats.numMaterialInstanceCacheHits );
     EXPECT_EQ( 1U, stats.numCompileRequests );
     EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );

@@ -90,6 +90,8 @@ inline std::ostream& operator<<( std::ostream& str, const Json<MdlShaderCompileC
     str << '{';
     DUMP_JSON_MEMBER( numShaderRequests ) << ',';
     DUMP_JSON_MEMBER( numShaderCacheHits ) << ',';
+    DUMP_JSON_MEMBER( numSourceCacheHits ) << ',';
+    DUMP_JSON_MEMBER( numMaterialInstanceCacheHits ) << ',';
     DUMP_JSON_MEMBER( numCompileRequests ) << ',';
     DUMP_JSON_MEMBER( numCompletedCompiles ) << ',';
     DUMP_JSON_MEMBER( numMissingShaders ) << ',';
