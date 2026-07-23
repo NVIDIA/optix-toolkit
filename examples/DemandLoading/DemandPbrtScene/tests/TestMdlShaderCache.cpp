@@ -121,6 +121,13 @@ PbrtMaterial materialWithKdTexture( const std::string& textureName )
     return material;
 }
 
+PbrtMaterial materialOfType( const std::string& type )
+{
+    PbrtMaterial material;
+    material.type = type;
+    return material;
+}
+
 PbrtMaterial plasticMaterial()
 {
     PbrtMaterial material;
@@ -379,6 +386,8 @@ TEST( TestMdlGeneratedSource, mapsPlasticMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Ks = color(0.0, 0.0, 0.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.1" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact roughness/remapping "
+                                                       "behavior is approximated" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: glossy lobe is represented but "
                                                        "not connected" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_plastic_approximation_tint" ) );
@@ -457,6 +466,10 @@ TEST( TestMdlGeneratedSource, mapsMetalMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.1" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input eta: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input k: texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact spectral conductor behavior "
+                                                       "is approximated" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact roughness/remapping "
+                                                       "behavior is approximated" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_metal_approximation_tint(texture_0(), texture_1(), "
                                                        "roughness)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
@@ -531,6 +544,27 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "front.png" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "back-transmit.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, recordsExplicitUnsupportedMaterialGapPolicies )
+{
+    const char* const gapTypes[] = { "fourier", "hair", "subsurface", "kdsubsurface", "measured" };
+
+    for( const char* const gapType : gapTypes )
+    {
+        SCOPED_TRACE( gapType );
+
+        const GeneratedMdlSource generated{ generateMdlSource( materialOfType( gapType ) ) };
+        const std::string        reason{ std::string( "Explicit PBRT material gap " ) + gapType
+                                         + ": unsupported with visible fallback" };
+
+        EXPECT_THAT( generated.unsupportedReasons, testing::ElementsAre( reason ) );
+        EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: " + std::string( gapType ) ) );
+        EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap policy: unsupported with visible "
+                                                           "fallback" ) );
+        EXPECT_THAT( generated.source, testing::HasSubstr( "// unsupported: " + reason ) );
+        EXPECT_THAT( generated.source, testing::HasSubstr( "tint: color(1.0, 0.0, 1.0)" ) );
+    }
 }
 
 TEST( TestMdlGeneratedSource, mapsScaleTextureNode )

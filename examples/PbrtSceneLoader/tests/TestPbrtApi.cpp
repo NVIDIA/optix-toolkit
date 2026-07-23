@@ -515,7 +515,10 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterial )
 
 TEST_F( TestPbrtApi, pbrtMaterialTypesArePreserved )
 {
-    const char* materialTypes[] = { "matte", "plastic", "uber", "glass", "metal", "mix", "translucent", "unknown" };
+    const char* materialTypes[] = {
+        "matte",     "plastic", "uber", "glass",      "metal",        "mix",      "translucent",
+        "substrate", "fourier", "hair", "subsurface", "kdsubsurface", "measured", "unknown",
+    };
 
     for( const char* materialType : materialTypes )
     {
@@ -891,7 +894,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedShape )
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
-    EXPECT_EQ( object.bounds , instance.bounds );
+    EXPECT_EQ( object.bounds, instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
     const Bounds3 expectedInstanceBounds{ shape.transform( m_meshBounds ) };
     EXPECT_EQ( expectedInstanceBounds, instance.bounds ) << expectedInstanceBounds << " != " << instance.bounds;

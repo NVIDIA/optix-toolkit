@@ -463,9 +463,38 @@ struct MdlMaterialModel
     std::string                       body;
 };
 
+struct PbrtMaterialGapPolicy
+{
+    std::string type;
+    std::string policy;
+};
+
 void appendMaterialParameter( MdlMaterialModel& model, const std::string& type, const std::string& name, const std::string& defaultValue )
 {
     model.parameters.push_back( MdlMaterialParameter{ type, name, defaultValue } );
+}
+
+const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( const std::string& type )
+{
+    static const PbrtMaterialGapPolicy policies[] = {
+        { "fourier", "unsupported with visible fallback" },    { "hair", "unsupported with visible fallback" },
+        { "subsurface", "unsupported with visible fallback" }, { "kdsubsurface", "unsupported with visible fallback" },
+        { "measured", "unsupported with visible fallback" },
+    };
+
+    for( const PbrtMaterialGapPolicy& policy : policies )
+    {
+        if( policy.type == type )
+        {
+            return &policy;
+        }
+    }
+    return nullptr;
+}
+
+void appendRoughnessGapComment( MdlMaterialModel& model )
+{
+    model.comments.push_back( "pbrt material gap: PBRT-exact roughness/remapping behavior is approximated" );
 }
 
 std::string mdlParameterList( const std::vector<MdlMaterialParameter>& parameters )
@@ -652,6 +681,7 @@ MdlMaterialModel makePlasticMaterialModel( const otk::pbrt::PbrtMaterial& materi
     model.comments.push_back( "pbrt material input Ks: " + ks );
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendRoughnessGapComment( model );
     model.comments.push_back( "pbrt material approximation: glossy lobe is represented but not connected" );
     model.helperDefinitions = "color pbrt_plastic_approximation_tint(color kd, color ks, float roughness) = kd;\n\n";
     model.body =
@@ -694,6 +724,7 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     model.comments.push_back( "pbrt material input alpha: alpha; texture=" + alphaTexture );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: specular, reflection, and transmission lobes are represented but not connected" );
     model.helperDefinitions =
@@ -747,6 +778,7 @@ MdlMaterialModel makeGlassMaterialModel( const otk::pbrt::PbrtMaterial& material
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input uroughness: uroughness" );
     model.comments.push_back( "pbrt material input vroughness: vroughness" );
+    appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: reflection, transmission, Fresnel, and roughness are "
         "represented but not connected" );
@@ -779,6 +811,8 @@ MdlMaterialModel makeMetalMaterialModel( const otk::pbrt::PbrtMaterial& material
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input uroughness: uroughness" );
     model.comments.push_back( "pbrt material input vroughness: vroughness" );
+    model.comments.push_back( "pbrt material gap: PBRT-exact spectral conductor behavior is approximated" );
+    appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: conductor Fresnel and anisotropic roughness are represented but not connected" );
     model.helperDefinitions =
@@ -811,6 +845,7 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
     model.comments.push_back( "pbrt material input uroughness: uroughness" );
     model.comments.push_back( "pbrt material input vroughness: vroughness" );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: layered diffuse and glossy lobes are represented but not connected" );
     model.helperDefinitions = "color pbrt_substrate_approximation_tint(color kd, color ks, float roughness) = kd;\n\n";
@@ -849,6 +884,7 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
     model.comments.push_back( "pbrt material input bumpmap: " + bumpmap );
+    appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: reflection and transmission lobes are represented but not connected" );
     model.helperDefinitions =
@@ -919,10 +955,20 @@ MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, 
 MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& material, GeneratedMdlSource& result )
 {
     const std::string type{ material.type.empty() ? std::string{ "<empty>" } : material.type };
-    appendUnsupportedReason( result, "Unsupported PBRT material type " + type );
 
     MdlMaterialModel model;
     model.comments.push_back( "pbrt material model: " + type );
+    const PbrtMaterialGapPolicy* const policy{ explicitMaterialGapPolicy( material.type ) };
+    if( policy != nullptr )
+    {
+        model.comments.push_back( "pbrt material gap policy: " + policy->policy );
+        appendUnsupportedReason( result, "Explicit PBRT material gap " + type + ": " + policy->policy );
+    }
+    else
+    {
+        model.comments.push_back( "pbrt material gap policy: unknown material type" );
+        appendUnsupportedReason( result, "Unsupported PBRT material type " + type );
+    }
     model.body =
         "    surface: material_surface(\n"
         "        scattering: ::df::diffuse_reflection_bsdf(\n"
