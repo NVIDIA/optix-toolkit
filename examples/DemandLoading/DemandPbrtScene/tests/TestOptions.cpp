@@ -229,19 +229,25 @@ TEST_F( TestOptions, verboseTextureCreation )
 }
 
 #ifdef OTK_USE_MDL
-TEST_F( TestOptions, mdlSmokeMaterial )
-{
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--mdl-smoke-material", "scene.pbrt" } );
-
-    EXPECT_TRUE( options.mdlSmokeMaterial );
-}
-
 TEST_F( TestOptions, mdlSmokeDelay )
 {
     const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--mdl-smoke-delay", "scene.pbrt" } );
 
-    EXPECT_TRUE( options.mdlSmokeMaterial );
     EXPECT_TRUE( options.mdlSmokeDelay );
+}
+
+TEST_F( TestOptions, useMdlMaterialsByDefault )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.useMdlMaterials );
+}
+
+TEST_F( TestOptions, useMdlMaterials )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--use-mdl-materials", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.useMdlMaterials );
 }
 #endif
 

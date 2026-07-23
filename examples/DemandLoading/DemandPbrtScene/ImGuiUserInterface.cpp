@@ -211,6 +211,7 @@ void ImGuiUserInterface::renderSceneStatistics() const
         ImGui::Text( "Requested material pages: %u", materials.numRequestedMaterialPages );
 #ifdef OTK_USE_MDL
         ImGui::Text( "MDL fallback shader uses: %u", materials.numMdlFallbackShaders );
+        ImGui::Text( "Generated MDL material compile requests: %u", materials.numGeneratedMdlMaterialCompileRequests );
         if( ImGui::TreeNode( "MDL shaders" ) )
         {
             const MdlShaderCompileCacheStatistics& mdl{ materials.mdlShaders };
@@ -275,6 +276,9 @@ void ImGuiUserInterface::renderOptions()
         if( ImGui::TreeNode( "Rendering Options" ) )
         {
             renderToggleOption( m_options.faceForward, "Face forward" );
+#ifdef OTK_USE_MDL
+            renderToggleOption( m_options.useMdlMaterials, "Use MDL materials" );
+#endif
             if( ImGui::TreeNode( "Render Mode" ) )
             {
                 const int currentRenderMode{ +m_options.renderMode };

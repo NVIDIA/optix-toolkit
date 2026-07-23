@@ -319,7 +319,7 @@ class MdlSdkSession
     bool                                     m_started{ false };
 };
 
-otk::pbrt::PbrtMaterial makeGeneratedMatteMaterial( const float3& kd )
+otk::pbrt::PbrtMaterial makeSyntheticMatteMaterial( const float3& kd )
 {
     otk::pbrt::PbrtMaterial material;
     material.type = "matte";
@@ -332,12 +332,26 @@ otk::pbrt::PbrtMaterial makeGeneratedMatteMaterial( const float3& kd )
     return material;
 }
 
-mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMatteMaterial( mi::neuraylib::INeuray* neuray,
-                                                                                   mi::neuraylib::ITransaction* transaction,
-                                                                                   mi::neuraylib::IMdl_execution_context* context,
-                                                                                   const GeneratedMdlSource& source,
-                                                                                   const MdlShaderKey& key,
-                                                                                   const float3& kd )
+float3 materialKd( const otk::pbrt::PbrtMaterial& material, const float3& fallback )
+{
+    int                     count{};
+    const ::pbrt::Spectrum* values = material.params.FindSpectrum( "Kd", &count );
+    if( count <= 0 || values == nullptr )
+    {
+        return fallback;
+    }
+
+    float rgb[3] = {};
+    values[0].ToRGB( rgb );
+    return make_float3( rgb[0], rgb[1], rgb[2] );
+}
+
+mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi::neuraylib::INeuray*      neuray,
+                                                                              mi::neuraylib::ITransaction* transaction,
+                                                                              mi::neuraylib::IMdl_execution_context* context,
+                                                                              const GeneratedMdlSource& source,
+                                                                              const MdlShaderKey&       key,
+                                                                              const float3&             kd )
 {
     mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
     requireMdl( mdlFactory.is_valid_interface(), "Failed to get MDL factory" );
@@ -414,7 +428,7 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMatteMateria
     return compiledMaterial;
 }
 
-std::string compileMdlSmokeTintPtx( const PhongMaterial& material )
+std::string compileMdlTintPtx( const MaterialGroup& group )
 {
     MdlSdkSession session;
     requireMdl( session.isStarted(), session.error() );
@@ -436,12 +450,15 @@ std::string compileMdlSmokeTintPtx( const PhongMaterial& material )
         mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
         requireMdl( context.is_valid_interface(), "Failed to create MDL execution context" );
 
-        const otk::pbrt::PbrtMaterial pbrtMaterial{ makeGeneratedMatteMaterial( material.Kd ) };
-        MdlGeneratedSourceCache        sourceCache;
-        const MdlShaderKey            key{ makeMdlShaderKey( pbrtMaterial ) };
-        const GeneratedMdlSource&     source{ sourceCache.getSource( pbrtMaterial ) };
-        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMatteMaterial(
-            session.neuray(), transaction.get(), context.get(), source, key, material.Kd ) );
+        const otk::pbrt::PbrtMaterial  syntheticMaterial{ makeSyntheticMatteMaterial( group.material.Kd ) };
+        const otk::pbrt::PbrtMaterial& pbrtMaterial{
+            group.pbrtMaterial && !group.pbrtMaterial->type.empty() ? *group.pbrtMaterial : syntheticMaterial };
+        MdlGeneratedSourceCache                             sourceCache;
+        const MdlShaderKey                                  key{ makeMdlShaderKey( pbrtMaterial ) };
+        const GeneratedMdlSource&                           source{ sourceCache.getSource( pbrtMaterial ) };
+        const float3                                        kd{ materialKd( pbrtMaterial, group.material.Kd ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
+            compileGeneratedMaterial( session.neuray(), transaction.get(), context.get(), source, key, kd ) );
 
         mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi(
             session.neuray()->get_api_component<mi::neuraylib::IMdl_backend_api>() );
@@ -476,7 +493,7 @@ std::string compileMdlSmokeTintPtx( const PhongMaterial& material )
 struct MdlSmokeBuildJob
 {
     uint_t                         shaderKeyId{};
-    PhongMaterial                  material{};
+    MaterialGroup                  group{};
     CUcontext                      cudaContext{};
     OptixDeviceContext             optixContext{};
     OptixPipelineCompileOptions    pipelineCompileOptions{};
@@ -527,7 +544,7 @@ MdlSmokeBuildResult buildMdlSmokePipelineState( const MdlSmokeBuildJob& job )
         }
 
         const Stopwatch   compileTimer;
-        const std::string ptx{ compileMdlSmokeTintPtx( job.material ) };
+        const std::string ptx{ compileMdlTintPtx( job.group ) };
         const double      compileTime{ compileTimer.elapsed() };
 
         const Stopwatch optixTimer;
@@ -686,19 +703,19 @@ class PbrtProgramGroups : public ProgramGroups
 #endif
 
   private:
-    OptixModule createModule( const char* optixir, size_t optixirSize );
-    void        createModules();
-    void        createProgramGroups();
-    void        ensurePhongModule();
-    uint_t      getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
-    uint_t      getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
+    OptixModule       createModule( const char* optixir, size_t optixirSize );
+    void              createModules();
+    void              createProgramGroups();
+    void              ensurePhongModule();
+    uint_t            getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
+    uint_t            getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
 #ifdef OTK_USE_MDL
-    void              requestMdlSmokeBuild( const PhongMaterial& material, uint_t shaderKeyId );
+    void              requestMdlSmokeBuild( const MaterialGroup& group, uint_t shaderKeyId );
     bool              installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMaterialShader& shader );
     uint_t            getTriangleMdlSmokeMaterialSbtOffset();
-    MdlMaterialShader realizeTriangleMdlSmokeMaterialShader( const PhongMaterial& material, uint_t shaderKeyId );
+    MdlMaterialShader realizeTriangleMdlSmokeMaterialShader( const MaterialGroup& group, uint_t shaderKeyId );
 #endif
-    uint_t getSphereRealizedMaterialSbtOffset();
+    uint_t            getSphereRealizedMaterialSbtOffset();
 
     // Dependencies
     const Options&    m_options;
@@ -913,10 +930,11 @@ uint_t PbrtProgramGroups::getTriangleMdlSmokeMaterialSbtOffset()
         const double optixTime{ optixTimer.elapsed() };
         std::cout << "MDL smoke material hit group setup: " << optixTime << " s\n";
     }
+
     return m_triangleMdlSmokeHitGroupIndex;
 }
 
-MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( const PhongMaterial& material, uint_t shaderKeyId )
+MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( const MaterialGroup& group, uint_t shaderKeyId )
 {
     std::map<uint_t, MdlMaterialShader>::const_iterator it = m_mdlMaterialShaders.find( shaderKeyId );
     if( it != m_mdlMaterialShaders.end() )
@@ -926,7 +944,7 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( cons
 
     if( m_options.mdlSmokeDelay )
     {
-        requestMdlSmokeBuild( material, shaderKeyId );
+        requestMdlSmokeBuild( group, shaderKeyId );
         MdlMaterialShader shader{};
         if( installPendingMdlSmokeBuild( shaderKeyId, shader ) )
         {
@@ -936,7 +954,7 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( cons
     }
 
     const Stopwatch   compileTimer;
-    const std::string ptx{ compileMdlSmokeTintPtx( material ) };
+    const std::string ptx{ compileMdlTintPtx( group ) };
     const double      compileTime{ compileTimer.elapsed() };
 
     const Stopwatch optixTimer;
@@ -966,13 +984,6 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( cons
 uint_t PbrtProgramGroups::getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance )
 {
     const MaterialFlags flags{ instance.groups[0].material.flags };
-#ifdef OTK_USE_MDL
-    if( m_options.mdlSmokeMaterial && instance.groups.size() == 1 && flags == MaterialFlags::NONE )
-    {
-        return getTriangleMdlSmokeMaterialSbtOffset();
-    }
-#endif
-
     return getTriangleFallbackRealizedMaterialSbtOffset( flags );
 }
 
@@ -1005,7 +1016,7 @@ void PbrtProgramGroups::ensurePhongModule()
 }
 
 #ifdef OTK_USE_MDL
-void PbrtProgramGroups::requestMdlSmokeBuild( const PhongMaterial& material, uint_t shaderKeyId )
+void PbrtProgramGroups::requestMdlSmokeBuild( const MaterialGroup& group, uint_t shaderKeyId )
 {
     if( !m_options.mdlSmokeDelay )
     {
@@ -1025,7 +1036,7 @@ void PbrtProgramGroups::requestMdlSmokeBuild( const PhongMaterial& material, uin
 
     MdlSmokeBuildJob job{};
     job.shaderKeyId            = shaderKeyId;
-    job.material               = material;
+    job.group                  = group;
     job.cudaContext            = cudaContext;
     job.optixContext           = m_renderer->getDeviceContext();
     job.pipelineCompileOptions = m_renderer->getPipelineCompileOptions();
@@ -1110,7 +1121,7 @@ MdlMaterialShader PbrtProgramGroups::realizeMdlMaterialShader( const GeometryIns
     }
 
     getTriangleMdlSmokeMaterialSbtOffset();
-    return realizeTriangleMdlSmokeMaterialShader( instance.groups[0].material, shaderKeyId );
+    return realizeTriangleMdlSmokeMaterialShader( instance.groups[0], shaderKeyId );
 }
 #endif
 

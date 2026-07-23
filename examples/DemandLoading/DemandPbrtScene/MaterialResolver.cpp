@@ -96,8 +96,11 @@ class PbrtMaterialResolver : public MaterialResolver
     MaterialState resolveMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
 #ifdef OTK_USE_MDL
     MaterialResolution resolvePendingMdlMaterial( SceneSyncState& sync );
-    MaterialState resolveMdlMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
-    void queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material );
+    MaterialState resolveMdlMaterialState( SceneSyncState&      sync,
+                                           GeometryInstance&    instance,
+                                           const MaterialGroup& group,
+                                           uint_t               materialId );
+    void          queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material );
 #endif
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, const SceneSyncState& syncState ) const;
     bool                  resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
@@ -148,10 +151,12 @@ MaterialState mdlSmokeState( uint_t materialId, uint_t shaderKeyId )
     return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
 }
 
-bool usesMdlSmokeMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
+bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
 {
-    return options.mdlSmokeMaterial && instance.primitive == GeometryPrimitive::TRIANGLE && instance.groups.size() == 1
-           && group.material.flags == MaterialFlags::NONE;
+    return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
+           && instance.groups.size() == 1 && group.material.flags == MaterialFlags::NONE && group.pbrtMaterial
+           && group.pbrtMaterial->type == "matte" && group.pbrtMaterial->graph.fallbackReasons.empty()
+           && group.pbrtMaterial->graph.textures.empty() && group.pbrtMaterial->graph.namedMaterials.empty();
 }
 
 MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )
@@ -295,6 +300,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
 
     if( m_mdlShaderCompileCache.requestCompile( materialKey ) )
     {
+        ++m_stats.numGeneratedMdlMaterialCompileRequests;
         if( m_options.mdlSmokeDelay )
         {
             try
@@ -343,7 +349,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
 MaterialState PbrtMaterialResolver::resolveMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId )
 {
 #ifdef OTK_USE_MDL
-    if( usesMdlSmokeMaterial( m_options, instance, group ) )
+    if( usesGeneratedMdlMaterial( m_options, instance, group ) )
     {
         return resolveMdlMaterialState( sync, instance, group, materialId );
     }

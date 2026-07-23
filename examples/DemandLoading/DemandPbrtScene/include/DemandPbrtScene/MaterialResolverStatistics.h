@@ -21,6 +21,7 @@ struct MaterialResolverStats
     unsigned int                    numRequestedMaterialPages;
 #ifdef OTK_USE_MDL
     unsigned int                    numMdlFallbackShaders;
+    unsigned int                    numGeneratedMdlMaterialCompileRequests;
     MdlShaderCompileCacheStatistics mdlShaders;
 #endif
 };

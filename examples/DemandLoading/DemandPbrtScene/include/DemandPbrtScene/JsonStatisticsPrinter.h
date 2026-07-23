@@ -115,6 +115,7 @@ inline std::ostream& operator<<( std::ostream& str, const Json<MaterialResolverS
 #ifdef OTK_USE_MDL
     str << ',';
     DUMP_JSON_MEMBER( numMdlFallbackShaders ) << ',';
+    DUMP_JSON_MEMBER( numGeneratedMdlMaterialCompileRequests ) << ',';
     DUMP_JSON_OBJECT( mdlShaders );
 #endif
     str << '}';
