@@ -196,11 +196,15 @@ void SparseTexture::init( const TextureDescriptor& descriptor, const imageSource
     OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
 
     // Set the array to a new array, or the master array if one was passed in
-    m_array = masterArray;
-    if( m_array.get() == nullptr )
+    m_oldArray = m_array; // Avoid destroying the old array immediately.
+    if( masterArray.get() == nullptr )
     {
         m_array.reset( new SparseArray() );
         m_array->init( m_info );
+    }
+    else
+    {
+        m_array = masterArray;
     }
 
     // Create CUDA texture descriptor
