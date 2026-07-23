@@ -23,13 +23,12 @@ SparseArray::~SparseArray()
 {
     if( m_initialized )
     {
-        ContextSaver contextSaver;
+        m_initialized = false;
 
         // It's not necessary to unmap the tiles / mip tail when destroying the array.
+        ContextSaver contextSaver;
         OTK_ERROR_CHECK_NOTHROW( cuCtxSetCurrent( m_context ) );
         OTK_ERROR_CHECK_NOTHROW( cuMipmappedArrayDestroy( m_array ) );
-
-        m_initialized = false;
     }
 }
 

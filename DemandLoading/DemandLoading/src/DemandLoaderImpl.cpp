@@ -394,6 +394,7 @@ void DemandLoaderImpl::initTexture( CUstream stream, unsigned int textureId )
 {
     OTK_ASSERT_CONTEXT_IS( m_cudaContext );
     OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
+    std::unique_lock<std::mutex> lock( m_mutex );
     m_samplerRequestHandler.fillRequest( stream, textureId );
     m_samplerRequestHandler.fillRequest( stream, samplerIdToBaseColorId( textureId, getOptions().maxTextures ) );
 }

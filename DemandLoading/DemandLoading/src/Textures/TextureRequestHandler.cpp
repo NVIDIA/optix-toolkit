@@ -221,7 +221,8 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
 
         if( useNewBlock )
         {
-            m_loader->setPageTableEntry( pageId, true, static_cast<unsigned long long>( bh.block.data ) );
+            // pass false to make the mip tail non-evictable.
+            m_loader->setPageTableEntry( pageId, false, static_cast<unsigned long long>( bh.block.data ) );
         }
     }
     else
