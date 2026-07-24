@@ -278,6 +278,18 @@ PbrtMaterial constantUberMaterial()
     return material;
 }
 
+PbrtMaterial uberMaterialWithSpecularTextures()
+{
+    PbrtMaterial material{ constantUberMaterial() };
+    material.params.AddTexture( "Kd", "albedo" );
+    material.params.AddTexture( "Ks", "specular" );
+    material.params.AddTexture( "Kr", "reflectance" );
+    material.graph.textures["color:albedo"]      = imageMapTexture( "albedo", "albedo.exr", "color" );
+    material.graph.textures["color:specular"]    = imageMapTexture( "specular", "specular.exr", "color" );
+    material.graph.textures["color:reflectance"] = imageMapTexture( "reflectance", "reflectance.exr", "color" );
+    return material;
+}
+
 PbrtMaterial mirrorMaterial()
 {
     PbrtMaterial material;
@@ -824,6 +836,24 @@ TEST( TestMdlGeneratedSource, mapsSimpleUberMaterialModel )
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
+TEST( TestMdlGeneratedSource, mapsUberSpecularDemandTextureInputs )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( uberMaterialWithSpecularTextures() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Ks: texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kr: texture_2()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_opacity_weight(opacity) * texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_uber_opacity_weight(opacity) * texture_2()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// demand texture parameter: texture_2d image_0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// demand texture parameter: texture_2d image_1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// demand texture parameter: texture_2d image_2" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "specular.exr" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "reflectance.exr" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
 TEST( TestMdlBoundMaterialParameters, bindsPlasticConstants )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( plasticMaterial() ) };
@@ -999,6 +1029,18 @@ TEST( TestMdlBoundMaterialParameters, skipsTextureBackedInputsUntilTextureBindin
 
     EXPECT_EQ( nullptr, findBoundParameter( parameters, "Kd" ) );
     expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+}
+
+TEST( TestMdlBoundMaterialParameters, skipsUberSpecularDemandTextureInputs )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( uberMaterialWithSpecularTextures() ) };
+
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "Kd" ) );
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "Ks" ) );
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "Kr" ) );
+    expectBoundColor( parameters, "Kt", 0.0f, 0.1f, 0.2f );
+    expectBoundFloat( parameters, "roughness", 0.25f );
+    expectBoundFloat( parameters, "index", 1.4f );
 }
 
 TEST( TestMdlGeneratedSource, mapsMirrorMaterialModel )

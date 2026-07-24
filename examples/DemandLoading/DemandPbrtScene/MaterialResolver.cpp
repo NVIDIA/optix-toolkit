@@ -146,6 +146,12 @@ MaterialState localFallbackState( uint_t materialId )
     return makeMaterialState( materialId, MaterialBackend::LOCAL_FALLBACK );
 }
 
+void includeDiffuseTextureId( SceneSyncState& sync, uint_t textureId )
+{
+    sync.minDiffuseTextureId = std::min( textureId, sync.minDiffuseTextureId );
+    sync.maxDiffuseTextureId = std::max( textureId, sync.maxDiffuseTextureId );
+}
+
 #ifdef OTK_USE_MDL
 MaterialState unsupportedFallbackState( uint_t materialId )
 {
@@ -264,6 +270,49 @@ bool hasGeneratedMdlDemandTexture( MaterialFlags flags, MaterialFlags mapFlag, M
     return flagSet( flags, mapFlag | allocatedFlag ) && !fileName.empty();
 }
 
+bool isDirectGeneratedMdlDemandTexture( const PbrtDemandTextureBinding& binding )
+{
+    return hasPbrtDemandTextureBinding( binding ) && !binding.transformed;
+}
+
+PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material,
+                                                            const MaterialGroup&           group,
+                                                            const std::string&             paramName )
+{
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( material, paramName.c_str() ) };
+    if( !hasPbrtDemandTextureBinding( binding ) )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    if( paramName == "Kd" )
+    {
+        if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP ) && binding.fileName == group.diffuseMapFileName )
+        {
+            return binding;
+        }
+        return pbrtDemandTextureBinding();
+    }
+    if( paramName == "Kr" && material.type == "mirror" )
+    {
+        if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP ) && binding.fileName == group.diffuseMapFileName )
+        {
+            return binding;
+        }
+        return pbrtDemandTextureBinding();
+    }
+    if( material.type == "uber" && ( paramName == "Ks" || paramName == "Kr" ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    {
+        return binding;
+    }
+    return pbrtDemandTextureBinding();
+}
+
+bool hasGeneratedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group, const std::string& paramName )
+{
+    return hasPbrtDemandTextureBinding( generatedMdlRuntimeTextureBinding( material, group, paramName ) );
+}
+
 bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
 {
     const MaterialFlags flags{ group.material.flags };
@@ -295,8 +344,7 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         }
         if( paramName == "Kd" )
         {
-            const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( material, "Kd" ) };
-            if( !hasDiffuseMap || binding.fileName != group.diffuseMapFileName )
+            if( !hasDiffuseMap || !hasGeneratedMdlRuntimeTextureBinding( material, group, "Kd" ) )
             {
                 return false;
             }
@@ -304,8 +352,15 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         }
         if( paramName == "Kr" && material.type == "mirror" )
         {
-            const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( material, "Kr" ) };
-            if( !hasDiffuseMap || binding.fileName != group.diffuseMapFileName )
+            if( !hasDiffuseMap || !hasGeneratedMdlRuntimeTextureBinding( material, group, "Kr" ) )
+            {
+                return false;
+            }
+            continue;
+        }
+        if( material.type == "uber" && ( paramName == "Ks" || paramName == "Kr" ) )
+        {
+            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
             {
                 return false;
             }
@@ -361,6 +416,77 @@ bool hasGeneratedMdlUnsupportedTextureReference( const otk::pbrt::PbrtMaterial& 
         }
     }
     return false;
+}
+
+void clearMaterialGroupMdlTextureBindings( MaterialGroup& group )
+{
+    for( MaterialGroupMdlTextureBinding& binding : group.mdlTextureBindings )
+    {
+        binding.fileName.clear();
+        binding.binding = invalidMdlMaterialTextureBinding();
+    }
+}
+
+void setMaterialGroupMdlTextureBinding( MaterialGroup& group, uint_t index, const PbrtDemandTextureBinding& binding, uint_t textureId )
+{
+    OTK_ASSERT( index < group.mdlTextureBindings.size() );
+    group.mdlTextureBindings[index].fileName = binding.fileName;
+    group.mdlTextureBindings[index].binding  = MdlMaterialTextureBinding{ textureId, binding.scale, binding.bias };
+}
+
+void setGeneratedMdlDiffuseTextureBinding( MaterialGroup& group )
+{
+    if( !group.pbrtMaterial || !flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
+    {
+        return;
+    }
+
+    const char* const paramName{ group.pbrtMaterial->type == "mirror" ? "Kr" : "Kd" };
+    const PbrtDemandTextureBinding binding{ generatedMdlRuntimeTextureBinding( *group.pbrtMaterial, group, paramName ) };
+    if( hasPbrtDemandTextureBinding( binding ) )
+    {
+        setMaterialGroupMdlTextureBinding( group, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX, binding, group.material.diffuseTextureId );
+    }
+}
+
+void createGeneratedMdlUberTextureBinding( MaterialGroup&      group,
+                                           SceneSyncState&     sync,
+                                           DemandTextureCache& demandTextureCache,
+                                           const char*         paramName,
+                                           uint_t              index )
+{
+    const PbrtDemandTextureBinding binding{ generatedMdlRuntimeTextureBinding( *group.pbrtMaterial, group, paramName ) };
+    if( !hasPbrtDemandTextureBinding( binding ) )
+    {
+        return;
+    }
+
+    const uint_t textureId{ demandTextureCache.createDiffuseTextureFromFile( binding.fileName ) };
+    includeDiffuseTextureId( sync, textureId );
+    setMaterialGroupMdlTextureBinding( group, index, binding, textureId );
+}
+
+void resolveGeneratedMdlTextureBindings( const Options&          options,
+                                         const GeometryInstance& instance,
+                                         MaterialGroup&          group,
+                                         DemandTextureCache&     demandTextureCache,
+                                         SceneSyncState&         sync )
+{
+    clearMaterialGroupMdlTextureBindings( group );
+    if( !options.useMdlMaterials || instance.primitive != GeometryPrimitive::TRIANGLE
+        || instance.groups.size() != 1 || !group.pbrtMaterial || !supportsGeneratedMdlMaterial( group.pbrtMaterial->type )
+        || !group.pbrtMaterial->graph.fallbackReasons.empty() || !supportsGeneratedMdlNamedMaterialReferences( *group.pbrtMaterial )
+        || !supportsGeneratedMdlTextureReferences( *group.pbrtMaterial, group ) )
+    {
+        return;
+    }
+
+    setGeneratedMdlDiffuseTextureBinding( group );
+    if( group.pbrtMaterial->type == "uber" )
+    {
+        createGeneratedMdlUberTextureBinding( group, sync, demandTextureCache, "Ks", MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX );
+        createGeneratedMdlUberTextureBinding( group, sync, demandTextureCache, "Kr", MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
+    }
 }
 
 bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
@@ -641,12 +767,15 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
             && !flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
         {
             const uint_t diffuseTextureId = m_demandTextureCache->createDiffuseTextureFromFile( group.diffuseMapFileName );
-            sync.minDiffuseTextureId        = std::min( diffuseTextureId, sync.minDiffuseTextureId );
-            sync.maxDiffuseTextureId        = std::max( diffuseTextureId, sync.maxDiffuseTextureId );
+            includeDiffuseTextureId( sync, diffuseTextureId );
             group.material.diffuseTextureId = diffuseTextureId;
             group.material.flags |= MaterialFlags::DIFFUSE_MAP_ALLOCATED;
         }
     }
+
+#ifdef OTK_USE_MDL
+    resolveGeneratedMdlTextureBindings( m_options, geom->instance, group, *m_demandTextureCache, sync );
+#endif
 
     const uint_t materialId{ groupMaterialId };
     grow( sync.realizedMaterials, materialId + 1 );

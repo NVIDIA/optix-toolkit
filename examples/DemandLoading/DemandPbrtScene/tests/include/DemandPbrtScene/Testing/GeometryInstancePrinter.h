@@ -59,10 +59,15 @@ inline std::ostream& operator<<( std::ostream& str, const GeometryInstance& valu
 
 inline bool operator==( const MaterialGroup& lhs, const MaterialGroup& rhs )
 {
-    return lhs.material == rhs.material                         //
-           && lhs.diffuseMapFileName == rhs.diffuseMapFileName  //
-           && lhs.alphaMapFileName == rhs.alphaMapFileName      //
-           && lhs.primitiveIndexEnd == rhs.primitiveIndexEnd;
+    const bool equal{ lhs.material == rhs.material                         //
+                      && lhs.diffuseMapFileName == rhs.diffuseMapFileName  //
+                      && lhs.alphaMapFileName == rhs.alphaMapFileName      //
+                      && lhs.primitiveIndexEnd == rhs.primitiveIndexEnd };
+#ifdef OTK_USE_MDL
+    return equal && lhs.mdlTextureBindings == rhs.mdlTextureBindings;
+#else
+    return equal;
+#endif
 }
 
 inline bool operator!=( const MaterialGroup& lhs, const MaterialGroup& rhs )

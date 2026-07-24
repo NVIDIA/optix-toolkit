@@ -203,5 +203,13 @@ if(OTK_USE_MDL)
             RESOURCES matte-imagemap.png
             WARMUP 4
             TOLERANCE_REASON "Default tolerance, one-leaf mix imagemap Kd uses the affine sparse demand texture path")
+        add_pbrt_reference_image_test(landscape-uber-specular-textures
+            MATERIAL uber
+            SCENE landscape-uber-specular-textures.pbrt
+            RESOURCES landscape-fixture-albedo.png landscape-fixture-specular.png landscape-fixture-reflectance.png
+            WARMUP 16
+            DIFF_THRESHOLD 64
+            ALLOWED_PERCENTAGE 3
+            TOLERANCE_REASON "Landscape fixture tolerance, direct uber Kd/Ks/Kr imagemaps use generated MDL BSDF callables with runtime texture-slot scaling and approximate MDL mix normalization")
     endif()
 endif()

@@ -150,16 +150,19 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
 
     EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, 333U,
                                                make_float3( 0.25f, 0.5f, 0.75f ), make_float3( 0.125f, 0.25f, 0.375f ) ) );
-    EXPECT_TRUE( setMdlMaterialTextureBinding( data, 1U, 444U, make_float3( 0.5f, 0.25f, 0.125f ),
-                                               make_float3( 0.375f, 0.25f, 0.125f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX, 444U,
+                                               make_float3( 0.5f, 0.25f, 0.125f ), make_float3( 0.375f, 0.25f, 0.125f ) ) );
 
     EXPECT_EQ( 2U, data.textureBindingCount );
+    EXPECT_EQ( 0U, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX );
+    EXPECT_EQ( 1U, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX );
+    EXPECT_EQ( 2U, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 333U, data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
     EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
-    EXPECT_EQ( 444U, data.textureBindings[1].textureId );
-    EXPECT_EQ( make_float3( 0.5f, 0.25f, 0.125f ), data.textureBindings[1].scale );
-    EXPECT_EQ( make_float3( 0.375f, 0.25f, 0.125f ), data.textureBindings[1].bias );
+    EXPECT_EQ( 444U, data.textureBindings[MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( make_float3( 0.5f, 0.25f, 0.125f ), data.textureBindings[MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( make_float3( 0.375f, 0.25f, 0.125f ), data.textureBindings[MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX].bias );
     EXPECT_FALSE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_TEXTURE_BINDING_COUNT, 444U,
                                                 make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
 }

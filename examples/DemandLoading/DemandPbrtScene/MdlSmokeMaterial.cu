@@ -112,10 +112,26 @@ __device__ __forceinline__ bool hasMdlBsdfCallables( const MdlMaterialShader& sh
     return shader.callableCount >= 1U + MDL_BSDF_CALLABLE_COUNT;
 }
 
+__device__ __forceinline__ bool hasMdlMaterialTexture( const MdlMaterialShader& shader, uint_t index )
+{
+    return shader.textureBindingCount > index && shader.textureBindings[index].textureId != INVALID_TEXTURE_ID;
+}
+
 __device__ __forceinline__ bool hasMdlDiffuseTexture( const MdlMaterialShader& shader )
 {
-    return shader.textureBindingCount > MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX
-           && shader.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId != INVALID_TEXTURE_ID;
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX );
+}
+
+__device__ __forceinline__ bool hasMdlMaterialTextures( const MdlMaterialShader& shader )
+{
+    for( uint_t i = 0; i < shader.textureBindingCount && i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
+    {
+        if( hasMdlMaterialTexture( shader, i ) )
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 __device__ __forceinline__ bool hasAllocatedDiffuseMap( const PhongMaterial& material )
@@ -185,26 +201,143 @@ __device__ __forceinline__ void setMdlMaterialDiffuseTexturePayload( const Param
                                  interpolateMdlUVs( triangleUVs ), getWorldSpaceTextureSize( vertices, triangleUVs ) );
 }
 
-__device__ __forceinline__ float3 sampleMdlDiffuseTexture( const MdlMaterialShader& shader, const float2& uv, bool& isResident )
+struct MdlMaterialTextureSamples
+{
+    float3 kd;
+    float3 ks;
+    float3 kr;
+};
+
+__device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSamples()
+{
+    MdlMaterialTextureSamples samples{};
+    samples.kd = make_float3( 1.0f );
+    samples.ks = make_float3( 1.0f );
+    samples.kr = make_float3( 1.0f );
+    return samples;
+}
+
+__device__ __forceinline__ float3 sampleMdlMaterialTexture( const MdlMaterialShader& shader, uint_t index, const float2& uv, bool& isResident )
 {
     isResident = true;
-    if( !hasMdlDiffuseTexture( shader ) )
+    if( !hasMdlMaterialTexture( shader, index ) )
     {
         return make_float3( 1.0f );
     }
 
     const Params&                    params{ PARAMS_VAR_NAME };
-    const MdlMaterialTextureBinding& binding{ shader.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX] };
+    const MdlMaterialTextureBinding& binding{ shader.textureBindings[index] };
 #ifndef NDEBUG
     if( binding.textureId < params.minDiffuseTextureId || binding.textureId > params.maxDiffuseTextureId )
     {
-        printf( "MDL diffuse texture id %u out of range [%u, %u]\n", binding.textureId, params.minDiffuseTextureId,
+        printf( "MDL material texture id %u out of range [%u, %u]\n", binding.textureId, params.minDiffuseTextureId,
                 params.maxDiffuseTextureId );
         assert( binding.textureId >= params.minDiffuseTextureId && binding.textureId <= params.maxDiffuseTextureId );
     }
 #endif
     const float4 texel = demandLoading::tex2D<float4>( params.demandContext, binding.textureId, uv.x, uv.y, &isResident );
     return make_float3( texel.x, texel.y, texel.z ) * binding.scale + binding.bias;
+}
+
+__device__ __forceinline__ void setMdlMaterialTextureSample( MdlMaterialTextureSamples& samples, uint_t index, const float3& value )
+{
+    switch( index )
+    {
+        case MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX:
+            samples.kd = value;
+            return;
+        case MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX:
+            samples.ks = value;
+            return;
+        case MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX:
+            samples.kr = value;
+            return;
+    }
+}
+
+__device__ __forceinline__ bool sampleMdlMaterialTextures( const MdlMaterialShader&   shader,
+                                                           const float2&              uv,
+                                                           MdlMaterialTextureSamples& samples,
+                                                           uint_t&                    nonResidentTextureId )
+{
+    samples = makeMdlMaterialTextureSamples();
+    for( uint_t i = 0; i < shader.textureBindingCount && i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
+    {
+        if( !hasMdlMaterialTexture( shader, i ) )
+        {
+            continue;
+        }
+        bool         isResident{};
+        const float3 value{ sampleMdlMaterialTexture( shader, i, uv, isResident ) };
+        if( !isResident )
+        {
+            nonResidentTextureId = shader.textureBindings[i].textureId;
+            return false;
+        }
+        setMdlMaterialTextureSample( samples, i, value );
+    }
+    return true;
+}
+
+__device__ __forceinline__ float3 mdlDiffuseTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX ) ? samples.kd : make_float3( 1.0f );
+}
+
+__device__ __forceinline__ bool hasMdlGlossyTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
+}
+
+__device__ __forceinline__ float3 mdlGlossyTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    const bool hasKs{ hasMdlMaterialTexture( shader, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX ) };
+    const bool hasKr{ hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX ) };
+    if( hasKs && hasKr )
+    {
+        return ( samples.ks + samples.kr ) * 0.5f;
+    }
+    if( hasKs )
+    {
+        return samples.ks;
+    }
+    if( hasKr )
+    {
+        return samples.kr;
+    }
+    return make_float3( 1.0f );
+}
+
+__device__ __forceinline__ float3 mdlSpecularTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX ) )
+    {
+        return samples.kr;
+    }
+    return mdlGlossyTextureScale( shader, samples );
+}
+
+__device__ __forceinline__ float mdlRuntimeDiffuseMixCompensation( const MdlMaterialShader& shader )
+{
+    if( !hasMdlGlossyTexture( shader ) )
+    {
+        return 1.0f;
+    }
+
+    // Demand textures use unit MDL placeholder weights and apply samples after
+    // evaluation, so partially compensate the diffuse lobe for placeholder mix
+    // normalization when runtime glossy/specular texture slots are active.
+    float compensation{ 1.0f };
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX ) )
+    {
+        compensation += 0.5f;
+    }
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX ) )
+    {
+        compensation += 0.5f;
+    }
+    return compensation;
 }
 
 __device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&               shader,
@@ -220,7 +353,7 @@ __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&     
                                                    const mi::neuraylib::Resource_data&          resourceData,
                                                    const float3&                                outgoing,
                                                    const float3&                                incoming,
-                                                   const float3&                                textureScale )
+                                                   const MdlMaterialTextureSamples&             textureSamples )
 {
     mi::neuraylib::Bsdf_evaluate_data<mi::neuraylib::DF_HSM_NONE> evalData{};
     evalData.ior1  = make_float3( 1.0f );
@@ -231,7 +364,14 @@ __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&     
     optixDirectCall<void, mi::neuraylib::Bsdf_evaluate_data_base*, const mi::neuraylib::Shading_state_material*,
                     const mi::neuraylib::Resource_data*, const char*>( shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET,
                                                                        &evalData, &state, &resourceData, nullptr );
-    return ( evalData.bsdf_diffuse + evalData.bsdf_glossy ) * textureScale;
+    float3 glossyScale{ mdlGlossyTextureScale( shader, textureSamples ) };
+    if( !hasMdlGlossyTexture( shader ) && hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX )
+        && otk::dot( evalData.bsdf_diffuse, evalData.bsdf_diffuse ) == 0.0f )
+    {
+        glossyScale = textureSamples.kd;
+    }
+    return evalData.bsdf_diffuse * mdlDiffuseTextureScale( shader, textureSamples ) * mdlRuntimeDiffuseMixCompensation( shader )
+           + evalData.bsdf_glossy * glossyScale;
 }
 
 __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&                     shader,
@@ -239,7 +379,7 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
                                                 const mi::neuraylib::Resource_data&          resourceData,
                                                 const float3&                                worldNormal,
                                                 const float3&                                rayDirection,
-                                                const float3&                                textureScale )
+                                                const MdlMaterialTextureSamples&             textureSamples )
 {
     float3        result{};
     const float3  outgoing{ -rayDirection };
@@ -250,7 +390,7 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
         const DirectionalLight& light{ params.directionalLights[i] };
         if( otk::dot( worldNormal, light.direction ) > 0.0f )
         {
-            result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureScale ) * light.color;
+            result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureSamples ) * light.color;
         }
     }
 
@@ -258,7 +398,7 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
     {
         const InfiniteLight& light{ params.infiniteLights[i] };
         result +=
-            evaluateMdlBsdf( shader, state, resourceData, outgoing, worldNormal, textureScale ) * light.color * light.scale;
+            evaluateMdlBsdf( shader, state, resourceData, outgoing, worldNormal, textureSamples ) * light.color * light.scale;
     }
 
     return result;
@@ -269,7 +409,7 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
                                                const mi::neuraylib::Resource_data&          resourceData,
                                                const float3&                                outgoing,
                                                const float4&                                xi,
-                                               const float3&                                textureScale,
+                                               const MdlMaterialTextureSamples&             textureSamples,
                                                float3&                                      direction,
                                                float3&                                      throughput )
 {
@@ -287,7 +427,29 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
         return false;
     }
 
-    direction  = sampleData.k2;
+    direction = sampleData.k2;
+    const bool diffuseEvent{ ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_DIFFUSE ) != 0 };
+    const bool reflectedGlossyEvent{ ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_REFLECTION ) != 0
+                                     && ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_GLOSSY ) != 0 };
+    const bool reflectedSpecularEvent{ ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_REFLECTION ) != 0
+                                       && ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_SPECULAR ) != 0 };
+    float3     textureScale{ make_float3( 1.0f ) };
+    if( diffuseEvent )
+    {
+        textureScale = mdlDiffuseTextureScale( shader, textureSamples ) * mdlRuntimeDiffuseMixCompensation( shader );
+    }
+    else if( reflectedGlossyEvent )
+    {
+        textureScale = mdlGlossyTextureScale( shader, textureSamples );
+        if( !hasMdlGlossyTexture( shader ) && hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX ) )
+        {
+            textureScale = textureSamples.kd;
+        }
+    }
+    else if( reflectedSpecularEvent )
+    {
+        textureScale = mdlSpecularTextureScale( shader, textureSamples );
+    }
     throughput = sampleData.bsdf_over_pdf * textureScale;
     return otk::dot( throughput, throughput ) > 0.0f;
 }
@@ -373,19 +535,22 @@ extern "C" __global__ void __closesthit__mdlMesh()
     state.geom_normal = worldNormal;
     state.position    = rayOrigin + rayT * rayDirection;
 
-    const bool                hasDiffuseTexture{ hasAllocatedDiffuseMap( material ) };
-    const bool                useMdlDiffuseTexture{ hasMdlDiffuseTexture( shader ) && hasDiffuseTexture };
-    float2                    uv{};
-    float                     worldSpaceTextureSize{};
-    mi::neuraylib::tct_float3 textCoords[1]{};
-    mi::neuraylib::tct_float3 tangentU[1]{};
-    mi::neuraylib::tct_float3 tangentV[1]{};
+    mi::neuraylib::Resource_data resourceData{};
+    mi::neuraylib::tct_float3    tint{};
+    const bool                   hasDiffuseTexture{ hasAllocatedDiffuseMap( material ) };
+    const bool                   useMdlDiffuseTexture{ hasMdlDiffuseTexture( shader ) && hasDiffuseTexture };
+    const bool                   hasMaterialTextures{ hasMdlMaterialTextures( shader ) };
+    float2                       uv{};
+    float                        worldSpaceTextureSize{};
+    mi::neuraylib::tct_float3    textCoords[1]{};
+    mi::neuraylib::tct_float3    tangentU[1]{};
+    mi::neuraylib::tct_float3    tangentV[1]{};
     tangentU[0]       = makeMdlTangentU( worldNormal );
     tangentV[0]       = makeMdlTangentV( worldNormal, tangentU[0] );
     state.text_coords = textCoords;
     state.tangent_u   = tangentU;
     state.tangent_v   = tangentV;
-    if( hasDiffuseTexture )
+    if( hasMaterialTextures || hasDiffuseTexture )
     {
 #ifndef NDEBUG
         if( instanceId >= params.numInstanceUVs )
@@ -400,8 +565,6 @@ extern "C" __global__ void __closesthit__mdlMesh()
         textCoords[0]         = make_float3( uv.x, uv.y, 0.0f );
     }
 
-    mi::neuraylib::Resource_data resourceData{};
-    mi::neuraylib::tct_float3    tint{};
     optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
         shader.callableBaseIndex, &tint, &state, &resourceData, nullptr );
 
@@ -411,24 +574,22 @@ extern "C" __global__ void __closesthit__mdlMesh()
     prd->color          = phongShade( material, worldNormal, rayDirection );
     prd->hasDirectColor = true;
 
-    bool         diffuseTextureResident{};
-    const float3 diffuseTextureScale{ sampleMdlDiffuseTexture( shader, uv, diffuseTextureResident ) };
-    if( useMdlDiffuseTexture && !diffuseTextureResident )
+    MdlMaterialTextureSamples textureSamples{};
+    uint_t                    nonResidentTextureId{};
+    if( !sampleMdlMaterialTextures( shader, uv, textureSamples, nonResidentTextureId ) )
     {
-        setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT,
-                                     shader.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId, uv,
-                                     worldSpaceTextureSize );
+        setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, nonResidentTextureId, uv, worldSpaceTextureSize );
         return;
     }
 
     if( hasMdlBsdfCallables( shader ) && ( !hasDiffuseTexture || useMdlDiffuseTexture ) )
     {
         initializeMdlBsdf( shader, state, resourceData );
-        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, worldNormal, rayDirection, diffuseTextureScale ) );
+        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, worldNormal, rayDirection, textureSamples ) );
         prd->hasDirectColor = true;
         prd->hasMdlBsdfSample = PARAMS_VAR_NAME.renderMode == RenderMode::PATH_TRACING
                                 && sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi,
-                                                  diffuseTextureScale, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
+                                                  textureSamples, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
         return;
     }
 

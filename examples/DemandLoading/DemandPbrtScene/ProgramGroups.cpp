@@ -715,6 +715,25 @@ PbrtDemandTextureBinding mdlDiffuseTextureBinding( const MaterialGroup& group )
 
 MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMaterialShader shader )
 {
+    bool hasMdlTextureBindings{};
+    for( uint_t i = 0; i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
+    {
+        const MdlMaterialTextureBinding& binding{ group.mdlTextureBindings[i].binding };
+        if( binding.textureId == INVALID_TEXTURE_ID )
+        {
+            continue;
+        }
+        hasMdlTextureBindings = true;
+        if( !setMdlMaterialTextureBinding( shader, i, binding.textureId, binding.scale, binding.bias ) )
+        {
+            throw std::runtime_error( "Generated MDL material texture binding table overflow" );
+        }
+    }
+    if( hasMdlTextureBindings )
+    {
+        return shader;
+    }
+
     const PbrtDemandTextureBinding binding{ mdlDiffuseTextureBinding( group ) };
     const uint_t                   textureId{ getMdlDiffuseTextureId( group ) };
     if( textureId != INVALID_TEXTURE_ID && hasPbrtDemandTextureBinding( binding ) )
