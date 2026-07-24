@@ -620,6 +620,7 @@ struct PbrtMaterialGapPolicy
 {
     std::string type;
     std::string policy;
+    std::string coverageReason;
 };
 
 struct BoundParameterSpec
@@ -771,9 +772,19 @@ void appendMaterialParameter( MdlMaterialModel& model, const std::string& type, 
 const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( const std::string& type )
 {
     static const PbrtMaterialGapPolicy policies[] = {
-        { "fourier", "unsupported with visible fallback" },    { "hair", "unsupported with visible fallback" },
-        { "subsurface", "unsupported with visible fallback" }, { "kdsubsurface", "unsupported with visible fallback" },
-        { "measured", "unsupported with visible fallback" },
+        { "fourier", "unsupported with visible fallback",
+          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
+          "baking" },
+        { "hair", "unsupported with visible fallback",
+          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
+        { "subsurface", "unsupported with visible fallback",
+          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
+          "baking" },
+        { "kdsubsurface", "unsupported with visible fallback",
+          "distinct low-frequency subsurface parameterization; no current target scene or reference fixture requires "
+          "support" },
+        { "measured", "unsupported with visible fallback",
+          "PBRT parity completeness gap; current corpus sample did not find a target scene requiring support" },
     };
 
     for( const PbrtMaterialGapPolicy& policy : policies )
@@ -1260,6 +1271,7 @@ MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& ma
     if( policy != nullptr )
     {
         model.comments.push_back( "pbrt material gap policy: " + policy->policy );
+        model.comments.push_back( "pbrt material gap coverage: " + policy->coverageReason );
         appendUnsupportedReason( result, "Explicit PBRT material gap " + type + ": " + policy->policy );
     }
     else

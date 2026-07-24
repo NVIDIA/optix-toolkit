@@ -815,20 +815,43 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
 
 TEST( TestMdlGeneratedSource, recordsExplicitUnsupportedMaterialGapPolicies )
 {
-    const char* const gapTypes[] = { "fourier", "hair", "subsurface", "kdsubsurface", "measured" };
-
-    for( const char* const gapType : gapTypes )
+    struct ExplicitGapExpectation
     {
-        SCOPED_TRACE( gapType );
+        const char* type;
+        const char* coverageReason;
+    };
 
-        const GeneratedMdlSource generated{ generateMdlSource( materialOfType( gapType ) ) };
-        const std::string        reason{ std::string( "Explicit PBRT material gap " ) + gapType
+    const ExplicitGapExpectation gapExpectations[] = {
+        { "fourier",
+          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
+          "baking" },
+        { "hair",
+          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
+        { "subsurface",
+          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
+          "baking" },
+        { "kdsubsurface",
+          "distinct low-frequency subsurface parameterization; no current target scene or reference fixture requires "
+          "support" },
+        { "measured",
+          "PBRT parity completeness gap; current corpus sample did not find a target scene requiring support" },
+    };
+
+    for( const ExplicitGapExpectation& gap : gapExpectations )
+    {
+        SCOPED_TRACE( gap.type );
+
+        const GeneratedMdlSource generated{ generateMdlSource( materialOfType( gap.type ) ) };
+        const std::string        reason{ std::string( "Explicit PBRT material gap " ) + gap.type
                                          + ": unsupported with visible fallback" };
 
         EXPECT_THAT( generated.unsupportedReasons, testing::ElementsAre( reason ) );
-        EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: " + std::string( gapType ) ) );
+        EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: " + std::string( gap.type ) ) );
         EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap policy: unsupported with visible "
                                                            "fallback" ) );
+        const std::string coveragePrefix{ "// pbrt material gap coverage: " };
+        const std::string coverageComment{ coveragePrefix + gap.coverageReason };
+        EXPECT_THAT( generated.source, testing::HasSubstr( coverageComment ) );
         EXPECT_THAT( generated.source, testing::HasSubstr( "// unsupported: " + reason ) );
         EXPECT_THAT( generated.source, testing::HasSubstr( "tint: color(1.0, 0.0, 1.0)" ) );
     }
