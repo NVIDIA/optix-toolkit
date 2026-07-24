@@ -693,8 +693,8 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtDiffuseTextureForCommonMater
         const char* valueType;
     };
 
-    for( const DiffuseCase& value :
-         { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" }, DiffuseCase{ "uber", "spectrum" } } )
+    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
+                                      DiffuseCase{ "uber", "spectrum" }, DiffuseCase{ "translucent", "spectrum" } } )
     {
         SCOPED_TRACE( value.materialType );
         ShapeDefinition shape{ singleTriangleShape() };
@@ -717,8 +717,8 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtDiffuseTextures )
         const char* valueType;
     };
 
-    for( const DiffuseCase& value :
-         { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" }, DiffuseCase{ "uber", "spectrum" } } )
+    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
+                                      DiffuseCase{ "uber", "spectrum" }, DiffuseCase{ "translucent", "spectrum" } } )
     {
         SCOPED_TRACE( value.materialType );
         const std::string         sceneText{ std::string( R"pbrt(

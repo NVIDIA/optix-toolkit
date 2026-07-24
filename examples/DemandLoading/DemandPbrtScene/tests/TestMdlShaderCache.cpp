@@ -391,6 +391,14 @@ PbrtMaterial constantTranslucentMaterial()
     return material;
 }
 
+PbrtMaterial translucentMaterialWithKdTexture()
+{
+    PbrtMaterial material{ constantTranslucentMaterial() };
+    material.params.AddTexture( "Kd", "albedo" );
+    material.graph.textures["spectrum:albedo"] = imageMapTexture( "albedo", "albedo.exr", "spectrum" );
+    return material;
+}
+
 PbrtMaterial texturedMatteMaterial( const std::string& textureType, const std::string& fileName )
 {
     PbrtMaterial material;
@@ -481,6 +489,20 @@ PbrtNamedMaterial namedTranslucentWithTransmitTexture( const std::string& name, 
     return material;
 }
 
+PbrtNamedMaterial namedTranslucentWithKdTexture( const std::string& name, const std::string& textureName )
+{
+    PbrtNamedMaterial material;
+    material.name = name;
+    material.type = "translucent";
+    addString( material.params, "type", "translucent" );
+    material.params.AddTexture( "Kd", textureName );
+    addRgbSpectrum( material.params, "Ks", 0.0f, 0.0f, 0.0f );
+    addRgbSpectrum( material.params, "reflect", 0.25f, 0.25f, 0.25f );
+    addRgbSpectrum( material.params, "transmit", 0.75f, 0.75f, 0.75f );
+    addFloat( material.params, "roughness", 0.5f );
+    return material;
+}
+
 PbrtMaterial layeredMixMaterial()
 {
     PbrtMaterial material;
@@ -492,6 +514,19 @@ PbrtMaterial layeredMixMaterial()
     material.graph.namedMaterials["back"]          = namedTranslucentWithTransmitTexture( "back", "backTransmit" );
     material.graph.textures["spectrum:frontColor"] = imageMapTexture( "frontColor", "front.png" );
     material.graph.textures["color:backTransmit"]  = imageMapTexture( "backTransmit", "back-transmit.exr", "color" );
+    return material;
+}
+
+PbrtMaterial layeredMixMaterialWithTexturedTranslucentKd()
+{
+    PbrtMaterial material;
+    material.type = "mix";
+    addString( material.params, "namedmaterial1", "front" );
+    addString( material.params, "namedmaterial2", "back" );
+    addFloat( material.params, "amount", 0.25f );
+    material.graph.namedMaterials["front"]        = namedMatte( "front", 0.2f );
+    material.graph.namedMaterials["back"]         = namedTranslucentWithKdTexture( "back", "backColor" );
+    material.graph.textures["spectrum:backColor"] = imageMapTexture( "backColor", "back.png" );
     return material;
 }
 
@@ -947,6 +982,18 @@ TEST( TestMdlBoundMaterialParameters, bindsTranslucentConstants )
     expectBoundFloat( parameters, "opacity", 0.7f );
 }
 
+TEST( TestMdlBoundMaterialParameters, skipsTranslucentDiffuseDemandTextureInput )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( translucentMaterialWithKdTexture() ) };
+
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "Kd" ) );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+    expectBoundColor( parameters, "reflect", 0.8f, 0.7f, 0.6f );
+    expectBoundColor( parameters, "transmit", 0.2f, 0.3f, 0.4f );
+    expectBoundFloat( parameters, "roughness", 0.25f );
+    expectBoundFloat( parameters, "opacity", 0.7f );
+}
+
 TEST( TestMdlBoundMaterialParameters, bindsMixConstantsAndNamedMaterialConstants )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMixMaterial() ) };
@@ -1202,6 +1249,21 @@ TEST( TestMdlGeneratedSource, mapsTranslucentMaterialModel )
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
+TEST( TestMdlGeneratedSource, mapsTranslucentDirectDiffuseTextureInput )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( translucentMaterialWithKdTexture() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: translucent" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input reflect: reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input transmit: transmit" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: texture_0() * reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: texture_0() * transmit" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
 TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
 {
     const GeneratedMdlSource generated{ generateMdlSource( layeredMixMaterial() ) };
@@ -1258,6 +1320,22 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "front.png" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "back-transmit.exr" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsMixNamedTranslucentDirectDiffuseTextureInput )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( layeredMixMaterialWithTexturedTranslucentKd() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 model: translucent" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 input Kd: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 input reflect: named_1_reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 1 input transmit: named_1_transmit" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: texture_0() * named_1_reflect" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: texture_0() * named_1_transmit" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "back.png" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 

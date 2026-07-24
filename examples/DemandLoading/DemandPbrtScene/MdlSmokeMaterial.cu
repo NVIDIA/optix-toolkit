@@ -456,10 +456,7 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
     for( uint_t i = 0; i < params.numDirectionalLights; ++i )
     {
         const DirectionalLight& light{ params.directionalLights[i] };
-        if( otk::dot( worldNormal, light.direction ) > 0.0f )
-        {
-            result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureSamples ) * light.color;
-        }
+        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureSamples ) * light.color;
     }
 
     for( uint_t i = 0; i < params.numInfiniteLights; ++i )
