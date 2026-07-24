@@ -493,6 +493,7 @@ struct RayPayload
     float3               color;
     float2               uv;
     const PhongMaterial* material;
+    PhongMaterial        materialCopy;
     unsigned int         diffuseTextureId;
     float                worldSpaceTextureSize;
     bool                 isDebug;

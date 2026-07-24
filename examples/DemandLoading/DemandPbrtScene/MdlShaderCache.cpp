@@ -5,6 +5,7 @@
 #include "DemandPbrtScene/MdlShaderCache.h"
 
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/PbrtCheckerboardImageSource.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -434,9 +435,9 @@ class MdlTextureGraphGenerator
     std::string sourcePreamble() const
     {
         std::ostringstream out;
-        if( m_usesImageMap )
+        if( m_usesDemandTexture )
         {
-            out << "color pbrt_demand_texture_2d(int texture_id) = color(0.8, 0.8, 0.8);\n";
+            out << "color pbrt_demand_texture_2d(int texture_id) = color(1.0, 1.0, 1.0);\n";
         }
         if( m_usesCheckerboard )
         {
@@ -446,7 +447,7 @@ class MdlTextureGraphGenerator
         {
             out << "color pbrt_unsupported_texture() = color(1.0, 0.0, 1.0);\n";
         }
-        if( !m_usesImageMap && !m_usesCheckerboard && !m_usesUnsupported )
+        if( !m_usesDemandTexture && !m_usesCheckerboard && !m_usesUnsupported )
         {
             return std::string{};
         }
@@ -499,7 +500,7 @@ class MdlTextureGraphGenerator
 
         std::ostringstream out;
         out << "// pbrt texture node: " << textureKind( texture ) << "\n";
-        if( texture.type == "imagemap" )
+        if( isDemandTexture( texture ) )
         {
             out << "// demand texture parameter: texture_2d image_" << ( m_nextImageParameter - 1U ) << "\n";
         }
@@ -512,8 +513,7 @@ class MdlTextureGraphGenerator
     {
         if( texture.type == "imagemap" )
         {
-            m_usesImageMap = true;
-            return "pbrt_demand_texture_2d(" + std::to_string( m_nextImageParameter++ ) + ")";
+            return demandTextureExpression();
         }
         if( texture.type == "constant" )
         {
@@ -533,6 +533,10 @@ class MdlTextureGraphGenerator
         }
         if( texture.type == "checkerboard" )
         {
+            if( !pbrtCheckerboardTextureKey( texture ).empty() )
+            {
+                return demandTextureExpression();
+            }
             if( texture.params.FindOneString( "dimension", "2d" ) != "2d" )
             {
                 appendUnsupportedReason( m_result, "Unsupported PBRT checkerboard dimension in " + textureKind( texture ) );
@@ -552,6 +556,17 @@ class MdlTextureGraphGenerator
 
         appendUnsupportedReason( m_result, "Unsupported PBRT texture type " + textureKind( texture ) );
         return unsupportedTextureExpression();
+    }
+
+    std::string demandTextureExpression()
+    {
+        m_usesDemandTexture = true;
+        return "pbrt_demand_texture_2d(" + std::to_string( m_nextImageParameter++ ) + ")";
+    }
+
+    static bool isDemandTexture( const otk::pbrt::PbrtTexture& texture )
+    {
+        return texture.type == "imagemap" || ( texture.type == "checkerboard" && !pbrtCheckerboardTextureKey( texture ).empty() );
     }
 
     std::string textureInputExpression( const otk::pbrt::PbrtTexture& texture, const std::string& paramName, const std::string& defaultExpression )
@@ -579,7 +594,7 @@ class MdlTextureGraphGenerator
     std::vector<std::string>            m_functions;
     unsigned int                        m_nextTextureFunction{};
     unsigned int                        m_nextImageParameter{};
-    bool                                m_usesImageMap{};
+    bool                                m_usesDemandTexture{};
     bool                                m_usesCheckerboard{};
     bool                                m_usesUnsupported{};
 };

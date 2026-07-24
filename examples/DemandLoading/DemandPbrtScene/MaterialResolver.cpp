@@ -151,21 +151,81 @@ MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
     return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
 }
 
-bool supportsGeneratedMdlConstantMaterial( const std::string& type )
+bool supportsGeneratedMdlMaterial( const std::string& type )
 {
     return type == "matte" || type == "plastic" || type == "uber" || type == "substrate";
 }
 
-bool hasGeneratedMdlTextureReference( const otk::pbrt::PbrtMaterial& material )
+bool hasGeneratedMdlDemandTexture( MaterialFlags flags, MaterialFlags mapFlag, MaterialFlags allocatedFlag, const std::string& fileName )
 {
+    return flagSet( flags, mapFlag | allocatedFlag ) && !fileName.empty();
+}
+
+bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
+{
+    const MaterialFlags flags{ group.material.flags };
+    const bool hasDiffuseMap{ hasGeneratedMdlDemandTexture( flags, MaterialFlags::DIFFUSE_MAP,
+                                                            MaterialFlags::DIFFUSE_MAP_ALLOCATED, group.diffuseMapFileName ) };
+    const bool hasAlphaMap{ hasGeneratedMdlDemandTexture( flags, MaterialFlags::ALPHA_MAP,
+                                                          MaterialFlags::ALPHA_MAP_ALLOCATED, group.alphaMapFileName ) };
+
     static const char* const textureParams[] = {
-        "Kd",    "Kr",      "Ks",        "Kt",    "alpha",      "bumpmap",
-        "index", "opacity", "roughness", "sigma", "uroughness", "vroughness",
+        "Kd",      "Kr",        "Ks",          "Kt",    "alpha",      "bumpmap",    "index",
+        "opacity", "roughness", "shadowalpha", "sigma", "uroughness", "vroughness",
     };
 
     for( const char* const param : textureParams )
     {
-        if( !material.params.FindTexture( param ).empty() )
+        if( material.params.FindTexture( param ).empty() )
+        {
+            continue;
+        }
+        const std::string paramName{ param };
+        if( paramName == "Kd" )
+        {
+            if( !hasDiffuseMap )
+            {
+                return false;
+            }
+            continue;
+        }
+        if( paramName == "alpha" || paramName == "shadowalpha" || paramName == "opacity" )
+        {
+            if( !hasAlphaMap )
+            {
+                return false;
+            }
+            continue;
+        }
+        return false;
+    }
+
+    const MaterialFlags supportedFlags{ MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED
+                                        | MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED };
+    if( ( flags & ~supportedFlags ) != MaterialFlags::NONE )
+    {
+        return false;
+    }
+    if( flagSet( flags, MaterialFlags::DIFFUSE_MAP ) && !hasDiffuseMap )
+    {
+        return false;
+    }
+    if( flagSet( flags, MaterialFlags::ALPHA_MAP ) && !hasAlphaMap )
+    {
+        return false;
+    }
+    return true;
+}
+
+bool hasGeneratedMdlUnsupportedTextureReference( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
+{
+    if( !supportsGeneratedMdlTextureReferences( material, group ) )
+    {
+        return true;
+    }
+    for( const auto& texture : material.graph.textures )
+    {
+        if( texture.second.name.empty() )
         {
             return true;
         }
@@ -176,10 +236,9 @@ bool hasGeneratedMdlTextureReference( const otk::pbrt::PbrtMaterial& material )
 bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
 {
     return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
-           && instance.groups.size() == 1 && group.material.flags == MaterialFlags::NONE && group.pbrtMaterial
-           && supportsGeneratedMdlConstantMaterial( group.pbrtMaterial->type )
-           && group.pbrtMaterial->graph.fallbackReasons.empty() && group.pbrtMaterial->graph.textures.empty()
-           && group.pbrtMaterial->graph.namedMaterials.empty() && !hasGeneratedMdlTextureReference( *group.pbrtMaterial );
+           && instance.groups.size() == 1 && group.pbrtMaterial && supportsGeneratedMdlMaterial( group.pbrtMaterial->type )
+           && group.pbrtMaterial->graph.fallbackReasons.empty() && group.pbrtMaterial->graph.namedMaterials.empty()
+           && !hasGeneratedMdlUnsupportedTextureReference( *group.pbrtMaterial, group );
 }
 
 MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )

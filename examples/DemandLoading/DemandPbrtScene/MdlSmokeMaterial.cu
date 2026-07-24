@@ -19,6 +19,39 @@ using namespace otk;  // for vec_math operators
 
 namespace demandPbrtScene {
 
+// Flip V because PBRT texture coordinate space has (0,0) at the lower left corner.
+__device__ __forceinline__ float2 adjustMdlUV( float2 uv )
+{
+    return make_float2( uv.x, 1.f - uv.y );
+}
+
+__device__ __forceinline__ float2 interpolateMdlUVs( const TriangleUVs& uv )
+{
+    const float2 bc = optixGetTriangleBarycentrics();
+    return adjustMdlUV( uv.UV[0] ) * ( 1.0f - bc.x - bc.y ) + adjustMdlUV( uv.UV[1] ) * bc.x + adjustMdlUV( uv.UV[2] ) * bc.y;
+}
+
+__device__ __forceinline__ float2 getMdlTriangleUVs( TriangleUVs** uvs, const uint_t index )
+{
+#ifndef NDEBUG
+    static const float2 zero{};
+    if( uvs == nullptr )
+    {
+        printf( "Parameters uvs array is nullptr!\n" );
+        return zero;
+    }
+#endif
+    const TriangleUVs* triangleUVs = uvs[index];
+#ifndef NDEBUG
+    if( triangleUVs == nullptr )
+    {
+        printf( "Parameters uvs array for material %u is nullptr!\n", index );
+        return zero;
+    }
+#endif
+    return interpolateMdlUVs( triangleUVs[optixGetPrimitiveIndex()] );
+}
+
 __device__ __forceinline__ uint_t getMdlMaterialId( const Params& params, uint_t instanceId )
 {
 #ifndef NDEBUG
@@ -137,8 +170,32 @@ extern "C" __global__ void __closesthit__mdlMesh()
 
     material.Kd = make_float3( tint.x, tint.y, tint.z );
 
+    prd->materialCopy   = material;
     prd->color          = phongShade( material, worldNormal, rayDirection );
     prd->hasDirectColor = true;
+
+    if( ( static_cast<uint_t>( material.flags ) & static_cast<uint_t>( MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ) == 0U )
+    {
+        return;
+    }
+
+#ifndef NDEBUG
+    if( instanceId >= params.numInstanceUVs )
+    {
+        printf( "Instance id %u exceeds numInstanceUVs %u\n", instanceId, params.numInstanceUVs );
+        assert( instanceId < params.numInstanceUVs );
+    }
+#endif
+    prd->diffuseTextureId = material.diffuseTextureId;
+    prd->material         = &prd->materialCopy;
+    prd->uv               = getMdlTriangleUVs( params.instanceUVs, instanceId );
+    prd->hasDirectColor   = false;
+
+    const float2* uvs          = params.instanceUVs[instanceId][optixGetPrimitiveIndex()].UV;
+    const float   a            = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    const float   b            = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    const float   c            = otk::length( uvs[2] - uvs[0] ) / otk::length( vertices[2] - vertices[0] );
+    prd->worldSpaceTextureSize = ( a + b + c ) / 3.0f;
 }
 
 }  // namespace demandPbrtScene

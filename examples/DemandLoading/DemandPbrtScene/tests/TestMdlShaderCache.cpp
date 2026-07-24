@@ -430,10 +430,25 @@ TEST( TestMdlGeneratedSource, mapsImagemapTextureNode )
     const GeneratedMdlSource generated{ generateMdlSource( texturedMatteMaterial( "imagemap", "albedo.png" ) ) };
 
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_demand_texture_2d(int texture_id) = color(1.0, 1.0, "
+                                                       "1.0);" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// demand texture parameter: texture_2d image_0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_0() = pbrt_demand_texture_2d(0);" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "tint: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.png" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsCheckerboardTextureNodeToDemandTexture )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( texturedMatteMaterial( "checkerboard", "" ) ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:checkerboard" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color pbrt_demand_texture_2d(int texture_id) = color(1.0, 1.0, "
+                                                       "1.0);" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// demand texture parameter: texture_2d image_0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_0() = pbrt_demand_texture_2d(0);" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "tint: texture_0()" ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
@@ -724,8 +739,7 @@ TEST( TestMdlGeneratedSource, mapsMixAndCheckerboardTextureNodes )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:constant" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:checkerboard" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: color:mix" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_2() = pbrt_checkerboard_2d(color(1.0, 1.0, 1.0), "
-                                                       "color(0.0, 0.0, 0.0));" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_2() = pbrt_demand_texture_2d(0);" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_0() = texture_1() * (1.0 - 0.5) + texture_2() * "
                                                        "0.5;" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "tint: texture_0()" ) );

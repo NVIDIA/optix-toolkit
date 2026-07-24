@@ -29,7 +29,13 @@ pbrtImageTest(cube2 2 cube.pbrt)
 
 if(OTK_USE_MDL)
     # Render explicit PBRT matte material through generated MDL
-    pbrtImageTest(mdl-matte2 2 mdl-matte.pbrt RESOURCES cube-geom.pbrt light-sources.pbrt OPTIONS --use-mdl-materials)
+    pbrtImageTest(mdl-matte2 2 mdl-matte.pbrt RESOURCES cube-geom.pbrt light-sources.pbrt
+        OPTIONS --use-mdl-materials --mdl-synchronous-compilation)
+    if(OTK_USE_OIIO)
+        # Render generated MDL matte material with a demand-loaded diffuse texture
+        pbrtImageTest(mdl-diffuse4 4 diffuse.pbrt RESOURCES mandelbrot-hue.png
+            OPTIONS --use-mdl-materials --mdl-synchronous-compilation)
+    endif()
 endif()
 
 # Render realized geometry with material selected through NamedMaterial
