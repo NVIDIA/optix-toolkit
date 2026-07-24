@@ -42,6 +42,25 @@ bool operator<( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey&
 
 std::string            toString( const MdlMaterialInstanceKey& key );
 MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial& material );
+
+enum class MdlBoundParameterType
+{
+    COLOR,
+    FLOAT,
+};
+
+struct MdlBoundMaterialParameter
+{
+    std::string           name;
+    MdlBoundParameterType type{};
+    float                 red{};
+    float                 green{};
+    float                 blue{};
+    float                 value{};
+};
+
+std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk::pbrt::PbrtMaterial& material );
+
 struct GeneratedMdlSource
 {
     std::string              moduleName;

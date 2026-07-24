@@ -29,8 +29,11 @@ foreach(material ${referenceMaterials})
 endforeach()
 
 image_test_get_resource_dir(resourceDir DemandPbrtScene)
-add_image_test(DemandPbrtScene matte
-    FOLDER Examples/DemandLoading/Tests
-    RESOURCE_TARGET DemandPbrtScenePbrtReferenceImageTestResources
-    RESOURCES matte.pbrt
-    ARGS --bg=0/0/0 --dim=32x32 --warmup=2 ${resourceDir}/matte.pbrt --use-mdl-materials)
+if(OTK_USE_MDL)
+    add_image_test(DemandPbrtScene matte
+        FOLDER Examples/DemandLoading/Tests
+        RESOURCE_TARGET DemandPbrtScenePbrtReferenceImageTestResources
+        RESOURCES matte.pbrt
+        ARGS --bg=0/0/0 --dim=32x32 --warmup=2 ${resourceDir}/matte.pbrt
+             --use-mdl-materials --mdl-synchronous-compilation)
+endif()

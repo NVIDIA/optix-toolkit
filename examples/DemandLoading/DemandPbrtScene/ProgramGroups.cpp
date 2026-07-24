@@ -62,6 +62,7 @@
 #include <thread>
 #endif
 #include <utility>
+#include <vector>
 
 #ifdef OTK_USE_MDL
 #include <mi/mdl_sdk.h>
@@ -332,18 +333,65 @@ otk::pbrt::PbrtMaterial makeSyntheticMatteMaterial( const float3& kd )
     return material;
 }
 
-float3 materialKd( const otk::pbrt::PbrtMaterial& material, const float3& fallback )
+void bindGeneratedColorParameter( mi::neuraylib::IFunction_call*      materialCall,
+                                  mi::neuraylib::IValue_factory*      valueFactory,
+                                  mi::neuraylib::IExpression_factory* expressionFactory,
+                                  const GeneratedMdlSource&           source,
+                                  const MdlShaderKey&                 key,
+                                  const MdlBoundMaterialParameter&    parameter )
 {
-    int                     count{};
-    const ::pbrt::Spectrum* values = material.params.FindSpectrum( "Kd", &count );
-    if( count <= 0 || values == nullptr )
-    {
-        return fallback;
-    }
+    mi::base::Handle<mi::neuraylib::IValue_color> value(
+        valueFactory->create_color( parameter.red, parameter.green, parameter.blue ) );
+    requireMdl( value.is_valid_interface(),
+                generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " value", source, key ) );
 
-    float rgb[3] = {};
-    values[0].ToRGB( rgb );
-    return make_float3( rgb[0], rgb[1], rgb[2] );
+    mi::base::Handle<mi::neuraylib::IExpression_constant> expression( expressionFactory->create_constant( value.get() ) );
+    requireMdl( expression.is_valid_interface(),
+                generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " expression", source, key ) );
+
+    const mi::Sint32 bindResult = materialCall->set_argument( parameter.name.c_str(), expression.get() );
+    requireMdl( bindResult == 0,
+                generatedMdlMessage( "Failed to bind generated MDL " + parameter.name + " parameter", source, key ) );
+}
+
+void bindGeneratedFloatParameter( mi::neuraylib::IFunction_call*      materialCall,
+                                  mi::neuraylib::IValue_factory*      valueFactory,
+                                  mi::neuraylib::IExpression_factory* expressionFactory,
+                                  const GeneratedMdlSource&           source,
+                                  const MdlShaderKey&                 key,
+                                  const MdlBoundMaterialParameter&    parameter )
+{
+    mi::base::Handle<mi::neuraylib::IValue_float> value( valueFactory->create_float( parameter.value ) );
+    requireMdl( value.is_valid_interface(),
+                generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " value", source, key ) );
+
+    mi::base::Handle<mi::neuraylib::IExpression_constant> expression( expressionFactory->create_constant( value.get() ) );
+    requireMdl( expression.is_valid_interface(),
+                generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " expression", source, key ) );
+
+    const mi::Sint32 bindResult = materialCall->set_argument( parameter.name.c_str(), expression.get() );
+    requireMdl( bindResult == 0,
+                generatedMdlMessage( "Failed to bind generated MDL " + parameter.name + " parameter", source, key ) );
+}
+
+void bindGeneratedMaterialParameters( mi::neuraylib::IFunction_call*                materialCall,
+                                      mi::neuraylib::IValue_factory*                valueFactory,
+                                      mi::neuraylib::IExpression_factory*           expressionFactory,
+                                      const GeneratedMdlSource&                     source,
+                                      const MdlShaderKey&                           key,
+                                      const std::vector<MdlBoundMaterialParameter>& parameters )
+{
+    for( std::vector<MdlBoundMaterialParameter>::const_iterator it = parameters.begin(); it != parameters.end(); ++it )
+    {
+        if( it->type == MdlBoundParameterType::COLOR )
+        {
+            bindGeneratedColorParameter( materialCall, valueFactory, expressionFactory, source, key, *it );
+        }
+        else
+        {
+            bindGeneratedFloatParameter( materialCall, valueFactory, expressionFactory, source, key, *it );
+        }
+    }
 }
 
 mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi::neuraylib::INeuray*      neuray,
@@ -351,7 +399,7 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
                                                                               mi::neuraylib::IMdl_execution_context* context,
                                                                               const GeneratedMdlSource& source,
                                                                               const MdlShaderKey&       key,
-                                                                              const float3&             kd )
+                                                                              const std::vector<MdlBoundMaterialParameter>& parameters )
 {
     mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
     requireMdl( mdlFactory.is_valid_interface(), "Failed to get MDL factory" );
@@ -395,15 +443,7 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
     requireMdl( expressionFactory.is_valid_interface(),
                 generatedMdlMessage( "Failed to create MDL expression factory", source, key ) );
 
-    mi::base::Handle<mi::neuraylib::IValue_color> kdValue( valueFactory->create_color( kd.x, kd.y, kd.z ) );
-    requireMdl( kdValue.is_valid_interface(), generatedMdlMessage( "Failed to create generated MDL Kd value", source, key ) );
-
-    mi::base::Handle<mi::neuraylib::IExpression_constant> kdExpression( expressionFactory->create_constant( kdValue.get() ) );
-    requireMdl( kdExpression.is_valid_interface(),
-                generatedMdlMessage( "Failed to create generated MDL Kd expression", source, key ) );
-
-    const mi::Sint32 bindKdResult = materialCall->set_argument( "Kd", kdExpression.get() );
-    requireMdl( bindKdResult == 0, generatedMdlMessage( "Failed to bind generated MDL Kd parameter", source, key ) );
+    bindGeneratedMaterialParameters( materialCall.get(), valueFactory.get(), expressionFactory.get(), source, key, parameters );
 
     mi::base::Handle<mi::neuraylib::IMaterial_instance> materialInstance(
         materialCall->get_interface<mi::neuraylib::IMaterial_instance>() );
@@ -453,12 +493,12 @@ std::string compileMdlTintPtx( const MaterialGroup& group )
         const otk::pbrt::PbrtMaterial  syntheticMaterial{ makeSyntheticMatteMaterial( group.material.Kd ) };
         const otk::pbrt::PbrtMaterial& pbrtMaterial{
             group.pbrtMaterial && !group.pbrtMaterial->type.empty() ? *group.pbrtMaterial : syntheticMaterial };
-        MdlGeneratedSourceCache                             sourceCache;
-        const MdlShaderKey                                  key{ makeMdlShaderKey( pbrtMaterial ) };
-        const GeneratedMdlSource&                           source{ sourceCache.getSource( pbrtMaterial ) };
-        const float3                                        kd{ materialKd( pbrtMaterial, group.material.Kd ) };
+        MdlGeneratedSourceCache                      sourceCache;
+        const MdlShaderKey                           key{ makeMdlShaderKey( pbrtMaterial ) };
+        const GeneratedMdlSource&                    source{ sourceCache.getSource( pbrtMaterial ) };
+        const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( pbrtMaterial ) };
         mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
-            compileGeneratedMaterial( session.neuray(), transaction.get(), context.get(), source, key, kd ) );
+            compileGeneratedMaterial( session.neuray(), transaction.get(), context.get(), source, key, parameters ) );
 
         mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi(
             session.neuray()->get_api_component<mi::neuraylib::IMdl_backend_api>() );

@@ -159,6 +159,23 @@ PbrtMaterial uberMaterial()
     return material;
 }
 
+PbrtMaterial constantUberMaterial()
+{
+    PbrtMaterial material;
+    material.type = "uber";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    addRgbSpectrum( material.params, "Kr", 0.1f, 0.2f, 0.3f );
+    addRgbSpectrum( material.params, "Kt", 0.0f, 0.1f, 0.2f );
+    addFloat( material.params, "roughness", 0.25f );
+    addFloat( material.params, "uroughness", 0.2f );
+    addFloat( material.params, "vroughness", 0.3f );
+    addFloat( material.params, "index", 1.4f );
+    addFloat( material.params, "alpha", 0.8f );
+    addFloat( material.params, "opacity", 0.7f );
+    return material;
+}
+
 PbrtMaterial mirrorMaterial()
 {
     PbrtMaterial material;
@@ -304,6 +321,36 @@ PbrtMaterial layeredMixMaterial()
     return material;
 }
 
+const MdlBoundMaterialParameter* findBoundParameter( const std::vector<MdlBoundMaterialParameter>& parameters, const std::string& name )
+{
+    for( std::vector<MdlBoundMaterialParameter>::const_iterator it = parameters.begin(); it != parameters.end(); ++it )
+    {
+        if( it->name == name )
+        {
+            return &*it;
+        }
+    }
+    return nullptr;
+}
+
+void expectBoundColor( const std::vector<MdlBoundMaterialParameter>& parameters, const std::string& name, float red, float green, float blue )
+{
+    const MdlBoundMaterialParameter* parameter{ findBoundParameter( parameters, name ) };
+    ASSERT_NE( nullptr, parameter ) << name;
+    EXPECT_EQ( MdlBoundParameterType::COLOR, parameter->type );
+    EXPECT_FLOAT_EQ( red, parameter->red );
+    EXPECT_FLOAT_EQ( green, parameter->green );
+    EXPECT_FLOAT_EQ( blue, parameter->blue );
+}
+
+void expectBoundFloat( const std::vector<MdlBoundMaterialParameter>& parameters, const std::string& name, float value )
+{
+    const MdlBoundMaterialParameter* parameter{ findBoundParameter( parameters, name ) };
+    ASSERT_NE( nullptr, parameter ) << name;
+    EXPECT_EQ( MdlBoundParameterType::FLOAT, parameter->type );
+    EXPECT_FLOAT_EQ( value, parameter->value );
+}
+
 }  // namespace
 
 TEST( TestMdlShaderKey, parameterOnlyMaterialChangesProduceSameKey )
@@ -434,11 +481,15 @@ TEST( TestMdlGeneratedSource, mapsSimpleUberMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Kr = color(0.0, 0.0, 0.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color Kt = color(0.0, 0.0, 0.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float uroughness = 0.1" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float vroughness = 0.1" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float index = 1.5" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float alpha = 1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float opacity = 1.0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: texture_1()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input uroughness: uroughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input vroughness: vroughness" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_approximation_tint(texture_0(), Ks, Kr, Kt, "
                                                        "roughness)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(index, index, index)" ) );
@@ -447,6 +498,56 @@ TEST( TestMdlGeneratedSource, mapsSimpleUberMaterialModel )
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsPlasticConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( plasticMaterial() ) };
+
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+    expectBoundFloat( parameters, "roughness", 0.25f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsUberConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantUberMaterial() ) };
+
+    EXPECT_EQ( 10U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+    expectBoundColor( parameters, "Kr", 0.1f, 0.2f, 0.3f );
+    expectBoundColor( parameters, "Kt", 0.0f, 0.1f, 0.2f );
+    expectBoundFloat( parameters, "roughness", 0.25f );
+    expectBoundFloat( parameters, "uroughness", 0.2f );
+    expectBoundFloat( parameters, "vroughness", 0.3f );
+    expectBoundFloat( parameters, "index", 1.4f );
+    expectBoundFloat( parameters, "alpha", 0.8f );
+    expectBoundFloat( parameters, "opacity", 0.7f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsSubstrateConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( substrateMaterial() ) };
+
+    EXPECT_EQ( 5U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+    expectBoundFloat( parameters, "roughness", 0.25f );
+    expectBoundFloat( parameters, "uroughness", 0.2f );
+    expectBoundFloat( parameters, "vroughness", 0.3f );
+}
+
+TEST( TestMdlBoundMaterialParameters, skipsTextureBackedInputsUntilTextureBindingExists )
+{
+    PbrtMaterial material{ constantUberMaterial() };
+    material.params.AddTexture( "Kd", "albedo" );
+
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
+
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "Kd" ) );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
 }
 
 TEST( TestMdlGeneratedSource, mapsMirrorMaterialModel )

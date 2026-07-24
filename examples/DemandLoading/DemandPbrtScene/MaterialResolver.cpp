@@ -151,12 +151,35 @@ MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
     return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
 }
 
+bool supportsGeneratedMdlConstantMaterial( const std::string& type )
+{
+    return type == "matte" || type == "plastic" || type == "uber" || type == "substrate";
+}
+
+bool hasGeneratedMdlTextureReference( const otk::pbrt::PbrtMaterial& material )
+{
+    static const char* const textureParams[] = {
+        "Kd",    "Kr",      "Ks",        "Kt",    "alpha",      "bumpmap",
+        "index", "opacity", "roughness", "sigma", "uroughness", "vroughness",
+    };
+
+    for( const char* const param : textureParams )
+    {
+        if( !material.params.FindTexture( param ).empty() )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
 {
     return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
            && instance.groups.size() == 1 && group.material.flags == MaterialFlags::NONE && group.pbrtMaterial
-           && group.pbrtMaterial->type == "matte" && group.pbrtMaterial->graph.fallbackReasons.empty()
-           && group.pbrtMaterial->graph.textures.empty() && group.pbrtMaterial->graph.namedMaterials.empty();
+           && supportsGeneratedMdlConstantMaterial( group.pbrtMaterial->type )
+           && group.pbrtMaterial->graph.fallbackReasons.empty() && group.pbrtMaterial->graph.textures.empty()
+           && group.pbrtMaterial->graph.namedMaterials.empty() && !hasGeneratedMdlTextureReference( *group.pbrtMaterial );
 }
 
 MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )

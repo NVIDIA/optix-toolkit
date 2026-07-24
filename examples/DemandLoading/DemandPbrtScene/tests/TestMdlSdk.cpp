@@ -19,6 +19,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -196,6 +197,13 @@ void addRgbSpectrum( ::pbrt::ParamSet& params, const std::string& name, float re
     params.AddRGBSpectrum( name, std::move( values ), 3 );
 }
 
+void addFloat( ::pbrt::ParamSet& params, const std::string& name, float value )
+{
+    std::unique_ptr<::pbrt::Float[]> values{ new ::pbrt::Float[1] };
+    values[0] = value;
+    params.AddFloat( name, std::move( values ), 1 );
+}
+
 otk::pbrt::PbrtMaterial matteMaterial( float red, float green, float blue )
 {
     otk::pbrt::PbrtMaterial material;
@@ -204,17 +212,57 @@ otk::pbrt::PbrtMaterial matteMaterial( float red, float green, float blue )
     return material;
 }
 
+otk::pbrt::PbrtMaterial plasticMaterial()
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "plastic";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    addFloat( material.params, "roughness", 0.25f );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial uberMaterial()
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "uber";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    addRgbSpectrum( material.params, "Kr", 0.1f, 0.2f, 0.3f );
+    addRgbSpectrum( material.params, "Kt", 0.0f, 0.1f, 0.2f );
+    addFloat( material.params, "roughness", 0.25f );
+    addFloat( material.params, "uroughness", 0.2f );
+    addFloat( material.params, "vroughness", 0.3f );
+    addFloat( material.params, "index", 1.4f );
+    addFloat( material.params, "alpha", 0.8f );
+    addFloat( material.params, "opacity", 0.7f );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial substrateMaterial()
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "substrate";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    addFloat( material.params, "roughness", 0.25f );
+    addFloat( material.params, "uroughness", 0.2f );
+    addFloat( material.params, "vroughness", 0.3f );
+    return material;
+}
+
 std::string describeGeneratedSource( const demandPbrtScene::GeneratedMdlSource& source, const demandPbrtScene::MdlShaderKey& key )
 {
     return "module=" + source.moduleName + ", material=" + source.materialName + ", key=" + demandPbrtScene::toString( key );
 }
 
-mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMatteMaterial( mi::neuraylib::INeuray* neuray,
-                                                                                   mi::neuraylib::ITransaction* transaction,
-                                                                                   mi::neuraylib::IMdl_execution_context* context,
-                                                                                   const demandPbrtScene::GeneratedMdlSource& source,
-                                                                                   const demandPbrtScene::MdlShaderKey& key,
-                                                                                   const BoundMdlColor& kd )
+mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterialWithBoundParameters(
+    mi::neuraylib::INeuray*                                        neuray,
+    mi::neuraylib::ITransaction*                                   transaction,
+    mi::neuraylib::IMdl_execution_context*                         context,
+    const demandPbrtScene::GeneratedMdlSource&                     source,
+    const demandPbrtScene::MdlShaderKey&                           key,
+    const std::vector<demandPbrtScene::MdlBoundMaterialParameter>& parameters )
 {
     const std::string sourceDescription{ describeGeneratedSource( source, key ) };
     mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
@@ -277,17 +325,40 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMatteMateria
     if( !expressionFactory.is_valid_interface() )
         return {};
 
-    mi::base::Handle<mi::neuraylib::IValue_color> kdValue( valueFactory->create_color( kd.red, kd.green, kd.blue ) );
-    EXPECT_TRUE( kdValue.is_valid_interface() ) << sourceDescription;
-    if( !kdValue.is_valid_interface() )
-        return {};
+    for( const demandPbrtScene::MdlBoundMaterialParameter& parameter : parameters )
+    {
+        if( parameter.type == demandPbrtScene::MdlBoundParameterType::COLOR )
+        {
+            mi::base::Handle<mi::neuraylib::IValue_color> value(
+                valueFactory->create_color( parameter.red, parameter.green, parameter.blue ) );
+            EXPECT_TRUE( value.is_valid_interface() ) << sourceDescription << ", parameter=" << parameter.name;
+            if( !value.is_valid_interface() )
+                return {};
 
-    mi::base::Handle<mi::neuraylib::IExpression_constant> kdExpression( expressionFactory->create_constant( kdValue.get() ) );
-    EXPECT_TRUE( kdExpression.is_valid_interface() ) << sourceDescription;
-    if( !kdExpression.is_valid_interface() )
-        return {};
+            mi::base::Handle<mi::neuraylib::IExpression_constant> expression( expressionFactory->create_constant( value.get() ) );
+            EXPECT_TRUE( expression.is_valid_interface() ) << sourceDescription << ", parameter=" << parameter.name;
+            if( !expression.is_valid_interface() )
+                return {};
 
-    EXPECT_EQ( 0, materialCall->set_argument( "Kd", kdExpression.get() ) ) << sourceDescription;
+            EXPECT_EQ( 0, materialCall->set_argument( parameter.name.c_str(), expression.get() ) )
+                << sourceDescription << ", parameter=" << parameter.name;
+        }
+        else
+        {
+            mi::base::Handle<mi::neuraylib::IValue_float> value( valueFactory->create_float( parameter.value ) );
+            EXPECT_TRUE( value.is_valid_interface() ) << sourceDescription << ", parameter=" << parameter.name;
+            if( !value.is_valid_interface() )
+                return {};
+
+            mi::base::Handle<mi::neuraylib::IExpression_constant> expression( expressionFactory->create_constant( value.get() ) );
+            EXPECT_TRUE( expression.is_valid_interface() ) << sourceDescription << ", parameter=" << parameter.name;
+            if( !expression.is_valid_interface() )
+                return {};
+
+            EXPECT_EQ( 0, materialCall->set_argument( parameter.name.c_str(), expression.get() ) )
+                << sourceDescription << ", parameter=" << parameter.name;
+        }
+    }
 
     mi::base::Handle<mi::neuraylib::IMaterial_instance> materialInstance(
         materialCall->get_interface<mi::neuraylib::IMaterial_instance>() );
@@ -422,12 +493,16 @@ TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithBoundKd )
 
         const BoundMdlColor firstKd{ PBRT_KD_RED, PBRT_KD_GREEN, PBRT_KD_BLUE };
         const BoundMdlColor secondKd{ PBRT_KD_ALT_RED, PBRT_KD_ALT_GREEN, PBRT_KD_ALT_BLUE };
-        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
-            compileGeneratedMatteMaterial( session.neuray(), transaction.get(), context.get(), generated, key, firstKd ) );
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> firstParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( sourceMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> secondParameters{ demandPbrtScene::makeMdlBoundMaterialParameters(
+            matteMaterial( PBRT_KD_ALT_RED, PBRT_KD_ALT_GREEN, PBRT_KD_ALT_BLUE ) ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, key, firstParameters ) );
         ASSERT_TRUE( compiledMaterial.is_valid_interface() );
 
-        mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial(
-            compileGeneratedMatteMaterial( session.neuray(), transaction.get(), context.get(), generated, key, secondKd ) );
+        mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, key, secondParameters ) );
         ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
 
         expectTintMatchesPbrtKd( compiledMaterial.get(), firstKd );
@@ -442,6 +517,49 @@ TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithBoundKd )
 
         secondCompiledMaterial.reset();
         compiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
+TEST( TestMdlSdk, compilesOpaqueGeneratedMaterialsWithBoundConstants )
+{
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        demandPbrtScene::MdlGeneratedSourceCache sourceCache;
+        const auto expectCompiledTint = [&]( const otk::pbrt::PbrtMaterial& material, const BoundMdlColor& kd ) {
+            const demandPbrtScene::MdlShaderKey        key{ demandPbrtScene::makeMdlShaderKey( material ) };
+            const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( material ) };
+            const std::vector<demandPbrtScene::MdlBoundMaterialParameter> parameters{
+                demandPbrtScene::makeMdlBoundMaterialParameters( material ) };
+            mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterialWithBoundParameters(
+                session.neuray(), transaction.get(), context.get(), generated, key, parameters ) );
+            ASSERT_TRUE( compiledMaterial.is_valid_interface() );
+            expectTintMatchesPbrtKd( compiledMaterial.get(), kd );
+        };
+
+        expectCompiledTint( plasticMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
+        expectCompiledTint( uberMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
+        expectCompiledTint( substrateMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
+
         EXPECT_EQ( 0, transaction->commit() );
     }
 

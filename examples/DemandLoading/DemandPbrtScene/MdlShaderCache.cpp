@@ -605,6 +605,83 @@ struct PbrtMaterialGapPolicy
     std::string policy;
 };
 
+struct BoundParameterSpec
+{
+    MdlBoundParameterType type;
+    const char*           name;
+};
+
+bool findConstantColor( const ::pbrt::ParamSet& params, const char* name, float& red, float& green, float& blue )
+{
+    if( !params.FindTexture( name ).empty() )
+    {
+        return false;
+    }
+
+    int                     count{};
+    const ::pbrt::Spectrum* values = params.FindSpectrum( name, &count );
+    if( count <= 0 || values == nullptr )
+    {
+        return false;
+    }
+
+    float rgb[3]{};
+    values[0].ToRGB( rgb );
+    red   = rgb[0];
+    green = rgb[1];
+    blue  = rgb[2];
+    return true;
+}
+
+bool findConstantFloat( const ::pbrt::ParamSet& params, const char* name, float& value )
+{
+    if( !params.FindTexture( name ).empty() )
+    {
+        return false;
+    }
+
+    int          count{};
+    const float* values = params.FindFloat( name, &count );
+    if( count <= 0 || values == nullptr )
+    {
+        return false;
+    }
+
+    value = values[0];
+    return true;
+}
+
+void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const ::pbrt::ParamSet& params, const BoundParameterSpec& spec )
+{
+    MdlBoundMaterialParameter parameter{};
+    parameter.name = spec.name;
+    parameter.type = spec.type;
+    if( spec.type == MdlBoundParameterType::COLOR )
+    {
+        if( findConstantColor( params, spec.name, parameter.red, parameter.green, parameter.blue ) )
+        {
+            result.push_back( parameter );
+        }
+        return;
+    }
+
+    if( findConstantFloat( params, spec.name, parameter.value ) )
+    {
+        result.push_back( parameter );
+    }
+}
+
+void appendBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
+                            const ::pbrt::ParamSet&                 params,
+                            const BoundParameterSpec*               begin,
+                            const BoundParameterSpec*               end )
+{
+    for( const BoundParameterSpec* it = begin; it != end; ++it )
+    {
+        appendBoundParameter( result, params, *it );
+    }
+}
+
 void appendMaterialParameter( MdlMaterialModel& model, const std::string& type, const std::string& name, const std::string& defaultValue )
 {
     model.parameters.push_back( MdlMaterialParameter{ type, name, defaultValue } );
@@ -836,6 +913,8 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     appendMaterialParameter( model, "color", "Kr", "color(0.0, 0.0, 0.0)" );
     appendMaterialParameter( model, "color", "Kt", "color(0.0, 0.0, 0.0)" );
     appendMaterialParameter( model, "float", "roughness", "0.1" );
+    appendMaterialParameter( model, "float", "uroughness", "0.1" );
+    appendMaterialParameter( model, "float", "vroughness", "0.1" );
     appendMaterialParameter( model, "float", "index", "1.5" );
     appendMaterialParameter( model, "float", "alpha", "1.0" );
     appendMaterialParameter( model, "float", "opacity", "1.0" );
@@ -856,6 +935,8 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     model.comments.push_back( "pbrt material input Kr: " + kr );
     model.comments.push_back( "pbrt material input Kt: " + kt );
     model.comments.push_back( "pbrt material input roughness: roughness" );
+    model.comments.push_back( "pbrt material input uroughness: uroughness" );
+    model.comments.push_back( "pbrt material input vroughness: vroughness" );
     model.comments.push_back( "pbrt material input index: index" );
     model.comments.push_back( "pbrt material input alpha: alpha; texture=" + alphaTexture );
     model.comments.push_back( "pbrt material input opacity: opacity; texture=" + opacityTexture );
@@ -1253,6 +1334,50 @@ MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial
     appendMaterialInstanceSignature( signature, material.type, material.params, material.graph, materialStack, textureStack );
 
     result.signature = signature.str();
+    return result;
+}
+
+std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk::pbrt::PbrtMaterial& material )
+{
+    static const BoundParameterSpec matteParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },
+        { MdlBoundParameterType::FLOAT, "sigma" },
+    };
+    static const BoundParameterSpec plasticParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },
+        { MdlBoundParameterType::COLOR, "Ks" },
+        { MdlBoundParameterType::FLOAT, "roughness" },
+    };
+    static const BoundParameterSpec uberParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
+        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+        { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "index" },
+        { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::FLOAT, "opacity" },
+    };
+    static const BoundParameterSpec substrateParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
+        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+        { MdlBoundParameterType::FLOAT, "vroughness" },
+    };
+
+    std::vector<MdlBoundMaterialParameter> result;
+    if( material.type == "matte" )
+    {
+        appendBoundParameters( result, material.params, std::begin( matteParams ), std::end( matteParams ) );
+    }
+    else if( material.type == "plastic" )
+    {
+        appendBoundParameters( result, material.params, std::begin( plasticParams ), std::end( plasticParams ) );
+    }
+    else if( material.type == "uber" )
+    {
+        appendBoundParameters( result, material.params, std::begin( uberParams ), std::end( uberParams ) );
+    }
+    else if( material.type == "substrate" )
+    {
+        appendBoundParameters( result, material.params, std::begin( substrateParams ), std::end( substrateParams ) );
+    }
     return result;
 }
 
