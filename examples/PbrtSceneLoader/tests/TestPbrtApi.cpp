@@ -609,6 +609,27 @@ TEST_F( TestPbrtApi, namedPbrtMaterialIntentIsPreserved )
     EXPECT_EQ( 1.5f, eta[0] );
 }
 
+TEST_F( TestPbrtApi, namedFourierMaterialPreservesBsdfFile )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        MakeNamedMaterial "measuredCeramic"
+            "string type" [ "fourier" ]
+            "string bsdffile" [ "bsdfs/ceramic.bsdf" ]
+        NamedMaterial "measuredCeramic"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_EQ( "fourier", material.type );
+    EXPECT_EQ( "measuredCeramic", material.namedMaterialName );
+    EXPECT_EQ( "fourier", material.params.FindOneString( "type", "" ) );
+    EXPECT_EQ( "bsdfs/ceramic.bsdf", material.params.FindOneString( "bsdffile", "" ) );
+}
+
 TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNamedMaterialReferences )
 {
     parseScene( R"pbrt(

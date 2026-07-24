@@ -163,6 +163,13 @@ PbrtMaterial materialOfType( const std::string& type )
     return material;
 }
 
+PbrtMaterial fourierMaterialWithBsdfFile( const std::string& bsdfFile )
+{
+    PbrtMaterial material{ materialOfType( "fourier" ) };
+    addString( material.params, "bsdffile", bsdfFile );
+    return material;
+}
+
 PbrtMaterial matteMaterialWithBumpmap()
 {
     PbrtMaterial material{ matteMaterial( 0.2f ) };
@@ -1182,8 +1189,8 @@ TEST( TestMdlGeneratedSource, recordsExplicitUnsupportedMaterialGapPolicies )
 
     const ExplicitGapExpectation gapExpectations[] = {
         { "fourier",
-          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
-          "baking" },
+          "PBRT Fourier tables are data-driven BSDF resources found in the corpus; DemandPbrtScene preserves the "
+          "resource metadata but does not yet evaluate the Fourier table on the GPU" },
         { "hair",
           "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
         { "subsurface",
@@ -1200,7 +1207,10 @@ TEST( TestMdlGeneratedSource, recordsExplicitUnsupportedMaterialGapPolicies )
     {
         SCOPED_TRACE( gap.type );
 
-        const GeneratedMdlSource generated{ generateMdlSource( materialOfType( gap.type ) ) };
+        const PbrtMaterial       material{ std::string( gap.type ) == "fourier" ?
+                                               fourierMaterialWithBsdfFile( "bsdfs/ceramic.bsdf" ) :
+                                               materialOfType( gap.type ) };
+        const GeneratedMdlSource generated{ generateMdlSource( material ) };
         const std::string        reason{ std::string( "Explicit PBRT material gap " ) + gap.type
                                          + ": unsupported with visible fallback" };
 
@@ -1214,6 +1224,27 @@ TEST( TestMdlGeneratedSource, recordsExplicitUnsupportedMaterialGapPolicies )
         EXPECT_THAT( generated.source, testing::HasSubstr( "// unsupported: " + reason ) );
         EXPECT_THAT( generated.source, testing::HasSubstr( "tint: color(1.0, 0.0, 1.0)" ) );
     }
+}
+
+TEST( TestMdlGeneratedSource, preservesFourierBsdfFileAsMetadataOnly )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( fourierMaterialWithBsdfFile( "bsdfs/ceramic.bsdf" ) ) };
+
+    EXPECT_THAT( generated.unsupportedReasons, testing::ElementsAre( "Explicit PBRT material gap fourier: unsupported "
+                                                                     "with visible fallback" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt fourier bsdffile: preserved as material metadata" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "ceramic.bsdf" ) ) );
+}
+
+TEST( TestMdlGeneratedSource, recordsMissingFourierBsdfFileAsUnsupportedReason )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( materialOfType( "fourier" ) ) };
+
+    EXPECT_THAT( generated.unsupportedReasons, testing::ElementsAre( "Explicit PBRT material gap fourier: unsupported "
+                                                                     "with visible fallback",
+                                                                     "PBRT Fourier material missing bsdffile" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt fourier bsdffile: missing" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// unsupported: PBRT Fourier material missing bsdffile" ) );
 }
 
 TEST( TestMdlGeneratedSource, mapsScaleTextureNode )

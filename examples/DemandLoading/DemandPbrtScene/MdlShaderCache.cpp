@@ -1066,8 +1066,8 @@ const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( const std::string& type 
 {
     static const PbrtMaterialGapPolicy policies[] = {
         { "fourier", "unsupported with visible fallback",
-          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
-          "baking" },
+          "PBRT Fourier tables are data-driven BSDF resources found in the corpus; DemandPbrtScene preserves the "
+          "resource metadata but does not yet evaluate the Fourier table on the GPU" },
         { "hair", "unsupported with visible fallback",
           "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
         { "subsurface", "unsupported with visible fallback",
@@ -1088,6 +1088,11 @@ const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( const std::string& type 
         }
     }
     return nullptr;
+}
+
+bool hasFourierBsdfFile( const otk::pbrt::PbrtMaterial& material )
+{
+    return !material.params.FindOneString( "bsdffile", std::string{} ).empty();
 }
 
 void appendRoughnessGapComment( MdlMaterialModel& model )
@@ -2020,6 +2025,18 @@ MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& ma
         model.comments.push_back( "pbrt material gap policy: " + policy->policy );
         model.comments.push_back( "pbrt material gap coverage: " + policy->coverageReason );
         appendUnsupportedReason( result, "Explicit PBRT material gap " + type + ": " + policy->policy );
+        if( material.type == "fourier" )
+        {
+            if( hasFourierBsdfFile( material ) )
+            {
+                model.comments.push_back( "pbrt fourier bsdffile: preserved as material metadata" );
+            }
+            else
+            {
+                model.comments.push_back( "pbrt fourier bsdffile: missing" );
+                appendUnsupportedReason( result, "PBRT Fourier material missing bsdffile" );
+            }
+        }
     }
     else
     {
