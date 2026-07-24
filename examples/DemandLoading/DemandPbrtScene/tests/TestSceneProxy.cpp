@@ -789,18 +789,116 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesScaledPbrtDiffuseTexture )
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), material.Kd );
     EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), binding.scale );
-    EXPECT_TRUE( binding.scaled );
+    EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ), binding.bias );
+    EXPECT_TRUE( binding.transformed );
     EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 
-TEST( TestMaterialAdapters, fallbackMaterialLeavesMixedPbrtDiffuseTextureUnsupported )
+TEST( TestMaterialAdapters, fallbackMaterialUsesMixedPbrtDiffuseTexture )
+{
+    for( const char* valueType : { "color", "spectrum" } )
+    {
+        SCOPED_TRACE( valueType );
+        const std::string         sceneText{ std::string( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" ")pbrt" )
+                                             + valueType + R"pbrt(" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "mixedDiffuse" ")pbrt"
+                                             + valueType + R"pbrt(" "mix"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+            "float amount" [ 0.5 ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" };
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+        const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+        EXPECT_TRUE( scene->freeShapes[0].material.diffuseMapFileName.empty() );
+        EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( make_float3( 0.5f, 0.5f, 0.5f ), material.Kd );
+        EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( make_float3( 0.5f, 0.5f, 0.5f ), binding.scale );
+        EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), binding.bias );
+        EXPECT_TRUE( binding.transformed );
+        EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesTwoLeafMixedPbrtDiffuseTextureUnsupported )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture1" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse-1.png" ]
+        Texture "diffuseTexture2" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse-2.png" ]
+        Texture "mixedDiffuse" "color" "mix"
+            "texture tex1" [ "diffuseTexture1" ]
+            "texture tex2" [ "diffuseTexture2" ]
+            "float amount" [ 0.5 ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_TRUE( material.diffuseMapFileName.empty() );
+    EXPECT_FALSE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesDynamicAmountMixedPbrtDiffuseTextureUnsupported )
 {
     const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
         WorldBegin
         Texture "diffuseTexture" "color" "imagemap"
             "string filename" [ "pbrt-diffuse.png" ]
+        Texture "amountTexture" "float" "imagemap"
+            "string filename" [ "pbrt-amount.png" ]
         Texture "mixedDiffuse" "color" "mix"
             "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+            "texture amount" [ "amountTexture" ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_TRUE( material.diffuseMapFileName.empty() );
+    EXPECT_FALSE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesNestedMixedPbrtDiffuseTextureUnsupported )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "scaledDiffuse" "color" "scale"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+        Texture "mixedDiffuse" "color" "mix"
+            "texture tex1" [ "scaledDiffuse" ]
             "rgb tex2" [ 0.25 0.5 0.75 ]
             "float amount" [ 0.5 ]
         Material "matte"

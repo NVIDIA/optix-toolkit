@@ -254,12 +254,14 @@ struct MdlMaterialShader
     // Per-instance shader data lives here rather than in hitgroup SBT records.
     bool   usesDiffuseTexture;
     float3 diffuseTextureScale;
+    float3 diffuseTextureBias;
 
     __host__ __device__ MdlMaterialShader()
         : callableBaseIndex( 0U )
         , callableCount( 0U )
         , usesDiffuseTexture( false )
         , diffuseTextureScale( make_float3( 1.0f, 1.0f, 1.0f ) )
+        , diffuseTextureBias( make_float3( 0.0f, 0.0f, 0.0f ) )
     {
     }
 
@@ -268,6 +270,7 @@ struct MdlMaterialShader
         , callableCount( callableCount_ )
         , usesDiffuseTexture( false )
         , diffuseTextureScale( make_float3( 1.0f, 1.0f, 1.0f ) )
+        , diffuseTextureBias( make_float3( 0.0f, 0.0f, 0.0f ) )
     {
     }
 
@@ -276,6 +279,19 @@ struct MdlMaterialShader
         , callableCount( callableCount_ )
         , usesDiffuseTexture( false )
         , diffuseTextureScale( diffuseTextureScale_ )
+        , diffuseTextureBias( make_float3( 0.0f, 0.0f, 0.0f ) )
+    {
+    }
+
+    __host__ __device__ MdlMaterialShader( uint_t        callableBaseIndex_,
+                                           uint_t        callableCount_,
+                                           const float3& diffuseTextureScale_,
+                                           const float3& diffuseTextureBias_ )
+        : callableBaseIndex( callableBaseIndex_ )
+        , callableCount( callableCount_ )
+        , usesDiffuseTexture( false )
+        , diffuseTextureScale( diffuseTextureScale_ )
+        , diffuseTextureBias( diffuseTextureBias_ )
     {
     }
 };
@@ -286,7 +302,9 @@ inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& r
            && lhs.usesDiffuseTexture == rhs.usesDiffuseTexture
            && lhs.diffuseTextureScale.x == rhs.diffuseTextureScale.x
            && lhs.diffuseTextureScale.y == rhs.diffuseTextureScale.y
-           && lhs.diffuseTextureScale.z == rhs.diffuseTextureScale.z;
+           && lhs.diffuseTextureScale.z == rhs.diffuseTextureScale.z
+           && lhs.diffuseTextureBias.x == rhs.diffuseTextureBias.x && lhs.diffuseTextureBias.y == rhs.diffuseTextureBias.y
+           && lhs.diffuseTextureBias.z == rhs.diffuseTextureBias.z;
 }
 
 inline bool operator!=( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )

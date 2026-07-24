@@ -7,6 +7,7 @@ include(ImageTest)
 set(referenceMaterials
     matte
     matte-imagemap
+    matte-mix-imagemap
     matte-checkerboard
     plastic
     uber
@@ -185,5 +186,11 @@ if(OTK_USE_MDL)
             RESOURCES matte-imagemap.png
             WARMUP 4
             TOLERANCE_REASON "Default tolerance, direct imagemap Kd uses the existing sparse demand texture path")
+        add_pbrt_reference_image_test(matte-mix-imagemap
+            MATERIAL matte
+            SCENE matte-mix-imagemap.pbrt
+            RESOURCES matte-imagemap.png
+            WARMUP 4
+            TOLERANCE_REASON "Default tolerance, one-leaf mix imagemap Kd uses the affine sparse demand texture path")
     endif()
 endif()

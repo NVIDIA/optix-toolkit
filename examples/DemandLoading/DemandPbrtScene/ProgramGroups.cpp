@@ -684,7 +684,6 @@ MdlMaterialShader appendMdlMaterialCallableProgramGroups( OptixDeviceContext    
         createdCallableProgramGroups.push_back( group );
         callableProgramGroups.push_back( group );
     }
-
     return shader;
 }
 
@@ -710,6 +709,7 @@ MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMater
     const PbrtDemandTextureBinding binding{ getMdlDiffuseTextureBinding( group ) };
     shader.usesDiffuseTexture  = hasPbrtDemandTextureBinding( binding );
     shader.diffuseTextureScale = binding.scale;
+    shader.diffuseTextureBias  = binding.bias;
     return shader;
 }
 
