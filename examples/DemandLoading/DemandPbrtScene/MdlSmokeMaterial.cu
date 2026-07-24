@@ -179,7 +179,7 @@ __device__ __forceinline__ void setMdlMaterialDiffuseTexturePayload( const Param
                                  interpolateMdlUVs( triangleUVs ), getWorldSpaceTextureSize( vertices, triangleUVs ) );
 }
 
-__device__ __forceinline__ float3 sampleMdlDiffuseTexture( uint_t textureId, const float2& uv, bool& isResident )
+__device__ __forceinline__ float3 sampleMdlDiffuseTexture( uint_t textureId, const float2& uv, const float3& textureScale, bool& isResident )
 {
     isResident = true;
     if( textureId == INVALID_TEXTURE_ID )
@@ -196,7 +196,7 @@ __device__ __forceinline__ float3 sampleMdlDiffuseTexture( uint_t textureId, con
     }
 #endif
     const float4 texel = demandLoading::tex2D<float4>( params.demandContext, textureId, uv.x, uv.y, &isResident );
-    return make_float3( texel.x, texel.y, texel.z );
+    return make_float3( texel.x, texel.y, texel.z ) * textureScale;
 }
 
 __device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&               shader,
@@ -404,8 +404,9 @@ extern "C" __global__ void __closesthit__mdlMesh()
     prd->hasDirectColor = true;
 
     bool diffuseTextureResident{};
-    const float3 diffuseTextureScale{ sampleMdlDiffuseTexture( useMdlDiffuseTexture ? material.diffuseTextureId : INVALID_TEXTURE_ID,
-                                                               uv, diffuseTextureResident ) };
+    const float3 diffuseTextureScale{
+        sampleMdlDiffuseTexture( useMdlDiffuseTexture ? material.diffuseTextureId : INVALID_TEXTURE_ID, uv,
+                                 shader.diffuseTextureScale, diffuseTextureResident ) };
     if( useMdlDiffuseTexture && !diffuseTextureResident )
     {
         setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, material.diffuseTextureId, uv, worldSpaceTextureSize );

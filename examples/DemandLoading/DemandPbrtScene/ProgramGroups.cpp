@@ -9,6 +9,7 @@
 #include "DemandPbrtScene/IdRangePrinter.h"
 #include "DemandPbrtScene/ImageSourceFactory.h"
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/MdlBsdfCompiler.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 #endif
@@ -154,6 +155,38 @@ struct MdlMaterialTargetCode
     std::string        tintPtx;
     MdlBsdfCallablePtx bsdfPtx;
     bool               hasBsdfCallables{};
+};
+
+class MdlOptixModuleCache
+{
+  public:
+    ~MdlOptixModuleCache()
+    {
+        for( const auto& entry : m_modules )
+        {
+            OTK_ERROR_CHECK_NOTHROW( optixModuleDestroy( entry.second ) );
+        }
+    }
+
+    OptixModule getOrCreate( OptixDeviceContext                 context,
+                             const OptixPipelineCompileOptions& pipelineCompileOptions,
+                             const std::string&                 ptx )
+    {
+        std::lock_guard<std::mutex> lock( m_mutex );
+        const auto                  existing = m_modules.find( ptx );
+        if( existing != m_modules.end() )
+        {
+            return existing->second;
+        }
+
+        const OptixModule module{ createOptixModule( context, pipelineCompileOptions, ptx.data(), ptx.size() ) };
+        m_modules.insert( std::make_pair( ptx, module ) );
+        return module;
+    }
+
+  private:
+    std::mutex                         m_mutex;
+    std::map<std::string, OptixModule> m_modules;
 };
 
 std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context* context )
@@ -566,22 +599,21 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
 
 struct MdlMaterialBuildJob
 {
-    uint_t                         shaderKeyId{};
-    MaterialGroup                  group{};
-    CUcontext                      cudaContext{};
-    OptixDeviceContext             optixContext{};
-    OptixPipelineCompileOptions    pipelineCompileOptions{};
-    std::vector<OptixProgramGroup> programGroups;
-    std::vector<OptixProgramGroup> callableProgramGroups;
-    bool                           includeBsdfCallables{};
+    uint_t                                    shaderKeyId{};
+    MaterialGroup                             group{};
+    std::shared_ptr<MdlOptixModuleCache>     moduleCache;
+    CUcontext                                 cudaContext{};
+    OptixDeviceContext                        optixContext{};
+    OptixPipelineCompileOptions               pipelineCompileOptions{};
+    std::vector<OptixProgramGroup>            programGroups;
+    std::vector<OptixProgramGroup>            callableProgramGroups;
+    bool                                      includeBsdfCallables{};
 };
 
 struct MdlMaterialBuildResult
 {
     uint_t                         shaderKeyId{};
     MdlMaterialShader              shader{};
-    OptixModule                    tintModule{};
-    OptixModule                    bsdfModule{};
     std::vector<OptixProgramGroup> createdCallableProgramGroups;
     OptixPipeline                  pipeline{};
     std::vector<OptixProgramGroup> programGroups;
@@ -656,9 +688,28 @@ MdlMaterialShader appendMdlMaterialCallableProgramGroups( OptixDeviceContext    
     return shader;
 }
 
+PbrtDemandTextureBinding getMdlDiffuseTextureBinding( const MaterialGroup& group )
+{
+    if( !group.pbrtMaterial || group.diffuseMapFileName.empty() )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    const PbrtDemandTextureBinding binding{ group.pbrtMaterial->type == "mirror" ?
+                                                pbrtColorTextureBinding( *group.pbrtMaterial, "Kr" ) :
+                                                pbrtColorTextureBinding( *group.pbrtMaterial, "Kd" ) };
+    if( binding.fileName == group.diffuseMapFileName )
+    {
+        return binding;
+    }
+    return pbrtDemandTextureBinding();
+}
+
 MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMaterialShader shader )
 {
-    shader.usesDiffuseTexture = group.pbrtMaterial && group.pbrtMaterial->type == "matte";
+    const PbrtDemandTextureBinding binding{ getMdlDiffuseTextureBinding( group ) };
+    shader.usesDiffuseTexture  = hasPbrtDemandTextureBinding( binding );
+    shader.diffuseTextureScale = binding.scale;
     return shader;
 }
 
@@ -677,16 +728,6 @@ void destroyMdlMaterialBuildResultNoThrow( MdlMaterialBuildResult& result )
         }
     }
     result.createdCallableProgramGroups.clear();
-    if( result.tintModule )
-    {
-        OTK_ERROR_CHECK_NOTHROW( optixModuleDestroy( result.tintModule ) );
-        result.tintModule = nullptr;
-    }
-    if( result.bsdfModule )
-    {
-        OTK_ERROR_CHECK_NOTHROW( optixModuleDestroy( result.bsdfModule ) );
-        result.bsdfModule = nullptr;
-    }
 }
 
 MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob& job )
@@ -705,19 +746,20 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
         const double                compileTime{ compileTimer.elapsed() };
 
         const Stopwatch optixTimer;
-        result.tintModule = createOptixModule( job.optixContext, job.pipelineCompileOptions, targetCode.tintPtx.data(),
-                                               targetCode.tintPtx.size() );
+        const OptixModule tintModule{ job.moduleCache->getOrCreate( job.optixContext, job.pipelineCompileOptions,
+                                                                    targetCode.tintPtx ) };
+        OptixModule       bsdfModule{};
         if( targetCode.hasBsdfCallables )
         {
-            result.bsdfModule = createOptixModule( job.optixContext, job.pipelineCompileOptions,
-                                                   targetCode.bsdfPtx.ptx.data(), targetCode.bsdfPtx.ptx.size() );
+            bsdfModule =
+                job.moduleCache->getOrCreate( job.optixContext, job.pipelineCompileOptions, targetCode.bsdfPtx.ptx );
         }
 
         result.programGroups         = job.programGroups;
         result.callableProgramGroups = job.callableProgramGroups;
-        result.shader = bindMdlMaterialResources(
+        result.shader                = bindMdlMaterialResources(
             job.group,
-            appendMdlMaterialCallableProgramGroups( job.optixContext, result.tintModule, result.bsdfModule, targetCode,
+            appendMdlMaterialCallableProgramGroups( job.optixContext, tintModule, bsdfModule, targetCode,
                                                     result.createdCallableProgramGroups, result.callableProgramGroups ) );
         result.pipeline = createOptixPipeline( job.optixContext, job.pipelineCompileOptions, result.programGroups,
                                                result.callableProgramGroups );
@@ -883,8 +925,7 @@ class PbrtProgramGroups : public ProgramGroups
     OptixModule                    m_phongModule{};
 #ifdef OTK_USE_MDL
     OptixModule                            m_mdlMaterialClosestHitModule{};
-    std::vector<OptixModule>               m_mdlMaterialTintModules;
-    std::vector<OptixModule>               m_mdlMaterialBsdfModules;
+    std::shared_ptr<MdlOptixModuleCache>    m_mdlModuleCache{ std::make_shared<MdlOptixModuleCache>() };
     std::unique_ptr<MdlMaterialBuildWorker> m_mdlMaterialBuildWorker;
 #endif
     OptixModule                    m_triangleModule{};
@@ -975,14 +1016,7 @@ void PbrtProgramGroups::cleanup()
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
     }
 #ifdef OTK_USE_MDL
-    for( OptixModule module : m_mdlMaterialTintModules )
-    {
-        OTK_ERROR_CHECK( optixModuleDestroy( module ) );
-    }
-    for( OptixModule module : m_mdlMaterialBsdfModules )
-    {
-        OTK_ERROR_CHECK( optixModuleDestroy( module ) );
-    }
+    m_mdlModuleCache.reset();
     if( m_mdlMaterialClosestHitModule )
     {
         OTK_ERROR_CHECK( optixModuleDestroy( m_mdlMaterialClosestHitModule ) );
@@ -1122,23 +1156,20 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const Mat
     const double                compileTime{ compileTimer.elapsed() };
 
     const Stopwatch optixTimer;
-    OptixModule     tintModule{ createModule( targetCode.tintPtx.data(), targetCode.tintPtx.size() ) };
+    const OptixPipelineCompileOptions& pipelineCompileOptions{ m_renderer->getPipelineCompileOptions() };
+    OptixDeviceContext                 context{ m_renderer->getDeviceContext() };
+    const OptixModule tintModule{
+        m_mdlModuleCache->getOrCreate( context, pipelineCompileOptions, targetCode.tintPtx ) };
     OptixModule     bsdfModule{};
     if( targetCode.hasBsdfCallables )
     {
-        bsdfModule = createModule( targetCode.bsdfPtx.ptx.data(), targetCode.bsdfPtx.ptx.size() );
+        bsdfModule = m_mdlModuleCache->getOrCreate( context, pipelineCompileOptions, targetCode.bsdfPtx.ptx );
     }
 
-    OptixDeviceContext             context = m_renderer->getDeviceContext();
     std::vector<OptixProgramGroup> createdCallableProgramGroups;
     const MdlMaterialShader        shader{ bindMdlMaterialResources(
         group, appendMdlMaterialCallableProgramGroups( context, tintModule, bsdfModule, targetCode,
                                                        createdCallableProgramGroups, m_callableProgramGroups ) ) };
-    m_mdlMaterialTintModules.push_back( tintModule );
-    if( bsdfModule )
-    {
-        m_mdlMaterialBsdfModules.push_back( bsdfModule );
-    }
     m_mdlMaterialShaders[shaderKeyId] = shader;
     m_renderer->setCallableProgramGroups( m_callableProgramGroups );
 
@@ -1204,6 +1235,7 @@ void PbrtProgramGroups::requestMdlMaterialBuild( const MaterialGroup& group, uin
     MdlMaterialBuildJob job{};
     job.shaderKeyId            = shaderKeyId;
     job.group                  = group;
+    job.moduleCache            = m_mdlModuleCache;
     job.cudaContext            = cudaContext;
     job.optixContext           = m_renderer->getDeviceContext();
     job.pipelineCompileOptions = m_renderer->getPipelineCompileOptions();
@@ -1243,16 +1275,9 @@ bool PbrtProgramGroups::installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlM
 
     shader                            = result.shader;
     m_mdlMaterialShaders[shaderKeyId] = shader;
-    m_mdlMaterialTintModules.push_back( result.tintModule );
-    if( result.bsdfModule )
-    {
-        m_mdlMaterialBsdfModules.push_back( result.bsdfModule );
-    }
     m_programGroups         = std::move( result.programGroups );
     m_callableProgramGroups = std::move( result.callableProgramGroups );
     m_renderer->setPipelineState( result.pipeline, m_programGroups, m_callableProgramGroups );
-    result.tintModule = nullptr;
-    result.bsdfModule = nullptr;
     result.createdCallableProgramGroups.clear();
     result.pipeline = nullptr;
     return true;

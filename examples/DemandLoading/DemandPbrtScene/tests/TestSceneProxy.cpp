@@ -765,6 +765,60 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardDiffuseTex
     EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 
+TEST( TestMaterialAdapters, fallbackMaterialUsesScaledPbrtDiffuseTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "scaledDiffuse" "color" "scale"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+        Material "matte"
+            "texture Kd" [ "scaledDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+    EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), material.Kd );
+    EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
+    EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), binding.scale );
+    EXPECT_TRUE( binding.scaled );
+    EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesMixedPbrtDiffuseTextureUnsupported )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "mixedDiffuse" "color" "mix"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+            "float amount" [ 0.5 ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_TRUE( material.diffuseMapFileName.empty() );
+    EXPECT_FALSE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
 TEST( TestMaterialAdapters, fallbackMaterialUsesParsedMirrorReflectanceTexture )
 {
     const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(

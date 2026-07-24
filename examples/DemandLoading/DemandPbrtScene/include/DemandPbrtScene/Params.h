@@ -251,13 +251,42 @@ struct MdlMaterialShader
 {
     uint_t callableBaseIndex;
     uint_t callableCount;
+    // Per-instance shader data lives here rather than in hitgroup SBT records.
     bool   usesDiffuseTexture;
+    float3 diffuseTextureScale;
+
+    __host__ __device__ MdlMaterialShader()
+        : callableBaseIndex( 0U )
+        , callableCount( 0U )
+        , usesDiffuseTexture( false )
+        , diffuseTextureScale( make_float3( 1.0f, 1.0f, 1.0f ) )
+    {
+    }
+
+    __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_ )
+        : callableBaseIndex( callableBaseIndex_ )
+        , callableCount( callableCount_ )
+        , usesDiffuseTexture( false )
+        , diffuseTextureScale( make_float3( 1.0f, 1.0f, 1.0f ) )
+    {
+    }
+
+    __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_, const float3& diffuseTextureScale_ )
+        : callableBaseIndex( callableBaseIndex_ )
+        , callableCount( callableCount_ )
+        , usesDiffuseTexture( false )
+        , diffuseTextureScale( diffuseTextureScale_ )
+    {
+    }
 };
 
 inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
 {
     return lhs.callableBaseIndex == rhs.callableBaseIndex && lhs.callableCount == rhs.callableCount
-           && lhs.usesDiffuseTexture == rhs.usesDiffuseTexture;
+           && lhs.usesDiffuseTexture == rhs.usesDiffuseTexture
+           && lhs.diffuseTextureScale.x == rhs.diffuseTextureScale.x
+           && lhs.diffuseTextureScale.y == rhs.diffuseTextureScale.y
+           && lhs.diffuseTextureScale.z == rhs.diffuseTextureScale.z;
 }
 
 inline bool operator!=( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )

@@ -9,6 +9,7 @@
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 #endif
 #include "DemandPbrtScene/Options.h"
@@ -294,7 +295,8 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         }
         if( paramName == "Kd" )
         {
-            if( !hasDiffuseMap )
+            const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( material, "Kd" ) };
+            if( !hasDiffuseMap || binding.fileName != group.diffuseMapFileName )
             {
                 return false;
             }
@@ -302,7 +304,8 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         }
         if( paramName == "Kr" && material.type == "mirror" )
         {
-            if( !hasDiffuseMap )
+            const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( material, "Kr" ) };
+            if( !hasDiffuseMap || binding.fileName != group.diffuseMapFileName )
             {
                 return false;
             }

@@ -12,6 +12,7 @@
 
 #include <DemandPbrtScene/DemandTextureCache.h>
 #include <DemandPbrtScene/FrameStopwatch.h>
+#include <DemandPbrtScene/MaterialAdapters.h>
 #include <DemandPbrtScene/Options.h>
 #include <DemandPbrtScene/Primitive.h>
 #include <DemandPbrtScene/ProgramGroups.h>
@@ -126,6 +127,62 @@ std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtImagemapMaterialOfType( const
     texture.type      = "imagemap";
     addString( texture.params, "filename", fileName );
     material->graph.textures[valueType + ":pbrt-texture"] = std::move( texture );
+    return material;
+}
+
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtScaledImagemapMaterialOfType( const std::string& type,
+                                                                                 const std::string& textureParam,
+                                                                                 const std::string& valueType,
+                                                                                 const std::string& fileName,
+                                                                                 const float3&      scale )
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = type;
+    material->params.AddTexture( textureParam, "pbrt-scaled-texture" );
+    otk::pbrt::PbrtTexture imageTexture{};
+    imageTexture.name      = "pbrt-texture";
+    imageTexture.valueType = valueType;
+    imageTexture.type      = "imagemap";
+    addString( imageTexture.params, "filename", fileName );
+    material->graph.textures[valueType + ":pbrt-texture"] = std::move( imageTexture );
+    otk::pbrt::PbrtTexture scaleTexture{};
+    scaleTexture.name      = "pbrt-scaled-texture";
+    scaleTexture.valueType = valueType;
+    scaleTexture.type      = "scale";
+    scaleTexture.params.AddTexture( "tex1", "pbrt-texture" );
+    addRgbSpectrum( scaleTexture.params, "tex2", scale.x, scale.y, scale.z );
+    material->graph.textures[valueType + ":pbrt-scaled-texture"] = std::move( scaleTexture );
+    return material;
+}
+
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtMixedImagemapMaterialOfType( const std::string& type,
+                                                                                const std::string& textureParam,
+                                                                                const std::string& valueType,
+                                                                                const std::string& fileName )
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = type;
+    material->params.AddTexture( textureParam, "pbrt-mixed-texture" );
+    otk::pbrt::PbrtTexture imageTexture{};
+    imageTexture.name      = "pbrt-texture";
+    imageTexture.valueType = valueType;
+    imageTexture.type      = "imagemap";
+    addString( imageTexture.params, "filename", fileName );
+    material->graph.textures[valueType + ":pbrt-texture"] = std::move( imageTexture );
+    otk::pbrt::PbrtTexture constantTexture{};
+    constantTexture.name      = "constant-texture";
+    constantTexture.valueType = valueType;
+    constantTexture.type      = "constant";
+    addRgbSpectrum( constantTexture.params, "value", 0.25f, 0.5f, 0.75f );
+    material->graph.textures[valueType + ":constant-texture"] = std::move( constantTexture );
+    otk::pbrt::PbrtTexture mixTexture{};
+    mixTexture.name      = "pbrt-mixed-texture";
+    mixTexture.valueType = valueType;
+    mixTexture.type      = "mix";
+    mixTexture.params.AddTexture( "tex1", "pbrt-texture" );
+    mixTexture.params.AddTexture( "tex2", "constant-texture" );
+    addFloat( mixTexture.params, "amount", 0.5f );
+    material->graph.textures[valueType + ":pbrt-mixed-texture"] = std::move( mixTexture );
     return material;
 }
 
@@ -246,14 +303,27 @@ void usePbrtDiffuseImagemapMaterial( GeometryInstance& geom, const std::string& 
 {
     geom.groups[0].pbrtMaterial       = pbrtImagemapMaterialOfType( type, "Kd", "spectrum", DIFFUSE_MAP_PATH );
     geom.groups[0].material.flags     = MaterialFlags::DIFFUSE_MAP;
-    geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
+    geom.groups[0].diffuseMapFileName = pbrtColorTextureBinding( *geom.groups[0].pbrtMaterial, "Kd" ).fileName;
+}
+
+void usePbrtScaledDiffuseImagemapMaterial( GeometryInstance& geom, const float3& scale )
+{
+    geom.groups[0].pbrtMaterial   = pbrtScaledImagemapMaterialOfType( "matte", "Kd", "color", DIFFUSE_MAP_PATH, scale );
+    geom.groups[0].material.Kd    = scale;
+    geom.groups[0].material.flags = MaterialFlags::DIFFUSE_MAP;
+    geom.groups[0].diffuseMapFileName = pbrtColorTextureBinding( *geom.groups[0].pbrtMaterial, "Kd" ).fileName;
+}
+
+void usePbrtMixedDiffuseImagemapMaterial( GeometryInstance& geom )
+{
+    geom.groups[0].pbrtMaterial = pbrtMixedImagemapMaterialOfType( "matte", "Kd", "color", DIFFUSE_MAP_PATH );
 }
 
 void usePbrtMirrorReflectanceImagemapMaterial( GeometryInstance& geom )
 {
     geom.groups[0].pbrtMaterial       = pbrtImagemapMaterialOfType( "mirror", "Kr", "color", DIFFUSE_MAP_PATH );
     geom.groups[0].material.flags     = MaterialFlags::DIFFUSE_MAP;
-    geom.groups[0].diffuseMapFileName = DIFFUSE_MAP_PATH;
+    geom.groups[0].diffuseMapFileName = pbrtColorTextureBinding( *geom.groups[0].pbrtMaterial, "Kr" ).fileName;
 }
 
 void usePbrtAlphaImagemapMaterial( GeometryInstance& geom, const std::string& type = "matte" )
@@ -1271,6 +1341,31 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTexture
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
 }
 
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksMixedDiffuseTextureUnsupported )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtMixedDiffuseImagemapMaterial( m_geom );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
+}
+
 TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterialBindsDemandTexture )
 {
     m_options.useMdlMaterials = true;
@@ -1279,15 +1374,16 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterial
     TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
     m_geom.devUVs     = fakeUVs;
     m_geom.devNormals = fakeNormals;
-    const uint_t proxyGeomId{ 1111U };
-    const uint_t proxyMaterialId{ 4444U };
-    const uint_t diffuseTextureId{ 333U };
-    const uint_t mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
-    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( false ) );
+    const uint_t      proxyGeomId{ 1111U };
+    const uint_t      proxyMaterialId{ 4444U };
+    const uint_t      diffuseTextureId{ 333U };
+    const uint_t      mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    const std::string diffuseMapFileName{ m_geom.groups[0].diffuseMapFileName };
+    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( diffuseMapFileName ) ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
-    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( diffuseTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( diffuseMapFileName ) ) ).WillOnce( Return( diffuseTextureId ) );
     EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( hasGeometryInstance(
                                        hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                hasDiffuseTextureId( diffuseTextureId ) ) ) ) )
@@ -1323,6 +1419,61 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterial
     EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
 }
 
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedScaledDiffuseMaterialBindsDemandTexture )
+{
+    m_options.useMdlMaterials = true;
+    const float3 textureScale{ make_float3( 0.25f, 0.5f, 0.75f ) };
+    usePbrtScaledDiffuseImagemapMaterial( m_geom, textureScale );
+    TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
+    TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
+    m_geom.devUVs     = fakeUVs;
+    m_geom.devNormals = fakeNormals;
+    const uint_t      proxyGeomId{ 1111U };
+    const uint_t      proxyMaterialId{ 4444U };
+    const uint_t      diffuseTextureId{ 333U };
+    const uint_t      mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    const std::string diffuseMapFileName{ m_geom.groups[0].diffuseMapFileName };
+    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( diffuseMapFileName ) ) ).WillOnce( Return( false ) );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( diffuseMapFileName ) ) ).WillOnce( Return( diffuseTextureId ) );
+    EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( hasGeometryInstance(
+                                       hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
+                                               hasDiffuseTextureId( diffuseTextureId ) ) ) ) )
+        .WillOnce( Return( mdlSbtOffset ) );
+    EXPECT_CALL( *m_programGroups,
+                 realizeMdlMaterialShader( hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
+                                                                        hasDiffuseTextureId( diffuseTextureId ) ) ),
+                                           1U ) )
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, textureScale } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    EXPECT_EQ( diffuseTextureId, m_sync.minDiffuseTextureId );
+    EXPECT_EQ( diffuseTextureId, m_sync.maxDiffuseTextureId );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( textureScale, m_sync.realizedMaterials[proxyMaterialId].Kd );
+    EXPECT_EQ( diffuseTextureId, m_sync.realizedMaterials[proxyMaterialId].diffuseTextureId );
+    EXPECT_TRUE( flagSet( m_sync.realizedMaterials[proxyMaterialId].flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) );
+    EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
+    EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, textureScale } ), m_sync.mdlMaterialShaders[1] );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
 TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMirrorMaterialBindsReflectanceDemandTexture )
 {
     m_options.useMdlMaterials = true;
@@ -1331,15 +1482,16 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMirrorMaterialB
     TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
     m_geom.devUVs     = fakeUVs;
     m_geom.devNormals = fakeNormals;
-    const uint_t proxyGeomId{ 1111U };
-    const uint_t proxyMaterialId{ 4444U };
-    const uint_t reflectanceTextureId{ 333U };
-    const uint_t mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
-    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( false ) );
+    const uint_t      proxyGeomId{ 1111U };
+    const uint_t      proxyMaterialId{ 4444U };
+    const uint_t      reflectanceTextureId{ 333U };
+    const uint_t      mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    const std::string reflectanceMapFileName{ m_geom.groups[0].diffuseMapFileName };
+    EXPECT_CALL( *m_demandTextureCache, hasDiffuseTextureForFile( StrEq( reflectanceMapFileName ) ) ).WillOnce( Return( false ) );
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
-    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( DIFFUSE_MAP_PATH ) ) ).WillOnce( Return( reflectanceTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( reflectanceMapFileName ) ) ).WillOnce( Return( reflectanceTextureId ) );
     EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( hasGeometryInstance(
                                        hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                hasDiffuseTextureId( reflectanceTextureId ) ) ) ) )
