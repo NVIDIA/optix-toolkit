@@ -112,7 +112,13 @@ __device__ __forceinline__ bool hasMdlBsdfCallables( const MdlMaterialShader& sh
     return shader.callableCount >= 1U + MDL_BSDF_CALLABLE_COUNT;
 }
 
-__device__ __forceinline__ bool hasMdlDiffuseTexture( const PhongMaterial& material )
+__device__ __forceinline__ bool hasMdlDiffuseTexture( const MdlMaterialShader& shader )
+{
+    return shader.textureBindingCount > MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX
+           && shader.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId != INVALID_TEXTURE_ID;
+}
+
+__device__ __forceinline__ bool hasAllocatedDiffuseMap( const PhongMaterial& material )
 {
     return ( static_cast<uint_t>( material.flags ) & static_cast<uint_t>( MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ) != 0U;
 }
@@ -179,25 +185,26 @@ __device__ __forceinline__ void setMdlMaterialDiffuseTexturePayload( const Param
                                  interpolateMdlUVs( triangleUVs ), getWorldSpaceTextureSize( vertices, triangleUVs ) );
 }
 
-__device__ __forceinline__ float3
-sampleMdlDiffuseTexture( uint_t textureId, const float2& uv, const float3& textureScale, const float3& textureBias, bool& isResident )
+__device__ __forceinline__ float3 sampleMdlDiffuseTexture( const MdlMaterialShader& shader, const float2& uv, bool& isResident )
 {
     isResident = true;
-    if( textureId == INVALID_TEXTURE_ID )
+    if( !hasMdlDiffuseTexture( shader ) )
     {
         return make_float3( 1.0f );
     }
 
-    const Params& params{ PARAMS_VAR_NAME };
+    const Params&                    params{ PARAMS_VAR_NAME };
+    const MdlMaterialTextureBinding& binding{ shader.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX] };
 #ifndef NDEBUG
-    if( textureId < params.minDiffuseTextureId || textureId > params.maxDiffuseTextureId )
+    if( binding.textureId < params.minDiffuseTextureId || binding.textureId > params.maxDiffuseTextureId )
     {
-        printf( "MDL diffuse texture id %u out of range [%u, %u]\n", textureId, params.minDiffuseTextureId, params.maxDiffuseTextureId );
-        assert( textureId >= params.minDiffuseTextureId && textureId <= params.maxDiffuseTextureId );
+        printf( "MDL diffuse texture id %u out of range [%u, %u]\n", binding.textureId, params.minDiffuseTextureId,
+                params.maxDiffuseTextureId );
+        assert( binding.textureId >= params.minDiffuseTextureId && binding.textureId <= params.maxDiffuseTextureId );
     }
 #endif
-    const float4 texel = demandLoading::tex2D<float4>( params.demandContext, textureId, uv.x, uv.y, &isResident );
-    return make_float3( texel.x, texel.y, texel.z ) * textureScale + textureBias;
+    const float4 texel = demandLoading::tex2D<float4>( params.demandContext, binding.textureId, uv.x, uv.y, &isResident );
+    return make_float3( texel.x, texel.y, texel.z ) * binding.scale + binding.bias;
 }
 
 __device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&               shader,
@@ -351,7 +358,7 @@ extern "C" __global__ void __closesthit__mdlMesh()
 
     if( !useMdlShader( params, materialId, shader ) )
     {
-        if( hasMdlDiffuseTexture( material ) )
+        if( hasAllocatedDiffuseMap( material ) )
         {
             setMdlMaterialDiffuseTexturePayload( params, prd, material, worldNormal, vertices, instanceId, rayT );
             return;
@@ -366,8 +373,8 @@ extern "C" __global__ void __closesthit__mdlMesh()
     state.geom_normal = worldNormal;
     state.position    = rayOrigin + rayT * rayDirection;
 
-    const bool                hasDiffuseTexture{ hasMdlDiffuseTexture( material ) };
-    const bool                useMdlDiffuseTexture{ shader.usesDiffuseTexture && hasDiffuseTexture };
+    const bool                hasDiffuseTexture{ hasAllocatedDiffuseMap( material ) };
+    const bool                useMdlDiffuseTexture{ hasMdlDiffuseTexture( shader ) && hasDiffuseTexture };
     float2                    uv{};
     float                     worldSpaceTextureSize{};
     mi::neuraylib::tct_float3 textCoords[1]{};
@@ -405,12 +412,12 @@ extern "C" __global__ void __closesthit__mdlMesh()
     prd->hasDirectColor = true;
 
     bool         diffuseTextureResident{};
-    const float3 diffuseTextureScale{
-        sampleMdlDiffuseTexture( useMdlDiffuseTexture ? material.diffuseTextureId : INVALID_TEXTURE_ID, uv,
-                                 shader.diffuseTextureScale, shader.diffuseTextureBias, diffuseTextureResident ) };
+    const float3 diffuseTextureScale{ sampleMdlDiffuseTexture( shader, uv, diffuseTextureResident ) };
     if( useMdlDiffuseTexture && !diffuseTextureResident )
     {
-        setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, material.diffuseTextureId, uv, worldSpaceTextureSize );
+        setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT,
+                                     shader.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId, uv,
+                                     worldSpaceTextureSize );
         return;
     }
 
@@ -425,12 +432,12 @@ extern "C" __global__ void __closesthit__mdlMesh()
         return;
     }
 
-    if( !hasDiffuseTexture )
+    if( !hasAllocatedDiffuseMap( material ) )
     {
         return;
     }
 
-    setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, material.diffuseTextureId, uv, worldSpaceTextureSize );
+    setMdlMaterialDiffuseTexturePayload( params, prd, material, worldNormal, vertices, instanceId, rayT );
 }
 
 }  // namespace demandPbrtScene

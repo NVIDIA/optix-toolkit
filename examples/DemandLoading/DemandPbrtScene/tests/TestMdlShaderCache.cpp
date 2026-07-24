@@ -117,6 +117,17 @@ PbrtTexture scaleTexture( const std::string& name, const std::string& tex1 )
     return texture;
 }
 
+PbrtTexture scaleTexture( const std::string& name, const std::string& tex1, float tex2 )
+{
+    PbrtTexture texture;
+    texture.name      = name;
+    texture.valueType = "color";
+    texture.type      = "scale";
+    texture.params.AddTexture( "tex1", tex1 );
+    addRgbSpectrum( texture.params, "tex2", tex2, tex2, tex2 );
+    return texture;
+}
+
 PbrtTexture scaleFloatTexture( const std::string& name, const std::string& tex1 )
 {
     PbrtTexture texture;
@@ -139,6 +150,13 @@ PbrtTexture mixTexture( const std::string& name, const std::string& tex1, const 
     return texture;
 }
 
+PbrtTexture mixTexture( const std::string& name, const std::string& tex1, const std::string& tex2, float amount )
+{
+    PbrtTexture texture{ mixTexture( name, tex1, tex2 ) };
+    addFloat( texture.params, "amount", amount );
+    return texture;
+}
+
 PbrtTexture unsupportedTexture( const std::string& name, const std::string& valueType, const std::string& type )
 {
     PbrtTexture texture;
@@ -153,6 +171,23 @@ PbrtMaterial materialWithKdTexture( const std::string& textureName )
     PbrtMaterial material;
     material.type = "matte";
     material.params.AddTexture( "Kd", textureName );
+    return material;
+}
+
+PbrtMaterial materialWithScaledKdTexture( const std::string& fileName, float scale )
+{
+    PbrtMaterial material{ materialWithKdTexture( "scaledKd" ) };
+    material.graph.textures["color:scaledKd"] = scaleTexture( "scaledKd", "albedo", scale );
+    material.graph.textures["color:albedo"]   = imageMapTexture( "albedo", fileName, "color" );
+    return material;
+}
+
+PbrtMaterial materialWithMixedKdTexture( const std::string& fileName, float amount )
+{
+    PbrtMaterial material{ materialWithKdTexture( "mixedKd" ) };
+    material.graph.textures["color:mixedKd"]    = mixTexture( "mixedKd", "albedo", "constantKd", amount );
+    material.graph.textures["color:albedo"]     = imageMapTexture( "albedo", fileName, "color" );
+    material.graph.textures["color:constantKd"] = constantTexture( "constantKd", 0.25f, 0.5f, 0.75f );
     return material;
 }
 
@@ -489,6 +524,14 @@ TEST( TestMdlShaderKey, parameterOnlyTextureChangesProduceSameKey )
 {
     EXPECT_EQ( makeMdlShaderKey( texturedMatteMaterial( "imagemap", "first.png" ) ),
                makeMdlShaderKey( texturedMatteMaterial( "imagemap", "second.png" ) ) );
+}
+
+TEST( TestMdlShaderKey, transformedDemandTextureValuesProduceSameKey )
+{
+    EXPECT_EQ( makeMdlShaderKey( materialWithScaledKdTexture( "first.png", 0.25f ) ),
+               makeMdlShaderKey( materialWithScaledKdTexture( "second.png", 0.75f ) ) );
+    EXPECT_EQ( makeMdlShaderKey( materialWithMixedKdTexture( "first.png", 0.25f ) ),
+               makeMdlShaderKey( materialWithMixedKdTexture( "second.png", 0.75f ) ) );
 }
 
 TEST( TestMdlMaterialInstanceKey, parameterOnlyMaterialChangesProduceDifferentInstanceKeys )

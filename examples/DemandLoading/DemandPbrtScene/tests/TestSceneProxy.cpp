@@ -271,6 +271,16 @@ static void addPbrtImageMapTexture( ShapeDefinition&   shape,
     shape.pbrtMaterial.graph.textures[valueType + ":" + textureName] = texture;
 }
 
+#ifdef OTK_USE_MDL
+static MdlMaterialShader makeMdlDiffuseTextureShader( const PbrtDemandTextureBinding& binding )
+{
+    MdlMaterialShader data{ 7U, 4U };
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, 333U, binding.scale,
+                                               binding.bias ) );
+    return data;
+}
+#endif
+
 static SceneDescriptionPtr twoShapeScene()
 {
     ShapeDefinition shape1{ translatedTriangleShape( pbrt::Vector3f{ 1.0f, 2.0f, 3.0f } ) };
@@ -727,8 +737,20 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtDiffuseTextures )
         ASSERT_EQ( 1U, scene->freeShapes.size() );
 
         const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+#ifdef OTK_USE_MDL
+        const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+        const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
 
         EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+#ifdef OTK_USE_MDL
+        EXPECT_EQ( 1U, shaderData.textureBindingCount );
+        EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+        EXPECT_EQ( make_float3( 1.0f, 1.0f, 1.0f ),
+                   shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+        EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ),
+                   shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
         EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
     }
 }
@@ -784,12 +806,21 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesScaledPbrtDiffuseTexture )
 
     const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
     const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+#ifdef OTK_USE_MDL
+    const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
 
     EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), material.Kd );
     EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), binding.scale );
     EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ), binding.bias );
+#ifdef OTK_USE_MDL
+    EXPECT_EQ( 1U, shaderData.textureBindingCount );
+    EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( binding.scale, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( binding.bias, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
     EXPECT_TRUE( binding.transformed );
     EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
@@ -820,6 +851,9 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesMixedPbrtDiffuseTexture )
 
         const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
         const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+#ifdef OTK_USE_MDL
+        const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
 
         EXPECT_TRUE( scene->freeShapes[0].material.diffuseMapFileName.empty() );
         EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
@@ -827,6 +861,12 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesMixedPbrtDiffuseTexture )
         EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
         EXPECT_EQ( make_float3( 0.5f, 0.5f, 0.5f ), binding.scale );
         EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), binding.bias );
+#ifdef OTK_USE_MDL
+        EXPECT_EQ( 1U, shaderData.textureBindingCount );
+        EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+        EXPECT_EQ( binding.scale, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+        EXPECT_EQ( binding.bias, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
         EXPECT_TRUE( binding.transformed );
         EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
     }
@@ -932,8 +972,18 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesParsedMirrorReflectanceTexture )
     ASSERT_EQ( 1U, scene->freeShapes.size() );
 
     const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+#ifdef OTK_USE_MDL
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kr" ) };
+    const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
 
     EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-reflectance.png" ) );
+#ifdef OTK_USE_MDL
+    EXPECT_EQ( 1U, shaderData.textureBindingCount );
+    EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( make_float3( 1.0f, 1.0f, 1.0f ), shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ), shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
     EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 

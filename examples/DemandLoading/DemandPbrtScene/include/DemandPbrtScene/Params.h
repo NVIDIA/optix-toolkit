@@ -21,6 +21,10 @@ namespace demandPbrtScene {
 using uint_t = unsigned int;
 
 constexpr uint_t INVALID_TEXTURE_ID{ 0xffffffffU };
+#ifdef OTK_USE_MDL
+constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 4U };
+constexpr uint_t MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX{ 0U };
+#endif
 
 enum RayType
 {
@@ -63,6 +67,30 @@ inline uint_t operator+( HitGroupIndex value )
 {
     return static_cast<uint_t>( value );
 }
+
+#ifdef OTK_USE_MDL
+struct MdlMaterialTextureBinding
+{
+    uint_t textureId;
+    float3 scale;
+    float3 bias;
+};
+
+inline bool operator==( const MdlMaterialTextureBinding& lhs, const MdlMaterialTextureBinding& rhs )
+{
+    return lhs.textureId == rhs.textureId && lhs.scale == rhs.scale && lhs.bias == rhs.bias;
+}
+
+inline bool operator!=( const MdlMaterialTextureBinding& lhs, const MdlMaterialTextureBinding& rhs )
+{
+    return !( lhs == rhs );
+}
+
+__host__ __device__ inline MdlMaterialTextureBinding invalidMdlMaterialTextureBinding()
+{
+    return MdlMaterialTextureBinding{ INVALID_TEXTURE_ID, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) };
+}
+#endif
 
 struct DirectionalLight
 {
@@ -252,35 +280,56 @@ struct MdlMaterialShader
     uint_t callableBaseIndex;
     uint_t callableCount;
     // Per-instance shader data lives here rather than in hitgroup SBT records.
-    bool   usesDiffuseTexture;
-    float3 diffuseTextureScale;
-    float3 diffuseTextureBias;
+    uint_t                    textureBindingCount;
+    MdlMaterialTextureBinding textureBindings[MDL_MATERIAL_TEXTURE_BINDING_COUNT];
+
+    __host__ __device__ void clearTextureBindings()
+    {
+        textureBindingCount = 0U;
+        for( uint_t i = 0; i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
+        {
+            textureBindings[i] = invalidMdlMaterialTextureBinding();
+        }
+    }
+
+    __host__ __device__ bool setTextureBinding( uint_t index, uint_t textureId, const float3& scale, const float3& bias )
+    {
+        if( index >= MDL_MATERIAL_TEXTURE_BINDING_COUNT )
+        {
+            return false;
+        }
+        textureBindings[index] = MdlMaterialTextureBinding{ textureId, scale, bias };
+        if( textureId != INVALID_TEXTURE_ID && textureBindingCount <= index )
+        {
+            textureBindingCount = index + 1U;
+        }
+        return true;
+    }
 
     __host__ __device__ MdlMaterialShader()
         : callableBaseIndex( 0U )
         , callableCount( 0U )
-        , usesDiffuseTexture( false )
-        , diffuseTextureScale( make_float3( 1.0f, 1.0f, 1.0f ) )
-        , diffuseTextureBias( make_float3( 0.0f, 0.0f, 0.0f ) )
+        , textureBindingCount( 0U )
     {
+        clearTextureBindings();
     }
 
     __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
-        , usesDiffuseTexture( false )
-        , diffuseTextureScale( make_float3( 1.0f, 1.0f, 1.0f ) )
-        , diffuseTextureBias( make_float3( 0.0f, 0.0f, 0.0f ) )
+        , textureBindingCount( 0U )
     {
+        clearTextureBindings();
     }
 
     __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_, const float3& diffuseTextureScale_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
-        , usesDiffuseTexture( false )
-        , diffuseTextureScale( diffuseTextureScale_ )
-        , diffuseTextureBias( make_float3( 0.0f, 0.0f, 0.0f ) )
+        , textureBindingCount( 0U )
     {
+        clearTextureBindings();
+        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, INVALID_TEXTURE_ID, diffuseTextureScale_,
+                           make_float3( 0.0f, 0.0f, 0.0f ) );
     }
 
     __host__ __device__ MdlMaterialShader( uint_t        callableBaseIndex_,
@@ -289,22 +338,51 @@ struct MdlMaterialShader
                                            const float3& diffuseTextureBias_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
-        , usesDiffuseTexture( false )
-        , diffuseTextureScale( diffuseTextureScale_ )
-        , diffuseTextureBias( diffuseTextureBias_ )
+        , textureBindingCount( 0U )
     {
+        clearTextureBindings();
+        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, INVALID_TEXTURE_ID, diffuseTextureScale_, diffuseTextureBias_ );
+    }
+
+    __host__ __device__ MdlMaterialShader( uint_t        callableBaseIndex_,
+                                           uint_t        callableCount_,
+                                           uint_t        diffuseTextureId_,
+                                           const float3& diffuseTextureScale_,
+                                           const float3& diffuseTextureBias_ )
+        : callableBaseIndex( callableBaseIndex_ )
+        , callableCount( callableCount_ )
+        , textureBindingCount( 0U )
+    {
+        clearTextureBindings();
+        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, diffuseTextureId_, diffuseTextureScale_, diffuseTextureBias_ );
     }
 };
 
+inline void clearMdlMaterialTextureBindings( MdlMaterialShader& shader )
+{
+    shader.clearTextureBindings();
+}
+
+inline bool setMdlMaterialTextureBinding( MdlMaterialShader& shader, uint_t index, uint_t textureId, const float3& scale, const float3& bias )
+{
+    return shader.setTextureBinding( index, textureId, scale, bias );
+}
+
 inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
 {
-    return lhs.callableBaseIndex == rhs.callableBaseIndex && lhs.callableCount == rhs.callableCount
-           && lhs.usesDiffuseTexture == rhs.usesDiffuseTexture
-           && lhs.diffuseTextureScale.x == rhs.diffuseTextureScale.x
-           && lhs.diffuseTextureScale.y == rhs.diffuseTextureScale.y
-           && lhs.diffuseTextureScale.z == rhs.diffuseTextureScale.z
-           && lhs.diffuseTextureBias.x == rhs.diffuseTextureBias.x && lhs.diffuseTextureBias.y == rhs.diffuseTextureBias.y
-           && lhs.diffuseTextureBias.z == rhs.diffuseTextureBias.z;
+    if( lhs.callableBaseIndex != rhs.callableBaseIndex || lhs.callableCount != rhs.callableCount
+        || lhs.textureBindingCount != rhs.textureBindingCount )
+    {
+        return false;
+    }
+    for( uint_t i = 0; i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
+    {
+        if( lhs.textureBindings[i] != rhs.textureBindings[i] )
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 inline bool operator!=( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )

@@ -687,7 +687,16 @@ MdlMaterialShader appendMdlMaterialCallableProgramGroups( OptixDeviceContext    
     return shader;
 }
 
-PbrtDemandTextureBinding getMdlDiffuseTextureBinding( const MaterialGroup& group )
+uint_t getMdlDiffuseTextureId( const MaterialGroup& group )
+{
+    if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) )
+    {
+        return group.material.diffuseTextureId;
+    }
+    return INVALID_TEXTURE_ID;
+}
+
+PbrtDemandTextureBinding mdlDiffuseTextureBinding( const MaterialGroup& group )
 {
     if( !group.pbrtMaterial || group.diffuseMapFileName.empty() )
     {
@@ -706,10 +715,16 @@ PbrtDemandTextureBinding getMdlDiffuseTextureBinding( const MaterialGroup& group
 
 MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMaterialShader shader )
 {
-    const PbrtDemandTextureBinding binding{ getMdlDiffuseTextureBinding( group ) };
-    shader.usesDiffuseTexture  = hasPbrtDemandTextureBinding( binding );
-    shader.diffuseTextureScale = binding.scale;
-    shader.diffuseTextureBias  = binding.bias;
+    const PbrtDemandTextureBinding binding{ mdlDiffuseTextureBinding( group ) };
+    const uint_t                   textureId{ getMdlDiffuseTextureId( group ) };
+    if( textureId != INVALID_TEXTURE_ID && hasPbrtDemandTextureBinding( binding ) )
+    {
+        if( !setMdlMaterialTextureBinding( shader, MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, textureId, binding.scale,
+                                           binding.bias ) )
+        {
+            throw std::runtime_error( "Generated MDL material texture binding table overflow" );
+        }
+    }
     return shader;
 }
 

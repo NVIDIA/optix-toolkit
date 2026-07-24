@@ -130,6 +130,41 @@ TEST( TestFallbackShaderContract, defaultMaterialUsesConstantKdOnly )
     EXPECT_FALSE( flagSet( features, FallbackShaderFeature::ALPHA_CUTOUT ) );
 }
 
+#ifdef OTK_USE_MDL
+TEST( TestMdlMaterialTextureBindings, defaultMdlMaterialShaderHasNoBoundTextures )
+{
+    const MdlMaterialShader data{ 7U, 4U };
+
+    EXPECT_EQ( 7U, data.callableBaseIndex );
+    EXPECT_EQ( 4U, data.callableCount );
+    EXPECT_EQ( 0U, data.textureBindingCount );
+    for( uint_t i = 0; i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
+    {
+        EXPECT_EQ( invalidMdlMaterialTextureBinding(), data.textureBindings[i] );
+    }
+}
+
+TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
+{
+    MdlMaterialShader data{ 7U, 4U };
+
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, 333U,
+                                               make_float3( 0.25f, 0.5f, 0.75f ), make_float3( 0.125f, 0.25f, 0.375f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, 1U, 444U, make_float3( 0.5f, 0.25f, 0.125f ),
+                                               make_float3( 0.375f, 0.25f, 0.125f ) ) );
+
+    EXPECT_EQ( 2U, data.textureBindingCount );
+    EXPECT_EQ( 333U, data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+    EXPECT_EQ( 444U, data.textureBindings[1].textureId );
+    EXPECT_EQ( make_float3( 0.5f, 0.25f, 0.125f ), data.textureBindings[1].scale );
+    EXPECT_EQ( make_float3( 0.375f, 0.25f, 0.125f ), data.textureBindings[1].bias );
+    EXPECT_FALSE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_TEXTURE_BINDING_COUNT, 444U,
+                                                make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+}
+#endif
+
 TEST( TestFallbackShaderContract, allocatedDiffuseAndAlphaMapsEnableTextureFeatures )
 {
     PhongMaterial material{};

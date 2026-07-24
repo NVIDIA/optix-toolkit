@@ -1455,7 +1455,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixedDiffuseMat
                  realizeMdlMaterialShader( hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                                         hasDiffuseTextureId( diffuseTextureId ) ) ),
                                            1U ) )
-        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, textureScale, textureBias } ) );
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, diffuseTextureId, textureScale, textureBias } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
@@ -1475,7 +1475,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixedDiffuseMat
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, textureScale, textureBias } ), m_sync.mdlMaterialShaders[1] );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, diffuseTextureId, textureScale, textureBias } ), m_sync.mdlMaterialShaders[1] );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -1509,7 +1509,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterial
                  realizeMdlMaterialShader( hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                                         hasDiffuseTextureId( diffuseTextureId ) ) ),
                                            1U ) )
-        .WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, diffuseTextureId, make_float3( 1.0f, 1.0f, 1.0f ),
+                                              make_float3( 0.0f, 0.0f, 0.0f ) } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
@@ -1528,7 +1529,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterial
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, diffuseTextureId, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) } ),
+               m_sync.mdlMaterialShaders[1] );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -1563,7 +1565,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedScaledDiffuseMa
                  realizeMdlMaterialShader( hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                                         hasDiffuseTextureId( diffuseTextureId ) ) ),
                                            1U ) )
-        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, textureScale } ) );
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, diffuseTextureId, textureScale, make_float3( 0.0f, 0.0f, 0.0f ) } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
@@ -1583,7 +1585,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedScaledDiffuseMa
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, textureScale } ), m_sync.mdlMaterialShaders[1] );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, diffuseTextureId, textureScale, make_float3( 0.0f, 0.0f, 0.0f ) } ),
+               m_sync.mdlMaterialShaders[1] );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -1617,7 +1620,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMirrorMaterialB
                  realizeMdlMaterialShader( hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED ),
                                                                         hasDiffuseTextureId( reflectanceTextureId ) ) ),
                                            1U ) )
-        .WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
+        .WillOnce( Return( MdlMaterialShader{ 8U, 1U, reflectanceTextureId, make_float3( 1.0f, 1.0f, 1.0f ),
+                                              make_float3( 0.0f, 0.0f, 0.0f ) } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
@@ -1636,7 +1640,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMirrorMaterialB
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, reflectanceTextureId, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) } ),
+               m_sync.mdlMaterialShaders[1] );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
