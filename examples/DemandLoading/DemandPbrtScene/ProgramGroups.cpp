@@ -641,6 +641,12 @@ MdlMaterialShader appendMdlMaterialCallableProgramGroups( OptixDeviceContext    
     return shader;
 }
 
+MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMaterialShader shader )
+{
+    shader.usesDiffuseTexture = group.pbrtMaterial && group.pbrtMaterial->type == "matte";
+    return shader;
+}
+
 void destroyMdlMaterialBuildResultNoThrow( MdlMaterialBuildResult& result )
 {
     if( result.pipeline )
@@ -694,9 +700,10 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
 
         result.programGroups         = job.programGroups;
         result.callableProgramGroups = job.callableProgramGroups;
-        result.shader =
+        result.shader = bindMdlMaterialResources(
+            job.group,
             appendMdlMaterialCallableProgramGroups( job.optixContext, result.tintModule, result.bsdfModule, targetCode,
-                                                    result.createdCallableProgramGroups, result.callableProgramGroups );
+                                                    result.createdCallableProgramGroups, result.callableProgramGroups ) );
         result.pipeline = createOptixPipeline( job.optixContext, job.pipelineCompileOptions, result.programGroups,
                                                result.callableProgramGroups );
 
@@ -1109,8 +1116,9 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const Mat
 
     OptixDeviceContext             context = m_renderer->getDeviceContext();
     std::vector<OptixProgramGroup> createdCallableProgramGroups;
-    const MdlMaterialShader        shader{ appendMdlMaterialCallableProgramGroups(
-        context, tintModule, bsdfModule, targetCode, createdCallableProgramGroups, m_callableProgramGroups ) };
+    const MdlMaterialShader        shader{ bindMdlMaterialResources(
+        group, appendMdlMaterialCallableProgramGroups( context, tintModule, bsdfModule, targetCode,
+                                                       createdCallableProgramGroups, m_callableProgramGroups ) ) };
     m_mdlMaterialTintModules.push_back( tintModule );
     if( bsdfModule )
     {

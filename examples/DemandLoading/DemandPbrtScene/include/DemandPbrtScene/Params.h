@@ -20,6 +20,8 @@ namespace demandPbrtScene {
 
 using uint_t = unsigned int;
 
+constexpr uint_t INVALID_TEXTURE_ID{ 0xffffffffU };
+
 enum RayType
 {
     RAYTYPE_RADIANCE = 0,
@@ -249,11 +251,13 @@ struct MdlMaterialShader
 {
     uint_t callableBaseIndex;
     uint_t callableCount;
+    bool   usesDiffuseTexture;
 };
 
 inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
 {
-    return lhs.callableBaseIndex == rhs.callableBaseIndex && lhs.callableCount == rhs.callableCount;
+    return lhs.callableBaseIndex == rhs.callableBaseIndex && lhs.callableCount == rhs.callableCount
+           && lhs.usesDiffuseTexture == rhs.usesDiffuseTexture;
 }
 
 inline bool operator!=( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
