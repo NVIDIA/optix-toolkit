@@ -357,6 +357,20 @@ std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtMixMaterial( float amount )
     return material;
 }
 
+#ifdef OTK_USE_MDL
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtMixMaterialWithRgbAmount( float red, float green, float blue )
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = "mix";
+    addString( material->params, "namedmaterial1", "front" );
+    addString( material->params, "namedmaterial2", "back" );
+    addRgbSpectrum( material->params, "amount", red, green, blue );
+    material->graph.namedMaterials["front"] = pbrtNamedMatteMaterial( "front", 0.2f );
+    material->graph.namedMaterials["back"]  = pbrtNamedMatteMaterial( "back", 0.8f );
+    return material;
+}
+#endif
+
 otk::pbrt::PbrtTexture pbrtConstantFloatTexture( const std::string& name, float value )
 {
     otk::pbrt::PbrtTexture texture{};
@@ -604,6 +618,13 @@ void usePbrtMixMaterial( GeometryInstance& geom, float amount )
 {
     geom.groups[0].pbrtMaterial = pbrtMixMaterial( amount );
 }
+
+#ifdef OTK_USE_MDL
+void usePbrtMixMaterialWithRgbAmount( GeometryInstance& geom, float red, float green, float blue )
+{
+    geom.groups[0].pbrtMaterial = pbrtMixMaterialWithRgbAmount( red, green, blue );
+}
+#endif
 
 void usePbrtMixMaterialWithConstantAmountTexture( GeometryInstance& geom )
 {
@@ -1613,6 +1634,37 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixMaterialWith
     EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
 }
 
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixMaterialWithEqualRgbAmountCompilesShader )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtMixMaterialWithRgbAmount( m_geom, 0.4f, 0.4f, 0.4f );
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    const uint_t stableSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( stableSbtOffset ) );
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) ).WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
 TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsUseDistinctShaderKeys )
 {
     m_options.useMdlMaterials = true;
@@ -1891,6 +1943,32 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTexture
 {
     m_options.useMdlMaterials = true;
     usePbrtMixMaterialWithImagemapAmountTexture( m_geom );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksNonScalarRgbMixAmountUnsupported )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtMixMaterialWithRgbAmount( m_geom, 0.2f, 0.4f, 0.6f );
     const uint_t proxyGeomId{ 1111 };
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );

@@ -8,6 +8,7 @@
 #include "DemandPbrtScene/PbrtCheckerboardImageSource.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <initializer_list>
 #include <iomanip>
@@ -760,6 +761,23 @@ bool findConstantFloat( const ::pbrt::ParamSet& params, const char* name, float&
     return true;
 }
 
+bool scalarColorValue( const FoldedColor& color, float& value )
+{
+    constexpr float epsilon{ 1.0e-6f };
+    if( std::fabs( color.red - color.green ) > epsilon || std::fabs( color.red - color.blue ) > epsilon )
+    {
+        return false;
+    }
+    value = color.red;
+    return true;
+}
+
+bool findConstantScalarColor( const ::pbrt::ParamSet& params, const char* name, float& value )
+{
+    FoldedColor color{};
+    return findConstantColor( params, name, color.red, color.green, color.blue ) && scalarColorValue( color, value );
+}
+
 bool findTextureColorValue( const ::pbrt::ParamSet& params, const char* name, const FoldedColor& defaultValue, FoldedColor& value )
 {
     if( findConstantColor( params, name, value.red, value.green, value.blue ) )
@@ -788,8 +806,7 @@ bool findTextureFloatValue( const ::pbrt::ParamSet& params, const char* name, fl
     FoldedColor color{};
     if( findConstantColor( params, name, color.red, color.green, color.blue ) )
     {
-        value = ( color.red + color.green + color.blue ) / 3.0f;
-        return true;
+        return scalarColorValue( color, value );
     }
 
     value = defaultValue;
@@ -962,6 +979,11 @@ void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const
     }
 
     if( findConstantFloat( params, spec.name, parameter.value ) )
+    {
+        result.push_back( parameter );
+        return;
+    }
+    if( std::string{ spec.name } == "amount" && findConstantScalarColor( params, spec.name, parameter.value ) )
     {
         result.push_back( parameter );
     }

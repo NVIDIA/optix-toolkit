@@ -9,7 +9,11 @@
 #include <gmock/gmock.h>
 #include "DemandPbrtScene/MdlShaderCache.h"
 
+#include <OptiXToolkit/PbrtSceneLoader/Logger.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
+
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -17,6 +21,18 @@ using namespace demandPbrtScene;
 using namespace otk::pbrt;
 
 namespace {
+
+class NullLogger : public Logger
+{
+  public:
+    ~NullLogger() override = default;
+
+    void start( const char* /*programName*/ ) override {}
+    void stop() override {}
+    void info( std::string /*text*/, const char* /*file*/, int /*line*/ ) const override {}
+    void warning( std::string /*text*/, const char* /*file*/, int /*line*/ ) const override {}
+    void error( std::string /*text*/, const char* /*file*/, int /*line*/ ) const override {}
+};
 
 void addRgbSpectrum( ::pbrt::ParamSet& params, const std::string& name, float r, float g, float b )
 {
@@ -456,6 +472,33 @@ PbrtMaterial constantMixMaterial()
     return material;
 }
 
+PbrtMaterial constantMixMaterialWithRgbAmount( float red, float green, float blue )
+{
+    PbrtMaterial material{ mixMaterial( "front", "back" ) };
+    addRgbSpectrum( material.params, "amount", red, green, blue );
+    return material;
+}
+
+PbrtMaterial parsedMixMaterialWithRgbAmount( float red, float green, float blue )
+{
+    std::ostringstream scene;
+    scene << "WorldBegin\n"
+          << "MakeNamedMaterial \"front\" \"string type\" [\"matte\"] \"rgb Kd\" [0.2 0.2 0.2]\n"
+          << "MakeNamedMaterial \"back\" \"string type\" [\"matte\"] \"rgb Kd\" [0.8 0.8 0.8]\n"
+          << "Material \"mix\"\n"
+          << "    \"string namedmaterial1\" [\"front\"]\n"
+          << "    \"string namedmaterial2\" [\"back\"]\n"
+          << "    \"rgb amount\" [" << red << ' ' << green << ' ' << blue << "]\n"
+          << "Shape \"trianglemesh\"\n"
+          << "    \"integer indices\" [0 2 1]\n"
+          << "    \"point P\" [ 0 0 0  1 0 0  0 1 0 ]\n"
+          << "WorldEnd\n";
+
+    std::shared_ptr<SceneLoader> loader{ createSceneLoader( "TestDemandPbrtSceneImpl", std::make_shared<NullLogger>(), nullptr ) };
+    const SceneDescriptionPtr parsedScene{ loader->parseString( scene.str() ) };
+    return parsedScene->freeShapes[0].pbrtMaterial;
+}
+
 PbrtMaterial constantMixMaterialWithAmountTexture()
 {
     PbrtMaterial material{ mixMaterial( "front", "back" ) };
@@ -634,6 +677,20 @@ TEST( TestMdlMaterialInstanceKey, mixNamedMaterialValuesProduceDifferentInstance
     EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "0.25" ) );
     EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "0.4" ) );
     EXPECT_THAT( toString( thirdKey ), testing::HasSubstr( "0.75" ) );
+}
+
+TEST( TestMdlMaterialInstanceKey, mixRgbAmountValuesProduceDifferentInstanceKeys )
+{
+    const PbrtMaterial first{ constantMixMaterialWithRgbAmount( 0.25f, 0.25f, 0.25f ) };
+    const PbrtMaterial second{ constantMixMaterialWithRgbAmount( 0.4f, 0.4f, 0.4f ) };
+
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( first ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( second ) };
+
+    EXPECT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    EXPECT_NE( firstKey, secondKey );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "0.25" ) );
+    EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "0.4" ) );
 }
 
 TEST( TestMdlMaterialInstanceKey, mixNamedMaterialTextureValuesShareSourceKey )
@@ -1022,6 +1079,50 @@ TEST( TestMdlBoundMaterialParameters, bindsMixConstantsAndNamedMaterialConstants
 
     EXPECT_EQ( 3U, parameters.size() );
     expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsMixEqualRgbAmountAsScalar )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{
+        makeMdlBoundMaterialParameters( constantMixMaterialWithRgbAmount( 0.4f, 0.4f, 0.4f ) ) };
+
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundFloat( parameters, "amount", 0.4f );
+    expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, skipsMixNonScalarRgbAmount )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{
+        makeMdlBoundMaterialParameters( constantMixMaterialWithRgbAmount( 0.2f, 0.4f, 0.6f ) ) };
+
+    EXPECT_EQ( 2U, parameters.size() );
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "amount" ) );
+    expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsParsedMixEqualRgbAmountAsScalar )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{
+        makeMdlBoundMaterialParameters( parsedMixMaterialWithRgbAmount( 0.4f, 0.4f, 0.4f ) ) };
+
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundFloat( parameters, "amount", 0.4f );
+    expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, skipsParsedMixNonScalarRgbAmount )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{
+        makeMdlBoundMaterialParameters( parsedMixMaterialWithRgbAmount( 0.2f, 0.4f, 0.6f ) ) };
+
+    EXPECT_EQ( 2U, parameters.size() );
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "amount" ) );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }

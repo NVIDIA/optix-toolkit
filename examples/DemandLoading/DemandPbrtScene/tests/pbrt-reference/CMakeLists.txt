@@ -18,6 +18,7 @@ set(referenceMaterials
     substrate
     translucent
     mix
+    mix-rgb-amount
     landscape-uber-textured
     landscape-uber-alpha
     landscape-uber-specular-textures
@@ -190,6 +191,11 @@ if(OTK_USE_MDL)
         SCENE mix.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, generated MDL mix composes named-material BSDF callables")
+    add_pbrt_reference_image_test(mix-rgb-amount
+        MATERIAL mix
+        SCENE mix-rgb-amount.pbrt
+        WARMUP 4
+        TOLERANCE_REASON "Default tolerance, generated MDL mix folds equal-RGB amount to the scalar material parameter")
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte

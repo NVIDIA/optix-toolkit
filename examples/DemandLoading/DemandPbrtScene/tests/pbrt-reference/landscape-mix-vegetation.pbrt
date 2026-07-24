@@ -50,12 +50,20 @@ WorldBegin
         "rgb amount" [0.4 0.4 0.4]
     Shape "trianglemesh"
         "point P" [
-            -1.6 -1.6 0
-             1.6 -1.6 0
-             1.6  1.6 0
-            -1.6  1.6 0
+            -1.6 -1.6 0.05
+             1.6 -1.6 0.05
+             1.6  1.6 0.05
+            -1.6  1.6 0.05
+            -1.6 -1.6 -0.05
+             1.6 -1.6 -0.05
+             1.6  1.6 -0.05
+            -1.6  1.6 -0.05
         ]
         "float uv" [
+            0 1
+            1 1
+            1 0
+            0 0
             0 1
             1 1
             1 0
@@ -64,6 +72,8 @@ WorldBegin
         "integer indices" [
             0 1 2
             0 2 3
+            6 5 4
+            4 7 6
         ]
         "texture alpha" "cutout"
         "texture shadowalpha" "cutout"
