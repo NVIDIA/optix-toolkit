@@ -198,7 +198,12 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     unsigned int u1;
     packPointer( &prd, u0, u1 );
 
-    prd.rayDistance = tMax;
+    prd.rayDistance            = tMax;
+#ifdef OTK_USE_MDL
+    unsigned int mdlSampleSeed = rseed ^ 0x9e3779b9U;
+    prd.mdlBsdfSampleXi =
+        make_float4( rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ) );
+#endif
     RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
@@ -284,12 +289,28 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     {
         // Compute ray scatter direction
         rayOrigin = rayOrigin + prd.rayDistance * rayDirection;
-        if( otk::dot( prd.normal, rayDirection ) > 0.0f )
-            prd.normal = -prd.normal;
-        rayDirection = sampleDiffuse( float2{ rnd( rseed ), rnd( rseed ) }, prd.normal );
+#ifdef OTK_USE_MDL
+        if( renderMode == RenderMode::PATH_TRACING && prd.hasMdlBsdfSample )
+        {
+            rayDirection = otk::normalize( prd.mdlBsdfSampleDirection );
+            sampleColor *= prd.mdlBsdfSampleThroughput;
+        }
+        else
+#endif
+        {
+            if( otk::dot( prd.normal, rayDirection ) > 0.0f )
+                prd.normal = -prd.normal;
+            rayDirection = sampleDiffuse( float2{ rnd( rseed ), rnd( rseed ) }, prd.normal );
+        }
 
         // Trace ray
         prd.rayDistance = rayTmax;
+#ifdef OTK_USE_MDL
+        prd.hasMdlBsdfSample = false;
+        mdlSampleSeed = rseed ^ ( 0x9e3779b9U * static_cast<unsigned int>( rayDepth + 2 ) );
+        prd.mdlBsdfSampleXi =
+            make_float4( rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ) );
+#endif
         optixTrace( params.traversable, rayOrigin, rayDirection, tMin, rayTmax, rayTime, OptixVisibilityMask( 255 ),
                     flags, sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
         rayCone       = propagate( rayCone, prd.rayDistance );

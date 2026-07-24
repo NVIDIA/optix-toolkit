@@ -14,10 +14,18 @@
 #include <vector_functions.h>
 
 #include <cassert>
+#include <cmath>
 
 using namespace otk;  // for vec_math operators
 
 namespace demandPbrtScene {
+
+constexpr uint_t MDL_BSDF_INIT_CALLABLE_OFFSET{ 1U };
+constexpr uint_t MDL_BSDF_EVALUATE_CALLABLE_OFFSET{ 3U };
+constexpr uint_t MDL_BSDF_CALLABLE_COUNT{ 4U };
+constexpr float  INV_PI{ 0.31830988618379067154f };
+constexpr float  PI{ 3.14159265358979323846f };
+constexpr float  DISPLAY_GAMMA{ 1.0f / 2.2f };
 
 // Flip V because PBRT texture coordinate space has (0,0) at the lower left corner.
 __device__ __forceinline__ float2 adjustMdlUV( float2 uv )
@@ -88,6 +96,130 @@ __device__ __forceinline__ uint_t getMdlMaterialId( const Params& params, uint_t
     return ~0U;
 }
 
+__device__ __forceinline__ bool hasMdlBsdfCallables( const MdlMaterialShader& shader )
+{
+    return shader.callableCount >= 1U + MDL_BSDF_CALLABLE_COUNT;
+}
+
+__device__ __forceinline__ float3 displayEncodeMdlColor( const float3& color )
+{
+    return make_float3( powf( fmaxf( color.x, 0.0f ), DISPLAY_GAMMA ),  //
+                        powf( fmaxf( color.y, 0.0f ), DISPLAY_GAMMA ),  //
+                        powf( fmaxf( color.z, 0.0f ), DISPLAY_GAMMA ) );
+}
+
+__device__ __forceinline__ float2 concentricMapping( float2 u )
+{
+    float a = 2.0f * u.x - 1.0f;
+    if( a == 0.0f )
+        a = 1.0f;
+    float b = 2.0f * u.y - 1.0f;
+    if( b == 0.0f )
+        b = 1.0f;
+
+    float r, phi;
+    if( a * a > b * b )
+    {
+        r   = a;
+        phi = ( PI / 4.0f ) * ( b / a );
+    }
+    else
+    {
+        r   = b;
+        phi = ( PI / 2.0f ) - ( PI / 4.0f ) * ( a / b );
+    }
+    return float2{ r * cosf( phi ), r * sinf( phi ) };
+}
+
+__device__ __forceinline__ void makeOrthoBasis( float3 n, float3& s, float3& t )
+{
+    s = ( fabsf( n.x ) + fabsf( n.y ) > fabsf( n.z ) ) ? float3{ -n.y, n.x, 0.0f } : float3{ 0.0f, -n.z, n.y };
+    s = otk::normalize( s );
+    t = otk::cross( s, n );
+}
+
+__device__ __forceinline__ float3 sampleDiffuseDirection( const float4& xi, const float3& n )
+{
+    float3       s, t;
+    const float3 normal{ otk::normalize( n ) };
+    makeOrthoBasis( normal, s, t );
+    const float2 st{ concentricMapping( make_float2( xi.x, xi.y ) ) };
+    return otk::normalize( ( st.x * s ) + ( st.y * t ) + ( sqrtf( 1.0f - otk::dot( st, st ) ) * normal ) );
+}
+
+__device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&               shader,
+                                                   mi::neuraylib::Shading_state_material& state,
+                                                   const mi::neuraylib::Resource_data&    resourceData )
+{
+    optixDirectCall<void, mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
+        shader.callableBaseIndex + MDL_BSDF_INIT_CALLABLE_OFFSET, &state, &resourceData, nullptr );
+}
+
+__device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&                     shader,
+                                                   const mi::neuraylib::Shading_state_material& state,
+                                                   const mi::neuraylib::Resource_data&          resourceData,
+                                                   const float3&                                outgoing,
+                                                   const float3&                                incoming )
+{
+    mi::neuraylib::Bsdf_evaluate_data<mi::neuraylib::DF_HSM_NONE> evalData{};
+    evalData.ior1  = make_float3( 1.0f );
+    evalData.ior2  = make_float3( 1.0f );
+    evalData.k1    = outgoing;
+    evalData.k2    = incoming;
+    evalData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT;
+    optixDirectCall<void, mi::neuraylib::Bsdf_evaluate_data_base*, const mi::neuraylib::Shading_state_material*,
+                    const mi::neuraylib::Resource_data*, const char*>( shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET,
+                                                                       &evalData, &state, &resourceData, nullptr );
+    return evalData.bsdf_diffuse + evalData.bsdf_glossy;
+}
+
+__device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&                     shader,
+                                                const mi::neuraylib::Shading_state_material& state,
+                                                const mi::neuraylib::Resource_data&          resourceData,
+                                                const float3&                                worldNormal,
+                                                const float3&                                rayDirection )
+{
+    float3        result{};
+    const float3  outgoing{ -rayDirection };
+    const Params& params{ PARAMS_VAR_NAME };
+
+    for( uint_t i = 0; i < params.numDirectionalLights; ++i )
+    {
+        const DirectionalLight& light{ params.directionalLights[i] };
+        if( otk::dot( worldNormal, light.direction ) > 0.0f )
+        {
+            result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction ) * light.color;
+        }
+    }
+
+    for( uint_t i = 0; i < params.numInfiniteLights; ++i )
+    {
+        const InfiniteLight& light{ params.infiniteLights[i] };
+        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, worldNormal ) * light.color * light.scale;
+    }
+
+    return result;
+}
+
+__device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&                     shader,
+                                               const mi::neuraylib::Shading_state_material& state,
+                                               const mi::neuraylib::Resource_data&          resourceData,
+                                               const float3&                                worldNormal,
+                                               const float3&                                outgoing,
+                                               const float4&                                xi,
+                                               float3&                                      direction,
+                                               float3&                                      throughput )
+{
+    direction       = sampleDiffuseDirection( xi, worldNormal );
+    const float pdf = fmaxf( otk::dot( worldNormal, direction ), 0.0f ) * INV_PI;
+    if( pdf <= 0.0f )
+    {
+        return false;
+    }
+    throughput = evaluateMdlBsdf( shader, state, resourceData, outgoing, direction ) / pdf;
+    return otk::dot( throughput, throughput ) > 0.0f;
+}
+
 __device__ __forceinline__ bool useMdlShader( const Params& params, uint_t materialId, MdlMaterialShader& shader )
 {
     if( params.materialStates == nullptr || materialId >= params.numMaterialStates )
@@ -150,6 +282,7 @@ extern "C" __global__ void __closesthit__mdlMesh()
     prd->material         = nullptr;
     prd->normal           = worldNormal;
     prd->rayDistance      = rayT;
+    prd->hasMdlBsdfSample = false;
 
     if( !useMdlShader( params, materialId, shader ) )
     {
@@ -173,6 +306,17 @@ extern "C" __global__ void __closesthit__mdlMesh()
     prd->materialCopy   = material;
     prd->color          = phongShade( material, worldNormal, rayDirection );
     prd->hasDirectColor = true;
+
+    if( hasMdlBsdfCallables( shader )
+        && ( static_cast<uint_t>( material.flags ) & static_cast<uint_t>( MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ) == 0U )
+    {
+        initializeMdlBsdf( shader, state, resourceData );
+        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, worldNormal, rayDirection ) );
+        prd->hasDirectColor = true;
+        prd->hasMdlBsdfSample = sampleMdlBsdf( shader, state, resourceData, worldNormal, -rayDirection, prd->mdlBsdfSampleXi,
+                                               prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
+        return;
+    }
 
     if( ( static_cast<uint_t>( material.flags ) & static_cast<uint_t>( MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ) == 0U )
     {

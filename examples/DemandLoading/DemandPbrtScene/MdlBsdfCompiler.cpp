@@ -84,8 +84,9 @@ MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*        
                            "Cannot compile MDL BSDF callables without a compiled material" );
     requireMdlBsdfCompile( context != nullptr, "Cannot compile MDL BSDF callables without an execution context" );
     requireMdlBsdfCompile( !expressionPath.empty(), "Cannot compile MDL BSDF callables without an expression path" );
-    requireMdlBsdfCompile( !baseFunctionName.empty(), "Cannot compile MDL BSDF callables without a base function "
-                                                      "name" );
+    requireMdlBsdfCompile( !baseFunctionName.empty(),
+                           "Cannot compile MDL BSDF callables without a base function "
+                           "name" );
 
     mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi( neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
     requireMdlBsdfCompile( backendApi.is_valid_interface(), "Failed to get MDL backend API" );
@@ -94,6 +95,8 @@ MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*        
     requireMdlBsdfCompile( ptxBackend.is_valid_interface(), "Failed to get MDL CUDA PTX backend" );
     requireMdlBsdfCompile( ptxBackend->set_option( "sm_version", "50" ) == 0,
                            "Failed to set MDL CUDA PTX target architecture" );
+    requireMdlBsdfCompile( ptxBackend->set_option( "df_handle_slot_mode", "none" ) == 0,
+                           "Failed to set MDL BSDF handle slot mode" );
 
     context->clear_messages();
     mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode( ptxBackend->translate_material_df(

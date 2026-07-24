@@ -1095,7 +1095,8 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const Mat
     }
 
     const Stopwatch             compileTimer;
-    const MdlMaterialTargetCode targetCode{ compileMdlMaterialTargetCode( group, shaderKeyId != 0U ) };
+    const MdlMaterialTargetCode targetCode{
+        compileMdlMaterialTargetCode( group, m_options.useMdlMaterials && shaderKeyId != 0U ) };
     const double                compileTime{ compileTimer.elapsed() };
 
     const Stopwatch optixTimer;
@@ -1185,7 +1186,7 @@ void PbrtProgramGroups::requestMdlMaterialBuild( const MaterialGroup& group, uin
     job.pipelineCompileOptions = m_renderer->getPipelineCompileOptions();
     job.programGroups          = m_programGroups;
     job.callableProgramGroups  = m_callableProgramGroups;
-    job.includeBsdfCallables   = shaderKeyId != 0U;
+    job.includeBsdfCallables   = m_options.useMdlMaterials && shaderKeyId != 0U;
     m_mdlMaterialBuildWorker->enqueue( job );
 }
 

@@ -500,6 +500,12 @@ struct RayPayload
     bool                 isBackground;
     bool                 discardRay;
     bool                 hasDirectColor;
+#ifdef OTK_USE_MDL
+    bool                 hasMdlBsdfSample;
+    float4               mdlBsdfSampleXi;
+    float3               mdlBsdfSampleDirection;
+    float3               mdlBsdfSampleThroughput;
+#endif
 };
 
 #if __CUDACC__
