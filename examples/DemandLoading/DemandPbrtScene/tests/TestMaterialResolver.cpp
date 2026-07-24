@@ -1302,27 +1302,49 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsU
     EXPECT_EQ( 2U, stats.mdlShaders.numReadyShaders );
 }
 
-TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksUnsupportedMaterialTypeOnFallback )
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksExplicitMaterialGapTypesOnFallback )
 {
     m_options.useMdlMaterials = true;
-    usePbrtMaterialOfType( m_geom, "fourier" );
-    const uint_t proxyGeomId{ 1111 };
-    const uint_t proxyMaterialId{ 4444U };
-    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
-    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
-    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
-    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
-    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    const char* const   gapTypes[]  = { "fourier", "hair", "subsurface", "kdsubsurface", "measured" };
+    const uint_t        firstProxyGeomId{ 1111U };
+    const uint_t        firstProxyMaterialId{ 4444U };
+    std::vector<uint_t> requestedMaterialIds;
+
+    EXPECT_CALL( *m_loader, add() )
+        .WillOnce( Return( firstProxyMaterialId ) )
+        .WillOnce( Return( firstProxyMaterialId + 1U ) )
+        .WillOnce( Return( firstProxyMaterialId + 2U ) )
+        .WillOnce( Return( firstProxyMaterialId + 3U ) )
+        .WillOnce( Return( firstProxyMaterialId + 4U ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).Times( 5 ).WillRepeatedly( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    for( size_t index = 0; index < 5U; ++index )
+    {
+        GeometryInstance geom{ m_geom };
+        usePbrtMaterialOfType( geom, gapTypes[index] );
+        const uint_t proxyMaterialId{ firstProxyMaterialId + static_cast<uint_t>( index ) };
+
+        SCOPED_TRACE( gapTypes[index] );
+        ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( firstProxyGeomId + static_cast<uint_t>( index ), geom, m_sync ) );
+        requestedMaterialIds.push_back( proxyMaterialId );
+        EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    }
+
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( requestedMaterialIds ) );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
     EXPECT_EQ( MaterialResolution::FULL, result );
-    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
-    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    for( size_t index = 0; index < requestedMaterialIds.size(); ++index )
+    {
+        const uint_t proxyMaterialId{ requestedMaterialIds[index] };
+        SCOPED_TRACE( gapTypes[index] );
+        ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+        EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    }
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
-    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
-    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 5U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 5U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
