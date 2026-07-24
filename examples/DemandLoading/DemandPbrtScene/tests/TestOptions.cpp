@@ -244,6 +244,14 @@ TEST_F( TestOptions, fileOutputUsesSynchronousMdlCompilation )
     EXPECT_TRUE( options.mdlSynchronousCompilation );
 }
 
+TEST_F( TestOptions, fileOutputWithoutMdlMaterialsDoesNotForceSynchronousCompilation )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--file", "output.png", "--use-mdl-materials=false", "scene.pbrt" } );
+
+    EXPECT_FALSE( options.mdlSynchronousCompilation );
+}
+
 TEST_F( TestOptions, mdlSynchronousCompilation )
 {
     const demandPbrtScene::Options options =

@@ -2222,6 +2222,13 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "index" },
         { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::FLOAT, "opacity" },
     };
+    static const BoundParameterSpec namedUberParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
+        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+        { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "alpha" },
+        { MdlBoundParameterType::FLOAT, "opacity" },
+    };
     static const BoundParameterSpec mirrorParams[] = {
         { MdlBoundParameterType::COLOR, "Kr" },
     };
@@ -2276,7 +2283,8 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         }
         else if( type == "uber" )
         {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( uberParams ), std::end( uberParams ) );
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( namedUberParams ),
+                                        std::end( namedUberParams ) );
         }
         else if( type == "mirror" )
         {

@@ -507,6 +507,24 @@ PbrtMaterial constantMixMaterialWithAmountTexture()
     return material;
 }
 
+PbrtNamedMaterial namedUberWithIndex( const std::string& name )
+{
+    PbrtNamedMaterial material;
+    material.name = name;
+    material.type = "uber";
+    addString( material.params, "type", "uber" );
+    addRgbSpectrum( material.params, "Kd", 0.3f, 0.4f, 0.5f );
+    addFloat( material.params, "index", 1.4f );
+    return material;
+}
+
+PbrtMaterial mixMaterialWithNamedUberIndex()
+{
+    PbrtMaterial material{ constantMixMaterial() };
+    material.graph.namedMaterials["front"] = namedUberWithIndex( "front" );
+    return material;
+}
+
 PbrtNamedMaterial namedUberWithKdTexture( const std::string& name, const std::string& textureName )
 {
     PbrtNamedMaterial material;
@@ -1134,6 +1152,17 @@ TEST( TestMdlBoundMaterialParameters, bindsMixConstantAmountTexture )
     EXPECT_EQ( 3U, parameters.size() );
     expectBoundFloat( parameters, "amount", 0.25f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, skipsNamedUberIndexInMix )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( mixMaterialWithNamedUberIndex() ) };
+
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "named_0_Kd", 0.3f, 0.4f, 0.5f );
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "named_0_index" ) );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
 

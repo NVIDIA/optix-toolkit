@@ -827,6 +827,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     }
     catch( const std::exception& e )
     {
+        std::cerr << "Generated MDL material build failed for " << toString( materialKey ) << ": " << e.what() << '\n';
         m_mdlShaderCompileCache.markFailed( materialKey, e.what() );
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
@@ -837,6 +838,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     }
     catch( ... )
     {
+        std::cerr << "Generated MDL material build failed for " << toString( materialKey ) << ": unknown failure\n";
         m_mdlShaderCompileCache.markFailed( materialKey, "Unknown MDL shader compile failure" );
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
@@ -933,10 +935,12 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     }
     catch( const std::exception& e )
     {
+        std::cerr << "Generated MDL material build failed for " << toString( materialKey ) << ": " << e.what() << '\n';
         m_mdlShaderCompileCache.markFailed( materialKey, e.what() );
     }
     catch( ... )
     {
+        std::cerr << "Generated MDL material build failed for " << toString( materialKey ) << ": unknown failure\n";
         m_mdlShaderCompileCache.markFailed( materialKey, "Unknown MDL shader compile failure" );
     }
 

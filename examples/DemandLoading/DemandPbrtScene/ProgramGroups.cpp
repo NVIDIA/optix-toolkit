@@ -685,21 +685,23 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
 
 struct MdlMaterialBuildJob
 {
-    uint_t                                    shaderKeyId{};
-    MaterialGroup                             group{};
-    std::shared_ptr<MdlOptixModuleCache>     moduleCache;
-    CUcontext                                 cudaContext{};
-    OptixDeviceContext                        optixContext{};
-    OptixPipelineCompileOptions               pipelineCompileOptions{};
-    std::vector<OptixProgramGroup>            programGroups;
-    std::vector<OptixProgramGroup>            callableProgramGroups;
-    bool                                      includeBsdfCallables{};
+    uint_t                                shaderKeyId{};
+    uint_t                                programLayoutVersion{};
+    MaterialGroup                         group{};
+    std::shared_ptr<MdlOptixModuleCache> moduleCache;
+    CUcontext                             cudaContext{};
+    OptixDeviceContext                    optixContext{};
+    OptixPipelineCompileOptions           pipelineCompileOptions{};
+    std::vector<OptixProgramGroup>        programGroups;
+    std::vector<OptixProgramGroup>        callableProgramGroups;
+    bool                                  includeBsdfCallables{};
 };
 
 struct MdlMaterialBuildResult
 {
     uint_t                         shaderKeyId{};
     MdlMaterialShader              shader{};
+    uint_t                         programLayoutVersion{};
     std::vector<OptixProgramGroup> createdCallableProgramGroups;
     OptixPipeline                  pipeline{};
     std::vector<OptixProgramGroup> programGroups;
@@ -853,7 +855,8 @@ void destroyMdlMaterialBuildResultNoThrow( MdlMaterialBuildResult& result )
 MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob& job )
 {
     MdlMaterialBuildResult result{};
-    result.shaderKeyId = job.shaderKeyId;
+    result.shaderKeyId          = job.shaderKeyId;
+    result.programLayoutVersion = job.programLayoutVersion;
     try
     {
         if( job.cudaContext )
@@ -948,6 +951,8 @@ class MdlMaterialBuildWorker
         {
             std::lock_guard<std::mutex> lock( m_mutex );
             m_stop = true;
+            m_jobs.clear();
+            m_queuedShaderKeys.clear();
             m_condition.notify_one();
         }
         if( m_thread.joinable() )
@@ -1032,6 +1037,7 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t            getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
     uint_t            getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
 #ifdef OTK_USE_MDL
+    void              markProgramLayoutChanged();
     void              requestMdlMaterialBuild( const MaterialGroup& group, uint_t shaderKeyId );
     bool              installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlMaterialShader& shader );
     uint_t            getTriangleMdlMaterialSbtOffset( MaterialFlags flags );
@@ -1058,14 +1064,15 @@ class PbrtProgramGroups : public ProgramGroups
 #ifdef OTK_USE_MDL
     std::vector<OptixProgramGroup>      m_callableProgramGroups;
     std::map<uint_t, MdlMaterialShader> m_mdlMaterialShaders;
-    size_t m_triangleMdlMaterialHitGroupIndex{};
-    size_t m_triangleMdlAlphaMapHitGroupIndex{};
+    uint_t                              m_programLayoutVersion{};
+    size_t                              m_triangleMdlMaterialHitGroupIndex{};
+    size_t                              m_triangleMdlAlphaMapHitGroupIndex{};
 #endif
-    size_t m_triangleHitGroupIndex{};
-    size_t m_triangleAlphaMapHitGroupIndex{};
-    size_t m_triangleDiffuseMapHitGroupIndex{};
-    size_t m_triangleAlphaDiffuseMapHitGroupIndex{};
-    size_t m_sphereHitGroupIndex{};
+    size_t                              m_triangleHitGroupIndex{};
+    size_t                              m_triangleAlphaMapHitGroupIndex{};
+    size_t                              m_triangleDiffuseMapHitGroupIndex{};
+    size_t                              m_triangleAlphaDiffuseMapHitGroupIndex{};
+    size_t                              m_sphereHitGroupIndex{};
 };
 
 OptixModule PbrtProgramGroups::createModule( const char* optixir, size_t optixirSize )
@@ -1153,6 +1160,13 @@ void PbrtProgramGroups::cleanup()
     OTK_ERROR_CHECK( optixModuleDestroy( m_sceneModule ) );
 }
 
+#ifdef OTK_USE_MDL
+void PbrtProgramGroups::markProgramLayoutChanged()
+{
+    ++m_programLayoutVersion;
+}
+#endif
+
 uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags )
 {
     OptixDeviceContext       context = m_renderer->getDeviceContext();
@@ -1172,6 +1186,9 @@ uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( Material
             OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
             m_triangleAlphaDiffuseMapHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
             m_programGroups.push_back( group );
+#ifdef OTK_USE_MDL
+            markProgramLayoutChanged();
+#endif
             m_renderer->setProgramGroups( m_programGroups );
         }
         return m_triangleAlphaDiffuseMapHitGroupIndex;
@@ -1189,6 +1206,9 @@ uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( Material
             OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
             m_triangleAlphaMapHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
             m_programGroups.push_back( group );
+#ifdef OTK_USE_MDL
+            markProgramLayoutChanged();
+#endif
             m_renderer->setProgramGroups( m_programGroups );
         }
         return m_triangleAlphaMapHitGroupIndex;
@@ -1205,6 +1225,9 @@ uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( Material
             OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
             m_triangleDiffuseMapHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
             m_programGroups.push_back( group );
+#ifdef OTK_USE_MDL
+            markProgramLayoutChanged();
+#endif
             m_renderer->setProgramGroups( m_programGroups );
         }
         return m_triangleDiffuseMapHitGroupIndex;
@@ -1219,6 +1242,9 @@ uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( Material
         OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
         m_triangleHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
         m_programGroups.push_back( group );
+#ifdef OTK_USE_MDL
+        markProgramLayoutChanged();
+#endif
         m_renderer->setProgramGroups( m_programGroups );
     }
     return m_triangleHitGroupIndex;
@@ -1246,6 +1272,7 @@ uint_t PbrtProgramGroups::getTriangleMdlMaterialSbtOffset( MaterialFlags flags )
         OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
         hitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
         m_programGroups.push_back( group );
+        markProgramLayoutChanged();
         m_renderer->setProgramGroups( m_programGroups );
 
         const double optixTime{ optixTimer.elapsed() };
@@ -1299,6 +1326,7 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const Mat
         group, appendMdlMaterialCallableProgramGroups( context, tintModule, bsdfModule, targetCode,
                                                        createdCallableProgramGroups, m_callableProgramGroups ) ) };
     m_mdlMaterialShaders[shaderKeyId] = shader;
+    markProgramLayoutChanged();
     m_renderer->setCallableProgramGroups( m_callableProgramGroups );
 
     const double optixTime{ optixTimer.elapsed() };
@@ -1328,6 +1356,9 @@ uint_t PbrtProgramGroups::getSphereRealizedMaterialSbtOffset()
         OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
         m_sphereHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
         m_programGroups.push_back( group );
+#ifdef OTK_USE_MDL
+        markProgramLayoutChanged();
+#endif
         m_renderer->setProgramGroups( m_programGroups );
     }
     return m_sphereHitGroupIndex;
@@ -1362,6 +1393,7 @@ void PbrtProgramGroups::requestMdlMaterialBuild( const MaterialGroup& group, uin
 
     MdlMaterialBuildJob job{};
     job.shaderKeyId            = shaderKeyId;
+    job.programLayoutVersion   = m_programLayoutVersion;
     job.group                  = group;
     job.moduleCache            = m_mdlModuleCache;
     job.cudaContext            = cudaContext;
@@ -1400,11 +1432,17 @@ bool PbrtProgramGroups::installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlM
     {
         throw std::runtime_error( result.diagnostics );
     }
+    if( result.programLayoutVersion != m_programLayoutVersion )
+    {
+        destroyMdlMaterialBuildResultNoThrow( result );
+        return false;
+    }
 
     shader                            = result.shader;
     m_mdlMaterialShaders[shaderKeyId] = shader;
     m_programGroups         = std::move( result.programGroups );
     m_callableProgramGroups = std::move( result.callableProgramGroups );
+    markProgramLayoutChanged();
     m_renderer->setPipelineState( result.pipeline, m_programGroups, m_callableProgramGroups );
     result.createdCallableProgramGroups.clear();
     result.pipeline = nullptr;
