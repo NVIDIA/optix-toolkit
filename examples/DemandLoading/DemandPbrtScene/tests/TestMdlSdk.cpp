@@ -204,6 +204,13 @@ void addFloat( ::pbrt::ParamSet& params, const std::string& name, float value )
     params.AddFloat( name, std::move( values ), 1 );
 }
 
+void addString( ::pbrt::ParamSet& params, const std::string& name, const std::string& value )
+{
+    std::unique_ptr<std::string[]> values{ new std::string[1] };
+    values[0] = value;
+    params.AddString( name, std::move( values ), 1 );
+}
+
 otk::pbrt::PbrtMaterial matteMaterial( float red, float green, float blue )
 {
     otk::pbrt::PbrtMaterial material;
@@ -281,6 +288,64 @@ otk::pbrt::PbrtMaterial metalMaterial()
     addFloat( material.params, "roughness", 0.18f );
     addFloat( material.params, "uroughness", 0.16f );
     addFloat( material.params, "vroughness", 0.2f );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial translucentMaterial()
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "translucent";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    addRgbSpectrum( material.params, "reflect", 0.8f, 0.6f, 0.4f );
+    addRgbSpectrum( material.params, "transmit", 0.2f, 0.4f, 0.6f );
+    addFloat( material.params, "roughness", 0.25f );
+    addFloat( material.params, "opacity", 0.7f );
+    return material;
+}
+
+otk::pbrt::PbrtNamedMaterial namedMatteMaterial( const std::string& name, float kd )
+{
+    otk::pbrt::PbrtNamedMaterial material;
+    material.name = name;
+    material.type = "matte";
+    addString( material.params, "type", "matte" );
+    addRgbSpectrum( material.params, "Kd", kd, kd, kd );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial mixMaterial()
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "mix";
+    addString( material.params, "namedmaterial1", "front" );
+    addString( material.params, "namedmaterial2", "back" );
+    addFloat( material.params, "amount", 0.25f );
+    material.graph.namedMaterials["front"] = namedMatteMaterial( "front", 0.2f );
+    material.graph.namedMaterials["back"]  = namedMatteMaterial( "back", 0.8f );
+    return material;
+}
+
+otk::pbrt::PbrtTexture constantFloatTexture( const std::string& name, float value )
+{
+    otk::pbrt::PbrtTexture texture;
+    texture.name      = name;
+    texture.valueType = "float";
+    texture.type      = "constant";
+    addFloat( texture.params, "value", value );
+    return texture;
+}
+
+otk::pbrt::PbrtMaterial mixMaterialWithAmountTexture()
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "mix";
+    addString( material.params, "namedmaterial1", "front" );
+    addString( material.params, "namedmaterial2", "back" );
+    material.params.AddTexture( "amount", "weight" );
+    material.graph.namedMaterials["front"]  = namedMatteMaterial( "front", 0.2f );
+    material.graph.namedMaterials["back"]   = namedMatteMaterial( "back", 0.8f );
+    material.graph.textures["float:weight"] = constantFloatTexture( "weight", 0.25f );
     return material;
 }
 
@@ -600,6 +665,9 @@ TEST( TestMdlSdk, compilesOpaqueGeneratedMaterialsWithBoundConstants )
         expectCompiledTint( mirrorMaterial(), BoundMdlColor{ 0.2f, 0.3f, 0.4f } );
         expectCompiledTint( glassMaterial(), BoundMdlColor{ 0.8f, 0.85f, 0.95f } );
         expectCompiledTint( metalMaterial(), BoundMdlColor{ 2.2f / 2.4f, 2.8f / 3.1f, 3.4f / 3.85f } );
+        expectCompiledTint( translucentMaterial(), BoundMdlColor{ 0.1f, 0.15f, 0.2f } );
+        expectCompiledTint( mixMaterial(), BoundMdlColor{ 0.35f, 0.35f, 0.35f } );
+        expectCompiledTint( mixMaterialWithAmountTexture(), BoundMdlColor{ 0.35f, 0.35f, 0.35f } );
 
         EXPECT_EQ( 0, transaction->commit() );
     }

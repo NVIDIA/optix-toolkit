@@ -614,6 +614,8 @@ struct MdlMaterialModel
     std::string                       body;
 };
 
+std::string namedMaterialParameterName( unsigned int index, const std::string& paramName );
+
 struct PbrtMaterialGapPolicy
 {
     std::string type;
@@ -666,6 +668,16 @@ bool findConstantFloat( const ::pbrt::ParamSet& params, const char* name, float&
     return true;
 }
 
+bool findConstantTextureFloat( const otk::pbrt::PbrtMaterialGraph& graph, const std::string& textureName, float& value )
+{
+    const TextureLookup lookup{ findTexture( graph, textureName, "float" ) };
+    if( lookup.texture == nullptr || lookup.texture->valueType != "float" || lookup.texture->type != "constant" )
+    {
+        return false;
+    }
+    return findConstantFloat( lookup.texture->params, "value", value );
+}
+
 void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const ::pbrt::ParamSet& params, const BoundParameterSpec& spec )
 {
     MdlBoundMaterialParameter parameter{};
@@ -694,6 +706,60 @@ void appendBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
     for( const BoundParameterSpec* it = begin; it != end; ++it )
     {
         appendBoundParameter( result, params, *it );
+    }
+}
+
+void appendTextureBackedBoundFloatParameter( std::vector<MdlBoundMaterialParameter>& result,
+                                             const otk::pbrt::PbrtMaterial&          material,
+                                             const char*                             name )
+{
+    const std::string textureName{ material.params.FindTexture( name ) };
+    if( textureName.empty() )
+    {
+        return;
+    }
+
+    MdlBoundMaterialParameter parameter{};
+    parameter.name = name;
+    parameter.type = MdlBoundParameterType::FLOAT;
+    if( findConstantTextureFloat( material.graph, textureName, parameter.value ) )
+    {
+        result.push_back( parameter );
+    }
+}
+
+void appendNamedBoundParameter( std::vector<MdlBoundMaterialParameter>& result,
+                                const ::pbrt::ParamSet&                 params,
+                                unsigned int                            index,
+                                const BoundParameterSpec&               spec )
+{
+    MdlBoundMaterialParameter parameter{};
+    parameter.name = namedMaterialParameterName( index, spec.name );
+    parameter.type = spec.type;
+    if( spec.type == MdlBoundParameterType::COLOR )
+    {
+        if( findConstantColor( params, spec.name, parameter.red, parameter.green, parameter.blue ) )
+        {
+            result.push_back( parameter );
+        }
+        return;
+    }
+
+    if( findConstantFloat( params, spec.name, parameter.value ) )
+    {
+        result.push_back( parameter );
+    }
+}
+
+void appendNamedBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
+                                 const ::pbrt::ParamSet&                 params,
+                                 unsigned int                            index,
+                                 const BoundParameterSpec*               begin,
+                                 const BoundParameterSpec*               end )
+{
+    for( const BoundParameterSpec* it = begin; it != end; ++it )
+    {
+        appendNamedBoundParameter( result, params, index, *it );
     }
 }
 
@@ -1388,8 +1454,71 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
         { MdlBoundParameterType::FLOAT, "vroughness" },
     };
+    static const BoundParameterSpec translucentParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },        { MdlBoundParameterType::COLOR, "Ks" },
+        { MdlBoundParameterType::COLOR, "reflect" },   { MdlBoundParameterType::COLOR, "transmit" },
+        { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::FLOAT, "opacity" },
+    };
+    static const BoundParameterSpec mixParams[] = {
+        { MdlBoundParameterType::FLOAT, "amount" },
+    };
 
     std::vector<MdlBoundMaterialParameter> result;
+    const auto appendNamedMaterialParameters = [&]( const std::string& paramName, unsigned int index ) {
+        const std::string materialName{ material.params.FindOneString( paramName, std::string{} ) };
+        if( materialName.empty() )
+        {
+            return;
+        }
+
+        const otk::pbrt::PbrtNamedMaterialMap::const_iterator namedMaterial = material.graph.namedMaterials.find( materialName );
+        if( namedMaterial == material.graph.namedMaterials.end() )
+        {
+            return;
+        }
+
+        const std::string type{ namedMaterialType( namedMaterial->second ) };
+        if( type == "matte" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( matteParams ),
+                                        std::end( matteParams ) );
+        }
+        else if( type == "plastic" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( plasticParams ),
+                                        std::end( plasticParams ) );
+        }
+        else if( type == "uber" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( uberParams ), std::end( uberParams ) );
+        }
+        else if( type == "mirror" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( mirrorParams ),
+                                        std::end( mirrorParams ) );
+        }
+        else if( type == "glass" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( glassParams ),
+                                        std::end( glassParams ) );
+        }
+        else if( type == "metal" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( metalParams ),
+                                        std::end( metalParams ) );
+        }
+        else if( type == "substrate" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( substrateParams ),
+                                        std::end( substrateParams ) );
+        }
+        else if( type == "translucent" )
+        {
+            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( translucentParams ),
+                                        std::end( translucentParams ) );
+        }
+    };
+
     if( material.type == "matte" )
     {
         appendBoundParameters( result, material.params, std::begin( matteParams ), std::end( matteParams ) );
@@ -1417,6 +1546,17 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
     else if( material.type == "substrate" )
     {
         appendBoundParameters( result, material.params, std::begin( substrateParams ), std::end( substrateParams ) );
+    }
+    else if( material.type == "translucent" )
+    {
+        appendBoundParameters( result, material.params, std::begin( translucentParams ), std::end( translucentParams ) );
+    }
+    else if( material.type == "mix" )
+    {
+        appendBoundParameters( result, material.params, std::begin( mixParams ), std::end( mixParams ) );
+        appendTextureBackedBoundFloatParameter( result, material, "amount" );
+        appendNamedMaterialParameters( "namedmaterial1", 0U );
+        appendNamedMaterialParameters( "namedmaterial2", 1U );
     }
     return result;
 }

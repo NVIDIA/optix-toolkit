@@ -159,7 +159,86 @@ MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
 bool supportsGeneratedMdlMaterial( const std::string& type )
 {
     return type == "matte" || type == "plastic" || type == "uber" || type == "mirror" || type == "glass"
-           || type == "metal" || type == "substrate";
+           || type == "metal" || type == "substrate" || type == "translucent" || type == "mix";
+}
+
+bool supportsGeneratedMdlNamedMaterialType( const std::string& type )
+{
+    return type == "matte" || type == "plastic" || type == "uber" || type == "mirror" || type == "glass"
+           || type == "metal" || type == "substrate" || type == "translucent";
+}
+
+std::string generatedMdlNamedMaterialType( const otk::pbrt::PbrtNamedMaterial& material )
+{
+    if( !material.type.empty() )
+    {
+        return material.type;
+    }
+    return material.params.FindOneString( "type", std::string{} );
+}
+
+bool hasGeneratedMdlMaterialTextureReference( const ::pbrt::ParamSet& params )
+{
+    static const char* const textureParams[] = {
+        "Kd", "Kr",      "Ks",      "Kt",        "alpha",       "amount", "bumpmap",  "eta",        "index",
+        "k",  "opacity", "reflect", "roughness", "shadowalpha", "sigma",  "transmit", "uroughness", "vroughness",
+    };
+
+    for( const char* const param : textureParams )
+    {
+        if( !params.FindTexture( param ).empty() )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool hasGeneratedMdlConstantFloatTexture( const otk::pbrt::PbrtMaterial& material, const std::string& textureName )
+{
+    for( otk::pbrt::PbrtTextureMap::const_iterator it = material.graph.textures.begin(); it != material.graph.textures.end(); ++it )
+    {
+        if( it->second.name != textureName || it->second.valueType != "float" || it->second.type != "constant" )
+        {
+            continue;
+        }
+        int          count{};
+        const float* values = it->second.params.FindFloat( "value", &count );
+        return count > 0 && values != nullptr;
+    }
+    return false;
+}
+
+bool supportsGeneratedMdlNamedMaterialReference( const otk::pbrt::PbrtMaterial& material, const std::string& paramName )
+{
+    const std::string materialName{ material.params.FindOneString( paramName, std::string{} ) };
+    if( materialName.empty() )
+    {
+        return false;
+    }
+
+    const otk::pbrt::PbrtNamedMaterialMap::const_iterator namedMaterial = material.graph.namedMaterials.find( materialName );
+    if( namedMaterial == material.graph.namedMaterials.end() )
+    {
+        return false;
+    }
+
+    return supportsGeneratedMdlNamedMaterialType( generatedMdlNamedMaterialType( namedMaterial->second ) )
+           && !hasGeneratedMdlMaterialTextureReference( namedMaterial->second.params );
+}
+
+bool supportsGeneratedMdlNamedMaterialReferences( const otk::pbrt::PbrtMaterial& material )
+{
+    if( material.graph.namedMaterials.empty() )
+    {
+        return true;
+    }
+    if( material.type != "mix" )
+    {
+        return false;
+    }
+    return supportsGeneratedMdlNamedMaterialReference( material, "namedmaterial1" )
+           && supportsGeneratedMdlNamedMaterialReference( material, "namedmaterial2" );
 }
 
 bool hasGeneratedMdlDemandTexture( MaterialFlags flags, MaterialFlags mapFlag, MaterialFlags allocatedFlag, const std::string& fileName )
@@ -182,7 +261,8 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
 
     for( const char* const param : textureParams )
     {
-        if( material.params.FindTexture( param ).empty() )
+        const std::string textureName{ material.params.FindTexture( param ) };
+        if( textureName.empty() )
         {
             continue;
         }
@@ -198,6 +278,14 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         if( paramName == "alpha" || paramName == "shadowalpha" || paramName == "opacity" )
         {
             if( !hasAlphaMap )
+            {
+                return false;
+            }
+            continue;
+        }
+        if( paramName == "amount" )
+        {
+            if( !hasGeneratedMdlConstantFloatTexture( material, textureName ) )
             {
                 return false;
             }
@@ -243,7 +331,7 @@ bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& i
 {
     return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
            && instance.groups.size() == 1 && group.pbrtMaterial && supportsGeneratedMdlMaterial( group.pbrtMaterial->type )
-           && group.pbrtMaterial->graph.fallbackReasons.empty() && group.pbrtMaterial->graph.namedMaterials.empty()
+           && group.pbrtMaterial->graph.fallbackReasons.empty() && supportsGeneratedMdlNamedMaterialReferences( *group.pbrtMaterial )
            && !hasGeneratedMdlUnsupportedTextureReference( *group.pbrtMaterial, group );
 }
 

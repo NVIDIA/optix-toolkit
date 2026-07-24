@@ -82,6 +82,16 @@ PbrtTexture constantTexture( const std::string& name )
     return texture;
 }
 
+PbrtTexture constantFloatTexture( const std::string& name, float value )
+{
+    PbrtTexture texture;
+    texture.name      = name;
+    texture.valueType = "float";
+    texture.type      = "constant";
+    addFloat( texture.params, "value", value );
+    return texture;
+}
+
 PbrtTexture scaleTexture( const std::string& name, const std::string& tex1 )
 {
     PbrtTexture texture;
@@ -264,6 +274,19 @@ PbrtMaterial translucentMaterial()
     return material;
 }
 
+PbrtMaterial constantTranslucentMaterial()
+{
+    PbrtMaterial material;
+    material.type = "translucent";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Ks", 0.5f, 0.6f, 0.7f );
+    addRgbSpectrum( material.params, "reflect", 0.8f, 0.7f, 0.6f );
+    addRgbSpectrum( material.params, "transmit", 0.2f, 0.3f, 0.4f );
+    addFloat( material.params, "roughness", 0.25f );
+    addFloat( material.params, "opacity", 0.7f );
+    return material;
+}
+
 PbrtMaterial texturedMatteMaterial( const std::string& textureType, const std::string& fileName )
 {
     PbrtMaterial material;
@@ -299,6 +322,21 @@ PbrtMaterial mixMaterial( const std::string& firstName, const std::string& secon
     addString( material.params, "namedmaterial2", secondName );
     material.graph.namedMaterials[firstName]  = namedMatte( firstName, 0.2f );
     material.graph.namedMaterials[secondName] = namedMatte( secondName, 0.8f );
+    return material;
+}
+
+PbrtMaterial constantMixMaterial()
+{
+    PbrtMaterial material{ mixMaterial( "front", "back" ) };
+    addFloat( material.params, "amount", 0.25f );
+    return material;
+}
+
+PbrtMaterial constantMixMaterialWithAmountTexture()
+{
+    PbrtMaterial material{ mixMaterial( "front", "back" ) };
+    material.params.AddTexture( "amount", "weight" );
+    material.graph.textures["float:weight"] = constantFloatTexture( "weight", 0.25f );
     return material;
 }
 
@@ -605,6 +643,39 @@ TEST( TestMdlBoundMaterialParameters, bindsMetalConstants )
     expectBoundFloat( parameters, "roughness", 0.2f );
     expectBoundFloat( parameters, "uroughness", 0.15f );
     expectBoundFloat( parameters, "vroughness", 0.25f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsTranslucentConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantTranslucentMaterial() ) };
+
+    EXPECT_EQ( 6U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "Ks", 0.5f, 0.6f, 0.7f );
+    expectBoundColor( parameters, "reflect", 0.8f, 0.7f, 0.6f );
+    expectBoundColor( parameters, "transmit", 0.2f, 0.3f, 0.4f );
+    expectBoundFloat( parameters, "roughness", 0.25f );
+    expectBoundFloat( parameters, "opacity", 0.7f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsMixConstantsAndNamedMaterialConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMixMaterial() ) };
+
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsMixConstantAmountTexture )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMixMaterialWithAmountTexture() ) };
+
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
+    expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
 
 TEST( TestMdlBoundMaterialParameters, skipsTextureBackedInputsUntilTextureBindingExists )
