@@ -41,6 +41,7 @@
 #include <optix_stubs.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #ifdef OTK_USE_MDL
@@ -216,6 +217,89 @@ void requireMdl( bool condition, const std::string& message, const mi::neuraylib
     {
         failMdl( message, context );
     }
+}
+
+bool isPtxIdentifierChar( char value )
+{
+    const unsigned char ch{ static_cast<unsigned char>( value ) };
+    return std::isalnum( ch ) || value == '_' || value == '$';
+}
+
+std::string ptxFunctionNameFromDefinitionLine( const std::string& line )
+{
+    if( line.find( ".extern" ) != std::string::npos || line.find( ".func" ) == std::string::npos )
+    {
+        return {};
+    }
+
+    const std::string::size_type nameEnd{ line.rfind( '(' ) };
+    if( nameEnd == std::string::npos )
+    {
+        return {};
+    }
+
+    const std::string::size_type nameStart{ line.find_last_of( " \t", nameEnd ) };
+    if( nameStart == std::string::npos || nameStart + 1U >= nameEnd )
+    {
+        return {};
+    }
+
+    return line.substr( nameStart + 1U, nameEnd - nameStart - 1U );
+}
+
+void replacePtxIdentifier( std::string& ptx, const std::string& from, const std::string& to )
+{
+    std::string::size_type pos{};
+    while( ( pos = ptx.find( from, pos ) ) != std::string::npos )
+    {
+        const bool                   startsToken{ pos == 0 || !isPtxIdentifierChar( ptx[pos - 1U] ) };
+        const std::string::size_type end{ pos + from.size() };
+        const bool                   endsToken{ end == ptx.size() || !isPtxIdentifierChar( ptx[end] ) };
+        if( startsToken && endsToken )
+        {
+            ptx.replace( pos, from.size(), to );
+            pos += to.size();
+        }
+        else
+        {
+            pos = end;
+        }
+    }
+}
+
+std::string makeMdlBsdfPtxModuleSymbolsUnique( const MdlBsdfCallablePtx& bsdfPtx, uint_t shaderKeyId )
+{
+    std::set<std::string> entryFunctions;
+    entryFunctions.insert( bsdfPtx.initFunctionName );
+    entryFunctions.insert( bsdfPtx.sampleFunctionName );
+    entryFunctions.insert( bsdfPtx.evaluateFunctionName );
+    entryFunctions.insert( bsdfPtx.pdfFunctionName );
+
+    std::set<std::string>  helperFunctions;
+    std::string::size_type lineStart{};
+    while( lineStart < bsdfPtx.ptx.size() )
+    {
+        const std::string::size_type lineEnd{ bsdfPtx.ptx.find( '\n', lineStart ) };
+        const std::string line{ bsdfPtx.ptx.substr( lineStart, lineEnd == std::string::npos ? std::string::npos : lineEnd - lineStart ) };
+        const std::string functionName{ ptxFunctionNameFromDefinitionLine( line ) };
+        if( !functionName.empty() && !entryFunctions.count( functionName ) )
+        {
+            helperFunctions.insert( functionName );
+        }
+        if( lineEnd == std::string::npos )
+        {
+            break;
+        }
+        lineStart = lineEnd + 1U;
+    }
+
+    std::string       result{ bsdfPtx.ptx };
+    const std::string suffix{ "_shader_" + std::to_string( shaderKeyId ) };
+    for( const std::string& functionName : helperFunctions )
+    {
+        replacePtxIdentifier( result, functionName, functionName + suffix );
+    }
+    return result;
 }
 
 std::string generatedMdlContext( const GeneratedMdlSource& source, const MdlShaderKey& key )
@@ -568,6 +652,8 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
         requireMdl( ptxBackend.is_valid_interface(), "Failed to get MDL CUDA PTX backend" );
         requireMdl( ptxBackend->set_option( "sm_version", "50" ) == 0,
                     "Failed to set MDL CUDA PTX target architecture" );
+        requireMdl( ptxBackend->set_option( "visible_functions", MDL_MATERIAL_TINT_FUNCTION_NAME ) == 0,
+                    "Failed to restrict MDL tint visible functions" );
 
         context->clear_messages();
         mi::base::Handle<const mi::neuraylib::ITarget_code> tintTargetCode(
@@ -775,9 +861,13 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
             OTK_ERROR_CHECK( cuCtxSetCurrent( job.cudaContext ) );
         }
 
-        const Stopwatch             compileTimer;
-        const MdlMaterialTargetCode targetCode{ compileMdlMaterialTargetCode( job.group, job.includeBsdfCallables ) };
-        const double                compileTime{ compileTimer.elapsed() };
+        const Stopwatch       compileTimer;
+        MdlMaterialTargetCode targetCode{ compileMdlMaterialTargetCode( job.group, job.includeBsdfCallables ) };
+        if( targetCode.hasBsdfCallables )
+        {
+            targetCode.bsdfPtx.ptx = makeMdlBsdfPtxModuleSymbolsUnique( targetCode.bsdfPtx, job.shaderKeyId );
+        }
+        const double compileTime{ compileTimer.elapsed() };
 
         const Stopwatch optixTimer;
         const OptixModule tintModule{ job.moduleCache->getOrCreate( job.optixContext, job.pipelineCompileOptions,
@@ -1184,10 +1274,14 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const Mat
         throw MdlMaterialBuildPending( "MDL material build is still pending" );
     }
 
-    const Stopwatch             compileTimer;
-    const MdlMaterialTargetCode targetCode{
+    const Stopwatch       compileTimer;
+    MdlMaterialTargetCode targetCode{
         compileMdlMaterialTargetCode( group, m_options.useMdlMaterials && shaderKeyId != 0U ) };
-    const double                compileTime{ compileTimer.elapsed() };
+    if( targetCode.hasBsdfCallables )
+    {
+        targetCode.bsdfPtx.ptx = makeMdlBsdfPtxModuleSymbolsUnique( targetCode.bsdfPtx, shaderKeyId );
+    }
+    const double compileTime{ compileTimer.elapsed() };
 
     const Stopwatch optixTimer;
     const OptixPipelineCompileOptions& pipelineCompileOptions{ m_renderer->getPipelineCompileOptions() };

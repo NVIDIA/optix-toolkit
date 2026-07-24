@@ -43,6 +43,12 @@ void requireMdlBsdfCompile( bool condition, const std::string& message, const mi
     }
 }
 
+std::string mdlBsdfVisibleFunctions( const std::string& baseFunctionName )
+{
+    return baseFunctionName + "_init," + baseFunctionName + "_sample," + baseFunctionName + "_evaluate,"
+           + baseFunctionName + "_pdf";
+}
+
 void captureBsdfCallableName( MdlBsdfCallablePtx& result, const std::string& functionName, const std::string& baseFunctionName )
 {
     if( functionName == baseFunctionName + "_init" )
@@ -97,6 +103,9 @@ MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*        
                            "Failed to set MDL CUDA PTX target architecture" );
     requireMdlBsdfCompile( ptxBackend->set_option( "df_handle_slot_mode", "none" ) == 0,
                            "Failed to set MDL BSDF handle slot mode" );
+    const std::string visibleFunctions{ mdlBsdfVisibleFunctions( baseFunctionName ) };
+    requireMdlBsdfCompile( ptxBackend->set_option( "visible_functions", visibleFunctions.c_str() ) == 0,
+                           "Failed to restrict MDL BSDF visible functions" );
 
     context->clear_messages();
     mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode( ptxBackend->translate_material_df(
