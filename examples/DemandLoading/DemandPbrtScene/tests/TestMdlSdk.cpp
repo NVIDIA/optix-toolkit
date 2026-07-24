@@ -4,6 +4,7 @@
 
 #include <gmock/gmock.h>
 
+#include "DemandPbrtScene/MdlBsdfCompiler.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 
 #include <mi/mdl_sdk.h>
@@ -620,6 +621,75 @@ TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithBoundKd )
 
         secondCompiledMaterial.reset();
         compiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
+TEST( TestMdlSdk, compilesGeneratedMatteBsdfCallablesWithBoundKd )
+{
+    const otk::pbrt::PbrtMaterial firstMaterial{ matteMaterial( PBRT_KD_RED, PBRT_KD_GREEN, PBRT_KD_BLUE ) };
+    const otk::pbrt::PbrtMaterial secondMaterial{ matteMaterial( PBRT_KD_ALT_RED, PBRT_KD_ALT_GREEN, PBRT_KD_ALT_BLUE ) };
+    const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
+    const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
+
+    demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
+    const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
+    const std::string                          sourceDescription{ describeGeneratedSource( generated, firstKey ) };
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> firstParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( firstMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> secondParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( secondMaterial ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, firstParameters ) );
+        ASSERT_TRUE( firstCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, secondParameters ) );
+        ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
+
+        const demandPbrtScene::MdlBsdfCallablePtx firstBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), firstCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_matte_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx secondBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), secondCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_matte_bsdf" ) };
+
+        EXPECT_EQ( "pbrt_matte_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_matte_bsdf_sample", firstBsdf.sampleFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_matte_bsdf_evaluate", firstBsdf.evaluateFunctionName ) << sourceDescription;
+        EXPECT_EQ( "pbrt_matte_bsdf_pdf", firstBsdf.pdfFunctionName ) << sourceDescription;
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.initFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.sampleFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.evaluateFunctionName ) );
+        EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
+        EXPECT_FALSE( secondBsdf.ptx.empty() );
+        EXPECT_NE( firstBsdf.ptx, secondBsdf.ptx );
+
+        firstCompiledMaterial.reset();
+        secondCompiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
 
