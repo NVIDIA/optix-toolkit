@@ -11,10 +11,14 @@ function(pbrtImageTest name warmup scene)
     if(NOT pbrtImageTest_RESOURCES)
         set(pbrtImageTest_RESOURCES "")
     endif()
+    if(OTK_USE_MDL)
+        set(pbrtImageTest_MDL_OPTIONS --use-mdl-materials=false)
+    endif()
     add_image_test(DemandPbrtScene ${name}
         FOLDER Examples/DemandLoading/Tests
         RESOURCES ${scene} ${pbrtImageTest_RESOURCES}
-        ARGS --bg=0.3,0.3,0.3 --warmup=${warmup} ${resourceDir}/${scene} ${pbrtImageTest_OPTIONS})
+        ARGS --bg=0.3,0.3,0.3 --warmup=${warmup} ${resourceDir}/${scene}
+             ${pbrtImageTest_MDL_OPTIONS} ${pbrtImageTest_OPTIONS})
 endfunction()
 
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")

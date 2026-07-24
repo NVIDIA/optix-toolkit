@@ -1370,6 +1370,19 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "index" },
         { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::FLOAT, "opacity" },
     };
+    static const BoundParameterSpec mirrorParams[] = {
+        { MdlBoundParameterType::COLOR, "Kr" },
+    };
+    static const BoundParameterSpec glassParams[] = {
+        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+        { MdlBoundParameterType::FLOAT, "index" },      { MdlBoundParameterType::FLOAT, "roughness" },
+        { MdlBoundParameterType::FLOAT, "uroughness" }, { MdlBoundParameterType::FLOAT, "vroughness" },
+    };
+    static const BoundParameterSpec metalParams[] = {
+        { MdlBoundParameterType::COLOR, "eta" },        { MdlBoundParameterType::COLOR, "k" },
+        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+        { MdlBoundParameterType::FLOAT, "vroughness" },
+    };
     static const BoundParameterSpec substrateParams[] = {
         { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
         { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
@@ -1388,6 +1401,18 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
     else if( material.type == "uber" )
     {
         appendBoundParameters( result, material.params, std::begin( uberParams ), std::end( uberParams ) );
+    }
+    else if( material.type == "mirror" )
+    {
+        appendBoundParameters( result, material.params, std::begin( mirrorParams ), std::end( mirrorParams ) );
+    }
+    else if( material.type == "glass" )
+    {
+        appendBoundParameters( result, material.params, std::begin( glassParams ), std::end( glassParams ) );
+    }
+    else if( material.type == "metal" )
+    {
+        appendBoundParameters( result, material.params, std::begin( metalParams ), std::end( metalParams ) );
     }
     else if( material.type == "substrate" )
     {

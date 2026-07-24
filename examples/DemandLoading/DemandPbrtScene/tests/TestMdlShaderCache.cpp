@@ -185,6 +185,14 @@ PbrtMaterial mirrorMaterial()
     return material;
 }
 
+PbrtMaterial constantMirrorMaterial()
+{
+    PbrtMaterial material;
+    material.type = "mirror";
+    addRgbSpectrum( material.params, "Kr", 0.2f, 0.3f, 0.4f );
+    return material;
+}
+
 PbrtMaterial glassMaterial()
 {
     PbrtMaterial material;
@@ -211,6 +219,18 @@ PbrtMaterial metalMaterial()
     material.params.AddTexture( "k", "kMap" );
     material.graph.textures["color:etaMap"] = imageMapTexture( "etaMap", "eta.exr", "color" );
     material.graph.textures["color:kMap"]   = imageMapTexture( "kMap", "k.exr", "color" );
+    return material;
+}
+
+PbrtMaterial constantMetalMaterial()
+{
+    PbrtMaterial material;
+    material.type = "metal";
+    addRgbSpectrum( material.params, "eta", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "k", 2.0f, 2.5f, 3.0f );
+    addFloat( material.params, "roughness", 0.2f );
+    addFloat( material.params, "uroughness", 0.15f );
+    addFloat( material.params, "vroughness", 0.25f );
     return material;
 }
 
@@ -552,6 +572,39 @@ TEST( TestMdlBoundMaterialParameters, bindsSubstrateConstants )
     expectBoundFloat( parameters, "roughness", 0.25f );
     expectBoundFloat( parameters, "uroughness", 0.2f );
     expectBoundFloat( parameters, "vroughness", 0.3f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsMirrorConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMirrorMaterial() ) };
+
+    ASSERT_EQ( 1U, parameters.size() );
+    expectBoundColor( parameters, "Kr", 0.2f, 0.3f, 0.4f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsGlassConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( glassMaterial() ) };
+
+    EXPECT_EQ( 6U, parameters.size() );
+    expectBoundColor( parameters, "Kr", 0.9f, 0.9f, 0.9f );
+    expectBoundColor( parameters, "Kt", 0.8f, 0.9f, 1.0f );
+    expectBoundFloat( parameters, "index", 1.5f );
+    expectBoundFloat( parameters, "roughness", 0.05f );
+    expectBoundFloat( parameters, "uroughness", 0.04f );
+    expectBoundFloat( parameters, "vroughness", 0.06f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsMetalConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMetalMaterial() ) };
+
+    EXPECT_EQ( 5U, parameters.size() );
+    expectBoundColor( parameters, "eta", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "k", 2.0f, 2.5f, 3.0f );
+    expectBoundFloat( parameters, "roughness", 0.2f );
+    expectBoundFloat( parameters, "uroughness", 0.15f );
+    expectBoundFloat( parameters, "vroughness", 0.25f );
 }
 
 TEST( TestMdlBoundMaterialParameters, skipsTextureBackedInputsUntilTextureBindingExists )

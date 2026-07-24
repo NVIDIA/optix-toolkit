@@ -265,6 +265,14 @@ TEST_F( TestOptions, useMdlMaterials )
 
     EXPECT_TRUE( options.useMdlMaterials );
 }
+
+TEST_F( TestOptions, doNotUseMdlMaterials )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--use-mdl-materials=false", "scene.pbrt" } );
+
+    EXPECT_FALSE( options.useMdlMaterials );
+}
 #endif
 
 TEST_F( TestOptions, verboseLogging )

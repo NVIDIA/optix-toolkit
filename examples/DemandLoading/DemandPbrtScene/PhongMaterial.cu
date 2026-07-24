@@ -16,6 +16,31 @@ using namespace otk;  // for vec_math operators
 
 namespace demandPbrtScene {
 
+__device__ __forceinline__ MaterialState getMaterialState( const Params& params, const uint_t materialId )
+{
+    if( params.materialStates == nullptr || materialId >= params.numMaterialStates )
+    {
+        return MaterialState{ materialId, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::NO_MDL_BACKEND };
+    }
+    return params.materialStates[materialId];
+}
+
+__device__ __forceinline__ bool usesDiagnosticFallbackColor( const Params& params, const uint_t materialId )
+{
+    const MaterialState state{ getMaterialState( params, materialId ) };
+    return state.backend != MaterialBackend::MDL_READY && state.fallbackReason != MaterialFallbackReason::NO_MDL_BACKEND;
+}
+
+__device__ __forceinline__ void setDiagnosticFallbackPayload( RayPayload* prd, const float3& worldNormal, const float rayT )
+{
+    prd->diffuseTextureId = 0xffffffff;
+    prd->material         = nullptr;
+    prd->normal           = worldNormal;
+    prd->rayDistance      = rayT;
+    prd->color            = float3{ 1.0f, 0.0f, 1.0f };
+    prd->hasDirectColor   = true;
+}
+
 extern "C" __global__ void __closesthit__mesh()
 {
     float3 worldNormal;
@@ -52,6 +77,11 @@ extern "C" __global__ void __closesthit__mesh()
         assert( materialId < params.numRealizedMaterials );
     }
 #endif
+    if( usesDiagnosticFallbackColor( params, materialId ) )
+    {
+        setDiagnosticFallbackPayload( prd, worldNormal, optixGetRayTmax() );
+        return;
+    }
     prd->material    = &params.realizedMaterials[materialId];
     prd->normal      = worldNormal;
     prd->rayDistance = optixGetRayTmax();
@@ -61,7 +91,8 @@ extern "C" __global__ void __closesthit__mesh()
 struct SphereMaterialDebugInfo
 {
     __forceinline__ __device__ SphereMaterialDebugInfo( const float4& q, const float3& worldNormal )
-        : q( q ), worldNormal( worldNormal )
+        : q( q )
+        , worldNormal( worldNormal )
     {
     }
 
@@ -135,6 +166,11 @@ extern "C" __global__ void __closesthit__sphere()
         assert( materialId < params.numRealizedMaterials );
     }
 #endif
+    if( usesDiagnosticFallbackColor( params, materialId ) )
+    {
+        setDiagnosticFallbackPayload( prd, worldNormal, optixGetRayTmax() );
+        return;
+    }
     prd->material    = &params.realizedMaterials[materialId];
     prd->normal      = worldNormal;
     prd->rayDistance = optixGetRayTmax();

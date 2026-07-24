@@ -46,7 +46,7 @@ namespace demandPbrtScene {
         "   --texture-creation          Enable verbose logging of texture creation\n"
 #ifdef OTK_USE_MDL
         "   --mdl-synchronous-compilation Compile MDL materials synchronously instead of in the background\n"
-        "   --use-mdl-materials         Render eligible PBRT materials through generated MDL\n"
+        "   --use-mdl-materials[=<bool>] Render eligible PBRT materials through generated MDL; defaults to true\n"
 #endif
         "   --verbose-loading           Enable verbose logging of mesh reading\n"
         "   --verbose                   Enables all verbose logging\n"
@@ -188,6 +188,22 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         else if( arg == "--use-mdl-materials" )
         {
             options.useMdlMaterials = true;
+        }
+        else if( beginsWith( arg, "--use-mdl-materials=" ) )
+        {
+            const std::string value{ extractValue( arg ) };
+            if( value == "true" )
+            {
+                options.useMdlMaterials = true;
+            }
+            else if( value == "false" )
+            {
+                options.useMdlMaterials = false;
+            }
+            else
+            {
+                usage( argv[0], ( "bad use MDL materials value: " + value ).c_str() );
+            }
         }
 #endif
         else if( arg == "--verbose" )

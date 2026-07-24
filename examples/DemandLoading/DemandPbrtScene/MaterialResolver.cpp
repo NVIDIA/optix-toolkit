@@ -146,6 +146,11 @@ MaterialState localFallbackState( uint_t materialId )
 }
 
 #ifdef OTK_USE_MDL
+MaterialState unsupportedFallbackState( uint_t materialId )
+{
+    return makeMaterialState( materialId, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::UNSUPPORTED );
+}
+
 MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
 {
     return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
@@ -153,7 +158,8 @@ MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
 
 bool supportsGeneratedMdlMaterial( const std::string& type )
 {
-    return type == "matte" || type == "plastic" || type == "uber" || type == "substrate";
+    return type == "matte" || type == "plastic" || type == "uber" || type == "mirror" || type == "glass"
+           || type == "metal" || type == "substrate";
 }
 
 bool hasGeneratedMdlDemandTexture( MaterialFlags flags, MaterialFlags mapFlag, MaterialFlags allocatedFlag, const std::string& fileName )
@@ -170,8 +176,8 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
                                                           MaterialFlags::ALPHA_MAP_ALLOCATED, group.alphaMapFileName ) };
 
     static const char* const textureParams[] = {
-        "Kd",      "Kr",        "Ks",          "Kt",    "alpha",      "bumpmap",    "index",
-        "opacity", "roughness", "shadowalpha", "sigma", "uroughness", "vroughness",
+        "Kd", "Kr",      "Ks",      "Kt",        "alpha",       "amount", "bumpmap",  "eta",        "index",
+        "k",  "opacity", "reflect", "roughness", "shadowalpha", "sigma",  "transmit", "uroughness", "vroughness",
     };
 
     for( const char* const param : textureParams )
@@ -239,6 +245,12 @@ bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& i
            && instance.groups.size() == 1 && group.pbrtMaterial && supportsGeneratedMdlMaterial( group.pbrtMaterial->type )
            && group.pbrtMaterial->graph.fallbackReasons.empty() && group.pbrtMaterial->graph.namedMaterials.empty()
            && !hasGeneratedMdlUnsupportedTextureReference( *group.pbrtMaterial, group );
+}
+
+bool usesGeneratedMdlUnsupportedFallback( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
+{
+    return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
+           && instance.groups.size() == 1 && group.pbrtMaterial;
 }
 
 MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )
@@ -434,6 +446,12 @@ MaterialState PbrtMaterialResolver::resolveMaterialState( SceneSyncState& sync, 
     if( usesGeneratedMdlMaterial( m_options, instance, group ) )
     {
         return resolveMdlMaterialState( sync, instance, group, materialId );
+    }
+    if( usesGeneratedMdlUnsupportedFallback( m_options, instance, group ) )
+    {
+        instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( instance );
+        ++m_stats.numMdlFallbackShaders;
+        return unsupportedFallbackState( materialId );
     }
 #endif
 
