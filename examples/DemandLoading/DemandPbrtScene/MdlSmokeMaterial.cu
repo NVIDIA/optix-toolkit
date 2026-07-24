@@ -114,7 +114,7 @@ __device__ __forceinline__ bool useMdlShader( const Params& params, uint_t mater
     }
 
     shader = params.mdlMaterialShaders[state.shaderKey];
-    return shader.callableCount == 1U;
+    return shader.callableCount >= 1U;
 }
 
 extern "C" __global__ void __closesthit__mdlMesh()

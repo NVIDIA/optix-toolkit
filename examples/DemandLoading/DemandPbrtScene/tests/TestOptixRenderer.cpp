@@ -63,19 +63,19 @@ class TestOptixRenderer : public Test
     void SetUp() override;
     void TearDown() override;
 
-    ExpectationSet expectInitialize();
-    ExpectationSet expectBeforeLaunchAfter( const ExpectationSet& before );
-    ExpectationSet expectLaunchAfter( const ExpectationSet& before );
+    ExpectationSet                        expectInitialize();
+    ExpectationSet                        expectBeforeLaunchAfter( const ExpectationSet& before );
+    ExpectationSet                        expectLaunchAfter( const ExpectationSet& before );
     std::shared_ptr<TestLaunchCompletion> createLaunchCompletion();
 
-    Options                        m_options{};
-    MockGeometryLoaderPtr          m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
-    StrictMockOptix                m_optix{};
-    CUstream                       m_stream{};
-    uchar4                         m_image[1]{};
-    OptixDeviceContext             m_fakeDeviceContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
+    Options               m_options{};
+    MockGeometryLoaderPtr m_geometryLoader{ std::make_shared<MockGeometryLoader>() };
+    StrictMockOptix       m_optix{};
+    CUstream              m_stream{};
+    uchar4                m_image[1]{};
+    OptixDeviceContext    m_fakeDeviceContext{ otk::bit_cast<OptixDeviceContext>( 0xf00df00dULL ) };
     std::vector<std::shared_ptr<TestLaunchCompletion>> m_launchCompletions;
-    OptixRendererPtr               m_renderer;
+    OptixRendererPtr                                   m_renderer;
     std::vector<OptixProgramGroup> m_fakeProgramGroups{ PG( 111100U ), PG( 2222000U ), PG( 333300U ), PG( 444400U ),
                                                         PG( 555500U ), PG( 666600U ),  PG( 777700U ) };
     OptixPipeline                  fakePipeline{ otk::bit_cast<OptixPipeline>( 0xbaadf00dULL ) };
@@ -87,8 +87,8 @@ void TestOptixRenderer::SetUp()
     OTK_ERROR_CHECK( cudaFree( nullptr ) );
     OTK_ERROR_CHECK( cuStreamCreate( &m_stream, 0 ) );
     initMockOptix( m_optix );
-    m_renderer = std::make_shared<OptixRenderer>(
-        m_options, NUM_ATTRIBUTES, [this]() { return createLaunchCompletion(); } );
+    m_renderer =
+        std::make_shared<OptixRenderer>( m_options, NUM_ATTRIBUTES, [this]() { return createLaunchCompletion(); } );
 }
 
 void TestOptixRenderer::TearDown()
@@ -244,6 +244,32 @@ MATCHER( Always, "" )
     return true;
 }
 
+#ifdef OTK_USE_MDL
+MATCHER_P( hasCallableRecordCount, count, "" )
+{
+    if( arg == nullptr )
+    {
+        *result_listener << "has null SBT";
+        return false;
+    }
+
+    const unsigned int expectedCount{ static_cast<unsigned int>( count ) };
+    if( arg->callablesRecordCount != expectedCount )
+    {
+        *result_listener << "has callable record count " << arg->callablesRecordCount << ", expected " << expectedCount;
+        return false;
+    }
+    if( expectedCount != 0U && arg->callablesRecordBase == CUdeviceptr{} )
+    {
+        *result_listener << "has null callable record base";
+        return false;
+    }
+
+    *result_listener << "has callable record count " << expectedCount;
+    return true;
+}
+#endif
+
 TEST_F( TestOptixRenderer, beforeFirstLaunchCreatesPipelineAndPacksSbtRecords )
 {
     ExpectationSet init = expectInitialize();
@@ -286,6 +312,27 @@ TEST_F( TestOptixRenderer, beforeFirstLaunchCreatesPipelineAndPacksSbtRecords )
 }
 
 #ifdef OTK_USE_MDL
+TEST_F( TestOptixRenderer, adoptedPipelineStatePacksCallableSbtRecords )
+{
+    const std::vector<OptixProgramGroup> callableProgramGroups{ PG( 888800U ), PG( 999900U ), PG( 101010U ),
+                                                                PG( 111111U ), PG( 121212U ) };
+    ExpectationSet                       init = expectInitialize();
+    for( OptixProgramGroup group : m_fakeProgramGroups )
+    {
+        EXPECT_CALL( m_optix, sbtRecordPackHeader( group, NotNull() ) ).After( init ).WillOnce( Return( OPTIX_SUCCESS ) );
+    }
+    for( OptixProgramGroup group : callableProgramGroups )
+    {
+        EXPECT_CALL( m_optix, sbtRecordPackHeader( group, NotNull() ) ).After( init ).WillOnce( Return( OPTIX_SUCCESS ) );
+    }
+    m_renderer->setPipelineState( fakePipeline, m_fakeProgramGroups, callableProgramGroups );
+    m_renderer->beforeLaunch( m_stream );
+
+    EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, hasCallableRecordCount( callableProgramGroups.size() ), _, _, _ ) )
+        .WillOnce( Return( OPTIX_SUCCESS ) );
+    m_renderer->launch( m_stream, m_image );
+}
+
 TEST_F( TestOptixRenderer, beforeLaunchUsesAdoptedPipelineStateWithoutRelinking )
 {
     ExpectationSet init = expectInitialize();
@@ -300,13 +347,11 @@ TEST_F( TestOptixRenderer, beforeLaunchUsesAdoptedPipelineStateWithoutRelinking 
 
 TEST_F( TestOptixRenderer, setPipelineStateSwapsAtNextBeforeLaunch )
 {
-    OptixPipeline       updatedPipeline{ otk::bit_cast<OptixPipeline>( 0xbaadf00eULL ) };
-    ExpectationSet      init              = expectInitialize();
-    ExpectationSet      beforeFirstLaunch = expectBeforeLaunchAfter( init );
-    const Expectation   oldLaunch =
-        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) )
-            .After( beforeFirstLaunch )
-            .WillOnce( Return( OPTIX_SUCCESS ) );
+    OptixPipeline     updatedPipeline{ otk::bit_cast<OptixPipeline>( 0xbaadf00eULL ) };
+    ExpectationSet    init              = expectInitialize();
+    ExpectationSet    beforeFirstLaunch = expectBeforeLaunchAfter( init );
+    const Expectation oldLaunch =
+        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) ).After( beforeFirstLaunch ).WillOnce( Return( OPTIX_SUCCESS ) );
 
     m_renderer->setPipelineState( updatedPipeline, m_fakeProgramGroups, {} );
     m_renderer->launch( m_stream, m_image );
@@ -315,10 +360,7 @@ TEST_F( TestOptixRenderer, setPipelineStateSwapsAtNextBeforeLaunch )
     {
         EXPECT_CALL( m_optix, sbtRecordPackHeader( group, NotNull() ) ).After( oldLaunch ).WillOnce( Return( OPTIX_SUCCESS ) );
     }
-    EXPECT_CALL( m_optix, pipelineDestroy( fakePipeline ) )
-        .Times( AtMost( 1 ) )
-        .After( oldLaunch )
-        .WillRepeatedly( Return( OPTIX_SUCCESS ) );
+    EXPECT_CALL( m_optix, pipelineDestroy( fakePipeline ) ).Times( AtMost( 1 ) ).After( oldLaunch ).WillRepeatedly( Return( OPTIX_SUCCESS ) );
     m_renderer->beforeLaunch( m_stream );
 
     EXPECT_CALL( m_optix, launch( updatedPipeline, m_stream, _, _, _, _, _, _ ) ).WillOnce( Return( OPTIX_SUCCESS ) );
@@ -333,9 +375,7 @@ TEST_F( TestOptixRenderer, retiredPipelineStateLivesUntilLaunchCompletion )
     ASSERT_EQ( 1U, m_launchCompletions.size() );
     m_launchCompletions[0]->complete = false;
     const Expectation oldLaunch =
-        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) )
-            .After( beforeFirstLaunch )
-            .WillOnce( Return( OPTIX_SUCCESS ) );
+        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) ).After( beforeFirstLaunch ).WillOnce( Return( OPTIX_SUCCESS ) );
 
     m_renderer->launch( m_stream, m_image );
     EXPECT_TRUE( m_launchCompletions[0]->recorded );
@@ -364,9 +404,7 @@ TEST_F( TestOptixRenderer, frequentPipelineSwapsKeepOutstandingRetiredState )
     ASSERT_EQ( 1U, m_launchCompletions.size() );
     m_launchCompletions[0]->complete = false;
     const Expectation oldLaunch =
-        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) )
-            .After( beforeFirstLaunch )
-            .WillOnce( Return( OPTIX_SUCCESS ) );
+        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) ).After( beforeFirstLaunch ).WillOnce( Return( OPTIX_SUCCESS ) );
 
     m_renderer->launch( m_stream, m_image );
     m_renderer->setPipelineState( secondPipeline, m_fakeProgramGroups, {} );
@@ -403,9 +441,7 @@ TEST_F( TestOptixRenderer, cleanupWaitsForRetiredPipelineStates )
     ASSERT_EQ( 1U, m_launchCompletions.size() );
     m_launchCompletions[0]->complete = false;
     const Expectation oldLaunch =
-        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) )
-            .After( beforeFirstLaunch )
-            .WillOnce( Return( OPTIX_SUCCESS ) );
+        EXPECT_CALL( m_optix, launch( fakePipeline, m_stream, _, _, _, _, _, _ ) ).After( beforeFirstLaunch ).WillOnce( Return( OPTIX_SUCCESS ) );
 
     m_renderer->launch( m_stream, m_image );
     m_renderer->setPipelineState( updatedPipeline, m_fakeProgramGroups, {} );

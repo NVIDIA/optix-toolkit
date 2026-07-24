@@ -76,8 +76,8 @@ class OptixRenderer : public Renderer
         m_params[0].lookAt = value;
     }
     void setProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
-    void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
 #ifdef OTK_USE_MDL
+    void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
     void setPipelineState( OptixPipeline                         pipeline,
                            const std::vector<OptixProgramGroup>& programGroups,
                            const std::vector<OptixProgramGroup>& callableProgramGroups ) override;

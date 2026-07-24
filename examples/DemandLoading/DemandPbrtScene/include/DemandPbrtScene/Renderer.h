@@ -47,8 +47,8 @@ class Renderer
     virtual void setCamera( const PerspectiveCamera& definition )                                = 0;
     virtual void setLookAt( const LookAtParams& lookAt )                                         = 0;
     virtual void setProgramGroups( const std::vector<OptixProgramGroup>& value )                 = 0;
-    virtual void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value )         = 0;
 #ifdef OTK_USE_MDL
+    virtual void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value )         = 0;
     virtual void setPipelineState( OptixPipeline                         pipeline,
                                    const std::vector<OptixProgramGroup>& programGroups,
                                    const std::vector<OptixProgramGroup>& callableProgramGroups ) = 0;
