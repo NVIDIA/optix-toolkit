@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
+include(ImageTest)
+
 set(referenceMaterials
     matte
     plastic
@@ -25,3 +27,10 @@ foreach(material ${referenceMaterials})
         "${CMAKE_CURRENT_SOURCE_DIR}/gold-${material}.png"
     )
 endforeach()
+
+image_test_get_resource_dir(resourceDir DemandPbrtScene)
+add_image_test(DemandPbrtScene matte
+    FOLDER Examples/DemandLoading/Tests
+    RESOURCE_TARGET DemandPbrtScenePbrtReferenceImageTestResources
+    RESOURCES matte.pbrt
+    ARGS --bg=0/0/0 --dim=32x32 --warmup=2 ${resourceDir}/matte.pbrt --use-mdl-materials)

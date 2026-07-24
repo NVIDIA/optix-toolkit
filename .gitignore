@@ -4,3 +4,4 @@
 CMakeUserPresets.json 
 .vs
 build*
+.codegraph
