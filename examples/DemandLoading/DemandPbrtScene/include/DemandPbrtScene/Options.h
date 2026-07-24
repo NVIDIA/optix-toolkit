@@ -32,7 +32,7 @@ struct Options
     bool             verboseSceneDecomposition{};
     bool             verboseTextureCreation{};
 #ifdef OTK_USE_MDL
-    bool             mdlSmokeDelay{};
+    bool             mdlSynchronousCompilation{};
     bool             useMdlMaterials{ true };
 #endif
     bool             sortProxies{};

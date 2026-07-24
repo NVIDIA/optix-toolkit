@@ -45,7 +45,7 @@ namespace demandPbrtScene {
         "   --scene-decomposition       Enable verbose logging of scene hierarchy decomposition\n"
         "   --texture-creation          Enable verbose logging of texture creation\n"
 #ifdef OTK_USE_MDL
-        "   --mdl-smoke-delay           Render one MDL material frame through fallback before compiling\n"
+        "   --mdl-synchronous-compilation Compile MDL materials synchronously instead of in the background\n"
         "   --use-mdl-materials         Render eligible PBRT materials through generated MDL\n"
 #endif
         "   --verbose-loading           Enable verbose logging of mesh reading\n"
@@ -181,9 +181,9 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
             options.verboseTextureCreation = true;
         }
 #ifdef OTK_USE_MDL
-        else if( arg == "--mdl-smoke-delay" )
+        else if( arg == "--mdl-synchronous-compilation" )
         {
-            options.mdlSmokeDelay = true;
+            options.mdlSynchronousCompilation = true;
         }
         else if( arg == "--use-mdl-materials" )
         {
@@ -281,6 +281,13 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
     {
         usage( argv[0], "bad debug pixel value" );
     }
+
+#ifdef OTK_USE_MDL
+    if( !options.outFile.empty() && options.useMdlMaterials )
+    {
+        options.mdlSynchronousCompilation = true;
+    }
+#endif
 
     return options;
 }

@@ -19,7 +19,7 @@ using namespace otk;  // for vec_math operators
 
 namespace demandPbrtScene {
 
-__device__ __forceinline__ uint_t getMdlSmokeMaterialId( const Params& params, uint_t instanceId )
+__device__ __forceinline__ uint_t getMdlMaterialId( const Params& params, uint_t instanceId )
 {
 #ifndef NDEBUG
     if( instanceId >= params.numMaterialIndices )
@@ -97,7 +97,7 @@ extern "C" __global__ void __closesthit__mdlMesh()
 
     const Params& params{ PARAMS_VAR_NAME };
     const uint_t  instanceId{ optixGetInstanceId() };
-    const uint_t  materialId{ getMdlSmokeMaterialId( params, instanceId ) };
+    const uint_t  materialId{ getMdlMaterialId( params, instanceId ) };
 #ifndef NDEBUG
     if( materialId >= params.numRealizedMaterials )
     {

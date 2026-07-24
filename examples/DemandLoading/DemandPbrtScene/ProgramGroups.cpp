@@ -142,7 +142,7 @@ namespace {
 
 #ifdef OTK_USE_MDL
 
-constexpr const char* MDL_SMOKE_TINT_FUNCTION_NAME = "__direct_callable__mdlSmokeTint";
+constexpr const char* MDL_MATERIAL_TINT_FUNCTION_NAME = "__direct_callable__mdlMaterialTint";
 
 std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context* context )
 {
@@ -472,12 +472,13 @@ std::string compileMdlTintPtx( const MaterialGroup& group )
 
         context->clear_messages();
         mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode( ptxBackend->translate_material_expression(
-            transaction.get(), compiledMaterial.get(), "surface.scattering.tint", MDL_SMOKE_TINT_FUNCTION_NAME, context.get() ) );
+            transaction.get(), compiledMaterial.get(), "surface.scattering.tint", MDL_MATERIAL_TINT_FUNCTION_NAME,
+            context.get() ) );
         requireMdl( targetCode.is_valid_interface(), "Failed to translate MDL tint expression to PTX", context.get() );
         requireMdl( targetCode->get_code_size() > 0U, "MDL generated empty PTX target code" );
         requireMdl( targetCode->get_callable_function_count() == 1U,
                     "MDL generated unexpected callable function count" );
-        requireMdl( std::string( targetCode->get_callable_function( 0 ) ) == MDL_SMOKE_TINT_FUNCTION_NAME,
+        requireMdl( std::string( targetCode->get_callable_function( 0 ) ) == MDL_MATERIAL_TINT_FUNCTION_NAME,
                     "MDL generated unexpected callable function name" );
 
         ptx.assign( targetCode->get_code(), static_cast<size_t>( targetCode->get_code_size() ) );
@@ -490,7 +491,7 @@ std::string compileMdlTintPtx( const MaterialGroup& group )
     return ptx;
 }
 
-struct MdlSmokeBuildJob
+struct MdlMaterialBuildJob
 {
     uint_t                         shaderKeyId{};
     MaterialGroup                  group{};
@@ -501,7 +502,7 @@ struct MdlSmokeBuildJob
     std::vector<OptixProgramGroup> callableProgramGroups;
 };
 
-struct MdlSmokeBuildResult
+struct MdlMaterialBuildResult
 {
     uint_t                         shaderKeyId{};
     MdlMaterialShader              shader{};
@@ -513,7 +514,7 @@ struct MdlSmokeBuildResult
     std::string                    diagnostics;
 };
 
-void destroyMdlSmokeBuildResultNoThrow( MdlSmokeBuildResult& result )
+void destroyMdlMaterialBuildResultNoThrow( MdlMaterialBuildResult& result )
 {
     if( result.pipeline )
     {
@@ -532,9 +533,9 @@ void destroyMdlSmokeBuildResultNoThrow( MdlSmokeBuildResult& result )
     }
 }
 
-MdlSmokeBuildResult buildMdlSmokePipelineState( const MdlSmokeBuildJob& job )
+MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob& job )
 {
-    MdlSmokeBuildResult result{};
+    MdlMaterialBuildResult result{};
     result.shaderKeyId = job.shaderKeyId;
     try
     {
@@ -555,7 +556,7 @@ MdlSmokeBuildResult buildMdlSmokePipelineState( const MdlSmokeBuildJob& job )
         OptixProgramGroupDesc callableDesc{};
         callableDesc.kind                          = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
         callableDesc.callables.moduleDC            = result.tintModule;
-        callableDesc.callables.entryFunctionNameDC = MDL_SMOKE_TINT_FUNCTION_NAME;
+        callableDesc.callables.entryFunctionNameDC = MDL_MATERIAL_TINT_FUNCTION_NAME;
         OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( job.optixContext, &callableDesc, 1, &options, LOG, &LOG_SIZE,
                                                       &result.callableProgramGroup ) );
 
@@ -567,32 +568,32 @@ MdlSmokeBuildResult buildMdlSmokePipelineState( const MdlSmokeBuildJob& job )
                                                result.callableProgramGroups );
 
         const double optixTime{ optixTimer.elapsed() };
-        std::cout << "Asynchronous MDL smoke material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
+        std::cout << "Asynchronous MDL material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
     }
     catch( const std::exception& e )
     {
         result.diagnostics = e.what();
-        destroyMdlSmokeBuildResultNoThrow( result );
+        destroyMdlMaterialBuildResultNoThrow( result );
     }
     catch( ... )
     {
-        result.diagnostics = "Unknown asynchronous MDL smoke material build failure";
-        destroyMdlSmokeBuildResultNoThrow( result );
+        result.diagnostics = "Unknown asynchronous MDL material build failure";
+        destroyMdlMaterialBuildResultNoThrow( result );
     }
     return result;
 }
 
-class MdlSmokeBuildWorker
+class MdlMaterialBuildWorker
 {
   public:
-    MdlSmokeBuildWorker()
-        : m_thread( &MdlSmokeBuildWorker::run, this )
+    MdlMaterialBuildWorker()
+        : m_thread( &MdlMaterialBuildWorker::run, this )
     {
     }
 
-    ~MdlSmokeBuildWorker() { shutdown(); }
+    ~MdlMaterialBuildWorker() { shutdown(); }
 
-    bool enqueue( const MdlSmokeBuildJob& job )
+    bool enqueue( const MdlMaterialBuildJob& job )
     {
         std::lock_guard<std::mutex> lock( m_mutex );
         if( m_stop || m_queuedShaderKeys.count( job.shaderKeyId ) || m_inFlightShaderKeys.count( job.shaderKeyId )
@@ -607,7 +608,7 @@ class MdlSmokeBuildWorker
         return true;
     }
 
-    bool takeResult( uint_t shaderKeyId, MdlSmokeBuildResult& result )
+    bool takeResult( uint_t shaderKeyId, MdlMaterialBuildResult& result )
     {
         std::lock_guard<std::mutex> lock( m_mutex );
         auto                        it = m_results.find( shaderKeyId );
@@ -636,7 +637,7 @@ class MdlSmokeBuildWorker
         std::lock_guard<std::mutex> lock( m_mutex );
         for( auto& entry : m_results )
         {
-            destroyMdlSmokeBuildResultNoThrow( entry.second );
+            destroyMdlMaterialBuildResultNoThrow( entry.second );
         }
         m_results.clear();
     }
@@ -646,7 +647,7 @@ class MdlSmokeBuildWorker
     {
         for( ;; )
         {
-            MdlSmokeBuildJob job;
+            MdlMaterialBuildJob job;
             {
                 std::unique_lock<std::mutex> lock( m_mutex );
                 m_condition.wait( lock, [&]() { return m_stop || !m_jobs.empty(); } );
@@ -661,7 +662,7 @@ class MdlSmokeBuildWorker
                 m_inFlightShaderKeys.insert( job.shaderKeyId );
             }
 
-            MdlSmokeBuildResult result{ buildMdlSmokePipelineState( job ) };
+            MdlMaterialBuildResult result{ buildMdlMaterialPipelineState( job ) };
 
             std::lock_guard<std::mutex> lock( m_mutex );
             m_inFlightShaderKeys.erase( job.shaderKeyId );
@@ -669,14 +670,14 @@ class MdlSmokeBuildWorker
         }
     }
 
-    std::mutex                            m_mutex;
-    std::condition_variable               m_condition;
-    std::deque<MdlSmokeBuildJob>          m_jobs;
-    std::set<uint_t>                      m_queuedShaderKeys;
-    std::set<uint_t>                      m_inFlightShaderKeys;
-    std::map<uint_t, MdlSmokeBuildResult> m_results;
-    bool                                  m_stop{};
-    std::thread                           m_thread;
+    std::mutex                               m_mutex;
+    std::condition_variable                  m_condition;
+    std::deque<MdlMaterialBuildJob>          m_jobs;
+    std::set<uint_t>                         m_queuedShaderKeys;
+    std::set<uint_t>                         m_inFlightShaderKeys;
+    std::map<uint_t, MdlMaterialBuildResult> m_results;
+    bool                                     m_stop{};
+    std::thread                              m_thread;
 };
 
 #endif  // OTK_USE_MDL
@@ -710,10 +711,10 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t            getTriangleRealizedMaterialSbtOffset( const GeometryInstance& instance );
     uint_t            getTriangleFallbackRealizedMaterialSbtOffset( MaterialFlags flags );
 #ifdef OTK_USE_MDL
-    void              requestMdlSmokeBuild( const MaterialGroup& group, uint_t shaderKeyId );
-    bool              installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMaterialShader& shader );
-    uint_t            getTriangleMdlSmokeMaterialSbtOffset();
-    MdlMaterialShader realizeTriangleMdlSmokeMaterialShader( const MaterialGroup& group, uint_t shaderKeyId );
+    void              requestMdlMaterialBuild( const MaterialGroup& group, uint_t shaderKeyId );
+    bool              installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlMaterialShader& shader );
+    uint_t            getTriangleMdlMaterialSbtOffset();
+    MdlMaterialShader realizeTriangleMdlMaterialShader( const MaterialGroup& group, uint_t shaderKeyId );
 #endif
     uint_t            getSphereRealizedMaterialSbtOffset();
 
@@ -726,9 +727,9 @@ class PbrtProgramGroups : public ProgramGroups
     OptixModule                    m_sceneModule{};
     OptixModule                    m_phongModule{};
 #ifdef OTK_USE_MDL
-    OptixModule                         m_mdlSmokeClosestHitModule{};
-    std::vector<OptixModule>            m_mdlSmokeTintModules;
-    std::unique_ptr<MdlSmokeBuildWorker> m_mdlSmokeBuildWorker;
+    OptixModule                            m_mdlMaterialClosestHitModule{};
+    std::vector<OptixModule>               m_mdlMaterialTintModules;
+    std::unique_ptr<MdlMaterialBuildWorker> m_mdlMaterialBuildWorker;
 #endif
     OptixModule                    m_triangleModule{};
     OptixModule                    m_sphereModule{};
@@ -737,14 +738,14 @@ class PbrtProgramGroups : public ProgramGroups
     std::vector<OptixProgramGroup>      m_callableProgramGroups;
     std::map<uint_t, MdlMaterialShader> m_mdlMaterialShaders;
 #endif
-    size_t                         m_triangleHitGroupIndex{};
+    size_t m_triangleHitGroupIndex{};
 #ifdef OTK_USE_MDL
-    size_t                         m_triangleMdlSmokeHitGroupIndex{};
+    size_t m_triangleMdlMaterialHitGroupIndex{};
 #endif
-    size_t                         m_triangleAlphaMapHitGroupIndex{};
-    size_t                         m_triangleDiffuseMapHitGroupIndex{};
-    size_t                         m_triangleAlphaDiffuseMapHitGroupIndex{};
-    size_t                         m_sphereHitGroupIndex{};
+    size_t m_triangleAlphaMapHitGroupIndex{};
+    size_t m_triangleDiffuseMapHitGroupIndex{};
+    size_t m_triangleAlphaDiffuseMapHitGroupIndex{};
+    size_t m_sphereHitGroupIndex{};
 };
 
 OptixModule PbrtProgramGroups::createModule( const char* optixir, size_t optixirSize )
@@ -808,7 +809,7 @@ void PbrtProgramGroups::initialize()
 void PbrtProgramGroups::cleanup()
 {
 #ifdef OTK_USE_MDL
-    m_mdlSmokeBuildWorker.reset();
+    m_mdlMaterialBuildWorker.reset();
     for( OptixProgramGroup group : m_callableProgramGroups )
     {
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
@@ -819,13 +820,13 @@ void PbrtProgramGroups::cleanup()
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
     }
 #ifdef OTK_USE_MDL
-    for( OptixModule module : m_mdlSmokeTintModules )
+    for( OptixModule module : m_mdlMaterialTintModules )
     {
         OTK_ERROR_CHECK( optixModuleDestroy( module ) );
     }
-    if( m_mdlSmokeClosestHitModule )
+    if( m_mdlMaterialClosestHitModule )
     {
-        OTK_ERROR_CHECK( optixModuleDestroy( m_mdlSmokeClosestHitModule ) );
+        OTK_ERROR_CHECK( optixModuleDestroy( m_mdlMaterialClosestHitModule ) );
     }
 #endif
     if( m_phongModule )
@@ -907,12 +908,12 @@ uint_t PbrtProgramGroups::getTriangleFallbackRealizedMaterialSbtOffset( Material
 }
 
 #ifdef OTK_USE_MDL
-uint_t PbrtProgramGroups::getTriangleMdlSmokeMaterialSbtOffset()
+uint_t PbrtProgramGroups::getTriangleMdlMaterialSbtOffset()
 {
-    if( m_triangleMdlSmokeHitGroupIndex == 0 )
+    if( m_triangleMdlMaterialHitGroupIndex == 0 )
     {
         const Stopwatch optixTimer;
-        m_mdlSmokeClosestHitModule = createModule( MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
+        m_mdlMaterialClosestHitModule = createModule( MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
 
         OptixProgramGroupOptions options{};
         OptixDeviceContext       context = m_renderer->getDeviceContext();
@@ -921,20 +922,20 @@ uint_t PbrtProgramGroups::getTriangleMdlSmokeMaterialSbtOffset()
         OptixProgramGroup     group{};
         otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )  //
             .hitGroupISCH( m_triangleModule, nullptr,             //
-                           m_mdlSmokeClosestHitModule, "__closesthit__mdlMesh" );
+                           m_mdlMaterialClosestHitModule, "__closesthit__mdlMesh" );
         OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
-        m_triangleMdlSmokeHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
+        m_triangleMdlMaterialHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
         m_programGroups.push_back( group );
         m_renderer->setProgramGroups( m_programGroups );
 
         const double optixTime{ optixTimer.elapsed() };
-        std::cout << "MDL smoke material hit group setup: " << optixTime << " s\n";
+        std::cout << "MDL material hit group setup: " << optixTime << " s\n";
     }
 
-    return m_triangleMdlSmokeHitGroupIndex;
+    return m_triangleMdlMaterialHitGroupIndex;
 }
 
-MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( const MaterialGroup& group, uint_t shaderKeyId )
+MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const MaterialGroup& group, uint_t shaderKeyId )
 {
     std::map<uint_t, MdlMaterialShader>::const_iterator it = m_mdlMaterialShaders.find( shaderKeyId );
     if( it != m_mdlMaterialShaders.end() )
@@ -942,15 +943,15 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( cons
         return it->second;
     }
 
-    if( m_options.mdlSmokeDelay )
+    if( !m_options.mdlSynchronousCompilation )
     {
-        requestMdlSmokeBuild( group, shaderKeyId );
+        requestMdlMaterialBuild( group, shaderKeyId );
         MdlMaterialShader shader{};
-        if( installPendingMdlSmokeBuild( shaderKeyId, shader ) )
+        if( installPendingMdlMaterialBuild( shaderKeyId, shader ) )
         {
             return shader;
         }
-        throw MdlMaterialBuildPending( "MDL smoke material build is still pending" );
+        throw MdlMaterialBuildPending( "MDL material build is still pending" );
     }
 
     const Stopwatch   compileTimer;
@@ -966,17 +967,17 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlSmokeMaterialShader( cons
     OptixProgramGroupDesc callableDesc{};
     callableDesc.kind                          = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
     callableDesc.callables.moduleDC            = tintModule;
-    callableDesc.callables.entryFunctionNameDC = MDL_SMOKE_TINT_FUNCTION_NAME;
+    callableDesc.callables.entryFunctionNameDC = MDL_MATERIAL_TINT_FUNCTION_NAME;
     OptixProgramGroup callableGroup{};
     OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, &callableDesc, 1, &options, LOG, &LOG_SIZE, &callableGroup ) );
     const MdlMaterialShader shader{ static_cast<uint_t>( m_callableProgramGroups.size() ), 1U };
-    m_mdlSmokeTintModules.push_back( tintModule );
+    m_mdlMaterialTintModules.push_back( tintModule );
     m_callableProgramGroups.push_back( callableGroup );
     m_mdlMaterialShaders[shaderKeyId] = shader;
     m_renderer->setCallableProgramGroups( m_callableProgramGroups );
 
     const double optixTime{ optixTimer.elapsed() };
-    std::cout << "Synchronous MDL smoke material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
+    std::cout << "Synchronous MDL material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
     return shader;
 }
 #endif
@@ -1016,9 +1017,9 @@ void PbrtProgramGroups::ensurePhongModule()
 }
 
 #ifdef OTK_USE_MDL
-void PbrtProgramGroups::requestMdlSmokeBuild( const MaterialGroup& group, uint_t shaderKeyId )
+void PbrtProgramGroups::requestMdlMaterialBuild( const MaterialGroup& group, uint_t shaderKeyId )
 {
-    if( !m_options.mdlSmokeDelay )
+    if( m_options.mdlSynchronousCompilation )
     {
         return;
     }
@@ -1029,12 +1030,12 @@ void PbrtProgramGroups::requestMdlSmokeBuild( const MaterialGroup& group, uint_t
 
     CUcontext cudaContext{};
     OTK_ERROR_CHECK( cuCtxGetCurrent( &cudaContext ) );
-    if( !m_mdlSmokeBuildWorker )
+    if( !m_mdlMaterialBuildWorker )
     {
-        m_mdlSmokeBuildWorker.reset( new MdlSmokeBuildWorker{} );
+        m_mdlMaterialBuildWorker.reset( new MdlMaterialBuildWorker{} );
     }
 
-    MdlSmokeBuildJob job{};
+    MdlMaterialBuildJob job{};
     job.shaderKeyId            = shaderKeyId;
     job.group                  = group;
     job.cudaContext            = cudaContext;
@@ -1042,12 +1043,12 @@ void PbrtProgramGroups::requestMdlSmokeBuild( const MaterialGroup& group, uint_t
     job.pipelineCompileOptions = m_renderer->getPipelineCompileOptions();
     job.programGroups          = m_programGroups;
     job.callableProgramGroups  = m_callableProgramGroups;
-    m_mdlSmokeBuildWorker->enqueue( job );
+    m_mdlMaterialBuildWorker->enqueue( job );
 }
 
-bool PbrtProgramGroups::installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMaterialShader& shader )
+bool PbrtProgramGroups::installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlMaterialShader& shader )
 {
-    if( !m_options.mdlSmokeDelay )
+    if( m_options.mdlSynchronousCompilation )
     {
         return false;
     }
@@ -1057,13 +1058,13 @@ bool PbrtProgramGroups::installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMate
         shader = existing->second;
         return true;
     }
-    if( !m_mdlSmokeBuildWorker )
+    if( !m_mdlMaterialBuildWorker )
     {
         return false;
     }
 
-    MdlSmokeBuildResult result{};
-    if( !m_mdlSmokeBuildWorker->takeResult( shaderKeyId, result ) )
+    MdlMaterialBuildResult result{};
+    if( !m_mdlMaterialBuildWorker->takeResult( shaderKeyId, result ) )
     {
         return false;
     }
@@ -1075,7 +1076,7 @@ bool PbrtProgramGroups::installPendingMdlSmokeBuild( uint_t shaderKeyId, MdlMate
 
     shader                            = result.shader;
     m_mdlMaterialShaders[shaderKeyId] = shader;
-    m_mdlSmokeTintModules.push_back( result.tintModule );
+    m_mdlMaterialTintModules.push_back( result.tintModule );
     m_programGroups         = std::move( result.programGroups );
     m_callableProgramGroups = std::move( result.callableProgramGroups );
     m_renderer->setPipelineState( result.pipeline, m_programGroups, m_callableProgramGroups );
@@ -1108,7 +1109,7 @@ uint_t PbrtProgramGroups::getMdlMaterialSbtOffset( const GeometryInstance& insta
 
     if( instance.primitive == GeometryPrimitive::TRIANGLE )
     {
-        return getTriangleMdlSmokeMaterialSbtOffset();
+        return getTriangleMdlMaterialSbtOffset();
     }
     throw std::runtime_error( "MDL materials are only implemented for triangle primitives" );
 }
@@ -1120,8 +1121,8 @@ MdlMaterialShader PbrtProgramGroups::realizeMdlMaterialShader( const GeometryIns
         throw std::runtime_error( "MDL materials are only implemented for triangle primitives" );
     }
 
-    getTriangleMdlSmokeMaterialSbtOffset();
-    return realizeTriangleMdlSmokeMaterialShader( instance.groups[0], shaderKeyId );
+    getTriangleMdlMaterialSbtOffset();
+    return realizeTriangleMdlMaterialShader( instance.groups[0], shaderKeyId );
 }
 #endif
 

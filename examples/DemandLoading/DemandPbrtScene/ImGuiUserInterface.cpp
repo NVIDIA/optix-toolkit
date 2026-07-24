@@ -99,6 +99,9 @@ void ImGuiUserInterface::renderDebug()
         m_debugLocationChanged = true;
     }
     renderToggleOption( m_options.oneShotDebug, "One shot debug" );
+#ifdef OTK_USE_MDL
+    renderToggleOption( m_options.mdlSynchronousCompilation, "Synchronous MDL compilation" );
+#endif
 }
 
 void ImGuiUserInterface::renderToggleOption( bool& option, const char* label )

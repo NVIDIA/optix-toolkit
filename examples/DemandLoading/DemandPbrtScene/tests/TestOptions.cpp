@@ -229,11 +229,27 @@ TEST_F( TestOptions, verboseTextureCreation )
 }
 
 #ifdef OTK_USE_MDL
-TEST_F( TestOptions, mdlSmokeDelay )
+TEST_F( TestOptions, mdlCompilationIsAsynchronousByDefault )
 {
-    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--mdl-smoke-delay", "scene.pbrt" } );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt" } );
 
-    EXPECT_TRUE( options.mdlSmokeDelay );
+    EXPECT_FALSE( options.mdlSynchronousCompilation );
+}
+
+TEST_F( TestOptions, fileOutputUsesSynchronousMdlCompilation )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--file", "output.png", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.mdlSynchronousCompilation );
+}
+
+TEST_F( TestOptions, mdlSynchronousCompilation )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--mdl-synchronous-compilation", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.mdlSynchronousCompilation );
 }
 
 TEST_F( TestOptions, useMdlMaterialsByDefault )

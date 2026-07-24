@@ -146,7 +146,7 @@ MaterialState localFallbackState( uint_t materialId )
 }
 
 #ifdef OTK_USE_MDL
-MaterialState mdlSmokeState( uint_t materialId, uint_t shaderKeyId )
+MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
 {
     return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
 }
@@ -219,7 +219,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
             OTK_ASSERT( material.shaderKeyId == firstMaterial.shaderKeyId );
-            setMaterialState( sync, material.materialId, mdlSmokeState( material.materialId, material.shaderKeyId ) );
+            setMaterialState( sync, material.materialId, mdlReadyState( material.materialId, material.shaderKeyId ) );
         }
         m_mdlShaderCompileCache.markReady( materialKey );
     }
@@ -282,9 +282,9 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     switch( state )
     {
         case MdlShaderCompileState::READY:
-            return mdlSmokeState( materialId, shaderKeyId );
+            return mdlReadyState( materialId, shaderKeyId );
         case MdlShaderCompileState::QUEUED:
-            if( m_options.mdlSmokeDelay )
+            if( !m_options.mdlSynchronousCompilation )
             {
                 queuePending();
                 return fallbackState( MaterialBackend::MDL_PENDING );
@@ -301,13 +301,13 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     if( m_mdlShaderCompileCache.requestCompile( materialKey ) )
     {
         ++m_stats.numGeneratedMdlMaterialCompileRequests;
-        if( m_options.mdlSmokeDelay )
+        if( !m_options.mdlSynchronousCompilation )
         {
             try
             {
                 bindMdlShader();
                 m_mdlShaderCompileCache.markReady( materialKey );
-                return mdlSmokeState( materialId, shaderKeyId );
+                return mdlReadyState( materialId, shaderKeyId );
             }
             catch( const MdlMaterialBuildPending& )
             {
@@ -331,7 +331,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     {
         bindMdlShader();
         m_mdlShaderCompileCache.markReady( materialKey );
-        return mdlSmokeState( materialId, shaderKeyId );
+        return mdlReadyState( materialId, shaderKeyId );
     }
     catch( const std::exception& e )
     {
