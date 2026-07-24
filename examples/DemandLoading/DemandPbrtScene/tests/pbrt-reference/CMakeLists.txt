@@ -18,6 +18,12 @@ set(referenceMaterials
     substrate
     translucent
     mix
+    landscape-uber-textured
+    landscape-uber-alpha
+    landscape-uber-specular-textures
+    landscape-uber-bump
+    landscape-translucent-textured
+    landscape-mix-vegetation
 )
 
 set(pbrtReferenceComparableMaterials
@@ -36,7 +42,7 @@ add_custom_target(DemandPbrtScenePbrtReferenceResources)
 set_property(TARGET DemandPbrtScenePbrtReferenceResources PROPERTY FOLDER Examples/DemandLoading/Tests)
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")
 source_group("PBRT Reference Images" REGULAR_EXPRESSION "gold-.*\\.png")
-source_group("Texture Images" REGULAR_EXPRESSION "matte-imagemap\\.png")
+source_group("Texture Images" REGULAR_EXPRESSION "(matte-imagemap|landscape-fixture-.*)\\.png")
 
 foreach(material ${referenceMaterials})
     set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCES
@@ -46,6 +52,11 @@ foreach(material ${referenceMaterials})
 endforeach()
 set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/matte-imagemap.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-albedo.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-alpha.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-bump.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-reflectance.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-specular.png"
 )
 
 define_property(TEST PROPERTY PBRT_REFERENCE_MATERIAL
