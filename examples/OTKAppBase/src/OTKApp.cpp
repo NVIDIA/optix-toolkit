@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 //
 
+#include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <thread>
 
 #include <cuda_runtime.h>
 
@@ -590,6 +592,8 @@ unsigned int OTKApp::performLaunches( )
             state.ticket.wait();
 
         // Get the number of tasks remaining before the launchPrepare call.
+        if( state.ticket.numTasksRemaining() != 0 )
+            std::this_thread::sleep_for( std::chrono::milliseconds( 2 ) );
         int numTasksRemaining = state.ticket.numTasksRemaining();
 
         // Call launchPrepare to synchronize new texture samplers and texture info to device memory.
@@ -619,7 +623,7 @@ unsigned int OTKApp::performLaunches( )
                                   ) );
 
         // If the batch of requests was filled before calling launchPrepare, call processRequests to start a new batch.
-        if( state.demandLoader && numTasksRemaining == 0 )
+        if( state.demandLoader && numTasksRemaining == 0 && !m_pauseRequests )
         {
             numRequestsProcessed += static_cast<unsigned int>( state.ticket.numTasksTotal() );
             // Start an asynchronous pull of a new batch of requests from the device.
@@ -847,6 +851,8 @@ void OTKApp::keyCallback( GLFWwindow* window, int32_t key, int32_t /*scancode*/,
         initView();
     else if( key >= GLFW_KEY_0 && key <= GLFW_KEY_9 )
         m_render_mode = key - GLFW_KEY_0;
+    else if( key == GLFW_KEY_P )
+        m_pauseRequests = !m_pauseRequests;
 }
 
 //------------------------------------------------------------------------------

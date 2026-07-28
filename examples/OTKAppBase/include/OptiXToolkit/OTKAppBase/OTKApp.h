@@ -122,6 +122,7 @@ class OTKApp
     bool                      m_useSparseTextures = true;
     bool                      m_useCascadingTextureSizes = false;
     bool                      m_waitForTicket = true;
+    bool                      m_pauseRequests = false;
 
     // Number of subframes to do
     int m_maxSubframes = 1000000;
