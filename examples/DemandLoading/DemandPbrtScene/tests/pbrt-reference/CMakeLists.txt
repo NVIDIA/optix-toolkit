@@ -12,6 +12,7 @@ set(referenceMaterials
     plastic
     uber
     uber-transmission
+    uber-textured-transmission
     mirror
     glass
     metal
@@ -240,6 +241,15 @@ if(OTK_USE_MDL)
             WARMUP 16
             DIFF_THRESHOLD 18
             TOLERANCE_REASON "Single-sample environment tolerance, generated MDL matte adds distant and mapped infinite light contributions")
+        add_pbrt_reference_image_test(uber-textured-transmission
+            MATERIAL uber
+            SCENE uber-textured-transmission.pbrt
+            RESOURCES matte-imagemap.png
+            WARMUP 4
+            OPTIONS --render-mode=path
+            DIFF_THRESHOLD 80
+            ALLOWED_PERCENTAGE 8
+            TOLERANCE_REASON "Path-output encoding tolerance, generated MDL uber applies a runtime Kt demand texture to specular transmission sampling")
         add_pbrt_reference_image_test(landscape-uber-specular-textures
             MATERIAL uber
             SCENE landscape-uber-specular-textures.pbrt

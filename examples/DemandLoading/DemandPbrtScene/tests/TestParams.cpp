@@ -185,9 +185,11 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
                                                make_float3( 0.75f, 0.5f, 0.25f ), make_float3( 0.625f, 0.5f, 0.375f ) ) );
     EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, 666U,
                                                make_float3( 0.875f, 0.75f, 0.625f ), make_float3( 0.5f, 0.375f, 0.25f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX, 777U,
+                                               make_float3( 0.625f, 0.5f, 0.375f ), make_float3( 0.25f, 0.125f, 0.0625f ) ) );
 
     EXPECT_EQ( MDL_MATERIAL_TEXTURE_BINDING_COUNT, data.textureBindingCount );
-    EXPECT_EQ( 14U, MDL_MATERIAL_TEXTURE_BINDING_COUNT );
+    EXPECT_EQ( 15U, MDL_MATERIAL_TEXTURE_BINDING_COUNT );
     EXPECT_EQ( 0U, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 1U, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 2U, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
@@ -196,6 +198,7 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
     EXPECT_EQ( 8U, MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 9U, MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 13U, MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX );
+    EXPECT_EQ( 14U, MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 333U, data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
     EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
@@ -210,6 +213,9 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
                data.textureBindings[MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX].scale );
     EXPECT_EQ( make_float3( 0.5f, 0.375f, 0.25f ),
                data.textureBindings[MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX].bias );
+    EXPECT_EQ( 777U, data.textureBindings[MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( make_float3( 0.625f, 0.5f, 0.375f ), data.textureBindings[MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( make_float3( 0.25f, 0.125f, 0.0625f ), data.textureBindings[MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX].bias );
     EXPECT_FALSE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_TEXTURE_BINDING_COUNT, 444U,
                                                 make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
 }

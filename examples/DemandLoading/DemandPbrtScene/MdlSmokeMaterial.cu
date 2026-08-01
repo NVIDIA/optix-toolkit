@@ -230,6 +230,7 @@ struct MdlMaterialTextureSamples
     float3 kd;
     float3 ks;
     float3 kr;
+    float3 kt;
     float3 mixNamedKd[2];
     float3 mixNamedKs[2];
     float3 mixNamedKr[2];
@@ -249,6 +250,7 @@ __device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSampl
     samples.kd = make_float3( 1.0f );
     samples.ks = make_float3( 1.0f );
     samples.kr = make_float3( 1.0f );
+    samples.kt = make_float3( 1.0f );
     for( uint_t i = 0; i < 2U; ++i )
     {
         samples.mixNamedKd[i]    = make_float3( 1.0f );
@@ -319,6 +321,9 @@ __device__ __forceinline__ void setMdlMaterialTextureSample( MdlMaterialTextureS
             return;
         case MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX:
             samples.kr = value;
+            return;
+        case MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX:
+            samples.kt = value;
             return;
         case MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX:
             samples.mixNamedKd[0] = value;
@@ -584,6 +589,11 @@ __device__ __forceinline__ float mdlRuntimeDiffuseMixCompensation( const MdlMate
     return compensation;
 }
 
+__device__ __forceinline__ float3 mdlTransmissionTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX ) ? samples.kt : make_float3( 1.0f );
+}
+
 __device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&               shader,
                                                    mi::neuraylib::Shading_state_material& state,
                                                    const mi::neuraylib::Resource_data&    resourceData )
@@ -692,6 +702,7 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
                                      && ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_GLOSSY ) != 0 };
     const bool reflectedSpecularEvent{ ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_REFLECTION ) != 0
                                        && ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_SPECULAR ) != 0 };
+    const bool transmittedEvent{ ( sampleData.event_type & mi::neuraylib::BSDF_EVENT_TRANSMISSION ) != 0 };
     float3     textureScale{ make_float3( 1.0f ) };
     if( diffuseEvent )
     {
@@ -708,6 +719,10 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
     else if( reflectedSpecularEvent )
     {
         textureScale = mdlSpecularTextureScale( shader, textureSamples );
+    }
+    else if( transmittedEvent )
+    {
+        textureScale = mdlTransmissionTextureScale( shader, textureSamples );
     }
     throughput = sampleData.bsdf_over_pdf * textureScale;
     return otk::dot( throughput, throughput ) > 0.0f;

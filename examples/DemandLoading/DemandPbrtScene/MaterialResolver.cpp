@@ -264,6 +264,11 @@ bool usesGeneratedMdlNamedMaterialKr( const std::string& type )
     return type == "uber" || type == "mirror" || type == "glass";
 }
 
+bool usesGeneratedMdlKt( const std::string& type )
+{
+    return type == "uber" || type == "glass";
+}
+
 bool hasGeneratedMdlDemandTexture( MaterialFlags flags, MaterialFlags mapFlag, MaterialFlags allocatedFlag, const std::string& fileName )
 {
     return flagSet( flags, mapFlag | allocatedFlag ) && !fileName.empty();
@@ -465,6 +470,10 @@ PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::Pbr
     {
         return binding;
     }
+    if( paramName == "Kt" && usesGeneratedMdlKt( material.type ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    {
+        return binding;
+    }
     if( paramName == "bumpmap" )
     {
         return binding;
@@ -531,6 +540,14 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
             continue;
         }
         if( material.type == "uber" && ( paramName == "Ks" || paramName == "Kr" ) )
+        {
+            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
+            {
+                return false;
+            }
+            continue;
+        }
+        if( paramName == "Kt" && usesGeneratedMdlKt( material.type ) )
         {
             if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
             {
@@ -800,6 +817,10 @@ void resolveGeneratedMdlTextureBindings( const Options&          options,
     {
         createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "Ks", MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX );
         createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "Kr", MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
+    }
+    if( usesGeneratedMdlKt( group.pbrtMaterial->type ) )
+    {
+        createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "Kt", MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX );
     }
     createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "bumpmap", MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX );
     if( group.pbrtMaterial->type == "mix" )
