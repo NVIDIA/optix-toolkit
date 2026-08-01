@@ -52,7 +52,7 @@ struct FourierBsdfInterpolation
 
 struct FourierBsdfCoefficientScratch
 {
-    float coefficients[FOURIER_BSDF_EVAL_MAX_CHANNELS * FOURIER_BSDF_EVAL_MAX_ORDER];
+    float coefficients[FOURIER_BSDF_EVAL_MAX_ORDER];
 };
 
 DEMAND_PBRT_SCENE_FOURIER_HD float fourierAbs( float value )
@@ -267,9 +267,15 @@ DEMAND_PBRT_SCENE_FOURIER_HD bool fourierInterpolation( const FourierBsdfTableDe
 DEMAND_PBRT_SCENE_FOURIER_HD bool fourierAccumulateCoefficients( const FourierBsdfTableDeviceData& table,
                                                                  const FourierBsdfInterpolation&   interpolation,
                                                                  FourierBsdfCoefficientScratch&    scratch,
-                                                                 int&                              order )
+                                                                 int&                              order,
+                                                                 int                               channel = 0 )
 {
-    for( int i = 0; i < FOURIER_BSDF_EVAL_MAX_CHANNELS * FOURIER_BSDF_EVAL_MAX_ORDER; ++i )
+    if( channel < 0 || channel >= table.nChannels )
+    {
+        return false;
+    }
+
+    for( int i = 0; i < FOURIER_BSDF_EVAL_MAX_ORDER; ++i )
     {
         scratch.coefficients[i] = 0.0f;
     }
@@ -311,14 +317,10 @@ DEMAND_PBRT_SCENE_FOURIER_HD bool fourierAccumulateCoefficients( const FourierBs
             }
 
             order = entryOrder > order ? entryOrder : order;
-            for( int channel = 0; channel < table.nChannels; ++channel )
+            const int sourceBase{ coefficientOffset + channel * entryOrder };
+            for( int k = 0; k < entryOrder; ++k )
             {
-                const int sourceBase{ coefficientOffset + channel * entryOrder };
-                const int targetBase{ channel * table.maxOrder };
-                for( int k = 0; k < entryOrder; ++k )
-                {
-                    scratch.coefficients[targetBase + k] += weight * coefficients[sourceBase + k];
-                }
+                scratch.coefficients[k] += weight * coefficients[sourceBase + k];
             }
         }
     }
@@ -548,43 +550,14 @@ DEMAND_PBRT_SCENE_FOURIER_HD bool fourierSampleFourier( const float* coefficient
     return pdf > 0.0f;
 }
 
-DEMAND_PBRT_SCENE_FOURIER_HD float3 fourierEvaluateRgb( const FourierBsdfTableDeviceData&    table,
-                                                        float                                muI,
-                                                        float                                muO,
-                                                        float                                cosPhi,
-                                                        FourierBsdfTransportMode             mode,
-                                                        const FourierBsdfCoefficientScratch& scratch,
-                                                        int                                  order )
-{
-    const float luminance{ fourierSeries( scratch.coefficients, order, cosPhi ) };
-    const float y{ fourierMax( 0.0f, luminance ) };
-    float       scale{ muI != 0.0f ? 1.0f / fourierAbs( muI ) : 0.0f };
-    if( mode == FourierBsdfTransportMode::RADIANCE && muI * muO > 0.0f )
-    {
-        const float eta{ muI > 0.0f ? 1.0f / table.eta : table.eta };
-        scale *= eta * eta;
-    }
-
-    if( table.nChannels == 1 )
-    {
-        const float monochrome{ y * scale };
-        return make_float3( monochrome, monochrome, monochrome );
-    }
-
-    const float r{ fourierSeries( scratch.coefficients + table.maxOrder, order, cosPhi ) };
-    const float b{ fourierSeries( scratch.coefficients + 2 * table.maxOrder, order, cosPhi ) };
-    const float g{ 1.39829f * y - 0.100913f * b - 0.297375f * r };
-    return make_float3( fourierMax( 0.0f, r * scale ), fourierMax( 0.0f, g * scale ), fourierMax( 0.0f, b * scale ) );
-}
-
-DEMAND_PBRT_SCENE_FOURIER_HD float3 fourierSampleRgb( const FourierBsdfTableDeviceData&    table,
-                                                      float                                muI,
-                                                      float                                muO,
-                                                      float                                cosPhi,
-                                                      FourierBsdfTransportMode             mode,
-                                                      const FourierBsdfCoefficientScratch& scratch,
-                                                      int                                  order,
-                                                      float                                y )
+DEMAND_PBRT_SCENE_FOURIER_HD float3 fourierEvaluateRgb( const FourierBsdfTableDeviceData& table,
+                                                        const FourierBsdfInterpolation&   interpolation,
+                                                        float                             muI,
+                                                        float                             muO,
+                                                        float                             cosPhi,
+                                                        FourierBsdfTransportMode          mode,
+                                                        FourierBsdfCoefficientScratch&    scratch,
+                                                        float                             y )
 {
     float scale{ muI != 0.0f ? 1.0f / fourierAbs( muI ) : 0.0f };
     if( mode == FourierBsdfTransportMode::RADIANCE && muI * muO > 0.0f )
@@ -599,17 +572,63 @@ DEMAND_PBRT_SCENE_FOURIER_HD float3 fourierSampleRgb( const FourierBsdfTableDevi
         return make_float3( monochrome, monochrome, monochrome );
     }
 
-    const float r{ fourierSeries( scratch.coefficients + table.maxOrder, order, cosPhi ) };
-    const float b{ fourierSeries( scratch.coefficients + 2 * table.maxOrder, order, cosPhi ) };
+    int order{};
+    if( !fourierAccumulateCoefficients( table, interpolation, scratch, order, 1 ) )
+    {
+        return make_float3( 0.0f, 0.0f, 0.0f );
+    }
+    const float r{ fourierSeries( scratch.coefficients, order, cosPhi ) };
+
+    if( !fourierAccumulateCoefficients( table, interpolation, scratch, order, 2 ) )
+    {
+        return make_float3( 0.0f, 0.0f, 0.0f );
+    }
+    const float b{ fourierSeries( scratch.coefficients, order, cosPhi ) };
     const float g{ 1.39829f * y - 0.100913f * b - 0.297375f * r };
     return make_float3( fourierMax( 0.0f, r * scale ), fourierMax( 0.0f, g * scale ), fourierMax( 0.0f, b * scale ) );
 }
 
-DEMAND_PBRT_SCENE_FOURIER_HD float fourierPdf( const FourierBsdfTableDeviceData&    table,
-                                               const FourierBsdfInterpolation&      interpolation,
-                                               const FourierBsdfCoefficientScratch& scratch,
-                                               int                                  order,
-                                               float                                cosPhi )
+DEMAND_PBRT_SCENE_FOURIER_HD float3 fourierSampleRgb( const FourierBsdfTableDeviceData& table,
+                                                      const FourierBsdfInterpolation&   interpolation,
+                                                      float                             muI,
+                                                      float                             muO,
+                                                      float                             cosPhi,
+                                                      FourierBsdfTransportMode          mode,
+                                                      FourierBsdfCoefficientScratch&    scratch,
+                                                      float                             y )
+{
+    float scale{ muI != 0.0f ? 1.0f / fourierAbs( muI ) : 0.0f };
+    if( mode == FourierBsdfTransportMode::RADIANCE && muI * muO > 0.0f )
+    {
+        const float eta{ muI > 0.0f ? 1.0f / table.eta : table.eta };
+        scale *= eta * eta;
+    }
+
+    if( table.nChannels == 1 )
+    {
+        const float monochrome{ y * scale };
+        return make_float3( monochrome, monochrome, monochrome );
+    }
+
+    int order{};
+    if( !fourierAccumulateCoefficients( table, interpolation, scratch, order, 1 ) )
+    {
+        return make_float3( 0.0f, 0.0f, 0.0f );
+    }
+    const float r{ fourierSeries( scratch.coefficients, order, cosPhi ) };
+
+    if( !fourierAccumulateCoefficients( table, interpolation, scratch, order, 2 ) )
+    {
+        return make_float3( 0.0f, 0.0f, 0.0f );
+    }
+    const float b{ fourierSeries( scratch.coefficients, order, cosPhi ) };
+    const float g{ 1.39829f * y - 0.100913f * b - 0.297375f * r };
+    return make_float3( fourierMax( 0.0f, r * scale ), fourierMax( 0.0f, g * scale ), fourierMax( 0.0f, b * scale ) );
+}
+
+DEMAND_PBRT_SCENE_FOURIER_HD float fourierPdf( const FourierBsdfTableDeviceData& table,
+                                               const FourierBsdfInterpolation&   interpolation,
+                                               float                             luminance )
 {
     constexpr float TWO_PI{ 6.2831853071795864769f };
     const float*    cdf{ fourierFloatData( table.cdf ) };
@@ -630,8 +649,7 @@ DEMAND_PBRT_SCENE_FOURIER_HD float fourierPdf( const FourierBsdfTableDeviceData&
         rho += interpolation.weightsO[o] * cdf[offsetO * table.nMu + table.nMu - 1] * TWO_PI;
     }
 
-    const float y{ fourierSeries( scratch.coefficients, order, cosPhi ) };
-    return rho > 0.0f && y > 0.0f ? y / rho : 0.0f;
+    return rho > 0.0f && luminance > 0.0f ? luminance / rho : 0.0f;
 }
 
 DEMAND_PBRT_SCENE_FOURIER_HD FourierBsdfEvalResult evaluateFourierBsdfTable( const FourierBsdfTableDeviceData& table,
@@ -663,8 +681,9 @@ DEMAND_PBRT_SCENE_FOURIER_HD FourierBsdfEvalResult evaluateFourierBsdfTable( con
         return result;
     }
 
-    result.value = fourierEvaluateRgb( table, muI, muO, cosPhi, mode, scratch, order );
-    result.pdf   = fourierPdf( table, interpolation, scratch, order, cosPhi );
+    const float luminance{ fourierSeries( scratch.coefficients, order, cosPhi ) };
+    result.pdf = fourierPdf( table, interpolation, luminance );
+    result.value = fourierEvaluateRgb( table, interpolation, muI, muO, cosPhi, mode, scratch, fourierMax( 0.0f, luminance ) );
     return result;
 }
 
@@ -722,7 +741,7 @@ DEMAND_PBRT_SCENE_FOURIER_HD FourierBsdfSampleResult sampleFourierBsdfTable( con
     const float cosPhi{ fourierCos( phi ) };
     result.direction = fourierNormalize( make_float3( -norm * ( cosPhi * outgoing.x - sinPhi * outgoing.y ),
                                                       -norm * ( sinPhi * outgoing.x + cosPhi * outgoing.y ), -muI ) );
-    result.value     = fourierSampleRgb( table, muI, muO, cosPhi, mode, scratch, order, y );
+    result.value     = fourierSampleRgb( table, interpolation, muI, muO, cosPhi, mode, scratch, y );
     if( result.pdf > 0.0f )
     {
         const float cosineOverPdf{ fourierAbs( result.direction.z ) / result.pdf };

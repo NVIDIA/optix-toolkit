@@ -114,9 +114,17 @@ TEST( TestFourierBsdfEval, evaluatesAndSamplesCoatedCopperOrderShape )
     ASSERT_TRUE( fourierInterpolation( table, 1.0f, 1.0f, interpolation ) );
     FourierBsdfCoefficientScratch scratch{};
     int                           order{};
+    EXPECT_EQ( static_cast<std::size_t>( FOURIER_BSDF_EVAL_MAX_ORDER ),
+               sizeof( scratch.coefficients ) / sizeof( scratch.coefficients[0] ) );
     ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order ) );
     EXPECT_EQ( 530, order );
     EXPECT_FLOAT_EQ( 0.01f, scratch.coefficients[529] );
+    ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order, 1 ) );
+    EXPECT_EQ( 530, order );
+    EXPECT_FLOAT_EQ( 0.8f, scratch.coefficients[0] );
+    ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order, 2 ) );
+    EXPECT_EQ( 530, order );
+    EXPECT_FLOAT_EQ( 0.6f, scratch.coefficients[0] );
 
     const FourierBsdfEvalResult eval{ evaluateFourierBsdf( resource, make_float3( 0.0f, 0.0f, 1.0f ),
                                                            make_float3( 0.0f, 0.0f, -1.0f ), FourierBsdfTransportMode::IMPORTANCE ) };
