@@ -87,6 +87,66 @@ define_property(TEST PROPERTY PBRT_REFERENCE_TOLERANCE_REASON
 
 image_test_get_resource_dir(resourceDir DemandPbrtScene)
 if(OTK_USE_MDL)
+    set(PBRT_V3_SCENE_DIR "" CACHE PATH
+        "Path to unpacked PBRT v3 scene data for optional DemandPbrtScene corpus smoke tests.")
+    mark_as_advanced(PBRT_V3_SCENE_DIR)
+
+    function(add_pbrt_v3_scene_smoke_test name)
+        set(oneValueArgs SCENE OUTPUT)
+        cmake_parse_arguments(PBRT_V3 "" "${oneValueArgs}" "REQUIRED_FILES;OPTIONS" ${ARGN})
+        if(PBRT_V3_UNPARSED_ARGUMENTS)
+            message(FATAL_ERROR "Unknown arguments to add_pbrt_v3_scene_smoke_test: ${PBRT_V3_UNPARSED_ARGUMENTS}")
+        endif()
+        if(NOT PBRT_V3_SCENE)
+            message(FATAL_ERROR "PBRT v3 smoke test ${name} is missing SCENE")
+        endif()
+        if(NOT PBRT_V3_OUTPUT)
+            set(PBRT_V3_OUTPUT "test-${name}-out.png")
+        endif()
+
+        file(TO_CMAKE_PATH "${PBRT_V3_SCENE_DIR}" pbrtV3SceneDir)
+        set(testName "DemandPbrtScene.${name}")
+        set(missingFiles "")
+        foreach(requiredFile ${PBRT_V3_SCENE} ${PBRT_V3_REQUIRED_FILES})
+            if(NOT pbrtV3SceneDir OR NOT EXISTS "${pbrtV3SceneDir}/${requiredFile}")
+                list(APPEND missingFiles "${requiredFile}")
+            endif()
+        endforeach()
+
+        if(missingFiles)
+            add_test(NAME ${testName}
+                COMMAND ${CMAKE_COMMAND} -E echo
+                    "SKIP: PBRT_V3_SCENE_DIR does not contain required PBRT v3 scene files: ${missingFiles}")
+            set_tests_properties(${testName} PROPERTIES
+                LABELS "DemandPbrtScene;PBRTCorpus;MDL"
+                SKIP_REGULAR_EXPRESSION "^SKIP:"
+            )
+            return()
+        endif()
+
+        add_test(NAME ${testName}
+            COMMAND $<TARGET_FILE:DemandPbrtScene>
+                --bg=0/0/0
+                --dim=64x64
+                --warmup=4
+                --use-mdl-materials
+                --mdl-synchronous-compilation
+                --proxy-resolution
+                --file "${CMAKE_CURRENT_BINARY_DIR}/${PBRT_V3_OUTPUT}"
+                "${pbrtV3SceneDir}/${PBRT_V3_SCENE}"
+                ${PBRT_V3_OPTIONS})
+        set_tests_properties(${testName} PROPERTIES
+            LABELS "DemandPbrtScene;PBRTCorpus;MDL"
+            PASS_REGULAR_EXPRESSION "Resolved proxy material id"
+            FAIL_REGULAR_EXPRESSION
+                "Caught exception|Fourier BSDF table resource binding failed|Generated MDL material build failed"
+            PBRT_REFERENCE_MATERIAL "fourier"
+            PBRT_REFERENCE_TOLERANCE_REASON
+                "Run-only PBRT v3 corpus smoke; no image comparison because the large BSDF table remains external."
+            TIMEOUT 120
+        )
+    endfunction()
+
     function(add_pbrt_reference_image_test name)
         set(oneValueArgs MATERIAL SCENE WARMUP DIFF_THRESHOLD ALLOWED_PERCENTAGE TOLERANCE_REASON)
         cmake_parse_arguments(PBRT_REF "" "${oneValueArgs}" "OPTIONS;RESOURCES" ${ARGN})
@@ -235,6 +295,14 @@ if(OTK_USE_MDL)
         WARMUP 4
         DIFF_THRESHOLD 3
         TOLERANCE_REASON "PBRT Fourier table tolerance, dedicated GPU evaluator samples the material-indexed roughgold table")
+    add_pbrt_v3_scene_smoke_test(fourier-coated-copper-corpus
+        SCENE dragon/f8-24.pbrt
+        REQUIRED_FILES
+            dragon/bsdfs/coated_copper.bsdf
+            dragon/bsdfs/roughgold_alpha_0.2.bsdf
+            dragon/geometry/dragon_remeshed.ply
+            dragon/textures/20060807_wells6_hd.exr
+        OUTPUT test-fourier-coated-copper-corpus-out.png)
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte
