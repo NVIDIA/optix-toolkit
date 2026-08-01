@@ -38,6 +38,7 @@ set(pbrtReferenceComparableMaterials
     substrate
     translucent
     mix
+    fourier
 )
 
 add_custom_target(DemandPbrtScenePbrtReferenceResources)
@@ -204,6 +205,13 @@ if(OTK_USE_MDL)
         SCENE mix-rgb-amount.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, generated MDL mix folds equal-RGB amount to the scalar material parameter")
+    add_pbrt_reference_image_test(fourier
+        MATERIAL fourier
+        SCENE fourier.pbrt
+        RESOURCES bsdfs/roughgold_alpha_0.2.bsdf
+        WARMUP 4
+        DIFF_THRESHOLD 3
+        TOLERANCE_REASON "PBRT Fourier table tolerance, dedicated GPU evaluator samples the material-indexed roughgold table")
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte
