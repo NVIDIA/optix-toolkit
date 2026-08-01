@@ -33,12 +33,12 @@ FourierBsdfTableDeviceData makeHostDescriptor( const FourierBsdfTable& table )
                                            hostPtr( table.zeroOrderCoefficients ), hostPtr( table.coefficients ) );
 }
 
-FourierBsdfTable makeCoatedCopperOrderShapeTable()
+FourierBsdfTable makeFourierOrderShapeTable( int maxOrder )
 {
     FourierBsdfTable table{};
     table.flags     = 1;
     table.nMu       = 2;
-    table.maxOrder  = FOURIER_BSDF_EVAL_MAX_ORDER;
+    table.maxOrder  = maxOrder;
     table.nChannels = 3;
     table.nBases    = 1;
     table.eta       = 1.0f;
@@ -90,23 +90,9 @@ bool isFinite( const float3& value )
     return std::isfinite( value.x ) && std::isfinite( value.y ) && std::isfinite( value.z );
 }
 
-}  // namespace
-
-TEST( TestFourierBsdfEval, returnsBlackWhenResourceHasNoTable )
+void expectEvaluatesAndSamplesFourierOrderShape( int maxOrder )
 {
-    const FourierMaterialResource resource{};
-    const FourierBsdfEvalResult   result{ evaluateFourierBsdf(
-        resource, make_float3( 0.0f, 0.0f, 1.0f ), make_float3( 0.0f, 0.0f, -1.0f ), FourierBsdfTransportMode::IMPORTANCE ) };
-
-    EXPECT_FLOAT_EQ( 0.0f, result.value.x );
-    EXPECT_FLOAT_EQ( 0.0f, result.value.y );
-    EXPECT_FLOAT_EQ( 0.0f, result.value.z );
-    EXPECT_FLOAT_EQ( 0.0f, result.pdf );
-}
-
-TEST( TestFourierBsdfEval, evaluatesAndSamplesCoatedCopperOrderShape )
-{
-    const FourierBsdfTable           tableStorage{ makeCoatedCopperOrderShapeTable() };
+    const FourierBsdfTable           tableStorage{ makeFourierOrderShapeTable( maxOrder ) };
     const FourierBsdfTableDeviceData table{ makeHostDescriptor( tableStorage ) };
     const FourierMaterialResource    resource{ makeFourierResource( table ) };
 
@@ -117,13 +103,13 @@ TEST( TestFourierBsdfEval, evaluatesAndSamplesCoatedCopperOrderShape )
     EXPECT_EQ( static_cast<std::size_t>( FOURIER_BSDF_EVAL_MAX_ORDER ),
                sizeof( scratch.coefficients ) / sizeof( scratch.coefficients[0] ) );
     ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order ) );
-    EXPECT_EQ( 530, order );
-    EXPECT_FLOAT_EQ( 0.01f, scratch.coefficients[529] );
+    EXPECT_EQ( maxOrder, order );
+    EXPECT_FLOAT_EQ( 0.01f, scratch.coefficients[static_cast<std::size_t>( maxOrder - 1 )] );
     ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order, 1 ) );
-    EXPECT_EQ( 530, order );
+    EXPECT_EQ( maxOrder, order );
     EXPECT_FLOAT_EQ( 0.8f, scratch.coefficients[0] );
     ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order, 2 ) );
-    EXPECT_EQ( 530, order );
+    EXPECT_EQ( maxOrder, order );
     EXPECT_FLOAT_EQ( 0.6f, scratch.coefficients[0] );
 
     const FourierBsdfEvalResult eval{ evaluateFourierBsdf( resource, make_float3( 0.0f, 0.0f, 1.0f ),
@@ -140,6 +126,30 @@ TEST( TestFourierBsdfEval, evaluatesAndSamplesCoatedCopperOrderShape )
     EXPECT_TRUE( isFinite( sample.throughput ) );
     EXPECT_GT( sample.pdf, 0.0f );
     EXPECT_GT( pbrtY( sample.throughput ), 0.0f );
+}
+
+}  // namespace
+
+TEST( TestFourierBsdfEval, returnsBlackWhenResourceHasNoTable )
+{
+    const FourierMaterialResource resource{};
+    const FourierBsdfEvalResult   result{ evaluateFourierBsdf(
+        resource, make_float3( 0.0f, 0.0f, 1.0f ), make_float3( 0.0f, 0.0f, -1.0f ), FourierBsdfTransportMode::IMPORTANCE ) };
+
+    EXPECT_FLOAT_EQ( 0.0f, result.value.x );
+    EXPECT_FLOAT_EQ( 0.0f, result.value.y );
+    EXPECT_FLOAT_EQ( 0.0f, result.value.z );
+    EXPECT_FLOAT_EQ( 0.0f, result.pdf );
+}
+
+TEST( TestFourierBsdfEval, evaluatesAndSamplesCoatedCopperOrderShape )
+{
+    expectEvaluatesAndSamplesFourierOrderShape( 530 );
+}
+
+TEST( TestFourierBsdfEval, evaluatesAndSamplesCeramicOrderShape )
+{
+    expectEvaluatesAndSamplesFourierOrderShape( 1599 );
 }
 
 TEST( TestFourierBsdfEval, matchesPbrtRoughGoldEvaluateAndPdfSamples )

@@ -36,6 +36,25 @@ FourierBsdfTable arbitraryFourierTable()
     return table;
 }
 
+FourierBsdfTable ceramicOrderFourierTable()
+{
+    FourierBsdfTable table{};
+    table.flags                 = 1;
+    table.nMu                   = 2;
+    table.maxOrder              = 1599;
+    table.nChannels             = 3;
+    table.nBases                = 1;
+    table.eta                   = 1.0f;
+    table.mu                    = { -1.0f, 1.0f };
+    table.cdf                   = { 0.0f, 1.0f, 0.0f, 1.0f };
+    table.coefficientOffsets    = { 0, 4797, 9594, 14391 };
+    table.coefficientCounts     = { 1599, 1599, 1599, 1599 };
+    table.zeroOrderCoefficients = { 1.0f, 1.0f, 1.0f, 1.0f };
+    table.nCoefficients         = 19188;
+    table.coefficients.assign( static_cast<std::size_t>( table.nCoefficients ), 0.0f );
+    return table;
+}
+
 class TestFourierBsdfTableResourceUpload : public ::testing::Test
 {
   protected:
@@ -88,6 +107,20 @@ TEST( TestFourierBsdfTableResource, descriptorCopiesTableMetadataAndDevicePointe
     EXPECT_EQ( static_cast<CUdeviceptr>( 0x4000U ), data.coefficientCounts );
     EXPECT_EQ( static_cast<CUdeviceptr>( 0x5000U ), data.zeroOrderCoefficients );
     EXPECT_EQ( static_cast<CUdeviceptr>( 0x6000U ), data.coefficients );
+}
+
+TEST( TestFourierBsdfTableResource, descriptorCopiesCeramicOrderMetadata )
+{
+    const FourierBsdfTable table{ ceramicOrderFourierTable() };
+
+    const FourierBsdfTableDeviceData data{ makeFourierBsdfTableDeviceData(
+        table, static_cast<CUdeviceptr>( 0x1000U ), static_cast<CUdeviceptr>( 0x2000U ), static_cast<CUdeviceptr>( 0x3000U ),
+        static_cast<CUdeviceptr>( 0x4000U ), static_cast<CUdeviceptr>( 0x5000U ), static_cast<CUdeviceptr>( 0x6000U ) ) };
+
+    EXPECT_EQ( 1599, data.maxOrder );
+    EXPECT_EQ( 3, data.nChannels );
+    EXPECT_EQ( 19188, data.nCoefficients );
+    EXPECT_EQ( 4U, data.gridSize );
 }
 
 TEST( TestFourierBsdfTableResource, defaultResourceHasNoDeviceDescriptor )

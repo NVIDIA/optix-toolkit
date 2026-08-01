@@ -95,13 +95,12 @@ void writeMinimalTable( const std::filesystem::path& fileName, int nCoefficients
     }
 }
 
-void writeCoatedCopperOrderShapeTable( const std::filesystem::path& fileName )
+void writeFourierOrderShapeTable( const std::filesystem::path& fileName, int maxOrder )
 {
-    constexpr int maxOrder{ 530 };
     constexpr int nMu{ 2 };
     constexpr int nChannels{ 3 };
     constexpr int gridSize{ nMu * nMu };
-    constexpr int nCoefficients{ gridSize * nChannels * maxOrder };
+    const int     nCoefficients{ gridSize * nChannels * maxOrder };
 
     std::ofstream output{ fileName, std::ios::binary };
     writeHeader( output );
@@ -120,6 +119,33 @@ void writeCoatedCopperOrderShapeTable( const std::filesystem::path& fileName )
     for( int i = 0; i < nCoefficients; ++i )
     {
         writeFloat( output, i % maxOrder == 0 ? 1.0f : 0.0f );
+    }
+}
+
+void writeMalformedLargeSpanTable( const std::filesystem::path& fileName )
+{
+    constexpr int maxOrder{ 1599 };
+    constexpr int nMu{ 2 };
+    constexpr int nChannels{ 3 };
+    constexpr int gridSize{ nMu * nMu };
+
+    std::ofstream output{ fileName, std::ios::binary };
+    writeHeader( output );
+    writeMetadata( output, 1, nMu, maxOrder, maxOrder, nChannels, 1 );
+    writeFloat( output, -1.0f );
+    writeFloat( output, 1.0f );
+    writeFloat( output, 0.0f );
+    writeFloat( output, 1.0f );
+    writeFloat( output, 0.0f );
+    writeFloat( output, 1.0f );
+    for( int entry = 0; entry < gridSize; ++entry )
+    {
+        writeInt32( output, 0 );
+        writeInt32( output, maxOrder );
+    }
+    for( int i = 0; i < maxOrder; ++i )
+    {
+        writeFloat( output, 1.0f );
     }
 }
 
@@ -164,7 +190,7 @@ TEST( TestFourierBsdfTable, parsesFixtureTableMetadataAndCoefficientLayout )
 TEST( TestFourierBsdfTable, parsesCoatedCopperOrderShape )
 {
     const std::filesystem::path fileName{ tempFourierTableFile( "coated-copper-order.bsdf" ) };
-    writeCoatedCopperOrderShapeTable( fileName );
+    writeFourierOrderShapeTable( fileName, 530 );
 
     const FourierBsdfTableLoadResult result{ loadFourierBsdfTable( fileName.string() ) };
 
@@ -176,6 +202,24 @@ TEST( TestFourierBsdfTable, parsesCoatedCopperOrderShape )
     EXPECT_EQ( 6360, table.nCoefficients );
     EXPECT_EQ( 4U, table.coefficientOffsets.size() );
     EXPECT_THAT( table.coefficientCounts, Each( 530 ) );
+    EXPECT_THAT( table.zeroOrderCoefficients, Each( 1.0f ) );
+}
+
+TEST( TestFourierBsdfTable, parsesCeramicOrderShape )
+{
+    const std::filesystem::path fileName{ tempFourierTableFile( "ceramic-order.bsdf" ) };
+    writeFourierOrderShapeTable( fileName, 1599 );
+
+    const FourierBsdfTableLoadResult result{ loadFourierBsdfTable( fileName.string() ) };
+
+    ASSERT_TRUE( result ) << result.diagnostic;
+    const FourierBsdfTable& table{ result.table };
+    EXPECT_EQ( 2, table.nMu );
+    EXPECT_EQ( 1599, table.maxOrder );
+    EXPECT_EQ( 3, table.nChannels );
+    EXPECT_EQ( 19188, table.nCoefficients );
+    EXPECT_EQ( 4U, table.coefficientOffsets.size() );
+    EXPECT_THAT( table.coefficientCounts, Each( 1599 ) );
     EXPECT_THAT( table.zeroOrderCoefficients, Each( 1.0f ) );
 }
 
@@ -235,6 +279,17 @@ TEST( TestFourierBsdfTable, rejectsMalformedCoefficientSpans )
 {
     const std::filesystem::path fileName{ tempFourierTableFile( "malformed-span.bsdf" ) };
     writeMinimalTable( fileName, 1, 3, 0, 1 );
+
+    const FourierBsdfTableLoadResult result{ loadFourierBsdfTable( fileName.string() ) };
+
+    EXPECT_EQ( FourierBsdfTableLoadStatus::MALFORMED, result.status );
+    EXPECT_THAT( result.diagnostic, HasSubstr( "coefficient span exceeds coefficient data" ) );
+}
+
+TEST( TestFourierBsdfTable, rejectsMalformedLargeCoefficientSpans )
+{
+    const std::filesystem::path fileName{ tempFourierTableFile( "malformed-large-span.bsdf" ) };
+    writeMalformedLargeSpanTable( fileName );
 
     const FourierBsdfTableLoadResult result{ loadFourierBsdfTable( fileName.string() ) };
 

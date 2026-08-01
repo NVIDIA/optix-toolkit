@@ -18,7 +18,7 @@ namespace demandPbrtScene {
 #define DEMAND_PBRT_SCENE_FOURIER_HD inline
 #endif
 
-constexpr int FOURIER_BSDF_EVAL_MAX_ORDER{ 530 };
+constexpr int FOURIER_BSDF_EVAL_MAX_ORDER{ 1599 };
 constexpr int FOURIER_BSDF_EVAL_MAX_CHANNELS{ 3 };
 
 enum class FourierBsdfTransportMode

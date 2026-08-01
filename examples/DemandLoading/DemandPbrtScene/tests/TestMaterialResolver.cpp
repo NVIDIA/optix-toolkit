@@ -991,14 +991,13 @@ void writeMinimalFourierBsdfTable( const std::filesystem::path& fileName )
     writeFourierFloat( output, 0.3f );
 }
 
-void writeCoatedCopperOrderFourierBsdfTable( const std::filesystem::path& fileName )
+void writeFourierBsdfOrderShapeTable( const std::filesystem::path& fileName, int maxOrder )
 {
     constexpr char scatfunHeader[8] = { 'S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01' };
-    constexpr int  maxOrder{ 530 };
     constexpr int  nMu{ 2 };
     constexpr int  nChannels{ 3 };
     constexpr int  gridSize{ nMu * nMu };
-    constexpr int  nCoefficients{ gridSize * nChannels * maxOrder };
+    const int      nCoefficients{ gridSize * nChannels * maxOrder };
     std::ofstream  output{ fileName, std::ios::binary };
     output.write( scatfunHeader, sizeof( scatfunHeader ) );
     writeFourierInt32( output, 1 );
@@ -1031,6 +1030,16 @@ void writeCoatedCopperOrderFourierBsdfTable( const std::filesystem::path& fileNa
     {
         writeFourierFloat( output, i % maxOrder == 0 ? 1.0f : 0.0f );
     }
+}
+
+void writeCoatedCopperOrderFourierBsdfTable( const std::filesystem::path& fileName )
+{
+    writeFourierBsdfOrderShapeTable( fileName, 530 );
+}
+
+void writeCeramicOrderFourierBsdfTable( const std::filesystem::path& fileName )
+{
+    writeFourierBsdfOrderShapeTable( fileName, 1599 );
 }
 
 void writeInvalidFourierBsdfTable( const std::filesystem::path& fileName )
@@ -2386,6 +2395,78 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesCoat
     EXPECT_EQ( fourierTableReadyState( proxyMaterialId, fourierResourceId ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_LT( proxyMaterialId, m_sync.fourierMaterialResources.size() );
     EXPECT_EQ( fourierResource, m_sync.fourierMaterialResources[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 1U, 0U );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesCeramicOrderFourierBsdfTable )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path bsdfFile{ sceneDirectory / "bsdfs" / "ceramic.bsdf" };
+    writeCeramicOrderFourierBsdfTable( bsdfFile );
+    ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
+
+    m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
+    m_options.useMdlMaterials = true;
+    usePbrtFourierMaterialWithBsdfFile( m_geom, "bsdfs/ceramic.bsdf" );
+    const uint_t                  proxyGeomId{ 1111 };
+    const uint_t                  proxyMaterialId{ 4444U };
+    const uint_t                  fourierSbtOffset{ +HitGroupIndex::REALIZED_MATERIAL_START };
+    const uint_t                  fourierResourceId{ 58U };
+    const FourierMaterialResource fourierResource{
+        makeFourierMaterialResource( fourierResourceId, static_cast<CUdeviceptr>( 0x87650000U ) ) };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, realizeFourierMaterialResource( _, _ ) )
+        .WillOnce( DoAll( WithArg<1>( []( const FourierBsdfTable& table ) {
+                              EXPECT_EQ( 2, table.nMu );
+                              EXPECT_EQ( 1599, table.maxOrder );
+                              EXPECT_EQ( 3, table.nChannels );
+                              EXPECT_EQ( 19188, table.nCoefficients );
+                          } ),
+                          Return( fourierResource ) ) );
+    EXPECT_CALL( *m_programGroups, getFourierMaterialSbtOffset( _ ) ).WillOnce( Return( fourierSbtOffset ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( fourierSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( fourierTableReadyState( proxyMaterialId, fourierResourceId ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_LT( proxyMaterialId, m_sync.fourierMaterialResources.size() );
+    EXPECT_EQ( fourierResource, m_sync.fourierMaterialResources[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 1U, 0U );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeKeepsFourierResourceFailureOnFallbackWithoutCompile )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path bsdfFile{ sceneDirectory / "bsdfs" / "ceramic.bsdf" };
+    writeCeramicOrderFourierBsdfTable( bsdfFile );
+    ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
+
+    m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
+    m_options.useMdlMaterials = true;
+    usePbrtFourierMaterialWithBsdfFile( m_geom, "bsdfs/ceramic.bsdf" );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, realizeFourierMaterialResource( _, _ ) )
+        .WillOnce( Throw( std::runtime_error( "resource upload failed" ) ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
     expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 1U, 0U );
 }
 
