@@ -11,6 +11,7 @@
 #include <DemandPbrtScene/Testing/ParamsPrinters.h>
 
 #include <DemandPbrtScene/DemandTextureCache.h>
+#include <DemandPbrtScene/FourierBsdfTable.h>
 #include <DemandPbrtScene/FrameStopwatch.h>
 #include <DemandPbrtScene/MaterialAdapters.h>
 #include <DemandPbrtScene/Options.h>
@@ -988,6 +989,48 @@ void writeMinimalFourierBsdfTable( const std::filesystem::path& fileName )
     writeFourierFloat( output, 0.1f );
     writeFourierFloat( output, 0.2f );
     writeFourierFloat( output, 0.3f );
+}
+
+void writeCoatedCopperOrderFourierBsdfTable( const std::filesystem::path& fileName )
+{
+    constexpr char scatfunHeader[8] = { 'S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01' };
+    constexpr int  maxOrder{ 530 };
+    constexpr int  nMu{ 2 };
+    constexpr int  nChannels{ 3 };
+    constexpr int  gridSize{ nMu * nMu };
+    constexpr int  nCoefficients{ gridSize * nChannels * maxOrder };
+    std::ofstream  output{ fileName, std::ios::binary };
+    output.write( scatfunHeader, sizeof( scatfunHeader ) );
+    writeFourierInt32( output, 1 );
+    writeFourierInt32( output, nMu );
+    writeFourierInt32( output, nCoefficients );
+    writeFourierInt32( output, maxOrder );
+    writeFourierInt32( output, nChannels );
+    writeFourierInt32( output, 1 );
+    for( int i = 0; i < 3; ++i )
+    {
+        writeFourierInt32( output, 0 );
+    }
+    writeFourierFloat( output, 1.0f );
+    for( int i = 0; i < 4; ++i )
+    {
+        writeFourierInt32( output, 0 );
+    }
+    writeFourierFloat( output, -1.0f );
+    writeFourierFloat( output, 1.0f );
+    writeFourierFloat( output, 0.0f );
+    writeFourierFloat( output, 1.0f );
+    writeFourierFloat( output, 0.0f );
+    writeFourierFloat( output, 1.0f );
+    for( int entry = 0; entry < gridSize; ++entry )
+    {
+        writeFourierInt32( output, entry * nChannels * maxOrder );
+        writeFourierInt32( output, maxOrder );
+    }
+    for( int i = 0; i < nCoefficients; ++i )
+    {
+        writeFourierFloat( output, i % maxOrder == 0 ? 1.0f : 0.0f );
+    }
 }
 
 void writeInvalidFourierBsdfTable( const std::filesystem::path& fileName )
@@ -2285,6 +2328,49 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesFour
         makeFourierMaterialResource( fourierResourceId, static_cast<CUdeviceptr>( 0x12340000U ) ) };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     EXPECT_CALL( *m_programGroups, realizeFourierMaterialResource( _, _ ) ).WillOnce( Return( fourierResource ) );
+    EXPECT_CALL( *m_programGroups, getFourierMaterialSbtOffset( _ ) ).WillOnce( Return( fourierSbtOffset ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( fourierSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( fourierTableReadyState( proxyMaterialId, fourierResourceId ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_LT( proxyMaterialId, m_sync.fourierMaterialResources.size() );
+    EXPECT_EQ( fourierResource, m_sync.fourierMaterialResources[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 1U, 0U );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesCoatedCopperOrderFourierBsdfTable )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path bsdfFile{ sceneDirectory / "bsdfs" / "coated_copper.bsdf" };
+    writeCoatedCopperOrderFourierBsdfTable( bsdfFile );
+    ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
+
+    m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
+    m_options.useMdlMaterials = true;
+    usePbrtFourierMaterialWithBsdfFile( m_geom, "bsdfs/coated_copper.bsdf" );
+    const uint_t                  proxyGeomId{ 1111 };
+    const uint_t                  proxyMaterialId{ 4444U };
+    const uint_t                  fourierSbtOffset{ +HitGroupIndex::REALIZED_MATERIAL_START };
+    const uint_t                  fourierResourceId{ 57U };
+    const FourierMaterialResource fourierResource{
+        makeFourierMaterialResource( fourierResourceId, static_cast<CUdeviceptr>( 0x56780000U ) ) };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, realizeFourierMaterialResource( _, _ ) )
+        .WillOnce( DoAll( WithArg<1>( []( const FourierBsdfTable& table ) {
+                              EXPECT_EQ( 2, table.nMu );
+                              EXPECT_EQ( 530, table.maxOrder );
+                              EXPECT_EQ( 3, table.nChannels );
+                              EXPECT_EQ( 6360, table.nCoefficients );
+                          } ),
+                          Return( fourierResource ) ) );
     EXPECT_CALL( *m_programGroups, getFourierMaterialSbtOffset( _ ) ).WillOnce( Return( fourierSbtOffset ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );

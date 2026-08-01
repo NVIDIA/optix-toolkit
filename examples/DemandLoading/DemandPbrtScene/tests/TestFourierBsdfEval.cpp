@@ -33,6 +33,37 @@ FourierBsdfTableDeviceData makeHostDescriptor( const FourierBsdfTable& table )
                                            hostPtr( table.zeroOrderCoefficients ), hostPtr( table.coefficients ) );
 }
 
+FourierBsdfTable makeCoatedCopperOrderShapeTable()
+{
+    FourierBsdfTable table{};
+    table.flags     = 1;
+    table.nMu       = 2;
+    table.maxOrder  = FOURIER_BSDF_EVAL_MAX_ORDER;
+    table.nChannels = 3;
+    table.nBases    = 1;
+    table.eta       = 1.0f;
+    table.mu        = { -1.0f, 1.0f };
+    table.cdf       = { 0.0f, 1.0f, 0.0f, 1.0f };
+
+    const std::size_t gridSize{ table.mu.size() * table.mu.size() };
+    table.nCoefficients =
+        static_cast<int>( gridSize * static_cast<std::size_t>( table.nChannels ) * static_cast<std::size_t>( table.maxOrder ) );
+    table.coefficientOffsets.resize( gridSize );
+    table.coefficientCounts.assign( gridSize, table.maxOrder );
+    table.zeroOrderCoefficients.assign( gridSize, 1.0f );
+    table.coefficients.assign( static_cast<std::size_t>( table.nCoefficients ), 0.0f );
+    for( std::size_t entry = 0; entry < gridSize; ++entry )
+    {
+        const int offset{ static_cast<int>( entry ) * table.nChannels * table.maxOrder };
+        table.coefficientOffsets[entry]                                             = offset;
+        table.coefficients[static_cast<std::size_t>( offset )]                      = 1.0f;
+        table.coefficients[static_cast<std::size_t>( offset + table.maxOrder - 1 )] = 0.01f;
+        table.coefficients[static_cast<std::size_t>( offset + table.maxOrder )]     = 0.8f;
+        table.coefficients[static_cast<std::size_t>( offset + 2 * table.maxOrder )] = 0.6f;
+    }
+    return table;
+}
+
 FourierMaterialResource makeFourierResource( const FourierBsdfTableDeviceData& table )
 {
     return makeFourierMaterialResource( 1U, reinterpret_cast<CUdeviceptr>( &table ) );
@@ -54,6 +85,11 @@ float relativeError( float value, float reference )
     return std::abs( ( value - reference ) / reference );
 }
 
+bool isFinite( const float3& value )
+{
+    return std::isfinite( value.x ) && std::isfinite( value.y ) && std::isfinite( value.z );
+}
+
 }  // namespace
 
 TEST( TestFourierBsdfEval, returnsBlackWhenResourceHasNoTable )
@@ -66,6 +102,36 @@ TEST( TestFourierBsdfEval, returnsBlackWhenResourceHasNoTable )
     EXPECT_FLOAT_EQ( 0.0f, result.value.y );
     EXPECT_FLOAT_EQ( 0.0f, result.value.z );
     EXPECT_FLOAT_EQ( 0.0f, result.pdf );
+}
+
+TEST( TestFourierBsdfEval, evaluatesAndSamplesCoatedCopperOrderShape )
+{
+    const FourierBsdfTable           tableStorage{ makeCoatedCopperOrderShapeTable() };
+    const FourierBsdfTableDeviceData table{ makeHostDescriptor( tableStorage ) };
+    const FourierMaterialResource    resource{ makeFourierResource( table ) };
+
+    FourierBsdfInterpolation interpolation{};
+    ASSERT_TRUE( fourierInterpolation( table, 1.0f, 1.0f, interpolation ) );
+    FourierBsdfCoefficientScratch scratch{};
+    int                           order{};
+    ASSERT_TRUE( fourierAccumulateCoefficients( table, interpolation, scratch, order ) );
+    EXPECT_EQ( 530, order );
+    EXPECT_FLOAT_EQ( 0.01f, scratch.coefficients[529] );
+
+    const FourierBsdfEvalResult eval{ evaluateFourierBsdf( resource, make_float3( 0.0f, 0.0f, 1.0f ),
+                                                           make_float3( 0.0f, 0.0f, -1.0f ), FourierBsdfTransportMode::IMPORTANCE ) };
+    EXPECT_TRUE( isFinite( eval.value ) );
+    EXPECT_GT( pbrtY( eval.value ), 0.0f );
+    EXPECT_GT( eval.pdf, 0.0f );
+
+    const FourierBsdfSampleResult sample{ sampleFourierBsdf( resource, make_float3( 0.0f, 0.0f, 1.0f ),
+                                                             make_float2( 0.25f, 0.75f ), FourierBsdfTransportMode::IMPORTANCE ) };
+    ASSERT_TRUE( sample.valid );
+    EXPECT_TRUE( isFinite( sample.value ) );
+    EXPECT_TRUE( isFinite( sample.direction ) );
+    EXPECT_TRUE( isFinite( sample.throughput ) );
+    EXPECT_GT( sample.pdf, 0.0f );
+    EXPECT_GT( pbrtY( sample.throughput ), 0.0f );
 }
 
 TEST( TestFourierBsdfEval, matchesPbrtRoughGoldEvaluateAndPdfSamples )

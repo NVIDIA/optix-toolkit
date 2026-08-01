@@ -95,6 +95,34 @@ void writeMinimalTable( const std::filesystem::path& fileName, int nCoefficients
     }
 }
 
+void writeCoatedCopperOrderShapeTable( const std::filesystem::path& fileName )
+{
+    constexpr int maxOrder{ 530 };
+    constexpr int nMu{ 2 };
+    constexpr int nChannels{ 3 };
+    constexpr int gridSize{ nMu * nMu };
+    constexpr int nCoefficients{ gridSize * nChannels * maxOrder };
+
+    std::ofstream output{ fileName, std::ios::binary };
+    writeHeader( output );
+    writeMetadata( output, 1, nMu, nCoefficients, maxOrder, nChannels, 1 );
+    writeFloat( output, -1.0f );
+    writeFloat( output, 1.0f );
+    writeFloat( output, 0.0f );
+    writeFloat( output, 1.0f );
+    writeFloat( output, 0.0f );
+    writeFloat( output, 1.0f );
+    for( int entry = 0; entry < gridSize; ++entry )
+    {
+        writeInt32( output, entry * nChannels * maxOrder );
+        writeInt32( output, maxOrder );
+    }
+    for( int i = 0; i < nCoefficients; ++i )
+    {
+        writeFloat( output, i % maxOrder == 0 ? 1.0f : 0.0f );
+    }
+}
+
 }  // namespace
 
 TEST( TestFourierBsdfTable, parsesFixtureTableMetadataAndCoefficientLayout )
@@ -131,6 +159,24 @@ TEST( TestFourierBsdfTable, parsesFixtureTableMetadataAndCoefficientLayout )
     EXPECT_EQ( 0, table.coefficientOffsets[firstNonEmptyIndex] );
     EXPECT_EQ( 1, table.coefficientCounts[firstNonEmptyIndex] );
     EXPECT_FLOAT_EQ( table.coefficients[0], table.zeroOrderCoefficients[firstNonEmptyIndex] );
+}
+
+TEST( TestFourierBsdfTable, parsesCoatedCopperOrderShape )
+{
+    const std::filesystem::path fileName{ tempFourierTableFile( "coated-copper-order.bsdf" ) };
+    writeCoatedCopperOrderShapeTable( fileName );
+
+    const FourierBsdfTableLoadResult result{ loadFourierBsdfTable( fileName.string() ) };
+
+    ASSERT_TRUE( result ) << result.diagnostic;
+    const FourierBsdfTable& table{ result.table };
+    EXPECT_EQ( 2, table.nMu );
+    EXPECT_EQ( 530, table.maxOrder );
+    EXPECT_EQ( 3, table.nChannels );
+    EXPECT_EQ( 6360, table.nCoefficients );
+    EXPECT_EQ( 4U, table.coefficientOffsets.size() );
+    EXPECT_THAT( table.coefficientCounts, Each( 530 ) );
+    EXPECT_THAT( table.zeroOrderCoefficients, Each( 1.0f ) );
 }
 
 TEST( TestFourierBsdfTable, reportsMissingTable )
