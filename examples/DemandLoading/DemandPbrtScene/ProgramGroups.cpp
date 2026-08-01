@@ -1174,6 +1174,7 @@ class PbrtProgramGroups : public ProgramGroups
 #ifdef OTK_USE_MDL
     uint_t            getFallbackMaterialSbtOffset( const GeometryInstance& instance ) override;
     uint_t            getMdlMaterialSbtOffset( const GeometryInstance& instance ) override;
+    uint_t            getFourierMaterialSbtOffset( const GeometryInstance& instance ) override;
     MdlMaterialShader realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId ) override;
     FourierMaterialResource realizeFourierMaterialResource( const GeometryInstance& instance, const FourierBsdfTable& table ) override;
 #endif
@@ -1190,6 +1191,7 @@ class PbrtProgramGroups : public ProgramGroups
     void              requestMdlMaterialBuild( const MaterialGroup& group, uint_t shaderKeyId );
     bool              installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlMaterialShader& sourceShader );
     uint_t            getTriangleMdlMaterialSbtOffset( MaterialFlags flags );
+    uint_t            getTriangleFourierMaterialSbtOffset();
     MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, uint_t shaderKeyId, MdlMaterialShader sourceShader );
     MdlMaterialShader realizeTriangleMdlMaterialShader( const MaterialGroup& group, uint_t shaderKeyId );
     uint_t            getFourierMaterialResourceId( const MdlMaterialInstanceKey& materialKey );
@@ -1207,6 +1209,7 @@ class PbrtProgramGroups : public ProgramGroups
 #ifdef OTK_USE_MDL
     OptixModule                            m_mdlMaterialClosestHitModule{};
     std::shared_ptr<MdlOptixModuleCache>    m_mdlModuleCache{ std::make_shared<MdlOptixModuleCache>() };
+    OptixModule                            m_fourierModule{};
     std::unique_ptr<MdlMaterialBuildWorker> m_mdlMaterialBuildWorker;
 #endif
     OptixModule                    m_triangleModule{};
@@ -1222,6 +1225,7 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t                              m_programLayoutVersion{};
     size_t                              m_triangleMdlMaterialHitGroupIndex{};
     size_t                              m_triangleMdlAlphaMapHitGroupIndex{};
+    size_t                              m_triangleFourierMaterialHitGroupIndex{};
     uint_t                              m_nextFourierMaterialResourceId{ INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID + 1U };
 #endif
     size_t                              m_triangleHitGroupIndex{};
@@ -1309,6 +1313,10 @@ void PbrtProgramGroups::cleanup()
     if( m_mdlMaterialClosestHitModule )
     {
         OTK_ERROR_CHECK( optixModuleDestroy( m_mdlMaterialClosestHitModule ) );
+    }
+    if( m_fourierModule )
+    {
+        OTK_ERROR_CHECK( optixModuleDestroy( m_fourierModule ) );
     }
 #endif
     if( m_phongModule )
@@ -1557,6 +1565,31 @@ void PbrtProgramGroups::ensurePhongModule()
 }
 
 #ifdef OTK_USE_MDL
+uint_t PbrtProgramGroups::getTriangleFourierMaterialSbtOffset()
+{
+    if( m_triangleFourierMaterialHitGroupIndex == 0 )
+    {
+        if( m_fourierModule == nullptr )
+        {
+            m_fourierModule = createModule( FourierMaterialCudaText(), FourierMaterialCudaSize );
+        }
+
+        OptixDeviceContext       context = m_renderer->getDeviceContext();
+        OptixProgramGroupOptions options{};
+        OptixProgramGroup        group{};
+        OptixProgramGroupDesc    groupDesc[1]{};
+        otk::ProgramGroupDescBuilder( groupDesc, m_sceneModule )  //
+            .hitGroupISCH( m_triangleModule, nullptr,             //
+                           m_fourierModule, "__closesthit__fourierMesh" );
+        OTK_ERROR_CHECK_LOG( optixProgramGroupCreate( context, groupDesc, 1, &options, LOG, &LOG_SIZE, &group ) );
+        m_triangleFourierMaterialHitGroupIndex = m_programGroups.size() - +ProgramGroupIndex::HITGROUP_START;
+        m_programGroups.push_back( group );
+        markProgramLayoutChanged();
+        m_renderer->setProgramGroups( m_programGroups );
+    }
+    return m_triangleFourierMaterialHitGroupIndex;
+}
+
 void PbrtProgramGroups::requestMdlMaterialBuild( const MaterialGroup& group, uint_t shaderKeyId )
 {
     if( m_options.mdlSynchronousCompilation )
@@ -1691,6 +1724,15 @@ uint_t PbrtProgramGroups::getMdlMaterialSbtOffset( const GeometryInstance& insta
         return getTriangleMdlMaterialSbtOffset( instance.groups[0].material.flags );
     }
     throw std::runtime_error( "MDL materials are only implemented for triangle primitives" );
+}
+
+uint_t PbrtProgramGroups::getFourierMaterialSbtOffset( const GeometryInstance& instance )
+{
+    if( instance.primitive == GeometryPrimitive::TRIANGLE )
+    {
+        return getTriangleFourierMaterialSbtOffset();
+    }
+    throw std::runtime_error( "Fourier materials are only implemented for triangle primitives" );
 }
 
 MdlMaterialShader PbrtProgramGroups::realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId )

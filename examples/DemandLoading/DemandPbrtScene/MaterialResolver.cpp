@@ -1025,7 +1025,7 @@ MaterialState PbrtMaterialResolver::resolveFourierMaterialState( SceneSyncState&
         const FourierMaterialResource resource{ m_programGroups->realizeFourierMaterialResource( instance, table.table ) };
         grow( sync.fourierMaterialResources, materialId + 1 );
         sync.fourierMaterialResources[materialId] = resource;
-        instance.instance.sbtOffset               = m_programGroups->getFallbackMaterialSbtOffset( instance );
+        instance.instance.sbtOffset               = m_programGroups->getFourierMaterialSbtOffset( instance );
         return fourierTableReadyState( materialId, resource.resourceId );
     }
     catch( const std::exception& e )

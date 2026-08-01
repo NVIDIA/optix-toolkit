@@ -44,6 +44,7 @@ class ProgramGroups
 #ifdef OTK_USE_MDL
     virtual uint_t            getFallbackMaterialSbtOffset( const GeometryInstance& instance )                 = 0;
     virtual uint_t            getMdlMaterialSbtOffset( const GeometryInstance& instance )                      = 0;
+    virtual uint_t            getFourierMaterialSbtOffset( const GeometryInstance& instance )                  = 0;
     virtual MdlMaterialShader realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId ) = 0;
     virtual FourierMaterialResource realizeFourierMaterialResource( const GeometryInstance& instance,
                                                                     const FourierBsdfTable& table )            = 0;

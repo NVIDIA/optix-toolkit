@@ -336,7 +336,7 @@ inline MaterialFallbackReason defaultFallbackReason( MaterialBackend backend )
         case MaterialBackend::MDL_FAILED:
             return MaterialFallbackReason::MDL_FAILED;
         case MaterialBackend::FOURIER_TABLE_READY:
-            return MaterialFallbackReason::UNSUPPORTED;
+            return MaterialFallbackReason::NONE;
     }
     return MaterialFallbackReason::UNSUPPORTED;
 }
@@ -355,7 +355,7 @@ inline MaterialState makeMaterialState( uint_t                 materialId,
 
 inline bool usesFallbackShader( const MaterialState& state )
 {
-    return state.backend != MaterialBackend::MDL_READY;
+    return state.backend != MaterialBackend::MDL_READY && state.backend != MaterialBackend::FOURIER_TABLE_READY;
 }
 
 #ifdef OTK_USE_MDL

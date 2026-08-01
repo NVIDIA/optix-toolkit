@@ -86,3 +86,63 @@ TEST( TestFourierBsdfEval, matchesPbrtRoughGoldEvaluateAndPdfSamples )
     EXPECT_LT( relativeError( result.pdf, 2.438230f ), 0.001f );
     EXPECT_LT( relativeError( reverse.pdf, 2.503326f ), 0.001f );
 }
+
+TEST( TestFourierBsdfEval, matchesPbrtRoughGoldSample )
+{
+    const std::filesystem::path      fixture{ pbrtReferenceDir() / "bsdfs" / "roughgold_alpha_0.2.bsdf" };
+    const FourierBsdfTableLoadResult tableResult{ loadFourierBsdfTable( fixture.string() ) };
+    ASSERT_TRUE( tableResult ) << tableResult.diagnostic;
+
+    const FourierBsdfTableDeviceData table{ makeHostDescriptor( tableResult.table ) };
+    const FourierMaterialResource    resource{ makeFourierResource( table ) };
+    const float3                     outgoing{ normalize( make_float3( -0.5f, -0.5f, 0.8f ) ) };
+
+    const FourierBsdfSampleResult sample{
+        sampleFourierBsdf( resource, outgoing, make_float2( 0.1f, 0.8f ), FourierBsdfTransportMode::IMPORTANCE ) };
+
+    ASSERT_TRUE( sample.valid );
+    EXPECT_LT( relativeError( pbrtY( sample.value ), 2.596391f ), 0.001f );
+    EXPECT_LT( relativeError( sample.pdf, 1.855472f ), 0.001f );
+    EXPECT_LT( relativeError( sample.direction.x, 0.539052f ), 0.001f );
+    EXPECT_LT( relativeError( sample.direction.y, 0.617347f ), 0.001f );
+    EXPECT_LT( relativeError( sample.direction.z, 0.572980f ), 0.001f );
+    EXPECT_NEAR( pbrtY( sample.value ) * std::abs( sample.direction.z ) / sample.pdf, pbrtY( sample.throughput ), 1.0e-5f );
+}
+
+TEST( TestFourierBsdfEval, evaluatesPbrtRoughGoldAtNormalIncidence )
+{
+    const std::filesystem::path      fixture{ pbrtReferenceDir() / "bsdfs" / "roughgold_alpha_0.2.bsdf" };
+    const FourierBsdfTableLoadResult tableResult{ loadFourierBsdfTable( fixture.string() ) };
+    ASSERT_TRUE( tableResult ) << tableResult.diagnostic;
+
+    const FourierBsdfTableDeviceData table{ makeHostDescriptor( tableResult.table ) };
+    const FourierMaterialResource    resource{ makeFourierResource( table ) };
+
+    const FourierBsdfEvalResult result{ evaluateFourierBsdf( resource, make_float3( 0.0f, 0.0f, 1.0f ),
+                                                             make_float3( 0.0f, 0.0f, 1.0f ), FourierBsdfTransportMode::RADIANCE ) };
+
+    EXPECT_GT( pbrtY( result.value ), 0.0f );
+    EXPECT_GT( result.pdf, 0.0f );
+}
+
+TEST( TestFourierBsdfEval, samplesPbrtRoughGoldAtNormalIncidence )
+{
+    const std::filesystem::path      fixture{ pbrtReferenceDir() / "bsdfs" / "roughgold_alpha_0.2.bsdf" };
+    const FourierBsdfTableLoadResult tableResult{ loadFourierBsdfTable( fixture.string() ) };
+    ASSERT_TRUE( tableResult ) << tableResult.diagnostic;
+
+    const FourierBsdfTableDeviceData table{ makeHostDescriptor( tableResult.table ) };
+    const FourierMaterialResource    resource{ makeFourierResource( table ) };
+    const float3                     outgoing{ make_float3( 0.0f, 0.0f, 1.0f ) };
+
+    const FourierBsdfSampleResult sample{
+        sampleFourierBsdf( resource, outgoing, make_float2( 0.1f, 0.8f ), FourierBsdfTransportMode::RADIANCE ) };
+
+    ASSERT_TRUE( sample.valid );
+    EXPECT_GT( sample.pdf, 0.0f );
+    EXPECT_GT( pbrtY( sample.throughput ), 0.0f );
+    EXPECT_NEAR( 1.0f,
+                 std::sqrt( sample.direction.x * sample.direction.x + sample.direction.y * sample.direction.y
+                            + sample.direction.z * sample.direction.z ),
+                 1.0e-5f );
+}

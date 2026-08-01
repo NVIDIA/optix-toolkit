@@ -111,15 +111,15 @@ TEST( TestFallbackShaderContract, mdlFailedDefaultsToFailedReason )
     EXPECT_TRUE( usesFallbackShader( state ) );
 }
 
-TEST( TestFallbackShaderContract, fourierTableReadyKeepsUnsupportedFallbackUntilGpuEvaluationExists )
+TEST( TestFallbackShaderContract, fourierTableReadyDoesNotUseFallback )
 {
     const MaterialState state{ makeMaterialState( 42U, MaterialBackend::FOURIER_TABLE_READY, 77U ) };
 
     EXPECT_EQ( 42U, state.materialId );
     EXPECT_EQ( MaterialBackend::FOURIER_TABLE_READY, state.backend );
     EXPECT_EQ( 77U, state.shaderKey );
-    EXPECT_EQ( MaterialFallbackReason::UNSUPPORTED, state.fallbackReason );
-    EXPECT_TRUE( usesFallbackShader( state ) );
+    EXPECT_EQ( MaterialFallbackReason::NONE, state.fallbackReason );
+    EXPECT_FALSE( usesFallbackShader( state ) );
 }
 
 TEST( TestFallbackShaderContract, explicitReasonOverridesBackendDefault )

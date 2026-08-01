@@ -2010,12 +2010,13 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesFour
     usePbrtFourierMaterialWithBsdfFile( m_geom, bsdfFile.string() );
     const uint_t                  proxyGeomId{ 1111 };
     const uint_t                  proxyMaterialId{ 4444U };
+    const uint_t                  fourierSbtOffset{ +HitGroupIndex::REALIZED_MATERIAL_START };
     const uint_t                  fourierResourceId{ 55U };
     const FourierMaterialResource fourierResource{
         makeFourierMaterialResource( fourierResourceId, static_cast<CUdeviceptr>( 0x12340000U ) ) };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     EXPECT_CALL( *m_programGroups, realizeFourierMaterialResource( _, _ ) ).WillOnce( Return( fourierResource ) );
-    EXPECT_CALL( *m_programGroups, getFallbackMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    EXPECT_CALL( *m_programGroups, getFourierMaterialSbtOffset( _ ) ).WillOnce( Return( fourierSbtOffset ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
@@ -2024,6 +2025,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesFour
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
     EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( fourierSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( fourierTableReadyState( proxyMaterialId, fourierResourceId ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_LT( proxyMaterialId, m_sync.fourierMaterialResources.size() );
@@ -2043,12 +2046,13 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesName
     usePbrtNamedFourierMaterialWithBsdfFile( m_geom, "bsdfs/named-fourier.bsdf" );
     const uint_t                  proxyGeomId{ 1111 };
     const uint_t                  proxyMaterialId{ 4444U };
+    const uint_t                  fourierSbtOffset{ +HitGroupIndex::REALIZED_MATERIAL_START };
     const uint_t                  fourierResourceId{ 56U };
     const FourierMaterialResource fourierResource{
         makeFourierMaterialResource( fourierResourceId, static_cast<CUdeviceptr>( 0x56780000U ) ) };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     EXPECT_CALL( *m_programGroups, realizeFourierMaterialResource( _, _ ) ).WillOnce( Return( fourierResource ) );
-    EXPECT_CALL( *m_programGroups, getFallbackMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    EXPECT_CALL( *m_programGroups, getFourierMaterialSbtOffset( _ ) ).WillOnce( Return( fourierSbtOffset ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
@@ -2057,6 +2061,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesName
     const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
     EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( fourierSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( fourierTableReadyState( proxyMaterialId, fourierResourceId ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_LT( proxyMaterialId, m_sync.fourierMaterialResources.size() );
