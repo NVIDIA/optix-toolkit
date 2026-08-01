@@ -976,6 +976,11 @@ void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const
         {
             result.push_back( parameter );
         }
+        else if( std::string{ spec.name } == "opacity" && findConstantFloat( params, spec.name, parameter.value ) )
+        {
+            parameter.red = parameter.green = parameter.blue = parameter.value;
+            result.push_back( parameter );
+        }
         return;
     }
 
@@ -1681,7 +1686,7 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     appendMaterialParameter( model, "float", "vroughness", "-1.0" );
     appendMaterialParameter( model, "float", "index", "1.5" );
     appendMaterialParameter( model, "float", "alpha", "1.0" );
-    appendMaterialParameter( model, "float", "opacity", "1.0" );
+    appendMaterialParameter( model, "color", "opacity", "color(1.0, 1.0, 1.0)" );
 
     const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
     const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
@@ -1708,18 +1713,17 @@ MdlMaterialModel makeUberMaterialModel( const otk::pbrt::PbrtMaterial& material,
     appendRoughnessGapComment( model );
     model.comments.push_back( "pbrt material approximation: PBRT uber lobes use an MDL color-normalized mix" );
     model.comments.push_back(
-        "pbrt material approximation: opacity weights BSDF lobes and adds transparent transmission; alpha remains "
+        "pbrt material approximation: spectrum opacity weights BSDF lobes and adds transparent transmission; alpha "
+        "remains "
         "cutout" );
     model.helperDefinitions =
         "float pbrt_uber_resolved_roughness(float roughness, float axis_roughness) = "
         "axis_roughness >= 0.0 ? axis_roughness : roughness;\n\n"
-        "float pbrt_uber_clamped_opacity(float opacity) = ::math::clamp(opacity, 0.0, 1.0);\n\n"
-        "color pbrt_uber_opacity_weight(float opacity) =\n"
-        "    color(pbrt_uber_clamped_opacity(opacity), pbrt_uber_clamped_opacity(opacity), "
-        "pbrt_uber_clamped_opacity(opacity));\n\n"
-        "color pbrt_uber_transparency_weight(float opacity) =\n"
-        "    color(1.0 - pbrt_uber_clamped_opacity(opacity), 1.0 - pbrt_uber_clamped_opacity(opacity), "
-        "1.0 - pbrt_uber_clamped_opacity(opacity));\n\n"
+        "color pbrt_uber_clamped_opacity(color opacity) = "
+        "::math::clamp(opacity, color(0.0, 0.0, 0.0), color(1.0, 1.0, 1.0));\n\n"
+        "color pbrt_uber_opacity_weight(color opacity) = pbrt_uber_clamped_opacity(opacity);\n\n"
+        "color pbrt_uber_transparency_weight(color opacity) = "
+        "color(1.0, 1.0, 1.0) - pbrt_uber_clamped_opacity(opacity);\n\n"
         + model.helperDefinitions;
     model.body = std::string{ "    ior: color(index, index, index),\n"
                               "    surface: material_surface(\n"
@@ -1913,7 +1917,7 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
     appendMaterialParameter( model, "color", "reflect", "color(0.5, 0.5, 0.5)" );
     appendMaterialParameter( model, "color", "transmit", "color(0.5, 0.5, 0.5)" );
     appendMaterialParameter( model, "float", "roughness", "0.1" );
-    appendMaterialParameter( model, "float", "opacity", "1.0" );
+    appendMaterialParameter( model, "color", "opacity", "color(1.0, 1.0, 1.0)" );
 
     const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
     const std::string ks{ textureGraph.materialColorExpression( material.params, "Ks", "color", "Ks" ) };
@@ -1936,34 +1940,49 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
     appendRoughnessGapComment( model );
     model.comments.push_back(
         "pbrt material approximation: diffuse/glossy reflection and transmission use an MDL color-normalized mix" );
+    model.comments.push_back(
+        "pbrt material approximation: spectrum opacity weights generated translucent lobes and adds transparent "
+        "transmission" );
+    model.helperDefinitions =
+        "color pbrt_translucent_clamped_opacity(color opacity) = "
+        "::math::clamp(opacity, color(0.0, 0.0, 0.0), color(1.0, 1.0, 1.0));\n\n"
+        "color pbrt_translucent_opacity_weight(color opacity) = pbrt_translucent_clamped_opacity(opacity);\n\n"
+        "color pbrt_translucent_transparency_weight(color opacity) = "
+        "color(1.0, 1.0, 1.0) - pbrt_translucent_clamped_opacity(opacity);\n\n"
+        + model.helperDefinitions;
     model.body =
         "    ior: color(1.5, 1.5, 1.5),\n"
         "    surface: material_surface(\n"
         "        scattering: ::df::color_normalized_mix(\n"
         "            components: ::df::color_bsdf_component[](\n"
         "                ::df::color_bsdf_component(\n"
-        "                    weight: " + kd + " * " + reflect + ",\n"
+        "                    weight: pbrt_translucent_opacity_weight(opacity) * " + kd + " * " + reflect + ",\n"
         "                    component: ::df::diffuse_reflection_bsdf(\n"
         "                        tint: color(1.0, 1.0, 1.0))),\n"
         "                ::df::color_bsdf_component(\n"
-        "                    weight: " + kd + " * " + transmit + ",\n"
+        "                    weight: pbrt_translucent_opacity_weight(opacity) * " + kd + " * " + transmit + ",\n"
         "                    component: ::df::diffuse_transmission_bsdf(\n"
         "                        tint: color(1.0, 1.0, 1.0))),\n"
         "                ::df::color_bsdf_component(\n"
-        "                    weight: " + ks + " * " + reflect + ",\n"
+        "                    weight: pbrt_translucent_opacity_weight(opacity) * " + ks + " * " + reflect + ",\n"
         "                    component: ::df::simple_glossy_bsdf(\n"
         "                        roughness_u: roughness,\n"
         "                        roughness_v: roughness,\n"
         "                        tint: color(1.0, 1.0, 1.0),\n"
         "                        mode: ::df::scatter_reflect)),\n"
         "                ::df::color_bsdf_component(\n"
-        "                    weight: " + ks + " * " + transmit + ",\n"
+        "                    weight: pbrt_translucent_opacity_weight(opacity) * " + ks + " * " + transmit + ",\n"
         "                    component: ::df::simple_glossy_bsdf(\n"
         "                        roughness_u: roughness,\n"
         "                        roughness_v: roughness,\n"
         "                        tint: color(1.0, 1.0, 1.0),\n"
-        "                        mode: ::df::scatter_transmit))))),\n"
-        + materialGeometryExpression( "opacity", bumpmap );
+        "                        mode: ::df::scatter_transmit)),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: pbrt_translucent_transparency_weight(opacity),\n"
+        "                    component: ::df::specular_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0),\n"
+        "                        mode: ::df::scatter_transmit)))))"
+        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
     return model;
 }
 
@@ -2244,7 +2263,7 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
         { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
         { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "index" },
-        { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::FLOAT, "opacity" },
+        { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::COLOR, "opacity" },
     };
     static const BoundParameterSpec namedUberParams[] = {
         { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
@@ -2274,7 +2293,7 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
     static const BoundParameterSpec translucentParams[] = {
         { MdlBoundParameterType::COLOR, "Kd" },        { MdlBoundParameterType::COLOR, "Ks" },
         { MdlBoundParameterType::COLOR, "reflect" },   { MdlBoundParameterType::COLOR, "transmit" },
-        { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::FLOAT, "opacity" },
+        { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::COLOR, "opacity" },
     };
     static const BoundParameterSpec mixParams[] = {
         { MdlBoundParameterType::FLOAT, "amount" },

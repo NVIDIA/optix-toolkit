@@ -306,6 +306,27 @@ otk::pbrt::PbrtMaterial uberMaterial( const BoundMdlColor& kd,
                                       const BoundMdlColor& kt,
                                       float                roughness,
                                       float                alpha,
+                                      const BoundMdlColor& opacity )
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "uber";
+    addRgbSpectrum( material.params, "Kd", kd.red, kd.green, kd.blue );
+    addRgbSpectrum( material.params, "Ks", ks.red, ks.green, ks.blue );
+    addRgbSpectrum( material.params, "Kr", kr.red, kr.green, kr.blue );
+    addRgbSpectrum( material.params, "Kt", kt.red, kt.green, kt.blue );
+    addFloat( material.params, "roughness", roughness );
+    addFloat( material.params, "index", 1.4f );
+    addFloat( material.params, "alpha", alpha );
+    addRgbSpectrum( material.params, "opacity", opacity.red, opacity.green, opacity.blue );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial uberMaterial( const BoundMdlColor& kd,
+                                      const BoundMdlColor& ks,
+                                      const BoundMdlColor& kr,
+                                      const BoundMdlColor& kt,
+                                      float                roughness,
+                                      float                alpha,
                                       float                opacity )
 {
     otk::pbrt::PbrtMaterial material;
@@ -401,6 +422,24 @@ otk::pbrt::PbrtMaterial metalMaterial( const BoundMdlColor& eta, const BoundMdlC
 otk::pbrt::PbrtMaterial metalMaterial()
 {
     return metalMaterial( BoundMdlColor{ 0.2f, 0.3f, 0.45f }, BoundMdlColor{ 2.2f, 2.8f, 3.4f }, 0.18f, 0.16f, 0.2f );
+}
+
+otk::pbrt::PbrtMaterial translucentMaterial( const BoundMdlColor& kd,
+                                             const BoundMdlColor& ks,
+                                             const BoundMdlColor& reflect,
+                                             const BoundMdlColor& transmit,
+                                             float                roughness,
+                                             const BoundMdlColor& opacity )
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "translucent";
+    addRgbSpectrum( material.params, "Kd", kd.red, kd.green, kd.blue );
+    addRgbSpectrum( material.params, "Ks", ks.red, ks.green, ks.blue );
+    addRgbSpectrum( material.params, "reflect", reflect.red, reflect.green, reflect.blue );
+    addRgbSpectrum( material.params, "transmit", transmit.red, transmit.green, transmit.blue );
+    addFloat( material.params, "roughness", roughness );
+    addRgbSpectrum( material.params, "opacity", opacity.red, opacity.green, opacity.blue );
+    return material;
 }
 
 otk::pbrt::PbrtMaterial translucentMaterial( const BoundMdlColor& kd,
@@ -1246,19 +1285,24 @@ TEST( TestMdlSdk, compilesGeneratedUberBsdfCallablesWithBoundDiffuseAndGlossyInp
     const BoundMdlColor secondKs{ 0.1f, 0.2f, 0.3f };
     const BoundMdlColor secondKr{ 0.4f, 0.2f, 0.1f };
     const BoundMdlColor secondKt{ 0.3f, 0.1f, 0.2f };
+    const BoundMdlColor spectrumOpacity{ 0.2f, 0.5f, 0.8f };
     const otk::pbrt::PbrtMaterial firstMaterial{ uberMaterial( firstKd, firstKs, firstKr, firstKt, 0.25f, 0.8f, 0.7f ) };
     const otk::pbrt::PbrtMaterial secondMaterial{ uberMaterial( secondKd, secondKs, secondKr, secondKt, 0.25f, 0.8f, 0.7f ) };
     const otk::pbrt::PbrtMaterial roughMaterial{ uberMaterial( firstKd, firstKs, firstKr, firstKt, 0.45f, 0.8f, 0.7f ) };
     const otk::pbrt::PbrtMaterial opacityMaterial{ uberMaterial( firstKd, firstKs, firstKr, firstKt, 0.25f, 0.8f, 0.35f ) };
+    const otk::pbrt::PbrtMaterial spectrumOpacityMaterial{
+        uberMaterial( firstKd, firstKs, firstKr, firstKt, 0.25f, 0.8f, spectrumOpacity ) };
     const otk::pbrt::PbrtMaterial alphaMaterial{ uberMaterial( firstKd, firstKs, firstKr, firstKt, 0.25f, 0.35f, 0.7f ) };
     const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
     const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
     const demandPbrtScene::MdlShaderKey roughKey{ demandPbrtScene::makeMdlShaderKey( roughMaterial ) };
     const demandPbrtScene::MdlShaderKey opacityKey{ demandPbrtScene::makeMdlShaderKey( opacityMaterial ) };
+    const demandPbrtScene::MdlShaderKey spectrumOpacityKey{ demandPbrtScene::makeMdlShaderKey( spectrumOpacityMaterial ) };
     const demandPbrtScene::MdlShaderKey alphaKey{ demandPbrtScene::makeMdlShaderKey( alphaMaterial ) };
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( roughKey ) );
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( opacityKey ) );
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( spectrumOpacityKey ) );
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( alphaKey ) );
 
     demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
@@ -1269,6 +1313,7 @@ TEST( TestMdlSdk, compilesGeneratedUberBsdfCallablesWithBoundDiffuseAndGlossyInp
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::scatter_transmit" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "component: ::df::diffuse_reflection_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_resolved_roughness" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color opacity = color(1.0, 1.0, 1.0)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_opacity_weight" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_uber_transparency_weight" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha" ) );
@@ -1301,6 +1346,8 @@ TEST( TestMdlSdk, compilesGeneratedUberBsdfCallablesWithBoundDiffuseAndGlossyInp
             demandPbrtScene::makeMdlBoundMaterialParameters( roughMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> opacityParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( opacityMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> spectrumOpacityParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( spectrumOpacityMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> alphaParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( alphaMaterial ) };
         mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
@@ -1318,6 +1365,10 @@ TEST( TestMdlSdk, compilesGeneratedUberBsdfCallablesWithBoundDiffuseAndGlossyInp
         mi::base::Handle<mi::neuraylib::ICompiled_material> opacityCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, opacityParameters ) );
         ASSERT_TRUE( opacityCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> spectrumOpacityCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, spectrumOpacityParameters ) );
+        ASSERT_TRUE( spectrumOpacityCompiledMaterial.is_valid_interface() );
 
         mi::base::Handle<mi::neuraylib::ICompiled_material> alphaCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, alphaParameters ) );
@@ -1340,6 +1391,9 @@ TEST( TestMdlSdk, compilesGeneratedUberBsdfCallablesWithBoundDiffuseAndGlossyInp
         const demandPbrtScene::MdlBsdfCallablePtx opacityBsdf{
             demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), opacityCompiledMaterial.get(),
                                                            context.get(), "surface.scattering", "pbrt_uber_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx spectrumOpacityBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
+            session.neuray(), transaction.get(), spectrumOpacityCompiledMaterial.get(), context.get(),
+            "surface.scattering", "pbrt_uber_bsdf" ) };
 
         EXPECT_EQ( "pbrt_uber_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
         EXPECT_EQ( "pbrt_uber_bsdf_sample", firstBsdf.sampleFunctionName ) << sourceDescription;
@@ -1352,14 +1406,17 @@ TEST( TestMdlSdk, compilesGeneratedUberBsdfCallablesWithBoundDiffuseAndGlossyInp
         EXPECT_FALSE( secondBsdf.ptx.empty() );
         EXPECT_FALSE( roughBsdf.ptx.empty() );
         EXPECT_FALSE( opacityBsdf.ptx.empty() );
+        EXPECT_FALSE( spectrumOpacityBsdf.ptx.empty() );
         EXPECT_NE( firstBsdf.ptx, secondBsdf.ptx );
         EXPECT_NE( firstBsdf.ptx, roughBsdf.ptx );
         EXPECT_NE( firstBsdf.ptx, opacityBsdf.ptx );
+        EXPECT_NE( firstBsdf.ptx, spectrumOpacityBsdf.ptx );
 
         firstCompiledMaterial.reset();
         secondCompiledMaterial.reset();
         roughCompiledMaterial.reset();
         opacityCompiledMaterial.reset();
+        spectrumOpacityCompiledMaterial.reset();
         alphaCompiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
@@ -1658,18 +1715,23 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
     const BoundMdlColor secondKs{ 0.1f, 0.2f, 0.3f };
     const BoundMdlColor secondReflect{ 0.3f, 0.5f, 0.7f };
     const BoundMdlColor secondTransmit{ 0.7f, 0.4f, 0.2f };
+    const BoundMdlColor spectrumOpacity{ 0.2f, 0.5f, 0.8f };
     const otk::pbrt::PbrtMaterial firstMaterial{ translucentMaterial( firstKd, firstKs, firstReflect, firstTransmit, 0.25f, 0.7f ) };
     const otk::pbrt::PbrtMaterial secondMaterial{
         translucentMaterial( secondKd, secondKs, secondReflect, secondTransmit, 0.25f, 0.7f ) };
     const otk::pbrt::PbrtMaterial roughMaterial{ translucentMaterial( firstKd, firstKs, firstReflect, firstTransmit, 0.45f, 0.7f ) };
     const otk::pbrt::PbrtMaterial opacityMaterial{ translucentMaterial( firstKd, firstKs, firstReflect, firstTransmit, 0.25f, 0.35f ) };
+    const otk::pbrt::PbrtMaterial spectrumOpacityMaterial{
+        translucentMaterial( firstKd, firstKs, firstReflect, firstTransmit, 0.25f, spectrumOpacity ) };
     const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
     const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
     const demandPbrtScene::MdlShaderKey roughKey{ demandPbrtScene::makeMdlShaderKey( roughMaterial ) };
     const demandPbrtScene::MdlShaderKey opacityKey{ demandPbrtScene::makeMdlShaderKey( opacityMaterial ) };
+    const demandPbrtScene::MdlShaderKey spectrumOpacityKey{ demandPbrtScene::makeMdlShaderKey( spectrumOpacityMaterial ) };
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( roughKey ) );
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( opacityKey ) );
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( spectrumOpacityKey ) );
 
     demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
     const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
@@ -1679,7 +1741,10 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::simple_glossy_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::scatter_reflect" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::scatter_transmit" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: opacity" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color opacity = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_translucent_opacity_weight" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_translucent_transparency_weight" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "cutout_opacity: opacity" ) ) );
     const std::string sourceDescription{ describeGeneratedSource( generated, firstKey ) };
 
     MdlSdkSession session;
@@ -1709,6 +1774,8 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
             demandPbrtScene::makeMdlBoundMaterialParameters( roughMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> opacityParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( opacityMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> spectrumOpacityParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( spectrumOpacityMaterial ) };
         mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, firstParameters ) );
         ASSERT_TRUE( firstCompiledMaterial.is_valid_interface() );
@@ -1725,9 +1792,11 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
             session.neuray(), transaction.get(), context.get(), generated, firstKey, opacityParameters ) );
         ASSERT_TRUE( opacityCompiledMaterial.is_valid_interface() );
 
+        mi::base::Handle<mi::neuraylib::ICompiled_material> spectrumOpacityCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, spectrumOpacityParameters ) );
+        ASSERT_TRUE( spectrumOpacityCompiledMaterial.is_valid_interface() );
+
         expectIorMatchesFloat( firstCompiledMaterial.get(), 1.5f );
-        expectFloatExpressionMatches( firstCompiledMaterial.get(), "geometry.cutout_opacity", 0.7f );
-        expectFloatExpressionMatches( opacityCompiledMaterial.get(), "geometry.cutout_opacity", 0.35f );
 
         const demandPbrtScene::MdlBsdfCallablePtx firstBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
             session.neuray(), transaction.get(), firstCompiledMaterial.get(), context.get(), "surface.scattering",
@@ -1738,6 +1807,12 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
         const demandPbrtScene::MdlBsdfCallablePtx roughBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
             session.neuray(), transaction.get(), roughCompiledMaterial.get(), context.get(), "surface.scattering",
             "pbrt_translucent_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx opacityBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
+            session.neuray(), transaction.get(), opacityCompiledMaterial.get(), context.get(), "surface.scattering",
+            "pbrt_translucent_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx spectrumOpacityBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
+            session.neuray(), transaction.get(), spectrumOpacityCompiledMaterial.get(), context.get(),
+            "surface.scattering", "pbrt_translucent_bsdf" ) };
 
         EXPECT_EQ( "pbrt_translucent_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
         EXPECT_EQ( "pbrt_translucent_bsdf_sample", firstBsdf.sampleFunctionName ) << sourceDescription;
@@ -1749,13 +1824,18 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
         EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
         EXPECT_FALSE( secondBsdf.ptx.empty() );
         EXPECT_FALSE( roughBsdf.ptx.empty() );
+        EXPECT_FALSE( opacityBsdf.ptx.empty() );
+        EXPECT_FALSE( spectrumOpacityBsdf.ptx.empty() );
         EXPECT_NE( firstBsdf.ptx, secondBsdf.ptx );
         EXPECT_NE( firstBsdf.ptx, roughBsdf.ptx );
+        EXPECT_NE( firstBsdf.ptx, opacityBsdf.ptx );
+        EXPECT_NE( firstBsdf.ptx, spectrumOpacityBsdf.ptx );
 
         firstCompiledMaterial.reset();
         secondCompiledMaterial.reset();
         roughCompiledMaterial.reset();
         opacityCompiledMaterial.reset();
+        spectrumOpacityCompiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
 

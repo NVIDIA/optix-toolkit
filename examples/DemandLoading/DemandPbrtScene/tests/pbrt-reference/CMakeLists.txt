@@ -12,6 +12,7 @@ set(referenceMaterials
     plastic
     plastic-textured-specular
     uber
+    uber-spectrum-opacity
     uber-transmission
     uber-textured-transmission
     mirror
@@ -162,6 +163,12 @@ if(OTK_USE_MDL)
         SCENE uber.pbrt
         WARMUP 4
         TOLERANCE_REASON "Default tolerance, generated MDL uber uses the diffuse/glossy BSDF callable path")
+    add_pbrt_reference_image_test(uber-spectrum-opacity
+        MATERIAL uber
+        SCENE uber-spectrum-opacity.pbrt
+        WARMUP 4
+        DIFF_THRESHOLD 2
+        TOLERANCE_REASON "Default tolerance, generated MDL uber uses spectrum opacity to weight BSDF lobes")
     add_pbrt_reference_image_test(uber-transmission
         MATERIAL uber
         SCENE uber-transmission.pbrt
