@@ -25,7 +25,7 @@ constexpr uint_t INVALID_TEXTURE_ID{ 0xffffffffU };
 constexpr uint_t INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID{ 0U };
 constexpr uint_t INVALID_MDL_ARGUMENT_BLOCK_OFFSET{ 0xffffffffU };
 constexpr uint_t MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE{ 512U };
-constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 18U };
+constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 19U };
 constexpr uint_t MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX{ 0U };
 constexpr uint_t MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX{ 1U };
 constexpr uint_t MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX{ 2U };
@@ -64,6 +64,7 @@ constexpr uint_t MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX{ 14U };
 constexpr uint_t MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX{ 15U };
 constexpr uint_t MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX{ 16U };
 constexpr uint_t MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX{ 17U };
+constexpr uint_t MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX{ 18U };
 #endif
 
 enum RayType
@@ -375,6 +376,7 @@ struct MdlMaterialShader
     uint_t      roughnessArgumentBlockOffset;
     uint_t      uRoughnessArgumentBlockOffset;
     uint_t      vRoughnessArgumentBlockOffset;
+    uint_t      mixAmountArgumentBlockOffset;
 
     // Per-instance shader data lives here rather than in hitgroup SBT records.
     uint_t                    textureBindingCount;
@@ -412,6 +414,7 @@ struct MdlMaterialShader
         , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -426,6 +429,7 @@ struct MdlMaterialShader
         , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -440,6 +444,7 @@ struct MdlMaterialShader
         , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -459,6 +464,7 @@ struct MdlMaterialShader
         , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -478,6 +484,7 @@ struct MdlMaterialShader
         , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -501,7 +508,8 @@ inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& r
         || lhs.tintArgumentBlock != rhs.tintArgumentBlock || lhs.bsdfArgumentBlock != rhs.bsdfArgumentBlock
         || lhs.bsdfArgumentBlockSize != rhs.bsdfArgumentBlockSize || lhs.roughnessArgumentBlockOffset != rhs.roughnessArgumentBlockOffset
         || lhs.uRoughnessArgumentBlockOffset != rhs.uRoughnessArgumentBlockOffset
-        || lhs.vRoughnessArgumentBlockOffset != rhs.vRoughnessArgumentBlockOffset || lhs.textureBindingCount != rhs.textureBindingCount )
+        || lhs.vRoughnessArgumentBlockOffset != rhs.vRoughnessArgumentBlockOffset
+        || lhs.mixAmountArgumentBlockOffset != rhs.mixAmountArgumentBlockOffset || lhs.textureBindingCount != rhs.textureBindingCount )
     {
         return false;
     }

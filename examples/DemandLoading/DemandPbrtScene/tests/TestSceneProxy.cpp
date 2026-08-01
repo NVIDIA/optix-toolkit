@@ -968,6 +968,42 @@ TEST( TestMaterialAdapters, fallbackMaterialLeavesDynamicAmountMixedPbrtDiffuseT
     EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 
+TEST( TestMaterialAdapters, parsedColorImagemapCanBindMixAmountTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "amountTexture" "color" "imagemap"
+            "string filename" [ "pbrt-amount.png" ]
+        MakeNamedMaterial "front" "string type" [ "matte" ] "rgb Kd" [ 0.8 0.2 0.2 ]
+        MakeNamedMaterial "back" "string type" [ "matte" ] "rgb Kd" [ 0.2 0.45 0.75 ]
+        Material "mix"
+            "string namedmaterial1" [ "front" ]
+            "string namedmaterial2" [ "back" ]
+            "texture amount" [ "amountTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const ShapeDefinition&               shape{ scene->freeShapes[0] };
+    const PbrtDemandTextureBinding       binding{ pbrtColorTextureBinding( shape.pbrtMaterial, "amount" ) };
+    const PbrtTextureMap::const_iterator texture{ shape.pbrtMaterial.graph.textures.find( "color:amountTexture" ) };
+
+    EXPECT_EQ( "mix", shape.pbrtMaterial.type );
+    EXPECT_EQ( "amountTexture", shape.pbrtMaterial.params.FindTexture( "amount" ) );
+    ASSERT_NE( shape.pbrtMaterial.graph.textures.end(), texture );
+    EXPECT_EQ( "amountTexture", texture->second.name );
+    EXPECT_EQ( "color", texture->second.valueType );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_NE( shape.pbrtMaterial.graph.namedMaterials.end(), shape.pbrtMaterial.graph.namedMaterials.find( "front" ) );
+    EXPECT_NE( shape.pbrtMaterial.graph.namedMaterials.end(), shape.pbrtMaterial.graph.namedMaterials.find( "back" ) );
+    EXPECT_TRUE( shape.pbrtMaterial.graph.fallbackReasons.empty() );
+    EXPECT_TRUE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_THAT( binding.fileName, EndsWith( "pbrt-amount.png" ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( shape ) );
+}
+
 TEST( TestMaterialAdapters, fallbackMaterialLeavesNestedMixedPbrtDiffuseTextureUnsupported )
 {
     const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(

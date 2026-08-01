@@ -154,6 +154,7 @@ TEST( TestMdlMaterialTextureBindings, defaultMdlMaterialShaderHasNoBoundTextures
     EXPECT_EQ( INVALID_MDL_ARGUMENT_BLOCK_OFFSET, data.roughnessArgumentBlockOffset );
     EXPECT_EQ( INVALID_MDL_ARGUMENT_BLOCK_OFFSET, data.uRoughnessArgumentBlockOffset );
     EXPECT_EQ( INVALID_MDL_ARGUMENT_BLOCK_OFFSET, data.vRoughnessArgumentBlockOffset );
+    EXPECT_EQ( INVALID_MDL_ARGUMENT_BLOCK_OFFSET, data.mixAmountArgumentBlockOffset );
     EXPECT_EQ( 0U, data.textureBindingCount );
     for( uint_t i = 0; i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
     {
@@ -195,9 +196,11 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
                                                make_float3( 0.625f, 0.5f, 0.375f ), make_float3( 0.25f, 0.125f, 0.0625f ) ) );
     EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX, 888U,
                                                make_float3( 0.875f, 0.625f, 0.375f ), make_float3( 0.125f, 0.25f, 0.5f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX, 999U,
+                                               make_float3( 0.375f, 0.5f, 0.625f ), make_float3( 0.5f, 0.25f, 0.125f ) ) );
 
     EXPECT_EQ( MDL_MATERIAL_TEXTURE_BINDING_COUNT, data.textureBindingCount );
-    EXPECT_EQ( 18U, MDL_MATERIAL_TEXTURE_BINDING_COUNT );
+    EXPECT_EQ( 19U, MDL_MATERIAL_TEXTURE_BINDING_COUNT );
     EXPECT_EQ( 0U, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 1U, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 2U, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
@@ -210,6 +213,7 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
     EXPECT_EQ( 15U, MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 16U, MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 17U, MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX );
+    EXPECT_EQ( 18U, MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX );
     EXPECT_EQ( 333U, data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
     EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
     EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), data.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
@@ -231,6 +235,9 @@ TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )
     EXPECT_EQ( make_float3( 0.875f, 0.625f, 0.375f ),
                data.textureBindings[MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX].scale );
     EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.5f ), data.textureBindings[MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX].bias );
+    EXPECT_EQ( 999U, data.textureBindings[MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( make_float3( 0.375f, 0.5f, 0.625f ), data.textureBindings[MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( make_float3( 0.5f, 0.25f, 0.125f ), data.textureBindings[MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX].bias );
     EXPECT_FALSE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_TEXTURE_BINDING_COUNT, 444U,
                                                 make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
 }

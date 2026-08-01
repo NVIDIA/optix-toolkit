@@ -234,6 +234,7 @@ struct MdlMaterialTextureSamples
     float  roughness;
     float  uroughness;
     float  vroughness;
+    float3 mixAmount;
     float3 mixNamedKd[2];
     float3 mixNamedKs[2];
     float3 mixNamedKr[2];
@@ -257,6 +258,7 @@ __device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSampl
     samples.roughness  = 0.1f;
     samples.uroughness = -1.0f;
     samples.vroughness = -1.0f;
+    samples.mixAmount  = make_float3( 0.5f, 0.5f, 0.5f );
     for( uint_t i = 0; i < 2U; ++i )
     {
         samples.mixNamedKd[i]    = make_float3( 1.0f );
@@ -339,6 +341,9 @@ __device__ __forceinline__ void setMdlMaterialTextureSample( MdlMaterialTextureS
             return;
         case MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX:
             samples.vroughness = mdlLuminance( value );
+            return;
+        case MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX:
+            samples.mixAmount = value;
             return;
         case MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX:
             samples.mixNamedKd[0] = value;
@@ -616,6 +621,11 @@ __device__ __forceinline__ bool hasMdlRoughnessTexture( const MdlMaterialShader&
            || hasMdlMaterialTexture( shader, MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX );
 }
 
+__device__ __forceinline__ bool hasMdlRuntimeArgumentBlockTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlRoughnessTexture( shader ) || hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX );
+}
+
 __device__ __forceinline__ void copyMdlArgumentBlock( char* dst, const char* src, uint_t size )
 {
     for( uint_t i = 0; i < size; ++i )
@@ -629,13 +639,21 @@ __device__ __forceinline__ void writeMdlArgumentBlockFloat( char* data, uint_t o
     *reinterpret_cast<float*>( data + offset ) = value;
 }
 
+__device__ __forceinline__ void writeMdlArgumentBlockColor( char* data, uint_t offset, const float3& value )
+{
+    float* const color{ reinterpret_cast<float*>( data + offset ) };
+    color[0] = value.x;
+    color[1] = value.y;
+    color[2] = value.z;
+}
+
 __device__ __forceinline__ const char* makeMdlBsdfArgumentBlock( const MdlMaterialShader&         shader,
                                                                  const MdlMaterialTextureSamples& samples,
                                                                  char*                            storage )
 {
     const char* const argumentBlock{ reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) };
-    if( !hasMdlRoughnessTexture( shader ) || shader.bsdfArgumentBlock == 0U || shader.bsdfArgumentBlockSize == 0U
-        || shader.bsdfArgumentBlockSize > MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE )
+    if( !hasMdlRuntimeArgumentBlockTexture( shader ) || shader.bsdfArgumentBlock == 0U
+        || shader.bsdfArgumentBlockSize == 0U || shader.bsdfArgumentBlockSize > MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE )
     {
         return argumentBlock;
     }
@@ -655,6 +673,11 @@ __device__ __forceinline__ const char* makeMdlBsdfArgumentBlock( const MdlMateri
         && shader.vRoughnessArgumentBlockOffset != INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
     {
         writeMdlArgumentBlockFloat( storage, shader.vRoughnessArgumentBlockOffset, samples.vroughness );
+    }
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX )
+        && shader.mixAmountArgumentBlockOffset != INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+    {
+        writeMdlArgumentBlockColor( storage, shader.mixAmountArgumentBlockOffset, samples.mixAmount );
     }
     return storage;
 }

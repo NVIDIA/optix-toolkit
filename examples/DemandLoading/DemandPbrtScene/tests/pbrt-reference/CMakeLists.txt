@@ -24,6 +24,7 @@ set(referenceMaterials
     translucent
     mix
     mix-rgb-amount
+    mix-textured-amount
     fourier
     landscape-uber-textured
     landscape-uber-alpha
@@ -261,6 +262,14 @@ if(OTK_USE_MDL)
             WARMUP 16
             DIFF_THRESHOLD 18
             TOLERANCE_REASON "Single-sample environment tolerance, generated MDL matte adds distant and mapped infinite light contributions")
+        add_pbrt_reference_image_test(mix-textured-amount
+            MATERIAL mix
+            SCENE mix-textured-amount.pbrt
+            RESOURCES landscape-fixture-alpha.png
+            WARMUP 4
+            DIFF_THRESHOLD 64
+            ALLOWED_PERCENTAGE 3
+            TOLERANCE_REASON "MDL/PBRT mix tolerance, generated MDL mix patches a direct color imagemap amount into the BSDF argument block")
         add_pbrt_reference_image_test(plastic-textured-specular
             MATERIAL plastic
             SCENE plastic-textured-specular.pbrt

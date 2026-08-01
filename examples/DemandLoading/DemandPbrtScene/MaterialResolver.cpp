@@ -424,9 +424,13 @@ PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::Pbr
                                                             const MaterialGroup&           group,
                                                             const std::string&             paramName )
 {
-    const PbrtDemandTextureBinding binding{ isGeneratedMdlRuntimeFloatTextureParam( paramName ) ?
-                                                pbrtFloatTextureBinding( material, paramName.c_str() ) :
-                                                pbrtColorTextureBinding( material, paramName.c_str() ) };
+    PbrtDemandTextureBinding binding{ isGeneratedMdlRuntimeFloatTextureParam( paramName ) ?
+                                          pbrtFloatTextureBinding( material, paramName.c_str() ) :
+                                          pbrtColorTextureBinding( material, paramName.c_str() ) };
+    if( paramName == "amount" && !hasPbrtDemandTextureBinding( binding ) )
+    {
+        binding = pbrtFloatTextureBinding( material, paramName.c_str() );
+    }
     if( !hasPbrtDemandTextureBinding( binding ) )
     {
         return pbrtDemandTextureBinding();
@@ -461,6 +465,10 @@ PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::Pbr
         return binding;
     }
     if( usesGeneratedMdlRoughnessTextureParam( material.type, paramName ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    {
+        return binding;
+    }
+    if( material.type == "mix" && paramName == "amount" && isDirectGeneratedMdlDemandTexture( binding ) )
     {
         return binding;
     }
@@ -571,7 +579,8 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         }
         if( paramName == "amount" )
         {
-            if( !hasGeneratedMdlConstantAmountTexture( material, textureName ) )
+            if( !hasGeneratedMdlConstantAmountTexture( material, textureName )
+                && !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
             {
                 return false;
             }
@@ -798,6 +807,7 @@ void createGeneratedMdlMixNamedMaterialTextureBindings( MaterialGroup&      grou
 
 void createGeneratedMdlMixTextureBindings( MaterialGroup& group, SceneSyncState& sync, DemandTextureCache& demandTextureCache )
 {
+    createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "amount", MDL_MATERIAL_MIX_AMOUNT_TEXTURE_BINDING_INDEX );
     createGeneratedMdlMixNamedMaterialTextureBindings( group, sync, demandTextureCache, "namedmaterial1", 0U );
     createGeneratedMdlMixNamedMaterialTextureBindings( group, sync, demandTextureCache, "namedmaterial2", 1U );
 }
