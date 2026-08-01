@@ -1423,8 +1423,14 @@ std::string namedMaterialGlassBsdfExpression( MdlMaterialModel&                 
         namedMaterialColorExpression( model, textureGraph, material, index, "Kr", "color(1.0, 1.0, 1.0)" ) };
     const std::string kt{
         namedMaterialColorExpression( model, textureGraph, material, index, "Kt", "color(1.0, 1.0, 1.0)" ) };
+    const std::string roughness{ namedMaterialFloatExpression( model, material, index, "roughness", "0.0" ) };
+    const std::string uroughness{ namedMaterialFloatExpression( model, material, index, "uroughness", "0.0" ) };
+    const std::string vroughness{ namedMaterialFloatExpression( model, material, index, "vroughness", "0.0" ) };
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kr: " + kr );
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input Kt: " + kt );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input roughness: " + roughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input uroughness: " + uroughness );
+    model.comments.push_back( "pbrt named material " + std::to_string( index ) + " input vroughness: " + vroughness );
     return "::df::tint(\n"
            "                        "
            + kr
@@ -1432,7 +1438,13 @@ std::string namedMaterialGlassBsdfExpression( MdlMaterialModel&                 
              "                        "
            + kt
            + ",\n"
-             "                        ::df::specular_bsdf(\n"
+             "                        ::df::microfacet_ggx_smith_bsdf(\n"
+             "                            roughness_u: pbrt_mix_resolved_roughness("
+           + roughness + ", " + uroughness
+           + "),\n"
+             "                            roughness_v: pbrt_mix_resolved_roughness("
+           + roughness + ", " + vroughness
+           + "),\n"
              "                            tint: color(1.0, 1.0, 1.0),\n"
              "                            mode: ::df::scatter_reflect_transmit))";
 }
@@ -1788,9 +1800,11 @@ MdlMaterialModel makeGlassMaterialModel( const otk::pbrt::PbrtMaterial& material
     model.comments.push_back( "pbrt material input roughness: roughness" );
     model.comments.push_back( "pbrt material input uroughness: uroughness" );
     model.comments.push_back( "pbrt material input vroughness: vroughness" );
-    model.comments.push_back(
-        "pbrt material gap: rough glass microfacet behavior is not implemented; roughness inputs "
-        "are bound but the MDL glass lobe is specular" );
+    model.comments.push_back( "pbrt material approximation: rough glass uses an MDL GGX microfacet dielectric lobe" );
+    appendRoughnessGapComment( model );
+    model.helperDefinitions =
+        "float pbrt_glass_resolved_roughness(float roughness, float axis_roughness) = "
+        "axis_roughness > 0.0 ? axis_roughness : roughness;\n\n";
     model.body =
         "    ior: color(index, index, index),\n"
         "    surface: material_surface(\n"
@@ -1799,7 +1813,9 @@ MdlMaterialModel makeGlassMaterialModel( const otk::pbrt::PbrtMaterial& material
         + kr + ",\n"
         "            " + kt
         + ",\n"
-          "            ::df::specular_bsdf(\n"
+          "            ::df::microfacet_ggx_smith_bsdf(\n"
+          "                roughness_u: pbrt_glass_resolved_roughness(roughness, uroughness),\n"
+          "                roughness_v: pbrt_glass_resolved_roughness(roughness, vroughness),\n"
           "                tint: color(1.0, 1.0, 1.0),\n"
           "                mode: ::df::scatter_reflect_transmit)))\n";
     return model;

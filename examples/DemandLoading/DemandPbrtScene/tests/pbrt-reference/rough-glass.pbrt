@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["gold-rough-glass.png"]
+Sampler "halton" "integer pixelsamples" [128]
+Integrator "path" "integer maxdepth" [5]
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "infinite" "rgb L" [1 1 1]
+
+    Material "glass"
+        "rgb Kr" [0.8 0.8 0.8]
+        "rgb Kt" [0.8 0.8 0.8]
+        "float index" [1.5]
+        "float uroughness" [0.2]
+        "float vroughness" [0.3]
+    Shape "trianglemesh"
+        "point P" [
+            -1 -1 -0.05
+             1 -1 -0.05
+             1  1 -0.05
+            -1  1 -0.05
+            -1 -1  0.05
+             1 -1  0.05
+             1  1  0.05
+            -1  1  0.05
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
+WorldEnd

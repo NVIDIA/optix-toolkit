@@ -16,6 +16,7 @@ set(referenceMaterials
     uber-textured-transmission
     mirror
     glass
+    rough-glass
     metal
     substrate
     substrate-textured-roughness
@@ -182,6 +183,14 @@ if(OTK_USE_MDL)
         OPTIONS --render-mode=path
         ALLOWED_PERCENTAGE 8
         TOLERANCE_REASON "Silhouette tolerance, generated MDL glass uses specular transmission sampling")
+    add_pbrt_reference_image_test(rough-glass
+        MATERIAL glass
+        SCENE rough-glass.pbrt
+        WARMUP 8
+        OPTIONS --render-mode=path
+        DIFF_THRESHOLD 48
+        ALLOWED_PERCENTAGE 10
+        TOLERANCE_REASON "Rough-glass tolerance, generated MDL glass uses GGX microfacet reflection/transmission sampling")
     add_pbrt_reference_image_test(metal
         MATERIAL metal
         SCENE metal.pbrt

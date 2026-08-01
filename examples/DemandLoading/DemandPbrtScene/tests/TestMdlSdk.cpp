@@ -1461,16 +1461,20 @@ TEST( TestMdlSdk, compilesGeneratedSubstrateBsdfCallablesWithBoundLayeredInputs 
 
 TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
 {
-    const otk::pbrt::PbrtMaterial       firstMaterial{ glassMaterial() };
-    const otk::pbrt::PbrtMaterial       secondMaterial{ glassMaterial( 1.1f, 0.2f, 0.3f, 0.4f ) };
+    const otk::pbrt::PbrtMaterial       firstMaterial{ glassMaterial( 1.5f, 0.0f, 0.0f, 0.0f ) };
+    const otk::pbrt::PbrtMaterial       secondMaterial{ glassMaterial( 1.1f, 0.0f, 0.0f, 0.0f ) };
+    const otk::pbrt::PbrtMaterial       roughMaterial{ glassMaterial( 1.5f, 0.2f, 0.3f, 0.4f ) };
     const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
     const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
+    const demandPbrtScene::MdlShaderKey roughKey{ demandPbrtScene::makeMdlShaderKey( roughMaterial ) };
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( roughKey ) );
 
     demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
     const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::tint" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::specular_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::microfacet_ggx_smith_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_glass_resolved_roughness" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::scatter_reflect_transmit" ) );
     const std::string sourceDescription{ describeGeneratedSource( generated, firstKey ) };
 
@@ -1497,6 +1501,8 @@ TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
             demandPbrtScene::makeMdlBoundMaterialParameters( firstMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> secondParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( secondMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> roughParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( roughMaterial ) };
         mi::base::Handle<mi::neuraylib::ICompiled_material> firstCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, firstParameters ) );
         ASSERT_TRUE( firstCompiledMaterial.is_valid_interface() );
@@ -1504,8 +1510,13 @@ TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
         mi::base::Handle<mi::neuraylib::ICompiled_material> secondCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, secondParameters ) );
         ASSERT_TRUE( secondCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> roughCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, roughParameters ) );
+        ASSERT_TRUE( roughCompiledMaterial.is_valid_interface() );
         expectIorMatchesFloat( firstCompiledMaterial.get(), 1.5f );
         expectIorMatchesFloat( secondCompiledMaterial.get(), 1.1f );
+        expectIorMatchesFloat( roughCompiledMaterial.get(), 1.5f );
 
         const std::string tintPtx{ translateTintExpressionToPtx( session.neuray(), transaction.get(),
                                                                  firstCompiledMaterial.get(), context.get() ) };
@@ -1517,6 +1528,9 @@ TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
         const demandPbrtScene::MdlBsdfCallablePtx secondBsdf{
             demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), secondCompiledMaterial.get(),
                                                            context.get(), "surface.scattering", "pbrt_glass_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx roughBsdf{
+            demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), roughCompiledMaterial.get(),
+                                                           context.get(), "surface.scattering", "pbrt_glass_bsdf" ) };
 
         EXPECT_EQ( "pbrt_glass_bsdf_init", firstBsdf.initFunctionName ) << sourceDescription;
         EXPECT_EQ( "pbrt_glass_bsdf_sample", firstBsdf.sampleFunctionName ) << sourceDescription;
@@ -1527,9 +1541,12 @@ TEST( TestMdlSdk, compilesGeneratedGlassBsdfCallablesWithBoundDielectricInputs )
         EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.evaluateFunctionName ) );
         EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
         EXPECT_FALSE( secondBsdf.ptx.empty() );
+        EXPECT_FALSE( roughBsdf.ptx.empty() );
+        EXPECT_NE( firstBsdf.ptx, roughBsdf.ptx );
 
         firstCompiledMaterial.reset();
         secondCompiledMaterial.reset();
+        roughCompiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );
     }
 
