@@ -22,6 +22,10 @@
 
 #include <algorithm>
 #include <cmath>
+#ifdef OTK_USE_MDL
+#include <filesystem>
+#include <fstream>
+#endif
 #include <iterator>
 #include <map>
 #include <memory>
@@ -102,6 +106,7 @@ class PbrtMaterialResolver : public MaterialResolver
                                            GeometryInstance&    instance,
                                            const MaterialGroup& group,
                                            uint_t               materialId );
+    void          recordFourierBsdfTableResourceState( const MaterialGroup& group );
     void          queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material );
 #endif
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, const SceneSyncState& syncState ) const;
@@ -757,6 +762,32 @@ bool usesGeneratedMdlUnsupportedFallback( const Options& options, const Geometry
            && instance.groups.size() == 1 && group.pbrtMaterial;
 }
 
+std::string resolveFourierBsdfTableFileName( const otk::pbrt::PbrtMaterial& material, const std::string& sceneFile )
+{
+    const std::string rawFileName{ material.params.FindOneString( "bsdffile", std::string{} ) };
+    if( rawFileName.empty() )
+    {
+        return {};
+    }
+
+    std::filesystem::path fileName{ rawFileName };
+    if( fileName.is_relative() )
+    {
+        const std::filesystem::path sceneDir{ std::filesystem::path( sceneFile ).parent_path() };
+        if( !sceneDir.empty() )
+        {
+            fileName = sceneDir / fileName;
+        }
+    }
+    return fileName.lexically_normal().string();
+}
+
+bool fileExists( const std::string& fileName )
+{
+    std::ifstream file{ fileName, std::ios::binary };
+    return file.good();
+}
+
 MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )
 {
     if( group.pbrtMaterial )
@@ -941,6 +972,24 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
 
     return fallbackState( MaterialBackend::MDL_FAILED );
 }
+
+void PbrtMaterialResolver::recordFourierBsdfTableResourceState( const MaterialGroup& group )
+{
+    if( !group.pbrtMaterial || group.pbrtMaterial->type != "fourier" )
+    {
+        return;
+    }
+
+    const std::string fileName{ resolveFourierBsdfTableFileName( *group.pbrtMaterial, m_options.sceneFile ) };
+    if( !fileName.empty() && fileExists( fileName ) )
+    {
+        ++m_stats.numFourierBsdfTableResourcesResolved;
+    }
+    else
+    {
+        ++m_stats.numFourierBsdfTableResourcesMissing;
+    }
+}
 #endif
 
 MaterialState PbrtMaterialResolver::resolveMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId )
@@ -952,6 +1001,7 @@ MaterialState PbrtMaterialResolver::resolveMaterialState( SceneSyncState& sync, 
     }
     if( usesGeneratedMdlUnsupportedFallback( m_options, instance, group ) )
     {
+        recordFourierBsdfTableResourceState( group );
         instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( instance );
         ++m_stats.numMdlFallbackShaders;
         return unsupportedFallbackState( materialId );

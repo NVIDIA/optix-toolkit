@@ -32,6 +32,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#ifdef OTK_USE_MDL
+#include <filesystem>
+#include <fstream>
+#endif
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -101,6 +105,33 @@ void addString( ::pbrt::ParamSet& params, const std::string& name, const std::st
     values[0] = value;
     params.AddString( name, std::move( values ), 1 );
 }
+
+#ifdef OTK_USE_MDL
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtFourierMaterialWithBsdfFile( const std::string& bsdfFile )
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = "fourier";
+    addString( material->params, "bsdffile", bsdfFile );
+    return material;
+}
+
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtNamedFourierMaterialWithBsdfFile( const std::string& bsdfFile )
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type              = "fourier";
+    material->namedMaterialName = "measuredGold";
+    addString( material->params, "type", "fourier" );
+    addString( material->params, "bsdffile", bsdfFile );
+
+    otk::pbrt::PbrtNamedMaterial namedMaterial{};
+    namedMaterial.name = "measuredGold";
+    namedMaterial.type = "fourier";
+    addString( namedMaterial.params, "type", "fourier" );
+    addString( namedMaterial.params, "bsdffile", bsdfFile );
+    material->graph.namedMaterials[namedMaterial.name] = std::move( namedMaterial );
+    return material;
+}
+#endif
 
 void addFloat( ::pbrt::ParamSet& params, const std::string& name, float value )
 {
@@ -526,6 +557,18 @@ void usePbrtTexturedMaterialOfType( GeometryInstance& geom, const std::string& t
     geom.groups[0].pbrtMaterial = pbrtTexturedMaterialOfType( type, textureParam );
 }
 
+#ifdef OTK_USE_MDL
+void usePbrtFourierMaterialWithBsdfFile( GeometryInstance& geom, const std::string& bsdfFile )
+{
+    geom.groups[0].pbrtMaterial = pbrtFourierMaterialWithBsdfFile( bsdfFile );
+}
+
+void usePbrtNamedFourierMaterialWithBsdfFile( GeometryInstance& geom, const std::string& bsdfFile )
+{
+    geom.groups[0].pbrtMaterial = pbrtNamedFourierMaterialWithBsdfFile( bsdfFile );
+}
+#endif
+
 void usePbrtDiffuseImagemapMaterial( GeometryInstance& geom, const std::string& type = "matte" )
 {
     geom.groups[0].pbrtMaterial       = pbrtImagemapMaterialOfType( type, "Kd", "spectrum", DIFFUSE_MAP_PATH );
@@ -740,11 +783,20 @@ Options testOptions()
 }
 
 #ifdef OTK_USE_MDL
+std::filesystem::path makeFourierTestDirectory()
+{
+    const std::filesystem::path directory{ std::filesystem::temp_directory_path() / "DemandPbrtSceneFourierResolver" };
+    std::filesystem::create_directories( directory / "bsdfs" );
+    return directory;
+}
+
 void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
 {
     EXPECT_EQ( 0U, stats.numRequestedMaterialPages );
     EXPECT_EQ( 0U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesResolved );
+    EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesMissing );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
     EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
@@ -756,6 +808,17 @@ void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
     EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
     EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
+}
+
+void expectGeneratedFourierFallbackStats( const MaterialResolverStats& stats, unsigned int expectedResolvedTables, unsigned int expectedMissingTables )
+{
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( expectedResolvedTables, stats.numFourierBsdfTableResourcesResolved );
+    EXPECT_EQ( expectedMissingTables, stats.numFourierBsdfTableResourcesMissing );
+    EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
 }
 #endif
 
@@ -1859,8 +1922,95 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksExplici
     EXPECT_EQ( 5U, stats.numRequestedMaterialPages );
     EXPECT_EQ( 5U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesResolved );
+    EXPECT_EQ( 1U, stats.numFourierBsdfTableResourcesMissing );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesFourierBsdfTableResourceBeforeFallback )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path bsdfFile{ sceneDirectory / "direct-fourier.bsdf" };
+    {
+        std::ofstream output{ bsdfFile.string(), std::ios::binary };
+        output.put( '\0' );
+    }
+    ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
+
+    m_options.useMdlMaterials = true;
+    usePbrtFourierMaterialWithBsdfFile( m_geom, bsdfFile.string() );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 1U, 0U );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesNamedFourierRelativeBsdfTableBeforeFallback )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path bsdfFile{ sceneDirectory / "bsdfs" / "named-fourier.bsdf" };
+    {
+        std::ofstream output{ bsdfFile.string(), std::ios::binary };
+        output.put( '\0' );
+    }
+    ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
+
+    m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
+    m_options.useMdlMaterials = true;
+    usePbrtNamedFourierMaterialWithBsdfFile( m_geom, "bsdfs/named-fourier.bsdf" );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 1U, 0U );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeKeepsMissingFourierBsdfTableOnFallbackWithoutCompile )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path missingFile{ sceneDirectory / "bsdfs" / "missing-fourier.bsdf" };
+    std::filesystem::remove( missingFile );
+
+    m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
+    m_options.useMdlMaterials = true;
+    usePbrtFourierMaterialWithBsdfFile( m_geom, "bsdfs/missing-fourier.bsdf" );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 0U, 1U );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTextureBackedNonMirrorSpecularMaterialUnsupported )

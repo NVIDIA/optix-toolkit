@@ -19,6 +19,7 @@ set(referenceMaterials
     translucent
     mix
     mix-rgb-amount
+    fourier
     landscape-uber-textured
     landscape-uber-alpha
     landscape-uber-specular-textures
@@ -44,6 +45,7 @@ set_property(TARGET DemandPbrtScenePbrtReferenceResources PROPERTY FOLDER Exampl
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")
 source_group("PBRT Reference Images" REGULAR_EXPRESSION "gold-.*\\.png")
 source_group("Texture Images" REGULAR_EXPRESSION "(matte-imagemap\\.png|matte-infinite\\.exr|landscape-fixture-.*\\.png)")
+source_group("BSDF Tables" REGULAR_EXPRESSION ".*\\.bsdf")
 
 foreach(material ${referenceMaterials})
     set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCES
@@ -58,6 +60,7 @@ set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCE
     "${CMAKE_CURRENT_SOURCE_DIR}/gold-matte-infinite.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/matte-distant-infinite.pbrt"
     "${CMAKE_CURRENT_SOURCE_DIR}/gold-matte-distant-infinite.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/bsdfs/roughgold_alpha_0.2.bsdf"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-albedo.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-alpha.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-bump.png"

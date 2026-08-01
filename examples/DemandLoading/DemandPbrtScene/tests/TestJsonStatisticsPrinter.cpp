@@ -53,6 +53,8 @@ void TestJsonStatisticsPrinter::SetUp()
 #ifdef OTK_USE_MDL
     m_stats.materials.numMdlFallbackShaders                   = 25;
     m_stats.materials.numGeneratedMdlMaterialCompileRequests  = 27;
+    m_stats.materials.numFourierBsdfTableResourcesResolved    = 28;
+    m_stats.materials.numFourierBsdfTableResourcesMissing     = 29;
     m_stats.materials.mdlShaders.numShaderRequests            = 29;
     m_stats.materials.mdlShaders.numShaderCacheHits           = 30;
     m_stats.materials.mdlShaders.numSourceCacheHits           = 31;
@@ -106,6 +108,8 @@ void TestJsonStatisticsPrinter::SetUp()
             R"json(,)json"
             R"json("numMdlFallbackShaders":25,)json"
             R"json("numGeneratedMdlMaterialCompileRequests":27,)json"
+            R"json("numFourierBsdfTableResourcesResolved":28,)json"
+            R"json("numFourierBsdfTableResourcesMissing":29,)json"
             R"json("mdlShaders":{)json"
                 R"json("numShaderRequests":29,)json"
                 R"json("numShaderCacheHits":30,)json"

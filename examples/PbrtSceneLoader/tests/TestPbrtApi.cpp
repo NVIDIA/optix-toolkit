@@ -630,6 +630,24 @@ TEST_F( TestPbrtApi, namedFourierMaterialPreservesBsdfFile )
     EXPECT_EQ( "bsdfs/ceramic.bsdf", material.params.FindOneString( "bsdffile", "" ) );
 }
 
+TEST_F( TestPbrtApi, directFourierMaterialPreservesBsdfFile )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "fourier"
+            "string bsdffile" [ "bsdfs/roughgold_alpha_0.2.bsdf" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_EQ( "fourier", material.type );
+    EXPECT_TRUE( material.namedMaterialName.empty() );
+    EXPECT_EQ( "bsdfs/roughgold_alpha_0.2.bsdf", material.params.FindOneString( "bsdffile", "" ) );
+}
+
 TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNamedMaterialReferences )
 {
     parseScene( R"pbrt(

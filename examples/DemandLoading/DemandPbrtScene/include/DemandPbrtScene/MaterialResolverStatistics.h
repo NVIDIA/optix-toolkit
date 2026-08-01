@@ -22,6 +22,8 @@ struct MaterialResolverStats
 #ifdef OTK_USE_MDL
     unsigned int                    numMdlFallbackShaders;
     unsigned int                    numGeneratedMdlMaterialCompileRequests;
+    unsigned int                    numFourierBsdfTableResourcesResolved;
+    unsigned int                    numFourierBsdfTableResourcesMissing;
     MdlShaderCompileCacheStatistics mdlShaders;
 #endif
 };

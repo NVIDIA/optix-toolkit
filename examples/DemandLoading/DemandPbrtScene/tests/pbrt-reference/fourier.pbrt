@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["gold-fourier.png"]
+Sampler "halton" "integer pixelsamples" [16]
+Integrator "directlighting"
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "distant" "rgb L" [1 1 1] "point from" [0 0 4] "point to" [0 0 0]
+
+    Material "fourier" "string bsdffile" ["bsdfs/roughgold_alpha_0.2.bsdf"]
+    Shape "trianglemesh"
+        "point P" [
+            -1 -1 0
+             1 -1 0
+             1  1 0
+            -1  1 0
+        ]
+        "integer indices" [
+            0 1 2
+            0 2 3
+        ]
+WorldEnd
