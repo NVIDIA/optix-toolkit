@@ -310,8 +310,11 @@ inline bool usesFallbackShader( const MaterialState& state )
 #ifdef OTK_USE_MDL
 struct MdlMaterialShader
 {
-    uint_t callableBaseIndex;
-    uint_t callableCount;
+    uint_t      callableBaseIndex;
+    uint_t      callableCount;
+    CUdeviceptr tintArgumentBlock;
+    CUdeviceptr bsdfArgumentBlock;
+
     // Per-instance shader data lives here rather than in hitgroup SBT records.
     uint_t                    textureBindingCount;
     MdlMaterialTextureBinding textureBindings[MDL_MATERIAL_TEXTURE_BINDING_COUNT];
@@ -342,6 +345,8 @@ struct MdlMaterialShader
     __host__ __device__ MdlMaterialShader()
         : callableBaseIndex( 0U )
         , callableCount( 0U )
+        , tintArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlock( CUdeviceptr{} )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -350,6 +355,8 @@ struct MdlMaterialShader
     __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
+        , tintArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlock( CUdeviceptr{} )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -358,6 +365,8 @@ struct MdlMaterialShader
     __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_, const float3& diffuseTextureScale_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
+        , tintArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlock( CUdeviceptr{} )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -371,6 +380,8 @@ struct MdlMaterialShader
                                            const float3& diffuseTextureBias_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
+        , tintArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlock( CUdeviceptr{} )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -384,6 +395,8 @@ struct MdlMaterialShader
                                            const float3& diffuseTextureBias_ )
         : callableBaseIndex( callableBaseIndex_ )
         , callableCount( callableCount_ )
+        , tintArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlock( CUdeviceptr{} )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -404,6 +417,7 @@ inline bool setMdlMaterialTextureBinding( MdlMaterialShader& shader, uint_t inde
 inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& rhs )
 {
     if( lhs.callableBaseIndex != rhs.callableBaseIndex || lhs.callableCount != rhs.callableCount
+        || lhs.tintArgumentBlock != rhs.tintArgumentBlock || lhs.bsdfArgumentBlock != rhs.bsdfArgumentBlock
         || lhs.textureBindingCount != rhs.textureBindingCount )
     {
         return false;
@@ -611,7 +625,7 @@ struct Params
     const MaterialState*          materialStates;         // indexed by materialId
 #ifdef OTK_USE_MDL
     uint_t                        numMdlMaterialShaders;  //
-    const MdlMaterialShader*      mdlMaterialShaders;     // indexed by MaterialState::shaderKey
+    const MdlMaterialShader*      mdlMaterialShaders;     // indexed by materialId
 #endif
     uint_t                        numPartialMaterials;    //
     const PartialMaterial*        partialMaterials;       // indexed by materialId

@@ -1678,7 +1678,7 @@ TEST( TestMdlShaderCompileCache, duplicateMaterialInstanceRequestsDoNotQueueDupl
     EXPECT_EQ( 0U, stats.numFailedShaders );
 }
 
-TEST( TestMdlShaderCompileCache, differentBoundValuesReuseSourceButQueueDistinctCompiles )
+TEST( TestMdlShaderCompileCache, differentBoundValuesShareSourceProgramButKeepDistinctInstances )
 {
     MdlShaderCompileCache        cache;
     const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( matteMaterial( 0.1f ) ) };
@@ -1686,12 +1686,14 @@ TEST( TestMdlShaderCompileCache, differentBoundValuesReuseSourceButQueueDistinct
 
     ASSERT_EQ( firstKey.sourceKey, secondKey.sourceKey );
     ASSERT_NE( firstKey, secondKey );
+    ASSERT_TRUE( firstKey.sourceShapeProgramReusable );
+    ASSERT_TRUE( secondKey.sourceShapeProgramReusable );
 
     EXPECT_TRUE( cache.requestCompile( firstKey ) );
-    EXPECT_TRUE( cache.requestCompile( secondKey ) );
+    EXPECT_FALSE( cache.requestCompile( secondKey ) );
     EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( firstKey ) );
     EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( secondKey ) );
-    EXPECT_NE( cache.shaderKeyId( firstKey ), cache.shaderKeyId( secondKey ) );
+    EXPECT_EQ( cache.shaderKeyId( firstKey ), cache.shaderKeyId( secondKey ) );
     EXPECT_EQ( 2U, cache.size() );
 
     const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
@@ -1699,13 +1701,55 @@ TEST( TestMdlShaderCompileCache, differentBoundValuesReuseSourceButQueueDistinct
     EXPECT_EQ( 1U, stats.numShaderCacheHits );
     EXPECT_EQ( 1U, stats.numSourceCacheHits );
     EXPECT_EQ( 0U, stats.numMaterialInstanceCacheHits );
-    EXPECT_EQ( 2U, stats.numCompileRequests );
+    EXPECT_EQ( 1U, stats.numCompileRequests );
     EXPECT_EQ( 0U, stats.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.numMissingShaders );
-    EXPECT_EQ( 2U, stats.numQueuedShaders );
+    EXPECT_EQ( 1U, stats.numQueuedShaders );
     EXPECT_EQ( 0U, stats.numCompilingShaders );
     EXPECT_EQ( 0U, stats.numReadyShaders );
     EXPECT_EQ( 0U, stats.numFailedShaders );
+
+    cache.markReady( firstKey );
+    EXPECT_EQ( MdlShaderCompileState::READY, cache.state( firstKey ) );
+    EXPECT_EQ( MdlShaderCompileState::READY, cache.state( secondKey ) );
+}
+
+TEST( TestMdlShaderCompileCache, differentTextureValuesShareSourceProgramButKeepDistinctInstances )
+{
+    MdlShaderCompileCache        cache;
+    const MdlMaterialInstanceKey firstKey{
+        makeMdlMaterialInstanceKey( texturedMatteMaterial( "imagemap", "first.png" ) ) };
+    const MdlMaterialInstanceKey secondKey{
+        makeMdlMaterialInstanceKey( texturedMatteMaterial( "imagemap", "second.png" ) ) };
+
+    ASSERT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    ASSERT_NE( firstKey, secondKey );
+    ASSERT_TRUE( firstKey.sourceShapeProgramReusable );
+    ASSERT_TRUE( secondKey.sourceShapeProgramReusable );
+
+    EXPECT_TRUE( cache.requestCompile( firstKey ) );
+    EXPECT_FALSE( cache.requestCompile( secondKey ) );
+    EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( firstKey ) );
+    EXPECT_EQ( MdlShaderCompileState::QUEUED, cache.state( secondKey ) );
+    EXPECT_EQ( cache.shaderKeyId( firstKey ), cache.shaderKeyId( secondKey ) );
+    EXPECT_EQ( 2U, cache.size() );
+
+    const MdlShaderCompileCacheStatistics stats{ cache.getStatistics() };
+    EXPECT_EQ( 0U, stats.numShaderRequests );
+    EXPECT_EQ( 1U, stats.numShaderCacheHits );
+    EXPECT_EQ( 1U, stats.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.numMaterialInstanceCacheHits );
+    EXPECT_EQ( 1U, stats.numCompileRequests );
+    EXPECT_EQ( 0U, stats.numCompletedCompiles );
+    EXPECT_EQ( 0U, stats.numMissingShaders );
+    EXPECT_EQ( 1U, stats.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.numCompilingShaders );
+    EXPECT_EQ( 0U, stats.numReadyShaders );
+    EXPECT_EQ( 0U, stats.numFailedShaders );
+
+    cache.markReady( firstKey );
+    EXPECT_EQ( MdlShaderCompileState::READY, cache.state( firstKey ) );
+    EXPECT_EQ( MdlShaderCompileState::READY, cache.state( secondKey ) );
 }
 
 TEST( TestMdlShaderCompileCache, tracksCompileStateTransitions )

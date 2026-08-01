@@ -34,6 +34,7 @@ struct MdlMaterialInstanceKey
 {
     MdlShaderKey sourceKey;
     std::string  signature;
+    bool         sourceShapeProgramReusable{};
 };
 
 bool operator==( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
@@ -86,6 +87,7 @@ struct MdlShaderCompileRecord
     MdlShaderKey          sourceKey;
     unsigned int          shaderKeyId{};
     std::string           diagnostics;
+    bool                  sourceShapeProgramReusable{};
 };
 
 class MdlShaderCompileCache
@@ -107,9 +109,18 @@ class MdlShaderCompileCache
 
   private:
     MdlShaderCompileRecord& getMutableRecord( const MdlMaterialInstanceKey& key );
+    void setRecordState( const MdlMaterialInstanceKey& key, MdlShaderCompileState state, const std::string& diagnostics );
+
+    struct SourceCompileRecord
+    {
+        MdlShaderCompileState state{ MdlShaderCompileState::MISSING };
+        unsigned int          shaderKeyId{};
+        std::string           diagnostics;
+    };
 
     std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord> m_records;
     std::map<MdlShaderKey, unsigned int>                     m_sourceKeyUseCounts;
+    std::map<MdlShaderKey, SourceCompileRecord>              m_sourceRecords;
     MdlShaderCompileCacheStatistics                          m_stats{};
     unsigned int                                             m_nextShaderKeyId{ 1U };
 };

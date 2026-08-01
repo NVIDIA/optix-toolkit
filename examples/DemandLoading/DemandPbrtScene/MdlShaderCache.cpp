@@ -13,6 +13,7 @@
 #include <initializer_list>
 #include <iomanip>
 #include <iterator>
+#include <set>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -2159,7 +2160,8 @@ MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material )
 
 bool operator==( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs )
 {
-    return lhs.sourceKey == rhs.sourceKey && lhs.signature == rhs.signature;
+    return lhs.sourceKey == rhs.sourceKey && lhs.signature == rhs.signature
+           && lhs.sourceShapeProgramReusable == rhs.sourceShapeProgramReusable;
 }
 
 bool operator!=( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs )
@@ -2173,18 +2175,24 @@ bool operator<( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey&
     {
         return lhs.sourceKey < rhs.sourceKey;
     }
-    return lhs.signature < rhs.signature;
+    if( lhs.signature != rhs.signature )
+    {
+        return lhs.signature < rhs.signature;
+    }
+    return lhs.sourceShapeProgramReusable < rhs.sourceShapeProgramReusable;
 }
 
 std::string toString( const MdlMaterialInstanceKey& key )
 {
-    return "source=" + toString( key.sourceKey ) + "|instance=" + key.signature;
+    return "source=" + toString( key.sourceKey ) + "|instance=" + key.signature
+           + ( key.sourceShapeProgramReusable ? "|source-shape-program=reusable" : "|source-shape-program=instance" );
 }
 
 MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial& material )
 {
     MdlMaterialInstanceKey result;
-    result.sourceKey = makeMdlShaderKey( material );
+    result.sourceKey                  = makeMdlShaderKey( material );
+    result.sourceShapeProgramReusable = true;
 
     std::ostringstream       signature;
     std::vector<std::string> materialStack;
@@ -2402,19 +2410,38 @@ MdlShaderCompileRecord& MdlShaderCompileCache::getMutableRecord( const MdlMateri
     if( it == m_records.end() )
     {
         MdlShaderCompileRecord record{};
-        record.sourceKey   = key.sourceKey;
-        record.shaderKeyId = m_nextShaderKeyId++;
-
-        std::map<MdlShaderKey, unsigned int>::iterator source = m_sourceKeyUseCounts.find( key.sourceKey );
-        if( source == m_sourceKeyUseCounts.end() )
+        record.sourceKey                                              = key.sourceKey;
+        record.sourceShapeProgramReusable                             = key.sourceShapeProgramReusable;
+        std::map<MdlShaderKey, unsigned int>::iterator sourceUseCount = m_sourceKeyUseCounts.find( key.sourceKey );
+        if( sourceUseCount == m_sourceKeyUseCounts.end() )
         {
             m_sourceKeyUseCounts.insert( std::make_pair( key.sourceKey, 1U ) );
         }
         else
         {
-            ++source->second;
+            ++sourceUseCount->second;
             ++m_stats.numSourceCacheHits;
-            ++m_stats.numShaderCacheHits;
+            if( key.sourceShapeProgramReusable )
+            {
+                ++m_stats.numShaderCacheHits;
+            }
+        }
+        if( key.sourceShapeProgramReusable )
+        {
+            std::map<MdlShaderKey, SourceCompileRecord>::iterator source = m_sourceRecords.find( key.sourceKey );
+            if( source == m_sourceRecords.end() )
+            {
+                SourceCompileRecord sourceRecord{};
+                sourceRecord.shaderKeyId = m_nextShaderKeyId++;
+                source = m_sourceRecords.insert( std::make_pair( key.sourceKey, sourceRecord ) ).first;
+            }
+            record.state       = source->second.state;
+            record.shaderKeyId = source->second.shaderKeyId;
+            record.diagnostics = source->second.diagnostics;
+        }
+        else
+        {
+            record.shaderKeyId = m_nextShaderKeyId++;
         }
 
         it = m_records.insert( std::make_pair( key, record ) ).first;
@@ -2436,7 +2463,19 @@ const MdlShaderCompileRecord& MdlShaderCompileCache::getRecord( const MdlMateria
 MdlShaderCompileState MdlShaderCompileCache::state( const MdlMaterialInstanceKey& key ) const
 {
     std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
-    return it == m_records.end() ? MdlShaderCompileState::MISSING : it->second.state;
+    if( it == m_records.end() )
+    {
+        return MdlShaderCompileState::MISSING;
+    }
+    if( it->second.sourceShapeProgramReusable )
+    {
+        const std::map<MdlShaderKey, SourceCompileRecord>::const_iterator source = m_sourceRecords.find( it->second.sourceKey );
+        if( source != m_sourceRecords.end() )
+        {
+            return source->second.state;
+        }
+    }
+    return it->second.state;
 }
 
 unsigned int MdlShaderCompileCache::shaderKeyId( const MdlMaterialInstanceKey& key ) const
@@ -2448,7 +2487,19 @@ unsigned int MdlShaderCompileCache::shaderKeyId( const MdlMaterialInstanceKey& k
 std::string MdlShaderCompileCache::diagnostics( const MdlMaterialInstanceKey& key ) const
 {
     std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.find( key );
-    return it == m_records.end() ? std::string{} : it->second.diagnostics;
+    if( it == m_records.end() )
+    {
+        return std::string{};
+    }
+    if( it->second.sourceShapeProgramReusable )
+    {
+        const std::map<MdlShaderKey, SourceCompileRecord>::const_iterator source = m_sourceRecords.find( it->second.sourceKey );
+        if( source != m_sourceRecords.end() )
+        {
+            return source->second.diagnostics;
+        }
+    }
+    return it->second.diagnostics;
 }
 
 bool MdlShaderCompileCache::requestCompile( const MdlMaterialInstanceKey& key )
@@ -2462,6 +2513,28 @@ bool MdlShaderCompileCache::requestCompile( const MdlMaterialInstanceKey& key )
     }
 
     MdlShaderCompileRecord& record = it == m_records.end() ? getMutableRecord( key ) : it->second;
+    if( record.sourceShapeProgramReusable )
+    {
+        SourceCompileRecord& source = m_sourceRecords[record.sourceKey];
+        if( source.shaderKeyId == 0U )
+        {
+            source.shaderKeyId = record.shaderKeyId;
+        }
+        if( source.state != MdlShaderCompileState::MISSING )
+        {
+            record.state       = source.state;
+            record.diagnostics = source.diagnostics;
+            return false;
+        }
+
+        source.state = MdlShaderCompileState::QUEUED;
+        source.diagnostics.clear();
+        record.state = MdlShaderCompileState::QUEUED;
+        record.diagnostics.clear();
+        ++m_stats.numCompileRequests;
+        return true;
+    }
+
     if( record.state != MdlShaderCompileState::MISSING )
     {
         return false;
@@ -2473,38 +2546,77 @@ bool MdlShaderCompileCache::requestCompile( const MdlMaterialInstanceKey& key )
     return true;
 }
 
-void MdlShaderCompileCache::markCompiling( const MdlMaterialInstanceKey& key )
+void MdlShaderCompileCache::setRecordState( const MdlMaterialInstanceKey& key, MdlShaderCompileState state, const std::string& diagnostics )
 {
     MdlShaderCompileRecord& record = getMutableRecord( key );
-    record.state                   = MdlShaderCompileState::COMPILING;
-    record.diagnostics.clear();
+    if( record.sourceShapeProgramReusable )
+    {
+        SourceCompileRecord& source = m_sourceRecords[record.sourceKey];
+        if( source.shaderKeyId == 0U )
+        {
+            source.shaderKeyId = record.shaderKeyId;
+        }
+        if( state == MdlShaderCompileState::READY && source.state != MdlShaderCompileState::READY )
+        {
+            ++m_stats.numCompletedCompiles;
+        }
+        source.state       = state;
+        source.diagnostics = diagnostics;
+        for( std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::iterator it = m_records.begin(); it != m_records.end(); ++it )
+        {
+            if( it->second.sourceShapeProgramReusable && it->second.sourceKey == record.sourceKey )
+            {
+                it->second.state       = state;
+                it->second.diagnostics = diagnostics;
+            }
+        }
+        return;
+    }
+
+    if( state == MdlShaderCompileState::READY && record.state != MdlShaderCompileState::READY )
+    {
+        ++m_stats.numCompletedCompiles;
+    }
+    record.state       = state;
+    record.diagnostics = diagnostics;
+}
+
+void MdlShaderCompileCache::markCompiling( const MdlMaterialInstanceKey& key )
+{
+    setRecordState( key, MdlShaderCompileState::COMPILING, std::string{} );
 }
 
 void MdlShaderCompileCache::markReady( const MdlMaterialInstanceKey& key )
 {
-    MdlShaderCompileRecord& record = getMutableRecord( key );
-    if( record.state != MdlShaderCompileState::READY )
-    {
-        ++m_stats.numCompletedCompiles;
-    }
-    record.state = MdlShaderCompileState::READY;
-    record.diagnostics.clear();
+    setRecordState( key, MdlShaderCompileState::READY, std::string{} );
 }
 
 void MdlShaderCompileCache::markFailed( const MdlMaterialInstanceKey& key, const std::string& diagnostics )
 {
-    MdlShaderCompileRecord& record = getMutableRecord( key );
-    record.state                   = MdlShaderCompileState::FAILED;
-    record.diagnostics             = diagnostics;
+    setRecordState( key, MdlShaderCompileState::FAILED, diagnostics );
 }
 
 MdlShaderCompileCacheStatistics MdlShaderCompileCache::getStatistics() const
 {
     MdlShaderCompileCacheStatistics stats{ m_stats };
+    std::set<MdlShaderKey>          countedSourceKeys;
     for( std::map<MdlMaterialInstanceKey, MdlShaderCompileRecord>::const_iterator it = m_records.begin();
          it != m_records.end(); ++it )
     {
-        switch( it->second.state )
+        MdlShaderCompileState state{ it->second.state };
+        if( it->second.sourceShapeProgramReusable )
+        {
+            if( !countedSourceKeys.insert( it->second.sourceKey ).second )
+            {
+                continue;
+            }
+            const std::map<MdlShaderKey, SourceCompileRecord>::const_iterator source = m_sourceRecords.find( it->second.sourceKey );
+            if( source != m_sourceRecords.end() )
+            {
+                state = source->second.state;
+            }
+        }
+        switch( state )
         {
             case MdlShaderCompileState::MISSING:
                 ++stats.numMissingShaders;
@@ -2535,6 +2647,7 @@ void MdlShaderCompileCache::clear()
 {
     m_records.clear();
     m_sourceKeyUseCounts.clear();
+    m_sourceRecords.clear();
     m_stats           = MdlShaderCompileCacheStatistics{};
     m_nextShaderKeyId = 1U;
 }

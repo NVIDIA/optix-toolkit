@@ -75,6 +75,56 @@ void captureBsdfCallableName( MdlBsdfCallablePtx& result, const std::string& fun
     throw std::runtime_error( "MDL generated unexpected BSDF callable function name " + functionName );
 }
 
+MdlTargetArgumentBlock captureTargetArgumentBlock( const mi::neuraylib::ITarget_code*       targetCode,
+                                                   const mi::neuraylib::ICompiled_material* compiledMaterial,
+                                                   mi::neuraylib::IMdl_execution_context*   context )
+{
+    requireMdlBsdfCompile( targetCode != nullptr, "Cannot capture MDL argument block without target code", context );
+    requireMdlBsdfCompile( compiledMaterial != nullptr, "Cannot capture MDL argument block without a compiled material", context );
+    requireMdlBsdfCompile( targetCode->get_callable_function_count() > 0U,
+                           "Cannot capture MDL argument block without callable functions", context );
+
+    const mi::Size argumentBlockIndex{ targetCode->get_callable_function_argument_block_index( 0U ) };
+    if( argumentBlockIndex == ~mi::Size( 0 ) )
+    {
+        return MdlTargetArgumentBlock{};
+    }
+
+    mi::base::Handle<const mi::neuraylib::ITarget_argument_block> argumentBlock( targetCode->get_argument_block( argumentBlockIndex ) );
+    requireMdlBsdfCompile( argumentBlock.is_valid_interface(), "MDL target code did not expose an argument block", context );
+
+    mi::base::Handle<const mi::neuraylib::ITarget_value_layout> layout( targetCode->get_argument_block_layout( argumentBlockIndex ) );
+    requireMdlBsdfCompile( layout.is_valid_interface(), "MDL target code did not expose an argument block layout", context );
+
+    MdlTargetArgumentBlock result;
+    result.data.assign( argumentBlock->get_data(), argumentBlock->get_data() + argumentBlock->get_size() );
+
+    const mi::Size parameterCount{ compiledMaterial->get_parameter_count() };
+    requireMdlBsdfCompile( layout->get_num_elements() >= parameterCount,
+                           "MDL argument block layout has fewer entries than the compiled material", context );
+    for( mi::Size i = 0; i < parameterCount; ++i )
+    {
+        const char* const name = compiledMaterial->get_parameter_name( i );
+        requireMdlBsdfCompile( name != nullptr, "MDL compiled material exposed a null parameter name", context );
+
+        const mi::neuraylib::Target_value_layout_state state{ layout->get_nested_state( i ) };
+        requireMdlBsdfCompile( state.m_state_offs != ~mi::Uint32( 0 ),
+                               "MDL argument block layout did not expose parameter state for " + std::string{ name }, context );
+
+        mi::neuraylib::IValue::Kind kind{};
+        mi::Size                    size{};
+        const mi::Size              offset{ layout->get_layout( kind, size, state ) };
+        requireMdlBsdfCompile( offset != ~mi::Size( 0 ),
+                               "MDL argument block layout did not expose parameter offset for " + std::string{ name }, context );
+        requireMdlBsdfCompile( offset + size <= result.data.size(),
+                               "MDL argument block layout parameter exceeds block size for " + std::string{ name }, context );
+
+        result.parameters.push_back( MdlTargetArgumentBlockParameter{
+            name, static_cast<unsigned int>( kind ), static_cast<std::size_t>( offset ), static_cast<std::size_t>( size ) } );
+    }
+    return result;
+}
+
 }  // namespace
 
 MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*                  neuray,
@@ -128,6 +178,7 @@ MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*        
     requireMdlBsdfCompile( !result.sampleFunctionName.empty(), "MDL did not generate a BSDF sample callable" );
     requireMdlBsdfCompile( !result.evaluateFunctionName.empty(), "MDL did not generate a BSDF evaluate callable" );
     requireMdlBsdfCompile( !result.pdfFunctionName.empty(), "MDL did not generate a BSDF PDF callable" );
+    result.argumentBlock = captureTargetArgumentBlock( targetCode.get(), compiledMaterial, context );
     return result;
 }
 

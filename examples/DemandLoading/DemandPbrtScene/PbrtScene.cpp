@@ -319,6 +319,11 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     m_demandLoader->launchPrepare( stream, params.demandContext );
 }
 
+bool materialResolutionRequiresTopLevelTraversable( MaterialResolution resolution )
+{
+    return resolution == MaterialResolution::PARTIAL || resolution == MaterialResolution::FULL;
+}
+
 bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
 {
     m_ticket.wait();
@@ -328,11 +333,10 @@ bool PbrtScene::beforeLaunch( CUstream stream, Params& params )
     const MaterialResolution realizedMaterial{ m_materialResolver->resolveRequestedProxyMaterials( stream, m_frameTime, m_sync ) };
     const bool realizedGeometry{ m_geometryResolver->resolveRequestedProxyGeometries( stream, context, m_frameTime, m_sync ) };
 
-    if( realizedGeometry || realizedMaterial != MaterialResolution::NONE )
+    if( realizedGeometry || materialResolutionRequiresTopLevelTraversable( realizedMaterial ) )
     {
         createTopLevelTraversable( stream );
     }
-
     setLaunchParams( stream, params );
 
     // Render needed if we changed accels or we still have remaining work to do.

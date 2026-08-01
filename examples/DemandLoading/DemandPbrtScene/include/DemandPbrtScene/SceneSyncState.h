@@ -24,7 +24,7 @@ struct SceneSyncState
     otk::SyncVector<OptixInstance>     topLevelInstances;   // OptixInstance array for building TLIAS
     otk::SyncVector<MaterialState>     materialStates;      // indexed by materialId
 #ifdef OTK_USE_MDL
-    otk::SyncVector<MdlMaterialShader> mdlMaterialShaders;  // indexed by MaterialState::shaderKey
+    otk::SyncVector<MdlMaterialShader> mdlMaterialShaders;  // indexed by materialId
 #endif
     otk::SyncVector<PartialMaterial>   partialMaterials;    // indexed by materialId
     otk::SyncVector<TriangleUVs*>      partialUVs;          // indexed by materialId

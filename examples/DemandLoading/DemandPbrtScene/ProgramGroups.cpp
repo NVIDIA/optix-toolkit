@@ -30,6 +30,7 @@
 #endif
 #include <OptiXToolkit/Error/optixErrorCheck.h>
 #include <OptiXToolkit/ImageSource/ImageSource.h>
+#include <OptiXToolkit/Memory/DeviceBuffer.h>
 #include <OptiXToolkit/OptiXMemory/Builders.h>
 #include <OptiXToolkit/OptiXMemory/CompileOptions.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
@@ -46,6 +47,7 @@
 #include <cmath>
 #ifdef OTK_USE_MDL
 #include <condition_variable>
+#include <cstring>
 #include <deque>
 #endif
 #include <exception>
@@ -153,9 +155,22 @@ constexpr const char* MDL_MATERIAL_BSDF_FUNCTION_NAME = "__direct_callable__mdlM
 
 struct MdlMaterialTargetCode
 {
-    std::string        tintPtx;
-    MdlBsdfCallablePtx bsdfPtx;
-    bool               hasBsdfCallables{};
+    std::string            tintPtx;
+    MdlTargetArgumentBlock tintArgumentBlock;
+    MdlBsdfCallablePtx     bsdfPtx;
+    bool                   hasBsdfCallables{};
+};
+
+struct MdlMaterialArgumentBlockTemplates
+{
+    MdlTargetArgumentBlock tint;
+    MdlTargetArgumentBlock bsdf;
+};
+
+struct MdlMaterialArgumentBlockBuffers
+{
+    otk::DeviceBuffer tint;
+    otk::DeviceBuffer bsdf;
 };
 
 class MdlOptixModuleCache
@@ -217,6 +232,56 @@ void requireMdl( bool condition, const std::string& message, const mi::neuraylib
     {
         failMdl( message, context );
     }
+}
+
+MdlTargetArgumentBlock captureMdlTargetArgumentBlock( const mi::neuraylib::ITarget_code*       targetCode,
+                                                      const mi::neuraylib::ICompiled_material* compiledMaterial,
+                                                      mi::neuraylib::IMdl_execution_context*   context )
+{
+    requireMdl( targetCode != nullptr, "Cannot capture MDL argument block without target code", context );
+    requireMdl( compiledMaterial != nullptr, "Cannot capture MDL argument block without a compiled material", context );
+    requireMdl( targetCode->get_callable_function_count() > 0U,
+                "Cannot capture MDL argument block without callable functions", context );
+
+    const mi::Size argumentBlockIndex{ targetCode->get_callable_function_argument_block_index( 0U ) };
+    if( argumentBlockIndex == ~mi::Size( 0 ) )
+    {
+        return MdlTargetArgumentBlock{};
+    }
+
+    mi::base::Handle<const mi::neuraylib::ITarget_argument_block> argumentBlock( targetCode->get_argument_block( argumentBlockIndex ) );
+    requireMdl( argumentBlock.is_valid_interface(), "MDL target code did not expose an argument block", context );
+
+    mi::base::Handle<const mi::neuraylib::ITarget_value_layout> layout( targetCode->get_argument_block_layout( argumentBlockIndex ) );
+    requireMdl( layout.is_valid_interface(), "MDL target code did not expose an argument block layout", context );
+
+    MdlTargetArgumentBlock result;
+    result.data.assign( argumentBlock->get_data(), argumentBlock->get_data() + argumentBlock->get_size() );
+
+    const mi::Size parameterCount{ compiledMaterial->get_parameter_count() };
+    requireMdl( layout->get_num_elements() >= parameterCount,
+                "MDL argument block layout has fewer entries than the compiled material", context );
+    for( mi::Size i = 0; i < parameterCount; ++i )
+    {
+        const char* const name = compiledMaterial->get_parameter_name( i );
+        requireMdl( name != nullptr, "MDL compiled material exposed a null parameter name", context );
+
+        const mi::neuraylib::Target_value_layout_state state{ layout->get_nested_state( i ) };
+        requireMdl( state.m_state_offs != ~mi::Uint32( 0 ),
+                    "MDL argument block layout did not expose parameter state for " + std::string{ name }, context );
+
+        mi::neuraylib::IValue::Kind kind{};
+        mi::Size                    size{};
+        const mi::Size              offset{ layout->get_layout( kind, size, state ) };
+        requireMdl( offset != ~mi::Size( 0 ),
+                    "MDL argument block layout did not expose parameter offset for " + std::string{ name }, context );
+        requireMdl( offset + size <= result.data.size(),
+                    "MDL argument block layout parameter exceeds block size for " + std::string{ name }, context );
+
+        result.parameters.push_back( MdlTargetArgumentBlockParameter{
+            name, static_cast<unsigned int>( kind ), static_cast<std::size_t>( offset ), static_cast<std::size_t>( size ) } );
+    }
+    return result;
 }
 
 bool isPtxIdentifierChar( char value )
@@ -527,7 +592,8 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
                                                                               mi::neuraylib::IMdl_execution_context* context,
                                                                               const GeneratedMdlSource& source,
                                                                               const MdlShaderKey&       key,
-                                                                              const std::vector<MdlBoundMaterialParameter>& parameters )
+                                                                              const std::vector<MdlBoundMaterialParameter>& parameters,
+                                                                              mi::Uint32 compileFlags )
 {
     mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
     requireMdl( mdlFactory.is_valid_interface(), "Failed to get MDL factory" );
@@ -590,7 +656,7 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
     requireMdl( targetTypeResult == 0, generatedMdlMessage( "Failed to set MDL target material type", source, key ), context );
 
     mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
-        materialInstance->create_compiled_material( mi::neuraylib::IMaterial_instance::DEFAULT_OPTIONS, context ) );
+        materialInstance->create_compiled_material( compileFlags, context ) );
     requireMdl( compiledMaterial.is_valid_interface(),
                 generatedMdlMessage( "Failed to compile generated MDL material", source, key ), context );
     return compiledMaterial;
@@ -635,12 +701,12 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
         const otk::pbrt::PbrtMaterial  syntheticMaterial{ makeSyntheticMatteMaterial( group.material.Kd ) };
         const otk::pbrt::PbrtMaterial& pbrtMaterial{
             group.pbrtMaterial && !group.pbrtMaterial->type.empty() ? *group.pbrtMaterial : syntheticMaterial };
-        MdlGeneratedSourceCache                      sourceCache;
-        const MdlShaderKey                           key{ makeMdlShaderKey( pbrtMaterial ) };
-        const GeneratedMdlSource&                    source{ sourceCache.getSource( pbrtMaterial ) };
-        const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( pbrtMaterial ) };
-        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
-            compileGeneratedMaterial( session.neuray(), transaction.get(), context.get(), source, key, parameters ) );
+        MdlGeneratedSourceCache                             sourceCache;
+        const MdlShaderKey                                  key{ makeMdlShaderKey( pbrtMaterial ) };
+        const GeneratedMdlSource&                           source{ sourceCache.getSource( pbrtMaterial ) };
+        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterial(
+            session.neuray(), transaction.get(), context.get(), source, key, std::vector<MdlBoundMaterialParameter>{},
+            mi::neuraylib::IMaterial_instance::CLASS_COMPILATION ) );
         const char* const previewColorExpressionPath{ findMdlPreviewColorExpressionPath( compiledMaterial.get() ) };
 
         mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi(
@@ -667,6 +733,8 @@ MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, 
                     "MDL generated unexpected callable function name" );
 
         targetCode.tintPtx.assign( tintTargetCode->get_code(), static_cast<size_t>( tintTargetCode->get_code_size() ) );
+        targetCode.tintArgumentBlock =
+            captureMdlTargetArgumentBlock( tintTargetCode.get(), compiledMaterial.get(), context.get() );
         if( includeBsdfCallables )
         {
             targetCode.bsdfPtx =
@@ -699,14 +767,15 @@ struct MdlMaterialBuildJob
 
 struct MdlMaterialBuildResult
 {
-    uint_t                         shaderKeyId{};
-    MdlMaterialShader              shader{};
-    uint_t                         programLayoutVersion{};
-    std::vector<OptixProgramGroup> createdCallableProgramGroups;
-    OptixPipeline                  pipeline{};
-    std::vector<OptixProgramGroup> programGroups;
-    std::vector<OptixProgramGroup> callableProgramGroups;
-    std::string                    diagnostics;
+    uint_t                            shaderKeyId{};
+    MdlMaterialShader                 sourceShader{};
+    MdlMaterialArgumentBlockTemplates argumentBlockTemplates{};
+    uint_t                            programLayoutVersion{};
+    std::vector<OptixProgramGroup>    createdCallableProgramGroups;
+    OptixPipeline                     pipeline{};
+    std::vector<OptixProgramGroup>    programGroups;
+    std::vector<OptixProgramGroup>    callableProgramGroups;
+    std::string                       diagnostics;
 };
 
 void buildMdlMaterialHitGroupDesc( OptixProgramGroupDesc ( &groupDesc )[1],
@@ -801,7 +870,7 @@ PbrtDemandTextureBinding mdlDiffuseTextureBinding( const MaterialGroup& group )
     return pbrtDemandTextureBinding();
 }
 
-MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMaterialShader shader )
+MdlMaterialShader bindMdlMaterialTextures( const MaterialGroup& group, MdlMaterialShader shader )
 {
     bool hasMdlTextureBindings{};
     for( uint_t i = 0; i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
@@ -833,6 +902,83 @@ MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, MdlMater
         }
     }
     return shader;
+}
+
+const MdlTargetArgumentBlockParameter* findMdlArgumentBlockParameter( const MdlTargetArgumentBlock& argumentBlock,
+                                                                      const std::string&            name )
+{
+    for( const MdlTargetArgumentBlockParameter& parameter : argumentBlock.parameters )
+    {
+        if( parameter.name == name )
+        {
+            return &parameter;
+        }
+    }
+    return nullptr;
+}
+
+void patchMdlArgumentBlockValue( std::vector<char>& data, const MdlTargetArgumentBlockParameter& layout, const MdlBoundMaterialParameter& value )
+{
+    if( value.type == MdlBoundParameterType::COLOR )
+    {
+        if( layout.kind != static_cast<unsigned int>( mi::neuraylib::IValue::VK_COLOR )
+            || layout.size < 3U * sizeof( float ) || layout.offset + 3U * sizeof( float ) > data.size() )
+        {
+            throw std::runtime_error( "Generated MDL argument block layout mismatch for color parameter " + value.name );
+        }
+        const float color[3]{ value.red, value.green, value.blue };
+        std::memcpy( data.data() + layout.offset, color, sizeof( color ) );
+        return;
+    }
+
+    if( layout.kind != static_cast<unsigned int>( mi::neuraylib::IValue::VK_FLOAT ) || layout.size < sizeof( float )
+        || layout.offset + sizeof( float ) > data.size() )
+    {
+        throw std::runtime_error( "Generated MDL argument block layout mismatch for float parameter " + value.name );
+    }
+    std::memcpy( data.data() + layout.offset, &value.value, sizeof( value.value ) );
+}
+
+std::vector<char> makeMdlArgumentBlockData( const MdlTargetArgumentBlock&                 argumentBlock,
+                                            const std::vector<MdlBoundMaterialParameter>& parameters )
+{
+    std::vector<char> result{ argumentBlock.data };
+    if( result.empty() )
+    {
+        return result;
+    }
+
+    for( const MdlBoundMaterialParameter& parameter : parameters )
+    {
+        const MdlTargetArgumentBlockParameter* const layout{ findMdlArgumentBlockParameter( argumentBlock, parameter.name ) };
+        if( layout != nullptr )
+        {
+            patchMdlArgumentBlockValue( result, *layout, parameter );
+        }
+    }
+    return result;
+}
+
+CUdeviceptr uploadMdlArgumentBlock( const std::vector<char>& data, otk::DeviceBuffer& buffer )
+{
+    if( data.empty() )
+    {
+        buffer.free();
+        return CUdeviceptr{};
+    }
+
+    buffer.resize( data.size() );
+    OTK_ERROR_CHECK( cuMemcpyHtoD( buffer, data.data(), data.size() ) );
+    return buffer;
+}
+
+MdlMaterialInstanceKey makeProgramGroupMdlMaterialInstanceKey( const MaterialGroup& group )
+{
+    if( group.pbrtMaterial && !group.pbrtMaterial->type.empty() )
+    {
+        return makeMdlMaterialInstanceKey( *group.pbrtMaterial );
+    }
+    return makeMdlMaterialInstanceKey( makeSyntheticMatteMaterial( group.material.Kd ) );
 }
 
 void destroyMdlMaterialBuildResultNoThrow( MdlMaterialBuildResult& result )
@@ -870,6 +1016,8 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
         {
             targetCode.bsdfPtx.ptx = makeMdlBsdfPtxModuleSymbolsUnique( targetCode.bsdfPtx, job.shaderKeyId );
         }
+        result.argumentBlockTemplates =
+            MdlMaterialArgumentBlockTemplates{ targetCode.tintArgumentBlock, targetCode.bsdfPtx.argumentBlock };
         const double compileTime{ compileTimer.elapsed() };
 
         const Stopwatch optixTimer;
@@ -884,10 +1032,9 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
 
         result.programGroups         = job.programGroups;
         result.callableProgramGroups = job.callableProgramGroups;
-        result.shader                = bindMdlMaterialResources(
-            job.group,
+        result.sourceShader =
             appendMdlMaterialCallableProgramGroups( job.optixContext, tintModule, bsdfModule, targetCode,
-                                                    result.createdCallableProgramGroups, result.callableProgramGroups ) );
+                                                    result.createdCallableProgramGroups, result.callableProgramGroups );
         result.pipeline = createOptixPipeline( job.optixContext, job.pipelineCompileOptions, result.programGroups,
                                                result.callableProgramGroups );
 
@@ -1039,8 +1186,9 @@ class PbrtProgramGroups : public ProgramGroups
 #ifdef OTK_USE_MDL
     void              markProgramLayoutChanged();
     void              requestMdlMaterialBuild( const MaterialGroup& group, uint_t shaderKeyId );
-    bool              installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlMaterialShader& shader );
+    bool              installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlMaterialShader& sourceShader );
     uint_t            getTriangleMdlMaterialSbtOffset( MaterialFlags flags );
+    MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, uint_t shaderKeyId, MdlMaterialShader sourceShader );
     MdlMaterialShader realizeTriangleMdlMaterialShader( const MaterialGroup& group, uint_t shaderKeyId );
 #endif
     uint_t            getSphereRealizedMaterialSbtOffset();
@@ -1063,7 +1211,9 @@ class PbrtProgramGroups : public ProgramGroups
     std::vector<OptixProgramGroup> m_programGroups;
 #ifdef OTK_USE_MDL
     std::vector<OptixProgramGroup>      m_callableProgramGroups;
-    std::map<uint_t, MdlMaterialShader> m_mdlMaterialShaders;
+    std::map<uint_t, MdlMaterialShader> m_mdlMaterialSourceShaders;
+    std::map<uint_t, MdlMaterialArgumentBlockTemplates>               m_mdlMaterialArgumentBlockTemplates;
+    std::map<MdlMaterialInstanceKey, MdlMaterialArgumentBlockBuffers> m_mdlMaterialArgumentBlockBuffers;
     uint_t                              m_programLayoutVersion{};
     size_t                              m_triangleMdlMaterialHitGroupIndex{};
     size_t                              m_triangleMdlAlphaMapHitGroupIndex{};
@@ -1137,6 +1287,7 @@ void PbrtProgramGroups::cleanup()
 {
 #ifdef OTK_USE_MDL
     m_mdlMaterialBuildWorker.reset();
+    m_mdlMaterialArgumentBlockBuffers.clear();
     for( OptixProgramGroup group : m_callableProgramGroups )
     {
         OTK_ERROR_CHECK( optixProgramGroupDestroy( group ) );
@@ -1161,6 +1312,31 @@ void PbrtProgramGroups::cleanup()
 }
 
 #ifdef OTK_USE_MDL
+MdlMaterialShader PbrtProgramGroups::bindMdlMaterialResources( const MaterialGroup& group, uint_t shaderKeyId, MdlMaterialShader shader )
+{
+    shader = bindMdlMaterialTextures( group, shader );
+
+    const std::map<uint_t, MdlMaterialArgumentBlockTemplates>::const_iterator templates =
+        m_mdlMaterialArgumentBlockTemplates.find( shaderKeyId );
+    if( templates == m_mdlMaterialArgumentBlockTemplates.end() )
+    {
+        throw std::runtime_error( "Missing generated MDL argument block templates for shader key " + std::to_string( shaderKeyId ) );
+    }
+
+    const otk::pbrt::PbrtMaterial  syntheticMaterial{ makeSyntheticMatteMaterial( group.material.Kd ) };
+    const otk::pbrt::PbrtMaterial& pbrtMaterial{
+        group.pbrtMaterial && !group.pbrtMaterial->type.empty() ? *group.pbrtMaterial : syntheticMaterial };
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( pbrtMaterial ) };
+
+    const MdlMaterialInstanceKey     materialKey{ makeProgramGroupMdlMaterialInstanceKey( group ) };
+    MdlMaterialArgumentBlockBuffers& buffers{ m_mdlMaterialArgumentBlockBuffers[materialKey] };
+    shader.tintArgumentBlock =
+        uploadMdlArgumentBlock( makeMdlArgumentBlockData( templates->second.tint, parameters ), buffers.tint );
+    shader.bsdfArgumentBlock =
+        uploadMdlArgumentBlock( makeMdlArgumentBlockData( templates->second.bsdf, parameters ), buffers.bsdf );
+    return shader;
+}
+
 void PbrtProgramGroups::markProgramLayoutChanged()
 {
     ++m_programLayoutVersion;
@@ -1284,19 +1460,19 @@ uint_t PbrtProgramGroups::getTriangleMdlMaterialSbtOffset( MaterialFlags flags )
 
 MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const MaterialGroup& group, uint_t shaderKeyId )
 {
-    std::map<uint_t, MdlMaterialShader>::const_iterator it = m_mdlMaterialShaders.find( shaderKeyId );
-    if( it != m_mdlMaterialShaders.end() )
+    std::map<uint_t, MdlMaterialShader>::const_iterator it = m_mdlMaterialSourceShaders.find( shaderKeyId );
+    if( it != m_mdlMaterialSourceShaders.end() )
     {
-        return it->second;
+        return bindMdlMaterialResources( group, shaderKeyId, it->second );
     }
 
     if( !m_options.mdlSynchronousCompilation )
     {
         requestMdlMaterialBuild( group, shaderKeyId );
-        MdlMaterialShader shader{};
-        if( installPendingMdlMaterialBuild( shaderKeyId, shader ) )
+        MdlMaterialShader sourceShader{};
+        if( installPendingMdlMaterialBuild( shaderKeyId, sourceShader ) )
         {
-            return shader;
+            return bindMdlMaterialResources( group, shaderKeyId, sourceShader );
         }
         throw MdlMaterialBuildPending( "MDL material build is still pending" );
     }
@@ -1322,16 +1498,17 @@ MdlMaterialShader PbrtProgramGroups::realizeTriangleMdlMaterialShader( const Mat
     }
 
     std::vector<OptixProgramGroup> createdCallableProgramGroups;
-    const MdlMaterialShader        shader{ bindMdlMaterialResources(
-        group, appendMdlMaterialCallableProgramGroups( context, tintModule, bsdfModule, targetCode,
-                                                       createdCallableProgramGroups, m_callableProgramGroups ) ) };
-    m_mdlMaterialShaders[shaderKeyId] = shader;
+    const MdlMaterialShader        sourceShader{ appendMdlMaterialCallableProgramGroups(
+        context, tintModule, bsdfModule, targetCode, createdCallableProgramGroups, m_callableProgramGroups ) };
+    m_mdlMaterialArgumentBlockTemplates[shaderKeyId] =
+        MdlMaterialArgumentBlockTemplates{ targetCode.tintArgumentBlock, targetCode.bsdfPtx.argumentBlock };
+    m_mdlMaterialSourceShaders[shaderKeyId] = sourceShader;
     markProgramLayoutChanged();
     m_renderer->setCallableProgramGroups( m_callableProgramGroups );
 
     const double optixTime{ optixTimer.elapsed() };
     std::cout << "Synchronous MDL material compile: " << compileTime << " s, OptiX link setup: " << optixTime << " s\n";
-    return shader;
+    return bindMdlMaterialResources( group, shaderKeyId, sourceShader );
 }
 #endif
 
@@ -1379,7 +1556,7 @@ void PbrtProgramGroups::requestMdlMaterialBuild( const MaterialGroup& group, uin
     {
         return;
     }
-    if( m_mdlMaterialShaders.count( shaderKeyId ) )
+    if( m_mdlMaterialSourceShaders.count( shaderKeyId ) )
     {
         return;
     }
@@ -1411,8 +1588,8 @@ bool PbrtProgramGroups::installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlM
     {
         return false;
     }
-    const std::map<uint_t, MdlMaterialShader>::const_iterator existing = m_mdlMaterialShaders.find( shaderKeyId );
-    if( existing != m_mdlMaterialShaders.end() )
+    const std::map<uint_t, MdlMaterialShader>::const_iterator existing = m_mdlMaterialSourceShaders.find( shaderKeyId );
+    if( existing != m_mdlMaterialSourceShaders.end() )
     {
         shader = existing->second;
         return true;
@@ -1438,8 +1615,9 @@ bool PbrtProgramGroups::installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlM
         return false;
     }
 
-    shader                            = result.shader;
-    m_mdlMaterialShaders[shaderKeyId] = shader;
+    shader                                           = result.sourceShader;
+    m_mdlMaterialSourceShaders[shaderKeyId]          = shader;
+    m_mdlMaterialArgumentBlockTemplates[shaderKeyId] = result.argumentBlockTemplates;
     m_programGroups         = std::move( result.programGroups );
     m_callableProgramGroups = std::move( result.callableProgramGroups );
     markProgramLayoutChanged();

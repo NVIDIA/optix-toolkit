@@ -666,6 +666,12 @@ MaterialState mdlFailedState( uint_t materialId, uint_t shaderKeyId )
 {
     return makeMaterialState( materialId, MaterialBackend::MDL_FAILED, shaderKeyId );
 }
+
+void expectMdlMaterialShader( const SceneSyncState& sync, uint_t materialId, const MdlMaterialShader& expected )
+{
+    ASSERT_LT( materialId, sync.mdlMaterialShaders.size() );
+    EXPECT_EQ( expected, sync.mdlMaterialShaders[materialId] );
+}
 #endif
 
 void setLocalFallbackState( SceneSyncState& sync, uint_t materialId )
@@ -727,6 +733,9 @@ Options testOptions()
     options.program   = "DemandPbrtScene";
     options.sceneFile = "test.pbrt";
     options.outFile   = "out.png";
+#ifdef OTK_USE_MDL
+    options.mdlSynchronousCompilation = true;
+#endif
     return options;
 }
 
@@ -1249,8 +1258,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialCo
     EXPECT_EQ( MaterialResolution::FULL, result );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U } );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
 
@@ -1295,8 +1303,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialFo
     EXPECT_EQ( MaterialFlags::NONE, m_sync.realizedMaterials[proxyMaterialId].flags );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U } );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
 
@@ -1353,10 +1360,9 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedOpaqueMaterialF
     EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
     EXPECT_EQ( mdlReadyState( proxyMaterialId2, 2U ), m_sync.materialStates[proxyMaterialId2] );
     EXPECT_EQ( mdlReadyState( proxyMaterialId3, 3U ), m_sync.materialStates[proxyMaterialId3] );
-    ASSERT_LT( 3U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
-    EXPECT_EQ( ( MdlMaterialShader{ 9U, 1U } ), m_sync.mdlMaterialShaders[2] );
-    EXPECT_EQ( ( MdlMaterialShader{ 10U, 1U } ), m_sync.mdlMaterialShaders[3] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId1, MdlMaterialShader{ 8U, 1U } );
+    expectMdlMaterialShader( m_sync, proxyMaterialId2, MdlMaterialShader{ 9U, 1U } );
+    expectMdlMaterialShader( m_sync, proxyMaterialId3, MdlMaterialShader{ 10U, 1U } );
     ASSERT_EQ( 3U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
@@ -1414,10 +1420,9 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedSpecularMateria
     EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
     EXPECT_EQ( mdlReadyState( proxyMaterialId2, 2U ), m_sync.materialStates[proxyMaterialId2] );
     EXPECT_EQ( mdlReadyState( proxyMaterialId3, 3U ), m_sync.materialStates[proxyMaterialId3] );
-    ASSERT_LT( 3U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
-    EXPECT_EQ( ( MdlMaterialShader{ 9U, 1U } ), m_sync.mdlMaterialShaders[2] );
-    EXPECT_EQ( ( MdlMaterialShader{ 10U, 1U } ), m_sync.mdlMaterialShaders[3] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId1, MdlMaterialShader{ 8U, 1U } );
+    expectMdlMaterialShader( m_sync, proxyMaterialId2, MdlMaterialShader{ 9U, 1U } );
+    expectMdlMaterialShader( m_sync, proxyMaterialId3, MdlMaterialShader{ 10U, 1U } );
     ASSERT_EQ( 3U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
@@ -1465,9 +1470,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixAndTransluce
     ASSERT_LT( proxyMaterialId2, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
     EXPECT_EQ( mdlReadyState( proxyMaterialId2, 2U ), m_sync.materialStates[proxyMaterialId2] );
-    ASSERT_LT( 2U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
-    EXPECT_EQ( ( MdlMaterialShader{ 9U, 1U } ), m_sync.mdlMaterialShaders[2] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId1, MdlMaterialShader{ 8U, 1U } );
+    expectMdlMaterialShader( m_sync, proxyMaterialId2, MdlMaterialShader{ 9U, 1U } );
     ASSERT_EQ( 2U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
@@ -1590,8 +1594,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedLandscapeMixMat
     EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( expectedShader, m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, expectedShader );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
 
@@ -1621,8 +1624,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixMaterialWith
     EXPECT_EQ( MaterialResolution::FULL, result );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U } );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
 
@@ -1654,8 +1656,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixMaterialWith
     EXPECT_EQ( MaterialResolution::FULL, result );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U } );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
@@ -1665,7 +1666,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixMaterialWith
     EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
 }
 
-TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsUseDistinctShaderKeys )
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsShareShaderKeyButKeepDistinctMaterialShaders )
 {
     m_options.useMdlMaterials = true;
     usePbrtMatteMaterial( m_geom, 0.25f );
@@ -1686,7 +1687,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsU
         EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) ).WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
         EXPECT_CALL( *m_loader, remove( proxyMaterialId1 ) ).Times( 1 );
         EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
-        EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 2U ) ).WillOnce( Return( MdlMaterialShader{ 9U, 1U } ) );
+        EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) ).WillOnce( Return( MdlMaterialShader{ 9U, 1U } ) );
         EXPECT_CALL( *m_loader, remove( proxyMaterialId2 ) ).Times( 1 );
     }
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
@@ -1697,22 +1698,121 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsU
     ASSERT_LT( proxyMaterialId1, m_sync.materialStates.size() );
     ASSERT_LT( proxyMaterialId2, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
-    EXPECT_EQ( mdlReadyState( proxyMaterialId2, 2U ), m_sync.materialStates[proxyMaterialId2] );
-    ASSERT_LT( 2U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
-    EXPECT_EQ( ( MdlMaterialShader{ 9U, 1U } ), m_sync.mdlMaterialShaders[2] );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId2, 1U ), m_sync.materialStates[proxyMaterialId2] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId1, MdlMaterialShader{ 8U, 1U } );
+    expectMdlMaterialShader( m_sync, proxyMaterialId2, MdlMaterialShader{ 9U, 1U } );
     ASSERT_EQ( 2U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 2U, stats.numRequestedMaterialPages );
-    EXPECT_EQ( 2U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
     EXPECT_EQ( 2U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 1U, stats.mdlShaders.numSourceCacheHits );
     EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
-    EXPECT_EQ( 2U, stats.mdlShaders.numCompileRequests );
-    EXPECT_EQ( 2U, stats.mdlShaders.numReadyShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsShareDelayedCompileButKeepDistinctMaterialShaders )
+{
+    m_options.useMdlMaterials            = true;
+    m_options.mdlSynchronousCompilation = false;
+    usePbrtMatteMaterial( m_geom, 0.25f );
+    GeometryInstance secondGeom{ m_geom };
+    usePbrtMatteMaterial( secondGeom, 0.75f );
+    const uint_t proxyGeomId1{ 1111U };
+    const uint_t proxyGeomId2{ 2222U };
+    const uint_t proxyMaterialId1{ 4444U };
+    const uint_t proxyMaterialId2{ 5555U };
+    const uint_t mdlSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 11U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId1 ) ).WillOnce( Return( proxyMaterialId2 ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId1, m_geom, m_sync ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId2, secondGeom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId1, proxyMaterialId2 } ) );
+    {
+        InSequence sequence;
+        EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
+        EXPECT_CALL( *m_loader, remove( proxyMaterialId1 ) ).Times( 1 );
+        EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
+        EXPECT_CALL( *m_loader, remove( proxyMaterialId2 ) ).Times( 1 );
+    }
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution fallbackResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, fallbackResult );
+    ASSERT_LT( proxyMaterialId1, m_sync.materialStates.size() );
+    ASSERT_LT( proxyMaterialId2, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlPendingState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
+    EXPECT_EQ( mdlPendingState( proxyMaterialId2, 1U ), m_sync.materialStates[proxyMaterialId2] );
+    ASSERT_EQ( 2U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
+
+    MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 2U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 2U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 2U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numSourceCacheHits );
+    EXPECT_EQ( 0U, stats.mdlShaders.numMaterialInstanceCacheHits );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
+    ASSERT_TRUE( Mock::VerifyAndClearExpectations( m_loader.get() ) );
+    ASSERT_TRUE( Mock::VerifyAndClearExpectations( m_programGroups.get() ) );
+
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) )
+        .WillOnce( Throw( MdlMaterialBuildPending( "still building" ) ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).Times( 0 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 0 );
+
+    const MaterialResolution pendingResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::NONE, pendingResult );
+    stats = m_resolver->getStatistics();
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numReadyShaders );
+    ASSERT_TRUE( Mock::VerifyAndClearExpectations( m_loader.get() ) );
+    ASSERT_TRUE( Mock::VerifyAndClearExpectations( m_programGroups.get() ) );
+
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) ).WillOnce( Return( MdlMaterialShader{ 8U, 1U } ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).Times( 0 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 0 );
+
+    const MaterialResolution firstReadyResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::SHADER_DATA_ONLY, firstReadyResult );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
+    EXPECT_EQ( mdlPendingState( proxyMaterialId2, 1U ), m_sync.materialStates[proxyMaterialId2] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId1, MdlMaterialShader{ 8U, 1U } );
+    stats = m_resolver->getStatistics();
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompletedCompiles );
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+    ASSERT_TRUE( Mock::VerifyAndClearExpectations( m_loader.get() ) );
+    ASSERT_TRUE( Mock::VerifyAndClearExpectations( m_programGroups.get() ) );
+
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) ).WillOnce( Return( MdlMaterialShader{ 9U, 1U } ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).Times( 0 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 0 );
+
+    const MaterialResolution secondReadyResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::SHADER_DATA_ONLY, secondReadyResult );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId2, 1U ), m_sync.materialStates[proxyMaterialId2] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId2, MdlMaterialShader{ 9U, 1U } );
+    stats = m_resolver->getStatistics();
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompletedCompiles );
+    EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompilingShaders );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+    EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksExplicitMaterialGapTypesOnFallback )
@@ -2066,8 +2166,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixedDiffuseMat
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, linearTextureId, textureScale, textureBias } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U, linearTextureId, textureScale, textureBias } );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2123,9 +2222,9 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedDiffuseMaterial
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, linearTextureId, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) } ),
-               m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId,
+                             MdlMaterialShader{ 8U, 1U, linearTextureId, make_float3( 1.0f, 1.0f, 1.0f ),
+                                                make_float3( 0.0f, 0.0f, 0.0f ) } );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2182,9 +2281,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedScaledDiffuseMa
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, linearTextureId, textureScale, make_float3( 0.0f, 0.0f, 0.0f ) } ),
-               m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId,
+                             MdlMaterialShader{ 8U, 1U, linearTextureId, textureScale, make_float3( 0.0f, 0.0f, 0.0f ) } );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2240,9 +2338,9 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMirrorMaterialB
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U, linearTextureId, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) } ),
-               m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId,
+                             MdlMaterialShader{ 8U, 1U, linearTextureId, make_float3( 1.0f, 1.0f, 1.0f ),
+                                                make_float3( 0.0f, 0.0f, 0.0f ) } );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2325,7 +2423,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedUberMaterialBin
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( expectedShader, m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, expectedShader );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2389,7 +2487,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedTranslucentMate
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( expectedShader, m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, expectedShader );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2444,7 +2542,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedUberMaterialBin
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
     ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( expectedShader, m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, expectedShader );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2504,8 +2602,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedAlphaMaterialBi
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U } );
 
     const MaterialResolverStats stats{ m_resolver->getStatistics() };
     EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
@@ -2568,8 +2665,6 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMdlMaterialCanR
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
-    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) )
-        .WillOnce( Throw( MdlMaterialBuildPending( "queued" ) ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
 
@@ -2631,11 +2726,10 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMdlMaterialCanR
 
     const MaterialResolution mdlResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
-    EXPECT_EQ( MaterialResolution::FULL, mdlResult );
+    EXPECT_EQ( MaterialResolution::SHADER_DATA_ONLY, mdlResult );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
-    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
-    EXPECT_EQ( ( MdlMaterialShader{ 8U, 1U } ), m_sync.mdlMaterialShaders[1] );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, MdlMaterialShader{ 8U, 1U } );
     ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
     EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
 
@@ -2670,8 +2764,6 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialFa
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
     EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( _ ) ).WillOnce( Return( mdlSbtOffset ) );
-    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) )
-        .WillOnce( Throw( MdlMaterialBuildPending( "queued" ) ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
     ASSERT_EQ( MaterialResolution::FULL, m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) );
@@ -2683,7 +2775,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialFa
 
     const MaterialResolution failedResult{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
 
-    EXPECT_EQ( MaterialResolution::FULL, failedResult );
+    EXPECT_EQ( MaterialResolution::SHADER_DATA_ONLY, failedResult );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( mdlFailedState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
 

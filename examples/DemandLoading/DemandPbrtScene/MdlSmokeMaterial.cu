@@ -589,7 +589,8 @@ __device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&     
                                                    const mi::neuraylib::Resource_data&    resourceData )
 {
     optixDirectCall<void, mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-        shader.callableBaseIndex + MDL_BSDF_INIT_CALLABLE_OFFSET, &state, &resourceData, nullptr );
+        shader.callableBaseIndex + MDL_BSDF_INIT_CALLABLE_OFFSET, &state, &resourceData,
+        reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) );
 }
 
 __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&                     shader,
@@ -606,8 +607,9 @@ __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&     
     evalData.k2    = incoming;
     evalData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT_AND_TRANSMIT;
     optixDirectCall<void, mi::neuraylib::Bsdf_evaluate_data_base*, const mi::neuraylib::Shading_state_material*,
-                    const mi::neuraylib::Resource_data*, const char*>( shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET,
-                                                                       &evalData, &state, &resourceData, nullptr );
+                    const mi::neuraylib::Resource_data*, const char*>(
+        shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET, &evalData, &state, &resourceData,
+        reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) );
     float3 glossyScale{ mdlGlossyTextureScale( shader, textureSamples ) };
     if( !hasMdlGlossyTexture( shader ) && hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX )
         && otk::dot( evalData.bsdf_diffuse, evalData.bsdf_diffuse ) == 0.0f )
@@ -676,7 +678,8 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
     sampleData.xi    = xi;
     sampleData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT_AND_TRANSMIT;
     optixDirectCall<void, mi::neuraylib::Bsdf_sample_data*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-        shader.callableBaseIndex + MDL_BSDF_SAMPLE_CALLABLE_OFFSET, &sampleData, &state, &resourceData, nullptr );
+        shader.callableBaseIndex + MDL_BSDF_SAMPLE_CALLABLE_OFFSET, &sampleData, &state, &resourceData,
+        reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) );
 
     if( sampleData.event_type == mi::neuraylib::BSDF_EVENT_ABSORB )
     {
@@ -724,18 +727,18 @@ __device__ __forceinline__ bool useMdlShader( const Params& params, uint_t mater
     }
 
 #ifndef NDEBUG
-    if( state.shaderKey >= params.numMdlMaterialShaders )
+    if( materialId >= params.numMdlMaterialShaders )
     {
-        printf( "Shader key %u exceeds number of MDL material shader entries %u\n", state.shaderKey, params.numMdlMaterialShaders );
-        assert( state.shaderKey < params.numMdlMaterialShaders );
+        printf( "Material id %u exceeds number of MDL material shader entries %u\n", materialId, params.numMdlMaterialShaders );
+        assert( materialId < params.numMdlMaterialShaders );
     }
 #endif
-    if( state.shaderKey >= params.numMdlMaterialShaders || params.mdlMaterialShaders == nullptr )
+    if( materialId >= params.numMdlMaterialShaders || params.mdlMaterialShaders == nullptr )
     {
         return false;
     }
 
-    shader = params.mdlMaterialShaders[state.shaderKey];
+    shader = params.mdlMaterialShaders[materialId];
     return shader.callableCount >= 1U;
 }
 
@@ -821,11 +824,11 @@ extern "C" __global__ void __closesthit__mdlMesh()
         worldSpaceTextureSize    = getWorldSpaceTextureSize( vertices, *triangleUVs );
         textCoords[0]         = make_float3( uv.x, uv.y, 0.0f );
     }
-
     if( params.renderMode == RenderMode::PATH_TRACING || !hasDiffuseTexture )
     {
         optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-            shader.callableBaseIndex, &tint, &state, &resourceData, nullptr );
+            shader.callableBaseIndex, &tint, &state, &resourceData,
+            reinterpret_cast<const char*>( shader.tintArgumentBlock ) );
         material.Kd = make_float3( tint.x, tint.y, tint.z );
     }
 
