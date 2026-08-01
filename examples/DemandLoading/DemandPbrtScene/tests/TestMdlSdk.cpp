@@ -504,6 +504,18 @@ otk::pbrt::PbrtMaterial mixMaterial( const BoundMdlColor& firstKd, const BoundMd
     return material;
 }
 
+otk::pbrt::PbrtMaterial mixMaterial( const BoundMdlColor& firstKd, const BoundMdlColor& secondKd, const BoundMdlColor& amount )
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "mix";
+    addString( material.params, "namedmaterial1", "front" );
+    addString( material.params, "namedmaterial2", "back" );
+    addRgbSpectrum( material.params, "amount", amount.red, amount.green, amount.blue );
+    material.graph.namedMaterials["front"] = namedMatteMaterial( "front", firstKd );
+    material.graph.namedMaterials["back"]  = namedMatteMaterial( "back", secondKd );
+    return material;
+}
+
 otk::pbrt::PbrtMaterial mixMaterial()
 {
     return mixMaterial( BoundMdlColor{ 0.2f, 0.2f, 0.2f }, BoundMdlColor{ 0.8f, 0.8f, 0.8f }, 0.25f );
@@ -1851,15 +1863,18 @@ TEST( TestMdlSdk, compilesGeneratedMixBsdfCallablesWithBoundNamedMaterialClosure
     const otk::pbrt::PbrtMaterial firstMaterial{ mixMaterial( firstFront, firstBack, 0.35f ) };
     const otk::pbrt::PbrtMaterial secondMaterial{ mixMaterial( secondFront, secondBack, 0.35f ) };
     const otk::pbrt::PbrtMaterial amountMaterial{ mixMaterial( firstFront, firstBack, 0.75f ) };
+    const otk::pbrt::PbrtMaterial rgbAmountMaterial{ mixMaterial( firstFront, firstBack, BoundMdlColor{ 0.2f, 0.4f, 0.6f } ) };
     const otk::pbrt::PbrtMaterial amountTextureMaterial{ mixMaterialWithAmountTexture( firstFront, firstBack, 0.35f ) };
     const otk::pbrt::PbrtMaterial namedUberMaterial{ mixMaterialWithNamedUberIndex( firstFront, firstBack, 0.35f ) };
     const demandPbrtScene::MdlShaderKey firstKey{ demandPbrtScene::makeMdlShaderKey( firstMaterial ) };
     const demandPbrtScene::MdlShaderKey secondKey{ demandPbrtScene::makeMdlShaderKey( secondMaterial ) };
     const demandPbrtScene::MdlShaderKey amountKey{ demandPbrtScene::makeMdlShaderKey( amountMaterial ) };
+    const demandPbrtScene::MdlShaderKey rgbAmountKey{ demandPbrtScene::makeMdlShaderKey( rgbAmountMaterial ) };
     const demandPbrtScene::MdlShaderKey amountTextureKey{ demandPbrtScene::makeMdlShaderKey( amountTextureMaterial ) };
     const demandPbrtScene::MdlShaderKey namedUberKey{ demandPbrtScene::makeMdlShaderKey( namedUberMaterial ) };
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( secondKey ) );
     EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( amountKey ) );
+    EXPECT_EQ( demandPbrtScene::toString( firstKey ), demandPbrtScene::toString( rgbAmountKey ) );
 
     demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
     const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( firstMaterial ) };
@@ -1867,8 +1882,8 @@ TEST( TestMdlSdk, compilesGeneratedMixBsdfCallablesWithBoundNamedMaterialClosure
     const demandPbrtScene::GeneratedMdlSource& namedUberGenerated{ sourceCache.getSource( namedUberMaterial ) };
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(amount, amount, amount)" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(1.0 - amount, 1.0 - amount, 1.0 - amount)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: amount" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(1.0, 1.0, 1.0) - amount" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "component: ::df::diffuse_reflection_bsdf" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_mix_approximation_tint" ) ) );
     EXPECT_THAT( namedUberGenerated.source, testing::Not( testing::HasSubstr( "named_0_index" ) ) );
@@ -1899,6 +1914,8 @@ TEST( TestMdlSdk, compilesGeneratedMixBsdfCallablesWithBoundNamedMaterialClosure
             demandPbrtScene::makeMdlBoundMaterialParameters( secondMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> amountParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( amountMaterial ) };
+        const std::vector<demandPbrtScene::MdlBoundMaterialParameter> rgbAmountParameters{
+            demandPbrtScene::makeMdlBoundMaterialParameters( rgbAmountMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> amountTextureParameters{
             demandPbrtScene::makeMdlBoundMaterialParameters( amountTextureMaterial ) };
         const std::vector<demandPbrtScene::MdlBoundMaterialParameter> namedUberParameters{
@@ -1914,6 +1931,10 @@ TEST( TestMdlSdk, compilesGeneratedMixBsdfCallablesWithBoundNamedMaterialClosure
         mi::base::Handle<mi::neuraylib::ICompiled_material> amountCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
             session.neuray(), transaction.get(), context.get(), generated, firstKey, amountParameters ) );
         ASSERT_TRUE( amountCompiledMaterial.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ICompiled_material> rgbAmountCompiledMaterial( compileGeneratedMaterialWithBoundParameters(
+            session.neuray(), transaction.get(), context.get(), generated, firstKey, rgbAmountParameters ) );
+        ASSERT_TRUE( rgbAmountCompiledMaterial.is_valid_interface() );
 
         mi::base::Handle<mi::neuraylib::ICompiled_material> amountTextureCompiledMaterial(
             compileGeneratedMaterialWithBoundParameters( session.neuray(), transaction.get(), context.get(),
@@ -1932,6 +1953,9 @@ TEST( TestMdlSdk, compilesGeneratedMixBsdfCallablesWithBoundNamedMaterialClosure
         const demandPbrtScene::MdlBsdfCallablePtx amountBsdf{
             demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), amountCompiledMaterial.get(),
                                                            context.get(), "surface.scattering", "pbrt_mix_bsdf" ) };
+        const demandPbrtScene::MdlBsdfCallablePtx rgbAmountBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
+            session.neuray(), transaction.get(), rgbAmountCompiledMaterial.get(), context.get(), "surface.scattering",
+            "pbrt_mix_bsdf" ) };
         const demandPbrtScene::MdlBsdfCallablePtx amountTextureBsdf{ demandPbrtScene::compileMdlBsdfCallablesToPtx(
             session.neuray(), transaction.get(), amountTextureCompiledMaterial.get(), context.get(),
             "surface.scattering", "pbrt_mix_bsdf" ) };
@@ -1949,14 +1973,17 @@ TEST( TestMdlSdk, compilesGeneratedMixBsdfCallablesWithBoundNamedMaterialClosure
         EXPECT_THAT( firstBsdf.ptx, testing::HasSubstr( firstBsdf.pdfFunctionName ) );
         EXPECT_FALSE( secondBsdf.ptx.empty() );
         EXPECT_FALSE( amountBsdf.ptx.empty() );
+        EXPECT_FALSE( rgbAmountBsdf.ptx.empty() );
         EXPECT_FALSE( amountTextureBsdf.ptx.empty() );
         EXPECT_FALSE( namedUberBsdf.ptx.empty() );
         EXPECT_NE( firstBsdf.ptx, secondBsdf.ptx );
         EXPECT_NE( firstBsdf.ptx, amountBsdf.ptx );
+        EXPECT_NE( firstBsdf.ptx, rgbAmountBsdf.ptx );
 
         firstCompiledMaterial.reset();
         secondCompiledMaterial.reset();
         amountCompiledMaterial.reset();
+        rgbAmountCompiledMaterial.reset();
         amountTextureCompiledMaterial.reset();
         namedUberCompiledMaterial.reset();
         EXPECT_EQ( 0, transaction->commit() );

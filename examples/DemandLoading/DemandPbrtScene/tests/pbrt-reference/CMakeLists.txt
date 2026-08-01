@@ -226,7 +226,7 @@ if(OTK_USE_MDL)
         MATERIAL mix
         SCENE mix-rgb-amount.pbrt
         WARMUP 4
-        TOLERANCE_REASON "Default tolerance, generated MDL mix folds equal-RGB amount to the scalar material parameter")
+        TOLERANCE_REASON "Default tolerance, generated MDL mix binds RGB amount as a color material parameter")
     add_pbrt_reference_image_test(fourier
         MATERIAL fourier
         SCENE fourier.pbrt

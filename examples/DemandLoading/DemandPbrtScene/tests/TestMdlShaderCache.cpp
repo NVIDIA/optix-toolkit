@@ -1191,51 +1191,51 @@ TEST( TestMdlBoundMaterialParameters, bindsMixConstantsAndNamedMaterialConstants
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMixMaterial() ) };
 
     EXPECT_EQ( 3U, parameters.size() );
-    expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "amount", 0.25f, 0.25f, 0.25f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
 
-TEST( TestMdlBoundMaterialParameters, bindsMixEqualRgbAmountAsScalar )
+TEST( TestMdlBoundMaterialParameters, bindsMixEqualRgbAmountAsColor )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{
         makeMdlBoundMaterialParameters( constantMixMaterialWithRgbAmount( 0.4f, 0.4f, 0.4f ) ) };
 
     EXPECT_EQ( 3U, parameters.size() );
-    expectBoundFloat( parameters, "amount", 0.4f );
+    expectBoundColor( parameters, "amount", 0.4f, 0.4f, 0.4f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
 
-TEST( TestMdlBoundMaterialParameters, skipsMixNonScalarRgbAmount )
+TEST( TestMdlBoundMaterialParameters, bindsMixNonScalarRgbAmount )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{
         makeMdlBoundMaterialParameters( constantMixMaterialWithRgbAmount( 0.2f, 0.4f, 0.6f ) ) };
 
-    EXPECT_EQ( 2U, parameters.size() );
-    EXPECT_EQ( nullptr, findBoundParameter( parameters, "amount" ) );
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundColor( parameters, "amount", 0.2f, 0.4f, 0.6f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
 
-TEST( TestMdlBoundMaterialParameters, bindsParsedMixEqualRgbAmountAsScalar )
+TEST( TestMdlBoundMaterialParameters, bindsParsedMixEqualRgbAmountAsColor )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{
         makeMdlBoundMaterialParameters( parsedMixMaterialWithRgbAmount( 0.4f, 0.4f, 0.4f ) ) };
 
     EXPECT_EQ( 3U, parameters.size() );
-    expectBoundFloat( parameters, "amount", 0.4f );
+    expectBoundColor( parameters, "amount", 0.4f, 0.4f, 0.4f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
 
-TEST( TestMdlBoundMaterialParameters, skipsParsedMixNonScalarRgbAmount )
+TEST( TestMdlBoundMaterialParameters, bindsParsedMixNonScalarRgbAmountAsColor )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{
         makeMdlBoundMaterialParameters( parsedMixMaterialWithRgbAmount( 0.2f, 0.4f, 0.6f ) ) };
 
-    EXPECT_EQ( 2U, parameters.size() );
-    EXPECT_EQ( nullptr, findBoundParameter( parameters, "amount" ) );
+    EXPECT_EQ( 3U, parameters.size() );
+    expectBoundColor( parameters, "amount", 0.2f, 0.4f, 0.6f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
@@ -1245,7 +1245,7 @@ TEST( TestMdlBoundMaterialParameters, bindsMixConstantAmountTexture )
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( constantMixMaterialWithAmountTexture() ) };
 
     EXPECT_EQ( 3U, parameters.size() );
-    expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "amount", 0.25f, 0.25f, 0.25f );
     expectBoundColor( parameters, "named_0_Kd", 0.2f, 0.2f, 0.2f );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
 }
@@ -1255,7 +1255,7 @@ TEST( TestMdlBoundMaterialParameters, skipsNamedUberIndexInMix )
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( mixMaterialWithNamedUberIndex() ) };
 
     EXPECT_EQ( 3U, parameters.size() );
-    expectBoundFloat( parameters, "amount", 0.25f );
+    expectBoundColor( parameters, "amount", 0.25f, 0.25f, 0.25f );
     expectBoundColor( parameters, "named_0_Kd", 0.3f, 0.4f, 0.5f );
     EXPECT_EQ( nullptr, findBoundParameter( parameters, "named_0_index" ) );
     expectBoundColor( parameters, "named_1_Kd", 0.8f, 0.8f, 0.8f );
@@ -1537,7 +1537,7 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
     const GeneratedMdlSource generated{ generateMdlSource( layeredMixMaterial() ) };
 
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: mix" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "float amount = 0.5" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color amount = color(0.5, 0.5, 0.5)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input namedmaterial1: named material 0" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input namedmaterial2: named material 1" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt named material 0 model: uber" ) );
@@ -1561,8 +1561,8 @@ TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
                                                        "namedmaterial2 uses 1 - amount" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_bsdf_component[]" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(amount, amount, amount)" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(1.0 - amount, 1.0 - amount, 1.0 - amount)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: amount" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: color(1.0, 1.0, 1.0) - amount" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_mix_opacity_weight" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_mix_transparency_weight" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "weight: pbrt_mix_opacity_weight(named_0_opacity) * "

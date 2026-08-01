@@ -207,12 +207,12 @@ otk::pbrt::PbrtMaterial generatedMdlMaterialForNamedMaterial( const otk::pbrt::P
     return material;
 }
 
-bool hasGeneratedMdlConstantFloatTexture( const otk::pbrt::PbrtMaterial& material, const std::string& textureName )
+bool hasGeneratedMdlConstantAmountTexture( const otk::pbrt::PbrtMaterial& material, const std::string& textureName )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
     for( const MdlBoundMaterialParameter& parameter : parameters )
     {
-        if( parameter.name == "amount" && parameter.type == MdlBoundParameterType::FLOAT
+        if( parameter.name == "amount" && parameter.type == MdlBoundParameterType::COLOR
             && material.params.FindTexture( "amount" ) == textureName )
         {
             return true;
@@ -420,58 +420,6 @@ bool supportsGeneratedMdlNamedMaterialReferences( const otk::pbrt::PbrtMaterial&
            && supportsGeneratedMdlNamedMaterialReference( material, "namedmaterial2" );
 }
 
-bool findGeneratedMdlSpectrumParamScalarity( const ::pbrt::ParamSet& params, const char* paramName, bool& scalar )
-{
-    if( !params.FindTexture( paramName ).empty() )
-    {
-        return false;
-    }
-
-    int                     count{};
-    const ::pbrt::Spectrum* values{ params.FindSpectrum( paramName, &count ) };
-    if( count <= 0 || values == nullptr )
-    {
-        return false;
-    }
-
-    float rgb[3]{};
-    values[0].ToRGB( rgb );
-    constexpr float epsilon{ 1.0e-6f };
-    scalar = std::fabs( rgb[0] - rgb[1] ) <= epsilon && std::fabs( rgb[0] - rgb[2] ) <= epsilon;
-    return true;
-}
-
-bool hasGeneratedMdlFloatParam( const ::pbrt::ParamSet& params, const char* paramName )
-{
-    if( !params.FindTexture( paramName ).empty() )
-    {
-        return false;
-    }
-
-    int          count{};
-    const float* values{ params.FindFloat( paramName, &count ) };
-    return count > 0 && values != nullptr;
-}
-
-bool supportsGeneratedMdlMixAmount( const otk::pbrt::PbrtMaterial& material )
-{
-    if( material.type != "mix" || !material.params.FindTexture( "amount" ).empty() )
-    {
-        return true;
-    }
-    if( hasGeneratedMdlFloatParam( material.params, "amount" ) )
-    {
-        return true;
-    }
-
-    bool scalarAmount{};
-    if( findGeneratedMdlSpectrumParamScalarity( material.params, "amount", scalarAmount ) )
-    {
-        return scalarAmount;
-    }
-    return true;
-}
-
 PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material,
                                                             const MaterialGroup&           group,
                                                             const std::string&             paramName )
@@ -623,7 +571,7 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
         }
         if( paramName == "amount" )
         {
-            if( !hasGeneratedMdlConstantFloatTexture( material, textureName ) )
+            if( !hasGeneratedMdlConstantAmountTexture( material, textureName ) )
             {
                 return false;
             }
@@ -651,7 +599,7 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
 
 bool hasGeneratedMdlUnsupportedTextureReference( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
 {
-    if( !supportsGeneratedMdlMixAmount( material ) || !supportsGeneratedMdlTextureReferences( material, group ) )
+    if( !supportsGeneratedMdlTextureReferences( material, group ) )
     {
         return true;
     }
@@ -772,7 +720,7 @@ void setGeneratedMdlMixAlphaCutout( const Options& options, const GeometryInstan
     if( !options.useMdlMaterials || instance.primitive != GeometryPrimitive::TRIANGLE
         || instance.groups.size() != 1 || !group.pbrtMaterial || group.pbrtMaterial->type != "mix"
         || flagSet( group.material.flags, MaterialFlags::ALPHA_MAP ) || !group.pbrtMaterial->graph.fallbackReasons.empty()
-        || !supportsGeneratedMdlNamedMaterialReferences( *group.pbrtMaterial ) || !supportsGeneratedMdlMixAmount( *group.pbrtMaterial )
+        || !supportsGeneratedMdlNamedMaterialReferences( *group.pbrtMaterial )
         || !supportsGeneratedMdlTextureReferences( *group.pbrtMaterial, group ) )
     {
         return;
@@ -864,7 +812,6 @@ void resolveGeneratedMdlTextureBindings( const Options&          options,
     if( !options.useMdlMaterials || instance.primitive != GeometryPrimitive::TRIANGLE
         || instance.groups.size() != 1 || !group.pbrtMaterial || !supportsGeneratedMdlMaterial( group.pbrtMaterial->type )
         || !group.pbrtMaterial->graph.fallbackReasons.empty() || !supportsGeneratedMdlNamedMaterialReferences( *group.pbrtMaterial )
-        || !supportsGeneratedMdlMixAmount( *group.pbrtMaterial )
         || !supportsGeneratedMdlTextureReferences( *group.pbrtMaterial, group ) )
     {
         return;

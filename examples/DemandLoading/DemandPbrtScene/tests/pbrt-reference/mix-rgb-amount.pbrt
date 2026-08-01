@@ -16,7 +16,7 @@ WorldBegin
     Material "mix"
         "string namedmaterial1" ["front"]
         "string namedmaterial2" ["back"]
-        "rgb amount" [0.4 0.4 0.4]
+        "rgb amount" [0.2 0.5 0.8]
     Shape "trianglemesh"
         "point P" [
             -2 -2 -0.05

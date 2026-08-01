@@ -773,10 +773,10 @@ bool scalarColorValue( const FoldedColor& color, float& value )
     return true;
 }
 
-bool findConstantScalarColor( const ::pbrt::ParamSet& params, const char* name, float& value )
+bool promotesFloatToColorParameter( const char* name )
 {
-    FoldedColor color{};
-    return findConstantColor( params, name, color.red, color.green, color.blue ) && scalarColorValue( color, value );
+    const std::string parameterName{ name };
+    return parameterName == "opacity" || parameterName == "amount";
 }
 
 bool findTextureColorValue( const ::pbrt::ParamSet& params, const char* name, const FoldedColor& defaultValue, FoldedColor& value )
@@ -976,7 +976,7 @@ void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const
         {
             result.push_back( parameter );
         }
-        else if( std::string{ spec.name } == "opacity" && findConstantFloat( params, spec.name, parameter.value ) )
+        else if( promotesFloatToColorParameter( spec.name ) && findConstantFloat( params, spec.name, parameter.value ) )
         {
             parameter.red = parameter.green = parameter.blue = parameter.value;
             result.push_back( parameter );
@@ -988,10 +988,6 @@ void appendBoundParameter( std::vector<MdlBoundMaterialParameter>& result, const
     {
         result.push_back( parameter );
         return;
-    }
-    if( std::string{ spec.name } == "amount" && findConstantScalarColor( params, spec.name, parameter.value ) )
-    {
-        result.push_back( parameter );
     }
 }
 
@@ -2015,13 +2011,13 @@ std::string mixNamedMaterialBsdfExpression( MdlMaterialModel&              model
 MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph, GeneratedMdlSource& result )
 {
     MdlMaterialModel model;
-    appendMaterialParameter( model, "float", "amount", "0.5" );
+    appendMaterialParameter( model, "color", "amount", "color(0.5, 0.5, 0.5)" );
 
     model.comments.push_back( "pbrt material model: mix" );
     const std::string first{ mixNamedMaterialBsdfExpression( model, textureGraph, result, material, "namedmaterial1", 0U ) };
     const std::string second{ mixNamedMaterialBsdfExpression( model, textureGraph, result, material, "namedmaterial2", 1U ) };
     const std::string amountTexture{
-        materialTextureCommentExpression( textureGraph, material.params, "amount", "float" ) };
+        materialTextureCommentExpression( textureGraph, material.params, "amount", "color" ) };
 
     model.comments.push_back( "pbrt material input amount: amount; texture=" + amountTexture );
     model.comments.push_back( "pbrt material weighting: namedmaterial1 uses amount; namedmaterial2 uses 1 - amount" );
@@ -2045,12 +2041,12 @@ MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, 
         "        scattering: ::df::color_normalized_mix(\n"
         "            components: ::df::color_bsdf_component[](\n"
         "                ::df::color_bsdf_component(\n"
-        "                    weight: color(amount, amount, amount),\n"
+        "                    weight: amount,\n"
         "                    component: "
         + first
         + "),\n"
           "                ::df::color_bsdf_component(\n"
-          "                    weight: color(1.0 - amount, 1.0 - amount, 1.0 - amount),\n"
+          "                    weight: color(1.0, 1.0, 1.0) - amount,\n"
           "                    component: "
         + second + "))))\n";
     return model;
@@ -2296,7 +2292,7 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::COLOR, "opacity" },
     };
     static const BoundParameterSpec mixParams[] = {
-        { MdlBoundParameterType::FLOAT, "amount" },
+        { MdlBoundParameterType::COLOR, "amount" },
     };
 
     std::vector<MdlBoundMaterialParameter> result;
