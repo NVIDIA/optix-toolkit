@@ -23,7 +23,9 @@ using uint_t = unsigned int;
 constexpr uint_t INVALID_TEXTURE_ID{ 0xffffffffU };
 #ifdef OTK_USE_MDL
 constexpr uint_t INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID{ 0U };
-constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 15U };
+constexpr uint_t INVALID_MDL_ARGUMENT_BLOCK_OFFSET{ 0xffffffffU };
+constexpr uint_t MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE{ 512U };
+constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 18U };
 constexpr uint_t MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX{ 0U };
 constexpr uint_t MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX{ 1U };
 constexpr uint_t MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX{ 2U };
@@ -59,6 +61,9 @@ constexpr uint_t MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX{
 constexpr uint_t MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX{
     MDL_MATERIAL_MIX_NAMED_1_TEXTURE_BINDING_BASE + MDL_MATERIAL_MIX_NAMED_BUMPMAP_TEXTURE_BINDING_OFFSET };
 constexpr uint_t MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX{ 14U };
+constexpr uint_t MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX{ 15U };
+constexpr uint_t MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX{ 16U };
+constexpr uint_t MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX{ 17U };
 #endif
 
 enum RayType
@@ -366,6 +371,10 @@ struct MdlMaterialShader
     uint_t      callableCount;
     CUdeviceptr tintArgumentBlock;
     CUdeviceptr bsdfArgumentBlock;
+    uint_t      bsdfArgumentBlockSize;
+    uint_t      roughnessArgumentBlockOffset;
+    uint_t      uRoughnessArgumentBlockOffset;
+    uint_t      vRoughnessArgumentBlockOffset;
 
     // Per-instance shader data lives here rather than in hitgroup SBT records.
     uint_t                    textureBindingCount;
@@ -399,6 +408,10 @@ struct MdlMaterialShader
         , callableCount( 0U )
         , tintArgumentBlock( CUdeviceptr{} )
         , bsdfArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlockSize( 0U )
+        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -409,6 +422,10 @@ struct MdlMaterialShader
         , callableCount( callableCount_ )
         , tintArgumentBlock( CUdeviceptr{} )
         , bsdfArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlockSize( 0U )
+        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -419,6 +436,10 @@ struct MdlMaterialShader
         , callableCount( callableCount_ )
         , tintArgumentBlock( CUdeviceptr{} )
         , bsdfArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlockSize( 0U )
+        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -434,6 +455,10 @@ struct MdlMaterialShader
         , callableCount( callableCount_ )
         , tintArgumentBlock( CUdeviceptr{} )
         , bsdfArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlockSize( 0U )
+        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -449,6 +474,10 @@ struct MdlMaterialShader
         , callableCount( callableCount_ )
         , tintArgumentBlock( CUdeviceptr{} )
         , bsdfArgumentBlock( CUdeviceptr{} )
+        , bsdfArgumentBlockSize( 0U )
+        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
         , textureBindingCount( 0U )
     {
         clearTextureBindings();
@@ -470,7 +499,9 @@ inline bool operator==( const MdlMaterialShader& lhs, const MdlMaterialShader& r
 {
     if( lhs.callableBaseIndex != rhs.callableBaseIndex || lhs.callableCount != rhs.callableCount
         || lhs.tintArgumentBlock != rhs.tintArgumentBlock || lhs.bsdfArgumentBlock != rhs.bsdfArgumentBlock
-        || lhs.textureBindingCount != rhs.textureBindingCount )
+        || lhs.bsdfArgumentBlockSize != rhs.bsdfArgumentBlockSize || lhs.roughnessArgumentBlockOffset != rhs.roughnessArgumentBlockOffset
+        || lhs.uRoughnessArgumentBlockOffset != rhs.uRoughnessArgumentBlockOffset
+        || lhs.vRoughnessArgumentBlockOffset != rhs.vRoughnessArgumentBlockOffset || lhs.textureBindingCount != rhs.textureBindingCount )
     {
         return false;
     }

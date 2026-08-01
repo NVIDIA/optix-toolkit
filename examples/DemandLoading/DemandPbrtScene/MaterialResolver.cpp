@@ -249,6 +249,11 @@ bool isGeneratedMdlNamedMaterialFloatTextureParam( const std::string& paramName 
     return paramName == "bumpmap" || isGeneratedMdlNamedMaterialAlphaTextureParam( paramName );
 }
 
+bool isGeneratedMdlRuntimeFloatTextureParam( const std::string& paramName )
+{
+    return paramName == "bumpmap" || paramName == "roughness" || paramName == "uroughness" || paramName == "vroughness";
+}
+
 bool usesGeneratedMdlNamedMaterialKd( const std::string& type )
 {
     return type == "matte" || type == "plastic" || type == "uber" || type == "substrate" || type == "translucent";
@@ -259,6 +264,11 @@ bool usesGeneratedMdlNamedMaterialKs( const std::string& type )
     return type == "plastic" || type == "uber" || type == "substrate" || type == "translucent";
 }
 
+bool usesGeneratedMdlKs( const std::string& type )
+{
+    return usesGeneratedMdlNamedMaterialKs( type );
+}
+
 bool usesGeneratedMdlNamedMaterialKr( const std::string& type )
 {
     return type == "uber" || type == "mirror" || type == "glass";
@@ -267,6 +277,29 @@ bool usesGeneratedMdlNamedMaterialKr( const std::string& type )
 bool usesGeneratedMdlKt( const std::string& type )
 {
     return type == "uber" || type == "glass";
+}
+
+bool usesGeneratedMdlRoughness( const std::string& type )
+{
+    return type == "plastic" || type == "uber" || type == "metal" || type == "translucent";
+}
+
+bool usesGeneratedMdlAxisRoughness( const std::string& type )
+{
+    return type == "uber" || type == "metal" || type == "substrate";
+}
+
+bool usesGeneratedMdlRoughnessTextureParam( const std::string& type, const std::string& paramName )
+{
+    if( paramName == "roughness" )
+    {
+        return usesGeneratedMdlRoughness( type );
+    }
+    if( paramName == "uroughness" || paramName == "vroughness" )
+    {
+        return usesGeneratedMdlAxisRoughness( type );
+    }
+    return false;
 }
 
 bool hasGeneratedMdlDemandTexture( MaterialFlags flags, MaterialFlags mapFlag, MaterialFlags allocatedFlag, const std::string& fileName )
@@ -443,8 +476,9 @@ PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::Pbr
                                                             const MaterialGroup&           group,
                                                             const std::string&             paramName )
 {
-    const PbrtDemandTextureBinding binding{ paramName == "bumpmap" ? pbrtFloatTextureBinding( material, paramName.c_str() ) :
-                                                                     pbrtColorTextureBinding( material, paramName.c_str() ) };
+    const PbrtDemandTextureBinding binding{ isGeneratedMdlRuntimeFloatTextureParam( paramName ) ?
+                                                pbrtFloatTextureBinding( material, paramName.c_str() ) :
+                                                pbrtColorTextureBinding( material, paramName.c_str() ) };
     if( !hasPbrtDemandTextureBinding( binding ) )
     {
         return pbrtDemandTextureBinding();
@@ -466,11 +500,19 @@ PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::Pbr
         }
         return pbrtDemandTextureBinding();
     }
-    if( material.type == "uber" && ( paramName == "Ks" || paramName == "Kr" ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    if( paramName == "Ks" && usesGeneratedMdlKs( material.type ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    {
+        return binding;
+    }
+    if( material.type == "uber" && paramName == "Kr" && isDirectGeneratedMdlDemandTexture( binding ) )
     {
         return binding;
     }
     if( paramName == "Kt" && usesGeneratedMdlKt( material.type ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    {
+        return binding;
+    }
+    if( usesGeneratedMdlRoughnessTextureParam( material.type, paramName ) && isDirectGeneratedMdlDemandTexture( binding ) )
     {
         return binding;
     }
@@ -539,7 +581,15 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
             }
             continue;
         }
-        if( material.type == "uber" && ( paramName == "Ks" || paramName == "Kr" ) )
+        if( paramName == "Ks" && usesGeneratedMdlKs( material.type ) )
+        {
+            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
+            {
+                return false;
+            }
+            continue;
+        }
+        if( material.type == "uber" && paramName == "Kr" )
         {
             if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
             {
@@ -548,6 +598,14 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
             continue;
         }
         if( paramName == "Kt" && usesGeneratedMdlKt( material.type ) )
+        {
+            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
+            {
+                return false;
+            }
+            continue;
+        }
+        if( usesGeneratedMdlRoughnessTextureParam( material.type, paramName ) )
         {
             if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
             {
@@ -813,17 +871,30 @@ void resolveGeneratedMdlTextureBindings( const Options&          options,
     }
 
     setGeneratedMdlDiffuseTextureBinding( group, sync, demandTextureCache );
-    if( group.pbrtMaterial->type == "uber" )
+    const std::string& type{ group.pbrtMaterial->type };
+    if( usesGeneratedMdlKs( type ) )
     {
         createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "Ks", MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX );
+    }
+    if( type == "uber" )
+    {
         createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "Kr", MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
     }
-    if( usesGeneratedMdlKt( group.pbrtMaterial->type ) )
+    if( usesGeneratedMdlKt( type ) )
     {
         createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "Kt", MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX );
     }
+    if( usesGeneratedMdlRoughness( type ) )
+    {
+        createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "roughness", MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX );
+    }
+    if( usesGeneratedMdlAxisRoughness( type ) )
+    {
+        createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "uroughness", MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX );
+        createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "vroughness", MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX );
+    }
     createGeneratedMdlTextureBinding( group, sync, demandTextureCache, "bumpmap", MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX );
-    if( group.pbrtMaterial->type == "mix" )
+    if( type == "mix" )
     {
         createGeneratedMdlMixTextureBindings( group, sync, demandTextureCache );
     }

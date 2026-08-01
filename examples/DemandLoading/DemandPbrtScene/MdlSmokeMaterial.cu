@@ -231,6 +231,9 @@ struct MdlMaterialTextureSamples
     float3 ks;
     float3 kr;
     float3 kt;
+    float  roughness;
+    float  uroughness;
+    float  vroughness;
     float3 mixNamedKd[2];
     float3 mixNamedKs[2];
     float3 mixNamedKr[2];
@@ -247,10 +250,13 @@ struct MdlBumpMapSamples
 __device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSamples()
 {
     MdlMaterialTextureSamples samples{};
-    samples.kd = make_float3( 1.0f );
-    samples.ks = make_float3( 1.0f );
-    samples.kr = make_float3( 1.0f );
-    samples.kt = make_float3( 1.0f );
+    samples.kd         = make_float3( 1.0f );
+    samples.ks         = make_float3( 1.0f );
+    samples.kr         = make_float3( 1.0f );
+    samples.kt         = make_float3( 1.0f );
+    samples.roughness  = 0.1f;
+    samples.uroughness = -1.0f;
+    samples.vroughness = -1.0f;
     for( uint_t i = 0; i < 2U; ++i )
     {
         samples.mixNamedKd[i]    = make_float3( 1.0f );
@@ -324,6 +330,15 @@ __device__ __forceinline__ void setMdlMaterialTextureSample( MdlMaterialTextureS
             return;
         case MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX:
             samples.kt = value;
+            return;
+        case MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX:
+            samples.roughness = mdlLuminance( value );
+            return;
+        case MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX:
+            samples.uroughness = mdlLuminance( value );
+            return;
+        case MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX:
+            samples.vroughness = mdlLuminance( value );
             return;
         case MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX:
             samples.mixNamedKd[0] = value;
@@ -594,13 +609,63 @@ __device__ __forceinline__ float3 mdlTransmissionTextureScale( const MdlMaterial
     return hasMdlMaterialTexture( shader, MDL_MATERIAL_KT_TEXTURE_BINDING_INDEX ) ? samples.kt : make_float3( 1.0f );
 }
 
+__device__ __forceinline__ bool hasMdlRoughnessTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX );
+}
+
+__device__ __forceinline__ void copyMdlArgumentBlock( char* dst, const char* src, uint_t size )
+{
+    for( uint_t i = 0; i < size; ++i )
+    {
+        dst[i] = src[i];
+    }
+}
+
+__device__ __forceinline__ void writeMdlArgumentBlockFloat( char* data, uint_t offset, float value )
+{
+    *reinterpret_cast<float*>( data + offset ) = value;
+}
+
+__device__ __forceinline__ const char* makeMdlBsdfArgumentBlock( const MdlMaterialShader&         shader,
+                                                                 const MdlMaterialTextureSamples& samples,
+                                                                 char*                            storage )
+{
+    const char* const argumentBlock{ reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) };
+    if( !hasMdlRoughnessTexture( shader ) || shader.bsdfArgumentBlock == 0U || shader.bsdfArgumentBlockSize == 0U
+        || shader.bsdfArgumentBlockSize > MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE )
+    {
+        return argumentBlock;
+    }
+
+    copyMdlArgumentBlock( storage, argumentBlock, shader.bsdfArgumentBlockSize );
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX )
+        && shader.roughnessArgumentBlockOffset != INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+    {
+        writeMdlArgumentBlockFloat( storage, shader.roughnessArgumentBlockOffset, samples.roughness );
+    }
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX )
+        && shader.uRoughnessArgumentBlockOffset != INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+    {
+        writeMdlArgumentBlockFloat( storage, shader.uRoughnessArgumentBlockOffset, samples.uroughness );
+    }
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX )
+        && shader.vRoughnessArgumentBlockOffset != INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
+    {
+        writeMdlArgumentBlockFloat( storage, shader.vRoughnessArgumentBlockOffset, samples.vroughness );
+    }
+    return storage;
+}
+
 __device__ __forceinline__ void initializeMdlBsdf( const MdlMaterialShader&               shader,
                                                    mi::neuraylib::Shading_state_material& state,
-                                                   const mi::neuraylib::Resource_data&    resourceData )
+                                                   const mi::neuraylib::Resource_data&    resourceData,
+                                                   const char*                            argumentBlock )
 {
     optixDirectCall<void, mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-        shader.callableBaseIndex + MDL_BSDF_INIT_CALLABLE_OFFSET, &state, &resourceData,
-        reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) );
+        shader.callableBaseIndex + MDL_BSDF_INIT_CALLABLE_OFFSET, &state, &resourceData, argumentBlock );
 }
 
 __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&                     shader,
@@ -608,7 +673,8 @@ __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&     
                                                    const mi::neuraylib::Resource_data&          resourceData,
                                                    const float3&                                outgoing,
                                                    const float3&                                incoming,
-                                                   const MdlMaterialTextureSamples&             textureSamples )
+                                                   const MdlMaterialTextureSamples&             textureSamples,
+                                                   const char*                                  argumentBlock )
 {
     mi::neuraylib::Bsdf_evaluate_data<mi::neuraylib::DF_HSM_NONE> evalData{};
     evalData.ior1  = make_float3( 1.0f );
@@ -617,9 +683,8 @@ __device__ __forceinline__ float3 evaluateMdlBsdf( const MdlMaterialShader&     
     evalData.k2    = incoming;
     evalData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT_AND_TRANSMIT;
     optixDirectCall<void, mi::neuraylib::Bsdf_evaluate_data_base*, const mi::neuraylib::Shading_state_material*,
-                    const mi::neuraylib::Resource_data*, const char*>(
-        shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET, &evalData, &state, &resourceData,
-        reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) );
+                    const mi::neuraylib::Resource_data*, const char*>( shader.callableBaseIndex + MDL_BSDF_EVALUATE_CALLABLE_OFFSET,
+                                                                       &evalData, &state, &resourceData, argumentBlock );
     float3 glossyScale{ mdlGlossyTextureScale( shader, textureSamples ) };
     if( !hasMdlGlossyTexture( shader ) && hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX )
         && otk::dot( evalData.bsdf_diffuse, evalData.bsdf_diffuse ) == 0.0f )
@@ -636,7 +701,8 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
                                                 const float3&                                worldNormal,
                                                 const float3&                                rayDirection,
                                                 const MdlMaterialTextureSamples&             textureSamples,
-                                                const float2&                                environmentXi )
+                                                const float2&                                environmentXi,
+                                                const char*                                  argumentBlock )
 {
     constexpr float PI{ 3.141592729f };
     float3        result{};
@@ -646,7 +712,8 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
     for( uint_t i = 0; i < params.numDirectionalLights; ++i )
     {
         const DirectionalLight& light{ params.directionalLights[i] };
-        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureSamples ) * light.color;
+        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureSamples, argumentBlock )
+                  * light.color;
     }
     for( uint_t i = 0; i < params.numInfiniteLights; ++i )
     {
@@ -666,7 +733,7 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
             }
             radiance *= make_float3( texel.x, texel.y, texel.z );
         }
-        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, incoming, textureSamples ) * radiance
+        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, incoming, textureSamples, argumentBlock ) * radiance
                   * ( PI / fmaxf( cosine, 1.0e-6f ) );
     }
     return result;
@@ -678,6 +745,7 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
                                                const float3&                                outgoing,
                                                const float4&                                xi,
                                                const MdlMaterialTextureSamples&             textureSamples,
+                                               const char*                                  argumentBlock,
                                                float3&                                      direction,
                                                float3&                                      throughput )
 {
@@ -688,8 +756,7 @@ __device__ __forceinline__ bool sampleMdlBsdf( const MdlMaterialShader&         
     sampleData.xi    = xi;
     sampleData.flags = mi::neuraylib::DF_FLAGS_ALLOW_REFLECT_AND_TRANSMIT;
     optixDirectCall<void, mi::neuraylib::Bsdf_sample_data*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-        shader.callableBaseIndex + MDL_BSDF_SAMPLE_CALLABLE_OFFSET, &sampleData, &state, &resourceData,
-        reinterpret_cast<const char*>( shader.bsdfArgumentBlock ) );
+        shader.callableBaseIndex + MDL_BSDF_SAMPLE_CALLABLE_OFFSET, &sampleData, &state, &resourceData, argumentBlock );
 
     if( sampleData.event_type == mi::neuraylib::BSDF_EVENT_ABSORB )
     {
@@ -915,12 +982,18 @@ extern "C" __global__ void __closesthit__mdlMesh()
 
     if( hasMdlBsdfCallables( shader ) && ( !hasDiffuseTexture || useMdlDiffuseTexture ) )
     {
-        initializeMdlBsdf( shader, state, resourceData );
-        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, shadingNormal, rayDirection, textureSamples,
-                                                         make_float2( prd->mdlBsdfSampleXi.z, prd->mdlBsdfSampleXi.w ) ) );
+        alignas( 16 ) char bsdfArgumentBlockStorage[MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE];
+        const char* const bsdfArgumentBlock{ makeMdlBsdfArgumentBlock( shader, textureSamples, bsdfArgumentBlockStorage ) };
+        initializeMdlBsdf( shader, state, resourceData, bsdfArgumentBlock );
+        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, shadingNormal, rayDirection,
+                                                          textureSamples,
+                                                          make_float2( prd->mdlBsdfSampleXi.z, prd->mdlBsdfSampleXi.w ),
+                                                          bsdfArgumentBlock ) );
         prd->hasDirectColor = true;
-        prd->hasMdlBsdfSample = sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi,
-                                               textureSamples, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
+        prd->hasMdlBsdfSample =
+            PARAMS_VAR_NAME.renderMode == RenderMode::PATH_TRACING
+            && sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi, textureSamples,
+                              bsdfArgumentBlock, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
         return;
     }
 

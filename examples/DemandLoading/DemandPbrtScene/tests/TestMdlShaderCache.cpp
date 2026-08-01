@@ -432,6 +432,24 @@ PbrtMaterial texturedMatteMaterial( const std::string& textureType, const std::s
     return material;
 }
 
+PbrtMaterial materialWithKsTexture( const std::string& type, const std::string& fileName )
+{
+    PbrtMaterial material;
+    material.type = type;
+    material.params.AddTexture( "Ks", "specular" );
+    material.graph.textures["spectrum:specular"] = imageMapTexture( "specular", fileName );
+    return material;
+}
+
+PbrtMaterial materialWithRoughnessTexture( const std::string& type, const std::string& fileName )
+{
+    PbrtMaterial material;
+    material.type = type;
+    material.params.AddTexture( "roughness", "roughness" );
+    material.graph.textures["float:roughness"] = imageMapTexture( "roughness", fileName, "float" );
+    return material;
+}
+
 PbrtNamedMaterial namedMatte( const std::string& name, float kd )
 {
     PbrtNamedMaterial material;
@@ -639,6 +657,14 @@ TEST( TestMdlShaderKey, parameterOnlyTextureChangesProduceSameKey )
 {
     EXPECT_EQ( makeMdlShaderKey( texturedMatteMaterial( "imagemap", "first.png" ) ),
                makeMdlShaderKey( texturedMatteMaterial( "imagemap", "second.png" ) ) );
+}
+
+TEST( TestMdlShaderKey, directGlossyAndRoughnessTextureChangesProduceSameKey )
+{
+    EXPECT_EQ( makeMdlShaderKey( materialWithKsTexture( "plastic", "first.png" ) ),
+               makeMdlShaderKey( materialWithKsTexture( "plastic", "second.png" ) ) );
+    EXPECT_EQ( makeMdlShaderKey( materialWithRoughnessTexture( "substrate", "first.png" ) ),
+               makeMdlShaderKey( materialWithRoughnessTexture( "substrate", "second.png" ) ) );
 }
 
 TEST( TestMdlShaderKey, fourierBsdfFileValuesProduceSameKey )

@@ -51,6 +51,7 @@ constexpr const char* BUMP_MAP_PATH{ "bumpMap.png" };
 #endif
 constexpr const char* SPECULAR_MAP_PATH{ "specularMap.png" };
 constexpr const char* REFLECTANCE_MAP_PATH{ "reflectanceMap.png" };
+constexpr const char* ROUGHNESS_MAP_PATH{ "roughnessMap.png" };
 constexpr int         ARBITRARY_PRIMITIVE_INDEX_END{ 654 };
 constexpr int         ARBITRARY_PRIMITIVE_INDEX_END2{ 765 };
 
@@ -691,6 +692,26 @@ void usePbrtUberSpecularImagemapMaterial( GeometryInstance& geom )
 }
 
 #ifdef OTK_USE_MDL
+void usePbrtGlossyImagemapMaterial( GeometryInstance& geom, const std::string& type )
+{
+    geom.groups[0].pbrtMaterial = pbrtImagemapMaterialOfType( type, "Ks", "spectrum", SPECULAR_MAP_PATH );
+}
+
+void usePbrtAxisRoughnessImagemapMaterial( GeometryInstance& geom, const std::string& type )
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = type;
+    material->params.AddTexture( "uroughness", "pbrt-texture" );
+    material->params.AddTexture( "vroughness", "pbrt-texture" );
+    otk::pbrt::PbrtTexture texture{};
+    texture.name      = "pbrt-texture";
+    texture.valueType = "float";
+    texture.type      = "imagemap";
+    addString( texture.params, "filename", ROUGHNESS_MAP_PATH );
+    material->graph.textures["float:pbrt-texture"] = std::move( texture );
+    geom.groups[0].pbrtMaterial                    = std::move( material );
+}
+
 void usePbrtTransmissionImagemapMaterial( GeometryInstance& geom, const std::string& type )
 {
     geom.groups[0].pbrtMaterial = pbrtImagemapMaterialOfType( type, "Kt", "spectrum", DIFFUSE_MAP_PATH );
@@ -2918,6 +2939,129 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedUberMaterialBin
     ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
     EXPECT_EQ( diffuseTextureId, m_sync.realizedMaterials[proxyMaterialId].diffuseTextureId );
     EXPECT_TRUE( flagSet( m_sync.realizedMaterials[proxyMaterialId].flags, MaterialFlags::DIFFUSE_MAP_ALLOCATED ) );
+    EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
+    EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, expectedShader );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedPlasticMaterialBindsGlossyDemandTexture )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtGlossyImagemapMaterial( m_geom, "plastic" );
+    TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
+    TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
+    m_geom.devUVs     = fakeUVs;
+    m_geom.devNormals = fakeNormals;
+    const uint_t                   proxyGeomId{ 1111U };
+    const uint_t                   proxyMaterialId{ 4444U };
+    const uint_t                   specularTextureId{ 333U };
+    const uint_t                   stableSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    const MdlMaterialShader        expectedShader{ 8U, 1U };
+    const PbrtDemandTextureBinding specularBinding{ pbrtColorTextureBinding( *m_geom.groups[0].pbrtMaterial, "Ks" ) };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( StrEq( specularBinding.fileName ), true ) )
+        .WillOnce( Return( specularTextureId ) );
+    EXPECT_CALL( *m_programGroups,
+                 getMdlMaterialSbtOffset( hasGeometryInstance(
+                     hasAll( hasMaterialFlags( MaterialFlags::NONE ),
+                             hasMdlTextureBinding( MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX, specularTextureId,
+                                                   make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ) ) )
+        .WillOnce( Return( stableSbtOffset ) );
+    EXPECT_CALL( *m_programGroups,
+                 realizeMdlMaterialShader(
+                     hasGeometryInstance( hasAll( hasMaterialFlags( MaterialFlags::NONE ),
+                                                  hasMdlTextureBinding( MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX,
+                                                                        specularTextureId, make_float3( 1.0f, 1.0f, 1.0f ),
+                                                                        make_float3( 0.0f, 0.0f, 0.0f ) ) ) ),
+                     1U ) )
+        .WillOnce( Return( expectedShader ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    EXPECT_EQ( specularTextureId, m_sync.minDiffuseTextureId );
+    EXPECT_EQ( specularTextureId, m_sync.maxDiffuseTextureId );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
+    EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    expectMdlMaterialShader( m_sync, proxyMaterialId, expectedShader );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedSubstrateMaterialBindsRoughnessDemandTexture )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtAxisRoughnessImagemapMaterial( m_geom, "substrate" );
+    TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
+    TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
+    m_geom.devUVs     = fakeUVs;
+    m_geom.devNormals = fakeNormals;
+    const uint_t                   proxyGeomId{ 1111U };
+    const uint_t                   proxyMaterialId{ 4444U };
+    const uint_t                   roughnessTextureId{ 333U };
+    const uint_t                   stableSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    const MdlMaterialShader        expectedShader{ 8U, 1U };
+    const PbrtDemandTextureBinding uRoughnessBinding{
+        pbrtFloatTextureBinding( *m_geom.groups[0].pbrtMaterial, "uroughness" ) };
+    const PbrtDemandTextureBinding vRoughnessBinding{
+        pbrtFloatTextureBinding( *m_geom.groups[0].pbrtMaterial, "vroughness" ) };
+    EXPECT_EQ( uRoughnessBinding.fileName, vRoughnessBinding.fileName );
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( StrEq( uRoughnessBinding.fileName ), true ) )
+        .Times( 2 )
+        .WillRepeatedly( Return( roughnessTextureId ) );
+    EXPECT_CALL( *m_programGroups,
+                 getMdlMaterialSbtOffset( hasGeometryInstance(
+                     hasAll( hasMaterialFlags( MaterialFlags::NONE ),
+                             hasMdlTextureBinding( MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX, roughnessTextureId,
+                                                   make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                             hasMdlTextureBinding( MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX, roughnessTextureId,
+                                                   make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ) ) )
+        .WillOnce( Return( stableSbtOffset ) );
+    EXPECT_CALL( *m_programGroups,
+                 realizeMdlMaterialShader(
+                     hasGeometryInstance(
+                         hasAll( hasMaterialFlags( MaterialFlags::NONE ),
+                                 hasMdlTextureBinding( MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX, roughnessTextureId,
+                                                       make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                                 hasMdlTextureBinding( MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX, roughnessTextureId,
+                                                       make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ),
+                     1U ) )
+        .WillOnce( Return( expectedShader ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    EXPECT_EQ( roughnessTextureId, m_sync.minDiffuseTextureId );
+    EXPECT_EQ( roughnessTextureId, m_sync.maxDiffuseTextureId );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
     EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
     EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );

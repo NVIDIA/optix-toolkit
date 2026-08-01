@@ -56,6 +56,7 @@
 #include <iomanip>
 #include <iterator>
 #ifdef OTK_USE_MDL
+#include <limits>
 #include <map>
 #endif
 #include <memory>
@@ -918,6 +919,62 @@ const MdlTargetArgumentBlockParameter* findMdlArgumentBlockParameter( const MdlT
     return nullptr;
 }
 
+bool hasMdlRoughnessTextureBinding( const MdlMaterialShader& shader, uint_t index )
+{
+    return shader.textureBindingCount > index && shader.textureBindings[index].textureId != INVALID_TEXTURE_ID;
+}
+
+uint_t mdlArgumentBlockFloatOffset( const MdlTargetArgumentBlock& argumentBlock, const char* name )
+{
+    const MdlTargetArgumentBlockParameter* const layout{ findMdlArgumentBlockParameter( argumentBlock, name ) };
+    if( layout == nullptr )
+    {
+        throw std::runtime_error( "Generated MDL argument block is missing float parameter " + std::string{ name } );
+    }
+    if( layout->kind != static_cast<unsigned int>( mi::neuraylib::IValue::VK_FLOAT ) || layout->size < sizeof( float )
+        || layout->offset + sizeof( float ) > argumentBlock.data.size()
+        || layout->offset > static_cast<std::size_t>( std::numeric_limits<uint_t>::max() ) )
+    {
+        throw std::runtime_error( "Generated MDL argument block layout mismatch for float parameter " + std::string{ name } );
+    }
+    return static_cast<uint_t>( layout->offset );
+}
+
+void setMdlRoughnessArgumentBlockMetadata( MdlMaterialShader& shader, const MdlTargetArgumentBlock& argumentBlock )
+{
+    const bool hasRoughnessTexture{ hasMdlRoughnessTextureBinding( shader, MDL_MATERIAL_ROUGHNESS_TEXTURE_BINDING_INDEX ) };
+    const bool hasURoughnessTexture{ hasMdlRoughnessTextureBinding( shader, MDL_MATERIAL_UROUGHNESS_TEXTURE_BINDING_INDEX ) };
+    const bool hasVRoughnessTexture{ hasMdlRoughnessTextureBinding( shader, MDL_MATERIAL_VROUGHNESS_TEXTURE_BINDING_INDEX ) };
+    if( !hasRoughnessTexture && !hasURoughnessTexture && !hasVRoughnessTexture )
+    {
+        return;
+    }
+
+    if( argumentBlock.data.empty() )
+    {
+        throw std::runtime_error( "Generated MDL roughness texture binding requires a BSDF argument block" );
+    }
+    if( argumentBlock.data.size() > MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE
+        || argumentBlock.data.size() > static_cast<std::size_t>( std::numeric_limits<uint_t>::max() ) )
+    {
+        throw std::runtime_error( "Generated MDL BSDF argument block is too large for runtime roughness textures" );
+    }
+
+    shader.bsdfArgumentBlockSize = static_cast<uint_t>( argumentBlock.data.size() );
+    if( hasRoughnessTexture )
+    {
+        shader.roughnessArgumentBlockOffset = mdlArgumentBlockFloatOffset( argumentBlock, "roughness" );
+    }
+    if( hasURoughnessTexture )
+    {
+        shader.uRoughnessArgumentBlockOffset = mdlArgumentBlockFloatOffset( argumentBlock, "uroughness" );
+    }
+    if( hasVRoughnessTexture )
+    {
+        shader.vRoughnessArgumentBlockOffset = mdlArgumentBlockFloatOffset( argumentBlock, "vroughness" );
+    }
+}
+
 void patchMdlArgumentBlockValue( std::vector<char>& data, const MdlTargetArgumentBlockParameter& layout, const MdlBoundMaterialParameter& value )
 {
     if( value.type == MdlBoundParameterType::COLOR )
@@ -1347,8 +1404,9 @@ MdlMaterialShader PbrtProgramGroups::bindMdlMaterialResources( const MaterialGro
     MdlMaterialArgumentBlockBuffers& buffers{ m_mdlMaterialArgumentBlockBuffers[materialKey] };
     shader.tintArgumentBlock =
         uploadMdlArgumentBlock( makeMdlArgumentBlockData( templates->second.tint, parameters ), buffers.tint );
-    shader.bsdfArgumentBlock =
-        uploadMdlArgumentBlock( makeMdlArgumentBlockData( templates->second.bsdf, parameters ), buffers.bsdf );
+    const std::vector<char> bsdfArgumentBlock{ makeMdlArgumentBlockData( templates->second.bsdf, parameters ) };
+    setMdlRoughnessArgumentBlockMetadata( shader, templates->second.bsdf );
+    shader.bsdfArgumentBlock = uploadMdlArgumentBlock( bsdfArgumentBlock, buffers.bsdf );
     return shader;
 }
 

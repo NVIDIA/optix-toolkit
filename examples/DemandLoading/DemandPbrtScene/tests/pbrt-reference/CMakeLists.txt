@@ -10,6 +10,7 @@ set(referenceMaterials
     matte-mix-imagemap
     matte-checkerboard
     plastic
+    plastic-textured-specular
     uber
     uber-transmission
     uber-textured-transmission
@@ -17,6 +18,7 @@ set(referenceMaterials
     glass
     metal
     substrate
+    substrate-textured-roughness
     translucent
     mix
     mix-rgb-amount
@@ -47,7 +49,8 @@ add_custom_target(DemandPbrtScenePbrtReferenceResources)
 set_property(TARGET DemandPbrtScenePbrtReferenceResources PROPERTY FOLDER Examples/DemandLoading/Tests)
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")
 source_group("PBRT Reference Images" REGULAR_EXPRESSION "gold-.*\\.png")
-source_group("Texture Images" REGULAR_EXPRESSION "(matte-imagemap\\.png|matte-infinite\\.exr|landscape-fixture-.*\\.png)")
+source_group("Texture Images" REGULAR_EXPRESSION
+    "(matte-imagemap\\.png|matte-infinite\\.exr|plastic-specular-imagemap\\.png|landscape-fixture-.*\\.png)")
 source_group("BSDF Tables" REGULAR_EXPRESSION ".*\\.bsdf")
 
 foreach(material ${referenceMaterials})
@@ -63,6 +66,7 @@ set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCE
     "${CMAKE_CURRENT_SOURCE_DIR}/gold-matte-infinite.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/matte-distant-infinite.pbrt"
     "${CMAKE_CURRENT_SOURCE_DIR}/gold-matte-distant-infinite.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/plastic-specular-imagemap.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/bsdfs/roughgold_alpha_0.2.bsdf"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-albedo.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-alpha.png"
@@ -241,6 +245,22 @@ if(OTK_USE_MDL)
             WARMUP 16
             DIFF_THRESHOLD 18
             TOLERANCE_REASON "Single-sample environment tolerance, generated MDL matte adds distant and mapped infinite light contributions")
+        add_pbrt_reference_image_test(plastic-textured-specular
+            MATERIAL plastic
+            SCENE plastic-textured-specular.pbrt
+            RESOURCES plastic-specular-imagemap.png
+            WARMUP 4
+            DIFF_THRESHOLD 24
+            ALLOWED_PERCENTAGE 8
+            TOLERANCE_REASON "Glossy lobe tolerance, generated MDL plastic applies a runtime Ks demand texture to BSDF callable output")
+        add_pbrt_reference_image_test(substrate-textured-roughness
+            MATERIAL substrate
+            SCENE substrate-textured-roughness.pbrt
+            RESOURCES landscape-fixture-bump.png
+            WARMUP 4
+            DIFF_THRESHOLD 32
+            ALLOWED_PERCENTAGE 8
+            TOLERANCE_REASON "Roughness and FresnelBlend tolerance, generated MDL substrate patches a per-hit runtime roughness demand texture into the BSDF argument block")
         add_pbrt_reference_image_test(uber-textured-transmission
             MATERIAL uber
             SCENE uber-textured-transmission.pbrt

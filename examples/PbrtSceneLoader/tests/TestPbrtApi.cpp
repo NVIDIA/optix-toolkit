@@ -714,6 +714,60 @@ TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNestedTextureReferences )
     EXPECT_TRUE( graph.fallbackReasons.empty() );
 }
 
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesGlossyTextureReference )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "specular" "spectrum" "imagemap"
+            "string filename" [ "specular.png" ]
+        Material "plastic"
+            "texture Ks" [ "specular" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial&      material{ m_scene->freeShapes[0].pbrtMaterial };
+    const PbrtMaterialGraph& graph{ material.graph };
+
+    EXPECT_EQ( "specular", material.params.FindTexture( "Ks" ) );
+    const auto texture = graph.textures.find( "spectrum:specular" );
+    ASSERT_NE( graph.textures.end(), texture );
+    EXPECT_EQ( "specular", texture->second.name );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_THAT( texture->second.params.FindOneFilename( "filename", "" ), EndsWith( "specular.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesAxisRoughnessTextureReferences )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "rough" "float" "imagemap"
+            "string filename" [ "rough.png" ]
+        Material "substrate"
+            "texture uroughness" [ "rough" ]
+            "texture vroughness" [ "rough" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial&      material{ m_scene->freeShapes[0].pbrtMaterial };
+    const PbrtMaterialGraph& graph{ material.graph };
+
+    EXPECT_EQ( "rough", material.params.FindTexture( "uroughness" ) );
+    EXPECT_EQ( "rough", material.params.FindTexture( "vroughness" ) );
+    const auto texture = graph.textures.find( "float:rough" );
+    ASSERT_NE( graph.textures.end(), texture );
+    EXPECT_EQ( "rough", texture->second.name );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_THAT( texture->second.params.FindOneFilename( "filename", "" ), EndsWith( "rough.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
 TEST_F( TestPbrtApi, missingNamedMaterialReferenceIsPreservedAsFallbackReason )
 {
     expectWarnings( 1 );
