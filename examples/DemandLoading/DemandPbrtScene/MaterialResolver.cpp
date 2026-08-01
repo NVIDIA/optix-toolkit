@@ -179,7 +179,8 @@ MaterialState fourierTableReadyState( uint_t materialId, uint_t resourceId )
 bool supportsGeneratedMdlMaterial( const std::string& type )
 {
     return type == "matte" || type == "plastic" || type == "uber" || type == "mirror" || type == "glass"
-           || type == "metal" || type == "substrate" || type == "translucent" || type == "mix";
+           || type == "metal" || type == "substrate" || type == "translucent" || type == "subsurface"
+           || type == "kdsubsurface" || type == "mix";
 }
 
 bool supportsGeneratedMdlNamedMaterialType( const std::string& type )
@@ -256,7 +257,8 @@ bool isGeneratedMdlRuntimeFloatTextureParam( const std::string& paramName )
 
 bool usesGeneratedMdlNamedMaterialKd( const std::string& type )
 {
-    return type == "matte" || type == "plastic" || type == "uber" || type == "substrate" || type == "translucent";
+    return type == "matte" || type == "plastic" || type == "uber" || type == "substrate" || type == "translucent"
+           || type == "kdsubsurface";
 }
 
 bool usesGeneratedMdlNamedMaterialKs( const std::string& type )
@@ -374,8 +376,9 @@ bool supportsGeneratedMdlNamedMaterialTextureReferences( const otk::pbrt::PbrtMa
                                                          const otk::pbrt::PbrtNamedMaterial& namedMaterial )
 {
     static const char* const textureParams[] = {
-        "Kd", "Kr",      "Ks",      "Kt",        "alpha",       "amount", "bumpmap",  "eta",        "index",
-        "k",  "opacity", "reflect", "roughness", "shadowalpha", "sigma",  "transmit", "uroughness", "vroughness",
+        "Kd",          "Kr",    "Ks",      "Kt",      "alpha",    "amount",     "bumpmap",
+        "eta",         "index", "k",       "mfp",     "opacity",  "reflect",    "roughness",
+        "shadowalpha", "sigma", "sigma_a", "sigma_s", "transmit", "uroughness", "vroughness",
     };
 
     for( const char* const param : textureParams )
@@ -493,8 +496,9 @@ bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& mater
                                                           MaterialFlags::ALPHA_MAP_ALLOCATED, group.alphaMapFileName ) };
 
     static const char* const textureParams[] = {
-        "Kd", "Kr",      "Ks",      "Kt",        "alpha",       "amount", "bumpmap",  "eta",        "index",
-        "k",  "opacity", "reflect", "roughness", "shadowalpha", "sigma",  "transmit", "uroughness", "vroughness",
+        "Kd",          "Kr",    "Ks",      "Kt",      "alpha",    "amount",     "bumpmap",
+        "eta",         "index", "k",       "mfp",     "opacity",  "reflect",    "roughness",
+        "shadowalpha", "sigma", "sigma_a", "sigma_s", "transmit", "uroughness", "vroughness",
     };
 
     for( const char* const param : textureParams )

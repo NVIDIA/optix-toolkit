@@ -445,6 +445,47 @@ PbrtMaterial translucentMaterialWithKdTexture()
     return material;
 }
 
+PbrtMaterial subsurfaceMaterial()
+{
+    PbrtMaterial material;
+    material.type = "subsurface";
+    addRgbSpectrum( material.params, "Kr", 0.7f, 0.6f, 0.5f );
+    addRgbSpectrum( material.params, "Kt", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "sigma_a", 0.01f, 0.02f, 0.03f );
+    addRgbSpectrum( material.params, "sigma_s", 0.6f, 0.5f, 0.4f );
+    addFloat( material.params, "scale", 2.0f );
+    addFloat( material.params, "g", 0.3f );
+    addFloat( material.params, "eta", 1.4f );
+    addFloat( material.params, "uroughness", 0.05f );
+    addFloat( material.params, "vroughness", 0.07f );
+    addString( material.params, "name", "Skin1" );
+    return material;
+}
+
+PbrtMaterial kdSubsurfaceMaterial()
+{
+    PbrtMaterial material;
+    material.type = "kdsubsurface";
+    addRgbSpectrum( material.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( material.params, "Kr", 0.8f, 0.7f, 0.6f );
+    addRgbSpectrum( material.params, "Kt", 0.4f, 0.5f, 0.6f );
+    addRgbSpectrum( material.params, "mfp", 0.1f, 0.2f, 0.3f );
+    addFloat( material.params, "scale", 1.5f );
+    addFloat( material.params, "g", 0.2f );
+    addFloat( material.params, "eta", 1.33f );
+    addFloat( material.params, "uroughness", 0.05f );
+    addFloat( material.params, "vroughness", 0.07f );
+    return material;
+}
+
+PbrtMaterial kdSubsurfaceMaterialWithKdTexture()
+{
+    PbrtMaterial material{ kdSubsurfaceMaterial() };
+    material.params.AddTexture( "Kd", "albedo" );
+    material.graph.textures["spectrum:albedo"] = imageMapTexture( "albedo", "head_albedomap.png", "spectrum" );
+    return material;
+}
+
 PbrtMaterial texturedMatteMaterial( const std::string& textureType, const std::string& fileName )
 {
     PbrtMaterial material;
@@ -1174,6 +1215,48 @@ TEST( TestMdlBoundMaterialParameters, bindsTranslucentSpectrumOpacity )
     expectBoundColor( parameters, "opacity", 0.2f, 0.5f, 0.8f );
 }
 
+TEST( TestMdlBoundMaterialParameters, bindsSubsurfaceConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( subsurfaceMaterial() ) };
+
+    EXPECT_EQ( 9U, parameters.size() );
+    expectBoundColor( parameters, "Kr", 0.7f, 0.6f, 0.5f );
+    expectBoundColor( parameters, "Kt", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "sigma_a", 0.01f, 0.02f, 0.03f );
+    expectBoundColor( parameters, "sigma_s", 0.6f, 0.5f, 0.4f );
+    expectBoundFloat( parameters, "scale", 2.0f );
+    expectBoundFloat( parameters, "g", 0.3f );
+    expectBoundFloat( parameters, "eta", 1.4f );
+    expectBoundFloat( parameters, "uroughness", 0.05f );
+    expectBoundFloat( parameters, "vroughness", 0.07f );
+}
+
+TEST( TestMdlBoundMaterialParameters, bindsKdSubsurfaceConstants )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( kdSubsurfaceMaterial() ) };
+
+    EXPECT_EQ( 9U, parameters.size() );
+    expectBoundColor( parameters, "Kd", 0.2f, 0.3f, 0.4f );
+    expectBoundColor( parameters, "Kr", 0.8f, 0.7f, 0.6f );
+    expectBoundColor( parameters, "Kt", 0.4f, 0.5f, 0.6f );
+    expectBoundColor( parameters, "mfp", 0.1f, 0.2f, 0.3f );
+    expectBoundFloat( parameters, "scale", 1.5f );
+    expectBoundFloat( parameters, "g", 0.2f );
+    expectBoundFloat( parameters, "eta", 1.33f );
+    expectBoundFloat( parameters, "uroughness", 0.05f );
+    expectBoundFloat( parameters, "vroughness", 0.07f );
+}
+
+TEST( TestMdlBoundMaterialParameters, skipsKdSubsurfaceDiffuseDemandTextureInput )
+{
+    const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( kdSubsurfaceMaterialWithKdTexture() ) };
+
+    EXPECT_EQ( nullptr, findBoundParameter( parameters, "Kd" ) );
+    expectBoundColor( parameters, "Kr", 0.8f, 0.7f, 0.6f );
+    expectBoundColor( parameters, "Kt", 0.4f, 0.5f, 0.6f );
+    expectBoundColor( parameters, "mfp", 0.1f, 0.2f, 0.3f );
+}
+
 TEST( TestMdlBoundMaterialParameters, skipsTranslucentDiffuseDemandTextureInput )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( translucentMaterialWithKdTexture() ) };
@@ -1532,6 +1615,73 @@ TEST( TestMdlGeneratedSource, mapsTranslucentDirectDiffuseTextureInput )
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
+TEST( TestMdlGeneratedSource, mapsSubsurfaceMaterialModel )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( subsurfaceMaterial() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: subsurface" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kr = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kt = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color sigma_a = color(0.0011, 0.0024, 0.014)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color sigma_s = color(2.55, 3.21, 3.77)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float scale = 1.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float g = 0.0" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "float eta = 1.33" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input name: named scattering database "
+                                                       "lookup is not modeled" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: full PBRT BSSRDF transport and "
+                                                       "named-medium scattering data are not evaluated" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: sigma_a/sigma_s albedo "
+                                                       "drives diffuse reflection and transmission lobes" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "pbrt_subsurface_albedo" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(eta, eta, eta)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kr * pbrt_subsurface_albedo(sigma_a, sigma_s, "
+                                                       "scale)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kt * pbrt_subsurface_albedo(sigma_a, sigma_s, "
+                                                       "scale)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_reflection_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_transmission_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "Skin1" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsKdSubsurfaceMaterialModel )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( kdSubsurfaceMaterial() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: kdsubsurface" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kd = color(0.5, 0.5, 0.5)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kr = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color Kt = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "color mfp = color(1.0, 1.0, 1.0)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input mfp: mfp" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: full PBRT diffusion-profile BSSRDF "
+                                                       "transport is not evaluated" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: Kd drives diffuse reflection "
+                                                       "and transmission lobes" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(eta, eta, eta)" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_normalized_mix" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kr * Kd" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kt * Kd" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_reflection_bsdf" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_transmission_bsdf" ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
+TEST( TestMdlGeneratedSource, mapsKdSubsurfaceDirectDiffuseTextureInput )
+{
+    const GeneratedMdlSource generated{ generateMdlSource( kdSubsurfaceMaterialWithKdTexture() ) };
+
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material model: kdsubsurface" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input Kd: texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kr * texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Kt * texture_0()" ) );
+    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "head_albedomap.png" ) ) );
+    EXPECT_TRUE( generated.unsupportedReasons.empty() );
+}
+
 TEST( TestMdlGeneratedSource, mapsMixMaterialModelWithNamedReferences )
 {
     const GeneratedMdlSource generated{ generateMdlSource( layeredMixMaterial() ) };
@@ -1621,12 +1771,6 @@ TEST( TestMdlGeneratedSource, recordsExplicitUnsupportedMaterialGapPolicies )
           "resource metadata but does not yet evaluate the Fourier table on the GPU" },
         { "hair",
           "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
-        { "subsurface",
-          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
-          "baking" },
-        { "kdsubsurface",
-          "distinct low-frequency subsurface parameterization; no current target scene or reference fixture requires "
-          "support" },
         { "measured",
           "PBRT parity completeness gap; current corpus sample did not find a target scene requiring support" },
     };

@@ -33,24 +33,9 @@ std::vector<std::string> sortedNames( std::initializer_list<const char*> names )
 const std::vector<std::string>& materialTextureParamNames()
 {
     static const std::vector<std::string> names{ sortedNames( {
-        "Kd",
-        "Kr",
-        "Ks",
-        "Kt",
-        "alpha",
-        "amount",
-        "bumpmap",
-        "eta",
-        "index",
-        "k",
-        "opacity",
-        "reflect",
-        "roughness",
-        "shadowalpha",
-        "sigma",
-        "transmit",
-        "uroughness",
-        "vroughness",
+        "Kd",          "Kr",    "Ks",      "Kt",      "alpha",    "amount",     "bumpmap",
+        "eta",         "index", "k",       "mfp",     "opacity",  "reflect",    "roughness",
+        "shadowalpha", "sigma", "sigma_a", "sigma_s", "transmit", "uroughness", "vroughness",
     } ) };
     return names;
 }
@@ -1094,12 +1079,6 @@ const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( const std::string& type 
           "resource metadata but does not yet evaluate the Fourier table on the GPU" },
         { "hair", "unsupported with visible fallback",
           "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
-        { "subsurface", "unsupported with visible fallback",
-          "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation or "
-          "baking" },
-        { "kdsubsurface", "unsupported with visible fallback",
-          "distinct low-frequency subsurface parameterization; no current target scene or reference fixture requires "
-          "support" },
         { "measured", "unsupported with visible fallback",
           "PBRT parity completeness gap; current corpus sample did not find a target scene requiring support" },
     };
@@ -1982,6 +1961,113 @@ MdlMaterialModel makeTranslucentMaterialModel( const otk::pbrt::PbrtMaterial& ma
     return model;
 }
 
+MdlMaterialModel makeSubsurfaceMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kr", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "color", "Kt", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "color", "sigma_a", "color(0.0011, 0.0024, 0.014)" );
+    appendMaterialParameter( model, "color", "sigma_s", "color(2.55, 3.21, 3.77)" );
+    appendMaterialParameter( model, "float", "scale", "1.0" );
+    appendMaterialParameter( model, "float", "g", "0.0" );
+    appendMaterialParameter( model, "float", "eta", "1.33" );
+    appendMaterialParameter( model, "float", "uroughness", "0.0" );
+    appendMaterialParameter( model, "float", "vroughness", "0.0" );
+
+    const std::string kr{ textureGraph.materialColorExpression( material.params, "Kr", "color", "Kr" ) };
+    const std::string kt{ textureGraph.materialColorExpression( material.params, "Kt", "color", "Kt" ) };
+    const std::string sigmaA{ textureGraph.materialColorExpression( material.params, "sigma_a", "color", "sigma_a" ) };
+    const std::string sigmaS{ textureGraph.materialColorExpression( material.params, "sigma_s", "color", "sigma_s" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
+    const std::string albedo{ "pbrt_subsurface_albedo(" + sigmaA + ", " + sigmaS + ", scale)" };
+
+    model.comments.push_back( "pbrt material model: subsurface" );
+    model.comments.push_back( "pbrt material input Kr: " + kr );
+    model.comments.push_back( "pbrt material input Kt: " + kt );
+    model.comments.push_back( "pbrt material input sigma_a: " + sigmaA );
+    model.comments.push_back( "pbrt material input sigma_s: " + sigmaS );
+    model.comments.push_back( "pbrt material input scale: scale" );
+    model.comments.push_back( "pbrt material input g: g" );
+    model.comments.push_back( "pbrt material input eta: eta" );
+    model.comments.push_back( "pbrt material input uroughness: uroughness" );
+    model.comments.push_back( "pbrt material input vroughness: vroughness" );
+    model.comments.push_back( "pbrt material input name: named scattering database lookup is not modeled" );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
+    model.comments.push_back(
+        "pbrt material gap: full PBRT BSSRDF transport and named-medium scattering data are not evaluated" );
+    model.comments.push_back(
+        "pbrt material approximation: sigma_a/sigma_s albedo drives diffuse reflection and transmission lobes" );
+    model.helperDefinitions =
+        "color pbrt_subsurface_albedo(color sigma_a, color sigma_s, float scale) =\n"
+        "    ::math::clamp((sigma_s * scale) / ((sigma_a + sigma_s) * scale + color(0.000001, 0.000001, 0.000001)), "
+        "color(0.0, 0.0, 0.0), color(1.0, 1.0, 1.0));\n\n"
+        + model.helperDefinitions;
+    model.body =
+        "    ior: color(eta, eta, eta),\n"
+        "    surface: material_surface(\n"
+        "        scattering: ::df::color_normalized_mix(\n"
+        "            components: ::df::color_bsdf_component[](\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kr + " * " + albedo + ",\n"
+        "                    component: ::df::diffuse_reflection_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kt + " * " + albedo + ",\n"
+        "                    component: ::df::diffuse_transmission_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))))))"
+        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
+    return model;
+}
+
+MdlMaterialModel makeKdSubsurfaceMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
+{
+    MdlMaterialModel model;
+    appendMaterialParameter( model, "color", "Kd", "color(0.5, 0.5, 0.5)" );
+    appendMaterialParameter( model, "color", "Kr", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "color", "Kt", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "color", "mfp", "color(1.0, 1.0, 1.0)" );
+    appendMaterialParameter( model, "float", "scale", "1.0" );
+    appendMaterialParameter( model, "float", "g", "0.0" );
+    appendMaterialParameter( model, "float", "eta", "1.33" );
+    appendMaterialParameter( model, "float", "uroughness", "0.0" );
+    appendMaterialParameter( model, "float", "vroughness", "0.0" );
+
+    const std::string kd{ textureGraph.materialColorExpression( material.params, "Kd", "color", "Kd" ) };
+    const std::string kr{ textureGraph.materialColorExpression( material.params, "Kr", "color", "Kr" ) };
+    const std::string kt{ textureGraph.materialColorExpression( material.params, "Kt", "color", "Kt" ) };
+    const std::string mfp{ textureGraph.materialColorExpression( material.params, "mfp", "color", "mfp" ) };
+    const std::string bumpmap{ materialBumpmapExpression( textureGraph, material.params ) };
+
+    model.comments.push_back( "pbrt material model: kdsubsurface" );
+    model.comments.push_back( "pbrt material input Kd: " + kd );
+    model.comments.push_back( "pbrt material input Kr: " + kr );
+    model.comments.push_back( "pbrt material input Kt: " + kt );
+    model.comments.push_back( "pbrt material input mfp: " + mfp );
+    model.comments.push_back( "pbrt material input scale: scale" );
+    model.comments.push_back( "pbrt material input g: g" );
+    model.comments.push_back( "pbrt material input eta: eta" );
+    model.comments.push_back( "pbrt material input uroughness: uroughness" );
+    model.comments.push_back( "pbrt material input vroughness: vroughness" );
+    appendBumpmapCommentsAndHelpers( model, bumpmap );
+    model.comments.push_back( "pbrt material gap: full PBRT diffusion-profile BSSRDF transport is not evaluated" );
+    model.comments.push_back( "pbrt material approximation: Kd drives diffuse reflection and transmission lobes" );
+    model.body =
+        "    ior: color(eta, eta, eta),\n"
+        "    surface: material_surface(\n"
+        "        scattering: ::df::color_normalized_mix(\n"
+        "            components: ::df::color_bsdf_component[](\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kr + " * " + kd + ",\n"
+        "                    component: ::df::diffuse_reflection_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))),\n"
+        "                ::df::color_bsdf_component(\n"
+        "                    weight: " + kt + " * " + kd + ",\n"
+        "                    component: ::df::diffuse_transmission_bsdf(\n"
+        "                        tint: color(1.0, 1.0, 1.0))))))"
+        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
+    return model;
+}
+
 std::string mixNamedMaterialBsdfExpression( MdlMaterialModel&              model,
                                             MdlTextureGraphGenerator&      textureGraph,
                                             GeneratedMdlSource&            result,
@@ -2122,6 +2208,14 @@ MdlMaterialModel makeMaterialModel( const otk::pbrt::PbrtMaterial& material, Mdl
     if( material.type == "translucent" )
     {
         return makeTranslucentMaterialModel( material, textureGraph );
+    }
+    if( material.type == "subsurface" )
+    {
+        return makeSubsurfaceMaterialModel( material, textureGraph );
+    }
+    if( material.type == "kdsubsurface" )
+    {
+        return makeKdSubsurfaceMaterialModel( material, textureGraph );
     }
     if( material.type == "mix" )
     {
@@ -2291,6 +2385,20 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
         { MdlBoundParameterType::COLOR, "reflect" },   { MdlBoundParameterType::COLOR, "transmit" },
         { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::COLOR, "opacity" },
     };
+    static const BoundParameterSpec subsurfaceParams[] = {
+        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+        { MdlBoundParameterType::COLOR, "sigma_a" },    { MdlBoundParameterType::COLOR, "sigma_s" },
+        { MdlBoundParameterType::FLOAT, "scale" },      { MdlBoundParameterType::FLOAT, "g" },
+        { MdlBoundParameterType::FLOAT, "eta" },        { MdlBoundParameterType::FLOAT, "uroughness" },
+        { MdlBoundParameterType::FLOAT, "vroughness" },
+    };
+    static const BoundParameterSpec kdSubsurfaceParams[] = {
+        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Kr" },
+        { MdlBoundParameterType::COLOR, "Kt" },         { MdlBoundParameterType::COLOR, "mfp" },
+        { MdlBoundParameterType::FLOAT, "scale" },      { MdlBoundParameterType::FLOAT, "g" },
+        { MdlBoundParameterType::FLOAT, "eta" },        { MdlBoundParameterType::FLOAT, "uroughness" },
+        { MdlBoundParameterType::FLOAT, "vroughness" },
+    };
     static const BoundParameterSpec mixParams[] = {
         { MdlBoundParameterType::COLOR, "amount" },
     };
@@ -2383,6 +2491,14 @@ std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk
     else if( material.type == "translucent" )
     {
         appendMaterialBoundParameters( result, material, std::begin( translucentParams ), std::end( translucentParams ) );
+    }
+    else if( material.type == "subsurface" )
+    {
+        appendMaterialBoundParameters( result, material, std::begin( subsurfaceParams ), std::end( subsurfaceParams ) );
+    }
+    else if( material.type == "kdsubsurface" )
+    {
+        appendMaterialBoundParameters( result, material, std::begin( kdSubsurfaceParams ), std::end( kdSubsurfaceParams ) );
     }
     else if( material.type == "mix" )
     {

@@ -466,6 +466,48 @@ otk::pbrt::PbrtMaterial translucentMaterial()
                                 BoundMdlColor{ 0.8f, 0.6f, 0.4f }, BoundMdlColor{ 0.2f, 0.4f, 0.6f }, 0.25f, 0.7f );
 }
 
+otk::pbrt::PbrtMaterial subsurfaceMaterial( const BoundMdlColor& kr,
+                                            const BoundMdlColor& kt,
+                                            const BoundMdlColor& sigmaA,
+                                            const BoundMdlColor& sigmaS,
+                                            float                scale,
+                                            float                eta )
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "subsurface";
+    addRgbSpectrum( material.params, "Kr", kr.red, kr.green, kr.blue );
+    addRgbSpectrum( material.params, "Kt", kt.red, kt.green, kt.blue );
+    addRgbSpectrum( material.params, "sigma_a", sigmaA.red, sigmaA.green, sigmaA.blue );
+    addRgbSpectrum( material.params, "sigma_s", sigmaS.red, sigmaS.green, sigmaS.blue );
+    addFloat( material.params, "scale", scale );
+    addFloat( material.params, "eta", eta );
+    addFloat( material.params, "g", 0.0f );
+    addFloat( material.params, "uroughness", 0.0f );
+    addFloat( material.params, "vroughness", 0.0f );
+    return material;
+}
+
+otk::pbrt::PbrtMaterial kdSubsurfaceMaterial( const BoundMdlColor& kd,
+                                              const BoundMdlColor& kr,
+                                              const BoundMdlColor& kt,
+                                              const BoundMdlColor& mfp,
+                                              float                scale,
+                                              float                eta )
+{
+    otk::pbrt::PbrtMaterial material;
+    material.type = "kdsubsurface";
+    addRgbSpectrum( material.params, "Kd", kd.red, kd.green, kd.blue );
+    addRgbSpectrum( material.params, "Kr", kr.red, kr.green, kr.blue );
+    addRgbSpectrum( material.params, "Kt", kt.red, kt.green, kt.blue );
+    addRgbSpectrum( material.params, "mfp", mfp.red, mfp.green, mfp.blue );
+    addFloat( material.params, "scale", scale );
+    addFloat( material.params, "eta", eta );
+    addFloat( material.params, "g", 0.0f );
+    addFloat( material.params, "uroughness", 0.0f );
+    addFloat( material.params, "vroughness", 0.0f );
+    return material;
+}
+
 otk::pbrt::PbrtNamedMaterial namedMatteMaterial( const std::string& name, const BoundMdlColor& kd )
 {
     otk::pbrt::PbrtNamedMaterial material;
@@ -1848,6 +1890,72 @@ TEST( TestMdlSdk, compilesGeneratedTranslucentBsdfCallablesWithBoundReflectionTr
         roughCompiledMaterial.reset();
         opacityCompiledMaterial.reset();
         spectrumOpacityCompiledMaterial.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
+}
+
+TEST( TestMdlSdk, compilesGeneratedSubsurfaceApproximationBsdfCallables )
+{
+    const otk::pbrt::PbrtMaterial subsurface{
+        subsurfaceMaterial( BoundMdlColor{ 0.7f, 0.6f, 0.5f }, BoundMdlColor{ 0.2f, 0.3f, 0.4f },
+                            BoundMdlColor{ 0.01f, 0.02f, 0.03f }, BoundMdlColor{ 0.6f, 0.5f, 0.4f }, 2.0f, 1.4f ) };
+    const otk::pbrt::PbrtMaterial kdSubsurface{
+        kdSubsurfaceMaterial( BoundMdlColor{ 0.2f, 0.3f, 0.4f }, BoundMdlColor{ 0.8f, 0.7f, 0.6f },
+                              BoundMdlColor{ 0.4f, 0.5f, 0.6f }, BoundMdlColor{ 0.1f, 0.2f, 0.3f }, 1.5f, 1.33f ) };
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
+        ASSERT_TRUE( mdlFactory.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
+        ASSERT_TRUE( context.is_valid_interface() );
+
+        demandPbrtScene::MdlGeneratedSourceCache sourceCache;
+        const auto expectCompiledBsdf = [&]( const otk::pbrt::PbrtMaterial& material, const char* callablePrefix, float expectedEta ) {
+            const demandPbrtScene::MdlShaderKey        key{ demandPbrtScene::makeMdlShaderKey( material ) };
+            const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( material ) };
+            const std::string                          sourceDescription{ describeGeneratedSource( generated, key ) };
+            EXPECT_TRUE( generated.unsupportedReasons.empty() ) << sourceDescription;
+            EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_reflection_bsdf" ) );
+            EXPECT_THAT( generated.source, testing::HasSubstr( "::df::diffuse_transmission_bsdf" ) );
+
+            const std::vector<demandPbrtScene::MdlBoundMaterialParameter> parameters{
+                demandPbrtScene::makeMdlBoundMaterialParameters( material ) };
+            mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterialWithBoundParameters(
+                session.neuray(), transaction.get(), context.get(), generated, key, parameters ) );
+            ASSERT_TRUE( compiledMaterial.is_valid_interface() ) << sourceDescription;
+            expectIorMatchesFloat( compiledMaterial.get(), expectedEta );
+
+            const demandPbrtScene::MdlBsdfCallablePtx bsdf{
+                demandPbrtScene::compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), compiledMaterial.get(),
+                                                               context.get(), "surface.scattering", callablePrefix ) };
+            EXPECT_EQ( std::string{ callablePrefix } + "_init", bsdf.initFunctionName ) << sourceDescription;
+            EXPECT_EQ( std::string{ callablePrefix } + "_sample", bsdf.sampleFunctionName ) << sourceDescription;
+            EXPECT_EQ( std::string{ callablePrefix } + "_evaluate", bsdf.evaluateFunctionName ) << sourceDescription;
+            EXPECT_EQ( std::string{ callablePrefix } + "_pdf", bsdf.pdfFunctionName ) << sourceDescription;
+            EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.initFunctionName ) );
+            EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.sampleFunctionName ) );
+            EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.evaluateFunctionName ) );
+            EXPECT_THAT( bsdf.ptx, testing::HasSubstr( bsdf.pdfFunctionName ) );
+        };
+
+        expectCompiledBsdf( subsurface, "pbrt_subsurface_bsdf", 1.4f );
+        expectCompiledBsdf( kdSubsurface, "pbrt_kdsubsurface_bsdf", 1.33f );
+
         EXPECT_EQ( 0, transaction->commit() );
     }
 
