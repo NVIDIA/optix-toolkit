@@ -656,6 +656,71 @@ uint_t generatedMdlMixNamedMaterialTextureBindingIndex( uint_t namedMaterialInde
     return base + offset;
 }
 
+const otk::pbrt::PbrtNamedMaterial* findGeneratedMdlMixNamedMaterial( const MaterialGroup& group, const char* paramName )
+{
+    if( !group.pbrtMaterial )
+    {
+        return nullptr;
+    }
+
+    const std::string materialName{ group.pbrtMaterial->params.FindOneString( paramName, std::string{} ) };
+    if( materialName.empty() )
+    {
+        return nullptr;
+    }
+
+    const otk::pbrt::PbrtNamedMaterialMap::const_iterator namedMaterial =
+        group.pbrtMaterial->graph.namedMaterials.find( materialName );
+    if( namedMaterial == group.pbrtMaterial->graph.namedMaterials.end() )
+    {
+        return nullptr;
+    }
+    return &namedMaterial->second;
+}
+
+PbrtDemandTextureBinding generatedMdlNamedMaterialAlphaCutoutBinding( const otk::pbrt::PbrtMaterial& parent,
+                                                                      const otk::pbrt::PbrtNamedMaterial& namedMaterial )
+{
+    for( const char* const paramName : { "alpha", "shadowalpha", "opacity" } )
+    {
+        const PbrtDemandTextureBinding binding{ generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, paramName ) };
+        if( hasPbrtDemandTextureBinding( binding ) )
+        {
+            return binding;
+        }
+    }
+    return pbrtDemandTextureBinding();
+}
+
+void setGeneratedMdlMixAlphaCutout( const Options& options, const GeometryInstance& instance, MaterialGroup& group )
+{
+    if( !options.useMdlMaterials || instance.primitive != GeometryPrimitive::TRIANGLE
+        || instance.groups.size() != 1 || !group.pbrtMaterial || group.pbrtMaterial->type != "mix"
+        || flagSet( group.material.flags, MaterialFlags::ALPHA_MAP ) || !group.pbrtMaterial->graph.fallbackReasons.empty()
+        || !supportsGeneratedMdlNamedMaterialReferences( *group.pbrtMaterial ) || !supportsGeneratedMdlMixAmount( *group.pbrtMaterial )
+        || !supportsGeneratedMdlTextureReferences( *group.pbrtMaterial, group ) )
+    {
+        return;
+    }
+
+    for( const char* const paramName : { "namedmaterial1", "namedmaterial2" } )
+    {
+        const otk::pbrt::PbrtNamedMaterial* namedMaterial{ findGeneratedMdlMixNamedMaterial( group, paramName ) };
+        if( namedMaterial == nullptr )
+        {
+            continue;
+        }
+
+        const PbrtDemandTextureBinding binding{ generatedMdlNamedMaterialAlphaCutoutBinding( *group.pbrtMaterial, *namedMaterial ) };
+        if( hasPbrtDemandTextureBinding( binding ) )
+        {
+            group.alphaMapFileName = binding.fileName;
+            group.material.flags |= MaterialFlags::ALPHA_MAP;
+            return;
+        }
+    }
+}
+
 void createGeneratedMdlNamedMaterialTextureBinding( MaterialGroup&                      group,
                                                     SceneSyncState&                     sync,
                                                     DemandTextureCache&                 demandTextureCache,
@@ -675,19 +740,14 @@ void createGeneratedMdlNamedMaterialAlphaTextureBinding( MaterialGroup&         
                                                          const otk::pbrt::PbrtNamedMaterial& namedMaterial,
                                                          uint_t                              namedMaterialIndex )
 {
-    for( const char* const paramName : { "alpha", "shadowalpha", "opacity" } )
+    const PbrtDemandTextureBinding binding{ generatedMdlNamedMaterialAlphaCutoutBinding( *group.pbrtMaterial, namedMaterial ) };
+    if( !hasPbrtDemandTextureBinding( binding ) )
     {
-        const PbrtDemandTextureBinding binding{
-            generatedMdlNamedMaterialRuntimeTextureBinding( *group.pbrtMaterial, namedMaterial, paramName ) };
-        if( !hasPbrtDemandTextureBinding( binding ) )
-        {
-            continue;
-        }
-        createGeneratedMdlTextureBinding( group, sync, demandTextureCache, binding,
-                                          generatedMdlMixNamedMaterialTextureBindingIndex(
-                                              namedMaterialIndex, MDL_MATERIAL_MIX_NAMED_ALPHA_TEXTURE_BINDING_OFFSET ) );
         return;
     }
+    createGeneratedMdlTextureBinding( group, sync, demandTextureCache, binding,
+                                      generatedMdlMixNamedMaterialTextureBindingIndex(
+                                          namedMaterialIndex, MDL_MATERIAL_MIX_NAMED_ALPHA_TEXTURE_BINDING_OFFSET ) );
 }
 
 void createGeneratedMdlMixNamedMaterialTextureBindings( MaterialGroup&      group,
@@ -696,27 +756,20 @@ void createGeneratedMdlMixNamedMaterialTextureBindings( MaterialGroup&      grou
                                                         const char*         paramName,
                                                         uint_t              namedMaterialIndex )
 {
-    const std::string materialName{ group.pbrtMaterial->params.FindOneString( paramName, std::string{} ) };
-    if( materialName.empty() )
+    const otk::pbrt::PbrtNamedMaterial* namedMaterial{ findGeneratedMdlMixNamedMaterial( group, paramName ) };
+    if( namedMaterial == nullptr )
     {
         return;
     }
 
-    const otk::pbrt::PbrtNamedMaterialMap::const_iterator namedMaterial =
-        group.pbrtMaterial->graph.namedMaterials.find( materialName );
-    if( namedMaterial == group.pbrtMaterial->graph.namedMaterials.end() )
-    {
-        return;
-    }
-
-    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, namedMaterial->second, namedMaterialIndex,
+    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, *namedMaterial, namedMaterialIndex,
                                                    "Kd", MDL_MATERIAL_MIX_NAMED_KD_TEXTURE_BINDING_OFFSET );
-    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, namedMaterial->second, namedMaterialIndex,
+    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, *namedMaterial, namedMaterialIndex,
                                                    "Ks", MDL_MATERIAL_MIX_NAMED_KS_TEXTURE_BINDING_OFFSET );
-    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, namedMaterial->second, namedMaterialIndex,
+    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, *namedMaterial, namedMaterialIndex,
                                                    "Kr", MDL_MATERIAL_MIX_NAMED_KR_TEXTURE_BINDING_OFFSET );
-    createGeneratedMdlNamedMaterialAlphaTextureBinding( group, sync, demandTextureCache, namedMaterial->second, namedMaterialIndex );
-    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, namedMaterial->second, namedMaterialIndex,
+    createGeneratedMdlNamedMaterialAlphaTextureBinding( group, sync, demandTextureCache, *namedMaterial, namedMaterialIndex );
+    createGeneratedMdlNamedMaterialTextureBinding( group, sync, demandTextureCache, *namedMaterial, namedMaterialIndex,
                                                    "bumpmap", MDL_MATERIAL_MIX_NAMED_BUMPMAP_TEXTURE_BINDING_OFFSET );
 }
 
@@ -1084,6 +1137,10 @@ MaterialResolution PbrtMaterialResolver::resolveMaterialGroup( std::vector<uint_
     // TODO: support alpha maps on spheres
     if( geom->instance.primitive == GeometryPrimitive::TRIANGLE )
     {
+#ifdef OTK_USE_MDL
+        setGeneratedMdlMixAlphaCutout( m_options, geom->instance, group );
+#endif
+
         // phase 1 alpha map resolution
         if( flagSet( group.material.flags, MaterialFlags::ALPHA_MAP )
             && !flagSet( group.material.flags, MaterialFlags::ALPHA_MAP_ALLOCATED ) )
