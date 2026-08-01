@@ -26,13 +26,17 @@ configure_file(
 
 if(OTK_USE_MDL)
     find_package(mdl CONFIG REQUIRED)
-    set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES MdlSmokeMaterial.cu)
+    set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES
+        FourierMaterial.cu
+        MdlSmokeMaterial.cu
+    )
     set(DEMAND_PBRT_SCENE_MDL_LIBRARIES mdl::mdl_sdk)
     set(DEMAND_PBRT_SCENE_MDL_SOURCES
         FourierBsdfTable.cpp
         FourierBsdfTableResource.cpp
         MdlBsdfCompiler.cpp
         MdlShaderCache.cpp
+        include/DemandPbrtScene/FourierBsdfEval.h
         include/DemandPbrtScene/FourierBsdfTable.h
         include/DemandPbrtScene/FourierBsdfTableResource.h
         include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h

@@ -59,6 +59,7 @@ set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene 
 
 if(OTK_USE_MDL)
     target_sources(TestDemandPbrtSceneImpl PRIVATE
+        TestFourierBsdfEval.cpp
         TestFourierBsdfTable.cpp
         TestFourierBsdfTableResource.cpp
         TestMdlBumpMap.cpp

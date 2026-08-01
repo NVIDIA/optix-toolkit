@@ -152,22 +152,22 @@ struct FourierMaterialResource
     CUdeviceptr table;
 };
 
-inline bool hasFourierBsdfTableResource( const FourierMaterialResource& resource )
+__host__ __device__ inline bool hasFourierBsdfTableResource( const FourierMaterialResource& resource )
 {
     return resource.resourceId != INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID && resource.table != CUdeviceptr{};
 }
 
-inline FourierMaterialResource makeFourierMaterialResource( uint_t resourceId, CUdeviceptr table )
+__host__ __device__ inline FourierMaterialResource makeFourierMaterialResource( uint_t resourceId, CUdeviceptr table )
 {
     return FourierMaterialResource{ resourceId, table };
 }
 
-inline bool operator==( const FourierMaterialResource& lhs, const FourierMaterialResource& rhs )
+__host__ __device__ inline bool operator==( const FourierMaterialResource& lhs, const FourierMaterialResource& rhs )
 {
     return lhs.resourceId == rhs.resourceId && lhs.table == rhs.table;
 }
 
-inline bool operator!=( const FourierMaterialResource& lhs, const FourierMaterialResource& rhs )
+__host__ __device__ inline bool operator!=( const FourierMaterialResource& lhs, const FourierMaterialResource& rhs )
 {
     return !( lhs == rhs );
 }
