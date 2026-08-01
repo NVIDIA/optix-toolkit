@@ -118,6 +118,7 @@ inline std::ostream& operator<<( std::ostream& str, const Json<MaterialResolverS
     DUMP_JSON_MEMBER( numGeneratedMdlMaterialCompileRequests ) << ',';
     DUMP_JSON_MEMBER( numFourierBsdfTableResourcesResolved ) << ',';
     DUMP_JSON_MEMBER( numFourierBsdfTableResourcesMissing ) << ',';
+    DUMP_JSON_MEMBER( numFourierBsdfTableResourcesInvalid ) << ',';
     DUMP_JSON_OBJECT( mdlShaders );
 #endif
     str << '}';

@@ -33,6 +33,8 @@
 #include <gtest/gtest.h>
 
 #ifdef OTK_USE_MDL
+#include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #endif
@@ -790,6 +792,64 @@ std::filesystem::path makeFourierTestDirectory()
     return directory;
 }
 
+void writeFourierUint32( std::ostream& output, std::uint32_t value )
+{
+    const unsigned char bytes[] = {
+        static_cast<unsigned char>( value & 0xffU ),
+        static_cast<unsigned char>( ( value >> 8 ) & 0xffU ),
+        static_cast<unsigned char>( ( value >> 16 ) & 0xffU ),
+        static_cast<unsigned char>( ( value >> 24 ) & 0xffU ),
+    };
+    output.write( reinterpret_cast<const char*>( bytes ), sizeof( bytes ) );
+}
+
+void writeFourierInt32( std::ostream& output, int value )
+{
+    writeFourierUint32( output, static_cast<std::uint32_t>( value ) );
+}
+
+void writeFourierFloat( std::ostream& output, float value )
+{
+    std::uint32_t bits{};
+    std::memcpy( &bits, &value, sizeof( bits ) );
+    writeFourierUint32( output, bits );
+}
+
+void writeMinimalFourierBsdfTable( const std::filesystem::path& fileName )
+{
+    constexpr char scatfunHeader[8] = { 'S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01' };
+    std::ofstream  output{ fileName, std::ios::binary };
+    output.write( scatfunHeader, sizeof( scatfunHeader ) );
+    writeFourierInt32( output, 1 );
+    writeFourierInt32( output, 1 );
+    writeFourierInt32( output, 3 );
+    writeFourierInt32( output, 1 );
+    writeFourierInt32( output, 3 );
+    writeFourierInt32( output, 1 );
+    for( int i = 0; i < 3; ++i )
+    {
+        writeFourierInt32( output, 0 );
+    }
+    writeFourierFloat( output, 1.0f );
+    for( int i = 0; i < 4; ++i )
+    {
+        writeFourierInt32( output, 0 );
+    }
+    writeFourierFloat( output, 1.0f );
+    writeFourierFloat( output, 1.0f );
+    writeFourierInt32( output, 0 );
+    writeFourierInt32( output, 1 );
+    writeFourierFloat( output, 0.1f );
+    writeFourierFloat( output, 0.2f );
+    writeFourierFloat( output, 0.3f );
+}
+
+void writeInvalidFourierBsdfTable( const std::filesystem::path& fileName )
+{
+    std::ofstream output{ fileName, std::ios::binary };
+    output.write( "NOTBSDF!", 8 );
+}
+
 void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
 {
     EXPECT_EQ( 0U, stats.numRequestedMaterialPages );
@@ -797,6 +857,7 @@ void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
     EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
     EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesResolved );
     EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesMissing );
+    EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesInvalid );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderCacheHits );
     EXPECT_EQ( 0U, stats.mdlShaders.numSourceCacheHits );
@@ -810,13 +871,17 @@ void expectNoMdlShadersCompiled( const MaterialResolverStats& stats )
     EXPECT_EQ( 0U, stats.mdlShaders.numFailedShaders );
 }
 
-void expectGeneratedFourierFallbackStats( const MaterialResolverStats& stats, unsigned int expectedResolvedTables, unsigned int expectedMissingTables )
+void expectGeneratedFourierFallbackStats( const MaterialResolverStats& stats,
+                                          unsigned int                 expectedResolvedTables,
+                                          unsigned int                 expectedMissingTables,
+                                          unsigned int                 expectedInvalidTables = 0U )
 {
     EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
     EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
     EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
     EXPECT_EQ( expectedResolvedTables, stats.numFourierBsdfTableResourcesResolved );
     EXPECT_EQ( expectedMissingTables, stats.numFourierBsdfTableResourcesMissing );
+    EXPECT_EQ( expectedInvalidTables, stats.numFourierBsdfTableResourcesInvalid );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
 }
@@ -1924,6 +1989,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksExplici
     EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
     EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesResolved );
     EXPECT_EQ( 1U, stats.numFourierBsdfTableResourcesMissing );
+    EXPECT_EQ( 0U, stats.numFourierBsdfTableResourcesInvalid );
     EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
     EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
 }
@@ -1932,10 +1998,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesFour
 {
     const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
     const std::filesystem::path bsdfFile{ sceneDirectory / "direct-fourier.bsdf" };
-    {
-        std::ofstream output{ bsdfFile.string(), std::ios::binary };
-        output.put( '\0' );
-    }
+    writeMinimalFourierBsdfTable( bsdfFile );
     ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
 
     m_options.useMdlMaterials = true;
@@ -1961,10 +2024,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeResolvesName
 {
     const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
     const std::filesystem::path bsdfFile{ sceneDirectory / "bsdfs" / "named-fourier.bsdf" };
-    {
-        std::ofstream output{ bsdfFile.string(), std::ios::binary };
-        output.put( '\0' );
-    }
+    writeMinimalFourierBsdfTable( bsdfFile );
     ASSERT_TRUE( std::filesystem::exists( bsdfFile ) );
 
     m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
@@ -2011,6 +2071,33 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeKeepsMissing
     ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
     EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
     expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 0U, 1U );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeKeepsInvalidFourierBsdfTableOnFallbackWithoutCompile )
+{
+    const std::filesystem::path sceneDirectory{ makeFourierTestDirectory() };
+    const std::filesystem::path invalidFile{ sceneDirectory / "bsdfs" / "invalid-fourier.bsdf" };
+    writeInvalidFourierBsdfTable( invalidFile );
+    ASSERT_TRUE( std::filesystem::exists( invalidFile ) );
+
+    m_options.sceneFile       = ( sceneDirectory / "scene.pbrt" ).string();
+    m_options.useMdlMaterials = true;
+    usePbrtFourierMaterialWithBsdfFile( m_geom, "bsdfs/invalid-fourier.bsdf" );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    expectGeneratedFourierFallbackStats( m_resolver->getStatistics(), 0U, 0U, 1U );
 }
 
 TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTextureBackedNonMirrorSpecularMaterialUnsupported )

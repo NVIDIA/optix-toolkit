@@ -9,6 +9,7 @@
 #include "DemandPbrtScene/DemandTextureCache.h"
 #include "DemandPbrtScene/FrameStopwatch.h"
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/FourierBsdfTable.h"
 #include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 #endif
@@ -782,12 +783,6 @@ std::string resolveFourierBsdfTableFileName( const otk::pbrt::PbrtMaterial& mate
     return fileName.lexically_normal().string();
 }
 
-bool fileExists( const std::string& fileName )
-{
-    std::ifstream file{ fileName, std::ios::binary };
-    return file.good();
-}
-
 MdlMaterialInstanceKey makeMaterialGroupMdlMaterialInstanceKey( const MaterialGroup& group )
 {
     if( group.pbrtMaterial )
@@ -981,13 +976,21 @@ void PbrtMaterialResolver::recordFourierBsdfTableResourceState( const MaterialGr
     }
 
     const std::string fileName{ resolveFourierBsdfTableFileName( *group.pbrtMaterial, m_options.sceneFile ) };
-    if( !fileName.empty() && fileExists( fileName ) )
+    const FourierBsdfTableLoadResult result{ loadFourierBsdfTable( fileName ) };
+    switch( result.status )
     {
-        ++m_stats.numFourierBsdfTableResourcesResolved;
-    }
-    else
-    {
-        ++m_stats.numFourierBsdfTableResourcesMissing;
+        case FourierBsdfTableLoadStatus::SUCCESS:
+            ++m_stats.numFourierBsdfTableResourcesResolved;
+            break;
+        case FourierBsdfTableLoadStatus::FILE_NOT_FOUND:
+            ++m_stats.numFourierBsdfTableResourcesMissing;
+            break;
+        case FourierBsdfTableLoadStatus::INVALID_HEADER:
+        case FourierBsdfTableLoadStatus::TRUNCATED:
+        case FourierBsdfTableLoadStatus::UNSUPPORTED:
+        case FourierBsdfTableLoadStatus::MALFORMED:
+            ++m_stats.numFourierBsdfTableResourcesInvalid;
+            break;
     }
 }
 #endif

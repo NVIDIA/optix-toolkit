@@ -217,6 +217,7 @@ void ImGuiUserInterface::renderSceneStatistics() const
         ImGui::Text( "Generated MDL material compile requests: %u", materials.numGeneratedMdlMaterialCompileRequests );
         ImGui::Text( "Fourier BSDF table resources resolved: %u", materials.numFourierBsdfTableResourcesResolved );
         ImGui::Text( "Fourier BSDF table resources missing: %u", materials.numFourierBsdfTableResourcesMissing );
+        ImGui::Text( "Fourier BSDF table resources invalid: %u", materials.numFourierBsdfTableResourcesInvalid );
         if( ImGui::TreeNode( "MDL shaders" ) )
         {
             const MdlShaderCompileCacheStatistics& mdl{ materials.mdlShaders };

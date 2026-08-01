@@ -24,6 +24,7 @@ struct MaterialResolverStats
     unsigned int                    numGeneratedMdlMaterialCompileRequests;
     unsigned int                    numFourierBsdfTableResourcesResolved;
     unsigned int                    numFourierBsdfTableResourcesMissing;
+    unsigned int                    numFourierBsdfTableResourcesInvalid;
     MdlShaderCompileCacheStatistics mdlShaders;
 #endif
 };

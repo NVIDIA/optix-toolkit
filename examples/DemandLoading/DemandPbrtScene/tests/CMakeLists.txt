@@ -38,6 +38,9 @@ if(MSVC)
     target_compile_options(TestDemandPbrtSceneImpl PUBLIC /bigobj)
 endif()
 target_include_directories(TestDemandPbrtSceneImpl PUBLIC include)
+target_compile_definitions(TestDemandPbrtSceneImpl PRIVATE
+    DEMAND_PBRT_SCENE_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
     OptiXToolkit::DemandGeometry::Testing
@@ -54,9 +57,13 @@ set_target_properties(TestDemandPbrtSceneImpl PROPERTIES FOLDER Examples/DemandL
 add_test( NAME TestDemandPbrtSceneImpl COMMAND TestDemandPbrtSceneImpl )
 set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene )
 
-if(OTK_USE_MDL)
-    target_sources(TestDemandPbrtSceneImpl PRIVATE TestMdlBumpMap.cpp TestMdlShaderCache.cpp)
-    find_package(mdl CONFIG REQUIRED)
+    if(OTK_USE_MDL)
+        target_sources(TestDemandPbrtSceneImpl PRIVATE
+            TestFourierBsdfTable.cpp
+            TestMdlBumpMap.cpp
+            TestMdlShaderCache.cpp
+        )
+        find_package(mdl CONFIG REQUIRED)
     add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
     target_link_libraries(TestDemandPbrtSceneMdlSdk PUBLIC
         DemandPbrtSceneImpl
