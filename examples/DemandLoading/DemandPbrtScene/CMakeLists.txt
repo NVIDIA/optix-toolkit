@@ -33,6 +33,7 @@ if(OTK_USE_MDL)
         MdlBsdfCompiler.cpp
         MdlShaderCache.cpp
         include/DemandPbrtScene/FourierBsdfTable.h
+        include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h
         include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h
         include/DemandPbrtScene/MdlShaderCache.h

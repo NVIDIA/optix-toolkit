@@ -4,6 +4,8 @@
 
 #include <gmock/gmock.h>
 
+#include "DemandPbrtScene/FourierBsdfTable.h"
+#include "DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h"
 #include "DemandPbrtScene/MdlBsdfCompiler.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 
@@ -16,6 +18,7 @@
 #endif
 
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -30,6 +33,11 @@ constexpr mi::Float32 PBRT_KD_BLUE      = 0.75f;
 constexpr mi::Float32 PBRT_KD_ALT_RED   = 0.75f;
 constexpr mi::Float32 PBRT_KD_ALT_GREEN = 0.20f;
 constexpr mi::Float32 PBRT_KD_ALT_BLUE  = 0.10f;
+
+std::filesystem::path pbrtReferenceDir()
+{
+    return std::filesystem::path{ DEMAND_PBRT_SCENE_TEST_SOURCE_DIR } / "pbrt-reference";
+}
 
 struct BoundMdlColor
 {
@@ -790,6 +798,44 @@ TEST( TestMdlSdk, headerProvidesNeurayInterfaceId )
     const mi::base::Uuid id = mi::neuraylib::INeuray::IID();
 
     EXPECT_NE( 0U, id.m_id1 | id.m_id2 | id.m_id3 | id.m_id4 );
+}
+
+TEST( TestMdlSdk, rejectsPbrtFourierFixtureAsMdlMeasuredBsdfResource )
+{
+    const std::filesystem::path fixture{ pbrtReferenceDir() / "bsdfs" / "roughgold_alpha_0.2.bsdf" };
+    const demandPbrtScene::FourierBsdfTableLoadResult table{ demandPbrtScene::loadFourierBsdfTable( fixture.string() ) };
+    ASSERT_TRUE( table ) << table.diagnostic;
+
+    MdlSdkSession session;
+    ASSERT_TRUE( session.isStarted() ) << session.error();
+
+    {
+        mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
+        ASSERT_TRUE( database.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
+        ASSERT_TRUE( scope.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
+        ASSERT_TRUE( transaction.is_valid_interface() );
+
+        mi::base::Handle<mi::neuraylib::IBsdf_measurement> measurement(
+            transaction->create<mi::neuraylib::IBsdf_measurement>( "Bsdf_measurement" ) );
+        ASSERT_TRUE( measurement.is_valid_interface() );
+        EXPECT_EQ( -3, measurement->reset_file( fixture.string().c_str() ) );
+
+        const demandPbrtScene::FourierMdlMeasuredBsdfCapability capability{ demandPbrtScene::fourierMdlMeasuredBsdfCapability() };
+        EXPECT_FALSE( capability.acceptsPbrtBsdfTables );
+        EXPECT_FALSE( capability.exposesSampleEvaluatePdfCallables );
+        EXPECT_EQ( demandPbrtScene::FourierGpuEvaluationPath::PBRT_FOURIER_CALLABLE, capability.selectedPath );
+        EXPECT_THAT( capability.reason, testing::HasSubstr( ".mbsdf" ) );
+        EXPECT_THAT( capability.reason, testing::HasSubstr( ".bsdf" ) );
+
+        measurement.reset();
+        EXPECT_EQ( 0, transaction->commit() );
+    }
+
+    EXPECT_EQ( 0, session.shutdown() );
 }
 
 TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithBoundKd )
