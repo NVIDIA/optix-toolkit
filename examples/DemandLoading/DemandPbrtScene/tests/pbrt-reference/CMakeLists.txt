@@ -24,6 +24,7 @@ set(referenceMaterials
     landscape-uber-alpha
     landscape-uber-specular-textures
     landscape-uber-bump
+    landscape-mix-bump
     landscape-translucent-textured
     landscape-mix-vegetation
 )
@@ -255,6 +256,14 @@ if(OTK_USE_MDL)
             DIFF_THRESHOLD 64
             ALLOWED_PERCENTAGE 3
             TOLERANCE_REASON "Landscape fixture tolerance, direct uber Kd/bump imagemaps use generated MDL BSDF callables with runtime single-sample tangent bump approximation")
+        add_pbrt_reference_image_test(landscape-mix-bump
+            MATERIAL mix
+            SCENE landscape-mix-bump.pbrt
+            RESOURCES landscape-fixture-albedo.png landscape-fixture-bump.png
+            WARMUP 16
+            DIFF_THRESHOLD 64
+            ALLOWED_PERCENTAGE 3
+            TOLERANCE_REASON "Landscape fixture tolerance, generated MDL mix composes named-material BSDF callables while runtime branch bumpmap slots use the same single-sample tangent bump approximation as direct materials")
         add_pbrt_reference_image_test(landscape-translucent-textured
             MATERIAL translucent
             SCENE landscape-translucent-textured.pbrt

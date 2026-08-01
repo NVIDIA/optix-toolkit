@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["gold-landscape-mix-bump.png"]
+Sampler "halton" "integer pixelsamples" [1]
+Integrator "directlighting"
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "distant" "rgb L" [1 1 1] "point from" [0 0 4] "point to" [0 0 0]
+
+    Texture "albedo" "spectrum" "imagemap"
+        "string filename" ["landscape-fixture-albedo.png"]
+        "bool gamma" ["false"]
+        "string wrap" ["clamp"]
+    Texture "height" "float" "imagemap"
+        "string filename" ["landscape-fixture-bump.png"]
+        "bool gamma" ["false"]
+        "string wrap" ["clamp"]
+    Texture "scaled-height" "float" "scale"
+        "texture tex1" ["height"]
+        "float tex2" [0.5]
+    MakeNamedMaterial "front"
+        "string type" ["uber"]
+        "float index" [1.333]
+        "float roughness" [0.5]
+        "texture Kd" ["albedo"]
+        "texture bumpmap" ["scaled-height"]
+        "rgb Ks" [0.0331047662 0.0331047662 0.0331047662]
+        "rgb Kr" [0.0331047662 0.0331047662 0.0331047662]
+    MakeNamedMaterial "back"
+        "string type" ["matte"]
+        "rgb Kd" [0.2 0.3 0.4]
+    Material "mix"
+        "string namedmaterial1" ["front"]
+        "string namedmaterial2" ["back"]
+        "rgb amount" [0.4 0.4 0.4]
+    Shape "trianglemesh"
+        "point P" [
+            -1.6 -1.6 0
+             1.6 -1.6 0
+             1.6  1.6 0
+            -1.6  1.6 0
+            -1.6 -1.6 -0.05
+             1.6 -1.6 -0.05
+             1.6  1.6 -0.05
+            -1.6  1.6 -0.05
+        ]
+        "float uv" [
+            0 1
+            1 1
+            1 0
+            0 0
+            0 1
+            1 1
+            1 0
+            0 0
+        ]
+        "integer indices" [
+            0 1 2
+            0 2 3
+            6 5 4
+            4 7 6
+        ]
+WorldEnd
