@@ -92,7 +92,7 @@ if(OTK_USE_MDL)
     mark_as_advanced(PBRT_V3_SCENE_DIR)
 
     function(add_pbrt_v3_scene_smoke_test name)
-        set(oneValueArgs SCENE OUTPUT)
+        set(oneValueArgs SCENE OUTPUT PASS_REGULAR_EXPRESSION)
         cmake_parse_arguments(PBRT_V3 "" "${oneValueArgs}" "REQUIRED_FILES;OPTIONS" ${ARGN})
         if(PBRT_V3_UNPARSED_ARGUMENTS)
             message(FATAL_ERROR "Unknown arguments to add_pbrt_v3_scene_smoke_test: ${PBRT_V3_UNPARSED_ARGUMENTS}")
@@ -102,6 +102,9 @@ if(OTK_USE_MDL)
         endif()
         if(NOT PBRT_V3_OUTPUT)
             set(PBRT_V3_OUTPUT "test-${name}-out.png")
+        endif()
+        if(NOT PBRT_V3_PASS_REGULAR_EXPRESSION)
+            set(PBRT_V3_PASS_REGULAR_EXPRESSION "Resolved proxy material id")
         endif()
 
         file(TO_CMAKE_PATH "${PBRT_V3_SCENE_DIR}" pbrtV3SceneDir)
@@ -137,7 +140,7 @@ if(OTK_USE_MDL)
                 ${PBRT_V3_OPTIONS})
         set_tests_properties(${testName} PROPERTIES
             LABELS "DemandPbrtScene;PBRTCorpus;MDL"
-            PASS_REGULAR_EXPRESSION "Resolved proxy material id"
+            PASS_REGULAR_EXPRESSION "${PBRT_V3_PASS_REGULAR_EXPRESSION}"
             FAIL_REGULAR_EXPRESSION
                 "Caught exception|Fourier BSDF table resource binding failed|Generated MDL material build failed"
             PBRT_REFERENCE_MATERIAL "fourier"
@@ -302,7 +305,28 @@ if(OTK_USE_MDL)
             dragon/bsdfs/roughgold_alpha_0.2.bsdf
             dragon/geometry/dragon_remeshed.ply
             dragon/textures/20060807_wells6_hd.exr
+        PASS_REGULAR_EXPRESSION "Resolved Fourier BSDF table resource id"
         OUTPUT test-fourier-coated-copper-corpus-out.png)
+    add_pbrt_v3_scene_smoke_test(fourier-ceramic-coffee-splash-corpus
+        SCENE coffee-splash/f15-5.pbrt
+        REQUIRED_FILES
+            coffee-splash/materials.pbrt
+            coffee-splash/geometry.pbrt
+            coffee-splash/bsdfs/ceramic.bsdf
+            coffee-splash/textures/20060807_wells6_hd.exr
+            coffee-splash/spds/Au.eta.spd
+            coffee-splash/spds/Au.k.spd
+            coffee-splash/geometry/Plane_002_0000_m000.ply
+            coffee-splash/geometry/Circle_0000_m000.ply
+            coffee-splash/geometry/Plane_001_0000_m000.ply
+            coffee-splash/geometry/Cube_003_0000_m000.ply
+            coffee-splash/geometry/Plane_0000_m000.ply
+            coffee-splash/geometry/Cube_010_0000_m000.ply
+            coffee-splash/geometry/Cube_009_0000_m000.ply
+            coffee-splash/geometry/Cube_013_0000_m000.ply
+            coffee-splash/geometry/Cube_006_0000_m000.ply
+        PASS_REGULAR_EXPRESSION "Resolved Fourier BSDF table resource id"
+        OUTPUT test-fourier-ceramic-coffee-splash-corpus-out.png)
     if(OTK_USE_OIIO)
         add_pbrt_reference_image_test(matte-imagemap
             MATERIAL matte

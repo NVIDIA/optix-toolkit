@@ -1132,6 +1132,11 @@ MaterialState PbrtMaterialResolver::resolveFourierMaterialState( SceneSyncState&
         grow( sync.fourierMaterialResources, materialId + 1 );
         sync.fourierMaterialResources[materialId] = resource;
         instance.instance.sbtOffset               = m_programGroups->getFourierMaterialSbtOffset( instance );
+        if( m_options.verboseProxyMaterialResolution )
+        {
+            std::cout << "Resolved Fourier BSDF table resource id " << resource.resourceId << " for material id "
+                      << materialId << '\n';
+        }
         return fourierTableReadyState( materialId, resource.resourceId );
     }
     catch( const std::exception& e )
