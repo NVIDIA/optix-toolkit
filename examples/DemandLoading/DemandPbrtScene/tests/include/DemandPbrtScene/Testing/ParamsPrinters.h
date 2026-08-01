@@ -54,6 +54,8 @@ inline std::ostream& operator<<( std::ostream& str, MaterialBackend value )
             return str << "MdlPending";
         case MaterialBackend::MDL_FAILED:
             return str << "MdlFailed";
+        case MaterialBackend::FOURIER_TABLE_READY:
+            return str << "FourierTableReady";
     }
     return str << "UnknownMaterialBackend{ " << +value << " }";
 }
@@ -81,6 +83,13 @@ inline std::ostream& operator<<( std::ostream& str, const MaterialState& value )
     return str << "MaterialState{ id: " << value.materialId << ", backend: " << value.backend
                << ", shaderKey: " << value.shaderKey << ", fallbackReason: " << value.fallbackReason << " }";
 }
+
+#ifdef OTK_USE_MDL
+inline std::ostream& operator<<( std::ostream& str, const FourierMaterialResource& value )
+{
+    return str << "FourierMaterialResource{ resourceId: " << value.resourceId << ", table: " << value.table << " }";
+}
+#endif
 
 inline std::ostream& operator<<( std::ostream& str, const MaterialFlags val )
 {

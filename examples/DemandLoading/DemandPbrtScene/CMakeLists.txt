@@ -30,9 +30,11 @@ if(OTK_USE_MDL)
     set(DEMAND_PBRT_SCENE_MDL_LIBRARIES mdl::mdl_sdk)
     set(DEMAND_PBRT_SCENE_MDL_SOURCES
         FourierBsdfTable.cpp
+        FourierBsdfTableResource.cpp
         MdlBsdfCompiler.cpp
         MdlShaderCache.cpp
         include/DemandPbrtScene/FourierBsdfTable.h
+        include/DemandPbrtScene/FourierBsdfTableResource.h
         include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h
         include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h

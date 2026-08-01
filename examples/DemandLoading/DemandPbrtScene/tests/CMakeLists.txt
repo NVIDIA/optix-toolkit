@@ -57,13 +57,14 @@ set_target_properties(TestDemandPbrtSceneImpl PROPERTIES FOLDER Examples/DemandL
 add_test( NAME TestDemandPbrtSceneImpl COMMAND TestDemandPbrtSceneImpl )
 set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene )
 
-    if(OTK_USE_MDL)
-        target_sources(TestDemandPbrtSceneImpl PRIVATE
-            TestFourierBsdfTable.cpp
-            TestMdlBumpMap.cpp
-            TestMdlShaderCache.cpp
-        )
-        find_package(mdl CONFIG REQUIRED)
+if(OTK_USE_MDL)
+    target_sources(TestDemandPbrtSceneImpl PRIVATE
+        TestFourierBsdfTable.cpp
+        TestFourierBsdfTableResource.cpp
+        TestMdlBumpMap.cpp
+        TestMdlShaderCache.cpp
+    )
+    find_package(mdl CONFIG REQUIRED)
     add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
     target_compile_definitions(TestDemandPbrtSceneMdlSdk PRIVATE
         DEMAND_PBRT_SCENE_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"

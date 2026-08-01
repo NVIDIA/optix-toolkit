@@ -111,6 +111,17 @@ TEST( TestFallbackShaderContract, mdlFailedDefaultsToFailedReason )
     EXPECT_TRUE( usesFallbackShader( state ) );
 }
 
+TEST( TestFallbackShaderContract, fourierTableReadyKeepsUnsupportedFallbackUntilGpuEvaluationExists )
+{
+    const MaterialState state{ makeMaterialState( 42U, MaterialBackend::FOURIER_TABLE_READY, 77U ) };
+
+    EXPECT_EQ( 42U, state.materialId );
+    EXPECT_EQ( MaterialBackend::FOURIER_TABLE_READY, state.backend );
+    EXPECT_EQ( 77U, state.shaderKey );
+    EXPECT_EQ( MaterialFallbackReason::UNSUPPORTED, state.fallbackReason );
+    EXPECT_TRUE( usesFallbackShader( state ) );
+}
+
 TEST( TestFallbackShaderContract, explicitReasonOverridesBackendDefault )
 {
     const MaterialState state{ makeMaterialState( 42U, MaterialBackend::LOCAL_FALLBACK, 0U, MaterialFallbackReason::UNSUPPORTED ) };
@@ -142,6 +153,24 @@ TEST( TestMdlMaterialTextureBindings, defaultMdlMaterialShaderHasNoBoundTextures
     {
         EXPECT_EQ( invalidMdlMaterialTextureBinding(), data.textureBindings[i] );
     }
+}
+
+TEST( TestFourierBsdfTableResourceBinding, defaultResourceHasNoBoundTable )
+{
+    const FourierMaterialResource resource{};
+
+    EXPECT_EQ( INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID, resource.resourceId );
+    EXPECT_EQ( CUdeviceptr{}, resource.table );
+    EXPECT_FALSE( hasFourierBsdfTableResource( resource ) );
+}
+
+TEST( TestFourierBsdfTableResourceBinding, resourceStoresCompactHandleAndDevicePointer )
+{
+    const FourierMaterialResource resource{ makeFourierMaterialResource( 55U, static_cast<CUdeviceptr>( 0x12340000U ) ) };
+
+    EXPECT_EQ( 55U, resource.resourceId );
+    EXPECT_EQ( static_cast<CUdeviceptr>( 0x12340000U ), resource.table );
+    EXPECT_TRUE( hasFourierBsdfTableResource( resource ) );
 }
 
 TEST( TestMdlMaterialTextureBindings, setBindingTracksCountAndRejectsOverflow )

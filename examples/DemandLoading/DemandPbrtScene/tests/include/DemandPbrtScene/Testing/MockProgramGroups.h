@@ -23,6 +23,7 @@ class MockProgramGroups : public ::testing::StrictMock<ProgramGroups>
     MOCK_METHOD( uint_t, getFallbackMaterialSbtOffset, (const GeometryInstance&), ( override ) );
     MOCK_METHOD( uint_t, getMdlMaterialSbtOffset, (const GeometryInstance&), ( override ) );
     MOCK_METHOD( MdlMaterialShader, realizeMdlMaterialShader, ( const GeometryInstance&, uint_t ), ( override ) );
+    MOCK_METHOD( FourierMaterialResource, realizeFourierMaterialResource, (const GeometryInstance&, const FourierBsdfTable&), ( override ) );
 #endif
     MOCK_METHOD( uint_t, getRealizedMaterialSbtOffset, (const GeometryInstance&), ( override ) );
     MOCK_METHOD( void, initialize, (), ( override ) );

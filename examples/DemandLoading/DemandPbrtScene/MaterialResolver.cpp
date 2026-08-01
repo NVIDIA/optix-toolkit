@@ -107,8 +107,9 @@ class PbrtMaterialResolver : public MaterialResolver
                                            GeometryInstance&    instance,
                                            const MaterialGroup& group,
                                            uint_t               materialId );
-    void          recordFourierBsdfTableResourceState( const MaterialGroup& group );
-    void          queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material );
+    MaterialState resolveFourierMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId );
+    FourierBsdfTableLoadResult loadFourierBsdfTableResourceState( const MaterialGroup& group );
+    void queuePendingMdlMaterial( const MdlMaterialInstanceKey& key, const PendingMdlMaterial& material );
 #endif
     std::optional<uint_t> findResolvedMaterial( const MaterialGroup& group, const SceneSyncState& syncState ) const;
     bool                  resolveGeometryToExistingMaterial( uint_t                  proxyGeomId,
@@ -168,6 +169,11 @@ MaterialState unsupportedFallbackState( uint_t materialId )
 MaterialState mdlReadyState( uint_t materialId, uint_t shaderKeyId )
 {
     return makeMaterialState( materialId, MaterialBackend::MDL_READY, shaderKeyId );
+}
+
+MaterialState fourierTableReadyState( uint_t materialId, uint_t resourceId )
+{
+    return makeMaterialState( materialId, MaterialBackend::FOURIER_TABLE_READY, resourceId );
 }
 
 bool supportsGeneratedMdlMaterial( const std::string& type )
@@ -757,6 +763,12 @@ bool usesGeneratedMdlMaterial( const Options& options, const GeometryInstance& i
            && !hasGeneratedMdlUnsupportedTextureReference( *group.pbrtMaterial, group );
 }
 
+bool usesGeneratedMdlFourierMaterial( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
+{
+    return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
+           && instance.groups.size() == 1 && group.pbrtMaterial && group.pbrtMaterial->type == "fourier";
+}
+
 bool usesGeneratedMdlUnsupportedFallback( const Options& options, const GeometryInstance& instance, const MaterialGroup& group )
 {
     return options.useMdlMaterials && instance.primitive == GeometryPrimitive::TRIANGLE
@@ -968,11 +980,11 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     return fallbackState( MaterialBackend::MDL_FAILED );
 }
 
-void PbrtMaterialResolver::recordFourierBsdfTableResourceState( const MaterialGroup& group )
+FourierBsdfTableLoadResult PbrtMaterialResolver::loadFourierBsdfTableResourceState( const MaterialGroup& group )
 {
     if( !group.pbrtMaterial || group.pbrtMaterial->type != "fourier" )
     {
-        return;
+        return FourierBsdfTableLoadResult{};
     }
 
     const std::string fileName{ resolveFourierBsdfTableFileName( *group.pbrtMaterial, m_options.sceneFile ) };
@@ -992,19 +1004,57 @@ void PbrtMaterialResolver::recordFourierBsdfTableResourceState( const MaterialGr
             ++m_stats.numFourierBsdfTableResourcesInvalid;
             break;
     }
+    return result;
+}
+
+MaterialState PbrtMaterialResolver::resolveFourierMaterialState( SceneSyncState&      sync,
+                                                                 GeometryInstance&    instance,
+                                                                 const MaterialGroup& group,
+                                                                 uint_t               materialId )
+{
+    const FourierBsdfTableLoadResult table{ loadFourierBsdfTableResourceState( group ) };
+    ++m_stats.numMdlFallbackShaders;
+    if( !table )
+    {
+        instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( instance );
+        return unsupportedFallbackState( materialId );
+    }
+
+    try
+    {
+        const FourierMaterialResource resource{ m_programGroups->realizeFourierMaterialResource( instance, table.table ) };
+        grow( sync.fourierMaterialResources, materialId + 1 );
+        sync.fourierMaterialResources[materialId] = resource;
+        instance.instance.sbtOffset               = m_programGroups->getFallbackMaterialSbtOffset( instance );
+        return fourierTableReadyState( materialId, resource.resourceId );
+    }
+    catch( const std::exception& e )
+    {
+        std::cerr << "Fourier BSDF table resource binding failed: " << e.what() << '\n';
+    }
+    catch( ... )
+    {
+        std::cerr << "Fourier BSDF table resource binding failed: unknown failure\n";
+    }
+
+    instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( instance );
+    return unsupportedFallbackState( materialId );
 }
 #endif
 
 MaterialState PbrtMaterialResolver::resolveMaterialState( SceneSyncState& sync, GeometryInstance& instance, const MaterialGroup& group, uint_t materialId )
 {
 #ifdef OTK_USE_MDL
+    if( usesGeneratedMdlFourierMaterial( m_options, instance, group ) )
+    {
+        return resolveFourierMaterialState( sync, instance, group, materialId );
+    }
     if( usesGeneratedMdlMaterial( m_options, instance, group ) )
     {
         return resolveMdlMaterialState( sync, instance, group, materialId );
     }
     if( usesGeneratedMdlUnsupportedFallback( m_options, instance, group ) )
     {
-        recordFourierBsdfTableResourceState( group );
         instance.instance.sbtOffset = m_programGroups->getRealizedMaterialSbtOffset( instance );
         ++m_stats.numMdlFallbackShaders;
         return unsupportedFallbackState( materialId );
@@ -1215,6 +1265,7 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
             syncState.materialStates.copyToDeviceAsync( stream );
 #ifdef OTK_USE_MDL
             syncState.mdlMaterialShaders.copyToDeviceAsync( stream );
+            syncState.fourierMaterialResources.copyToDeviceAsync( stream );
 #endif
             syncState.partialMaterials.copyToDeviceAsync( stream );
             syncState.partialUVs.copyToDeviceAsync( stream );
@@ -1223,6 +1274,7 @@ MaterialResolution PbrtMaterialResolver::resolveRequestedProxyMaterials( CUstrea
             syncState.materialStates.copyToDeviceAsync( stream );
 #ifdef OTK_USE_MDL
             syncState.mdlMaterialShaders.copyToDeviceAsync( stream );
+            syncState.fourierMaterialResources.copyToDeviceAsync( stream );
 #endif
             syncState.partialMaterials.copyToDeviceAsync( stream );
             syncState.partialUVs.copyToDeviceAsync( stream );

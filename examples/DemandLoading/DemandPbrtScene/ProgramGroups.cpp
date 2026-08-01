@@ -9,6 +9,7 @@
 #include "DemandPbrtScene/IdRangePrinter.h"
 #include "DemandPbrtScene/ImageSourceFactory.h"
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/FourierBsdfTableResource.h"
 #include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/MdlBsdfCompiler.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
@@ -1174,6 +1175,7 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t            getFallbackMaterialSbtOffset( const GeometryInstance& instance ) override;
     uint_t            getMdlMaterialSbtOffset( const GeometryInstance& instance ) override;
     MdlMaterialShader realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId ) override;
+    FourierMaterialResource realizeFourierMaterialResource( const GeometryInstance& instance, const FourierBsdfTable& table ) override;
 #endif
 
   private:
@@ -1190,6 +1192,7 @@ class PbrtProgramGroups : public ProgramGroups
     uint_t            getTriangleMdlMaterialSbtOffset( MaterialFlags flags );
     MdlMaterialShader bindMdlMaterialResources( const MaterialGroup& group, uint_t shaderKeyId, MdlMaterialShader sourceShader );
     MdlMaterialShader realizeTriangleMdlMaterialShader( const MaterialGroup& group, uint_t shaderKeyId );
+    uint_t            getFourierMaterialResourceId( const MdlMaterialInstanceKey& materialKey );
 #endif
     uint_t            getSphereRealizedMaterialSbtOffset();
 
@@ -1210,13 +1213,16 @@ class PbrtProgramGroups : public ProgramGroups
     OptixModule                    m_sphereModule{};
     std::vector<OptixProgramGroup> m_programGroups;
 #ifdef OTK_USE_MDL
-    std::vector<OptixProgramGroup>      m_callableProgramGroups;
-    std::map<uint_t, MdlMaterialShader> m_mdlMaterialSourceShaders;
+    std::vector<OptixProgramGroup>                                   m_callableProgramGroups;
+    std::map<uint_t, MdlMaterialShader>                              m_mdlMaterialSourceShaders;
+    std::map<MdlMaterialInstanceKey, uint_t>                         m_fourierMaterialResourceIds;
+    std::map<MdlMaterialInstanceKey, FourierBsdfTableDeviceResource> m_fourierMaterialResources;
     std::map<uint_t, MdlMaterialArgumentBlockTemplates>               m_mdlMaterialArgumentBlockTemplates;
     std::map<MdlMaterialInstanceKey, MdlMaterialArgumentBlockBuffers> m_mdlMaterialArgumentBlockBuffers;
     uint_t                              m_programLayoutVersion{};
     size_t                              m_triangleMdlMaterialHitGroupIndex{};
     size_t                              m_triangleMdlAlphaMapHitGroupIndex{};
+    uint_t                              m_nextFourierMaterialResourceId{ INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID + 1U };
 #endif
     size_t                              m_triangleHitGroupIndex{};
     size_t                              m_triangleAlphaMapHitGroupIndex{};
@@ -1286,6 +1292,7 @@ void PbrtProgramGroups::initialize()
 void PbrtProgramGroups::cleanup()
 {
 #ifdef OTK_USE_MDL
+    m_fourierMaterialResources.clear();
     m_mdlMaterialBuildWorker.reset();
     m_mdlMaterialArgumentBlockBuffers.clear();
     for( OptixProgramGroup group : m_callableProgramGroups )
@@ -1625,6 +1632,37 @@ bool PbrtProgramGroups::installPendingMdlMaterialBuild( uint_t shaderKeyId, MdlM
     result.createdCallableProgramGroups.clear();
     result.pipeline = nullptr;
     return true;
+}
+uint_t PbrtProgramGroups::getFourierMaterialResourceId( const MdlMaterialInstanceKey& materialKey )
+{
+    auto it = m_fourierMaterialResourceIds.find( materialKey );
+    if( it != m_fourierMaterialResourceIds.end() )
+    {
+        return it->second;
+    }
+
+    const uint_t resourceId{ m_nextFourierMaterialResourceId++ };
+    m_fourierMaterialResourceIds[materialKey] = resourceId;
+    return resourceId;
+}
+
+FourierMaterialResource PbrtProgramGroups::realizeFourierMaterialResource( const GeometryInstance& instance,
+                                                                           const FourierBsdfTable& table )
+{
+    if( instance.primitive != GeometryPrimitive::TRIANGLE )
+    {
+        throw std::runtime_error( "Fourier materials are only implemented for triangle primitives" );
+    }
+    if( instance.groups.empty() )
+    {
+        throw std::runtime_error( "Fourier material binding requires a material group" );
+    }
+
+    const MdlMaterialInstanceKey    materialKey{ makeProgramGroupMdlMaterialInstanceKey( instance.groups[0] ) };
+    FourierBsdfTableDeviceResource& resource{ m_fourierMaterialResources[materialKey] };
+    resource.upload( table );
+
+    return makeFourierMaterialResource( getFourierMaterialResourceId( materialKey ), resource.deviceData() );
 }
 
 uint_t PbrtProgramGroups::getFallbackMaterialSbtOffset( const GeometryInstance& instance )

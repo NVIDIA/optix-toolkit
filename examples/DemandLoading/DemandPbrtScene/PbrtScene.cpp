@@ -282,6 +282,7 @@ void PbrtScene::setLaunchParams( CUstream stream, Params& params )
     setSpan( params.numMaterialStates, params.materialStates, m_sync.materialStates );
 #ifdef OTK_USE_MDL
     setSpan( params.numMdlMaterialShaders, params.mdlMaterialShaders, m_sync.mdlMaterialShaders );
+    setSpan( params.numFourierMaterialResources, params.fourierMaterialResources, m_sync.fourierMaterialResources );
 #endif
     setSpan( params.numPartialMaterials, params.partialMaterials, m_sync.partialMaterials );
     setSpan( params.numRealizedMaterials, params.realizedMaterials, m_sync.realizedMaterials );

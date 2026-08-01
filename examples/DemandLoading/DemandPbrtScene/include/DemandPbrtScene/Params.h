@@ -22,6 +22,7 @@ using uint_t = unsigned int;
 
 constexpr uint_t INVALID_TEXTURE_ID{ 0xffffffffU };
 #ifdef OTK_USE_MDL
+constexpr uint_t INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID{ 0U };
 constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 14U };
 constexpr uint_t MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX{ 0U };
 constexpr uint_t MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX{ 1U };
@@ -122,6 +123,53 @@ inline bool operator!=( const MdlMaterialTextureBinding& lhs, const MdlMaterialT
 __host__ __device__ inline MdlMaterialTextureBinding invalidMdlMaterialTextureBinding()
 {
     return MdlMaterialTextureBinding{ INVALID_TEXTURE_ID, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) };
+}
+#endif
+
+#ifdef OTK_USE_MDL
+struct FourierBsdfTableDeviceData
+{
+    int         flags;
+    int         nMu;
+    int         nCoefficients;
+    int         maxOrder;
+    int         nChannels;
+    int         nBases;
+    float       eta;
+    uint_t      trailingByteCount;
+    uint_t      gridSize;
+    CUdeviceptr mu;
+    CUdeviceptr cdf;
+    CUdeviceptr coefficientOffsets;
+    CUdeviceptr coefficientCounts;
+    CUdeviceptr zeroOrderCoefficients;
+    CUdeviceptr coefficients;
+};
+
+struct FourierMaterialResource
+{
+    uint_t      resourceId;
+    CUdeviceptr table;
+};
+
+inline bool hasFourierBsdfTableResource( const FourierMaterialResource& resource )
+{
+    return resource.resourceId != INVALID_FOURIER_BSDF_TABLE_RESOURCE_ID && resource.table != CUdeviceptr{};
+}
+
+inline FourierMaterialResource makeFourierMaterialResource( uint_t resourceId, CUdeviceptr table )
+{
+    return FourierMaterialResource{ resourceId, table };
+}
+
+inline bool operator==( const FourierMaterialResource& lhs, const FourierMaterialResource& rhs )
+{
+    return lhs.resourceId == rhs.resourceId && lhs.table == rhs.table;
+}
+
+inline bool operator!=( const FourierMaterialResource& lhs, const FourierMaterialResource& rhs )
+{
+    return !( lhs == rhs );
 }
 #endif
 
@@ -226,11 +274,12 @@ inline bool operator!=( const PartialMaterial& lhs, const PartialMaterial& rhs )
 
 enum class MaterialBackend : uint_t
 {
-    NONE           = 0,
-    LOCAL_FALLBACK = 1,
-    MDL_READY      = 2,
-    MDL_PENDING    = 3,
-    MDL_FAILED     = 4,
+    NONE                = 0,
+    LOCAL_FALLBACK      = 1,
+    MDL_READY           = 2,
+    MDL_PENDING         = 3,
+    MDL_FAILED          = 4,
+    FOURIER_TABLE_READY = 5,
 };
 
 inline uint_t operator+( MaterialBackend value )
@@ -286,6 +335,8 @@ inline MaterialFallbackReason defaultFallbackReason( MaterialBackend backend )
             return MaterialFallbackReason::MDL_PENDING;
         case MaterialBackend::MDL_FAILED:
             return MaterialFallbackReason::MDL_FAILED;
+        case MaterialBackend::FOURIER_TABLE_READY:
+            return MaterialFallbackReason::UNSUPPORTED;
     }
     return MaterialFallbackReason::UNSUPPORTED;
 }
@@ -624,8 +675,10 @@ struct Params
     uint_t                        numMaterialStates;      //
     const MaterialState*          materialStates;         // indexed by materialId
 #ifdef OTK_USE_MDL
-    uint_t                        numMdlMaterialShaders;  //
-    const MdlMaterialShader*      mdlMaterialShaders;     // indexed by materialId
+    uint_t                         numMdlMaterialShaders;        //
+    const MdlMaterialShader*       mdlMaterialShaders;           // indexed by materialId
+    uint_t                         numFourierMaterialResources;  //
+    const FourierMaterialResource* fourierMaterialResources;     // indexed by materialId
 #endif
     uint_t                        numPartialMaterials;    //
     const PartialMaterial*        partialMaterials;       // indexed by materialId

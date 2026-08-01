@@ -16,6 +16,9 @@
 namespace demandPbrtScene {
 
 struct GeometryInstance;
+#ifdef OTK_USE_MDL
+struct FourierBsdfTable;
+#endif
 struct Options;
 
 #ifdef OTK_USE_MDL
@@ -42,6 +45,8 @@ class ProgramGroups
     virtual uint_t            getFallbackMaterialSbtOffset( const GeometryInstance& instance )                 = 0;
     virtual uint_t            getMdlMaterialSbtOffset( const GeometryInstance& instance )                      = 0;
     virtual MdlMaterialShader realizeMdlMaterialShader( const GeometryInstance& instance, uint_t shaderKeyId ) = 0;
+    virtual FourierMaterialResource realizeFourierMaterialResource( const GeometryInstance& instance,
+                                                                    const FourierBsdfTable& table )            = 0;
 #endif
 };
 

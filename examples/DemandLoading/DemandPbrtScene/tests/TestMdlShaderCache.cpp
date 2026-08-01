@@ -641,6 +641,12 @@ TEST( TestMdlShaderKey, parameterOnlyTextureChangesProduceSameKey )
                makeMdlShaderKey( texturedMatteMaterial( "imagemap", "second.png" ) ) );
 }
 
+TEST( TestMdlShaderKey, fourierBsdfFileValuesProduceSameKey )
+{
+    EXPECT_EQ( makeMdlShaderKey( fourierMaterialWithBsdfFile( "first.bsdf" ) ),
+               makeMdlShaderKey( fourierMaterialWithBsdfFile( "second.bsdf" ) ) );
+}
+
 TEST( TestMdlShaderKey, transformedDemandTextureValuesProduceSameKey )
 {
     EXPECT_EQ( makeMdlShaderKey( materialWithScaledKdTexture( "first.png", 0.25f ) ),
@@ -675,6 +681,20 @@ TEST( TestMdlMaterialInstanceKey, textureParameterValuesProduceDifferentInstance
     EXPECT_NE( firstKey, secondKey );
     EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "first.png" ) );
     EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "second.png" ) );
+}
+
+TEST( TestMdlMaterialInstanceKey, fourierBsdfFileValuesProduceDifferentInstanceKeys )
+{
+    const PbrtMaterial first{ fourierMaterialWithBsdfFile( "first.bsdf" ) };
+    const PbrtMaterial second{ fourierMaterialWithBsdfFile( "second.bsdf" ) };
+
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( first ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( second ) };
+
+    EXPECT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    EXPECT_NE( firstKey, secondKey );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "first.bsdf" ) );
+    EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "second.bsdf" ) );
 }
 
 TEST( TestMdlMaterialInstanceKey, mixNamedMaterialValuesProduceDifferentInstanceKeys )
