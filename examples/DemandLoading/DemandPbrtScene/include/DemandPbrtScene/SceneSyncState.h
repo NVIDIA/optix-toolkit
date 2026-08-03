@@ -21,8 +21,8 @@ struct SceneSyncState
     uint_t                                   maxAlphaTextureId{};
     uint_t                                   minDiffuseTextureId{ ~0U };
     uint_t                                   maxDiffuseTextureId{};
-    otk::SyncVector<OptixInstance>           topLevelInstances;   // OptixInstance array for building TLIAS
-    otk::SyncVector<MaterialState>           materialStates;      // indexed by materialId
+    otk::SyncVector<OptixInstance>           topLevelInstances;         // OptixInstance array for building TLIAS
+    otk::SyncVector<MaterialState>           materialStates;            // indexed by materialId
 #ifdef OTK_USE_MDL
     uint_t                                   materialShaderDataVersion{};
     otk::SyncVector<MdlMaterialShader>       mdlMaterialShaders;        // indexed by materialId

@@ -925,6 +925,13 @@ void setMdlMaterialShader( SceneSyncState& sync, uint_t materialId, const MdlMat
     sync.mdlMaterialShaders[materialId] = shader;
     ++sync.materialShaderDataVersion;
 }
+
+void setFourierMaterialResource( SceneSyncState& sync, uint_t materialId, const FourierMaterialResource& resource )
+{
+    grow( sync.fourierMaterialResources, materialId + 1 );
+    sync.fourierMaterialResources[materialId] = resource;
+    ++sync.materialShaderDataVersion;
+}
 #endif
 
 bool isReadyLocalFallback( const SceneSyncState& sync, uint_t materialId )
@@ -960,6 +967,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
 
     const MdlMaterialInstanceKey          materialKey{ m_pendingMdlMaterials.begin()->first };
     const std::vector<PendingMdlMaterial> pendingMaterials{ m_pendingMdlMaterials.begin()->second };
+    MaterialResolution                    result{ MaterialResolution::SHADER_DATA_ONLY };
     try
     {
         if( m_mdlShaderCompileCache.state( materialKey ) != MdlShaderCompileState::READY )
@@ -968,6 +976,8 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
         }
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
+            const uint_t readySbtOffset{ m_programGroups->realizeMdlMaterialSbtOffset( material.instance, material.shaderKeyId ) };
+            OTK_ASSERT( readySbtOffset == material.instance.instance.sbtOffset );
             const MdlMaterialShader shader{ m_programGroups->realizeMdlMaterialShader( material.instance, material.shaderKeyId ) };
             setMdlMaterialShader( sync, material.materialId, shader );
             setMaterialState( sync, material.materialId, mdlReadyState( material.materialId, material.shaderKeyId ) );
@@ -982,6 +992,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     {
         std::cerr << "Generated MDL material build failed for " << toString( materialKey ) << ": " << e.what() << '\n';
         m_mdlShaderCompileCache.markFailed( materialKey, e.what() );
+        result = MaterialResolution::SHADER_DATA_ONLY;
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
             setMaterialState( sync, material.materialId,
@@ -993,6 +1004,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     {
         std::cerr << "Generated MDL material build failed for " << toString( materialKey ) << ": unknown failure\n";
         m_mdlShaderCompileCache.markFailed( materialKey, "Unknown MDL shader compile failure" );
+        result = MaterialResolution::SHADER_DATA_ONLY;
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
             setMaterialState( sync, material.materialId,
@@ -1002,7 +1014,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
     }
 
     m_pendingMdlMaterials.erase( materialKey );
-    return MaterialResolution::SHADER_DATA_ONLY;
+    return result;
 }
 
 MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&      sync,
@@ -1014,8 +1026,12 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     const MdlShaderCompileRecord& record{ m_mdlShaderCompileCache.getRecord( materialKey ) };
     const uint_t                  shaderKeyId{ record.shaderKeyId };
     const MdlShaderCompileState   state{ m_mdlShaderCompileCache.state( materialKey ) };
+    const uint_t                  stableSbtOffset{ m_programGroups->reserveMdlMaterialSbtOffset( instance, shaderKeyId ) };
+    instance.instance.sbtOffset = stableSbtOffset;
     const auto                    bindMdlProgram = [&]() {
-        instance.instance.sbtOffset = m_programGroups->getMdlMaterialSbtOffset( instance );
+        const uint_t readySbtOffset{ m_programGroups->realizeMdlMaterialSbtOffset( instance, shaderKeyId ) };
+        OTK_ASSERT( readySbtOffset == stableSbtOffset );
+        instance.instance.sbtOffset = stableSbtOffset;
     };
 
     const auto fallbackState = [&]( MaterialBackend backend ) {
@@ -1030,10 +1046,10 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
         setMdlMaterialShader( sync, materialId, shader );
     };
 
-    bindMdlProgram();
     switch( state )
     {
         case MdlShaderCompileState::READY:
+            bindMdlProgram();
             bindMdlShader();
             return mdlReadyState( materialId, shaderKeyId );
         case MdlShaderCompileState::QUEUED:
@@ -1068,6 +1084,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
 
     try
     {
+        bindMdlProgram();
         bindMdlShader();
         m_mdlShaderCompileCache.markReady( materialKey );
         return mdlReadyState( materialId, shaderKeyId );
@@ -1129,8 +1146,7 @@ MaterialState PbrtMaterialResolver::resolveFourierMaterialState( SceneSyncState&
     try
     {
         const FourierMaterialResource resource{ m_programGroups->realizeFourierMaterialResource( instance, table.table ) };
-        grow( sync.fourierMaterialResources, materialId + 1 );
-        sync.fourierMaterialResources[materialId] = resource;
+        setFourierMaterialResource( sync, materialId, resource );
         instance.instance.sbtOffset               = m_programGroups->getFourierMaterialSbtOffset( instance );
         if( m_options.verboseProxyMaterialResolution )
         {

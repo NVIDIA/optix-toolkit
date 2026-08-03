@@ -2245,6 +2245,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsS
     EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
     EXPECT_EQ( mdlPendingState( proxyMaterialId2, 1U ), m_sync.materialStates[proxyMaterialId2] );
     expectMdlMaterialShader( m_sync, proxyMaterialId1, MdlMaterialShader{ 8U, 1U } );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
     stats = m_resolver->getStatistics();
     EXPECT_EQ( 1U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
@@ -2263,6 +2265,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialsS
     EXPECT_EQ( mdlReadyState( proxyMaterialId1, 1U ), m_sync.materialStates[proxyMaterialId1] );
     EXPECT_EQ( mdlReadyState( proxyMaterialId2, 1U ), m_sync.materialStates[proxyMaterialId2] );
     expectMdlMaterialShader( m_sync, proxyMaterialId2, MdlMaterialShader{ 9U, 1U } );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[0].sbtOffset );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances[1].sbtOffset );
     stats = m_resolver->getStatistics();
     EXPECT_EQ( 1U, stats.mdlShaders.numCompletedCompiles );
     EXPECT_EQ( 0U, stats.mdlShaders.numQueuedShaders );
@@ -3603,9 +3607,8 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedKdSubsurfaceMat
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
     ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
     EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
-    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( diffuseBinding.fileName ) ) )
-        .WillOnce( Return( diffuseTextureId ) );
-    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( StrEq( diffuseBinding.fileName ), true ) )
+    EXPECT_CALL( *m_demandTextureCache, createDiffuseTextureFromFile( StrEq( diffuseBinding.fileName ) ) ).WillOnce( Return( diffuseTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( StrEq( diffuseBinding.fileName ), diffuseBinding.gamma ) )
         .WillOnce( Return( linearTextureId ) );
     EXPECT_CALL( *m_programGroups,
                  getMdlMaterialSbtOffset( hasGeometryInstance(
@@ -3920,6 +3923,7 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMatteMaterialFa
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
     ASSERT_EQ( MaterialResolution::FULL, m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) );
+    EXPECT_EQ( mdlSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
 
     EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( _, 1U ) )
         .WillOnce( Throw( std::runtime_error( "compile failed" ) ) );
