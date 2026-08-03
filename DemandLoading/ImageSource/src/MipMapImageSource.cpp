@@ -76,63 +76,62 @@ const TextureInfo& MipMapImageSource::getInfo() const
     return m_mipMapInfo;
 }
 
-inline void filterPixel( const char* source, char* dest, unsigned int pixelStride, CUarray_format /*format*/ )
-{
-    std::copy_n( source, pixelStride, dest );
-}
-
 const char* MipMapImageSource::getMipLevelBuffer( unsigned int mipLevel, CUstream stream )
 {
+    // Set up the mip levels if they haven't been set up yet
     if( m_buffer.empty() )
     {
+        // Allocate memory for all the mip levels, and construct them
         m_buffer.resize( getTextureSizeInBytes( m_mipMapInfo ) );
         m_mipLevels.resize( m_mipMapInfo.numMipLevels );
-    }
+        size_t offset = 0;
 
-    if( m_mipLevels[mipLevel] == nullptr )
-    {
-        unsigned int mipLevelWidth{ m_mipMapInfo.width };
-        unsigned int mipLevelHeight{ m_mipMapInfo.height };
+        for( unsigned int level = 0; level < m_mipMapInfo.numMipLevels; ++level )
         {
-            size_t       levelSize{ m_pixelStrideInBytes * m_mipMapInfo.width * m_mipMapInfo.height };
-            char*        ptr{ m_buffer.data() };
-            for( unsigned int i = 0; i < mipLevel; ++i )
-            {
-                ptr += levelSize;
-                levelSize /= 4;
-                mipLevelWidth /= 2;
-                mipLevelHeight /= 2;
-            }
-            m_mipLevels[mipLevel] = ptr;
+            unsigned int mipLevelWidth = std::max(1u, m_mipMapInfo.width >> level);
+            unsigned int mipLevelHeight = std::max(1u, m_mipMapInfo.height >> level);
+            m_mipLevels[level] = m_buffer.data() + offset;
+            offset += m_pixelStrideInBytes * mipLevelWidth * mipLevelHeight;
         }
-        if( mipLevel == 0 )
+
+        // Read mip level 0
+        if( !WrappedImageSource::readMipLevel( m_mipLevels[0], 0, m_mipMapInfo.width, m_mipMapInfo.height, stream ) )
         {
-            if( !WrappedImageSource::readMipLevel( m_mipLevels[mipLevel], mipLevel, mipLevelWidth, mipLevelHeight, stream ) )
+            for( unsigned int level = 0; level < m_mipMapInfo.numMipLevels; ++level )
             {
-                return nullptr;
+                m_mipLevels[level] = nullptr;
             }
+            return nullptr;
         }
-        else
+
+        // Construct the rest of the mip levels, copying pixels from the previous level
+        for( unsigned int level = 1; level < m_mipMapInfo.numMipLevels; ++level )
         {
-            // point sample from source to dest
-            const char* source = getMipLevelBuffer( mipLevel - 1, stream );
-            char*       dest   = m_mipLevels[mipLevel];
-            for( unsigned int y = 0; y < mipLevelHeight; ++y )
+            const char* source = m_mipLevels[level - 1];
+            char* dest   = m_mipLevels[level];
+            int srcWidth = std::max(1u, m_mipMapInfo.width >> (level - 1));
+            int srcHeight = std::max(1u, m_mipMapInfo.height >> (level - 1));
+            int destWidth = std::max(1u, m_mipMapInfo.width >> level);
+            int destHeight = std::max(1u, m_mipMapInfo.height >> level);
+
+            for( int destY = 0; destY < destHeight; ++destY )
             {
-                for( unsigned int x = 0; x < mipLevelWidth; ++x )
+                for( int destX = 0; destX < destWidth; ++destX )
                 {
-                    filterPixel( source, dest, m_pixelStrideInBytes, m_mipMapInfo.format );
-                    // skip every other source pixel
-                    source += m_pixelStrideInBytes * 2ULL;
-                    dest += m_pixelStrideInBytes;
+                    float u = static_cast<float>(destX+0.5f) / static_cast<float>(destWidth);
+                    float v = static_cast<float>(destY+0.5f) / static_cast<float>(destHeight);
+                    int srcX = static_cast<int>(u * srcWidth);
+                    int srcY = static_cast<int>(v * srcHeight);
+
+                    const char* sourcePixel = source + (srcY * srcWidth + srcX) * m_pixelStrideInBytes;
+                    char* destPixel = dest + (destY * destWidth + destX) * m_pixelStrideInBytes;
+                    std::copy_n( sourcePixel, m_pixelStrideInBytes, destPixel );
                 }
-                // skip every other source scanline
-                source += static_cast<size_t>( m_pixelStrideInBytes * mipLevelWidth );
             }
         }
     }
 
-    return m_mipLevels[mipLevel];
+    return ( mipLevel < m_mipMapInfo.numMipLevels ) ? m_mipLevels[mipLevel] : nullptr;
 }
 
 bool MipMapImageSource::readTile( char* dest, unsigned mipLevel, const Tile& tile, CUstream stream )
