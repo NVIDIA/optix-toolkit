@@ -15,6 +15,25 @@ extern "C" {
 __constant__ OTKAppLaunchParams params;
 }
 
+template <class TYPE> __device__ __forceinline__ TYPE
+tex2DRetryBlend( const DeviceContext& context, unsigned int textureId, float x, float y, float2 ddx, float2 ddy, bool* isResident )
+{
+    // Walk up mip levels a few times
+    *isResident = false;
+    TYPE rval;
+    rval = tex2DGradUdimBlend<TYPE>( context, textureId, x, y, ddx*2.0f, ddy*2.0f, isResident );
+    if( *isResident ) return rval;
+    rval = tex2DGradUdimBlend<TYPE>( context, textureId, x, y, ddx*4.0f, ddy*4.0f, isResident );
+    if( *isResident ) return rval;
+    rval = tex2DGradUdimBlend<TYPE>( context, textureId, x, y, ddx*8.0f, ddy*8.0f, isResident );
+    if( *isResident ) return rval;
+
+    // Try the mip tail
+    rval = tex2DGradUdimBlend<TYPE>( context, textureId, x, y, float2{1.0f/32.0f, 0.0f}, float2{0.0f, 1.0f/32.0f}, isResident );
+    return rval;
+}
+
+
 //------------------------------------------------------------------------------
 // OptiX programs
 //------------------------------------------------------------------------------
@@ -45,13 +64,12 @@ extern "C" __global__ void __raygen__rg()
         float2 ddy = float2{0.0f, rayCone.width * uvdim->y};
         bool resident = false;
 
-        // Standard bilinear filtering
-        color = tex2DGradUdimBlend<float4>( params.demand_texture_context, params.display_texture_id,
-                                            u, v, ddx, ddy, &resident );
+        const DeviceContext& dtContext = params.demand_texture_context;
+        const unsigned int textureId = params.display_texture_id;
 
-        // Cubic filtering
-        //resident = textureUdim<float4>( params.demand_texture_context, params.display_texture_id,
-        //                                u, v, ddx, ddy, &color, nullptr, nullptr, float2{0.0f, 0.0f} );
+        color = tex2DGradUdimBlend<float4>( dtContext, textureId, u, v, ddx, ddy, &resident );
+        if( !resident )
+            color = tex2DRetryBlend<float4>( dtContext, textureId, u, v, ddx, ddy, &resident );
     }
     #endif
 
@@ -66,8 +84,9 @@ extern "C" __global__ void __raygen__rg()
     {
         bool resident = false;
         const SurfaceGeometry& g = prd.geometry;
-        color = tex2DGradUdimBlend<float4>( params.demand_texture_context, params.display_texture_id,
-                                            g.uv.x, g.uv.y, g.ddx, g.ddy, &resident );
+        color = tex2DGradUdimBlend<float4>( dtContext, textureId, u, v, ddx, ddy, &resident );
+        if( !resident )
+            color = tex2DRetryBlend<float4>( dtContext, textureId, u, v, ddx, ddy, &resident );
     }
     #endif
 

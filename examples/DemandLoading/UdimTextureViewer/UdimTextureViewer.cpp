@@ -199,7 +199,9 @@ void printUsage( const char* program )
         "   --file <outputfile>         Render to output file and exit.\n"
         "   --no-gl-interop             Disable OpenGL interop.\n"
         "   --log <level>               Set demand load log level (0-10)\n"
-        "   --wait-for-ticket           Wait for demand load ticket in interactive mode.\n";
+        "   --wait-for-ticket           Wait for demand load ticket in interactive mode.\n"
+        "   --max-requests <num>        Maximum number of requests per launch.\n"
+        "   --max-threads <num>         Maximum number of threads to process requests.\n";
     // clang-format on
 
     exit(0);
@@ -228,13 +230,15 @@ void printKeyCommands()
 
 int main( int argc, char* argv[] )
 {
-    int         windowWidth  = 768;
-    int         windowHeight = 768;
-    const char* textureName  = "mandelbrot";
-    const char* outFileName  = "";
-    bool        glInterop    = true;
-    int         logLevel     = 0;
+    int         windowWidth   = 768;
+    int         windowHeight  = 768;
+    const char* textureName   = "mandelbrot";
+    const char* outFileName   = "";
+    bool        glInterop     = true;
+    int         logLevel      = 0;
     bool        waitForTicket = false;
+    int         maxRequests   = 0;
+    int         maxThreads    = 0;
 
     int  texWidth = 8192;
     int  texHeight = 8192;
@@ -278,20 +282,27 @@ int main( int argc, char* argv[] )
             logLevel = atoi( argv[++i] );
         else if( arg == "--wait-for-ticket" )
             waitForTicket = true;
+        else if( arg == "--max-requests" && !lastArg )
+            maxRequests = atoi( argv[++i] );
+        else if( arg == "--max-threads" && !lastArg )
+            maxThreads = atoi( argv[++i] );
         else
             printUsage( argv[0] );
     }
 
     // Set up options for final frame or interactive rendering.
     bool interactive = strlen( outFileName ) == 0;
+    if( maxRequests <= 0 ) {
+        maxRequests = interactive ? 256 : 4096;
+    }
 
     options.maxTexMemPerDevice  = interactive ? 2ULL << 30 : 0ULL;
-    options.maxRequestedPages   = interactive ? 256 : 4096;
+    options.maxRequestedPages   = maxRequests;
     options.maxStalePages       = options.maxRequestedPages * 2;
     options.maxInvalidatedPages = options.maxRequestedPages * 2;
     options.maxStagedPages      = options.maxRequestedPages * 2;
     options.maxRequestQueueSize = options.maxRequestedPages * 2;
-    options.maxThreads          = 0;
+    options.maxThreads          = maxThreads;
 
     DemandLoadLogger::setLogFunction( standardDemandLoadLogCallback, logLevel );
     printKeyCommands();
