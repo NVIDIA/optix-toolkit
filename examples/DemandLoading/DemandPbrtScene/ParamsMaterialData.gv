@@ -1,0 +1,42 @@
+digraph g {
+fontname="Helvetica,Arial,sans-serif"
+node [fontname="Courier"]
+edge [fontname="Helvetica,Arial,sans-serif"]
+graph [
+rankdir = "LR"
+];
+node [
+fontsize = "16"
+shape = "ellipse"
+];
+edge [
+];
+"materialId" [
+label = "materialId | <f0> M0 | <f1> M1 | <f2> M2"
+shape = "record"
+];
+"materialStates" [
+label = "materialStates | <f0> M0: LOCAL_FALLBACK | <f1> M1: MDL_READY | <f2> M2: FOURIER_TABLE_READY | ..."
+shape = "record"
+];
+"realizedMaterials" [
+label = "realizedMaterials | <f0> M0: fallback Phong data | <f1> M1: fallback data for pending/failed MDL | ..."
+shape = "record"
+];
+"mdlMaterialShaders" [
+label = "mdlMaterialShaders | ... | <f1> M1: callable indices, argument blocks, texture bindings | ..."
+shape = "record"
+];
+"fourierMaterialResources" [
+label = "fourierMaterialResources | ... | <f2> M2: resource id, table descriptor | ..."
+shape = "record"
+];
+
+"materialId":f0 -> "materialStates":f0 [id = 0];
+"materialId":f1 -> "materialStates":f1 [id = 1];
+"materialId":f2 -> "materialStates":f2 [id = 2];
+"materialStates":f0 -> "realizedMaterials":f0 [id = 3, label = "fallback"];
+"materialStates":f1 -> "mdlMaterialShaders":f1 [id = 4, label = "MDL"];
+"materialStates":f1 -> "realizedMaterials":f1 [id = 5, label = "fallback data"];
+"materialStates":f2 -> "fourierMaterialResources":f2 [id = 6, label = "Fourier"];
+}
