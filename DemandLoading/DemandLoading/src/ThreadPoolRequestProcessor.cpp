@@ -56,6 +56,13 @@ void ThreadPoolRequestProcessor::stop()
     m_started = false;
 }
 
+void ThreadPoolRequestProcessor::flush()
+{
+    std::unique_lock<std::mutex> lock( m_ticketsMutex );
+    if( m_requests )
+        m_requests->flush();
+}
+
 void ThreadPoolRequestProcessor::addRequests( CUstream /*stream*/, unsigned int id, const unsigned int* pageIds, unsigned int numPageIds )
 {
     std::unique_lock<std::mutex> lock( m_ticketsMutex );

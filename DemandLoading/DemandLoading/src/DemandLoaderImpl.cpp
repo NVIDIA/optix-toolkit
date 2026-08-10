@@ -479,6 +479,12 @@ Ticket DemandLoaderImpl::processRequests( CUstream stream, const DeviceContext& 
     return ticket;
 }
 
+void DemandLoaderImpl::flushRequestQueue()
+{
+    std::unique_lock<std::mutex> lock( m_mutex );
+    m_requestProcessor.flush();
+}
+
 void DemandLoaderImpl::freeDeviceContext( DeviceContext& dlContext )
 {
     getDeviceMemoryManager()->freeDeviceContext( const_cast<DeviceContext*>( &dlContext ) );

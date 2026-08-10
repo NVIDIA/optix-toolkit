@@ -117,6 +117,10 @@ class DemandLoader
     /// filled on the host side.
     virtual Ticket processRequests( CUstream stream, const DeviceContext& dlContext ) = 0;
 
+    /// Discard page requests that are pending in the host-side request queue.  Requests already
+    /// being processed are unaffected.
+    virtual void flushRequestQueue() = 0;
+
     /// Free the given device context without pulling requests from the device.
     virtual void freeDeviceContext( DeviceContext& dlContext ) = 0;
 

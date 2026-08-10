@@ -52,6 +52,9 @@ class RequestQueue
     /// filled.
     void push( const unsigned int* pageIds, unsigned int numPageIds, Ticket ticket );
 
+    /// Discard pending requests that have not been started and notify their tickets.
+    void flush();
+
     /// Shut down the queue, signalling any waiting threads to exit.  Clients must call shutDown()
     /// and join with any waiting threads before invoking the RequestQueue destructor.
     void shutDown();

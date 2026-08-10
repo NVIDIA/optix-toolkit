@@ -53,6 +53,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( bool, pageResident, (unsigned int), ( override ) );
     MOCK_METHOD( bool, launchPrepare, (CUstream, demandLoading::DeviceContext&), ( override ) );
     MOCK_METHOD( demandLoading::Ticket, processRequests, (CUstream, const demandLoading::DeviceContext&), ( override ) );
+    MOCK_METHOD( void, flushRequestQueue, (), ( override ) );
     MOCK_METHOD( CUcontext, getCudaContext, (), ( override ) );
     MOCK_METHOD( void, setOptixContext, (OptixDeviceContext), ( override ) );
     MOCK_METHOD( OptixDeviceContext, getOptixContext, (), ( override ) );
