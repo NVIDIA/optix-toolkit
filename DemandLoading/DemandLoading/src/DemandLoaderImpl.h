@@ -121,6 +121,9 @@ class DemandLoaderImpl : public DemandLoader
     /// filled on the host side.
     Ticket processRequests( CUstream stream, const DeviceContext& dlContext ) override;
 
+    /// Discard requests pending in the host-side request queue.
+    void flushRequestQueue() override;
+
     /// Free the given device context without pulling requests from the device.
     void freeDeviceContext( DeviceContext& dlContext ) override;
 
