@@ -530,6 +530,13 @@ PbrtMaterial layeredMixMaterialWithTexturedTranslucentKd()
     return material;
 }
 
+PbrtMaterial layeredMixMaterialWithTexturedTranslucentKd( const std::string& fileName )
+{
+    PbrtMaterial material{ layeredMixMaterialWithTexturedTranslucentKd() };
+    material.graph.textures["spectrum:backColor"] = imageMapTexture( "backColor", fileName );
+    return material;
+}
+
 const MdlBoundMaterialParameter* findBoundParameter( const std::vector<MdlBoundMaterialParameter>& parameters, const std::string& name )
 {
     for( std::vector<MdlBoundMaterialParameter>::const_iterator it = parameters.begin(); it != parameters.end(); ++it )
@@ -628,6 +635,21 @@ TEST( TestMdlMaterialInstanceKey, mixNamedMaterialValuesProduceDifferentInstance
     EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "0.4" ) );
     EXPECT_THAT( toString( thirdKey ), testing::HasSubstr( "0.75" ) );
 }
+
+TEST( TestMdlMaterialInstanceKey, mixNamedMaterialTextureValuesShareSourceKey )
+{
+    const PbrtMaterial first{ layeredMixMaterialWithTexturedTranslucentKd( "first-back.png" ) };
+    const PbrtMaterial second{ layeredMixMaterialWithTexturedTranslucentKd( "second-back.png" ) };
+
+    const MdlMaterialInstanceKey firstKey{ makeMdlMaterialInstanceKey( first ) };
+    const MdlMaterialInstanceKey secondKey{ makeMdlMaterialInstanceKey( second ) };
+
+    EXPECT_EQ( firstKey.sourceKey, secondKey.sourceKey );
+    EXPECT_NE( firstKey, secondKey );
+    EXPECT_THAT( toString( firstKey ), testing::HasSubstr( "first-back.png" ) );
+    EXPECT_THAT( toString( secondKey ), testing::HasSubstr( "second-back.png" ) );
+}
+
 TEST( TestMdlShaderKey, textureStructureChangesProduceDifferentKeys )
 {
     EXPECT_NE( makeMdlShaderKey( texturedMatteMaterial( "imagemap", "albedo.png" ) ),

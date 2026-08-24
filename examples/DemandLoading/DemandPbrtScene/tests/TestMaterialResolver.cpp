@@ -150,6 +150,24 @@ void addPbrtImagemapTexture( otk::pbrt::PbrtMaterial& material,
     material.graph.textures[valueType + ":" + textureName] = std::move( texture );
 }
 
+#ifdef OTK_USE_MDL
+void addPbrtNamedImagemapTexture( otk::pbrt::PbrtMaterial&      owner,
+                                  otk::pbrt::PbrtNamedMaterial& material,
+                                  const std::string&            textureParam,
+                                  const std::string&            valueType,
+                                  const std::string&            textureName,
+                                  const std::string&            fileName )
+{
+    material.params.AddTexture( textureParam, textureName );
+    otk::pbrt::PbrtTexture texture{};
+    texture.name      = textureName;
+    texture.valueType = valueType;
+    texture.type      = "imagemap";
+    addString( texture.params, "filename", fileName );
+    owner.graph.textures[valueType + ":" + textureName] = std::move( texture );
+}
+#endif
+
 std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtUberSpecularImagemapMaterial()
 {
     std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
@@ -163,6 +181,44 @@ std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtUberSpecularImagemapMaterial(
 }
 
 #ifdef OTK_USE_MDL
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtLandscapeMixNamedBranchImagemapMaterial()
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = "mix";
+    addString( material->params, "namedmaterial1", "front" );
+    addString( material->params, "namedmaterial2", "back" );
+    addFloat( material->params, "amount", 0.4f );
+
+    otk::pbrt::PbrtNamedMaterial front{};
+    front.name = "front";
+    front.type = "uber";
+    addString( front.params, "type", "uber" );
+    addFloat( front.params, "roughness", 0.5f );
+    addFloat( front.params, "index", 1.333f );
+    addRgbSpectrum( front.params, "Kt", 0.0f, 0.0f, 0.0f );
+    addPbrtNamedImagemapTexture( *material, front, "Kd", "spectrum", "front-albedo", DIFFUSE_MAP_PATH );
+    addPbrtNamedImagemapTexture( *material, front, "Ks", "spectrum", "front-specular", SPECULAR_MAP_PATH );
+    addPbrtNamedImagemapTexture( *material, front, "Kr", "spectrum", "front-reflectance", REFLECTANCE_MAP_PATH );
+    addPbrtNamedImagemapTexture( *material, front, "alpha", "float", "front-alpha", ALPHA_MAP_PATH );
+    addPbrtNamedImagemapTexture( *material, front, "bumpmap", "float", "front-height", BUMP_MAP_PATH );
+
+    otk::pbrt::PbrtNamedMaterial back{};
+    back.name = "back";
+    back.type = "translucent";
+    addString( back.params, "type", "translucent" );
+    addRgbSpectrum( back.params, "Ks", 0.0f, 0.0f, 0.0f );
+    addRgbSpectrum( back.params, "reflect", 0.25f, 0.25f, 0.25f );
+    addRgbSpectrum( back.params, "transmit", 0.75f, 0.75f, 0.75f );
+    addFloat( back.params, "roughness", 0.5f );
+    addPbrtNamedImagemapTexture( *material, back, "Kd", "spectrum", "back-albedo", "back-diffuse.png" );
+    addPbrtNamedImagemapTexture( *material, back, "opacity", "float", "back-alpha", "back-alpha.png" );
+    addPbrtNamedImagemapTexture( *material, back, "bumpmap", "float", "back-height", "back-bump.png" );
+
+    material->graph.namedMaterials["front"] = std::move( front );
+    material->graph.namedMaterials["back"]  = std::move( back );
+    return material;
+}
+
 std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtTranslucentDiffuseImagemapMaterial()
 {
     std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
@@ -394,6 +450,56 @@ std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtUberTwoLeafBumpImagemapMateri
     material->graph.textures["float:mixed-height"] = std::move( mixTexture );
     return material;
 }
+
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtLandscapeMixWithTexturedTransmitBranchMaterial()
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = "mix";
+    addString( material->params, "namedmaterial1", "front" );
+    addString( material->params, "namedmaterial2", "back" );
+    addFloat( material->params, "amount", 0.4f );
+    material->graph.namedMaterials["front"] = pbrtNamedMatteMaterial( "front", 0.2f );
+
+    otk::pbrt::PbrtNamedMaterial back{};
+    back.name = "back";
+    back.type = "translucent";
+    addString( back.params, "type", "translucent" );
+    addRgbSpectrum( back.params, "Kd", 0.2f, 0.3f, 0.4f );
+    addRgbSpectrum( back.params, "reflect", 0.25f, 0.25f, 0.25f );
+    addPbrtNamedImagemapTexture( *material, back, "transmit", "color", "back-transmit", "back-transmit.png" );
+    material->graph.namedMaterials["back"] = std::move( back );
+    return material;
+}
+
+std::shared_ptr<const otk::pbrt::PbrtMaterial> pbrtLandscapeMixWithTwoLeafBranchTextureMaterial()
+{
+    std::shared_ptr<otk::pbrt::PbrtMaterial> material{ std::make_shared<otk::pbrt::PbrtMaterial>() };
+    material->type = "mix";
+    addString( material->params, "namedmaterial1", "front" );
+    addString( material->params, "namedmaterial2", "back" );
+    addFloat( material->params, "amount", 0.4f );
+    material->graph.namedMaterials["back"] = pbrtNamedMatteMaterial( "back", 0.8f );
+
+    otk::pbrt::PbrtNamedMaterial front{};
+    front.name = "front";
+    front.type = "uber";
+    addString( front.params, "type", "uber" );
+    front.params.AddTexture( "Kd", "mixed-front" );
+    material->graph.textures["spectrum:front-a"]           = pbrtImagemapFloatTexture( "front-a", DIFFUSE_MAP_PATH );
+    material->graph.textures["spectrum:front-a"].valueType = "spectrum";
+    material->graph.textures["spectrum:front-b"]           = pbrtImagemapFloatTexture( "front-b", "other-diffuse.png" );
+    material->graph.textures["spectrum:front-b"].valueType = "spectrum";
+    otk::pbrt::PbrtTexture mixTexture{};
+    mixTexture.name      = "mixed-front";
+    mixTexture.valueType = "spectrum";
+    mixTexture.type      = "mix";
+    mixTexture.params.AddTexture( "tex1", "front-a" );
+    mixTexture.params.AddTexture( "tex2", "front-b" );
+    addFloat( mixTexture.params, "amount", 0.5f );
+    material->graph.textures["spectrum:mixed-front"] = std::move( mixTexture );
+    material->graph.namedMaterials["front"]          = std::move( front );
+    return material;
+}
 #endif
 
 void usePbrtMaterialOfType( GeometryInstance& geom, const std::string& type )
@@ -447,6 +553,21 @@ void usePbrtTranslucentDiffuseImagemapMaterial( GeometryInstance& geom )
 void usePbrtUberBumpImagemapMaterial( GeometryInstance& geom )
 {
     geom.groups[0].pbrtMaterial = pbrtUberBumpImagemapMaterial();
+}
+
+void usePbrtLandscapeMixNamedBranchImagemapMaterial( GeometryInstance& geom )
+{
+    geom.groups[0].pbrtMaterial = pbrtLandscapeMixNamedBranchImagemapMaterial();
+}
+
+void usePbrtLandscapeMixWithTexturedTransmitBranchMaterial( GeometryInstance& geom )
+{
+    geom.groups[0].pbrtMaterial = pbrtLandscapeMixWithTexturedTransmitBranchMaterial();
+}
+
+void usePbrtLandscapeMixWithTwoLeafBranchTextureMaterial( GeometryInstance& geom )
+{
+    geom.groups[0].pbrtMaterial = pbrtLandscapeMixWithTwoLeafBranchTextureMaterial();
 }
 
 void usePbrtUberTwoLeafBumpImagemapMaterial( GeometryInstance& geom )
@@ -1338,6 +1459,127 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixAndTransluce
     EXPECT_EQ( 2U, stats.mdlShaders.numReadyShaders );
 }
 
+TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedLandscapeMixMaterialBindsNamedBranchDemandTextures )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtLandscapeMixNamedBranchImagemapMaterial( m_geom );
+    TriangleUVs*     fakeUVs{ reinterpret_cast<TriangleUVs*>( 0xdeadbeefULL ) };
+    TriangleNormals* fakeNormals{ reinterpret_cast<TriangleNormals*>( 0xbaadf00dULL ) };
+    m_geom.devUVs     = fakeUVs;
+    m_geom.devNormals = fakeNormals;
+    const uint_t proxyGeomId{ 1111U };
+    const uint_t proxyMaterialId{ 4444U };
+    const uint_t frontDiffuseTextureId{ 331U };
+    const uint_t frontSpecularTextureId{ 442U };
+    const uint_t frontReflectanceTextureId{ 553U };
+    const uint_t frontAlphaTextureId{ 664U };
+    const uint_t frontBumpTextureId{ 775U };
+    const uint_t backDiffuseTextureId{ 886U };
+    const uint_t backAlphaTextureId{ 997U };
+    const uint_t backBumpTextureId{ 1108U };
+    const uint_t stableSbtOffset{ +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + 12U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( DIFFUSE_MAP_PATH ), true ) )
+        .WillOnce( Return( frontDiffuseTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( SPECULAR_MAP_PATH ), true ) )
+        .WillOnce( Return( frontSpecularTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( REFLECTANCE_MAP_PATH ), true ) )
+        .WillOnce( Return( frontReflectanceTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( ALPHA_MAP_PATH ), true ) )
+        .WillOnce( Return( frontAlphaTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( BUMP_MAP_PATH ), true ) )
+        .WillOnce( Return( frontBumpTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( "back-diffuse.png" ), true ) )
+        .WillOnce( Return( backDiffuseTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( "back-alpha.png" ), true ) )
+        .WillOnce( Return( backAlphaTextureId ) );
+    EXPECT_CALL( *m_demandTextureCache, createLinearTextureFromFile( EndsWith( "back-bump.png" ), true ) )
+        .WillOnce( Return( backBumpTextureId ) );
+    MdlMaterialShader expectedShader{ 8U, 1U };
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX, frontDiffuseTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX, frontSpecularTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX, frontReflectanceTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX, frontAlphaTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX, frontBumpTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX, backDiffuseTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX, backAlphaTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
+    EXPECT_CALL( *m_programGroups,
+                 getMdlMaterialSbtOffset( hasGeometryInstance( hasAll(
+                     hasMaterialFlags( MaterialFlags::NONE ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX, frontDiffuseTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX, frontSpecularTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX, frontReflectanceTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX, frontAlphaTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX, frontBumpTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX, backDiffuseTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX, backAlphaTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
+                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ) ) )
+        .WillOnce( Return( stableSbtOffset ) );
+    EXPECT_CALL( *m_programGroups,
+                 realizeMdlMaterialShader(
+                     hasGeometryInstance( hasAll(
+                         hasMaterialFlags( MaterialFlags::NONE ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX, frontDiffuseTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX, frontSpecularTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX, frontReflectanceTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX, frontAlphaTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX, frontBumpTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX, backDiffuseTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX, backAlphaTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
+                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ),
+                     1U ) )
+        .WillOnce( Return( expectedShader ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    EXPECT_EQ( frontDiffuseTextureId, m_sync.minDiffuseTextureId );
+    EXPECT_EQ( backBumpTextureId, m_sync.maxDiffuseTextureId );
+    ASSERT_LT( proxyMaterialId, m_sync.realizedMaterials.size() );
+    EXPECT_EQ( fakeUVs, m_sync.realizedUVs.back() );
+    EXPECT_EQ( fakeNormals, m_sync.realizedNormals.back() );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( mdlReadyState( proxyMaterialId, 1U ), m_sync.materialStates[proxyMaterialId] );
+    ASSERT_LT( 1U, m_sync.mdlMaterialShaders.size() );
+    EXPECT_EQ( expectedShader, m_sync.mdlMaterialShaders[1] );
+    ASSERT_EQ( 1U, m_sync.topLevelInstances.size() );
+    EXPECT_EQ( stableSbtOffset, m_sync.topLevelInstances.back().sbtOffset );
+
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numCompileRequests );
+    EXPECT_EQ( 1U, stats.mdlShaders.numReadyShaders );
+}
+
 TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedMixMaterialWithConstantAmountTextureCompilesShader )
 {
     m_options.useMdlMaterials = true;
@@ -1571,6 +1813,58 @@ TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksTwoLeaf
 {
     m_options.useMdlMaterials = true;
     usePbrtUberTwoLeafBumpImagemapMaterial( m_geom );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksMixWithTexturedTransmitBranchUnsupported )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtLandscapeMixWithTexturedTransmitBranchMaterial( m_geom );
+    const uint_t proxyGeomId{ 1111 };
+    const uint_t proxyMaterialId{ 4444U };
+    EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );
+    EXPECT_CALL( *m_programGroups, getRealizedMaterialSbtOffset( _ ) ).WillOnce( Return( +ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START ) );
+    ASSERT_FALSE( m_resolver->resolveMaterialForGeometry( proxyGeomId, m_geom, m_sync ) );
+    EXPECT_CALL( *m_loader, requestedMaterialIds() ).WillOnce( Return( std::vector<uint_t>{ proxyMaterialId } ) );
+    EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
+    EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
+
+    const MaterialResolution result{ m_resolver->resolveRequestedProxyMaterials( m_stream, m_timer, m_sync ) };
+
+    EXPECT_EQ( MaterialResolution::FULL, result );
+    ASSERT_LT( proxyMaterialId, m_sync.materialStates.size() );
+    EXPECT_EQ( unsupportedFallbackState( proxyMaterialId ), m_sync.materialStates[proxyMaterialId] );
+    const MaterialResolverStats stats{ m_resolver->getStatistics() };
+    EXPECT_EQ( 1U, stats.numRequestedMaterialPages );
+    EXPECT_EQ( 1U, stats.numMdlFallbackShaders );
+    EXPECT_EQ( 0U, stats.numGeneratedMdlMaterialCompileRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numShaderRequests );
+    EXPECT_EQ( 0U, stats.mdlShaders.numCompileRequests );
+}
+
+TEST_F( TestMaterialResolverRequestedProxyIds, generatedMaterialModeMarksMixWithTwoLeafBranchTextureUnsupported )
+{
+    m_options.useMdlMaterials = true;
+    usePbrtLandscapeMixWithTwoLeafBranchTextureMaterial( m_geom );
     const uint_t proxyGeomId{ 1111 };
     const uint_t proxyMaterialId{ 4444U };
     EXPECT_CALL( *m_loader, add() ).WillOnce( Return( proxyMaterialId ) );

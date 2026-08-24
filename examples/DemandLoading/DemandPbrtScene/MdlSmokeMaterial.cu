@@ -208,6 +208,10 @@ struct MdlMaterialTextureSamples
     float3 kd;
     float3 ks;
     float3 kr;
+    float3 mixNamedKd[2];
+    float3 mixNamedKs[2];
+    float3 mixNamedKr[2];
+    float  mixNamedAlpha[2];
 };
 
 struct MdlBumpMapSamples
@@ -223,6 +227,13 @@ __device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSampl
     samples.kd = make_float3( 1.0f );
     samples.ks = make_float3( 1.0f );
     samples.kr = make_float3( 1.0f );
+    for( uint_t i = 0; i < 2U; ++i )
+    {
+        samples.mixNamedKd[i]    = make_float3( 1.0f );
+        samples.mixNamedKs[i]    = make_float3( 1.0f );
+        samples.mixNamedKr[i]    = make_float3( 1.0f );
+        samples.mixNamedAlpha[i] = 1.0f;
+    }
     return samples;
 }
 
@@ -270,8 +281,7 @@ __device__ __forceinline__ float3 sampleMdlMaterialTextureGrad( const MdlMateria
         assert( binding.textureId >= params.minDiffuseTextureId && binding.textureId <= params.maxDiffuseTextureId );
     }
 #endif
-    const float4 texel{
-        demandLoading::tex2DGrad<float4>( params.demandContext, binding.textureId, uv.x, uv.y, ddx, ddy, &isResident ) };
+    const float4 texel{ demandLoading::tex2DGrad<float4>( params.demandContext, binding.textureId, uv.x, uv.y, ddx, ddy, &isResident ) };
     return make_float3( texel.x, texel.y, texel.z ) * binding.scale + binding.bias;
 }
 
@@ -288,7 +298,44 @@ __device__ __forceinline__ void setMdlMaterialTextureSample( MdlMaterialTextureS
         case MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX:
             samples.kr = value;
             return;
+        case MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX:
+            samples.mixNamedKd[0] = value;
+            return;
+        case MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX:
+            samples.mixNamedKs[0] = value;
+            return;
+        case MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX:
+            samples.mixNamedKr[0] = value;
+            return;
+        case MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX:
+            samples.mixNamedAlpha[0] = mdlLuminance( value );
+            return;
+        case MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX:
+            samples.mixNamedKd[1] = value;
+            return;
+        case MDL_MATERIAL_MIX_NAMED_1_KS_TEXTURE_BINDING_INDEX:
+            samples.mixNamedKs[1] = value;
+            return;
+        case MDL_MATERIAL_MIX_NAMED_1_KR_TEXTURE_BINDING_INDEX:
+            samples.mixNamedKr[1] = value;
+            return;
+        case MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX:
+            samples.mixNamedAlpha[1] = mdlLuminance( value );
+            return;
     }
+}
+
+__device__ __forceinline__ bool isMdlBumpMapTextureBinding( uint_t index )
+{
+    return index == MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX || index == MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX
+           || index == MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX;
+}
+
+__device__ __forceinline__ bool hasMdlBumpMapTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX );
 }
 
 __device__ __forceinline__ bool sampleMdlMaterialTextures( const MdlMaterialShader&   shader,
@@ -299,7 +346,7 @@ __device__ __forceinline__ bool sampleMdlMaterialTextures( const MdlMaterialShad
     samples = makeMdlMaterialTextureSamples();
     for( uint_t i = 0; i < shader.textureBindingCount && i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
     {
-        if( i == MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX || !hasMdlMaterialTexture( shader, i ) )
+        if( isMdlBumpMapTextureBinding( i ) || !hasMdlMaterialTexture( shader, i ) )
         {
             continue;
         }
@@ -315,6 +362,33 @@ __device__ __forceinline__ bool sampleMdlMaterialTextures( const MdlMaterialShad
     return true;
 }
 
+__device__ __forceinline__ bool sampleMdlBumpMapTexture( const MdlMaterialShader& shader,
+                                                         uint_t                   index,
+                                                         const float2&            uv,
+                                                         const float2&            ddx,
+                                                         const float2&            ddy,
+                                                         float                    du,
+                                                         float                    dv,
+                                                         MdlBumpMapSamples&       samples,
+                                                         uint_t&                  nonResidentTextureId )
+{
+    bool resident{};
+    bool allResident{ true };
+    samples.height = mdlLuminance( sampleMdlMaterialTextureGrad( shader, index, uv, ddx, ddy, resident ) );
+    allResident    = allResident && resident;
+    samples.heightU =
+        mdlLuminance( sampleMdlMaterialTextureGrad( shader, index, uv + make_float2( du, 0.0f ), ddx, ddy, resident ) );
+    allResident = allResident && resident;
+    samples.heightV =
+        mdlLuminance( sampleMdlMaterialTextureGrad( shader, index, uv + make_float2( 0.0f, dv ), ddx, ddy, resident ) );
+    allResident = allResident && resident;
+    if( !allResident )
+    {
+        nonResidentTextureId = shader.textureBindings[index].textureId;
+    }
+    return allResident;
+}
+
 __device__ __forceinline__ bool sampleMdlBumpMap( const MdlMaterialShader& shader,
                                                   const float2&            uv,
                                                   const float2&            ddx,
@@ -324,38 +398,111 @@ __device__ __forceinline__ bool sampleMdlBumpMap( const MdlMaterialShader& shade
                                                   MdlBumpMapSamples&       samples,
                                                   uint_t&                  nonResidentTextureId )
 {
-    if( !hasMdlMaterialTexture( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX ) )
+    const uint_t bumpMapIndices[] = {
+        MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX,
+        MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX,
+        MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX,
+    };
+    uint_t numSamples{};
+    for( uint_t index : bumpMapIndices )
     {
-        return true;
+        if( !hasMdlMaterialTexture( shader, index ) )
+        {
+            continue;
+        }
+        MdlBumpMapSamples current{};
+        if( !sampleMdlBumpMapTexture( shader, index, uv, ddx, ddy, du, dv, current, nonResidentTextureId ) )
+        {
+            return false;
+        }
+        samples.height += current.height;
+        samples.heightU += current.heightU;
+        samples.heightV += current.heightV;
+        ++numSamples;
     }
+    if( numSamples > 1U )
+    {
+        const float scale{ 1.0f / static_cast<float>( numSamples ) };
+        samples.height *= scale;
+        samples.heightU *= scale;
+        samples.heightV *= scale;
+    }
+    return true;
+}
 
-    bool resident{};
-    bool allResident{ true };
-    samples.height = mdlLuminance(
-        sampleMdlMaterialTextureGrad( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX, uv, ddx, ddy, resident ) );
-    allResident = allResident && resident;
-    samples.heightU = mdlLuminance( sampleMdlMaterialTextureGrad(
-        shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX, uv + make_float2( du, 0.0f ), ddx, ddy, resident ) );
-    allResident = allResident && resident;
-    samples.heightV = mdlLuminance( sampleMdlMaterialTextureGrad(
-        shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX, uv + make_float2( 0.0f, dv ), ddx, ddy, resident ) );
-    allResident = allResident && resident;
-    if( !allResident )
+__device__ __forceinline__ bool hasMdlMixNamedKdTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX );
+}
+
+__device__ __forceinline__ bool hasMdlMixNamedKsTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_KS_TEXTURE_BINDING_INDEX );
+}
+
+__device__ __forceinline__ bool hasMdlMixNamedKrTexture( const MdlMaterialShader& shader )
+{
+    return hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX )
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_KR_TEXTURE_BINDING_INDEX );
+}
+
+__device__ __forceinline__ float3 mdlAverageOptionalTexturePair( bool hasFirst, const float3& first, bool hasSecond, const float3& second )
+{
+    if( hasFirst && hasSecond )
     {
-        nonResidentTextureId = shader.textureBindings[MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX].textureId;
+        return ( first + second ) * 0.5f;
     }
-    return allResident;
+    if( hasFirst )
+    {
+        return first;
+    }
+    if( hasSecond )
+    {
+        return second;
+    }
+    return make_float3( 1.0f );
+}
+
+__device__ __forceinline__ float3 mdlMixNamedKdTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    return mdlAverageOptionalTexturePair( hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX ),
+                                          samples.mixNamedKd[0] * samples.mixNamedAlpha[0],
+                                          hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX ),
+                                          samples.mixNamedKd[1] * samples.mixNamedAlpha[1] );
+}
+
+__device__ __forceinline__ float3 mdlMixNamedKsTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    return mdlAverageOptionalTexturePair( hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX ),
+                                          samples.mixNamedKs[0] * samples.mixNamedAlpha[0],
+                                          hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_KS_TEXTURE_BINDING_INDEX ),
+                                          samples.mixNamedKs[1] * samples.mixNamedAlpha[1] );
+}
+
+__device__ __forceinline__ float3 mdlMixNamedKrTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
+{
+    return mdlAverageOptionalTexturePair( hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX ),
+                                          samples.mixNamedKr[0] * samples.mixNamedAlpha[0],
+                                          hasMdlMaterialTexture( shader, MDL_MATERIAL_MIX_NAMED_1_KR_TEXTURE_BINDING_INDEX ),
+                                          samples.mixNamedKr[1] * samples.mixNamedAlpha[1] );
 }
 
 __device__ __forceinline__ float3 mdlDiffuseTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
 {
-    return hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX ) ? samples.kd : make_float3( 1.0f );
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX ) )
+    {
+        return samples.kd;
+    }
+    return hasMdlMixNamedKdTexture( shader ) ? mdlMixNamedKdTextureScale( shader, samples ) : make_float3( 1.0f );
 }
 
 __device__ __forceinline__ bool hasMdlGlossyTexture( const MdlMaterialShader& shader )
 {
     return hasMdlMaterialTexture( shader, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX )
-           || hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX );
+           || hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX )
+           || hasMdlMixNamedKsTexture( shader ) || hasMdlMixNamedKrTexture( shader );
 }
 
 __device__ __forceinline__ float3 mdlGlossyTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
@@ -374,6 +521,18 @@ __device__ __forceinline__ float3 mdlGlossyTextureScale( const MdlMaterialShader
     {
         return samples.kr;
     }
+    if( hasMdlMixNamedKsTexture( shader ) && hasMdlMixNamedKrTexture( shader ) )
+    {
+        return ( mdlMixNamedKsTextureScale( shader, samples ) + mdlMixNamedKrTextureScale( shader, samples ) ) * 0.5f;
+    }
+    if( hasMdlMixNamedKsTexture( shader ) )
+    {
+        return mdlMixNamedKsTextureScale( shader, samples );
+    }
+    if( hasMdlMixNamedKrTexture( shader ) )
+    {
+        return mdlMixNamedKrTextureScale( shader, samples );
+    }
     return make_float3( 1.0f );
 }
 
@@ -382,6 +541,10 @@ __device__ __forceinline__ float3 mdlSpecularTextureScale( const MdlMaterialShad
     if( hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX ) )
     {
         return samples.kr;
+    }
+    if( hasMdlMixNamedKrTexture( shader ) )
+    {
+        return mdlMixNamedKrTextureScale( shader, samples );
     }
     return mdlGlossyTextureScale( shader, samples );
 }
@@ -402,6 +565,14 @@ __device__ __forceinline__ float mdlRuntimeDiffuseMixCompensation( const MdlMate
         compensation += 0.5f;
     }
     if( hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX ) )
+    {
+        compensation += 0.5f;
+    }
+    if( hasMdlMixNamedKsTexture( shader ) )
+    {
+        compensation += 0.5f;
+    }
+    if( hasMdlMixNamedKrTexture( shader ) )
     {
         compensation += 0.5f;
     }
@@ -649,7 +820,7 @@ extern "C" __global__ void __closesthit__mdlMesh()
     }
 
     float3 shadingNormal{ worldNormal };
-    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX ) )
+    if( hasMdlBumpMapTexture( shader ) )
     {
 #ifndef NDEBUG
         assert( triangleUVs != nullptr );
