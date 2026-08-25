@@ -774,6 +774,15 @@ void setMaterialState( SceneSyncState& sync, uint_t materialId, MaterialState st
     sync.materialStates[materialId] = state;
 }
 
+#ifdef OTK_USE_MDL
+void setMdlMaterialShader( SceneSyncState& sync, uint_t materialId, const MdlMaterialShader& shader )
+{
+    grow( sync.mdlMaterialShaders, materialId + 1 );
+    sync.mdlMaterialShaders[materialId] = shader;
+    ++sync.materialShaderDataVersion;
+}
+#endif
+
 bool isReadyLocalFallback( const SceneSyncState& sync, uint_t materialId )
 {
     if( materialId >= sync.materialStates.size() )
@@ -816,8 +825,7 @@ MaterialResolution PbrtMaterialResolver::resolvePendingMdlMaterial( SceneSyncSta
         for( const PendingMdlMaterial& material : pendingMaterials )
         {
             const MdlMaterialShader shader{ m_programGroups->realizeMdlMaterialShader( material.instance, material.shaderKeyId ) };
-            grow( sync.mdlMaterialShaders, material.materialId + 1 );
-            sync.mdlMaterialShaders[material.materialId] = shader;
+            setMdlMaterialShader( sync, material.materialId, shader );
             setMaterialState( sync, material.materialId, mdlReadyState( material.materialId, material.shaderKeyId ) );
         }
         m_mdlShaderCompileCache.markReady( materialKey );
@@ -875,8 +883,7 @@ MaterialState PbrtMaterialResolver::resolveMdlMaterialState( SceneSyncState&    
     };
     const auto bindMdlShader = [&]() {
         const MdlMaterialShader shader{ m_programGroups->realizeMdlMaterialShader( instance, shaderKeyId ) };
-        grow( sync.mdlMaterialShaders, materialId + 1 );
-        sync.mdlMaterialShaders[materialId] = shader;
+        setMdlMaterialShader( sync, materialId, shader );
     };
 
     bindMdlProgram();

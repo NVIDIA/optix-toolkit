@@ -806,6 +806,38 @@ TEST_F( TestPbrtSceneInitialized, resolvingMaterialUpdatesTopLevelWithoutClearin
     m_scene->beforeLaunch( m_stream, params );
 }
 
+#ifdef OTK_USE_MDL
+TEST_F( TestPbrtSceneInitialized, resolvingMdlMaterialShaderDataUpdatesTopLevelWithoutClearingAccumulator )
+{
+    expectLaunchPrepareTrueAfter( m_init );
+    expectNoGeometryResolvedAfter( m_init );
+    EXPECT_CALL( *m_renderer, setClearAccumulator() ).Times( 0 );
+    EXPECT_CALL( *m_materialResolver, resolveRequestedProxyMaterials( m_stream, _, _ ) )
+        .After( m_init )
+        .WillOnce( [&]( CUstream, const FrameStopwatch&, SceneSyncState& sync ) {
+            OptixInstance instance{};
+            instance.instanceId        = m_fakeMaterialId;
+            instance.traversableHandle = m_fakeTriMeshTraversable;
+            instance.sbtOffset         = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE;
+            sync.topLevelInstances.push_back( instance );
+            sync.mdlMaterialShaders.push_back( MdlMaterialShader{ 8U, 1U } );
+            ++sync.materialShaderDataVersion;
+            return MaterialResolution::FULL;
+        } );
+    auto isIAS =
+        AllOf( NotNull(),
+               hasInstanceBuildInput(
+                   0, hasAll( hasNumInstances( 2 ),
+                              hasDeviceInstances( hasInstance( 0, hasInstanceTraversable( m_fakeProxyTraversable ) ),
+                                                  hasInstance( 1, hasInstanceTraversable( m_fakeTriMeshTraversable ),
+                                                               hasInstanceSbtOffset( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE ),
+                                                               hasInstanceId( m_fakeMaterialId ) ) ) ) ) );
+    expectCreateTopLevelTraversableAfter( isIAS, m_fakeTopLevelTraversable, m_init );
+
+    Params params{};
+    m_scene->beforeLaunch( m_stream, params );
+}
+
 TEST_F( TestPbrtSceneInitialized, resolvingMaterialShaderDataDoesNotUpdateTopLevelOrClearAccumulator )
 {
     expectLaunchPrepareTrueAfter( m_init );
@@ -816,3 +848,4 @@ TEST_F( TestPbrtSceneInitialized, resolvingMaterialShaderDataDoesNotUpdateTopLev
     Params params{};
     EXPECT_TRUE( m_scene->beforeLaunch( m_stream, params ) );
 }
+#endif
