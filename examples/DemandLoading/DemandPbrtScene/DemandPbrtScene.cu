@@ -198,13 +198,15 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     unsigned int u1;
     packPointer( &prd, u0, u1 );
 
-    prd.rayDistance            = tMax;
+    prd.rayDistance = tMax;
+    RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
 #ifdef OTK_USE_MDL
     unsigned int mdlSampleSeed = rseed ^ 0x9e3779b9U;
+    prd.mdlRayConeAngle        = rayCone.angle;
+    prd.mdlRayConeWidth        = rayCone.width;
     prd.mdlBsdfSampleXi =
         make_float4( rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ) );
 #endif
-    RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
     rayCone       = propagate( rayCone, prd.rayDistance );
@@ -308,6 +310,8 @@ extern "C" __global__ void __raygen__perspectiveCamera()
         prd.rayDistance = rayTmax;
 #ifdef OTK_USE_MDL
         prd.hasMdlBsdfSample = false;
+        prd.mdlRayConeAngle  = rayCone.angle;
+        prd.mdlRayConeWidth  = rayCone.width;
         mdlSampleSeed = rseed ^ ( 0x9e3779b9U * static_cast<unsigned int>( rayDepth + 2 ) );
         prd.mdlBsdfSampleXi =
             make_float4( rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ) );

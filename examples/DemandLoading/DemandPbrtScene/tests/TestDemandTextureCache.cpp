@@ -34,6 +34,7 @@ class MockImageSourceFactory : public StrictMock<ImageSourceFactory>
     ~MockImageSourceFactory() override = default;
 
     MOCK_METHOD( ImageSourcePtr, createDiffuseImageFromFile, ( const std::string& path ), ( override ) );
+    MOCK_METHOD( ImageSourcePtr, createLinearImageFromFile, ( const std::string& path, bool inverseSrgb ), ( override ) );
     MOCK_METHOD( ImageSourcePtr, createAlphaImageFromFile, ( const std::string& path ), ( override ) );
     MOCK_METHOD( ImageSourcePtr, createSkyboxImageFromFile, ( const std::string& path ), ( override ) );
     MOCK_METHOD( ImageSourceFactoryStatistics, getStatistics, (), ( const override ) );
@@ -70,6 +71,13 @@ class TestDemandTextureCache : public Test
             .WillOnce( ReturnRef( m_alphaTexture ) );
         EXPECT_CALL( m_alphaTexture, getId() ).WillOnce( Return( m_alphaTextureId ) );
     }
+    void expectLinearTextureCreated( bool inverseSrgb )
+    {
+        EXPECT_CALL( *m_imageSourceFactory, createLinearImageFromFile( m_path, inverseSrgb ) ).WillOnce( Return( m_linearImage ) );
+        EXPECT_CALL( *m_demandLoader, createTexture( static_cast<ImageSourcePtr>( m_linearImage ), expectedTextureDesc() ) )
+            .WillOnce( ReturnRef( m_linearTexture ) );
+        EXPECT_CALL( m_linearTexture, getId() ).WillOnce( Return( m_linearTextureId ) );
+    }
     void expectSkyboxTextureCreated()
     {
         EXPECT_CALL( *m_imageSourceFactory, createSkyboxImageFromFile( m_path ) ).WillOnce( Return( m_skyboxImage ) );
@@ -81,14 +89,17 @@ class TestDemandTextureCache : public Test
     std::shared_ptr<otk::testing::MockDemandLoader> m_demandLoader{ std::make_shared<otk::testing::MockDemandLoader>() };
     std::shared_ptr<MockImageSourceFactory>        m_imageSourceFactory{ std::make_shared<MockImageSourceFactory>() };
     std::shared_ptr<otk::testing::MockImageSource> m_diffuseImage{ std::make_shared<otk::testing::MockImageSource>() };
+    std::shared_ptr<otk::testing::MockImageSource>  m_linearImage{ std::make_shared<otk::testing::MockImageSource>() };
     std::shared_ptr<otk::testing::MockImageSource> m_alphaImage{ std::make_shared<otk::testing::MockImageSource>() };
     std::shared_ptr<otk::testing::MockImageSource> m_skyboxImage{ std::make_shared<otk::testing::MockImageSource>() };
     std::string                                    m_path{ "mock.png" };
     MockDemandTexture                              m_diffuseTexture;
+    MockDemandTexture                               m_linearTexture;
     MockDemandTexture                              m_alphaTexture;
     MockDemandTexture                              m_skyboxTexture;
     std::shared_ptr<DemandTextureCache> m_cache{ createDemandTextureCache( m_demandLoader, m_imageSourceFactory ) };
     const uint_t                        m_diffuseTextureId{ 5678 };
+    const uint_t                        m_linearTextureId{ 3456 };
     const uint_t                        m_alphaTextureId{ 1234 };
     const uint_t                        m_skyboxTextureId{ 9012 };
 };
@@ -113,6 +124,35 @@ TEST_F( TestDemandTextureCache, createAlphaTexture )
 
     EXPECT_EQ( m_alphaTextureId, result );
     EXPECT_EQ( 1, stats.numAlphaTexturesCreated );
+}
+
+TEST_F( TestDemandTextureCache, createLinearTexture )
+{
+    expectLinearTextureCreated( true );
+
+    const uint_t result = m_cache->createLinearTextureFromFile( m_path, true );
+    const Stats  stats  = m_cache->getStatistics();
+
+    EXPECT_EQ( m_linearTextureId, result );
+    EXPECT_EQ( 1, stats.numDiffuseTexturesCreated );
+}
+
+TEST_F( TestDemandTextureCache, cachesLinearTexturesSeparatelyByGamma )
+{
+    EXPECT_CALL( *m_imageSourceFactory, createLinearImageFromFile( m_path, true ) ).WillOnce( Return( m_linearImage ) );
+    EXPECT_CALL( *m_imageSourceFactory, createLinearImageFromFile( m_path, false ) ).WillOnce( Return( m_linearImage ) );
+    EXPECT_CALL( *m_demandLoader, createTexture( static_cast<ImageSourcePtr>( m_linearImage ), expectedTextureDesc() ) )
+        .Times( 2 )
+        .WillRepeatedly( ReturnRef( m_linearTexture ) );
+    EXPECT_CALL( m_linearTexture, getId() ).Times( 2 ).WillRepeatedly( Return( m_linearTextureId ) );
+
+    const uint_t gammaTexture       = m_cache->createLinearTextureFromFile( m_path, true );
+    const uint_t cachedGammaTexture = m_cache->createLinearTextureFromFile( m_path, true );
+    const uint_t linearTexture      = m_cache->createLinearTextureFromFile( m_path, false );
+
+    EXPECT_EQ( m_linearTextureId, gammaTexture );
+    EXPECT_EQ( gammaTexture, cachedGammaTexture );
+    EXPECT_EQ( m_linearTextureId, linearTexture );
 }
 
 TEST_F( TestDemandTextureCache, createSkyboxTexture )

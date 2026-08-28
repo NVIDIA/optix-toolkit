@@ -31,6 +31,7 @@ if(OTK_USE_MDL)
     set(DEMAND_PBRT_SCENE_MDL_SOURCES
         MdlBsdfCompiler.cpp
         MdlShaderCache.cpp
+        include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h
         include/DemandPbrtScene/MdlShaderCache.h
         include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h

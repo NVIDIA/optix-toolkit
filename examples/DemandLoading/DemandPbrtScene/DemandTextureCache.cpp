@@ -64,6 +64,24 @@ class DemandTextureCacheImpl : public DemandTextureCache
         return m_diffuseCache.find( path ) != m_diffuseCache.end();
     }
 
+    uint_t createLinearTextureFromFile( const std::string& path, bool inverseSrgb ) override
+    {
+        const auto key{ std::make_pair( path, inverseSrgb ) };
+        const auto it{ m_linearCache.find( key ) };
+        if( it != m_linearCache.end() )
+        {
+            return it->second;
+        }
+        const ImageSourcePtr imageSource = isPbrtCheckerboardTextureKey( path ) ?
+                                               createPbrtCheckerboardImageSource( path ) :
+                                               m_imageSourceFactory->createLinearImageFromFile( path, inverseSrgb );
+        const demandLoading::DemandTexture& texture = m_demandLoader->createTexture( imageSource, textureDescription() );
+        ++m_stats.numDiffuseTexturesCreated;
+        const uint_t id{ texture.getId() };
+        m_linearCache[key] = id;
+        return id;
+    }
+
     uint_t createAlphaTextureFromFile( const std::string& path ) override
     {
         auto it = m_alphaCache.find(path);
@@ -114,6 +132,7 @@ private:
     DemandLoaderPtr               m_demandLoader;
     ImageSourceFactoryPtr         m_imageSourceFactory;
     std::map<std::string, uint_t> m_diffuseCache;
+    std::map<std::pair<std::string, bool>, uint_t> m_linearCache;
     std::map<std::string, uint_t> m_alphaCache;
     std::map<std::string, uint_t> m_skyboxCache;
 };

@@ -825,6 +825,46 @@ TEST( TestMaterialAdapters, fallbackMaterialUsesScaledPbrtDiffuseTexture )
     EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
 }
 
+TEST( TestMaterialAdapters, imageMapBindingUsesPbrtGammaSemantics )
+{
+    struct TestCase
+    {
+        const char* fileName;
+        const char* gammaParameter;
+        bool        expectedGamma;
+    };
+    const TestCase cases[] = {
+        { "texture.png", "", true },
+        { "texture.tga", "", true },
+        { "texture.exr", "", false },
+        { "texture.png", R"pbrt("bool gamma" ["false"])pbrt", false },
+        { "texture.exr", R"pbrt("bool gamma" ["true"])pbrt", true },
+    };
+
+    for( const TestCase& test : cases )
+    {
+        SCOPED_TRACE( test.fileName );
+        const std::string         sceneText{ std::string( R"pbrt(
+            WorldBegin
+            Texture "diffuseTexture" "color" "imagemap"
+                "string filename" [ ")pbrt" )
+                                     + test.fileName + R"pbrt(" ]
+                )pbrt" + test.gammaParameter
+                                     + R"pbrt(
+            Material "matte" "texture Kd" [ "diffuseTexture" ]
+            Shape "trianglemesh"
+                "integer indices" [0 2 1]
+                "point P" [ 0 0 0  1 0 0  0 1 0 ]
+            WorldEnd)pbrt" };
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+        EXPECT_EQ( test.expectedGamma, binding.gamma );
+    }
+}
+
 TEST( TestMaterialAdapters, fallbackMaterialUsesMixedPbrtDiffuseTexture )
 {
     for( const char* valueType : { "color", "spectrum" } )

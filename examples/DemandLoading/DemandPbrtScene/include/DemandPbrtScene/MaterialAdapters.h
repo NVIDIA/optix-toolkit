@@ -25,6 +25,7 @@ struct PbrtDemandTextureBinding
     float3      scale;
     float3      bias;
     bool        transformed;
+    bool        gamma;
 };
 
 inline float3 pbrtTextureScale( float value )
@@ -42,14 +43,14 @@ inline ::pbrt::Point3f toPbrtPoint3f( const float3& value )
     return ::pbrt::Point3f{ value.x, value.y, value.z };
 }
 
-inline PbrtDemandTextureBinding pbrtDemandTextureBinding( const std::string& fileName, const float3& scale, const float3& bias, bool transformed )
+inline PbrtDemandTextureBinding pbrtDemandTextureBinding( const std::string& fileName, const float3& scale, const float3& bias, bool transformed, bool gamma )
 {
-    return PbrtDemandTextureBinding{ fileName, scale, bias, transformed };
+    return PbrtDemandTextureBinding{ fileName, scale, bias, transformed, gamma };
 }
 
 inline PbrtDemandTextureBinding pbrtDemandTextureBinding()
 {
-    return pbrtDemandTextureBinding( std::string{}, pbrtTextureScale( 1.0f ), pbrtTextureBias( 0.0f ), false );
+    return pbrtDemandTextureBinding( std::string{}, pbrtTextureScale( 1.0f ), pbrtTextureBias( 0.0f ), false, false );
 }
 
 inline bool hasPbrtDemandTextureBinding( const PbrtDemandTextureBinding& binding )
@@ -135,6 +136,17 @@ inline std::string pbrtTextureMapName( const otk::pbrt::PbrtTexture* texture )
         return pbrtCheckerboardTextureKey( *texture );
     }
     return {};
+}
+
+inline bool pbrtTextureGamma( const otk::pbrt::PbrtTexture* texture )
+{
+    if( texture == nullptr || texture->type != "imagemap" )
+    {
+        return false;
+    }
+    const std::string fileName{ pbrtTextureMapName( texture ) };
+    const bool defaultGamma{ ::pbrt::HasExtension( fileName, ".tga" ) || ::pbrt::HasExtension( fileName, ".png" ) };
+    return texture->params.FindOneBool( "gamma", defaultGamma );
 }
 
 inline float3 multiplyPbrtTextureScale( const float3& lhs, const float3& rhs )
@@ -356,6 +368,11 @@ inline PbrtDemandTextureBinding findPbrtDemandTextureBinding( const otk::pbrt::P
                                                               std::vector<std::string>&           textureStack,
                                                               bool                                allowMix );
 
+inline PbrtDemandTextureBinding findPbrtFloatDemandTextureBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                                   const std::string&                  textureName,
+                                                                   std::vector<std::string>&           textureStack,
+                                                                   bool                                allowMix );
+
 inline PbrtDemandTextureBinding findPbrtDirectDemandTextureBinding( const otk::pbrt::PbrtMaterialGraph& graph,
                                                                     const std::string&                  textureName,
                                                                     std::vector<std::string>&           textureStack )
@@ -370,7 +387,26 @@ inline PbrtDemandTextureBinding findPbrtDirectDemandTextureBinding( const otk::p
     {
         return pbrtDemandTextureBinding();
     }
-    return pbrtDemandTextureBinding( pbrtTextureMapName( texture ), pbrtTextureScale( 1.0f ), pbrtTextureBias( 0.0f ), false );
+    return pbrtDemandTextureBinding( pbrtTextureMapName( texture ), pbrtTextureScale( 1.0f ), pbrtTextureBias( 0.0f ),
+                                     false, pbrtTextureGamma( texture ) );
+}
+
+inline PbrtDemandTextureBinding findPbrtDirectFloatDemandTextureBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                                         const std::string&        textureName,
+                                                                         std::vector<std::string>& textureStack )
+{
+    std::string                   graphKey;
+    const otk::pbrt::PbrtTexture* texture{ findPbrtGraphTexture( graph, textureName, { "float" }, graphKey ) };
+    if( texture == nullptr || pbrtTextureStackContains( textureStack, graphKey ) )
+    {
+        return pbrtDemandTextureBinding();
+    }
+    if( texture->type != "imagemap" && texture->type != "checkerboard" )
+    {
+        return pbrtDemandTextureBinding();
+    }
+    return pbrtDemandTextureBinding( pbrtTextureMapName( texture ), pbrtTextureScale( 1.0f ), pbrtTextureBias( 0.0f ),
+                                     false, pbrtTextureGamma( texture ) );
 }
 
 inline bool findPbrtDemandTextureInputBinding( const otk::pbrt::PbrtMaterialGraph& graph,
@@ -386,6 +422,37 @@ inline bool findPbrtDemandTextureInputBinding( const otk::pbrt::PbrtMaterialGrap
         return false;
     }
     binding = findPbrtDemandTextureBinding( graph, inputTextureName, textureStack, allowMix );
+    return hasPbrtDemandTextureBinding( binding );
+}
+
+inline bool findPbrtFloatDemandTextureInputBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                    const otk::pbrt::PbrtTexture&       texture,
+                                                    const char*                         name,
+                                                    std::vector<std::string>&           textureStack,
+                                                    PbrtDemandTextureBinding&           binding,
+                                                    bool                                allowMix )
+{
+    const std::string inputTextureName{ texture.params.FindTexture( name ) };
+    if( inputTextureName.empty() )
+    {
+        return false;
+    }
+    binding = findPbrtFloatDemandTextureBinding( graph, inputTextureName, textureStack, allowMix );
+    return hasPbrtDemandTextureBinding( binding );
+}
+
+inline bool findPbrtDirectFloatDemandTextureInputBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                          const otk::pbrt::PbrtTexture&       texture,
+                                                          const char*                         name,
+                                                          std::vector<std::string>&           textureStack,
+                                                          PbrtDemandTextureBinding&           binding )
+{
+    const std::string inputTextureName{ texture.params.FindTexture( name ) };
+    if( inputTextureName.empty() )
+    {
+        return false;
+    }
+    binding = findPbrtDirectFloatDemandTextureBinding( graph, inputTextureName, textureStack );
     return hasPbrtDemandTextureBinding( binding );
 }
 
@@ -423,7 +490,7 @@ inline PbrtDemandTextureBinding findPbrtScaleDemandTextureBinding( const otk::pb
         if( foldPbrtTextureInputConstantColor( graph, texture, "tex2", pbrtTextureScale( 1.0f ), textureStack, tex2Scale ) )
         {
             return pbrtDemandTextureBinding( tex1Binding.fileName, multiplyPbrtTextureScale( tex1Binding.scale, tex2Scale ),
-                                             multiplyPbrtTextureScale( tex1Binding.bias, tex2Scale ), true );
+                                             multiplyPbrtTextureScale( tex1Binding.bias, tex2Scale ), true, tex1Binding.gamma );
         }
         return pbrtDemandTextureBinding();
     }
@@ -432,7 +499,42 @@ inline PbrtDemandTextureBinding findPbrtScaleDemandTextureBinding( const otk::pb
     if( foldPbrtTextureInputConstantColor( graph, texture, "tex1", pbrtTextureScale( 1.0f ), textureStack, tex1Scale ) )
     {
         return pbrtDemandTextureBinding( tex2Binding.fileName, multiplyPbrtTextureScale( tex2Binding.scale, tex1Scale ),
-                                         multiplyPbrtTextureScale( tex2Binding.bias, tex1Scale ), true );
+                                         multiplyPbrtTextureScale( tex2Binding.bias, tex1Scale ), true, tex2Binding.gamma );
+    }
+    return pbrtDemandTextureBinding();
+}
+
+inline PbrtDemandTextureBinding findPbrtScaleFloatDemandTextureBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                                        const otk::pbrt::PbrtTexture&       texture,
+                                                                        std::vector<std::string>& textureStack )
+{
+    PbrtDemandTextureBinding tex1Binding{};
+    PbrtDemandTextureBinding tex2Binding{};
+    const bool hasTex1Demand{ findPbrtFloatDemandTextureInputBinding( graph, texture, "tex1", textureStack, tex1Binding, false ) };
+    const bool hasTex2Demand{ findPbrtFloatDemandTextureInputBinding( graph, texture, "tex2", textureStack, tex2Binding, false ) };
+    if( hasTex1Demand == hasTex2Demand )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    if( hasTex1Demand )
+    {
+        float tex2Scale{};
+        if( foldPbrtTextureInputConstantFloat( graph, texture, "tex2", 1.0f, textureStack, tex2Scale ) )
+        {
+            const float3 scale{ pbrtTextureScale( tex2Scale ) };
+            return pbrtDemandTextureBinding( tex1Binding.fileName, multiplyPbrtTextureScale( tex1Binding.scale, scale ),
+                                             multiplyPbrtTextureScale( tex1Binding.bias, scale ), true, tex1Binding.gamma );
+        }
+        return pbrtDemandTextureBinding();
+    }
+
+    float tex1Scale{};
+    if( foldPbrtTextureInputConstantFloat( graph, texture, "tex1", 1.0f, textureStack, tex1Scale ) )
+    {
+        const float3 scale{ pbrtTextureScale( tex1Scale ) };
+        return pbrtDemandTextureBinding( tex2Binding.fileName, multiplyPbrtTextureScale( tex2Binding.scale, scale ),
+                                         multiplyPbrtTextureScale( tex2Binding.bias, scale ), true, tex2Binding.gamma );
     }
     return pbrtDemandTextureBinding();
 }
@@ -464,7 +566,7 @@ inline PbrtDemandTextureBinding findPbrtMixDemandTextureBinding( const otk::pbrt
             return pbrtDemandTextureBinding( tex1Binding.fileName, scalePbrtTextureColor( tex1Binding.scale, 1.0f - amount ),
                                              addPbrtTextureColor( scalePbrtTextureColor( tex1Binding.bias, 1.0f - amount ),
                                                                   scalePbrtTextureColor( tex2, amount ) ),
-                                             true );
+                                             true, tex1Binding.gamma );
         }
         return pbrtDemandTextureBinding();
     }
@@ -475,7 +577,50 @@ inline PbrtDemandTextureBinding findPbrtMixDemandTextureBinding( const otk::pbrt
         return pbrtDemandTextureBinding( tex2Binding.fileName, scalePbrtTextureColor( tex2Binding.scale, amount ),
                                          addPbrtTextureColor( scalePbrtTextureColor( tex1, 1.0f - amount ),
                                                               scalePbrtTextureColor( tex2Binding.bias, amount ) ),
-                                         true );
+                                         true, tex2Binding.gamma );
+    }
+    return pbrtDemandTextureBinding();
+}
+
+inline PbrtDemandTextureBinding findPbrtMixFloatDemandTextureBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                                      const otk::pbrt::PbrtTexture&       texture,
+                                                                      std::vector<std::string>&           textureStack )
+{
+    PbrtDemandTextureBinding tex1Binding{};
+    PbrtDemandTextureBinding tex2Binding{};
+    const bool hasTex1Demand{ findPbrtDirectFloatDemandTextureInputBinding( graph, texture, "tex1", textureStack, tex1Binding ) };
+    const bool hasTex2Demand{ findPbrtDirectFloatDemandTextureInputBinding( graph, texture, "tex2", textureStack, tex2Binding ) };
+    if( hasTex1Demand == hasTex2Demand )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    float amount{};
+    if( !foldPbrtTextureInputConstantFloat( graph, texture, "amount", 0.5f, textureStack, amount ) )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    if( hasTex1Demand )
+    {
+        float tex2{};
+        if( foldPbrtTextureInputConstantFloat( graph, texture, "tex2", 1.0f, textureStack, tex2 ) )
+        {
+            return pbrtDemandTextureBinding( tex1Binding.fileName, scalePbrtTextureColor( tex1Binding.scale, 1.0f - amount ),
+                                             addPbrtTextureColor( scalePbrtTextureColor( tex1Binding.bias, 1.0f - amount ),
+                                                                  pbrtTextureBias( tex2 * amount ) ),
+                                             true, tex1Binding.gamma );
+        }
+        return pbrtDemandTextureBinding();
+    }
+
+    float tex1{};
+    if( foldPbrtTextureInputConstantFloat( graph, texture, "tex1", 1.0f, textureStack, tex1 ) )
+    {
+        return pbrtDemandTextureBinding( tex2Binding.fileName, scalePbrtTextureColor( tex2Binding.scale, amount ),
+                                         addPbrtTextureColor( pbrtTextureBias( tex1 * ( 1.0f - amount ) ),
+                                                              scalePbrtTextureColor( tex2Binding.bias, amount ) ),
+                                         true, tex2Binding.gamma );
     }
     return pbrtDemandTextureBinding();
 }
@@ -496,7 +641,8 @@ inline PbrtDemandTextureBinding findPbrtDemandTextureBinding( const otk::pbrt::P
     PbrtDemandTextureBinding result{};
     if( texture->type == "imagemap" || texture->type == "checkerboard" )
     {
-        result = pbrtDemandTextureBinding( pbrtTextureMapName( texture ), pbrtTextureScale( 1.0f ), pbrtTextureBias( 0.0f ), false );
+        result = pbrtDemandTextureBinding( pbrtTextureMapName( texture ), pbrtTextureScale( 1.0f ),
+                                           pbrtTextureBias( 0.0f ), false, pbrtTextureGamma( texture ) );
     }
     else if( texture->type == "scale" )
     {
@@ -505,6 +651,41 @@ inline PbrtDemandTextureBinding findPbrtDemandTextureBinding( const otk::pbrt::P
     else if( texture->type == "mix" && allowMix )
     {
         result = findPbrtMixDemandTextureBinding( graph, *texture, textureStack );
+    }
+    else
+    {
+        result = pbrtDemandTextureBinding();
+    }
+    textureStack.pop_back();
+    return result;
+}
+
+inline PbrtDemandTextureBinding findPbrtFloatDemandTextureBinding( const otk::pbrt::PbrtMaterialGraph& graph,
+                                                                   const std::string&                  textureName,
+                                                                   std::vector<std::string>&           textureStack,
+                                                                   bool                                allowMix )
+{
+    std::string                   graphKey;
+    const otk::pbrt::PbrtTexture* texture{ findPbrtGraphTexture( graph, textureName, { "float" }, graphKey ) };
+    if( texture == nullptr || pbrtTextureStackContains( textureStack, graphKey ) )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    textureStack.push_back( graphKey );
+    PbrtDemandTextureBinding result{};
+    if( texture->type == "imagemap" || texture->type == "checkerboard" )
+    {
+        result = pbrtDemandTextureBinding( pbrtTextureMapName( texture ), pbrtTextureScale( 1.0f ),
+                                           pbrtTextureBias( 0.0f ), false, pbrtTextureGamma( texture ) );
+    }
+    else if( texture->type == "scale" )
+    {
+        result = findPbrtScaleFloatDemandTextureBinding( graph, *texture, textureStack );
+    }
+    else if( texture->type == "mix" && allowMix )
+    {
+        result = findPbrtMixFloatDemandTextureBinding( graph, *texture, textureStack );
     }
     else
     {
@@ -524,6 +705,19 @@ inline PbrtDemandTextureBinding pbrtColorTextureBinding( const otk::pbrt::PbrtMa
 
     std::vector<std::string> textureStack;
     return findPbrtDemandTextureBinding( material.graph, textureName, textureStack, std::string{ paramName } == "Kd" );
+}
+
+inline PbrtDemandTextureBinding pbrtFloatTextureBinding( const otk::pbrt::PbrtMaterial& material, const char* paramName )
+{
+    const std::string textureName{ material.params.FindTexture( paramName ) };
+    if( textureName.empty() )
+    {
+        return pbrtDemandTextureBinding();
+    }
+
+    std::vector<std::string> textureStack;
+    return findPbrtFloatDemandTextureBinding( material.graph, textureName, textureStack,
+                                              std::string{ paramName } == "bumpmap" );
 }
 
 inline std::string pbrtColorMapFileName( const otk::pbrt::PbrtMaterial& material, const char* paramName )

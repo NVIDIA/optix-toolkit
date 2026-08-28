@@ -211,5 +211,13 @@ if(OTK_USE_MDL)
             DIFF_THRESHOLD 64
             ALLOWED_PERCENTAGE 3
             TOLERANCE_REASON "Landscape fixture tolerance, direct uber Kd/Ks/Kr imagemaps use generated MDL BSDF callables with runtime texture-slot scaling and approximate MDL mix normalization")
+        add_pbrt_reference_image_test(landscape-uber-bump
+            MATERIAL uber
+            SCENE landscape-uber-bump.pbrt
+            RESOURCES landscape-fixture-albedo.png landscape-fixture-bump.png
+            WARMUP 16
+            DIFF_THRESHOLD 64
+            ALLOWED_PERCENTAGE 3
+            TOLERANCE_REASON "Landscape fixture tolerance, direct uber Kd/bump imagemaps use generated MDL BSDF callables with runtime single-sample tangent bump approximation")
     endif()
 endif()

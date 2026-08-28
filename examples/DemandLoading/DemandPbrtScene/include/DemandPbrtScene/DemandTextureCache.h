@@ -27,6 +27,8 @@ class DemandTextureCache
     virtual uint_t createDiffuseTextureFromFile( const std::string& path )   = 0;
     virtual bool   hasDiffuseTextureForFile( const std::string& path ) const = 0;
 
+    virtual uint_t createLinearTextureFromFile( const std::string& path, bool inverseSrgb ) = 0;
+
     virtual uint_t createAlphaTextureFromFile( const std::string& path )   = 0;
     virtual bool   hasAlphaTextureForFile( const std::string& path ) const = 0;
 

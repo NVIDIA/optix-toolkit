@@ -9,6 +9,7 @@
 
 #include <OptiXToolkit/ImageSource/ImageSource.h>
 #include <OptiXToolkit/ImageSource/ImageSourceCache.h>
+#include <OptiXToolkit/ImageSource/InverseSrgbImageSource.h>
 #include <OptiXToolkit/ImageSource/TiledImageSource.h>
 
 #include <fstream>
@@ -31,6 +32,8 @@ class ImageSourceFactoryImpl : public ImageSourceFactory
 
     ImageSourcePtr createDiffuseImageFromFile( const std::string& path ) override;
 
+    ImageSourcePtr createLinearImageFromFile( const std::string& path, bool inverseSrgb ) override;
+
     ImageSourcePtr createAlphaImageFromFile( const std::string& path ) override;
 
     ImageSourcePtr createSkyboxImageFromFile( const std::string& path ) override;
@@ -41,6 +44,7 @@ private:
     const Options&                m_options;
     imageSource::ImageSourceCache m_fileCache;
     imageSource::ImageSourceCache m_diffuseCache;
+    imageSource::ImageSourceCache m_linearCache;
     imageSource::ImageSourceCache m_alphaCache;
     imageSource::ImageSourceCache m_skyboxCache;
 };
@@ -75,6 +79,39 @@ std::shared_ptr<imageSource::ImageSource> ImageSourceFactoryImpl::createDiffuseI
 
     image = createTiledImageSource( m_fileCache.get( filePath ) );
     m_diffuseCache.set( path, image );
+    return image;
+}
+
+std::shared_ptr<imageSource::ImageSource> ImageSourceFactoryImpl::createLinearImageFromFile( const std::string& path, bool inverseSrgb )
+{
+    // Prefer EXR file if available.  EXR pixels are already linear.
+    std::string        exrPath( replaceExtension( path, ".exr" ) );
+    const bool         useExr{ fileExists( exrPath ) };
+    const std::string& filePath{ useExr ? exrPath : path };
+    const std::string  cacheKey{ filePath + ( inverseSrgb && !useExr ? "|inverse-srgb" : "|linear" ) };
+    ImageSourcePtr     image{ m_linearCache.find( cacheKey ) };
+    if( image )
+    {
+        return image;
+    }
+
+    if( m_options.verboseTextureCreation )
+    {
+        std::cout << "Creating linear map from " << filePath;
+        if( inverseSrgb && !useExr )
+        {
+            std::cout << " with inverse sRGB conversion";
+        }
+        std::cout << '\n';
+    }
+
+    image = m_fileCache.get( filePath );
+    if( inverseSrgb && !useExr )
+    {
+        image = imageSource::createInverseSrgbImageSource( image );
+    }
+    image = createTiledImageSource( image );
+    m_linearCache.set( cacheKey, image );
     return image;
 }
 
@@ -120,6 +157,11 @@ ImageSourceFactoryStatistics ImageSourceFactoryImpl::getStatistics() const
     result.fileSources = m_fileCache.getStatistics();
     result.alphaSources = m_alphaCache.getStatistics();
     result.diffuseSources = m_diffuseCache.getStatistics();
+    const imageSource::CacheStatistics linearSources{ m_linearCache.getStatistics() };
+    result.diffuseSources.numImageSources += linearSources.numImageSources;
+    result.diffuseSources.totalBytesRead += linearSources.totalBytesRead;
+    result.diffuseSources.totalTilesRead += linearSources.totalTilesRead;
+    result.diffuseSources.totalReadTime += linearSources.totalReadTime;
     result.skyboxSources = m_skyboxCache.getStatistics();
     return result;
 }

@@ -1156,35 +1156,20 @@ void appendBumpmapCommentsAndHelpers( MdlMaterialModel& model, const std::string
         return;
     }
 
-    model.comments.push_back(
-        "pbrt material approximation: bumpmap perturbs the MDL shading normal with a single height sample" );
-    model.helperDefinitions +=
-        "float3 pbrt_bump_normal(float height) =\n"
-        "    ::math::normalize(::state::normal() + ::state::texture_tangent_u(0) * (height - 0.5) * 0.1);\n\n";
+    model.comments.push_back( "pbrt material implementation: bumpmap is evaluated with runtime finite differences" );
 }
 
 std::string materialGeometryExpression( const std::string& cutoutOpacity, const std::string& bumpmap )
 {
-    if( cutoutOpacity.empty() && !hasBumpmapExpression( bumpmap ) )
+    (void)bumpmap;
+    if( cutoutOpacity.empty() )
     {
         return std::string{};
     }
 
     std::ostringstream out;
     out << "    geometry: material_geometry(\n";
-    if( hasBumpmapExpression( bumpmap ) )
-    {
-        out << "        normal: pbrt_bump_normal(" << bumpmap << ")";
-        if( !cutoutOpacity.empty() )
-        {
-            out << ",";
-        }
-        out << "\n";
-    }
-    if( !cutoutOpacity.empty() )
-    {
-        out << "        cutout_opacity: " << cutoutOpacity << "\n";
-    }
+    out << "        cutout_opacity: " << cutoutOpacity << "\n";
     out << "    )\n";
     return out.str();
 }
@@ -1645,7 +1630,7 @@ MdlMaterialModel makePlasticMaterialModel( const otk::pbrt::PbrtMaterial& materi
         "                        roughness_v: roughness,\n"
         "                        tint: color(1.0, 1.0, 1.0),\n"
         "                        mode: ::df::scatter_reflect)))))"
-        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
+        + "\n";
     return model;
 }
 
@@ -1877,7 +1862,7 @@ MdlMaterialModel makeSubstrateMaterialModel( const otk::pbrt::PbrtMaterial& mate
         "            base: ::df::diffuse_reflection_bsdf(\n"
         "                tint: "
         + kd + ")))"
-        + ( hasBumpmapExpression( bumpmap ) ? std::string{ ",\n" } + materialGeometryExpression( "", bumpmap ) : "\n" );
+        + "\n";
     return model;
 }
 

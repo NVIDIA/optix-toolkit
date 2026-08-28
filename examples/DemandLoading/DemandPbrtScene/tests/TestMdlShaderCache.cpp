@@ -695,28 +695,25 @@ TEST( TestMdlGeneratedSource, foldsConstantKdTextureGraphToMaterialParameter )
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
-TEST( TestMdlGeneratedSource, mapsImagemapBumpmapToMdlGeometryNormal )
+TEST( TestMdlGeneratedSource, recordsImagemapBumpmapForRuntimeFiniteDifferences )
 {
     const GeneratedMdlSource generated{ generateMdlSource( matteMaterialWithBumpmap() ) };
 
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: "
                                                        "pbrt_texture_float(texture_0())" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: bumpmap perturbs the MDL "
-                                                       "shading normal "
-                                                       "with a single height sample" ) );
+    EXPECT_THAT( generated.source,
+                 testing::HasSubstr( "// pbrt material implementation: bumpmap is evaluated with runtime finite differences" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "float pbrt_texture_float(color value) = "
                                                        "::math::luminance(value);" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "float3 pbrt_bump_normal(float height)" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "::state::normal()" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "::state::texture_tangent_u(0)" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "normal:" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha * opacity" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
-TEST( TestMdlGeneratedSource, mapsScaleBumpmapToMdlGeometryNormal )
+TEST( TestMdlGeneratedSource, recordsScaleBumpmapForRuntimeFiniteDifferences )
 {
     const GeneratedMdlSource generated{ generateMdlSource( matteMaterialWithScaleBumpmap() ) };
 
@@ -724,7 +721,7 @@ TEST( TestMdlGeneratedSource, mapsScaleBumpmapToMdlGeometryNormal )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:scale" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_1() = pbrt_demand_texture_2d(0);" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_0() = texture_1() * color(1.0, 1.0, 1.0);" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
     EXPECT_TRUE( generated.unsupportedReasons.empty() );
 }
 
@@ -736,7 +733,7 @@ TEST( TestMdlGeneratedSource, recordsUnsupportedProceduralBumpmap )
     EXPECT_THAT( generated.source, testing::HasSubstr( "// unsupported: Unsupported PBRT texture type float:fbm" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: pbrt_texture_float" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "color texture_0() = pbrt_unsupported_texture();" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
 }
 
 TEST( TestMdlGeneratedSource, mapsMatteSigmaAndCutoutParameters )
@@ -763,7 +760,7 @@ TEST( TestMdlGeneratedSource, mapsPlasticMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "float roughness = 0.1" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material input bumpmap: "
                                                        "pbrt_texture_float(texture_0())" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material gap: PBRT-exact roughness/remapping "
                                                        "behavior is approximated" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt material approximation: diffuse and glossy reflection "
@@ -828,7 +825,7 @@ TEST( TestMdlGeneratedSource, mapsSimpleUberMaterialModel )
     EXPECT_THAT( generated.source, testing::HasSubstr( "mode: ::df::scatter_transmit" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "ior: color(index, index, index)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "geometry: material_geometry" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_1()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "cutout_opacity: alpha" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_uber_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );
@@ -1140,7 +1137,7 @@ TEST( TestMdlGeneratedSource, mapsSubstrateMaterialModel )
                                                        "vroughness)" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "base: ::df::diffuse_reflection_bsdf" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "tint: Kd" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_substrate_approximation_tint" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "height.exr" ) ) );
@@ -1161,7 +1158,7 @@ TEST( TestMdlGeneratedSource, mapsSubstrateDirectDiffuseTextureInput )
     EXPECT_THAT( generated.source, testing::HasSubstr( "tint: texture_0()" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "weight: Ks" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "::df::color_weighted_layer" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_1()))" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: spectrum:imagemap" ) );
     EXPECT_THAT( generated.source, testing::HasSubstr( "// pbrt texture node: float:imagemap" ) );
     EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "albedo.exr" ) ) );

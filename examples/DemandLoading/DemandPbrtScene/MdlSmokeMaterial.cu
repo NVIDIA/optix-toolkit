@@ -3,10 +3,12 @@
 //
 
 #include "DemandPbrtScene/DeviceTriangles.h"
+#include "DemandPbrtScene/MdlBumpMap.h"
 #include "DemandPbrtScene/Params.h"
 #include "DemandPbrtScene/PhongShade.h"
 
 #include <OptiXToolkit/DemandLoading/Texture2D.h>
+#include <OptiXToolkit/ShaderUtil/ray_cone.h>
 
 #include <optix.h>
 
@@ -208,6 +210,13 @@ struct MdlMaterialTextureSamples
     float3 kr;
 };
 
+struct MdlBumpMapSamples
+{
+    float height;
+    float heightU;
+    float heightV;
+};
+
 __device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSamples()
 {
     MdlMaterialTextureSamples samples{};
@@ -215,6 +224,11 @@ __device__ __forceinline__ MdlMaterialTextureSamples makeMdlMaterialTextureSampl
     samples.ks = make_float3( 1.0f );
     samples.kr = make_float3( 1.0f );
     return samples;
+}
+
+__device__ __forceinline__ float mdlLuminance( const float3& color )
+{
+    return 0.2126f * color.x + 0.7152f * color.y + 0.0722f * color.z;
 }
 
 __device__ __forceinline__ float3 sampleMdlMaterialTexture( const MdlMaterialShader& shader, uint_t index, const float2& uv, bool& isResident )
@@ -236,6 +250,28 @@ __device__ __forceinline__ float3 sampleMdlMaterialTexture( const MdlMaterialSha
     }
 #endif
     const float4 texel = demandLoading::tex2D<float4>( params.demandContext, binding.textureId, uv.x, uv.y, &isResident );
+    return make_float3( texel.x, texel.y, texel.z ) * binding.scale + binding.bias;
+}
+
+__device__ __forceinline__ float3 sampleMdlMaterialTextureGrad( const MdlMaterialShader& shader,
+                                                                uint_t                   index,
+                                                                const float2&            uv,
+                                                                const float2&            ddx,
+                                                                const float2&            ddy,
+                                                                bool&                    isResident )
+{
+    const Params&                    params{ PARAMS_VAR_NAME };
+    const MdlMaterialTextureBinding& binding{ shader.textureBindings[index] };
+#ifndef NDEBUG
+    if( binding.textureId < params.minDiffuseTextureId || binding.textureId > params.maxDiffuseTextureId )
+    {
+        printf( "MDL material texture id %u out of range [%u, %u]\n", binding.textureId, params.minDiffuseTextureId,
+                params.maxDiffuseTextureId );
+        assert( binding.textureId >= params.minDiffuseTextureId && binding.textureId <= params.maxDiffuseTextureId );
+    }
+#endif
+    const float4 texel{
+        demandLoading::tex2DGrad<float4>( params.demandContext, binding.textureId, uv.x, uv.y, ddx, ddy, &isResident ) };
     return make_float3( texel.x, texel.y, texel.z ) * binding.scale + binding.bias;
 }
 
@@ -263,7 +299,7 @@ __device__ __forceinline__ bool sampleMdlMaterialTextures( const MdlMaterialShad
     samples = makeMdlMaterialTextureSamples();
     for( uint_t i = 0; i < shader.textureBindingCount && i < MDL_MATERIAL_TEXTURE_BINDING_COUNT; ++i )
     {
-        if( !hasMdlMaterialTexture( shader, i ) )
+        if( i == MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX || !hasMdlMaterialTexture( shader, i ) )
         {
             continue;
         }
@@ -277,6 +313,38 @@ __device__ __forceinline__ bool sampleMdlMaterialTextures( const MdlMaterialShad
         setMdlMaterialTextureSample( samples, i, value );
     }
     return true;
+}
+
+__device__ __forceinline__ bool sampleMdlBumpMap( const MdlMaterialShader& shader,
+                                                  const float2&            uv,
+                                                  const float2&            ddx,
+                                                  const float2&            ddy,
+                                                  float                    du,
+                                                  float                    dv,
+                                                  MdlBumpMapSamples&       samples,
+                                                  uint_t&                  nonResidentTextureId )
+{
+    if( !hasMdlMaterialTexture( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX ) )
+    {
+        return true;
+    }
+
+    bool resident{};
+    bool allResident{ true };
+    samples.height = mdlLuminance(
+        sampleMdlMaterialTextureGrad( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX, uv, ddx, ddy, resident ) );
+    allResident = allResident && resident;
+    samples.heightU = mdlLuminance( sampleMdlMaterialTextureGrad(
+        shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX, uv + make_float2( du, 0.0f ), ddx, ddy, resident ) );
+    allResident = allResident && resident;
+    samples.heightV = mdlLuminance( sampleMdlMaterialTextureGrad(
+        shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX, uv + make_float2( 0.0f, dv ), ddx, ddy, resident ) );
+    allResident = allResident && resident;
+    if( !allResident )
+    {
+        nonResidentTextureId = shader.textureBindings[MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX].textureId;
+    }
+    return allResident;
 }
 
 __device__ __forceinline__ float3 mdlDiffuseTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
@@ -540,6 +608,7 @@ extern "C" __global__ void __closesthit__mdlMesh()
     const bool                   hasDiffuseTexture{ hasAllocatedDiffuseMap( material ) };
     const bool                   useMdlDiffuseTexture{ hasMdlDiffuseTexture( shader ) && hasDiffuseTexture };
     const bool                   hasMaterialTextures{ hasMdlMaterialTextures( shader ) };
+    const TriangleUVs*           triangleUVs{};
     float2                       uv{};
     float                        worldSpaceTextureSize{};
     mi::neuraylib::tct_float3    textCoords[1]{};
@@ -559,9 +628,9 @@ extern "C" __global__ void __closesthit__mdlMesh()
             assert( instanceId < params.numInstanceUVs );
         }
 #endif
-        const TriangleUVs& triangleUVs{ getMdlTriangleUVArray( params.instanceUVs, instanceId )[optixGetPrimitiveIndex()] };
-        uv                    = interpolateMdlUVs( triangleUVs );
-        worldSpaceTextureSize = getWorldSpaceTextureSize( vertices, triangleUVs );
+        triangleUVs              = &getMdlTriangleUVArray( params.instanceUVs, instanceId )[optixGetPrimitiveIndex()];
+        uv                       = interpolateMdlUVs( *triangleUVs );
+        worldSpaceTextureSize    = getWorldSpaceTextureSize( vertices, *triangleUVs );
         textCoords[0]         = make_float3( uv.x, uv.y, 0.0f );
     }
 
@@ -582,10 +651,64 @@ extern "C" __global__ void __closesthit__mdlMesh()
         return;
     }
 
+    float3 shadingNormal{ worldNormal };
+    if( hasMdlMaterialTexture( shader, MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX ) )
+    {
+#ifndef NDEBUG
+        assert( triangleUVs != nullptr );
+#endif
+        float3 worldVertices[3];
+        float3 worldNormals[3] = { worldNormal, worldNormal, worldNormal };
+        float2 adjustedUVs[3];
+        for( uint_t i = 0; i < 3U; ++i )
+        {
+            worldVertices[i] = optixTransformPointFromObjectToWorldSpace( vertices[i] );
+            adjustedUVs[i]   = adjustMdlUV( triangleUVs->UV[i] );
+        }
+        if( params.instanceNormals != nullptr && params.instanceNormals[instanceId] != nullptr )
+        {
+            const TriangleNormals& normals{ params.instanceNormals[instanceId][optixGetPrimitiveIndex()] };
+            for( uint_t i = 0; i < 3U; ++i )
+            {
+                worldNormals[i] = otk::normalize( optixTransformNormalFromObjectToWorldSpace( normals.N[i] ) );
+                if( params.useFaceForward && optixIsBackFaceHit() )
+                {
+                    worldNormals[i] = -worldNormals[i];
+                }
+            }
+        }
+
+        const MdlBumpDifferentialGeometry geometry{ makeMdlBumpDifferentialGeometry( worldVertices, adjustedUVs, worldNormals ) };
+        float3                            dPdx{};
+        float3                            dPdy{};
+        const float rayConeWidth{ fabsf( prd->mdlRayConeWidth + prd->mdlRayConeAngle * rayT ) };
+        projectToRayDifferentialsOnSurface( rayConeWidth, rayDirection, worldNormal, dPdx, dPdy );
+        float2 ddx{};
+        float2 ddy{};
+        computeTexGradientsForTriangle( worldVertices[0], worldVertices[1], worldVertices[2], adjustedUVs[0], adjustedUVs[1],
+                                        adjustedUVs[2], dPdx, dPdy, ddx, ddy );
+        const float       du{ mdlBumpOffset( ddx.x, ddy.x ) };
+        const float       dv{ mdlBumpOffset( ddx.y, ddy.y ) };
+        MdlBumpMapSamples bumpSamples{};
+        if( !sampleMdlBumpMap( shader, uv, ddx, ddy, du, dv, bumpSamples, nonResidentTextureId ) )
+        {
+            setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, nonResidentTextureId, uv, worldSpaceTextureSize );
+            return;
+        }
+        const MdlBumpDifferentialGeometry bumpedGeometry{
+            applyMdlBumpMap( geometry, worldNormal, bumpSamples.height, bumpSamples.heightU, bumpSamples.heightV, du, dv ) };
+        shadingNormal = mdlBumpNormal( bumpedGeometry, worldNormal );
+        tangentU[0]   = otk::normalize( bumpedGeometry.dpdu );
+        tangentV[0]   = otk::normalize( bumpedGeometry.dpdv );
+    }
+    state.normal = shadingNormal;
+    prd->normal  = shadingNormal;
+    prd->color   = phongShade( material, shadingNormal, rayDirection );
+
     if( hasMdlBsdfCallables( shader ) && ( !hasDiffuseTexture || useMdlDiffuseTexture ) )
     {
         initializeMdlBsdf( shader, state, resourceData );
-        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, worldNormal, rayDirection, textureSamples ) );
+        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, shadingNormal, rayDirection, textureSamples ) );
         prd->hasDirectColor = true;
         prd->hasMdlBsdfSample = PARAMS_VAR_NAME.renderMode == RenderMode::PATH_TRACING
                                 && sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi,
@@ -598,7 +721,7 @@ extern "C" __global__ void __closesthit__mdlMesh()
         return;
     }
 
-    setMdlMaterialDiffuseTexturePayload( params, prd, material, worldNormal, vertices, instanceId, rayT );
+    setMdlMaterialDiffuseTexturePayload( params, prd, material, shadingNormal, vertices, instanceId, rayT );
 }
 
 }  // namespace demandPbrtScene

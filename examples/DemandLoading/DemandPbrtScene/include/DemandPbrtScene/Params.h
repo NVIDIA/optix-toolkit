@@ -26,6 +26,7 @@ constexpr uint_t MDL_MATERIAL_TEXTURE_BINDING_COUNT{ 4U };
 constexpr uint_t MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX{ 0U };
 constexpr uint_t MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX{ 1U };
 constexpr uint_t MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX{ 2U };
+constexpr uint_t MDL_MATERIAL_BUMPMAP_TEXTURE_BINDING_INDEX{ 3U };
 constexpr uint_t MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX{ MDL_MATERIAL_KD_TEXTURE_BINDING_INDEX };
 #endif
 
@@ -634,6 +635,8 @@ struct RayPayload
     bool                 hasDirectColor;
 #ifdef OTK_USE_MDL
     bool                 hasMdlBsdfSample;
+    float                mdlRayConeAngle;
+    float                mdlRayConeWidth;
     float4               mdlBsdfSampleXi;
     float3               mdlBsdfSampleDirection;
     float3               mdlBsdfSampleThroughput;

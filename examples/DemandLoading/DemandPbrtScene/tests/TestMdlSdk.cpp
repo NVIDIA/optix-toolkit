@@ -889,14 +889,15 @@ TEST( TestMdlSdk, compilesGeneratedMatteMaterialWithFoldedKdTexture )
     EXPECT_EQ( 0, session.shutdown() );
 }
 
-TEST( TestMdlSdk, compilesGeneratedBumpmapNormalExpression )
+TEST( TestMdlSdk, compilesGeneratedMaterialWithRuntimeBumpmap )
 {
     const otk::pbrt::PbrtMaterial              sourceMaterial{ matteMaterialWithBumpmap() };
     const demandPbrtScene::MdlShaderKey        key{ demandPbrtScene::makeMdlShaderKey( sourceMaterial ) };
     demandPbrtScene::MdlGeneratedSourceCache   sourceCache;
     const demandPbrtScene::GeneratedMdlSource& generated{ sourceCache.getSource( sourceMaterial ) };
-    EXPECT_THAT( generated.source, testing::HasSubstr( "normal: pbrt_bump_normal(pbrt_texture_float(texture_0()))" ) );
-    EXPECT_THAT( generated.source, testing::HasSubstr( "::state::texture_tangent_u(0)" ) );
+    EXPECT_THAT( generated.source, testing::Not( testing::HasSubstr( "pbrt_bump_normal" ) ) );
+    EXPECT_THAT( generated.source,
+                 testing::HasSubstr( "// pbrt material implementation: bumpmap is evaluated with runtime finite differences" ) );
     const std::string sourceDescription{ describeGeneratedSource( generated, key ) };
 
     MdlSdkSession session;

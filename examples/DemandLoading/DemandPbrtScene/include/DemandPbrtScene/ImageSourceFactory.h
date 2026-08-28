@@ -26,6 +26,8 @@ class ImageSourceFactory
 
     virtual std::shared_ptr<imageSource::ImageSource> createDiffuseImageFromFile( const std::string& path ) = 0;
 
+    virtual std::shared_ptr<imageSource::ImageSource> createLinearImageFromFile( const std::string& path, bool inverseSrgb ) = 0;
+
     virtual std::shared_ptr<imageSource::ImageSource> createAlphaImageFromFile( const std::string& path ) = 0;
 
     virtual std::shared_ptr<imageSource::ImageSource> createSkyboxImageFromFile( const std::string& path ) = 0;
