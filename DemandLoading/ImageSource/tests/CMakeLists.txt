@@ -12,6 +12,7 @@ otk_add_executable( testImageSource
   TestCascadeImage.cpp
   TestCheckerBoardImage.cpp
   TestImageSourceCache.cpp
+  TestInverseSrgbImageSource.cpp
   TestMipMapImageSource.cpp
   TestTiledImageSource.cpp
   ImageSourceTestConfig.h.in
