@@ -722,7 +722,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchCreatesSkyboxForInfiniteLightsInPa
     m_scene->beforeLaunch( m_stream, params );
 
     ASSERT_EQ( 1, params.numInfiniteLights );
-    m_expectedInfiniteLight.skyboxTextureId = textureId;
+    m_expectedInfiniteLight.skyboxTextureId = textureId + 1U;
     EXPECT_THAT( params.infiniteLights, hasDeviceInfiniteLight( m_expectedInfiniteLight ) );
 }
 

@@ -28,7 +28,14 @@ constexpr uint_t MDL_BSDF_INIT_CALLABLE_OFFSET{ 1U };
 constexpr uint_t MDL_BSDF_SAMPLE_CALLABLE_OFFSET{ 2U };
 constexpr uint_t MDL_BSDF_EVALUATE_CALLABLE_OFFSET{ 3U };
 constexpr uint_t MDL_BSDF_CALLABLE_COUNT{ 4U };
-constexpr float  DISPLAY_GAMMA{ 1.0f / 2.2f };
+
+constexpr float DISPLAY_GAMMA{ 1.0f / 2.2f };
+
+__device__ __forceinline__ float3 displayEncodeMdlColor( const float3& color )
+{
+    return make_float3( powf( fmaxf( color.x, 0.0f ), DISPLAY_GAMMA ), powf( fmaxf( color.y, 0.0f ), DISPLAY_GAMMA ),
+                        powf( fmaxf( color.z, 0.0f ), DISPLAY_GAMMA ) );
+}
 
 // Flip V because PBRT texture coordinate space has (0,0) at the lower left corner.
 __device__ __forceinline__ float2 adjustMdlUV( float2 uv )
@@ -51,6 +58,28 @@ __device__ __forceinline__ float3 makeMdlTangentU( const float3& normal )
 __device__ __forceinline__ float3 makeMdlTangentV( const float3& normal, const float3& tangentU )
 {
     return otk::normalize( otk::cross( normal, tangentU ) );
+}
+
+__device__ __forceinline__ float2 mdlSphericalUV( const float3& direction )
+{
+    constexpr float PI{ 3.141592729f };
+    float           phi{ atan2f( direction.y, direction.x ) };
+    if( phi < 0.0f )
+    {
+        phi += 2.0f * PI;
+    }
+    return make_float2( phi / ( 2.0f * PI ), acosf( otk::clamp( direction.z, -1.0f, 1.0f ) ) / PI );
+}
+
+__device__ __forceinline__ float3 sampleMdlCosineHemisphere( const float2& xi, const float3& normal, float& cosine )
+{
+    constexpr float PI{ 3.141592729f };
+    const float     radius{ sqrtf( xi.x ) };
+    const float     phi{ 2.0f * PI * xi.y };
+    const float3    tangentU{ makeMdlTangentU( normal ) };
+    const float3    tangentV{ makeMdlTangentV( normal, tangentU ) };
+    cosine = sqrtf( fmaxf( 0.0f, 1.0f - xi.x ) );
+    return radius * cosf( phi ) * tangentU + radius * sinf( phi ) * tangentV + cosine * normal;
 }
 
 __device__ __forceinline__ const TriangleUVs* getMdlTriangleUVArray( TriangleUVs** uvs, const uint_t index )
@@ -139,13 +168,6 @@ __device__ __forceinline__ bool hasMdlMaterialTextures( const MdlMaterialShader&
 __device__ __forceinline__ bool hasAllocatedDiffuseMap( const PhongMaterial& material )
 {
     return ( static_cast<uint_t>( material.flags ) & static_cast<uint_t>( MaterialFlags::DIFFUSE_MAP_ALLOCATED ) ) != 0U;
-}
-
-__device__ __forceinline__ float3 displayEncodeMdlColor( const float3& color )
-{
-    return make_float3( powf( fmaxf( color.x, 0.0f ), DISPLAY_GAMMA ),  //
-                        powf( fmaxf( color.y, 0.0f ), DISPLAY_GAMMA ),  //
-                        powf( fmaxf( color.z, 0.0f ), DISPLAY_GAMMA ) );
 }
 
 __device__ __forceinline__ float getWorldSpaceTextureSize( const float3 ( &vertices )[3], const TriangleUVs& uvs )
@@ -509,31 +531,14 @@ __device__ __forceinline__ float3 mdlGlossyTextureScale( const MdlMaterialShader
 {
     const bool hasKs{ hasMdlMaterialTexture( shader, MDL_MATERIAL_KS_TEXTURE_BINDING_INDEX ) };
     const bool hasKr{ hasMdlMaterialTexture( shader, MDL_MATERIAL_KR_TEXTURE_BINDING_INDEX ) };
-    if( hasKs && hasKr )
+    if( hasKs || hasKr )
     {
-        return ( samples.ks + samples.kr ) * 0.5f;
+        return mdlAverageOptionalTexturePair( hasKs, samples.ks, hasKr, samples.kr );
     }
-    if( hasKs )
-    {
-        return samples.ks;
-    }
-    if( hasKr )
-    {
-        return samples.kr;
-    }
-    if( hasMdlMixNamedKsTexture( shader ) && hasMdlMixNamedKrTexture( shader ) )
-    {
-        return ( mdlMixNamedKsTextureScale( shader, samples ) + mdlMixNamedKrTextureScale( shader, samples ) ) * 0.5f;
-    }
-    if( hasMdlMixNamedKsTexture( shader ) )
-    {
-        return mdlMixNamedKsTextureScale( shader, samples );
-    }
-    if( hasMdlMixNamedKrTexture( shader ) )
-    {
-        return mdlMixNamedKrTextureScale( shader, samples );
-    }
-    return make_float3( 1.0f );
+    const bool hasNamedKs{ hasMdlMixNamedKsTexture( shader ) };
+    const bool hasNamedKr{ hasMdlMixNamedKrTexture( shader ) };
+    return mdlAverageOptionalTexturePair( hasNamedKs, mdlMixNamedKsTextureScale( shader, samples ), hasNamedKr,
+                                          mdlMixNamedKrTextureScale( shader, samples ) );
 }
 
 __device__ __forceinline__ float3 mdlSpecularTextureScale( const MdlMaterialShader& shader, const MdlMaterialTextureSamples& samples )
@@ -618,8 +623,10 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
                                                 const mi::neuraylib::Resource_data&          resourceData,
                                                 const float3&                                worldNormal,
                                                 const float3&                                rayDirection,
-                                                const MdlMaterialTextureSamples&             textureSamples )
+                                                const MdlMaterialTextureSamples&             textureSamples,
+                                                const float2&                                environmentXi )
 {
+    constexpr float PI{ 3.141592729f };
     float3        result{};
     const float3  outgoing{ -rayDirection };
     const Params& params{ PARAMS_VAR_NAME };
@@ -629,14 +636,27 @@ __device__ __forceinline__ float3 shadeMdlBsdf( const MdlMaterialShader&        
         const DirectionalLight& light{ params.directionalLights[i] };
         result += evaluateMdlBsdf( shader, state, resourceData, outgoing, light.direction, textureSamples ) * light.color;
     }
-
     for( uint_t i = 0; i < params.numInfiniteLights; ++i )
     {
         const InfiniteLight& light{ params.infiniteLights[i] };
-        result +=
-            evaluateMdlBsdf( shader, state, resourceData, outgoing, worldNormal, textureSamples ) * light.color * light.scale;
+        float                cosine{};
+        const float3         incoming{ sampleMdlCosineHemisphere( environmentXi, worldNormal, cosine ) };
+        float3               radiance{ light.color * light.scale };
+        if( light.skyboxTextureId != 0U )
+        {
+            bool         isResident{};
+            const float2 environmentUV{ mdlSphericalUV( incoming ) };
+            const float4 texel{ demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId - 1U,
+                                                               environmentUV.x, environmentUV.y, &isResident ) };
+            if( !isResident )
+            {
+                continue;
+            }
+            radiance *= make_float3( texel.x, texel.y, texel.z );
+        }
+        result += evaluateMdlBsdf( shader, state, resourceData, outgoing, incoming, textureSamples ) * radiance
+                  * ( PI / fmaxf( cosine, 1.0e-6f ) );
     }
-
     return result;
 }
 
@@ -802,10 +822,12 @@ extern "C" __global__ void __closesthit__mdlMesh()
         textCoords[0]         = make_float3( uv.x, uv.y, 0.0f );
     }
 
-    optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-        shader.callableBaseIndex, &tint, &state, &resourceData, nullptr );
-
-    material.Kd = make_float3( tint.x, tint.y, tint.z );
+    if( params.renderMode == RenderMode::PATH_TRACING || !hasDiffuseTexture )
+    {
+        optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
+            shader.callableBaseIndex, &tint, &state, &resourceData, nullptr );
+        material.Kd = make_float3( tint.x, tint.y, tint.z );
+    }
 
     prd->materialCopy   = material;
     prd->color          = phongShade( material, worldNormal, rayDirection );
@@ -876,11 +898,11 @@ extern "C" __global__ void __closesthit__mdlMesh()
     if( hasMdlBsdfCallables( shader ) && ( !hasDiffuseTexture || useMdlDiffuseTexture ) )
     {
         initializeMdlBsdf( shader, state, resourceData );
-        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, shadingNormal, rayDirection, textureSamples ) );
+        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, shadingNormal, rayDirection, textureSamples,
+                                                         make_float2( prd->mdlBsdfSampleXi.z, prd->mdlBsdfSampleXi.w ) ) );
         prd->hasDirectColor = true;
-        prd->hasMdlBsdfSample = PARAMS_VAR_NAME.renderMode == RenderMode::PATH_TRACING
-                                && sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi,
-                                                  textureSamples, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
+        prd->hasMdlBsdfSample = sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi,
+                                               textureSamples, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
         return;
     }
 

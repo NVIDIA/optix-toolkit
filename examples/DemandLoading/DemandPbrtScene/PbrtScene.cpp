@@ -147,7 +147,7 @@ void PbrtScene::realizeInfiniteLights()
         // only one skybox texture supported
         if( !src.environmentMapName.empty() && first )
         {
-            dest.skyboxTextureId = m_demandTextureCache->createSkyboxTextureFromFile( src.environmentMapName );
+            dest.skyboxTextureId = m_demandTextureCache->createSkyboxTextureFromFile( src.environmentMapName ) + 1U;
             first                = false;
         }
     }

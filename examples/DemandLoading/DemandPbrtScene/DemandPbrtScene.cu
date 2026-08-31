@@ -417,7 +417,7 @@ extern "C" __global__ void __miss__backgroundColor()
             if( light.skyboxTextureId != 0 && first )
             {
                 const float2 uv = sphericalCoordFromRayDirection();
-                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId, uv.x, uv.y, &isResident );
+                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId - 1U, uv.x, uv.y, &isResident );
                 if( isResident )
                 {
                     background += light.color * light.scale * make_float3( texel.x, texel.y, texel.z );

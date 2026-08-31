@@ -39,6 +39,26 @@ if(OTK_USE_MDL)
         # Render generated MDL matte material with a demand-loaded diffuse texture
         pbrtImageTest(mdl-diffuse4 4 diffuse.pbrt RESOURCES mandelbrot-hue.png
             OPTIONS --use-mdl-materials --mdl-synchronous-compilation)
+
+        # Backstop mapped infinite lighting using the PBRT reference scenes.
+        add_image_test(DemandPbrtScene mdl-matte-infinite
+            FOLDER Examples/DemandLoading/Tests
+            ARGS
+                --bg=0/0/0
+                --dim=32x32
+                --warmup=16
+                ${resourceDir}/matte-infinite.pbrt
+                --use-mdl-materials
+                --mdl-synchronous-compilation)
+        add_image_test(DemandPbrtScene mdl-matte-distant-infinite
+            FOLDER Examples/DemandLoading/Tests
+            ARGS
+                --bg=0/0/0
+                --dim=32x32
+                --warmup=16
+                ${resourceDir}/matte-distant-infinite.pbrt
+                --use-mdl-materials
+                --mdl-synchronous-compilation)
     endif()
 endif()
 

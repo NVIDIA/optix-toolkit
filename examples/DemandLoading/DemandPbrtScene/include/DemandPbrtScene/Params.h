@@ -144,7 +144,7 @@ struct InfiniteLight
 {
     float3 color;            // color of the light
     float3 scale;            // scaling factor applied to value from texture
-    uint_t skyboxTextureId;  // non-zero if there is a skybox texture
+    uint_t skyboxTextureId;  // one greater than the texture ID, or zero if there is no skybox texture
 };
 
 inline bool operator==( const InfiniteLight& lhs, const InfiniteLight& rhs )

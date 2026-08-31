@@ -43,7 +43,7 @@ add_custom_target(DemandPbrtScenePbrtReferenceResources)
 set_property(TARGET DemandPbrtScenePbrtReferenceResources PROPERTY FOLDER Examples/DemandLoading/Tests)
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")
 source_group("PBRT Reference Images" REGULAR_EXPRESSION "gold-.*\\.png")
-source_group("Texture Images" REGULAR_EXPRESSION "(matte-imagemap|landscape-fixture-.*)\\.png")
+source_group("Texture Images" REGULAR_EXPRESSION "(matte-imagemap\\.png|matte-infinite\\.exr|landscape-fixture-.*\\.png)")
 
 foreach(material ${referenceMaterials})
     set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCES
@@ -53,6 +53,11 @@ foreach(material ${referenceMaterials})
 endforeach()
 set_property(TARGET DemandPbrtScenePbrtReferenceResources APPEND PROPERTY SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/matte-imagemap.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/matte-infinite.exr"
+    "${CMAKE_CURRENT_SOURCE_DIR}/matte-infinite.pbrt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gold-matte-infinite.png"
+    "${CMAKE_CURRENT_SOURCE_DIR}/matte-distant-infinite.pbrt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gold-matte-distant-infinite.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-albedo.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-alpha.png"
     "${CMAKE_CURRENT_SOURCE_DIR}/landscape-fixture-bump.png"
@@ -209,6 +214,20 @@ if(OTK_USE_MDL)
             RESOURCES matte-imagemap.png
             WARMUP 4
             TOLERANCE_REASON "Default tolerance, one-leaf mix imagemap Kd uses the affine sparse demand texture path")
+        add_pbrt_reference_image_test(matte-infinite
+            MATERIAL matte
+            SCENE matte-infinite.pbrt
+            RESOURCES matte-infinite.exr
+            WARMUP 16
+            DIFF_THRESHOLD 18
+            TOLERANCE_REASON "Single-sample environment tolerance, generated MDL matte evaluates a mapped infinite light through its BSDF callable")
+        add_pbrt_reference_image_test(matte-distant-infinite
+            MATERIAL matte
+            SCENE matte-distant-infinite.pbrt
+            RESOURCES matte-infinite.exr
+            WARMUP 16
+            DIFF_THRESHOLD 18
+            TOLERANCE_REASON "Single-sample environment tolerance, generated MDL matte adds distant and mapped infinite light contributions")
         add_pbrt_reference_image_test(landscape-uber-specular-textures
             MATERIAL uber
             SCENE landscape-uber-specular-textures.pbrt
