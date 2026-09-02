@@ -6,7 +6,7 @@
 
 #ifdef OTK_USE_MDL
 
-#include <mi/mdl_sdk.h>
+#include "DemandPbrtScene/MdlHandleTypes.h"
 
 #include <sstream>
 #include <stdexcept>
@@ -22,7 +22,7 @@ std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context
     std::ostringstream out;
     for( mi::Size i = 0; i < context->get_messages_count(); ++i )
     {
-        mi::base::Handle<const mi::neuraylib::IMessage> message( context->get_message( i ) );
+        MessageHandle message( context->get_message( i ) );
         if( message.is_valid_interface() )
             out << message->get_string() << '\n';
     }
@@ -90,10 +90,10 @@ MdlTargetArgumentBlock captureTargetArgumentBlock( const mi::neuraylib::ITarget_
         return MdlTargetArgumentBlock{};
     }
 
-    mi::base::Handle<const mi::neuraylib::ITarget_argument_block> argumentBlock( targetCode->get_argument_block( argumentBlockIndex ) );
+    TargetArgumentBlockHandle argumentBlock( targetCode->get_argument_block( argumentBlockIndex ) );
     requireMdlBsdfCompile( argumentBlock.is_valid_interface(), "MDL target code did not expose an argument block", context );
 
-    mi::base::Handle<const mi::neuraylib::ITarget_value_layout> layout( targetCode->get_argument_block_layout( argumentBlockIndex ) );
+    TargetValueLayoutHandle layout( targetCode->get_argument_block_layout( argumentBlockIndex ) );
     requireMdlBsdfCompile( layout.is_valid_interface(), "MDL target code did not expose an argument block layout", context );
 
     MdlTargetArgumentBlock result;
@@ -144,10 +144,10 @@ MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*        
                            "Cannot compile MDL BSDF callables without a base function "
                            "name" );
 
-    mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi( neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
+    BackendApiHandle backendApi( neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
     requireMdlBsdfCompile( backendApi.is_valid_interface(), "Failed to get MDL backend API" );
 
-    mi::base::Handle<mi::neuraylib::IMdl_backend> ptxBackend( backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
+    BackendHandle ptxBackend( backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
     requireMdlBsdfCompile( ptxBackend.is_valid_interface(), "Failed to get MDL CUDA PTX backend" );
     requireMdlBsdfCompile( ptxBackend->set_option( "sm_version", "50" ) == 0,
                            "Failed to set MDL CUDA PTX target architecture" );
@@ -158,7 +158,7 @@ MdlBsdfCallablePtx compileMdlBsdfCallablesToPtx( mi::neuraylib::INeuray*        
                            "Failed to restrict MDL BSDF visible functions" );
 
     context->clear_messages();
-    mi::base::Handle<const mi::neuraylib::ITarget_code> targetCode( ptxBackend->translate_material_df(
+    TargetCodeHandle targetCode( ptxBackend->translate_material_df(
         transaction, compiledMaterial, expressionPath.c_str(), baseFunctionName.c_str(), context ) );
     requireMdlBsdfCompile( targetCode.is_valid_interface(), "Failed to translate MDL BSDF to PTX", context );
     requireMdlBsdfCompile( targetCode->get_code_size() > 0U, "MDL generated empty BSDF PTX target code" );

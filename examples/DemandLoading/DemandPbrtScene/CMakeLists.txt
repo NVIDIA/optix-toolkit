@@ -43,6 +43,7 @@ if(OTK_USE_MDL)
         include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h
         include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h
+        include/DemandPbrtScene/MdlHandleTypes.h
         include/DemandPbrtScene/MdlSdkSession.h
         include/DemandPbrtScene/MdlShaderCache.h
         include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h

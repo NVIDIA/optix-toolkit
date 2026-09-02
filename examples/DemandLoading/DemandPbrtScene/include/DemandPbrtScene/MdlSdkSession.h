@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include <mi/mdl_sdk.h>
+#include "DemandPbrtScene/MdlHandleTypes.h"
 
 #include <memory>
 #include <string>
 
 namespace demandPbrtScene {
-
-using NeurayHandle = mi::base::Handle<mi::neuraylib::INeuray>;
 
 class MdlSdkSession
 {

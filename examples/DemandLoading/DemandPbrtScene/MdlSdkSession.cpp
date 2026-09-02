@@ -110,7 +110,7 @@ MdlSdkSession::MdlSdkSession()
     m_impl->neuray = mi::neuraylib::mi_factory<mi::neuraylib::INeuray>( symbol );
     if( !m_impl->neuray.is_valid_interface() )
     {
-        mi::base::Handle<const mi::neuraylib::IVersion> version( mi::neuraylib::mi_factory<mi::neuraylib::IVersion>( symbol ) );
+        VersionHandle version( mi::neuraylib::mi_factory<mi::neuraylib::IVersion>( symbol ) );
         m_impl->error = version.is_valid_interface() ? "MDL SDK library version does not match header version "
                                                           + std::string( MI_NEURAYLIB_PRODUCT_VERSION_STRING ) :
                                                       "MDL SDK library is incompatible with this header";

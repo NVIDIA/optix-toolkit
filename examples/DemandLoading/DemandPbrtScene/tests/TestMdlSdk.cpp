@@ -7,6 +7,7 @@
 #include "DemandPbrtScene/FourierBsdfTable.h"
 #include "DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h"
 #include "DemandPbrtScene/MdlBsdfCompiler.h"
+#include "DemandPbrtScene/MdlHandleTypes.h"
 #include "DemandPbrtScene/MdlSdkSession.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 
@@ -24,34 +25,34 @@ namespace {
 
 using demandPbrtScene::MdlSdkSession;
 
-using BackendApiHandle              = mi::base::Handle<mi::neuraylib::IMdl_backend_api>;
-using BackendHandle                 = mi::base::Handle<mi::neuraylib::IMdl_backend>;
-using BsdfMeasurementHandle         = mi::base::Handle<mi::neuraylib::IBsdf_measurement>;
-using ColorValueHandle              = mi::base::Handle<mi::neuraylib::IValue_color>;
-using CompiledMaterialHandle        = mi::base::Handle<mi::neuraylib::ICompiled_material>;
-using ConstColorValueHandle         = mi::base::Handle<const mi::neuraylib::IValue_color>;
-using ConstExpressionConstantHandle = mi::base::Handle<const mi::neuraylib::IExpression_constant>;
-using ConstExpressionHandle         = mi::base::Handle<const mi::neuraylib::IExpression>;
-using ConstFloatValueHandle         = mi::base::Handle<const mi::neuraylib::IValue_float>;
-using ConstStringHandle             = mi::base::Handle<const mi::IString>;
-using DatabaseHandle                = mi::base::Handle<mi::neuraylib::IDatabase>;
-using ExecutionContextHandle        = mi::base::Handle<mi::neuraylib::IMdl_execution_context>;
-using ExpressionConstantHandle      = mi::base::Handle<mi::neuraylib::IExpression_constant>;
-using ExpressionFactoryHandle       = mi::base::Handle<mi::neuraylib::IExpression_factory>;
-using FloatValueHandle              = mi::base::Handle<mi::neuraylib::IValue_float>;
-using FunctionCallHandle            = mi::base::Handle<mi::neuraylib::IFunction_call>;
-using FunctionDefinitionHandle      = mi::base::Handle<const mi::neuraylib::IFunction_definition>;
-using MaterialInstanceHandle        = mi::base::Handle<mi::neuraylib::IMaterial_instance>;
-using MdlFactoryHandle              = mi::base::Handle<mi::neuraylib::IMdl_factory>;
-using MdlImpexpApiHandle            = mi::base::Handle<mi::neuraylib::IMdl_impexp_api>;
-using MessageHandle                 = mi::base::Handle<const mi::neuraylib::IMessage>;
-using ModuleHandle                  = mi::base::Handle<const mi::neuraylib::IModule>;
-using ScopeHandle                   = mi::base::Handle<mi::neuraylib::IScope>;
-using TargetCodeHandle              = mi::base::Handle<const mi::neuraylib::ITarget_code>;
-using TransactionHandle             = mi::base::Handle<mi::neuraylib::ITransaction>;
-using TypeFactoryHandle             = mi::base::Handle<mi::neuraylib::IType_factory>;
-using TypeHandle                    = mi::base::Handle<const mi::neuraylib::IType>;
-using ValueFactoryHandle            = mi::base::Handle<mi::neuraylib::IValue_factory>;
+using demandPbrtScene::BackendApiHandle;
+using demandPbrtScene::BackendHandle;
+using demandPbrtScene::BsdfMeasurementHandle;
+using demandPbrtScene::ColorValueHandle;
+using demandPbrtScene::CompiledMaterialHandle;
+using demandPbrtScene::ConstColorValueHandle;
+using demandPbrtScene::ConstExpressionConstantHandle;
+using demandPbrtScene::ConstExpressionHandle;
+using demandPbrtScene::ConstFloatValueHandle;
+using demandPbrtScene::ConstStringHandle;
+using demandPbrtScene::DatabaseHandle;
+using demandPbrtScene::ExecutionContextHandle;
+using demandPbrtScene::ExpressionConstantHandle;
+using demandPbrtScene::ExpressionFactoryHandle;
+using demandPbrtScene::FloatValueHandle;
+using demandPbrtScene::FunctionCallHandle;
+using demandPbrtScene::FunctionDefinitionHandle;
+using demandPbrtScene::MaterialInstanceHandle;
+using demandPbrtScene::MdlFactoryHandle;
+using demandPbrtScene::MdlImpexpApiHandle;
+using demandPbrtScene::MessageHandle;
+using demandPbrtScene::ModuleHandle;
+using demandPbrtScene::ScopeHandle;
+using demandPbrtScene::TargetCodeHandle;
+using demandPbrtScene::TransactionHandle;
+using demandPbrtScene::TypeFactoryHandle;
+using demandPbrtScene::TypeHandle;
+using demandPbrtScene::ValueFactoryHandle;
 
 constexpr mi::Float32 PBRT_KD_RED       = 0.25f;
 constexpr mi::Float32 PBRT_KD_GREEN     = 0.50f;
