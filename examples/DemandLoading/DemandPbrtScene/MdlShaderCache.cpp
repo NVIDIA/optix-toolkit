@@ -5,6 +5,7 @@
 #include "DemandPbrtScene/MdlShaderCache.h"
 
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/PbrtMaterialKind.h"
 #include "DemandPbrtScene/PbrtCheckerboardImageSource.h"
 
 #include <algorithm>
@@ -645,9 +646,9 @@ std::string namedMaterialParameterName( unsigned int index, const std::string& p
 
 struct PbrtMaterialGapPolicy
 {
-    std::string type;
-    std::string policy;
-    std::string coverageReason;
+    PbrtMaterialKind kind;
+    std::string      policy;
+    std::string      coverageReason;
 };
 
 struct BoundParameterSpec
@@ -1038,21 +1039,21 @@ void appendMaterialParameter( MdlMaterialModel& model, const std::string& type, 
     model.parameters.push_back( MdlMaterialParameter{ type, name, defaultValue } );
 }
 
-const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( const std::string& type )
+const PbrtMaterialGapPolicy* explicitMaterialGapPolicy( PbrtMaterialKind kind )
 {
     static const PbrtMaterialGapPolicy policies[] = {
-        { "fourier", "unsupported with visible fallback",
+        { PbrtMaterialKind::FOURIER, "unsupported with visible fallback",
           "PBRT Fourier tables are data-driven BSDF resources found in the corpus; DemandPbrtScene preserves the "
           "resource metadata but does not yet evaluate the Fourier table on the GPU" },
-        { "hair", "unsupported with visible fallback",
+        { PbrtMaterialKind::HAIR, "unsupported with visible fallback",
           "low-frequency PBRT corpus material; no current target scene or reference fixture requires approximation" },
-        { "measured", "unsupported with visible fallback",
+        { PbrtMaterialKind::MEASURED, "unsupported with visible fallback",
           "PBRT parity completeness gap; current corpus sample did not find a target scene requiring support" },
     };
 
     for( const PbrtMaterialGapPolicy& policy : policies )
     {
-        if( policy.type == type )
+        if( policy.kind == kind )
         {
             return &policy;
         }
@@ -1271,41 +1272,43 @@ enum class BoundMaterialKind
 
 struct MaterialBoundParameterSpecs
 {
-    const char*         type;
+    PbrtMaterialKind    kind;
     BoundParameterSpecs root;
     BoundParameterSpecs named;
 };
 
 constexpr MaterialBoundParameterSpecs materialBoundParameterSpecs[] = {
-    { "matte", makeBoundParameterSpecs( matteParams ), makeBoundParameterSpecs( matteParams ) },
-    { "plastic", makeBoundParameterSpecs( plasticParams ), makeBoundParameterSpecs( plasticParams ) },
-    { "uber", makeBoundParameterSpecs( uberParams ), makeBoundParameterSpecs( namedUberParams ) },
-    { "mirror", makeBoundParameterSpecs( mirrorParams ), makeBoundParameterSpecs( mirrorParams ) },
-    { "glass", makeBoundParameterSpecs( glassParams ), makeBoundParameterSpecs( glassParams ) },
-    { "metal", makeBoundParameterSpecs( metalParams ), makeBoundParameterSpecs( metalParams ) },
-    { "substrate", makeBoundParameterSpecs( substrateParams ), makeBoundParameterSpecs( substrateParams ) },
-    { "translucent", makeBoundParameterSpecs( translucentParams ), makeBoundParameterSpecs( translucentParams ) },
-    { "subsurface", makeBoundParameterSpecs( subsurfaceParams ), {} },
-    { "kdsubsurface", makeBoundParameterSpecs( kdSubsurfaceParams ), {} },
-    { "mix", makeBoundParameterSpecs( mixParams ), {} },
+    { PbrtMaterialKind::MATTE, makeBoundParameterSpecs( matteParams ), makeBoundParameterSpecs( matteParams ) },
+    { PbrtMaterialKind::PLASTIC, makeBoundParameterSpecs( plasticParams ), makeBoundParameterSpecs( plasticParams ) },
+    { PbrtMaterialKind::UBER, makeBoundParameterSpecs( uberParams ), makeBoundParameterSpecs( namedUberParams ) },
+    { PbrtMaterialKind::MIRROR, makeBoundParameterSpecs( mirrorParams ), makeBoundParameterSpecs( mirrorParams ) },
+    { PbrtMaterialKind::GLASS, makeBoundParameterSpecs( glassParams ), makeBoundParameterSpecs( glassParams ) },
+    { PbrtMaterialKind::METAL, makeBoundParameterSpecs( metalParams ), makeBoundParameterSpecs( metalParams ) },
+    { PbrtMaterialKind::SUBSTRATE, makeBoundParameterSpecs( substrateParams ), makeBoundParameterSpecs( substrateParams ) },
+    { PbrtMaterialKind::TRANSLUCENT, makeBoundParameterSpecs( translucentParams ),
+      makeBoundParameterSpecs( translucentParams ) },
+    { PbrtMaterialKind::SUBSURFACE, makeBoundParameterSpecs( subsurfaceParams ), {} },
+    { PbrtMaterialKind::KD_SUBSURFACE, makeBoundParameterSpecs( kdSubsurfaceParams ), {} },
+    { PbrtMaterialKind::MIX, makeBoundParameterSpecs( mixParams ), {} },
 };
 
-BoundParameterSpecs boundParameterSpecs( const std::string& type, BoundMaterialKind kind )
+BoundParameterSpecs boundParameterSpecs( PbrtMaterialKind materialKind, BoundMaterialKind boundKind )
 {
     for( const MaterialBoundParameterSpecs& specs : materialBoundParameterSpecs )
     {
-        if( type == specs.type )
+        if( materialKind == specs.kind )
         {
-            return kind == BoundMaterialKind::ROOT ? specs.root : specs.named;
+            return boundKind == BoundMaterialKind::ROOT ? specs.root : specs.named;
         }
     }
     return {};
 }
 
 void appendRootMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
-                                        const otk::pbrt::PbrtMaterial&           material )
+                                         const otk::pbrt::PbrtMaterial&           material,
+                                         PbrtMaterialKind                         kind )
 {
-    const BoundParameterSpecs specs{ boundParameterSpecs( material.type, BoundMaterialKind::ROOT ) };
+    const BoundParameterSpecs specs{ boundParameterSpecs( kind, BoundMaterialKind::ROOT ) };
     appendMaterialBoundParameters( result, material, specs.begin, specs.end );
 }
 
@@ -1326,15 +1329,16 @@ void appendNamedMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>&
         return;
     }
 
-    const std::string        type{ namedMaterialType( namedMaterial->second ) };
-    const BoundParameterSpecs specs{ boundParameterSpecs( type, BoundMaterialKind::NAMED ) };
+    const PbrtMaterialKind   kind{ pbrtMaterialKind( namedMaterialType( namedMaterial->second ) ) };
+    const BoundParameterSpecs specs{ boundParameterSpecs( kind, BoundMaterialKind::NAMED ) };
     appendNamedBoundParameters( result, namedMaterial->second.params, index, specs.begin, specs.end );
 }
 
 void appendNamedMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
-                                         const otk::pbrt::PbrtMaterial&           material )
+                                          const otk::pbrt::PbrtMaterial&           material,
+                                          PbrtMaterialKind                         kind )
 {
-    if( material.type != "mix" )
+    if( kind != PbrtMaterialKind::MIX )
     {
         return;
     }
@@ -1657,45 +1661,33 @@ std::string namedMaterialBsdfExpression( MdlMaterialModel&                   mod
                                          const otk::pbrt::PbrtNamedMaterial& material,
                                          unsigned int                        index )
 {
-    const std::string type{ namedMaterialType( material ) };
-    const std::string typeComment{ type.empty() ? std::string{ "<empty>" } : type };
+    const std::string      type{ namedMaterialType( material ) };
+    const PbrtMaterialKind kind{ pbrtMaterialKind( type ) };
+    const std::string      typeComment{ type.empty() ? std::string{ "<empty>" } : type };
     model.comments.push_back( "pbrt named material " + std::to_string( index ) + " model: " + typeComment );
 
-    if( type == "matte" )
+    switch( kind )
     {
-        return namedMaterialMatteBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::MATTE:
+            return namedMaterialMatteBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::PLASTIC:
+            return namedMaterialPlasticBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::SUBSTRATE:
+            return namedMaterialSubstrateBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::UBER:
+            return namedMaterialUberBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::MIRROR:
+            return namedMaterialMirrorBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::GLASS:
+            return namedMaterialGlassBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::METAL:
+            return namedMaterialMetalBsdfExpression( model, textureGraph, material, index );
+        case PbrtMaterialKind::TRANSLUCENT:
+            return namedMaterialTranslucentBsdfExpression( model, textureGraph, material, index );
+        default:
+            appendUnsupportedReason( result, "Unsupported PBRT named material type " + typeComment );
+            return unsupportedNamedMaterialBsdfExpression();
     }
-    if( type == "plastic" )
-    {
-        return namedMaterialPlasticBsdfExpression( model, textureGraph, material, index );
-    }
-    if( type == "substrate" )
-    {
-        return namedMaterialSubstrateBsdfExpression( model, textureGraph, material, index );
-    }
-    if( type == "uber" )
-    {
-        return namedMaterialUberBsdfExpression( model, textureGraph, material, index );
-    }
-    if( type == "mirror" )
-    {
-        return namedMaterialMirrorBsdfExpression( model, textureGraph, material, index );
-    }
-    if( type == "glass" )
-    {
-        return namedMaterialGlassBsdfExpression( model, textureGraph, material, index );
-    }
-    if( type == "metal" )
-    {
-        return namedMaterialMetalBsdfExpression( model, textureGraph, material, index );
-    }
-    if( type == "translucent" )
-    {
-        return namedMaterialTranslucentBsdfExpression( model, textureGraph, material, index );
-    }
-
-    appendUnsupportedReason( result, "Unsupported PBRT named material type " + typeComment );
-    return unsupportedNamedMaterialBsdfExpression();
 }
 
 MdlMaterialModel makeMatteMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph )
@@ -2263,19 +2255,21 @@ MdlMaterialModel makeMixMaterialModel( const otk::pbrt::PbrtMaterial& material, 
     return model;
 }
 
-MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& material, GeneratedMdlSource& result )
+MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& material,
+                                               PbrtMaterialKind                kind,
+                                               GeneratedMdlSource&            result )
 {
     const std::string type{ material.type.empty() ? std::string{ "<empty>" } : material.type };
 
     MdlMaterialModel model;
     model.comments.push_back( "pbrt material model: " + type );
-    const PbrtMaterialGapPolicy* const policy{ explicitMaterialGapPolicy( material.type ) };
+    const PbrtMaterialGapPolicy* const policy{ explicitMaterialGapPolicy( kind ) };
     if( policy != nullptr )
     {
         model.comments.push_back( "pbrt material gap policy: " + policy->policy );
         model.comments.push_back( "pbrt material gap coverage: " + policy->coverageReason );
         appendUnsupportedReason( result, "Explicit PBRT material gap " + type + ": " + policy->policy );
-        if( material.type == "fourier" )
+        if( kind == PbrtMaterialKind::FOURIER )
         {
             if( hasFourierBsdfFile( material ) )
             {
@@ -2302,51 +2296,34 @@ MdlMaterialModel makeUnsupportedMaterialModel( const otk::pbrt::PbrtMaterial& ma
 
 MdlMaterialModel makeMaterialModel( const otk::pbrt::PbrtMaterial& material, MdlTextureGraphGenerator& textureGraph, GeneratedMdlSource& result )
 {
-    if( material.type == "matte" )
+    const PbrtMaterialKind kind{ pbrtMaterialKind( material.type ) };
+    switch( kind )
     {
-        return makeMatteMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::MATTE:
+            return makeMatteMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::PLASTIC:
+            return makePlasticMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::UBER:
+            return makeUberMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::MIRROR:
+            return makeMirrorMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::GLASS:
+            return makeGlassMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::METAL:
+            return makeMetalMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::SUBSTRATE:
+            return makeSubstrateMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::TRANSLUCENT:
+            return makeTranslucentMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::SUBSURFACE:
+            return makeSubsurfaceMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::KD_SUBSURFACE:
+            return makeKdSubsurfaceMaterialModel( material, textureGraph );
+        case PbrtMaterialKind::MIX:
+            return makeMixMaterialModel( material, textureGraph, result );
+        default:
+            return makeUnsupportedMaterialModel( material, kind, result );
     }
-    if( material.type == "plastic" )
-    {
-        return makePlasticMaterialModel( material, textureGraph );
-    }
-    if( material.type == "uber" )
-    {
-        return makeUberMaterialModel( material, textureGraph );
-    }
-    if( material.type == "mirror" )
-    {
-        return makeMirrorMaterialModel( material, textureGraph );
-    }
-    if( material.type == "glass" )
-    {
-        return makeGlassMaterialModel( material, textureGraph );
-    }
-    if( material.type == "metal" )
-    {
-        return makeMetalMaterialModel( material, textureGraph );
-    }
-    if( material.type == "substrate" )
-    {
-        return makeSubstrateMaterialModel( material, textureGraph );
-    }
-    if( material.type == "translucent" )
-    {
-        return makeTranslucentMaterialModel( material, textureGraph );
-    }
-    if( material.type == "subsurface" )
-    {
-        return makeSubsurfaceMaterialModel( material, textureGraph );
-    }
-    if( material.type == "kdsubsurface" )
-    {
-        return makeKdSubsurfaceMaterialModel( material, textureGraph );
-    }
-    if( material.type == "mix" )
-    {
-        return makeMixMaterialModel( material, textureGraph, result );
-    }
-    return makeUnsupportedMaterialModel( material, result );
 }
 
 GeneratedMdlSource generateSource( const MdlShaderKey& key )
@@ -2463,8 +2440,9 @@ MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial
 std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk::pbrt::PbrtMaterial& material )
 {
     std::vector<MdlBoundMaterialParameter> result;
-    appendRootMaterialBoundParameters( result, material );
-    appendNamedMaterialBoundParameters( result, material );
+    const PbrtMaterialKind                 kind{ pbrtMaterialKind( material.type ) };
+    appendRootMaterialBoundParameters( result, material, kind );
+    appendNamedMaterialBoundParameters( result, material, kind );
     return result;
 }
 
