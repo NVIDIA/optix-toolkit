@@ -385,9 +385,9 @@ bool isDirectGeneratedMdlDemandTexture( const PbrtDemandTextureBinding& binding 
     return hasPbrtDemandTextureBinding( binding ) && !binding.transformed;
 }
 
-PbrtDemandTextureBinding generatedMdlNamedMaterialRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& parent,
-                                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial,
-                                                                         const MdlTexturePolicy& policy )
+PbrtDemandTextureBinding namedRuntimeBinding( const otk::pbrt::PbrtMaterial&      parent,
+                                              const otk::pbrt::PbrtNamedMaterial& namedMaterial,
+                                              const MdlTexturePolicy&             policy )
 {
     const otk::pbrt::PbrtMaterial  material{ generatedMdlMaterialForNamedMaterial( parent, namedMaterial ) };
     const PbrtDemandTextureBinding binding{ generatedMdlTextureBinding( material, policy ) };
@@ -418,20 +418,19 @@ PbrtDemandTextureBinding generatedMdlNamedMaterialRuntimeTextureBinding( const o
     return pbrtDemandTextureBinding();
 }
 
-PbrtDemandTextureBinding generatedMdlNamedMaterialRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& parent,
-                                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial,
-                                                                         const std::string& paramName )
+PbrtDemandTextureBinding namedRuntimeBinding( const otk::pbrt::PbrtMaterial&      parent,
+                                              const otk::pbrt::PbrtNamedMaterial& namedMaterial,
+                                              const std::string&                  paramName )
 {
     const MdlTexturePolicy* const policy{ mdlTexturePolicy( paramName ) };
-    return policy ? generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, *policy ) :
-                    pbrtDemandTextureBinding();
+    return policy ? namedRuntimeBinding( parent, namedMaterial, *policy ) : pbrtDemandTextureBinding();
 }
 
 bool hasGeneratedMdlNamedMaterialRuntimeTextureBinding( const otk::pbrt::PbrtMaterial&      parent,
                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial,
                                                         const MdlTexturePolicy&             policy )
 {
-    return hasPbrtDemandTextureBinding( generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, policy ) );
+    return hasPbrtDemandTextureBinding( namedRuntimeBinding( parent, namedMaterial, policy ) );
 }
 
 bool supportsGeneratedMdlNamedMaterialTextureReference( const otk::pbrt::PbrtMaterial&      parent,
@@ -451,8 +450,7 @@ bool supportsGeneratedMdlNamedMaterialTextureReference( const otk::pbrt::PbrtMat
     return hasGeneratedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, policy );
 }
 
-bool supportsGeneratedMdlNamedMaterialTextureReferences( const otk::pbrt::PbrtMaterial&      parent,
-                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial )
+bool supportsNamedTextures( const otk::pbrt::PbrtMaterial& parent, const otk::pbrt::PbrtNamedMaterial& namedMaterial )
 {
     for( const MdlTexturePolicy& policy : MDL_TEXTURE_POLICIES )
     {
@@ -479,7 +477,7 @@ bool supportsGeneratedMdlNamedMaterialReference( const otk::pbrt::PbrtMaterial& 
     }
 
     return supportsGeneratedMdlNamedMaterialType( generatedMdlNamedMaterialType( namedMaterial->second ) )
-           && supportsGeneratedMdlNamedMaterialTextureReferences( material, namedMaterial->second );
+           && supportsNamedTextures( material, namedMaterial->second );
 }
 
 bool supportsGeneratedMdlNamedMaterialReferences( const otk::pbrt::PbrtMaterial& material )
@@ -760,7 +758,7 @@ PbrtDemandTextureBinding generatedMdlNamedMaterialAlphaCutoutBinding( const otk:
 {
     for( const char* const paramName : { "alpha", "shadowalpha", "opacity" } )
     {
-        const PbrtDemandTextureBinding binding{ generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, paramName ) };
+        const PbrtDemandTextureBinding binding{ namedRuntimeBinding( parent, namedMaterial, paramName ) };
         if( hasPbrtDemandTextureBinding( binding ) )
         {
             return binding;
@@ -807,7 +805,7 @@ void createGeneratedMdlNamedMaterialTextureBinding( MaterialGroup&              
                                                     uint_t                              offset )
 {
     createGeneratedMdlTextureBinding( group, sync, demandTextureCache,
-                                      generatedMdlNamedMaterialRuntimeTextureBinding( *group.pbrtMaterial, namedMaterial, paramName ),
+                                      namedRuntimeBinding( *group.pbrtMaterial, namedMaterial, paramName ),
                                       generatedMdlMixNamedMaterialTextureBindingIndex( namedMaterialIndex, offset ) );
 }
 
