@@ -1185,6 +1185,164 @@ std::string namedMaterialType( const otk::pbrt::PbrtNamedMaterial& material )
     return material.params.FindOneString( "type", std::string{} );
 }
 
+constexpr BoundParameterSpec matteParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },
+    { MdlBoundParameterType::FLOAT, "sigma" },
+    { MdlBoundParameterType::FLOAT, "alpha" },
+    { MdlBoundParameterType::FLOAT, "opacity" },
+};
+constexpr BoundParameterSpec plasticParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },
+    { MdlBoundParameterType::COLOR, "Ks" },
+    { MdlBoundParameterType::FLOAT, "roughness" },
+};
+constexpr BoundParameterSpec uberParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
+    { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+    { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+    { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "index" },
+    { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::COLOR, "opacity" },
+};
+constexpr BoundParameterSpec namedUberParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
+    { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+    { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+    { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "alpha" },
+    { MdlBoundParameterType::FLOAT, "opacity" },
+};
+constexpr BoundParameterSpec mirrorParams[] = {
+    { MdlBoundParameterType::COLOR, "Kr" },
+};
+constexpr BoundParameterSpec glassParams[] = {
+    { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+    { MdlBoundParameterType::FLOAT, "index" },      { MdlBoundParameterType::FLOAT, "roughness" },
+    { MdlBoundParameterType::FLOAT, "uroughness" }, { MdlBoundParameterType::FLOAT, "vroughness" },
+};
+constexpr BoundParameterSpec metalParams[] = {
+    { MdlBoundParameterType::COLOR, "eta" },        { MdlBoundParameterType::COLOR, "k" },
+    { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+    { MdlBoundParameterType::FLOAT, "vroughness" },
+};
+constexpr BoundParameterSpec substrateParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
+    { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
+    { MdlBoundParameterType::FLOAT, "vroughness" },
+};
+constexpr BoundParameterSpec translucentParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },        { MdlBoundParameterType::COLOR, "Ks" },
+    { MdlBoundParameterType::COLOR, "reflect" },   { MdlBoundParameterType::COLOR, "transmit" },
+    { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::COLOR, "opacity" },
+};
+constexpr BoundParameterSpec subsurfaceParams[] = {
+    { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
+    { MdlBoundParameterType::COLOR, "sigma_a" },    { MdlBoundParameterType::COLOR, "sigma_s" },
+    { MdlBoundParameterType::FLOAT, "scale" },      { MdlBoundParameterType::FLOAT, "g" },
+    { MdlBoundParameterType::FLOAT, "eta" },        { MdlBoundParameterType::FLOAT, "uroughness" },
+    { MdlBoundParameterType::FLOAT, "vroughness" },
+};
+constexpr BoundParameterSpec kdSubsurfaceParams[] = {
+    { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Kr" },
+    { MdlBoundParameterType::COLOR, "Kt" },         { MdlBoundParameterType::COLOR, "mfp" },
+    { MdlBoundParameterType::FLOAT, "scale" },      { MdlBoundParameterType::FLOAT, "g" },
+    { MdlBoundParameterType::FLOAT, "eta" },        { MdlBoundParameterType::FLOAT, "uroughness" },
+    { MdlBoundParameterType::FLOAT, "vroughness" },
+};
+constexpr BoundParameterSpec mixParams[] = {
+    { MdlBoundParameterType::COLOR, "amount" },
+};
+
+struct BoundParameterSpecs
+{
+    const BoundParameterSpec* begin{};
+    const BoundParameterSpec* end{};
+};
+
+template <std::size_t N>
+constexpr BoundParameterSpecs makeBoundParameterSpecs( const BoundParameterSpec ( &specs )[N] )
+{
+    return { specs, specs + N };
+}
+
+enum class BoundMaterialKind
+{
+    ROOT,
+    NAMED,
+};
+
+struct MaterialBoundParameterSpecs
+{
+    const char*         type;
+    BoundParameterSpecs root;
+    BoundParameterSpecs named;
+};
+
+constexpr MaterialBoundParameterSpecs materialBoundParameterSpecs[] = {
+    { "matte", makeBoundParameterSpecs( matteParams ), makeBoundParameterSpecs( matteParams ) },
+    { "plastic", makeBoundParameterSpecs( plasticParams ), makeBoundParameterSpecs( plasticParams ) },
+    { "uber", makeBoundParameterSpecs( uberParams ), makeBoundParameterSpecs( namedUberParams ) },
+    { "mirror", makeBoundParameterSpecs( mirrorParams ), makeBoundParameterSpecs( mirrorParams ) },
+    { "glass", makeBoundParameterSpecs( glassParams ), makeBoundParameterSpecs( glassParams ) },
+    { "metal", makeBoundParameterSpecs( metalParams ), makeBoundParameterSpecs( metalParams ) },
+    { "substrate", makeBoundParameterSpecs( substrateParams ), makeBoundParameterSpecs( substrateParams ) },
+    { "translucent", makeBoundParameterSpecs( translucentParams ), makeBoundParameterSpecs( translucentParams ) },
+    { "subsurface", makeBoundParameterSpecs( subsurfaceParams ), {} },
+    { "kdsubsurface", makeBoundParameterSpecs( kdSubsurfaceParams ), {} },
+    { "mix", makeBoundParameterSpecs( mixParams ), {} },
+};
+
+BoundParameterSpecs boundParameterSpecs( const std::string& type, BoundMaterialKind kind )
+{
+    for( const MaterialBoundParameterSpecs& specs : materialBoundParameterSpecs )
+    {
+        if( type == specs.type )
+        {
+            return kind == BoundMaterialKind::ROOT ? specs.root : specs.named;
+        }
+    }
+    return {};
+}
+
+void appendRootMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
+                                        const otk::pbrt::PbrtMaterial&           material )
+{
+    const BoundParameterSpecs specs{ boundParameterSpecs( material.type, BoundMaterialKind::ROOT ) };
+    appendMaterialBoundParameters( result, material, specs.begin, specs.end );
+}
+
+void appendNamedMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
+                                         const otk::pbrt::PbrtMaterial&           material,
+                                         const std::string&                       paramName,
+                                         unsigned int                             index )
+{
+    const std::string materialName{ material.params.FindOneString( paramName, std::string{} ) };
+    if( materialName.empty() )
+    {
+        return;
+    }
+
+    const otk::pbrt::PbrtNamedMaterialMap::const_iterator namedMaterial = material.graph.namedMaterials.find( materialName );
+    if( namedMaterial == material.graph.namedMaterials.end() )
+    {
+        return;
+    }
+
+    const std::string        type{ namedMaterialType( namedMaterial->second ) };
+    const BoundParameterSpecs specs{ boundParameterSpecs( type, BoundMaterialKind::NAMED ) };
+    appendNamedBoundParameters( result, namedMaterial->second.params, index, specs.begin, specs.end );
+}
+
+void appendNamedMaterialBoundParameters( std::vector<MdlBoundMaterialParameter>& result,
+                                         const otk::pbrt::PbrtMaterial&           material )
+{
+    if( material.type != "mix" )
+    {
+        return;
+    }
+
+    appendNamedMaterialBoundParameters( result, material, "namedmaterial1", 0U );
+    appendNamedMaterialBoundParameters( result, material, "namedmaterial2", 1U );
+}
+
 std::string namedMaterialMatteBsdfExpression( MdlMaterialModel&                   model,
                                               MdlTextureGraphGenerator&           textureGraph,
                                               const otk::pbrt::PbrtNamedMaterial& material,
@@ -2304,175 +2462,9 @@ MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial
 
 std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk::pbrt::PbrtMaterial& material )
 {
-    static const BoundParameterSpec matteParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },
-        { MdlBoundParameterType::FLOAT, "sigma" },
-        { MdlBoundParameterType::FLOAT, "alpha" },
-        { MdlBoundParameterType::FLOAT, "opacity" },
-    };
-    static const BoundParameterSpec plasticParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },
-        { MdlBoundParameterType::COLOR, "Ks" },
-        { MdlBoundParameterType::FLOAT, "roughness" },
-    };
-    static const BoundParameterSpec uberParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
-        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
-        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
-        { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "index" },
-        { MdlBoundParameterType::FLOAT, "alpha" },      { MdlBoundParameterType::COLOR, "opacity" },
-    };
-    static const BoundParameterSpec namedUberParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
-        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
-        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
-        { MdlBoundParameterType::FLOAT, "vroughness" }, { MdlBoundParameterType::FLOAT, "alpha" },
-        { MdlBoundParameterType::FLOAT, "opacity" },
-    };
-    static const BoundParameterSpec mirrorParams[] = {
-        { MdlBoundParameterType::COLOR, "Kr" },
-    };
-    static const BoundParameterSpec glassParams[] = {
-        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
-        { MdlBoundParameterType::FLOAT, "index" },      { MdlBoundParameterType::FLOAT, "roughness" },
-        { MdlBoundParameterType::FLOAT, "uroughness" }, { MdlBoundParameterType::FLOAT, "vroughness" },
-    };
-    static const BoundParameterSpec metalParams[] = {
-        { MdlBoundParameterType::COLOR, "eta" },        { MdlBoundParameterType::COLOR, "k" },
-        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
-        { MdlBoundParameterType::FLOAT, "vroughness" },
-    };
-    static const BoundParameterSpec substrateParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Ks" },
-        { MdlBoundParameterType::FLOAT, "roughness" },  { MdlBoundParameterType::FLOAT, "uroughness" },
-        { MdlBoundParameterType::FLOAT, "vroughness" },
-    };
-    static const BoundParameterSpec translucentParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },        { MdlBoundParameterType::COLOR, "Ks" },
-        { MdlBoundParameterType::COLOR, "reflect" },   { MdlBoundParameterType::COLOR, "transmit" },
-        { MdlBoundParameterType::FLOAT, "roughness" }, { MdlBoundParameterType::COLOR, "opacity" },
-    };
-    static const BoundParameterSpec subsurfaceParams[] = {
-        { MdlBoundParameterType::COLOR, "Kr" },         { MdlBoundParameterType::COLOR, "Kt" },
-        { MdlBoundParameterType::COLOR, "sigma_a" },    { MdlBoundParameterType::COLOR, "sigma_s" },
-        { MdlBoundParameterType::FLOAT, "scale" },      { MdlBoundParameterType::FLOAT, "g" },
-        { MdlBoundParameterType::FLOAT, "eta" },        { MdlBoundParameterType::FLOAT, "uroughness" },
-        { MdlBoundParameterType::FLOAT, "vroughness" },
-    };
-    static const BoundParameterSpec kdSubsurfaceParams[] = {
-        { MdlBoundParameterType::COLOR, "Kd" },         { MdlBoundParameterType::COLOR, "Kr" },
-        { MdlBoundParameterType::COLOR, "Kt" },         { MdlBoundParameterType::COLOR, "mfp" },
-        { MdlBoundParameterType::FLOAT, "scale" },      { MdlBoundParameterType::FLOAT, "g" },
-        { MdlBoundParameterType::FLOAT, "eta" },        { MdlBoundParameterType::FLOAT, "uroughness" },
-        { MdlBoundParameterType::FLOAT, "vroughness" },
-    };
-    static const BoundParameterSpec mixParams[] = {
-        { MdlBoundParameterType::COLOR, "amount" },
-    };
-
     std::vector<MdlBoundMaterialParameter> result;
-    const auto appendNamedMaterialParameters = [&]( const std::string& paramName, unsigned int index ) {
-        const std::string materialName{ material.params.FindOneString( paramName, std::string{} ) };
-        if( materialName.empty() )
-        {
-            return;
-        }
-
-        const otk::pbrt::PbrtNamedMaterialMap::const_iterator namedMaterial = material.graph.namedMaterials.find( materialName );
-        if( namedMaterial == material.graph.namedMaterials.end() )
-        {
-            return;
-        }
-
-        const std::string type{ namedMaterialType( namedMaterial->second ) };
-        if( type == "matte" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( matteParams ),
-                                        std::end( matteParams ) );
-        }
-        else if( type == "plastic" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( plasticParams ),
-                                        std::end( plasticParams ) );
-        }
-        else if( type == "uber" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( namedUberParams ),
-                                        std::end( namedUberParams ) );
-        }
-        else if( type == "mirror" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( mirrorParams ),
-                                        std::end( mirrorParams ) );
-        }
-        else if( type == "glass" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( glassParams ),
-                                        std::end( glassParams ) );
-        }
-        else if( type == "metal" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( metalParams ),
-                                        std::end( metalParams ) );
-        }
-        else if( type == "substrate" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( substrateParams ),
-                                        std::end( substrateParams ) );
-        }
-        else if( type == "translucent" )
-        {
-            appendNamedBoundParameters( result, namedMaterial->second.params, index, std::begin( translucentParams ),
-                                        std::end( translucentParams ) );
-        }
-    };
-
-    if( material.type == "matte" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( matteParams ), std::end( matteParams ) );
-    }
-    else if( material.type == "plastic" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( plasticParams ), std::end( plasticParams ) );
-    }
-    else if( material.type == "uber" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( uberParams ), std::end( uberParams ) );
-    }
-    else if( material.type == "mirror" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( mirrorParams ), std::end( mirrorParams ) );
-    }
-    else if( material.type == "glass" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( glassParams ), std::end( glassParams ) );
-    }
-    else if( material.type == "metal" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( metalParams ), std::end( metalParams ) );
-    }
-    else if( material.type == "substrate" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( substrateParams ), std::end( substrateParams ) );
-    }
-    else if( material.type == "translucent" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( translucentParams ), std::end( translucentParams ) );
-    }
-    else if( material.type == "subsurface" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( subsurfaceParams ), std::end( subsurfaceParams ) );
-    }
-    else if( material.type == "kdsubsurface" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( kdSubsurfaceParams ), std::end( kdSubsurfaceParams ) );
-    }
-    else if( material.type == "mix" )
-    {
-        appendMaterialBoundParameters( result, material, std::begin( mixParams ), std::end( mixParams ) );
-        appendNamedMaterialParameters( "namedmaterial1", 0U );
-        appendNamedMaterialParameters( "namedmaterial2", 1U );
-    }
+    appendRootMaterialBoundParameters( result, material );
+    appendNamedMaterialBoundParameters( result, material );
     return result;
 }
 
