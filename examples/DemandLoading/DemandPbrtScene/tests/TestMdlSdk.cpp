@@ -10,13 +10,13 @@
 #include "DemandPbrtScene/MdlHandleTypes.h"
 #include "DemandPbrtScene/MdlSdkSession.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
+#include "DemandPbrtScene/MdlUtils.h"
 
 #include <mi/mdl_sdk.h>
 
 #include <cstring>
 #include <filesystem>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,6 +24,7 @@
 namespace {
 
 using demandPbrtScene::MdlSdkSession;
+using demandPbrtScene::describeMdlContextMessages;
 
 using demandPbrtScene::BackendApiHandle;
 using demandPbrtScene::BackendHandle;
@@ -45,7 +46,6 @@ using demandPbrtScene::FunctionDefinitionHandle;
 using demandPbrtScene::MaterialInstanceHandle;
 using demandPbrtScene::MdlFactoryHandle;
 using demandPbrtScene::MdlImpexpApiHandle;
-using demandPbrtScene::MessageHandle;
 using demandPbrtScene::ModuleHandle;
 using demandPbrtScene::ScopeHandle;
 using demandPbrtScene::TargetCodeHandle;
@@ -84,21 +84,6 @@ BoundMdlColor conductorNormalReflectance( const BoundMdlColor& eta, const BoundM
 {
     return BoundMdlColor{ conductorNormalReflectance( eta.red, k.red ), conductorNormalReflectance( eta.green, k.green ),
                           conductorNormalReflectance( eta.blue, k.blue ) };
-}
-
-std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context* context )
-{
-    if( !context )
-        return {};
-
-    std::ostringstream out;
-    for( mi::Size i = 0; i < context->get_messages_count(); ++i )
-    {
-        MessageHandle message( context->get_message( i ) );
-        if( message.is_valid_interface() )
-            out << message->get_string() << '\n';
-    }
-    return out.str();
 }
 
 void addRgbSpectrum( ::pbrt::ParamSet& params, const std::string& name, float red, float green, float blue )
@@ -529,7 +514,7 @@ CompiledMaterialHandle compileGeneratedMaterialWithBoundParameters(
         context->clear_messages();
         const mi::Sint32 loadResult =
             mdlImpexpApi->load_module_from_string( transaction, source.moduleName.c_str(), source.source.c_str(), context );
-        EXPECT_EQ( 0, loadResult ) << sourceDescription << '\n' << describeContextMessages( context );
+        EXPECT_EQ( 0, loadResult ) << sourceDescription << '\n' << describeMdlContextMessages( context );
         if( loadResult != 0 )
             return {};
 
@@ -622,14 +607,14 @@ CompiledMaterialHandle compileGeneratedMaterialWithBoundParameters(
 
     context->clear_messages();
     const mi::Sint32 targetTypeResult = context->set_option( "target_type", standardMaterialType.get() );
-    EXPECT_EQ( 0, targetTypeResult ) << sourceDescription << '\n' << describeContextMessages( context );
+    EXPECT_EQ( 0, targetTypeResult ) << sourceDescription << '\n' << describeMdlContextMessages( context );
     if( targetTypeResult != 0 )
         return {};
 
     CompiledMaterialHandle compiledMaterial(
         materialInstance->create_compiled_material( mi::neuraylib::IMaterial_instance::DEFAULT_OPTIONS, context ) );
     EXPECT_TRUE( compiledMaterial.is_valid_interface() ) << sourceDescription << '\n'
-                                                         << describeContextMessages( context );
+                                                         << describeMdlContextMessages( context );
     return compiledMaterial;
 }
 
@@ -729,7 +714,7 @@ std::string translateTintExpressionToPtx( mi::neuraylib::INeuray*               
     }
     TargetCodeHandle targetCode( ptxBackend->translate_material_expression(
         transaction, compiledMaterial, previewColorExpressionPath, "evaluate_tint", context ) );
-    EXPECT_TRUE( targetCode.is_valid_interface() ) << describeContextMessages( context );
+    EXPECT_TRUE( targetCode.is_valid_interface() ) << describeMdlContextMessages( context );
     if( !targetCode.is_valid_interface() )
         return {};
     EXPECT_GT( targetCode->get_code_size(), 0U );
@@ -758,7 +743,7 @@ std::string translateNormalExpressionToPtx( mi::neuraylib::INeuray*             
     context->clear_messages();
     TargetCodeHandle targetCode(
         ptxBackend->translate_material_expression( transaction, compiledMaterial, "geometry.normal", "evaluate_normal", context ) );
-    EXPECT_TRUE( targetCode.is_valid_interface() ) << describeContextMessages( context );
+    EXPECT_TRUE( targetCode.is_valid_interface() ) << describeMdlContextMessages( context );
     if( !targetCode.is_valid_interface() )
         return {};
     EXPECT_GT( targetCode->get_code_size(), 0U );

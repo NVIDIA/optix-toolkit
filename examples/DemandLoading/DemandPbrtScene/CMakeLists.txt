@@ -37,6 +37,7 @@ if(OTK_USE_MDL)
         MdlBsdfCompiler.cpp
         MdlSdkSession.cpp
         MdlShaderCache.cpp
+        MdlUtils.cpp
         include/DemandPbrtScene/FourierBsdfEval.h
         include/DemandPbrtScene/FourierBsdfTable.h
         include/DemandPbrtScene/FourierBsdfTableResource.h
@@ -47,6 +48,7 @@ if(OTK_USE_MDL)
         include/DemandPbrtScene/MdlSdkSession.h
         include/DemandPbrtScene/MdlShaderCache.h
         include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h
+        include/DemandPbrtScene/MdlUtils.h
     )
 endif()
 
