@@ -208,6 +208,85 @@ otk::pbrt::PbrtMaterial generatedMdlMaterialForNamedMaterial( const otk::pbrt::P
     return material;
 }
 
+enum class MdlTextureValue
+{
+    COLOR,
+    FLOAT,
+    COLOR_OR_FLOAT,
+};
+
+enum class MdlTextureUse
+{
+    NONE,
+    DIFFUSE,
+    SPECULAR,
+    REFLECTION,
+    TRANSMISSION,
+    ROUGHNESS,
+    ALPHA,
+    AMOUNT,
+    BUMP,
+};
+
+struct MdlTexturePolicy
+{
+    const char*     name;
+    MdlTextureValue value;
+    MdlTextureUse   use;
+};
+
+constexpr MdlTexturePolicy MDL_TEXTURE_POLICIES[] = {
+    { "Kd", MdlTextureValue::COLOR, MdlTextureUse::DIFFUSE },
+    { "Kr", MdlTextureValue::COLOR, MdlTextureUse::REFLECTION },
+    { "Ks", MdlTextureValue::COLOR, MdlTextureUse::SPECULAR },
+    { "Kt", MdlTextureValue::COLOR, MdlTextureUse::TRANSMISSION },
+    { "alpha", MdlTextureValue::FLOAT, MdlTextureUse::ALPHA },
+    { "amount", MdlTextureValue::COLOR_OR_FLOAT, MdlTextureUse::AMOUNT },
+    { "bumpmap", MdlTextureValue::FLOAT, MdlTextureUse::BUMP },
+    { "eta", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "index", MdlTextureValue::FLOAT, MdlTextureUse::NONE },
+    { "k", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "mfp", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "opacity", MdlTextureValue::FLOAT, MdlTextureUse::ALPHA },
+    { "reflect", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "roughness", MdlTextureValue::FLOAT, MdlTextureUse::ROUGHNESS },
+    { "shadowalpha", MdlTextureValue::FLOAT, MdlTextureUse::ALPHA },
+    { "sigma", MdlTextureValue::FLOAT, MdlTextureUse::NONE },
+    { "sigma_a", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "sigma_s", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "transmit", MdlTextureValue::COLOR, MdlTextureUse::NONE },
+    { "uroughness", MdlTextureValue::FLOAT, MdlTextureUse::ROUGHNESS },
+    { "vroughness", MdlTextureValue::FLOAT, MdlTextureUse::ROUGHNESS },
+};
+
+const MdlTexturePolicy* mdlTexturePolicy( const std::string& name )
+{
+    for( const MdlTexturePolicy& policy : MDL_TEXTURE_POLICIES )
+    {
+        if( name == policy.name )
+        {
+            return &policy;
+        }
+    }
+    return nullptr;
+}
+
+PbrtDemandTextureBinding generatedMdlTextureBinding( const otk::pbrt::PbrtMaterial& material,
+                                                     const MdlTexturePolicy&        policy )
+{
+    if( policy.value == MdlTextureValue::FLOAT )
+    {
+        return pbrtFloatTextureBinding( material, policy.name );
+    }
+
+    PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( material, policy.name ) };
+    if( policy.value == MdlTextureValue::COLOR_OR_FLOAT && !hasPbrtDemandTextureBinding( binding ) )
+    {
+        binding = pbrtFloatTextureBinding( material, policy.name );
+    }
+    return binding;
+}
+
 bool hasGeneratedMdlConstantAmountTexture( const otk::pbrt::PbrtMaterial& material, const std::string& textureName )
 {
     const std::vector<MdlBoundMaterialParameter> parameters{ makeMdlBoundMaterialParameters( material ) };
@@ -240,19 +319,11 @@ bool hasGeneratedMdlFoldableTextureParameter( const otk::pbrt::PbrtMaterial& mat
     return false;
 }
 
-bool isGeneratedMdlNamedMaterialAlphaTextureParam( const std::string& paramName )
+bool hasGeneratedMdlFoldableTextureParameter( const otk::pbrt::PbrtMaterial& material,
+                                              const MdlTexturePolicy&        policy )
 {
-    return paramName == "alpha" || paramName == "shadowalpha" || paramName == "opacity";
-}
-
-bool isGeneratedMdlNamedMaterialFloatTextureParam( const std::string& paramName )
-{
-    return paramName == "bumpmap" || isGeneratedMdlNamedMaterialAlphaTextureParam( paramName );
-}
-
-bool isGeneratedMdlRuntimeFloatTextureParam( const std::string& paramName )
-{
-    return paramName == "bumpmap" || paramName == "roughness" || paramName == "uroughness" || paramName == "vroughness";
+    return hasGeneratedMdlFoldableTextureParameter( material, policy.name, MdlBoundParameterType::COLOR )
+           || hasGeneratedMdlFoldableTextureParameter( material, policy.name, MdlBoundParameterType::FLOAT );
 }
 
 bool usesGeneratedMdlNamedMaterialKd( const std::string& type )
@@ -316,74 +387,76 @@ bool isDirectGeneratedMdlDemandTexture( const PbrtDemandTextureBinding& binding 
 
 PbrtDemandTextureBinding generatedMdlNamedMaterialRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& parent,
                                                                          const otk::pbrt::PbrtNamedMaterial& namedMaterial,
-                                                                         const std::string& paramName )
+                                                                         const MdlTexturePolicy& policy )
 {
     const otk::pbrt::PbrtMaterial  material{ generatedMdlMaterialForNamedMaterial( parent, namedMaterial ) };
-    const PbrtDemandTextureBinding binding{ isGeneratedMdlNamedMaterialFloatTextureParam( paramName ) ?
-                                                pbrtFloatTextureBinding( material, paramName.c_str() ) :
-                                                pbrtColorTextureBinding( material, paramName.c_str() ) };
+    const PbrtDemandTextureBinding binding{ generatedMdlTextureBinding( material, policy ) };
     if( !hasPbrtDemandTextureBinding( binding ) )
     {
         return pbrtDemandTextureBinding();
     }
 
     const std::string type{ material.type };
-    if( paramName == "Kd" && usesGeneratedMdlNamedMaterialKd( type ) )
+    if( policy.use == MdlTextureUse::DIFFUSE && usesGeneratedMdlNamedMaterialKd( type ) )
     {
         return binding;
     }
-    if( paramName == "Ks" && usesGeneratedMdlNamedMaterialKs( type ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    if( policy.use == MdlTextureUse::SPECULAR && usesGeneratedMdlNamedMaterialKs( type )
+        && isDirectGeneratedMdlDemandTexture( binding ) )
     {
         return binding;
     }
-    if( paramName == "Kr" && usesGeneratedMdlNamedMaterialKr( type ) && isDirectGeneratedMdlDemandTexture( binding ) )
+    if( policy.use == MdlTextureUse::REFLECTION && usesGeneratedMdlNamedMaterialKr( type )
+        && isDirectGeneratedMdlDemandTexture( binding ) )
     {
         return binding;
     }
-    if( paramName == "bumpmap" || isGeneratedMdlNamedMaterialAlphaTextureParam( paramName ) )
+    if( policy.use == MdlTextureUse::BUMP || policy.use == MdlTextureUse::ALPHA )
     {
         return binding;
     }
     return pbrtDemandTextureBinding();
 }
 
+PbrtDemandTextureBinding generatedMdlNamedMaterialRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& parent,
+                                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial,
+                                                                         const std::string& paramName )
+{
+    const MdlTexturePolicy* const policy{ mdlTexturePolicy( paramName ) };
+    return policy ? generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, *policy ) :
+                    pbrtDemandTextureBinding();
+}
+
 bool hasGeneratedMdlNamedMaterialRuntimeTextureBinding( const otk::pbrt::PbrtMaterial&      parent,
                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial,
-                                                        const std::string&                  paramName )
+                                                        const MdlTexturePolicy&             policy )
 {
-    return hasPbrtDemandTextureBinding( generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, paramName ) );
+    return hasPbrtDemandTextureBinding( generatedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, policy ) );
 }
 
 bool supportsGeneratedMdlNamedMaterialTextureReference( const otk::pbrt::PbrtMaterial&      parent,
                                                         const otk::pbrt::PbrtNamedMaterial& namedMaterial,
-                                                        const std::string&                  paramName )
+                                                        const MdlTexturePolicy&             policy )
 {
-    if( namedMaterial.params.FindTexture( paramName ).empty() )
+    if( namedMaterial.params.FindTexture( policy.name ).empty() )
     {
         return true;
     }
 
     const otk::pbrt::PbrtMaterial material{ generatedMdlMaterialForNamedMaterial( parent, namedMaterial ) };
-    if( hasGeneratedMdlFoldableTextureParameter( material, paramName, MdlBoundParameterType::COLOR )
-        || hasGeneratedMdlFoldableTextureParameter( material, paramName, MdlBoundParameterType::FLOAT ) )
+    if( hasGeneratedMdlFoldableTextureParameter( material, policy ) )
     {
         return true;
     }
-    return hasGeneratedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, paramName );
+    return hasGeneratedMdlNamedMaterialRuntimeTextureBinding( parent, namedMaterial, policy );
 }
 
 bool supportsGeneratedMdlNamedMaterialTextureReferences( const otk::pbrt::PbrtMaterial&      parent,
                                                          const otk::pbrt::PbrtNamedMaterial& namedMaterial )
 {
-    static const char* const textureParams[] = {
-        "Kd",          "Kr",    "Ks",      "Kt",      "alpha",    "amount",     "bumpmap",
-        "eta",         "index", "k",       "mfp",     "opacity",  "reflect",    "roughness",
-        "shadowalpha", "sigma", "sigma_a", "sigma_s", "transmit", "uroughness", "vroughness",
-    };
-
-    for( const char* const param : textureParams )
+    for( const MdlTexturePolicy& policy : MDL_TEXTURE_POLICIES )
     {
-        if( !supportsGeneratedMdlNamedMaterialTextureReference( parent, namedMaterial, param ) )
+        if( !supportsGeneratedMdlNamedMaterialTextureReference( parent, namedMaterial, policy ) )
         {
             return false;
         }
@@ -423,191 +496,159 @@ bool supportsGeneratedMdlNamedMaterialReferences( const otk::pbrt::PbrtMaterial&
            && supportsGeneratedMdlNamedMaterialReference( material, "namedmaterial2" );
 }
 
+bool acceptsGeneratedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material,
+                                               const MaterialGroup&           group,
+                                               const MdlTexturePolicy&        policy,
+                                               const PbrtDemandTextureBinding& binding )
+{
+    if( policy.use == MdlTextureUse::DIFFUSE )
+    {
+        return flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP ) && binding.fileName == group.diffuseMapFileName;
+    }
+    if( policy.use == MdlTextureUse::REFLECTION )
+    {
+        if( material.type == "mirror" )
+        {
+            return flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP )
+                   && binding.fileName == group.diffuseMapFileName;
+        }
+        return material.type == "uber" && isDirectGeneratedMdlDemandTexture( binding );
+    }
+    if( policy.use == MdlTextureUse::SPECULAR )
+    {
+        return usesGeneratedMdlKs( material.type ) && isDirectGeneratedMdlDemandTexture( binding );
+    }
+    if( policy.use == MdlTextureUse::TRANSMISSION )
+    {
+        return usesGeneratedMdlKt( material.type ) && isDirectGeneratedMdlDemandTexture( binding );
+    }
+    if( policy.use == MdlTextureUse::ROUGHNESS )
+    {
+        return usesGeneratedMdlRoughnessTextureParam( material.type, policy.name )
+               && isDirectGeneratedMdlDemandTexture( binding );
+    }
+    if( policy.use == MdlTextureUse::AMOUNT )
+    {
+        return material.type == "mix" && isDirectGeneratedMdlDemandTexture( binding );
+    }
+    return policy.use == MdlTextureUse::BUMP;
+}
+
 PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material,
                                                             const MaterialGroup&           group,
-                                                            const std::string&             paramName )
+                                                            const MdlTexturePolicy&        policy )
 {
-    PbrtDemandTextureBinding binding{ isGeneratedMdlRuntimeFloatTextureParam( paramName ) ?
-                                          pbrtFloatTextureBinding( material, paramName.c_str() ) :
-                                          pbrtColorTextureBinding( material, paramName.c_str() ) };
-    if( paramName == "amount" && !hasPbrtDemandTextureBinding( binding ) )
-    {
-        binding = pbrtFloatTextureBinding( material, paramName.c_str() );
-    }
-    if( !hasPbrtDemandTextureBinding( binding ) )
-    {
-        return pbrtDemandTextureBinding();
-    }
-
-    if( paramName == "Kd" )
-    {
-        if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP ) && binding.fileName == group.diffuseMapFileName )
-        {
-            return binding;
-        }
-        return pbrtDemandTextureBinding();
-    }
-    if( paramName == "Kr" && material.type == "mirror" )
-    {
-        if( flagSet( group.material.flags, MaterialFlags::DIFFUSE_MAP ) && binding.fileName == group.diffuseMapFileName )
-        {
-            return binding;
-        }
-        return pbrtDemandTextureBinding();
-    }
-    if( paramName == "Ks" && usesGeneratedMdlKs( material.type ) && isDirectGeneratedMdlDemandTexture( binding ) )
-    {
-        return binding;
-    }
-    if( material.type == "uber" && paramName == "Kr" && isDirectGeneratedMdlDemandTexture( binding ) )
-    {
-        return binding;
-    }
-    if( paramName == "Kt" && usesGeneratedMdlKt( material.type ) && isDirectGeneratedMdlDemandTexture( binding ) )
-    {
-        return binding;
-    }
-    if( usesGeneratedMdlRoughnessTextureParam( material.type, paramName ) && isDirectGeneratedMdlDemandTexture( binding ) )
-    {
-        return binding;
-    }
-    if( material.type == "mix" && paramName == "amount" && isDirectGeneratedMdlDemandTexture( binding ) )
-    {
-        return binding;
-    }
-    if( paramName == "bumpmap" )
+    const PbrtDemandTextureBinding binding{ generatedMdlTextureBinding( material, policy ) };
+    if( hasPbrtDemandTextureBinding( binding )
+        && acceptsGeneratedMdlRuntimeTextureBinding( material, group, policy, binding ) )
     {
         return binding;
     }
     return pbrtDemandTextureBinding();
 }
 
-bool hasGeneratedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group, const std::string& paramName )
+PbrtDemandTextureBinding generatedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material,
+                                                            const MaterialGroup&           group,
+                                                            const std::string&             paramName )
 {
-    return hasPbrtDemandTextureBinding( generatedMdlRuntimeTextureBinding( material, group, paramName ) );
+    const MdlTexturePolicy* const policy{ mdlTexturePolicy( paramName ) };
+    return policy ? generatedMdlRuntimeTextureBinding( material, group, *policy ) : pbrtDemandTextureBinding();
 }
 
-bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
+bool hasGeneratedMdlRuntimeTextureBinding( const otk::pbrt::PbrtMaterial& material,
+                                           const MaterialGroup&           group,
+                                           const MdlTexturePolicy&        policy )
+{
+    return hasPbrtDemandTextureBinding( generatedMdlRuntimeTextureBinding( material, group, policy ) );
+}
+
+struct MdlTextureMaps
+{
+    bool diffuse{};
+    bool alpha{};
+};
+
+MdlTextureMaps generatedMdlTextureMaps( const MaterialGroup& group )
 {
     const MaterialFlags flags{ group.material.flags };
-    const bool hasDiffuseMap{ hasGeneratedMdlDemandTexture( flags, MaterialFlags::DIFFUSE_MAP,
-                                                            MaterialFlags::DIFFUSE_MAP_ALLOCATED, group.diffuseMapFileName ) };
-    const bool hasAlphaMap{ hasGeneratedMdlDemandTexture( flags, MaterialFlags::ALPHA_MAP,
-                                                          MaterialFlags::ALPHA_MAP_ALLOCATED, group.alphaMapFileName ) };
-
-    static const char* const textureParams[] = {
-        "Kd",          "Kr",    "Ks",      "Kt",      "alpha",    "amount",     "bumpmap",
-        "eta",         "index", "k",       "mfp",     "opacity",  "reflect",    "roughness",
-        "shadowalpha", "sigma", "sigma_a", "sigma_s", "transmit", "uroughness", "vroughness",
+    return MdlTextureMaps{
+        hasGeneratedMdlDemandTexture( flags, MaterialFlags::DIFFUSE_MAP, MaterialFlags::DIFFUSE_MAP_ALLOCATED,
+                                      group.diffuseMapFileName ),
+        hasGeneratedMdlDemandTexture( flags, MaterialFlags::ALPHA_MAP, MaterialFlags::ALPHA_MAP_ALLOCATED,
+                                      group.alphaMapFileName ),
     };
+}
 
-    for( const char* const param : textureParams )
+bool needsGeneratedMdlDiffuseMap( const otk::pbrt::PbrtMaterial& material, const MdlTexturePolicy& policy )
+{
+    return policy.use == MdlTextureUse::DIFFUSE
+           || ( policy.use == MdlTextureUse::REFLECTION && material.type == "mirror" );
+}
+
+bool supportsGeneratedMdlTextureReference( const otk::pbrt::PbrtMaterial& material,
+                                           const MaterialGroup&           group,
+                                           const MdlTexturePolicy&        policy,
+                                           const MdlTextureMaps&          maps )
+{
+    const std::string textureName{ material.params.FindTexture( policy.name ) };
+    if( textureName.empty() )
     {
-        const std::string textureName{ material.params.FindTexture( param ) };
-        if( textureName.empty() )
-        {
-            continue;
-        }
-        const std::string paramName{ param };
-        if( paramName == "bumpmap" )
-        {
-            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( hasGeneratedMdlFoldableTextureParameter( material, paramName, MdlBoundParameterType::COLOR ) )
-        {
-            continue;
-        }
-        if( hasGeneratedMdlFoldableTextureParameter( material, paramName, MdlBoundParameterType::FLOAT ) )
-        {
-            continue;
-        }
-        if( paramName == "Kd" )
-        {
-            if( !hasDiffuseMap || !hasGeneratedMdlRuntimeTextureBinding( material, group, "Kd" ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( paramName == "Kr" && material.type == "mirror" )
-        {
-            if( !hasDiffuseMap || !hasGeneratedMdlRuntimeTextureBinding( material, group, "Kr" ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( paramName == "Ks" && usesGeneratedMdlKs( material.type ) )
-        {
-            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( material.type == "uber" && paramName == "Kr" )
-        {
-            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( paramName == "Kt" && usesGeneratedMdlKt( material.type ) )
-        {
-            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( usesGeneratedMdlRoughnessTextureParam( material.type, paramName ) )
-        {
-            if( !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( paramName == "alpha" || paramName == "shadowalpha" || paramName == "opacity" )
-        {
-            if( !hasAlphaMap )
-            {
-                return false;
-            }
-            continue;
-        }
-        if( paramName == "amount" )
-        {
-            if( !hasGeneratedMdlConstantAmountTexture( material, textureName )
-                && !hasGeneratedMdlRuntimeTextureBinding( material, group, paramName ) )
-            {
-                return false;
-            }
-            continue;
-        }
+        return true;
+    }
+    if( policy.use == MdlTextureUse::BUMP )
+    {
+        return hasGeneratedMdlRuntimeTextureBinding( material, group, policy );
+    }
+    if( hasGeneratedMdlFoldableTextureParameter( material, policy ) )
+    {
+        return true;
+    }
+    if( policy.use == MdlTextureUse::ALPHA )
+    {
+        return maps.alpha;
+    }
+    if( policy.use == MdlTextureUse::AMOUNT && hasGeneratedMdlConstantAmountTexture( material, textureName ) )
+    {
+        return true;
+    }
+    if( needsGeneratedMdlDiffuseMap( material, policy ) && !maps.diffuse )
+    {
         return false;
     }
+    return hasGeneratedMdlRuntimeTextureBinding( material, group, policy );
+}
 
+bool supportsGeneratedMdlTextureFlags( const MaterialGroup& group, const MdlTextureMaps& maps )
+{
+    const MaterialFlags flags{ group.material.flags };
     const MaterialFlags supportedFlags{ MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED
                                         | MaterialFlags::DIFFUSE_MAP | MaterialFlags::DIFFUSE_MAP_ALLOCATED };
     if( ( flags & ~supportedFlags ) != MaterialFlags::NONE )
     {
         return false;
     }
-    if( flagSet( flags, MaterialFlags::DIFFUSE_MAP ) && !hasDiffuseMap )
+    if( flagSet( flags, MaterialFlags::DIFFUSE_MAP ) && !maps.diffuse )
     {
         return false;
     }
-    if( flagSet( flags, MaterialFlags::ALPHA_MAP ) && !hasAlphaMap )
+    if( flagSet( flags, MaterialFlags::ALPHA_MAP ) && !maps.alpha )
     {
         return false;
     }
     return true;
+}
+
+bool supportsGeneratedMdlTextureReferences( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
+{
+    const MdlTextureMaps maps{ generatedMdlTextureMaps( group ) };
+    for( const MdlTexturePolicy& policy : MDL_TEXTURE_POLICIES )
+    {
+        if( !supportsGeneratedMdlTextureReference( material, group, policy, maps ) )
+        {
+            return false;
+        }
+    }
+    return supportsGeneratedMdlTextureFlags( group, maps );
 }
 
 bool hasGeneratedMdlUnsupportedTextureReference( const otk::pbrt::PbrtMaterial& material, const MaterialGroup& group )
