@@ -20,6 +20,9 @@ namespace demandPbrtScene {
 
 constexpr int FOURIER_BSDF_EVAL_MAX_ORDER{ 1599 };
 constexpr int FOURIER_BSDF_EVAL_MAX_CHANNELS{ 3 };
+constexpr float FOURIER_PI{ 3.14159265358979323846f };
+constexpr float FOURIER_TWO_PI{ 2.0f * FOURIER_PI };
+constexpr float FOURIER_INV_TWO_PI{ 1.0f / FOURIER_TWO_PI };
 
 enum class FourierBsdfTransportMode
 {
@@ -375,16 +378,25 @@ DEMAND_PBRT_SCENE_FOURIER_HD int fourierFindCatmullRom2DInterval( const float* c
     return value > maxValue ? maxValue : value;
 }
 
-DEMAND_PBRT_SCENE_FOURIER_HD bool fourierSampleCatmullRom2D( const FourierBsdfTableDeviceData& table, float alpha, float u, float& sample, float& pdf )
+struct FourierCatmullRomSegment
 {
-    int          offset{};
-    float        weights[4]{};
-    const float* mu{ fourierFloatData( table.mu ) };
-    if( !fourierCatmullRomWeights( table.nMu, mu, alpha, offset, weights ) )
-    {
-        return false;
-    }
+    float x0;
+    float width;
+    float f0;
+    float f1;
+    float d0;
+    float d1;
+    float target;
+    float maximum;
+};
 
+DEMAND_PBRT_SCENE_FOURIER_HD bool fourierSelectCatmullRomSegment( const FourierBsdfTableDeviceData& table,
+                                                                 const float*                       nodes,
+                                                                 int                                offset,
+                                                                 const float                        weights[4],
+                                                                 float                              u,
+                                                                 FourierCatmullRomSegment&          segment )
+{
     const float* values{ fourierFloatData( table.zeroOrderCoefficients ) };
     const float* cdf{ fourierFloatData( table.cdf ) };
     const float  maximum{ fourierInterpolateTableRow( cdf, table.nMu, table.nMu, offset, weights, table.nMu - 1 ) };
@@ -393,160 +405,230 @@ DEMAND_PBRT_SCENE_FOURIER_HD bool fourierSampleCatmullRom2D( const FourierBsdfTa
         return false;
     }
 
-    u *= maximum;
-    const int   idx{ fourierFindCatmullRom2DInterval( cdf, table.nMu, table.nMu, offset, weights, u ) };
+    const float target{ u * maximum };
+    const int   idx{ fourierFindCatmullRom2DInterval( cdf, table.nMu, table.nMu, offset, weights, target ) };
     const float f0{ fourierInterpolateTableRow( values, table.nMu, table.nMu, offset, weights, idx ) };
     const float f1{ fourierInterpolateTableRow( values, table.nMu, table.nMu, offset, weights, idx + 1 ) };
-    const float x0{ mu[idx] };
-    const float x1{ mu[idx + 1] };
+    const float x0{ nodes[idx] };
+    const float x1{ nodes[idx + 1] };
     const float width{ x1 - x0 };
     if( width == 0.0f )
     {
         return false;
     }
 
-    u = ( u - fourierInterpolateTableRow( cdf, table.nMu, table.nMu, offset, weights, idx ) ) / width;
+    segment.x0      = x0;
+    segment.width   = width;
+    segment.f0      = f0;
+    segment.f1      = f1;
+    segment.d0      = idx > 0 ?
+                          width * ( f1 - fourierInterpolateTableRow( values, table.nMu, table.nMu, offset, weights, idx - 1 ) )
+                              / ( x1 - nodes[idx - 1] ) :
+                          f1 - f0;
+    segment.d1      = idx + 2 < table.nMu ?
+                          width * ( fourierInterpolateTableRow( values, table.nMu, table.nMu, offset, weights, idx + 2 ) - f0 )
+                              / ( nodes[idx + 2] - x0 ) :
+                          f1 - f0;
+    segment.target  = ( target - fourierInterpolateTableRow( cdf, table.nMu, table.nMu, offset, weights, idx ) ) / width;
+    segment.maximum = maximum;
+    return true;
+}
 
-    const float d0{ idx > 0 ? width * ( f1 - fourierInterpolateTableRow( values, table.nMu, table.nMu, offset, weights, idx - 1 ) )
-                                  / ( x1 - mu[idx - 1] ) :
-                              f1 - f0 };
-    const float d1{ idx + 2 < table.nMu ?
-                        width * ( fourierInterpolateTableRow( values, table.nMu, table.nMu, offset, weights, idx + 2 ) - f0 )
-                            / ( mu[idx + 2] - x0 ) :
-                        f1 - f0 };
+DEMAND_PBRT_SCENE_FOURIER_HD bool fourierInitialCatmullRomEstimate( const FourierCatmullRomSegment& segment, float& estimate )
+{
+    if( segment.f0 != segment.f1 )
+    {
+        estimate = ( segment.f0 - fourierSqrt( fourierMax( 0.0f, segment.f0 * segment.f0
+                                                                    + 2.0f * segment.target * ( segment.f1 - segment.f0 ) ) ) )
+                   / ( segment.f0 - segment.f1 );
+        return true;
+    }
+    if( segment.f0 != 0.0f )
+    {
+        estimate = segment.target / segment.f0;
+        return true;
+    }
+    return false;
+}
 
-    float t{};
-    if( f0 != f1 )
-    {
-        t = ( f0 - fourierSqrt( fourierMax( 0.0f, f0 * f0 + 2.0f * u * ( f1 - f0 ) ) ) ) / ( f0 - f1 );
-    }
-    else if( f0 != 0.0f )
-    {
-        t = u / f0;
-    }
-    else
-    {
-        return false;
-    }
+DEMAND_PBRT_SCENE_FOURIER_HD void fourierEvaluateCatmullRomSegment( const FourierCatmullRomSegment& segment,
+                                                                    float                           t,
+                                                                    float&                          integral,
+                                                                    float&                          value )
+{
+    integral = t * ( segment.f0
+                     + t * ( 0.5f * segment.d0
+                             + t * ( ( 1.0f / 3.0f ) * ( -2.0f * segment.d0 - segment.d1 ) + segment.f1
+                                     - segment.f0
+                                     + t * ( 0.25f * ( segment.d0 + segment.d1 )
+                                             + 0.5f * ( segment.f0 - segment.f1 ) ) ) ) );
+    value = segment.f0
+            + t * ( segment.d0
+                    + t * ( -2.0f * segment.d0 - segment.d1 + 3.0f * ( segment.f1 - segment.f0 )
+                            + t * ( segment.d0 + segment.d1 + 2.0f * ( segment.f0 - segment.f1 ) ) ) );
+}
 
-    float a{ 0.0f };
-    float b{ 1.0f };
-    float fhat{};
-    for( int iter = 0; iter < 32; ++iter )
+DEMAND_PBRT_SCENE_FOURIER_HD bool fourierNewtonConverged( float residual, float low, float high )
+{
+    return fourierAbs( residual ) < 1.0e-6f || high - low < 1.0e-6f;
+}
+
+DEMAND_PBRT_SCENE_FOURIER_HD float fourierNewtonEstimate( float estimate, float residual, float derivative )
+{
+    return derivative != 0.0f ? estimate - residual / derivative : estimate;
+}
+
+DEMAND_PBRT_SCENE_FOURIER_HD float fourierInvertCatmullRomSegment( const FourierCatmullRomSegment& segment,
+                                                                  float                           estimate,
+                                                                  float&                          value )
+{
+    float low{ 0.0f };
+    float high{ 1.0f };
+    value = 0.0f;
+    for( int i = 0; i < 32; ++i )
     {
-        if( !( t >= a && t <= b ) )
+        if( !( estimate >= low && estimate <= high ) )
         {
-            t = 0.5f * ( a + b );
+            estimate = 0.5f * ( low + high );
         }
 
-        const float fhatIntegral =
-            t * ( f0 + t * ( 0.5f * d0 + t * ( ( 1.0f / 3.0f ) * ( -2.0f * d0 - d1 ) + f1 - f0 + t * ( 0.25f * ( d0 + d1 ) + 0.5f * ( f0 - f1 ) ) ) ) );
-        fhat = f0 + t * ( d0 + t * ( -2.0f * d0 - d1 + 3.0f * ( f1 - f0 ) + t * ( d0 + d1 + 2.0f * ( f0 - f1 ) ) ) );
-
-        if( fourierAbs( fhatIntegral - u ) < 1.0e-6f || b - a < 1.0e-6f )
+        float integral{};
+        fourierEvaluateCatmullRomSegment( segment, estimate, integral, value );
+        const float residual{ integral - segment.target };
+        if( fourierNewtonConverged( residual, low, high ) )
         {
             break;
         }
 
-        if( fhatIntegral - u < 0.0f )
+        if( residual < 0.0f )
         {
-            a = t;
+            low = estimate;
         }
         else
         {
-            b = t;
+            high = estimate;
         }
+        estimate = fourierNewtonEstimate( estimate, residual, value );
+    }
+    return estimate;
+}
 
-        if( fhat != 0.0f )
-        {
-            t -= ( fhatIntegral - u ) / fhat;
-        }
+DEMAND_PBRT_SCENE_FOURIER_HD bool fourierSampleCatmullRom2D( const FourierBsdfTableDeviceData& table, float alpha, float u, float& sample, float& pdf )
+{
+    int          offset{};
+    float        weights[4]{};
+    const float* nodes{ fourierFloatData( table.mu ) };
+    if( !fourierCatmullRomWeights( table.nMu, nodes, alpha, offset, weights ) )
+    {
+        return false;
     }
 
-    sample = x0 + width * t;
-    pdf    = fhat / maximum;
+    FourierCatmullRomSegment segment{};
+    if( !fourierSelectCatmullRomSegment( table, nodes, offset, weights, u, segment ) )
+    {
+        return false;
+    }
+
+    float estimate{};
+    if( !fourierInitialCatmullRomEstimate( segment, estimate ) )
+    {
+        return false;
+    }
+
+    float value{};
+    estimate = fourierInvertCatmullRomSegment( segment, estimate, value );
+    sample   = segment.x0 + segment.width * estimate;
+    pdf      = value / segment.maximum;
     return pdf > 0.0f;
+}
+
+struct FourierSeriesEvaluation
+{
+    float residual;
+    float value;
+};
+
+DEMAND_PBRT_SCENE_FOURIER_HD float fourierFoldSample( float u, bool& flip )
+{
+    flip = u >= 0.5f;
+    return flip ? 1.0f - 2.0f * ( u - 0.5f ) : 2.0f * u;
+}
+
+DEMAND_PBRT_SCENE_FOURIER_HD FourierSeriesEvaluation fourierEvaluateSeriesIntegral( const float* coefficients,
+                                                                                    int          order,
+                                                                                    float        phi,
+                                                                                    float        u )
+{
+    const float cosPhi{ fourierCos( phi ) };
+    const float sinPhi{ fourierSqrt( fourierMax( 0.0f, 1.0f - cosPhi * cosPhi ) ) };
+    float       cosPhiPrev{ cosPhi };
+    float       cosPhiCur{ 1.0f };
+    float       sinPhiPrev{ -sinPhi };
+    float       sinPhiCur{ 0.0f };
+    float       cdf{ coefficients[0] * phi };
+    float       value{ coefficients[0] };
+    for( int k = 1; k < order; ++k )
+    {
+        const float sinPhiNext{ 2.0f * cosPhi * sinPhiCur - sinPhiPrev };
+        const float cosPhiNext{ 2.0f * cosPhi * cosPhiCur - cosPhiPrev };
+        sinPhiPrev = sinPhiCur;
+        sinPhiCur  = sinPhiNext;
+        cosPhiPrev = cosPhiCur;
+        cosPhiCur  = cosPhiNext;
+        cdf += coefficients[k] * ( 1.0f / static_cast<float>( k ) ) * sinPhiNext;
+        value += coefficients[k] * cosPhiNext;
+    }
+    return FourierSeriesEvaluation{ cdf - u * coefficients[0] * FOURIER_PI, value };
+}
+
+DEMAND_PBRT_SCENE_FOURIER_HD float fourierInvertSeries( const float* coefficients, int order, float u, float& phi )
+{
+    float low{ 0.0f };
+    float high{ FOURIER_PI };
+    phi = 0.5f * FOURIER_PI;
+    float value{};
+    for( int i = 0; i < 32; ++i )
+    {
+        const FourierSeriesEvaluation evaluation{ fourierEvaluateSeriesIntegral( coefficients, order, phi, u ) };
+        value = evaluation.value;
+        if( evaluation.residual > 0.0f )
+        {
+            high = phi;
+        }
+        else
+        {
+            low = phi;
+        }
+
+        if( fourierNewtonConverged( evaluation.residual, low, high ) )
+        {
+            break;
+        }
+
+        phi = fourierNewtonEstimate( phi, evaluation.residual, value );
+        if( !( phi > low && phi < high ) )
+        {
+            phi = 0.5f * ( low + high );
+        }
+    }
+    return value;
 }
 
 DEMAND_PBRT_SCENE_FOURIER_HD bool fourierSampleFourier( const float* coefficients, int order, float u, float& value, float& pdf, float& phi )
 {
-    constexpr float PI{ 3.14159265358979323846f };
-    constexpr float TWO_PI{ 2.0f * PI };
-    constexpr float INV_TWO_PI{ 1.0f / TWO_PI };
     if( coefficients == nullptr || order <= 0 || coefficients[0] <= 0.0f )
     {
         return false;
     }
 
-    const bool flip{ u >= 0.5f };
+    bool flip{};
+    u     = fourierFoldSample( u, flip );
+    value = fourierInvertSeries( coefficients, order, u, phi );
     if( flip )
     {
-        u = 1.0f - 2.0f * ( u - 0.5f );
+        phi = FOURIER_TWO_PI - phi;
     }
-    else
-    {
-        u *= 2.0f;
-    }
-
-    float a{ 0.0f };
-    float b{ PI };
-    phi = 0.5f * PI;
-    float f{};
-    for( int iter = 0; iter < 32; ++iter )
-    {
-        const float cosPhi{ fourierCos( phi ) };
-        const float sinPhi{ fourierSqrt( fourierMax( 0.0f, 1.0f - cosPhi * cosPhi ) ) };
-        float       cosPhiPrev{ cosPhi };
-        float       cosPhiCur{ 1.0f };
-        float       sinPhiPrev{ -sinPhi };
-        float       sinPhiCur{ 0.0f };
-
-        float cdf{ coefficients[0] * phi };
-        f = coefficients[0];
-        for( int k = 1; k < order; ++k )
-        {
-            const float sinPhiNext{ 2.0f * cosPhi * sinPhiCur - sinPhiPrev };
-            const float cosPhiNext{ 2.0f * cosPhi * cosPhiCur - cosPhiPrev };
-            sinPhiPrev = sinPhiCur;
-            sinPhiCur  = sinPhiNext;
-            cosPhiPrev = cosPhiCur;
-            cosPhiCur  = cosPhiNext;
-
-            cdf += coefficients[k] * ( 1.0f / static_cast<float>( k ) ) * sinPhiNext;
-            f += coefficients[k] * cosPhiNext;
-        }
-        cdf -= u * coefficients[0] * PI;
-
-        if( cdf > 0.0f )
-        {
-            b = phi;
-        }
-        else
-        {
-            a = phi;
-        }
-
-        if( fourierAbs( cdf ) < 1.0e-6f || b - a < 1.0e-6f )
-        {
-            break;
-        }
-
-        if( f != 0.0f )
-        {
-            phi -= cdf / f;
-        }
-        if( !( phi > a && phi < b ) )
-        {
-            phi = 0.5f * ( a + b );
-        }
-    }
-
-    if( flip )
-    {
-        phi = TWO_PI - phi;
-    }
-    value = f;
-    pdf   = INV_TWO_PI * f / coefficients[0];
+    pdf = FOURIER_INV_TWO_PI * value / coefficients[0];
     return pdf > 0.0f;
 }
 

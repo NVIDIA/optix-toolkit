@@ -12,10 +12,11 @@
 #include <filesystem>
 #include <fstream>
 
-using namespace demandPbrtScene;
 using demandPbrtScene::testing::FourierBsdfTableWriter;
 
 namespace {
+
+using namespace demandPbrtScene;
 
 std::filesystem::path pbrtReferenceDir()
 {
@@ -56,8 +57,6 @@ void writeMalformedLargeSpanTable( const std::filesystem::path& fileName )
         output.writeFloat( 1.0f );
     }
 }
-
-}  // namespace
 
 TEST( TestFourierBsdfTable, parsesFixtureTableMetadataAndCoefficientLayout )
 {
@@ -109,8 +108,14 @@ TEST( TestFourierBsdfTable, parsesCoatedCopperOrderShape )
     EXPECT_EQ( 3, table.nChannels );
     EXPECT_EQ( 6360, table.nCoefficients );
     EXPECT_EQ( 4U, table.coefficientOffsets.size() );
-    EXPECT_THAT( table.coefficientCounts, ::testing::Each( 530 ) );
-    EXPECT_THAT( table.zeroOrderCoefficients, ::testing::Each( 1.0f ) );
+    for( int count : table.coefficientCounts )
+    {
+        EXPECT_EQ( 530, count );
+    }
+    for( float coefficient : table.zeroOrderCoefficients )
+    {
+        EXPECT_FLOAT_EQ( 1.0f, coefficient );
+    }
 }
 
 TEST( TestFourierBsdfTable, parsesCeramicOrderShape )
@@ -127,8 +132,14 @@ TEST( TestFourierBsdfTable, parsesCeramicOrderShape )
     EXPECT_EQ( 3, table.nChannels );
     EXPECT_EQ( 19188, table.nCoefficients );
     EXPECT_EQ( 4U, table.coefficientOffsets.size() );
-    EXPECT_THAT( table.coefficientCounts, ::testing::Each( 1599 ) );
-    EXPECT_THAT( table.zeroOrderCoefficients, ::testing::Each( 1.0f ) );
+    for( int count : table.coefficientCounts )
+    {
+        EXPECT_EQ( 1599, count );
+    }
+    for( float coefficient : table.zeroOrderCoefficients )
+    {
+        EXPECT_FLOAT_EQ( 1.0f, coefficient );
+    }
 }
 
 TEST( TestFourierBsdfTable, reportsMissingTable )
@@ -191,6 +202,8 @@ TEST( TestFourierBsdfTable, rejectsMalformedCoefficientSpans )
     EXPECT_EQ( FourierBsdfTableLoadStatus::MALFORMED, result.status );
     EXPECT_THAT( result.diagnostic, ::testing::HasSubstr( "coefficient span exceeds coefficient data" ) );
 }
+
+}  // namespace
 
 TEST( TestFourierBsdfTable, rejectsMalformedLargeCoefficientSpans )
 {
