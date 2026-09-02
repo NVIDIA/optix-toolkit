@@ -112,9 +112,9 @@ inline uint_t operator+( HitGroupIndex value )
 #ifdef OTK_USE_MDL
 struct MdlMaterialTextureBinding
 {
-    uint_t textureId;
-    float3 scale;
-    float3 bias;
+    uint_t textureId{ INVALID_TEXTURE_ID };
+    float3 scale{ make_float3( 1.0f, 1.0f, 1.0f ) };
+    float3 bias{ make_float3( 0.0f, 0.0f, 0.0f ) };
 };
 
 inline bool operator==( const MdlMaterialTextureBinding& lhs, const MdlMaterialTextureBinding& rhs )
@@ -129,7 +129,7 @@ inline bool operator!=( const MdlMaterialTextureBinding& lhs, const MdlMaterialT
 
 __host__ __device__ inline MdlMaterialTextureBinding invalidMdlMaterialTextureBinding()
 {
-    return MdlMaterialTextureBinding{ INVALID_TEXTURE_ID, make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) };
+    return MdlMaterialTextureBinding{};
 }
 #endif
 
@@ -368,19 +368,19 @@ inline bool usesFallbackShader( const MaterialState& state )
 #ifdef OTK_USE_MDL
 struct MdlMaterialShader
 {
-    uint_t      callableBaseIndex;
-    uint_t      callableCount;
-    CUdeviceptr tintArgumentBlock;
-    CUdeviceptr bsdfArgumentBlock;
-    uint_t      bsdfArgumentBlockSize;
-    uint_t      roughnessArgumentBlockOffset;
-    uint_t      uRoughnessArgumentBlockOffset;
-    uint_t      vRoughnessArgumentBlockOffset;
-    uint_t      mixAmountArgumentBlockOffset;
+    uint_t      callableBaseIndex{};
+    uint_t      callableCount{};
+    CUdeviceptr tintArgumentBlock{};
+    CUdeviceptr bsdfArgumentBlock{};
+    uint_t      bsdfArgumentBlockSize{};
+    uint_t      roughnessArgumentBlockOffset{ INVALID_MDL_ARGUMENT_BLOCK_OFFSET };
+    uint_t      uRoughnessArgumentBlockOffset{ INVALID_MDL_ARGUMENT_BLOCK_OFFSET };
+    uint_t      vRoughnessArgumentBlockOffset{ INVALID_MDL_ARGUMENT_BLOCK_OFFSET };
+    uint_t      mixAmountArgumentBlockOffset{ INVALID_MDL_ARGUMENT_BLOCK_OFFSET };
 
     // Per-instance shader data lives here rather than in hitgroup SBT records.
-    uint_t                    textureBindingCount;
-    MdlMaterialTextureBinding textureBindings[MDL_MATERIAL_TEXTURE_BINDING_COUNT];
+    uint_t                    textureBindingCount{};
+    MdlMaterialTextureBinding textureBindings[MDL_MATERIAL_TEXTURE_BINDING_COUNT]{};
 
     __host__ __device__ void clearTextureBindings()
     {
@@ -405,90 +405,32 @@ struct MdlMaterialShader
         return true;
     }
 
-    __host__ __device__ MdlMaterialShader()
-        : callableBaseIndex( 0U )
-        , callableCount( 0U )
-        , tintArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlockSize( 0U )
-        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , textureBindingCount( 0U )
+    __host__ __device__ MdlMaterialShader() = default;
+
+    __host__ __device__ MdlMaterialShader( uint_t baseIndex, uint_t count )
+        : callableBaseIndex( baseIndex )
+        , callableCount( count )
     {
-        clearTextureBindings();
     }
 
-    __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_ )
-        : callableBaseIndex( callableBaseIndex_ )
-        , callableCount( callableCount_ )
-        , tintArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlockSize( 0U )
-        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , textureBindingCount( 0U )
+    __host__ __device__ MdlMaterialShader( uint_t baseIndex, uint_t count, const float3& scale )
+        : MdlMaterialShader( baseIndex, count )
     {
-        clearTextureBindings();
-    }
-
-    __host__ __device__ MdlMaterialShader( uint_t callableBaseIndex_, uint_t callableCount_, const float3& diffuseTextureScale_ )
-        : callableBaseIndex( callableBaseIndex_ )
-        , callableCount( callableCount_ )
-        , tintArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlockSize( 0U )
-        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , textureBindingCount( 0U )
-    {
-        clearTextureBindings();
-        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, INVALID_TEXTURE_ID, diffuseTextureScale_,
+        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, INVALID_TEXTURE_ID, scale,
                            make_float3( 0.0f, 0.0f, 0.0f ) );
     }
 
-    __host__ __device__ MdlMaterialShader( uint_t        callableBaseIndex_,
-                                           uint_t        callableCount_,
-                                           const float3& diffuseTextureScale_,
-                                           const float3& diffuseTextureBias_ )
-        : callableBaseIndex( callableBaseIndex_ )
-        , callableCount( callableCount_ )
-        , tintArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlockSize( 0U )
-        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , textureBindingCount( 0U )
+    __host__ __device__ MdlMaterialShader( uint_t baseIndex, uint_t count, const float3& scale, const float3& bias )
+        : MdlMaterialShader( baseIndex, count )
     {
-        clearTextureBindings();
-        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, INVALID_TEXTURE_ID, diffuseTextureScale_, diffuseTextureBias_ );
+        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, INVALID_TEXTURE_ID, scale, bias );
     }
 
-    __host__ __device__ MdlMaterialShader( uint_t        callableBaseIndex_,
-                                           uint_t        callableCount_,
-                                           uint_t        diffuseTextureId_,
-                                           const float3& diffuseTextureScale_,
-                                           const float3& diffuseTextureBias_ )
-        : callableBaseIndex( callableBaseIndex_ )
-        , callableCount( callableCount_ )
-        , tintArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlock( CUdeviceptr{} )
-        , bsdfArgumentBlockSize( 0U )
-        , roughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , uRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , vRoughnessArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , mixAmountArgumentBlockOffset( INVALID_MDL_ARGUMENT_BLOCK_OFFSET )
-        , textureBindingCount( 0U )
+    __host__ __device__ MdlMaterialShader( uint_t baseIndex, uint_t count, uint_t textureId, const float3& scale,
+                                           const float3& bias )
+        : MdlMaterialShader( baseIndex, count )
     {
-        clearTextureBindings();
-        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, diffuseTextureId_, diffuseTextureScale_, diffuseTextureBias_ );
+        setTextureBinding( MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, textureId, scale, bias );
     }
 };
 
