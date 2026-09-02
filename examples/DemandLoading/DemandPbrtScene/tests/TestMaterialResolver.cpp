@@ -6,6 +6,7 @@
 #include <DemandPbrtScene/MaterialResolver.h>
 
 #include <DemandPbrtScene/Testing/GeometryInstancePrinter.h>
+#include <DemandPbrtScene/Testing/FourierBsdfTableWriter.h>
 #include <DemandPbrtScene/Testing/MockDemandTextureCache.h>
 #include <DemandPbrtScene/Testing/MockProgramGroups.h>
 #include <DemandPbrtScene/Testing/ParamsPrinters.h>
@@ -34,8 +35,6 @@
 #include <gtest/gtest.h>
 
 #ifdef OTK_USE_MDL
-#include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #endif
@@ -939,107 +938,19 @@ std::filesystem::path makeFourierTestDirectory()
     return directory;
 }
 
-void writeFourierUint32( std::ostream& output, std::uint32_t value )
-{
-    const unsigned char bytes[] = {
-        static_cast<unsigned char>( value & 0xffU ),
-        static_cast<unsigned char>( ( value >> 8 ) & 0xffU ),
-        static_cast<unsigned char>( ( value >> 16 ) & 0xffU ),
-        static_cast<unsigned char>( ( value >> 24 ) & 0xffU ),
-    };
-    output.write( reinterpret_cast<const char*>( bytes ), sizeof( bytes ) );
-}
-
-void writeFourierInt32( std::ostream& output, int value )
-{
-    writeFourierUint32( output, static_cast<std::uint32_t>( value ) );
-}
-
-void writeFourierFloat( std::ostream& output, float value )
-{
-    std::uint32_t bits{};
-    std::memcpy( &bits, &value, sizeof( bits ) );
-    writeFourierUint32( output, bits );
-}
-
 void writeMinimalFourierBsdfTable( const std::filesystem::path& fileName )
 {
-    constexpr char scatfunHeader[8] = { 'S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01' };
-    std::ofstream  output{ fileName, std::ios::binary };
-    output.write( scatfunHeader, sizeof( scatfunHeader ) );
-    writeFourierInt32( output, 1 );
-    writeFourierInt32( output, 1 );
-    writeFourierInt32( output, 3 );
-    writeFourierInt32( output, 1 );
-    writeFourierInt32( output, 3 );
-    writeFourierInt32( output, 1 );
-    for( int i = 0; i < 3; ++i )
-    {
-        writeFourierInt32( output, 0 );
-    }
-    writeFourierFloat( output, 1.0f );
-    for( int i = 0; i < 4; ++i )
-    {
-        writeFourierInt32( output, 0 );
-    }
-    writeFourierFloat( output, 1.0f );
-    writeFourierFloat( output, 1.0f );
-    writeFourierInt32( output, 0 );
-    writeFourierInt32( output, 1 );
-    writeFourierFloat( output, 0.1f );
-    writeFourierFloat( output, 0.2f );
-    writeFourierFloat( output, 0.3f );
-}
-
-void writeFourierBsdfOrderShapeTable( const std::filesystem::path& fileName, int maxOrder )
-{
-    constexpr char scatfunHeader[8] = { 'S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01' };
-    constexpr int  nMu{ 2 };
-    constexpr int  nChannels{ 3 };
-    constexpr int  gridSize{ nMu * nMu };
-    const int      nCoefficients{ gridSize * nChannels * maxOrder };
-    std::ofstream  output{ fileName, std::ios::binary };
-    output.write( scatfunHeader, sizeof( scatfunHeader ) );
-    writeFourierInt32( output, 1 );
-    writeFourierInt32( output, nMu );
-    writeFourierInt32( output, nCoefficients );
-    writeFourierInt32( output, maxOrder );
-    writeFourierInt32( output, nChannels );
-    writeFourierInt32( output, 1 );
-    for( int i = 0; i < 3; ++i )
-    {
-        writeFourierInt32( output, 0 );
-    }
-    writeFourierFloat( output, 1.0f );
-    for( int i = 0; i < 4; ++i )
-    {
-        writeFourierInt32( output, 0 );
-    }
-    writeFourierFloat( output, -1.0f );
-    writeFourierFloat( output, 1.0f );
-    writeFourierFloat( output, 0.0f );
-    writeFourierFloat( output, 1.0f );
-    writeFourierFloat( output, 0.0f );
-    writeFourierFloat( output, 1.0f );
-    for( int entry = 0; entry < gridSize; ++entry )
-    {
-        writeFourierInt32( output, entry * nChannels * maxOrder );
-        writeFourierInt32( output, maxOrder );
-    }
-    for( int i = 0; i < nCoefficients; ++i )
-    {
-        writeFourierFloat( output, i % maxOrder == 0 ? 1.0f : 0.0f );
-    }
+    FourierBsdfTableWriter::writeMinimalTable( fileName, { 0.1f, 0.2f, 0.3f }, 3, 0, 1 );
 }
 
 void writeCoatedCopperOrderFourierBsdfTable( const std::filesystem::path& fileName )
 {
-    writeFourierBsdfOrderShapeTable( fileName, 530 );
+    FourierBsdfTableWriter::writeOrderShapeTable( fileName, 530 );
 }
 
 void writeCeramicOrderFourierBsdfTable( const std::filesystem::path& fileName )
 {
-    writeFourierBsdfOrderShapeTable( fileName, 1599 );
+    FourierBsdfTableWriter::writeOrderShapeTable( fileName, 1599 );
 }
 
 void writeInvalidFourierBsdfTable( const std::filesystem::path& fileName )
