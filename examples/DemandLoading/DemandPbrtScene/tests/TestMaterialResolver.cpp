@@ -1933,48 +1933,27 @@ TEST_F( TestMaterialResolverRequestedProxyIds, requestedGeneratedLandscapeMixMat
                                                make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
     EXPECT_TRUE( setMdlMaterialTextureBinding( expectedShader, MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
                                                make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) );
-    EXPECT_CALL( *m_programGroups,
-                 getMdlMaterialSbtOffset( hasGeometryInstance( hasAll(
-                     hasMaterialFlags( MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED ), hasAlphaTextureId( frontAlphaCutoutTextureId ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX, frontDiffuseTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX, frontSpecularTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX, frontReflectanceTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX, frontAlphaTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX, frontBumpTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX, backDiffuseTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX, backAlphaTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                     hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
-                                           make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ) ) )
-        .WillOnce( Return( stableSbtOffset ) );
-    EXPECT_CALL( *m_programGroups,
-                 realizeMdlMaterialShader(
-                     hasGeometryInstance( hasAll(
-                         hasMaterialFlags( MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED ),
-                         hasAlphaTextureId( frontAlphaCutoutTextureId ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX, frontDiffuseTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX, frontSpecularTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX, frontReflectanceTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX, frontAlphaTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX, frontBumpTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX, backDiffuseTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX, backAlphaTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
-                         hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
-                                               make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ),
-                     1U ) )
+    const auto hasExpectedMixBindings{ hasGeometryInstance( hasAll(
+        hasMaterialFlags( MaterialFlags::ALPHA_MAP | MaterialFlags::ALPHA_MAP_ALLOCATED ),
+        hasAlphaTextureId( frontAlphaCutoutTextureId ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KD_TEXTURE_BINDING_INDEX, frontDiffuseTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KS_TEXTURE_BINDING_INDEX, frontSpecularTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_KR_TEXTURE_BINDING_INDEX, frontReflectanceTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_ALPHA_TEXTURE_BINDING_INDEX, frontAlphaTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_0_BUMPMAP_TEXTURE_BINDING_INDEX, frontBumpTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_KD_TEXTURE_BINDING_INDEX, backDiffuseTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_ALPHA_TEXTURE_BINDING_INDEX, backAlphaTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ),
+        hasMdlTextureBinding( MDL_MATERIAL_MIX_NAMED_1_BUMPMAP_TEXTURE_BINDING_INDEX, backBumpTextureId,
+                              make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 0.0f, 0.0f, 0.0f ) ) ) ) };
+    EXPECT_CALL( *m_programGroups, getMdlMaterialSbtOffset( hasExpectedMixBindings ) ).WillOnce( Return( stableSbtOffset ) );
+    EXPECT_CALL( *m_programGroups, realizeMdlMaterialShader( hasExpectedMixBindings, 1U ) )
         .WillOnce( Return( expectedShader ) );
     EXPECT_CALL( *m_loader, remove( proxyMaterialId ) ).Times( 1 );
     EXPECT_CALL( *m_loader, clearRequestedMaterialIds() ).Times( 1 );
