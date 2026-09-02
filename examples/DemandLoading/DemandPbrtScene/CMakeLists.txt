@@ -35,8 +35,12 @@ if(OTK_USE_MDL)
         FourierBsdfTable.cpp
         FourierBsdfTableResource.cpp
         MdlBsdfCompiler.cpp
+        MdlKeyBuilder.cpp
+        MdlMaterialModelBuilder.cpp
+        MdlParameterBinder.cpp
         MdlSdkSession.cpp
         MdlShaderCache.cpp
+        MdlTextureGraphGenerator.cpp
         MdlUtils.cpp
         PbrtMaterialKind.cpp
         include/DemandPbrtScene/FourierBsdfEval.h
@@ -46,9 +50,13 @@ if(OTK_USE_MDL)
         include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h
         include/DemandPbrtScene/MdlHandleTypes.h
+        include/DemandPbrtScene/MdlKeyBuilder.h
+        include/DemandPbrtScene/MdlMaterialModelBuilder.h
+        include/DemandPbrtScene/MdlParameterBinder.h
         include/DemandPbrtScene/MdlSdkSession.h
         include/DemandPbrtScene/MdlShaderCache.h
         include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h
+        include/DemandPbrtScene/MdlTextureGraphGenerator.h
         include/DemandPbrtScene/MdlUtils.h
         include/DemandPbrtScene/PbrtMaterialKind.h
     )
