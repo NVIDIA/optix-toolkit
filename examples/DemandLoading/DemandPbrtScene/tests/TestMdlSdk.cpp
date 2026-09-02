@@ -7,15 +7,10 @@
 #include "DemandPbrtScene/FourierBsdfTable.h"
 #include "DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h"
 #include "DemandPbrtScene/MdlBsdfCompiler.h"
+#include "DemandPbrtScene/MdlSdkSession.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
 
 #include <mi/mdl_sdk.h>
-
-#ifdef _WIN32
-#include <mi/base/miwindows.h>
-#else
-#include <dlfcn.h>
-#endif
 
 #include <cstring>
 #include <filesystem>
@@ -26,6 +21,8 @@
 #include <vector>
 
 namespace {
+
+using demandPbrtScene::MdlSdkSession;
 
 constexpr mi::Float32 PBRT_KD_RED       = 0.25f;
 constexpr mi::Float32 PBRT_KD_GREEN     = 0.50f;
@@ -73,142 +70,6 @@ std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context
     }
     return out.str();
 }
-
-#ifdef _WIN32
-
-using MdlLibraryHandle = HMODULE;
-
-std::string lastLibraryError()
-{
-    std::ostringstream out;
-    out << "Windows error " << GetLastError();
-    return out.str();
-}
-
-MdlLibraryHandle loadMdlSdkLibrary( std::string& error )
-{
-    const char* const libraryName = "libmdl_sdk" MI_BASE_DLL_FILE_EXT;
-    MdlLibraryHandle  handle      = LoadLibraryA( libraryName );
-    if( handle )
-        return handle;
-
-    const std::string fallback = std::string( "../../../bin/" ) + libraryName;
-    handle                     = LoadLibraryA( fallback.c_str() );
-    if( handle )
-        return handle;
-
-    error = "Failed to load " + std::string( libraryName ) + ": " + lastLibraryError();
-    return nullptr;
-}
-
-void* loadMdlFactorySymbol( MdlLibraryHandle handle, std::string& error )
-{
-    void* symbol = GetProcAddress( handle, "mi_factory" );
-    if( !symbol )
-        error = "Failed to find mi_factory: " + lastLibraryError();
-    return symbol;
-}
-
-void unloadMdlSdkLibrary( MdlLibraryHandle handle )
-{
-    if( handle )
-        FreeLibrary( handle );
-}
-
-#else
-
-using MdlLibraryHandle = void*;
-
-MdlLibraryHandle loadMdlSdkLibrary( std::string& error )
-{
-    const char* const libraryName = "libmdl_sdk" MI_BASE_DLL_FILE_EXT;
-    MdlLibraryHandle  handle      = dlopen( libraryName, RTLD_LAZY );
-    if( !handle )
-        error = dlerror();
-    return handle;
-}
-
-void* loadMdlFactorySymbol( MdlLibraryHandle handle, std::string& error )
-{
-    void* symbol = dlsym( handle, "mi_factory" );
-    if( !symbol )
-        error = dlerror();
-    return symbol;
-}
-
-void unloadMdlSdkLibrary( MdlLibraryHandle handle )
-{
-    if( handle )
-        dlclose( handle );
-}
-
-#endif
-
-class MdlSdkSession
-{
-  public:
-    MdlSdkSession()
-        : m_library( loadMdlSdkLibrary( m_error ) )
-    {
-        if( !m_library )
-            return;
-
-        void* symbol = loadMdlFactorySymbol( m_library, m_error );
-        if( !symbol )
-            return;
-
-        m_neuray = mi::neuraylib::mi_factory<mi::neuraylib::INeuray>( symbol );
-        if( !m_neuray.is_valid_interface() )
-        {
-            mi::base::Handle<const mi::neuraylib::IVersion> version( mi::neuraylib::mi_factory<mi::neuraylib::IVersion>( symbol ) );
-            m_error = version.is_valid_interface() ? "MDL SDK library version does not match header version "
-                                                         + std::string( MI_NEURAYLIB_PRODUCT_VERSION_STRING ) :
-                                                     "MDL SDK library is incompatible with this header";
-            return;
-        }
-
-        const mi::Sint32 startResult = m_neuray->start( true );
-        if( startResult != 0 )
-        {
-            std::ostringstream out;
-            out << "Failed to start MDL SDK: " << startResult;
-            m_error = out.str();
-            return;
-        }
-
-        m_started = true;
-    }
-
-    ~MdlSdkSession()
-    {
-        shutdown();
-        unloadMdlSdkLibrary( m_library );
-    }
-
-    bool isStarted() const { return m_started; }
-
-    const std::string& error() const { return m_error; }
-
-    mi::neuraylib::INeuray* neuray() const { return m_neuray.get(); }
-
-    mi::Sint32 shutdown()
-    {
-        mi::Sint32 result = 0;
-        if( m_started )
-        {
-            result    = m_neuray->shutdown( true );
-            m_started = false;
-        }
-        m_neuray.reset();
-        return result;
-    }
-
-  private:
-    MdlLibraryHandle                         m_library{};
-    mi::base::Handle<mi::neuraylib::INeuray> m_neuray;
-    std::string                              m_error;
-    bool                                     m_started{ false };
-};
 
 void addRgbSpectrum( ::pbrt::ParamSet& params, const std::string& name, float red, float green, float blue )
 {

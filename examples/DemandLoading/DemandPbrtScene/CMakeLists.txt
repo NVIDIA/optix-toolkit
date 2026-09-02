@@ -35,6 +35,7 @@ if(OTK_USE_MDL)
         FourierBsdfTable.cpp
         FourierBsdfTableResource.cpp
         MdlBsdfCompiler.cpp
+        MdlSdkSession.cpp
         MdlShaderCache.cpp
         include/DemandPbrtScene/FourierBsdfEval.h
         include/DemandPbrtScene/FourierBsdfTable.h
@@ -42,6 +43,7 @@ if(OTK_USE_MDL)
         include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h
         include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h
+        include/DemandPbrtScene/MdlSdkSession.h
         include/DemandPbrtScene/MdlShaderCache.h
         include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h
     )
