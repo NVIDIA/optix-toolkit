@@ -77,153 +77,89 @@ void appendUnsupportedReason( GeneratedMdlSource& result, const std::string& rea
     }
 }
 
-void appendTextureSignature( std::ostringstream&                 out,
-                             const std::string&                  graphKey,
-                             const otk::pbrt::PbrtTexture&       texture,
-                             const otk::pbrt::PbrtMaterialGraph& graph,
-                             std::vector<std::string>&           textureStack );
-
-void appendTextureReference( std::ostringstream&                 out,
-                             const std::string&                  paramName,
-                             const std::string&                  textureName,
-                             const otk::pbrt::PbrtMaterialGraph& graph,
-                             std::vector<std::string>&           textureStack )
-{
-    out << "|texture-ref(" << paramName << ")=";
-    bool found{ false };
-    for( otk::pbrt::PbrtTextureMap::const_iterator it = graph.textures.begin(); it != graph.textures.end(); ++it )
-    {
-        if( it->second.name == textureName )
-        {
-            if( found )
-                out << ",";
-            appendTextureSignature( out, it->first, it->second, graph, textureStack );
-            found = true;
-        }
-    }
-    if( !found )
-    {
-        out << "missing";
-    }
-}
-
-void appendTextureReferences( std::ostringstream&                 out,
-                              const ::pbrt::ParamSet&             params,
-                              const std::vector<std::string>&     paramNames,
-                              const otk::pbrt::PbrtMaterialGraph& graph,
-                              std::vector<std::string>&           textureStack )
-{
-    for( std::vector<std::string>::const_iterator it = paramNames.begin(); it != paramNames.end(); ++it )
-    {
-        const std::string textureName{ params.FindTexture( *it ) };
-        if( !textureName.empty() )
-        {
-            appendTextureReference( out, *it, textureName, graph, textureStack );
-        }
-    }
-}
-
-void appendMaterialSignature( std::ostringstream&                 out,
-                              const std::string&                  type,
-                              const ::pbrt::ParamSet&             params,
-                              const otk::pbrt::PbrtMaterialGraph& graph,
-                              std::vector<std::string>&           materialStack,
-                              std::vector<std::string>&           textureStack );
-
-void appendMaterialReference( std::ostringstream&                 out,
-                              const std::string&                  paramName,
-                              const std::string&                  materialName,
-                              const otk::pbrt::PbrtMaterialGraph& graph,
-                              std::vector<std::string>&           materialStack,
-                              std::vector<std::string>&           textureStack )
-{
-    out << "|material-ref(" << paramName << ")=";
-    if( contains( materialStack, materialName ) )
-    {
-        out << "recursive";
-        return;
-    }
-
-    const otk::pbrt::PbrtNamedMaterialMap::const_iterator material = graph.namedMaterials.find( materialName );
-    if( material == graph.namedMaterials.end() )
-    {
-        out << "missing";
-        return;
-    }
-
-    materialStack.push_back( materialName );
-    appendMaterialSignature( out, material->second.type, material->second.params, graph, materialStack, textureStack );
-    materialStack.pop_back();
-}
-
-void appendMaterialReferences( std::ostringstream&                 out,
-                               const ::pbrt::ParamSet&             params,
-                               const otk::pbrt::PbrtMaterialGraph& graph,
-                               std::vector<std::string>&           materialStack,
-                               std::vector<std::string>&           textureStack )
-{
-    const std::vector<std::string>& paramNames{ namedMaterialParamNames() };
-    for( std::vector<std::string>::const_iterator it = paramNames.begin(); it != paramNames.end(); ++it )
-    {
-        const std::string materialName{ params.FindOneString( *it, std::string{} ) };
-        if( !materialName.empty() )
-        {
-            appendMaterialReference( out, *it, materialName, graph, materialStack, textureStack );
-        }
-    }
-}
-
-void appendTextureSignature( std::ostringstream&                 out,
-                             const std::string&                  graphKey,
-                             const otk::pbrt::PbrtTexture&       texture,
-                             const otk::pbrt::PbrtMaterialGraph& graph,
-                             std::vector<std::string>&           textureStack )
-{
-    if( contains( textureStack, graphKey ) )
-    {
-        out << "texture(" << texture.valueType << ":" << texture.type << ";recursive)";
-        return;
-    }
-
-    textureStack.push_back( graphKey );
-    out << "texture(" << texture.valueType << ":" << texture.type;
-    appendTextureReferences( out, texture.params, textureTextureParamNames(), graph, textureStack );
-    out << ")";
-    textureStack.pop_back();
-}
-
-void appendMaterialSignature( std::ostringstream&                 out,
-                              const std::string&                  type,
-                              const ::pbrt::ParamSet&             params,
-                              const otk::pbrt::PbrtMaterialGraph& graph,
-                              std::vector<std::string>&           materialStack,
-                              std::vector<std::string>&           textureStack )
-{
-    out << "material(" << type;
-    appendTextureReferences( out, params, materialTextureParamNames(), graph, textureStack );
-    appendMaterialReferences( out, params, graph, materialStack, textureStack );
-    out << ")";
-}
-
 std::string paramSetToString( const ::pbrt::ParamSet& params )
 {
     ::pbrt::ParamSet copy{ params };
     return copy.ToString();
 }
 
-void appendTextureInstanceSignature( std::ostringstream&                 out,
-                                     const std::string&                  graphKey,
-                                     const otk::pbrt::PbrtTexture&       texture,
-                                     const otk::pbrt::PbrtMaterialGraph& graph,
-                                     std::vector<std::string>&           textureStack );
-
-void appendTextureInstanceReference( std::ostringstream&                 out,
-                                     const std::string&                  paramName,
-                                     const std::string&                  textureName,
-                                     const otk::pbrt::PbrtMaterialGraph& graph,
-                                     std::vector<std::string>&           textureStack )
+struct SourceSignatureEmitter
 {
-    out << "|texture-ref(" << paramName << ")=" << textureName << ':';
+    void appendTextureReference( std::ostringstream& out, const std::string& paramName, const std::string& ) const
+    {
+        out << "|texture-ref(" << paramName << ")=";
+    }
+
+    void appendMaterialReference( std::ostringstream& out, const std::string& paramName, const std::string& ) const
+    {
+        out << "|material-ref(" << paramName << ")=";
+    }
+
+    void appendRecursiveTexture( std::ostringstream& out, const std::string&, const otk::pbrt::PbrtTexture& texture ) const
+    {
+        out << "texture(" << texture.valueType << ":" << texture.type << ";recursive)";
+    }
+
+    void appendTexture( std::ostringstream& out, const std::string&, const otk::pbrt::PbrtTexture& texture ) const
+    {
+        out << "texture(" << texture.valueType << ":" << texture.type;
+    }
+
+    void appendMaterial( std::ostringstream& out, const std::string& type, const ::pbrt::ParamSet& ) const
+    {
+        out << "material(" << type;
+    }
+};
+
+struct InstanceSignatureEmitter
+{
+    void appendTextureReference( std::ostringstream& out, const std::string& paramName, const std::string& textureName ) const
+    {
+        out << "|texture-ref(" << paramName << ")=" << textureName << ':';
+    }
+
+    void appendMaterialReference( std::ostringstream& out, const std::string& paramName, const std::string& materialName ) const
+    {
+        out << "|material-ref(" << paramName << ")=" << materialName << ':';
+    }
+
+    void appendRecursiveTexture( std::ostringstream& out,
+                                 const std::string& graphKey,
+                                 const otk::pbrt::PbrtTexture& texture ) const
+    {
+        out << "texture(key=" << graphKey << ",name=" << texture.name << ",kind=" << texture.valueType << ':'
+            << texture.type << ";recursive)";
+    }
+
+    void appendTexture( std::ostringstream& out, const std::string& graphKey, const otk::pbrt::PbrtTexture& texture ) const
+    {
+        out << "texture(key=" << graphKey << ",name=" << texture.name << ",kind=" << texture.valueType << ':'
+            << texture.type << "|params=" << paramSetToString( texture.params );
+    }
+
+    void appendMaterial( std::ostringstream& out, const std::string& type, const ::pbrt::ParamSet& params ) const
+    {
+        out << "material(" << type << "|params=" << paramSetToString( params );
+    }
+};
+
+template <typename Emitter>
+void appendTextureGraphSignature( std::ostringstream&                 out,
+                                  const std::string&                  graphKey,
+                                  const otk::pbrt::PbrtTexture&       texture,
+                                  const otk::pbrt::PbrtMaterialGraph& graph,
+                                  std::vector<std::string>&           textureStack,
+                                  const Emitter&                      emitter );
+
+template <typename Emitter>
+void appendTextureReference( std::ostringstream&                 out,
+                             const std::string&                  paramName,
+                             const std::string&                  textureName,
+                             const otk::pbrt::PbrtMaterialGraph& graph,
+                             std::vector<std::string>&           textureStack,
+                             const Emitter&                      emitter )
+{
+    emitter.appendTextureReference( out, paramName, textureName );
     bool found{ false };
     for( otk::pbrt::PbrtTextureMap::const_iterator it = graph.textures.begin(); it != graph.textures.end(); ++it )
     {
@@ -231,7 +167,7 @@ void appendTextureInstanceReference( std::ostringstream&                 out,
         {
             if( found )
                 out << ",";
-            appendTextureInstanceSignature( out, it->first, it->second, graph, textureStack );
+            appendTextureGraphSignature( out, it->first, it->second, graph, textureStack, emitter );
             found = true;
         }
     }
@@ -241,37 +177,43 @@ void appendTextureInstanceReference( std::ostringstream&                 out,
     }
 }
 
-void appendTextureInstanceReferences( std::ostringstream&                 out,
-                                      const ::pbrt::ParamSet&             params,
-                                      const std::vector<std::string>&     paramNames,
-                                      const otk::pbrt::PbrtMaterialGraph& graph,
-                                      std::vector<std::string>&           textureStack )
+template <typename Emitter>
+void appendTextureReferences( std::ostringstream&                 out,
+                              const ::pbrt::ParamSet&             params,
+                              const std::vector<std::string>&     paramNames,
+                              const otk::pbrt::PbrtMaterialGraph& graph,
+                              std::vector<std::string>&           textureStack,
+                              const Emitter&                      emitter )
 {
     for( std::vector<std::string>::const_iterator it = paramNames.begin(); it != paramNames.end(); ++it )
     {
         const std::string textureName{ params.FindTexture( *it ) };
         if( !textureName.empty() )
         {
-            appendTextureInstanceReference( out, *it, textureName, graph, textureStack );
+            appendTextureReference( out, *it, textureName, graph, textureStack, emitter );
         }
     }
 }
 
-void appendMaterialInstanceSignature( std::ostringstream&                 out,
-                                      const std::string&                  type,
-                                      const ::pbrt::ParamSet&             params,
-                                      const otk::pbrt::PbrtMaterialGraph& graph,
-                                      std::vector<std::string>&           materialStack,
-                                      std::vector<std::string>&           textureStack );
+template <typename Emitter>
+void appendMaterialGraphSignature( std::ostringstream&                 out,
+                                   const std::string&                  type,
+                                   const ::pbrt::ParamSet&             params,
+                                   const otk::pbrt::PbrtMaterialGraph& graph,
+                                   std::vector<std::string>&           materialStack,
+                                   std::vector<std::string>&           textureStack,
+                                   const Emitter&                      emitter );
 
-void appendMaterialInstanceReference( std::ostringstream&                 out,
-                                      const std::string&                  paramName,
-                                      const std::string&                  materialName,
-                                      const otk::pbrt::PbrtMaterialGraph& graph,
-                                      std::vector<std::string>&           materialStack,
-                                      std::vector<std::string>&           textureStack )
+template <typename Emitter>
+void appendMaterialReference( std::ostringstream&                 out,
+                              const std::string&                  paramName,
+                              const std::string&                  materialName,
+                              const otk::pbrt::PbrtMaterialGraph& graph,
+                              std::vector<std::string>&           materialStack,
+                              std::vector<std::string>&           textureStack,
+                              const Emitter&                      emitter )
 {
-    out << "|material-ref(" << paramName << ")=" << materialName << ':';
+    emitter.appendMaterialReference( out, paramName, materialName );
     if( contains( materialStack, materialName ) )
     {
         out << "recursive";
@@ -286,15 +228,18 @@ void appendMaterialInstanceReference( std::ostringstream&                 out,
     }
 
     materialStack.push_back( materialName );
-    appendMaterialInstanceSignature( out, material->second.type, material->second.params, graph, materialStack, textureStack );
+    appendMaterialGraphSignature( out, material->second.type, material->second.params, graph, materialStack, textureStack,
+                                  emitter );
     materialStack.pop_back();
 }
 
-void appendMaterialInstanceReferences( std::ostringstream&                 out,
-                                       const ::pbrt::ParamSet&             params,
-                                       const otk::pbrt::PbrtMaterialGraph& graph,
-                                       std::vector<std::string>&           materialStack,
-                                       std::vector<std::string>&           textureStack )
+template <typename Emitter>
+void appendMaterialReferences( std::ostringstream&                 out,
+                               const ::pbrt::ParamSet&             params,
+                               const otk::pbrt::PbrtMaterialGraph& graph,
+                               std::vector<std::string>&           materialStack,
+                               std::vector<std::string>&           textureStack,
+                               const Emitter&                      emitter )
 {
     const std::vector<std::string>& paramNames{ namedMaterialParamNames() };
     for( std::vector<std::string>::const_iterator it = paramNames.begin(); it != paramNames.end(); ++it )
@@ -302,30 +247,55 @@ void appendMaterialInstanceReferences( std::ostringstream&                 out,
         const std::string materialName{ params.FindOneString( *it, std::string{} ) };
         if( !materialName.empty() )
         {
-            appendMaterialInstanceReference( out, *it, materialName, graph, materialStack, textureStack );
+            appendMaterialReference( out, *it, materialName, graph, materialStack, textureStack, emitter );
         }
     }
 }
 
-void appendTextureInstanceSignature( std::ostringstream&                 out,
-                                     const std::string&                  graphKey,
-                                     const otk::pbrt::PbrtTexture&       texture,
-                                     const otk::pbrt::PbrtMaterialGraph& graph,
-                                     std::vector<std::string>&           textureStack )
+template <typename Emitter>
+void appendTextureGraphSignature( std::ostringstream&                 out,
+                                  const std::string&                  graphKey,
+                                  const otk::pbrt::PbrtTexture&       texture,
+                                  const otk::pbrt::PbrtMaterialGraph& graph,
+                                  std::vector<std::string>&           textureStack,
+                                  const Emitter&                      emitter )
 {
     if( contains( textureStack, graphKey ) )
     {
-        out << "texture(key=" << graphKey << ",name=" << texture.name << ",kind=" << texture.valueType << ':'
-            << texture.type << ";recursive)";
+        emitter.appendRecursiveTexture( out, graphKey, texture );
         return;
     }
 
     textureStack.push_back( graphKey );
-    out << "texture(key=" << graphKey << ",name=" << texture.name << ",kind=" << texture.valueType << ':'
-        << texture.type << "|params=" << paramSetToString( texture.params );
-    appendTextureInstanceReferences( out, texture.params, textureTextureParamNames(), graph, textureStack );
+    emitter.appendTexture( out, graphKey, texture );
+    appendTextureReferences( out, texture.params, textureTextureParamNames(), graph, textureStack, emitter );
     out << ")";
     textureStack.pop_back();
+}
+
+template <typename Emitter>
+void appendMaterialGraphSignature( std::ostringstream&                 out,
+                                   const std::string&                  type,
+                                   const ::pbrt::ParamSet&             params,
+                                   const otk::pbrt::PbrtMaterialGraph& graph,
+                                   std::vector<std::string>&           materialStack,
+                                   std::vector<std::string>&           textureStack,
+                                   const Emitter&                      emitter )
+{
+    emitter.appendMaterial( out, type, params );
+    appendTextureReferences( out, params, materialTextureParamNames(), graph, textureStack, emitter );
+    appendMaterialReferences( out, params, graph, materialStack, textureStack, emitter );
+    out << ")";
+}
+
+void appendMaterialSignature( std::ostringstream&                 out,
+                              const std::string&                  type,
+                              const ::pbrt::ParamSet&             params,
+                              const otk::pbrt::PbrtMaterialGraph& graph,
+                              std::vector<std::string>&           materialStack,
+                              std::vector<std::string>&           textureStack )
+{
+    appendMaterialGraphSignature( out, type, params, graph, materialStack, textureStack, SourceSignatureEmitter{} );
 }
 
 void appendMaterialInstanceSignature( std::ostringstream&                 out,
@@ -335,10 +305,7 @@ void appendMaterialInstanceSignature( std::ostringstream&                 out,
                                       std::vector<std::string>&           materialStack,
                                       std::vector<std::string>&           textureStack )
 {
-    out << "material(" << type << "|params=" << paramSetToString( params );
-    appendTextureInstanceReferences( out, params, materialTextureParamNames(), graph, textureStack );
-    appendMaterialInstanceReferences( out, params, graph, materialStack, textureStack );
-    out << ")";
+    appendMaterialGraphSignature( out, type, params, graph, materialStack, textureStack, InstanceSignatureEmitter{} );
 }
 
 std::string stableHash( const std::string& text )
