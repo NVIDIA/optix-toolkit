@@ -1116,3 +1116,4 @@ extern "C" __global__ void __closesthit__mdlMesh()
 }
 
 }  // namespace demandPbrtScene
+

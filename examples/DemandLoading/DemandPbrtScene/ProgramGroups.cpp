@@ -987,7 +987,7 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
                 job.moduleCache->getOrCreate( job.optixContext, job.pipelineCompileOptions, targetCode.bsdfPtx.ptx );
         }
         result.closestHitModule = createOptixModule( job.optixContext, job.pipelineCompileOptions,
-                                                     MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
+                                                     MdlMaterialCudaText(), MdlMaterialCudaSize );
 
         result.programGroups         = job.programGroups;
         result.callableProgramGroups = job.callableProgramGroups;
@@ -1457,7 +1457,7 @@ uint_t PbrtProgramGroups::getTriangleMdlMaterialSbtOffset( MaterialFlags flags )
         const Stopwatch optixTimer;
         if( m_mdlMaterialClosestHitModule == nullptr )
         {
-            m_mdlMaterialClosestHitModule = createModule( MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
+            m_mdlMaterialClosestHitModule = createModule( MdlMaterialCudaText(), MdlMaterialCudaSize );
         }
 
         OptixProgramGroupOptions options{};
