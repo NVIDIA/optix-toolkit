@@ -248,7 +248,7 @@ void PbrtApiImpl::film( const std::string& type, const ParamSet& params )
         unsupportedParams.EraseInt( "yresolution" );
         if( !unsupportedParams.ToString().empty() )
         {
-            PBRT_WARNING( "Film 'image' parameters other than xresolution and yresolution are not implemented." );
+            PBRT_WARNING( "Film 'image' parameters are ignored; resolution is controlled by the window." );
         }
     }
     else
