@@ -23,14 +23,119 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace demandPbrtScene {
 
+namespace {
+
+class CudaLaunchCompletion : public OptixRenderer::LaunchCompletion
+{
+  public:
+    ~CudaLaunchCompletion() override
+    {
+        if( m_event )
+        {
+            OTK_ERROR_CHECK_NOTHROW( cuEventDestroy( m_event ) );
+        }
+    }
+
+    void record( CUstream stream ) override
+    {
+        if( !m_event )
+        {
+            OTK_ERROR_CHECK( cuEventCreate( &m_event, CU_EVENT_DISABLE_TIMING ) );
+        }
+        OTK_ERROR_CHECK( cuEventRecord( m_event, stream ) );
+    }
+
+    bool isComplete() const override
+    {
+        if( !m_event )
+        {
+            return true;
+        }
+
+        const CUresult result = cuEventQuery( m_event );
+        if( result == CUDA_SUCCESS )
+        {
+            return true;
+        }
+        if( result == CUDA_ERROR_NOT_READY )
+        {
+            return false;
+        }
+        OTK_ERROR_CHECK( result );
+        return false;
+    }
+
+    void wait() const override
+    {
+        if( m_event )
+        {
+            OTK_ERROR_CHECK( cuEventSynchronize( m_event ) );
+        }
+    }
+
+  private:
+    CUevent m_event{};
+};
+
+OptixRenderer::LaunchCompletionPtr createCudaLaunchCompletion()
+{
+    return std::make_shared<CudaLaunchCompletion>();
+}
+
+}  // namespace
+
+OptixRenderer::PipelineState::PipelineState( OptixPipeline                         pipeline_,
+                                             std::vector<OptixProgramGroup>        programGroups_,
+                                             std::vector<OptixProgramGroup>        callableProgramGroups_,
+                                             LaunchCompletionPtr                   launchCompletion_ )
+    : pipeline( pipeline_ )
+    , launchCompletion( std::move( launchCompletion_ ) )
+    , programGroups( std::move( programGroups_ ) )
+    , callableProgramGroups( std::move( callableProgramGroups_ ) )
+    , rayGenRecord( 1 )
+    , missRecord( 1 )
+    , hitGroupRecords( +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS )
+{
+}
+
+OptixRenderer::PipelineState::~PipelineState()
+{
+    if( pipeline )
+    {
+        OTK_ERROR_CHECK_NOTHROW( optixPipelineDestroy( pipeline ) );
+    }
+}
+
+void OptixRenderer::PipelineState::recordLaunchCompleteEvent( CUstream stream )
+{
+    launchCompletion->record( stream );
+}
+
+bool OptixRenderer::PipelineState::launchComplete() const
+{
+    return launchCompletion->isComplete();
+}
+
+void OptixRenderer::PipelineState::waitForLaunchComplete() const
+{
+    launchCompletion->wait();
+}
+
 OptixRenderer::OptixRenderer( const Options& options, int numAttributes )
+    : OptixRenderer( options, numAttributes, createCudaLaunchCompletion )
+{
+}
+
+OptixRenderer::OptixRenderer( const Options& options, int numAttributes, LaunchCompletionFactory launchCompletionFactory )
     : m_options( options )
     , m_numAttributes( numAttributes )
+    , m_launchCompletionFactory( std::move( launchCompletionFactory ) )
 {
 }
 
@@ -43,10 +148,33 @@ void OptixRenderer::initialize( CUstream stream )
 
 void OptixRenderer::setProgramGroups( const std::vector<OptixProgramGroup>& value )
 {
+    m_pendingState.reset();
     m_programGroups   = value;
     m_pipelineChanged = true;
     m_sbtChanged      = true;
 }
+
+#ifdef OTK_USE_MDL
+void OptixRenderer::setCallableProgramGroups( const std::vector<OptixProgramGroup>& value )
+{
+    m_pendingState.reset();
+    m_callableProgramGroups = value;
+    m_pipelineChanged       = true;
+    m_sbtChanged            = true;
+}
+
+void OptixRenderer::setPipelineState( OptixPipeline                         pipeline,
+                                      const std::vector<OptixProgramGroup>& programGroups,
+                                      const std::vector<OptixProgramGroup>& callableProgramGroups )
+{
+    m_pendingState          = std::make_shared<PipelineState>( pipeline, programGroups, callableProgramGroups, m_launchCompletionFactory() );
+    m_programGroups         = programGroups;
+    m_callableProgramGroups = callableProgramGroups;
+    m_pipelineChanged       = false;
+    m_sbtChanged            = true;
+    setClearAccumulator();
+}
+#endif
 
 void OptixRenderer::createOptixContext()
 {
@@ -56,7 +184,7 @@ void OptixRenderer::createOptixContext()
 #ifndef NDEBUG
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
 #else
-    options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;    
+    options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
 #endif
     OTK_ERROR_CHECK( optixDeviceContextCreate( cuCtx, &options, &m_context ) );
 }
@@ -87,51 +215,56 @@ void OptixRenderer::initializeParamsFromOptions()
     m_params[0].useFaceForward = m_options.faceForward;
 }
 
-void OptixRenderer::createPipeline()
+std::shared_ptr<OptixRenderer::PipelineState> OptixRenderer::createPipelineState()
 {
     const uint_t             maxTraceDepth{ 1 };
+    OptixPipeline            pipeline{};
     OptixPipelineLinkOptions linkOptions{};
     linkOptions.maxTraceDepth = maxTraceDepth;
-    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineCompileOptions, &linkOptions, m_programGroups.data(),
-                                              m_programGroups.size(), LOG, &LOG_SIZE, &m_pipeline ) );
+    std::vector<OptixProgramGroup> pipelineProgramGroups{ m_programGroups };
+    std::copy( m_callableProgramGroups.cbegin(), m_callableProgramGroups.cend(), std::back_inserter( pipelineProgramGroups ) );
+    OTK_ERROR_CHECK_LOG( optixPipelineCreate( m_context, &m_pipelineCompileOptions, &linkOptions, pipelineProgramGroups.data(),
+                                              pipelineProgramGroups.size(), LOG, &LOG_SIZE, &pipeline ) );
 
     OptixStackSizes stackSizes{};
-    for( OptixProgramGroup group : m_programGroups )
+    for( OptixProgramGroup group : pipelineProgramGroups )
     {
 #if OPTIX_VERSION < 70700
         OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes ) );
 #else
-        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, m_pipeline ) );
+        OTK_ERROR_CHECK( optixUtilAccumulateStackSizes( group, &stackSizes, pipeline ) );
 #endif
     }
-    uint_t directCallableTraversalStackSize{};
-    uint_t directCallableStateStackSize{};
-    uint_t continuationStackSize{};
-    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stackSizes, maxTraceDepth, 0, 0, &directCallableTraversalStackSize,
+    uint_t       directCallableTraversalStackSize{};
+    uint_t       directCallableStateStackSize{};
+    uint_t       continuationStackSize{};
+    const uint_t maxDirectCallableDepth{ m_callableProgramGroups.empty() ? 0U : 1U };
+    OTK_ERROR_CHECK( optixUtilComputeStackSizes( &stackSizes, maxTraceDepth, 0, maxDirectCallableDepth, &directCallableTraversalStackSize,
                                                  &directCallableStateStackSize, &continuationStackSize ) );
     const uint_t maxTraversableDepth = 3;
-    OTK_ERROR_CHECK( optixPipelineSetStackSize( m_pipeline, directCallableTraversalStackSize, directCallableStateStackSize,
+    OTK_ERROR_CHECK( optixPipelineSetStackSize( pipeline, directCallableTraversalStackSize, directCallableStateStackSize,
                                                 continuationStackSize, maxTraversableDepth ) );
+    return std::make_shared<PipelineState>( pipeline, m_programGroups, m_callableProgramGroups, m_launchCompletionFactory() );
 }
 
-void OptixRenderer::writeRayGenRecords( CUstream stream )
+void OptixRenderer::writeRayGenRecords( CUstream stream, PipelineState& state )
 {
     // A single raygen record.
-    m_rayGenRecord.packHeader( 0, m_programGroups[+ProgramGroupIndex::RAYGEN] );
-    m_rayGenRecord.copyToDeviceAsync( stream );
+    state.rayGenRecord.packHeader( 0, state.programGroups[+ProgramGroupIndex::RAYGEN] );
+    state.rayGenRecord.copyToDeviceAsync( stream );
 }
 
-void OptixRenderer::writeMissRecords( CUstream stream )
+void OptixRenderer::writeMissRecords( CUstream stream, PipelineState& state )
 {
     // A single miss record.
-    m_missRecord.packHeader( 0, m_programGroups[+ProgramGroupIndex::MISS] );
-    m_missRecord.copyToDeviceAsync( stream );
+    state.missRecord.packHeader( 0, state.programGroups[+ProgramGroupIndex::MISS] );
+    state.missRecord.copyToDeviceAsync( stream );
 }
 
-void OptixRenderer::writeHitGroupRecords( CUstream stream )
+void OptixRenderer::writeHitGroupRecords( CUstream stream, PipelineState& state )
 {
     auto packHeader = [&]( HitGroupIndex hitGroup, ProgramGroupIndex programGroup ) {
-        m_hitGroupRecords.packHeader( +hitGroup, m_programGroups[+programGroup] );
+        state.hitGroupRecords.packHeader( +hitGroup, state.programGroups[+programGroup] );
     };
     packHeader( HitGroupIndex::PROXY_GEOMETRY, ProgramGroupIndex::HITGROUP_PROXY_GEOMETRY );
     packHeader( HitGroupIndex::PROXY_MATERIAL_TRIANGLE, ProgramGroupIndex::HITGROUP_PROXY_MATERIAL_TRIANGLE );
@@ -140,47 +273,104 @@ void OptixRenderer::writeHitGroupRecords( CUstream stream )
     packHeader( HitGroupIndex::PROXY_MATERIAL_SPHERE_ALPHA, ProgramGroupIndex::HITGROUP_PROXY_MATERIAL_SPHERE_ALPHA );
 
     // Initially no hitgroup record(s) for realized materials.
-    const size_t count = m_programGroups.size() - +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS;
-    m_hitGroupRecords.resize( +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS + count );
+    const size_t count = state.programGroups.size() - +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS;
+    state.hitGroupRecords.resize( +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS + count );
     for( size_t i = 0; i < count; ++i )
     {
-        m_hitGroupRecords.packHeader( +HitGroupIndex::REALIZED_MATERIAL_START + i,
-                                      m_programGroups[+ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + i] );
+        state.hitGroupRecords.packHeader( +HitGroupIndex::REALIZED_MATERIAL_START + i,
+                                          state.programGroups[+ProgramGroupIndex::HITGROUP_REALIZED_MATERIAL_START + i] );
     }
 
-    m_hitGroupRecords.copyToDeviceAsync( stream );
+    state.hitGroupRecords.copyToDeviceAsync( stream );
 }
 
-void OptixRenderer::writeSbt()
+void OptixRenderer::writeCallableRecords( CUstream stream, PipelineState& state )
 {
-    m_sbt.raygenRecord                = m_rayGenRecord;
-    m_sbt.missRecordBase              = m_missRecord;
-    m_sbt.missRecordStrideInBytes     = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
-    m_sbt.missRecordCount             = containerSize( m_missRecord );
-    m_sbt.hitgroupRecordBase          = m_hitGroupRecords;
-    m_sbt.hitgroupRecordCount         = containerSize( m_hitGroupRecords );
-    m_sbt.hitgroupRecordStrideInBytes = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    state.callableRecords.resize( state.callableProgramGroups.size() );
+    for( size_t i = 0; i < state.callableProgramGroups.size(); ++i )
+    {
+        state.callableRecords.packHeader( i, state.callableProgramGroups[i] );
+    }
+    if( !state.callableProgramGroups.empty() )
+    {
+        state.callableRecords.copyToDeviceAsync( stream );
+    }
 }
 
-void OptixRenderer::buildShaderBindingTable( CUstream stream )
+void OptixRenderer::writeSbt( PipelineState& state )
 {
-    writeRayGenRecords( stream );
-    writeMissRecords( stream );
-    writeHitGroupRecords( stream );
-    writeSbt();
+    state.sbt.raygenRecord                 = state.rayGenRecord;
+    state.sbt.missRecordBase               = state.missRecord;
+    state.sbt.missRecordStrideInBytes      = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    state.sbt.missRecordCount              = containerSize( state.missRecord );
+    state.sbt.hitgroupRecordBase           = state.hitGroupRecords;
+    state.sbt.hitgroupRecordCount          = containerSize( state.hitGroupRecords );
+    state.sbt.hitgroupRecordStrideInBytes  = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+    state.sbt.callablesRecordBase          = state.callableRecords;
+    state.sbt.callablesRecordCount         = containerSize( state.callableRecords );
+    state.sbt.callablesRecordStrideInBytes = toUInt( sizeof( otk::Record<otk::EmptyData> ) );
+}
+
+void OptixRenderer::buildShaderBindingTable( CUstream stream, PipelineState& state )
+{
+    writeRayGenRecords( stream, state );
+    writeMissRecords( stream, state );
+    writeHitGroupRecords( stream, state );
+    writeCallableRecords( stream, state );
+    writeSbt( state );
+}
+
+void OptixRenderer::activatePendingPipelineState()
+{
+    std::shared_ptr<PipelineState> retiredState{ std::move( m_activeState ) };
+    m_activeState = m_pendingState;
+    m_pendingState.reset();
+    retirePipelineState( std::move( retiredState ) );
+}
+
+void OptixRenderer::retirePipelineState( std::shared_ptr<PipelineState> state )
+{
+    if( !state || state->launchComplete() )
+    {
+        return;
+    }
+    m_retiredStates.push_back( std::move( state ) );
+}
+
+void OptixRenderer::collectRetiredPipelineStates()
+{
+    m_retiredStates.erase( std::remove_if( m_retiredStates.begin(), m_retiredStates.end(),
+                                           []( const std::shared_ptr<PipelineState>& state ) {
+                                               return state->launchComplete();
+                                           } ),
+                           m_retiredStates.end() );
+}
+
+void OptixRenderer::waitForPipelineStates()
+{
+    for( const std::shared_ptr<PipelineState>& state : m_retiredStates )
+    {
+        state->waitForLaunchComplete();
+    }
+    if( m_activeState )
+    {
+        m_activeState->waitForLaunchComplete();
+    }
 }
 
 void OptixRenderer::cleanup()
 {
-    if( m_pipeline )
-    {
-        OTK_ERROR_CHECK( optixPipelineDestroy( m_pipeline ) );
-    }
+    waitForPipelineStates();
+    m_retiredStates.clear();
+    m_pendingState.reset();
+    m_activeState.reset();
     OTK_ERROR_CHECK( optixDeviceContextDestroy( m_context ) );
 }
 
 void OptixRenderer::beforeLaunch( CUstream stream )
 {
+    collectRetiredPipelineStates();
+
     Params& params    = m_params[0];
     params.width      = m_options.width;
     params.height     = m_options.height;
@@ -204,30 +394,43 @@ void OptixRenderer::beforeLaunch( CUstream stream )
 
     if( m_pipelineChanged )
     {
-        createPipeline();
+        m_pendingState    = createPipelineState();
         m_pipelineChanged = false;
+        m_sbtChanged      = true;
     }
-    if( m_sbtChanged )
+    if( m_pendingState )
     {
-        buildShaderBindingTable( stream );
+        buildShaderBindingTable( stream, *m_pendingState );
+        activatePendingPipelineState();
+        m_sbtChanged = false;
+    }
+    else if( m_sbtChanged && m_activeState )
+    {
+        buildShaderBindingTable( stream, *m_activeState );
         m_sbtChanged = false;
     }
 }
 
 void OptixRenderer::launch( CUstream stream, uchar4* image )
 {
+    const std::shared_ptr<PipelineState> state{ m_activeState };
+    if( !state )
+    {
+        throw std::runtime_error( "Cannot launch before an OptiX pipeline state is active" );
+    }
     m_accumulator.resize( m_options.width, m_options.height );
     if( m_clearAccumulator )
     {
         m_accumulator.clear();
         m_clearAccumulator = false;
     }
-    m_params[0].image = image;
+    m_params[0].image       = image;
     m_params[0].accumulator = m_accumulator.getBuffer();
-    m_params[0].renderMode = m_options.renderMode;
+    m_params[0].renderMode  = m_options.renderMode;
     m_params.copyToDevice();
-    OTK_ERROR_CHECK( optixLaunch( m_pipeline, stream, m_params, sizeof( Params ), &m_sbt, m_options.width,
+    OTK_ERROR_CHECK( optixLaunch( state->pipeline, stream, m_params, sizeof( Params ), &state->sbt, m_options.width,
                                   m_options.height, /*depth=*/1 ) );
+    state->recordLaunchCompleteEvent( stream );
     if( m_options.sync )
     {
         OTK_CUDA_SYNC_CHECK();

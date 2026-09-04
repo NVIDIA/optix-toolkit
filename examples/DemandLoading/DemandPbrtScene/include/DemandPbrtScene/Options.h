@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/ProxyGranularity.h"
 #include "DemandPbrtScene/RenderMode.h"
 
@@ -30,6 +31,10 @@ struct Options
     bool             verboseProxyMaterialResolution{};
     bool             verboseSceneDecomposition{};
     bool             verboseTextureCreation{};
+#ifdef OTK_USE_MDL
+    bool             mdlSynchronousCompilation{};
+    bool             useMdlMaterials{ true };
+#endif
     bool             sortProxies{};
     bool             sync{};
     bool             faceForward{};

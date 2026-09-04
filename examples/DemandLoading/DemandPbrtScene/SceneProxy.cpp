@@ -70,6 +70,13 @@ inline MaterialGroup materialGroupForMaterial( const PlasticMaterial& material, 
              primitiveIndexEnd };
 }
 
+inline MaterialGroup materialGroupForShape( const ShapeDefinition& shape, uint_t primitiveIndexEnd )
+{
+    MaterialGroup result{ materialGroupForMaterial( fallbackMaterialForShape( shape ), primitiveIndexEnd ) };
+    result.pbrtMaterial = std::make_shared<PbrtMaterial>( shape.pbrtMaterial );
+    return result;
+}
+
 inline uint_t proxyMaterialSbtOffsetForPrimitive( GeometryPrimitive primitive )
 {
     switch( primitive )
@@ -251,7 +258,7 @@ GeometryInstance InstancePrimitiveProxy::createGeometry( OptixDeviceContext cont
     for( auto it = shapes.begin(); it != split; ++it )
     {
         const ShapeDefinition& shape{ *it };
-        groups.push_back( { materialGroupForMaterial( shape.material, result.primitiveGroupEndIndices[i++] ) } );
+        groups.push_back( { materialGroupForShape( shape, result.primitiveGroupEndIndices[i++] ) } );
     }
     const uint_t sbtOffset{ proxyMaterialSbtOffsetForPrimitive( m_primitive ) };
     return { result.accelBuffer,  //
@@ -368,7 +375,7 @@ GeometryInstance InstanceProxy::createGeometry( OptixDeviceContext context, CUst
     std::vector<MaterialGroup> groups;
     for( const ShapeDefinition& s : shapes )
     {
-        groups.push_back( { materialGroupForMaterial( s.material, result.primitiveGroupEndIndices[i++] ) } );
+        groups.push_back( { materialGroupForShape( s, result.primitiveGroupEndIndices[i++] ) } );
     }
     const uint_t sbtOffset{ proxyMaterialSbtOffsetForPrimitive( primitive ) };
     return { result.accelBuffer,  //
@@ -449,7 +456,7 @@ GeometryInstance ShapeProxy::createGeometryFromShape( OptixDeviceContext context
     return { entry.accelBuffer,                                                                             //
              primitive,                                                                                     //
              geometryInstance( getTransform() * shape.transform, m_pageId, entry.traversable, sbtOffset ),  //
-             { materialGroupForMaterial( shape.material, entry.primitiveGroupEndIndices[0] ) },             //
+             { materialGroupForShape( shape, entry.primitiveGroupEndIndices[0] ) },                         //
              entry.devNormals,                                                                              //
              entry.devUVs };
 }

@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["matte-checkerboard.png"]
+Sampler "halton" "integer pixelsamples" [1]
+Integrator "directlighting"
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "distant" "rgb L" [1 1 1] "point from" [0 0 4] "point to" [0 0 0]
+
+    Texture "albedo" "spectrum" "checkerboard"
+        "string aamode" ["none"]
+        "float uscale" [2]
+        "float vscale" [2]
+        "rgb tex1" [0.385 0.385 0.385]
+        "rgb tex2" [0 0 0]
+    Material "matte" "texture Kd" ["albedo"]
+    Shape "trianglemesh"
+        "point P" [
+            -2 -2 -0.05
+             2 -2 -0.05
+             2  2 -0.05
+            -2  2 -0.05
+            -2 -2  0.05
+             2 -2  0.05
+             2  2  0.05
+            -2  2  0.05
+        ]
+        "float uv" [
+            0 1
+            1 1
+            1 0
+            0 0
+            0 1
+            1 1
+            1 0
+            0 0
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
+WorldEnd

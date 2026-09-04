@@ -120,18 +120,13 @@ instance id.  The instance id is used as the primary index into the following ar
 
 - `instanceNormals`
 - `instanceUVs`
-- `partialUVs`
-- `partialMaterials`
 - `materialIndices`
 
 The `Normals` and `UVs` arrays hold pointers to arrays of the additional per-vertex data
 associated with the GAS.  The per-vertex data arrays are indexed by the primitive index within
 the GAS to obtain the necessary data.
 
-The `partialMaterials` array is used to obtain the alpha cutout map texture id for geometry
-resolved to an alpha cutout map, but not yet fully intersected.  If the cutout is such that
-rays never intersect the actual surface, then materials and textures for the surface are
-never loaded.
+### Material Data
 
 The `materialIndices` array is used to find the number of material groups associated with
 a GAS.  Each entry in the array gives the number of material groups in the GAS and the starting
@@ -139,7 +134,18 @@ index into the `primitiveMaterials` array.  The `primitiveMaterials` array conta
 `PrimitiveMaterialRange` entry for each material group in the GAS.  Each `PrimitiveMaterialRange`
 entry gives a range of primitive indices in the GAS associated with a material index.
 
-The `realizedMaterials` array, indexed by a material id, holds the material parameters
-for the simple material model used in the sample.
+The selected material id indexes `materialStates`, which chooses the active material backend.
+Local fallback data is stored in `realizedMaterials`, generated MDL data is stored in
+`mdlMaterialShaders`, and Fourier table data is stored in `fourierMaterialResources`.
 
-![Params](Params.png)
+The demand material id is used as the primary index into `partialMaterials` and `partialUVs`
+for geometry resolved to an alpha cutout map, but not yet fully intersected.  If the cutout is
+such that rays never intersect the actual surface, then materials and textures for the surface
+are never loaded.
+
+When `OTK_USE_MDL` is ON, advanced PBRT material support is enabled via demand compilation
+of MDL materials.  See the [PBRT materials document](PbrtMaterials.md) for more details.
+
+![Params material id selection](ParamsMaterialId.png)
+
+![Params material data selection](ParamsMaterialData.png)

@@ -1,0 +1,74 @@
+digraph g {
+fontname="Helvetica,Arial,sans-serif"
+node [fontname="Courier"]
+edge [fontname="Helvetica,Arial,sans-serif"]
+graph [
+rankdir = "LR"
+];
+node [
+fontsize = "16"
+shape = "ellipse"
+];
+edge [
+];
+"instanceId" [
+label = "instanceId | <f0> 2"
+shape = "record"
+];
+"primitiveIndex" [
+label = "primitiveIndex | <f0> P"
+shape = "record"
+];
+"materialIndices" [
+label = "materialIndices | 0: &lt;N0, B0&gt; | 1: &lt;N1, B1&gt; | <f2> 2: &lt;N2, B2&gt; | 3: &lt;N3, B3&gt;"
+shape = "record"
+];
+"primitiveMaterials" [
+label = "primitiveMaterials | 0: ... | ... | <f0> B2+0: &lt;E0,M0&gt; | <f1> B2+1: &lt;E1,M1&gt; | ... | <f2> B2+N2-1: &lt;E2,M2&gt;"
+shape = "record"
+];
+"materialId" [
+label = "materialId | <f1> M1"
+shape = "record"
+];
+"instanceNormals" [
+label = "instanceNormals | 0: ... | 1: ... | <f2> 2: ... | 3: ..."
+shape = "record"
+];
+"instanceUVs" [
+label = "instanceUVs | 0: ... | 1: ... | <f2> 2: ... | 3: ..."
+shape = "record"
+];
+"GAS 2 Normals" [
+label = "GAS 2 Normals | <f0> 0: ... | 1: ... | 2: ... | 3: ... | 4: ... | 5: ..."
+shape = "record"
+];
+"GAS 2 UVs" [
+label = "GAS 2 UVs | <f0> 0: ... | 1: ... | 2: ... | 3: ... | 4: ... | 5: ..."
+shape = "record"
+];
+"demandMaterialId" [
+label = "demandMaterialId | <f3> M3"
+shape = "record"
+];
+"partialMaterials" [
+label = "partialMaterials | ... | <f3> M3: alphaTextureId | ..."
+shape = "record"
+];
+"partialUVs" [
+label = "partialUVs | ... | <f3> M3: ..."
+shape = "record"
+];
+
+"instanceId":f0 -> "materialIndices":f2 [id = 0];
+"materialIndices":f2 -> "primitiveMaterials":f0 [id = 1];
+"primitiveIndex":f0 -> "primitiveMaterials":f1 [id = 2, label = "select first E > P"];
+"primitiveMaterials":f1 -> "materialId":f1 [id = 3];
+"instanceId":f0 -> "instanceNormals":f2 [id = 4];
+"instanceNormals":f2 -> "GAS 2 Normals":f0 [id = 5];
+"instanceId":f0 -> "instanceUVs":f2 [id = 6];
+"instanceUVs":f2 -> "GAS 2 UVs":f0 [id = 7];
+"demandMaterialId":f3 -> "partialMaterials":f3 [id = 8];
+"demandMaterialId":f3 -> "partialUVs":f3 [id = 9];
+"partialUVs":f3 -> "GAS 2 UVs":f0 [id = 10];
+}

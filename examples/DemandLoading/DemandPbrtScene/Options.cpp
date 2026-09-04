@@ -44,6 +44,10 @@ namespace demandPbrtScene {
         "   --proxy-material            Enable verbose logging of resolution of proxy materials\n"
         "   --scene-decomposition       Enable verbose logging of scene hierarchy decomposition\n"
         "   --texture-creation          Enable verbose logging of texture creation\n"
+#ifdef OTK_USE_MDL
+        "   --mdl-synchronous-compilation Compile MDL materials synchronously instead of in the background\n"
+        "   --use-mdl-materials[=<bool>] Render eligible PBRT materials through generated MDL; defaults to true\n"
+#endif
         "   --verbose-loading           Enable verbose logging of mesh reading\n"
         "   --verbose                   Enables all verbose logging\n"
         "   --sort-proxies              Sort proxies before resolving\n"
@@ -176,6 +180,32 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
         {
             options.verboseTextureCreation = true;
         }
+#ifdef OTK_USE_MDL
+        else if( arg == "--mdl-synchronous-compilation" )
+        {
+            options.mdlSynchronousCompilation = true;
+        }
+        else if( arg == "--use-mdl-materials" )
+        {
+            options.useMdlMaterials = true;
+        }
+        else if( beginsWith( arg, "--use-mdl-materials=" ) )
+        {
+            const std::string value{ extractValue( arg ) };
+            if( value == "true" )
+            {
+                options.useMdlMaterials = true;
+            }
+            else if( value == "false" )
+            {
+                options.useMdlMaterials = false;
+            }
+            else
+            {
+                usage( argv[0], ( "bad use MDL materials value: " + value ).c_str() );
+            }
+        }
+#endif
         else if( arg == "--verbose" )
         {
             options.verboseLoading                 = true;
@@ -267,6 +297,13 @@ Options parseOptions( int argc, char* argv[], const std::function<UsageFn>& usag
     {
         usage( argv[0], "bad debug pixel value" );
     }
+
+#ifdef OTK_USE_MDL
+    if( !options.outFile.empty() && options.useMdlMaterials )
+    {
+        options.mdlSynchronousCompilation = true;
+    }
+#endif
 
     return options;
 }

@@ -21,6 +21,7 @@ class MockDemandTextureCache : public ::testing::StrictMock<DemandTextureCache>
 
     MOCK_METHOD( uint_t, createDiffuseTextureFromFile, ( const std::string& path ), ( override ) );
     MOCK_METHOD( bool, hasDiffuseTextureForFile, ( const std::string& path ), ( const override ) );
+    MOCK_METHOD( uint_t, createLinearTextureFromFile, ( const std::string& path, bool inverseSrgb ), ( override ) );
     MOCK_METHOD( uint_t, createAlphaTextureFromFile, ( const std::string& path ), ( override ) );
     MOCK_METHOD( bool, hasAlphaTextureForFile, (const std::string&), ( const, override ) );
     MOCK_METHOD( uint_t, createSkyboxTextureFromFile, ( const std::string& path ), ( override ) );

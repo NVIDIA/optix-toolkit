@@ -30,6 +30,13 @@ class MockRenderer : public ::testing::StrictMock<Renderer>
     MOCK_METHOD( void, setCamera, (const PerspectiveCamera&), ( override ) );
     MOCK_METHOD( void, setLookAt, (const LookAtParams&), ( override ) );
     MOCK_METHOD( void, setProgramGroups, (const std::vector<OptixProgramGroup>&), ( override ) );
+#ifdef OTK_USE_MDL
+    MOCK_METHOD( void, setCallableProgramGroups, (const std::vector<OptixProgramGroup>&), ( override ) );
+    MOCK_METHOD( void,
+                 setPipelineState,
+                 (OptixPipeline, const std::vector<OptixProgramGroup>&, const std::vector<OptixProgramGroup>&),
+                 ( override ) );
+#endif
     MOCK_METHOD( void, beforeLaunch, ( CUstream ), ( override ) );
     MOCK_METHOD( void, launch, (CUstream, uchar4*), ( override ) );
     MOCK_METHOD( void, afterLaunch, (), ( override ) );

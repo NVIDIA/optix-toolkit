@@ -11,10 +11,14 @@ function(pbrtImageTest name warmup scene)
     if(NOT pbrtImageTest_RESOURCES)
         set(pbrtImageTest_RESOURCES "")
     endif()
+    if(OTK_USE_MDL)
+        set(pbrtImageTest_MDL_OPTIONS --use-mdl-materials=false)
+    endif()
     add_image_test(DemandPbrtScene ${name}
         FOLDER Examples/DemandLoading/Tests
         RESOURCES ${scene} ${pbrtImageTest_RESOURCES}
-        ARGS --bg=0.3,0.3,0.3 --warmup=${warmup} ${resourceDir}/${scene} ${pbrtImageTest_OPTIONS})
+        ARGS --bg=0.3,0.3,0.3 --warmup=${warmup} ${resourceDir}/${scene}
+             ${pbrtImageTest_MDL_OPTIONS} ${pbrtImageTest_OPTIONS})
 endfunction()
 
 source_group("Scene Files" REGULAR_EXPRESSION ".*\\.pbrt")
@@ -26,6 +30,40 @@ pbrtImageTest(cube0 0 cube.pbrt RESOURCES light-sources.pbrt)
 pbrtImageTest(cube1 1 cube.pbrt)
 # Render realized geometry with realized material
 pbrtImageTest(cube2 2 cube.pbrt)
+
+if(OTK_USE_MDL)
+    # Render explicit PBRT matte material through generated MDL
+    pbrtImageTest(mdl-matte2 2 mdl-matte.pbrt RESOURCES cube-geom.pbrt light-sources.pbrt
+        OPTIONS --use-mdl-materials --mdl-synchronous-compilation)
+    if(OTK_USE_OIIO)
+        # Render generated MDL matte material with a demand-loaded diffuse texture
+        pbrtImageTest(mdl-diffuse4 4 diffuse.pbrt RESOURCES mandelbrot-hue.png
+            OPTIONS --use-mdl-materials --mdl-synchronous-compilation)
+
+        # Backstop mapped infinite lighting using the PBRT reference scenes.
+        add_image_test(DemandPbrtScene mdl-matte-infinite
+            FOLDER Examples/DemandLoading/Tests
+            ARGS
+                --bg=0/0/0
+                --dim=32x32
+                --warmup=16
+                ${resourceDir}/matte-infinite.pbrt
+                --use-mdl-materials
+                --mdl-synchronous-compilation)
+        add_image_test(DemandPbrtScene mdl-matte-distant-infinite
+            FOLDER Examples/DemandLoading/Tests
+            ARGS
+                --bg=0/0/0
+                --dim=32x32
+                --warmup=16
+                ${resourceDir}/matte-distant-infinite.pbrt
+                --use-mdl-materials
+                --mdl-synchronous-compilation)
+    endif()
+endif()
+
+# Render realized geometry with material selected through NamedMaterial
+pbrtImageTest(named-material2 2 named-material.pbrt RESOURCES cube-geom.pbrt)
 
 # Render scene proxy
 pbrtImageTest(two-cubes0 0 two-cubes.pbrt RESOURCES cube-geom.pbrt)

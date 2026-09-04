@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["gold-mix-rgb-amount.png"]
+Sampler "halton" "integer pixelsamples" [1]
+Integrator "directlighting"
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "distant" "rgb L" [1 1 1] "point from" [0 0 4] "point to" [0 0 0]
+
+    MakeNamedMaterial "front" "string type" ["matte"] "rgb Kd" [0.8 0.2 0.2]
+    MakeNamedMaterial "back" "string type" ["matte"] "rgb Kd" [0.2 0.45 0.75]
+    Material "mix"
+        "string namedmaterial1" ["front"]
+        "string namedmaterial2" ["back"]
+        "rgb amount" [0.2 0.5 0.8]
+    Shape "trianglemesh"
+        "point P" [
+            -2 -2 -0.05
+             2 -2 -0.05
+             2  2 -0.05
+            -2  2 -0.05
+            -2 -2  0.05
+             2 -2  0.05
+             2  2  0.05
+            -2  2  0.05
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
+WorldEnd

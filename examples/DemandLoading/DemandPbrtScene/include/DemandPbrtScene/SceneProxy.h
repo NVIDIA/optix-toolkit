@@ -18,17 +18,42 @@
 
 #include <optix.h>
 
+#ifdef OTK_USE_MDL
+#include <array>
+#endif
 #include <string>
 #include <vector>
 
 namespace demandPbrtScene {
 
+#ifdef OTK_USE_MDL
+struct MaterialGroupMdlTextureBinding
+{
+    std::string               fileName;
+    MdlMaterialTextureBinding binding{ invalidMdlMaterialTextureBinding() };
+};
+
+inline bool operator==( const MaterialGroupMdlTextureBinding& lhs, const MaterialGroupMdlTextureBinding& rhs )
+{
+    return lhs.fileName == rhs.fileName && lhs.binding == rhs.binding;
+}
+
+inline bool operator!=( const MaterialGroupMdlTextureBinding& lhs, const MaterialGroupMdlTextureBinding& rhs )
+{
+    return !( lhs == rhs );
+}
+#endif
+
 struct MaterialGroup
 {
-    PhongMaterial material;
-    std::string   diffuseMapFileName;
-    std::string   alphaMapFileName;
-    uint_t        primitiveIndexEnd;
+    PhongMaterial                                                                  material;
+    std::string                                                                    diffuseMapFileName;
+    std::string                                                                    alphaMapFileName;
+    uint_t                                                                         primitiveIndexEnd;
+    std::shared_ptr<const otk::pbrt::PbrtMaterial>                                 pbrtMaterial;
+#ifdef OTK_USE_MDL
+    std::array<MaterialGroupMdlTextureBinding, MDL_MATERIAL_TEXTURE_BINDING_COUNT> mdlTextureBindings;
+#endif
 };
 
 struct GeometryInstance

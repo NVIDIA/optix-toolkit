@@ -8,6 +8,7 @@
 
 namespace otk {
 namespace pbrt {
+struct PbrtMaterial;
 struct SceneDescription;
 class Logger;
 class MeshInfoReader;

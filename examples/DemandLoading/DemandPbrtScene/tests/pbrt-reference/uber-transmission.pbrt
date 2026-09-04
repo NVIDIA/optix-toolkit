@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["uber-transmission.png"]
+Sampler "halton" "integer pixelsamples" [4]
+Integrator "path" "integer maxdepth" [5]
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "infinite" "rgb L" [1 1 1]
+
+    Material "uber"
+        "rgb Kd" [0 0 0]
+        "rgb Ks" [0 0 0]
+        "rgb Kr" [0 0 0]
+        "rgb Kt" [1 0 0]
+        "float index" [1]
+    Shape "trianglemesh"
+        "point P" [
+            -1 -1 -0.05
+             1 -1 -0.05
+             1  1 -0.05
+            -1  1 -0.05
+            -1 -1  0.05
+             1 -1  0.05
+             1  1  0.05
+            -1  1  0.05
+        ]
+        "integer indices" [
+            2 1 0
+            0 3 2
+            6 5 1
+            1 2 6
+            7 4 5
+            5 6 7
+            3 0 4
+            4 7 3
+            6 2 3
+            3 7 6
+            1 5 4
+            4 0 1
+        ]
+WorldEnd

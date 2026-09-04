@@ -200,6 +200,13 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
     prd.rayDistance = tMax;
     RayCone rayCone = initRayConePinholeCamera( u, v, w, uint2{ params.width, params.height }, rayDirection );
+#ifdef OTK_USE_MDL
+    unsigned int mdlSampleSeed = rseed ^ 0x9e3779b9U;
+    prd.mdlRayConeAngle        = rayCone.angle;
+    prd.mdlRayConeWidth        = rayCone.width;
+    prd.mdlBsdfSampleXi =
+        make_float4( rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ) );
+#endif
     optixTrace( params.traversable, rayOrigin, rayDirection, tMin, tMax, rayTime, OptixVisibilityMask( 255 ), flags,
                 sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
     rayCone       = propagate( rayCone, prd.rayDistance );
@@ -230,6 +237,11 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     // Phong shading
     if( renderMode == RenderMode::PRIMARY_RAY )
     {
+        if( prd.hasDirectColor )
+        {
+            accumulateValue( pixel, prd.color );
+            return;
+        }
         if( prd.material == nullptr )
         {
             showAccumulatorValue( pixel, float3{ 1.0f, 1.0f, 0.0f } );
@@ -274,17 +286,36 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     // Ambient Occlusion and Diffuse Path Tracing
     const float rayTmax     = ( renderMode == RenderMode::NEAR_AO ) ? 128.0f : 1000000.0f;
     const float maxRayDepth = ( renderMode != RenderMode::PATH_TRACING ) ? 1 : 3;
+    float3      pathBackground{ params.background };
 
     for( int rayDepth = 0; rayDepth < maxRayDepth; ++rayDepth )
     {
         // Compute ray scatter direction
         rayOrigin = rayOrigin + prd.rayDistance * rayDirection;
-        if( otk::dot( prd.normal, rayDirection ) > 0.0f )
-            prd.normal = -prd.normal;
-        rayDirection = sampleDiffuse( float2{ rnd( rseed ), rnd( rseed ) }, prd.normal );
+#ifdef OTK_USE_MDL
+        if( renderMode == RenderMode::PATH_TRACING && prd.hasMdlBsdfSample )
+        {
+            rayDirection = otk::normalize( prd.mdlBsdfSampleDirection );
+            sampleColor *= prd.mdlBsdfSampleThroughput;
+        }
+        else
+#endif
+        {
+            if( otk::dot( prd.normal, rayDirection ) > 0.0f )
+                prd.normal = -prd.normal;
+            rayDirection = sampleDiffuse( float2{ rnd( rseed ), rnd( rseed ) }, prd.normal );
+        }
 
         // Trace ray
         prd.rayDistance = rayTmax;
+#ifdef OTK_USE_MDL
+        prd.hasMdlBsdfSample = false;
+        prd.mdlRayConeAngle  = rayCone.angle;
+        prd.mdlRayConeWidth  = rayCone.width;
+        mdlSampleSeed = rseed ^ ( 0x9e3779b9U * static_cast<unsigned int>( rayDepth + 2 ) );
+        prd.mdlBsdfSampleXi =
+            make_float4( rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ), rnd( mdlSampleSeed ) );
+#endif
         optixTrace( params.traversable, rayOrigin, rayDirection, tMin, rayTmax, rayTime, OptixVisibilityMask( 255 ),
                     flags, sbtOffset, SBT_STRIDE_COLLAPSE, missSbtIndex, attr( u0 ), attr( u1 ) );
         rayCone       = propagate( rayCone, prd.rayDistance );
@@ -292,7 +323,10 @@ extern "C" __global__ void __raygen__perspectiveCamera()
 
         // Ray hit sky, break
         if( prd.rayDistance >= rayTmax )
+        {
+            pathBackground = prd.color;
             break;
+        }
 
         // Multiply by diffuse color
         if( prd.diffuseTextureId != 0xffffffff )
@@ -317,7 +351,7 @@ extern "C" __global__ void __raygen__perspectiveCamera()
     if( renderMode == RenderMode::PATH_TRACING )
     {
         // Background is the light source in path tracing mode
-        sampleColor *= params.background;
+        sampleColor *= pathBackground;
     }
     else
     {
@@ -383,7 +417,7 @@ extern "C" __global__ void __miss__backgroundColor()
             if( light.skyboxTextureId != 0 && first )
             {
                 const float2 uv = sphericalCoordFromRayDirection();
-                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId, uv.x, uv.y, &isResident );
+                float4 texel = demandLoading::tex2D<float4>( params.demandContext, light.skyboxTextureId - 1U, uv.x, uv.y, &isResident );
                 if( isResident )
                 {
                     background += light.color * light.scale * make_float3( texel.x, texel.y, texel.z );
@@ -560,6 +594,16 @@ struct ProxyMaterialDebugInfo
                 launchIndex.x, launchIndex.y,                                   //
                 pageId,                                                         //
                 isResident ? "true" : "false" );
+        const demandPbrtScene::Params& params{ demandPbrtScene::PARAMS_VAR_NAME };
+        if( params.materialStates != nullptr && pageId < params.numMaterialStates )
+        {
+            const demandPbrtScene::MaterialState& state{ params.materialStates[pageId] };
+            printf( "    MaterialState: id %u, backend %u, shaderKey %u, fallbackReason %u\n",  //
+                    state.materialId,                                                           //
+                    static_cast<unsigned int>( state.backend ),                                 //
+                    state.shaderKey,                                                            //
+                    static_cast<unsigned int>( state.fallbackReason ) );                        //
+        }
     }
     __device__ __forceinline__ void setColor( float r, float g, float b ) const
     {

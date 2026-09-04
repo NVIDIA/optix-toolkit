@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DemandPbrtScene/Config.h"
 #include "DemandPbrtScene/Dependencies.h"
 
 #include <optix.h>
@@ -42,10 +43,16 @@ class Renderer
     virtual OptixDeviceContext                 getDeviceContext() const          = 0;
     virtual const OptixPipelineCompileOptions& getPipelineCompileOptions() const = 0;
 
-    virtual void setDebugLocation( const otk::DebugLocation& data )              = 0;
-    virtual void setCamera( const PerspectiveCamera& definition )                = 0;
-    virtual void setLookAt( const LookAtParams& lookAt )                         = 0;
-    virtual void setProgramGroups( const std::vector<OptixProgramGroup>& value ) = 0;
+    virtual void setDebugLocation( const otk::DebugLocation& data )                              = 0;
+    virtual void setCamera( const PerspectiveCamera& definition )                                = 0;
+    virtual void setLookAt( const LookAtParams& lookAt )                                         = 0;
+    virtual void setProgramGroups( const std::vector<OptixProgramGroup>& value )                 = 0;
+#ifdef OTK_USE_MDL
+    virtual void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value )         = 0;
+    virtual void setPipelineState( OptixPipeline                         pipeline,
+                                   const std::vector<OptixProgramGroup>& programGroups,
+                                   const std::vector<OptixProgramGroup>& callableProgramGroups ) = 0;
+#endif
 
     virtual void beforeLaunch( CUstream stream )           = 0;
     virtual void launch( CUstream stream, uchar4* pixels ) = 0;

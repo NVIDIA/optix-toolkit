@@ -228,6 +228,61 @@ TEST_F( TestOptions, verboseTextureCreation )
     EXPECT_TRUE( options.verboseTextureCreation );
 }
 
+#ifdef OTK_USE_MDL
+TEST_F( TestOptions, mdlCompilationIsAsynchronousByDefault )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt" } );
+
+    EXPECT_FALSE( options.mdlSynchronousCompilation );
+}
+
+TEST_F( TestOptions, fileOutputUsesSynchronousMdlCompilation )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--file", "output.png", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.mdlSynchronousCompilation );
+}
+
+TEST_F( TestOptions, fileOutputWithoutMdlMaterialsDoesNotForceSynchronousCompilation )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--file", "output.png", "--use-mdl-materials=false", "scene.pbrt" } );
+
+    EXPECT_FALSE( options.mdlSynchronousCompilation );
+}
+
+TEST_F( TestOptions, mdlSynchronousCompilation )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--mdl-synchronous-compilation", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.mdlSynchronousCompilation );
+}
+
+TEST_F( TestOptions, useMdlMaterialsByDefault )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.useMdlMaterials );
+}
+
+TEST_F( TestOptions, useMdlMaterials )
+{
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--use-mdl-materials", "scene.pbrt" } );
+
+    EXPECT_TRUE( options.useMdlMaterials );
+}
+
+TEST_F( TestOptions, doNotUseMdlMaterials )
+{
+    const demandPbrtScene::Options options =
+        getOptions( { "DemandPbrtScene", "--use-mdl-materials=false", "scene.pbrt" } );
+
+    EXPECT_FALSE( options.useMdlMaterials );
+}
+#endif
+
 TEST_F( TestOptions, verboseLogging )
 {
     const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--verbose", "scene.pbrt" } );
@@ -457,8 +512,7 @@ TEST_F( TestOptions, missingProxyGranularity )
 {
     EXPECT_CALL( m_mockUsage, Call( StrEq( "DemandPbrtScene" ), StrEq( "missing proxy granularity value" ) ) ).Times( 1 );
 
-    const demandPbrtScene::Options options =
-        getOptions( { "DemandPbrtScene", "--proxy-granularity=", "scene.pbrt" } );
+    const demandPbrtScene::Options options = getOptions( { "DemandPbrtScene", "--proxy-granularity=", "scene.pbrt" } );
 }
 
 TEST_F( TestOptions, unknownProxyGranularity )

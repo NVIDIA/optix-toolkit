@@ -21,8 +21,10 @@
 #include <OptiXToolkit/Error/cudaErrorCheck.h>
 #include <OptiXToolkit/Memory/BitCast.h>
 #include <OptiXToolkit/Memory/SyncVector.h>
+#include <OptiXToolkit/PbrtSceneLoader/Logger.h>
 #include <OptiXToolkit/PbrtSceneLoader/MeshReader.h>
 #include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
+#include <OptiXToolkit/PbrtSceneLoader/SceneLoader.h>
 #include <OptiXToolkit/Testing/Matchers.h>
 #include <OptiXToolkit/Testing/OptixCompare.h>
 
@@ -34,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <memory>
 
 using namespace demandPbrtScene;
 using namespace otk::pbrt;
@@ -48,6 +51,35 @@ using B3 = pbrt::Bounds3f;
 constexpr const char* DIFFUSE_MAP_FILENAME{ "diffuse.png" };
 constexpr const char* ALPHA_MAP_FILENAME{ "alpha.png" };
 constexpr uint_t      ARBITRARY_PRIMITIVE_GROUP_END{ 222U };
+
+namespace {
+
+class NullLogger : public Logger
+{
+  public:
+    void start( const char* programName ) override { static_cast<void>( programName ); }
+    void stop() override {}
+    void info( std::string text, const char* file, int line ) const override
+    {
+        static_cast<void>( text );
+        static_cast<void>( file );
+        static_cast<void>( line );
+    }
+    void warning( std::string text, const char* file, int line ) const override
+    {
+        static_cast<void>( text );
+        static_cast<void>( file );
+        static_cast<void>( line );
+    }
+    void error( std::string text, const char* file, int line ) const override
+    {
+        static_cast<void>( text );
+        static_cast<void>( file );
+        static_cast<void>( line );
+    }
+};
+
+}  // namespace
 
 template <typename Thing>
 B3 transformBounds( const Thing& thing )
@@ -209,6 +241,45 @@ static SceneDescriptionPtr singleTriangleWithDiffuseMapScene()
     scene->freeShapes[0].material.diffuseMapFileName = "diffuse.png";
     return scene;
 }
+
+static SceneDescriptionPtr parsePbrtScene( const std::string& text )
+{
+    std::shared_ptr<SceneLoader> loader{ createSceneLoader( "TestDemandPbrtSceneImpl", std::make_shared<NullLogger>(), nullptr ) };
+    return loader->parseString( text );
+}
+
+static void addStringParameter( ::pbrt::ParamSet& params, const std::string& name, const std::string& value )
+{
+    std::unique_ptr<std::string[]> values{ new std::string[1] };
+    values[0] = value;
+    params.AddString( name, std::move( values ), 1 );
+}
+
+static void addPbrtImageMapTexture( ShapeDefinition&   shape,
+                                    const std::string& materialParam,
+                                    const std::string& valueType,
+                                    const std::string& textureName,
+                                    const std::string& fileName )
+{
+    shape.pbrtMaterial.params.AddTexture( materialParam, textureName );
+
+    PbrtTexture texture{};
+    texture.name      = textureName;
+    texture.valueType = valueType;
+    texture.type      = "imagemap";
+    addStringParameter( texture.params, "filename", fileName );
+    shape.pbrtMaterial.graph.textures[valueType + ":" + textureName] = texture;
+}
+
+#ifdef OTK_USE_MDL
+static MdlMaterialShader makeMdlDiffuseTextureShader( const PbrtDemandTextureBinding& binding )
+{
+    MdlMaterialShader data{ 7U, 4U };
+    EXPECT_TRUE( setMdlMaterialTextureBinding( data, MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX, 333U, binding.scale,
+                                               binding.bias ) );
+    return data;
+}
+#endif
 
 static SceneDescriptionPtr twoShapeScene()
 {
@@ -614,6 +685,476 @@ TEST( TestSceneConstruction, constructSingleDiffuseMapTriangleScene )
     EXPECT_FALSE( shape.material.diffuseMapFileName.empty() );
 }
 
+TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtDiffuseTextureForCommonMaterialTypes )
+{
+    struct DiffuseCase
+    {
+        const char* materialType;
+        const char* valueType;
+    };
+
+    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
+                                      DiffuseCase{ "uber", "spectrum" }, DiffuseCase{ "translucent", "spectrum" } } )
+    {
+        SCOPED_TRACE( value.materialType );
+        ShapeDefinition shape{ singleTriangleShape() };
+        shape.material.diffuseMapFileName = "legacy-diffuse.png";
+        shape.pbrtMaterial.type           = value.materialType;
+        addPbrtImageMapTexture( shape, "Kd", value.valueType, "diffuseTexture", "pbrt-diffuse.png" );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( shape ) };
+
+        EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( shape ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtDiffuseTextures )
+{
+    struct DiffuseCase
+    {
+        const char* materialType;
+        const char* valueType;
+    };
+
+    for( const DiffuseCase& value : { DiffuseCase{ "matte", "spectrum" }, DiffuseCase{ "plastic", "color" },
+                                      DiffuseCase{ "uber", "spectrum" }, DiffuseCase{ "translucent", "spectrum" } } )
+    {
+        SCOPED_TRACE( value.materialType );
+        const std::string         sceneText{ std::string( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" ")pbrt" )
+                                             + value.valueType + R"pbrt(" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Material ")pbrt" + value.materialType
+                                             + R"pbrt("
+            "texture Kd" [ "diffuseTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" };
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+#ifdef OTK_USE_MDL
+        const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+        const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
+
+        EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+#ifdef OTK_USE_MDL
+        EXPECT_EQ( 1U, shaderData.textureBindingCount );
+        EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+        EXPECT_EQ( make_float3( 1.0f, 1.0f, 1.0f ),
+                   shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+        EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ),
+                   shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
+        EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardDiffuseTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "checkerboard"
+            "rgb tex1" [ 1 0 0 ]
+            "rgb tex2" [ 0 1 0 ]
+            "float uscale" [ 2 ]
+            "float vscale" [ 4 ]
+        Material "matte"
+            "texture Kd" [ "diffuseTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial            material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtCheckerboardDefinition definition{ parsePbrtCheckerboardTextureKey( material.diffuseMapFileName ) };
+
+    EXPECT_TRUE( isPbrtCheckerboardTextureKey( material.diffuseMapFileName ) );
+    EXPECT_FLOAT_EQ( 1.0f, definition.tex1.x );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex1.y );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex1.z );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex2.x );
+    EXPECT_FLOAT_EQ( 1.0f, definition.tex2.y );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex2.z );
+    EXPECT_FLOAT_EQ( 2.0f, definition.uscale );
+    EXPECT_FLOAT_EQ( 4.0f, definition.vscale );
+    EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesScaledPbrtDiffuseTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "scaledDiffuse" "color" "scale"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+        Material "matte"
+            "texture Kd" [ "scaledDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+#ifdef OTK_USE_MDL
+    const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
+
+    EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+    EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), material.Kd );
+    EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
+    EXPECT_EQ( make_float3( 0.25f, 0.5f, 0.75f ), binding.scale );
+    EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ), binding.bias );
+#ifdef OTK_USE_MDL
+    EXPECT_EQ( 1U, shaderData.textureBindingCount );
+    EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( binding.scale, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( binding.bias, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
+    EXPECT_TRUE( binding.transformed );
+    EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, imageMapBindingUsesPbrtGammaSemantics )
+{
+    struct TestCase
+    {
+        const char* fileName;
+        const char* gammaParameter;
+        bool        expectedGamma;
+    };
+    const TestCase cases[] = {
+        { "texture.png", "", true },
+        { "texture.tga", "", true },
+        { "texture.exr", "", false },
+        { "texture.png", R"pbrt("bool gamma" ["false"])pbrt", false },
+        { "texture.exr", R"pbrt("bool gamma" ["true"])pbrt", true },
+    };
+
+    for( const TestCase& test : cases )
+    {
+        SCOPED_TRACE( test.fileName );
+        const std::string         sceneText{ std::string( R"pbrt(
+            WorldBegin
+            Texture "diffuseTexture" "color" "imagemap"
+                "string filename" [ ")pbrt" )
+                                     + test.fileName + R"pbrt(" ]
+                )pbrt" + test.gammaParameter
+                                     + R"pbrt(
+            Material "matte" "texture Kd" [ "diffuseTexture" ]
+            Shape "trianglemesh"
+                "integer indices" [0 2 1]
+                "point P" [ 0 0 0  1 0 0  0 1 0 ]
+            WorldEnd)pbrt" };
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+        EXPECT_EQ( test.expectedGamma, binding.gamma );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesMixedPbrtDiffuseTexture )
+{
+    for( const char* valueType : { "color", "spectrum" } )
+    {
+        SCOPED_TRACE( valueType );
+        const std::string         sceneText{ std::string( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" ")pbrt" )
+                                             + valueType + R"pbrt(" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "mixedDiffuse" ")pbrt"
+                                             + valueType + R"pbrt(" "mix"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+            "float amount" [ 0.5 ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" };
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+        const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+#ifdef OTK_USE_MDL
+        const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
+
+        EXPECT_TRUE( scene->freeShapes[0].material.diffuseMapFileName.empty() );
+        EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( make_float3( 0.5f, 0.5f, 0.5f ), material.Kd );
+        EXPECT_THAT( binding.fileName, EndsWith( "pbrt-diffuse.png" ) );
+        EXPECT_EQ( make_float3( 0.5f, 0.5f, 0.5f ), binding.scale );
+        EXPECT_EQ( make_float3( 0.125f, 0.25f, 0.375f ), binding.bias );
+#ifdef OTK_USE_MDL
+        EXPECT_EQ( 1U, shaderData.textureBindingCount );
+        EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+        EXPECT_EQ( binding.scale, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+        EXPECT_EQ( binding.bias, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
+        EXPECT_TRUE( binding.transformed );
+        EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesTwoLeafMixedPbrtDiffuseTextureUnsupported )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture1" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse-1.png" ]
+        Texture "diffuseTexture2" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse-2.png" ]
+        Texture "mixedDiffuse" "color" "mix"
+            "texture tex1" [ "diffuseTexture1" ]
+            "texture tex2" [ "diffuseTexture2" ]
+            "float amount" [ 0.5 ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_TRUE( material.diffuseMapFileName.empty() );
+    EXPECT_FALSE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesDynamicAmountMixedPbrtDiffuseTextureUnsupported )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "amountTexture" "float" "imagemap"
+            "string filename" [ "pbrt-amount.png" ]
+        Texture "mixedDiffuse" "color" "mix"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+            "texture amount" [ "amountTexture" ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_TRUE( material.diffuseMapFileName.empty() );
+    EXPECT_FALSE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, parsedColorImagemapCanBindMixAmountTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "amountTexture" "color" "imagemap"
+            "string filename" [ "pbrt-amount.png" ]
+        MakeNamedMaterial "front" "string type" [ "matte" ] "rgb Kd" [ 0.8 0.2 0.2 ]
+        MakeNamedMaterial "back" "string type" [ "matte" ] "rgb Kd" [ 0.2 0.45 0.75 ]
+        Material "mix"
+            "string namedmaterial1" [ "front" ]
+            "string namedmaterial2" [ "back" ]
+            "texture amount" [ "amountTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const ShapeDefinition&               shape{ scene->freeShapes[0] };
+    const PbrtDemandTextureBinding       binding{ pbrtColorTextureBinding( shape.pbrtMaterial, "amount" ) };
+    const PbrtTextureMap::const_iterator texture{ shape.pbrtMaterial.graph.textures.find( "color:amountTexture" ) };
+
+    EXPECT_EQ( "mix", shape.pbrtMaterial.type );
+    EXPECT_EQ( "amountTexture", shape.pbrtMaterial.params.FindTexture( "amount" ) );
+    ASSERT_NE( shape.pbrtMaterial.graph.textures.end(), texture );
+    EXPECT_EQ( "amountTexture", texture->second.name );
+    EXPECT_EQ( "color", texture->second.valueType );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_NE( shape.pbrtMaterial.graph.namedMaterials.end(), shape.pbrtMaterial.graph.namedMaterials.find( "front" ) );
+    EXPECT_NE( shape.pbrtMaterial.graph.namedMaterials.end(), shape.pbrtMaterial.graph.namedMaterials.find( "back" ) );
+    EXPECT_TRUE( shape.pbrtMaterial.graph.fallbackReasons.empty() );
+    EXPECT_TRUE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_THAT( binding.fileName, EndsWith( "pbrt-amount.png" ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( shape ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialLeavesNestedMixedPbrtDiffuseTextureUnsupported )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "diffuseTexture" "color" "imagemap"
+            "string filename" [ "pbrt-diffuse.png" ]
+        Texture "scaledDiffuse" "color" "scale"
+            "texture tex1" [ "diffuseTexture" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+        Texture "mixedDiffuse" "color" "mix"
+            "texture tex1" [ "scaledDiffuse" ]
+            "rgb tex2" [ 0.25 0.5 0.75 ]
+            "float amount" [ 0.5 ]
+        Material "matte"
+            "texture Kd" [ "mixedDiffuse" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial          material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kd" ) };
+
+    EXPECT_TRUE( material.diffuseMapFileName.empty() );
+    EXPECT_FALSE( hasPbrtDemandTextureBinding( binding ) );
+    EXPECT_EQ( MaterialFlags::NONE, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedMirrorReflectanceTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "reflectanceTexture" "color" "imagemap"
+            "string filename" [ "pbrt-reflectance.png" ]
+        Material "mirror"
+            "texture Kr" [ "reflectanceTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+#ifdef OTK_USE_MDL
+    const PbrtDemandTextureBinding binding{ pbrtColorTextureBinding( scene->freeShapes[0].pbrtMaterial, "Kr" ) };
+    const MdlMaterialShader        shaderData{ makeMdlDiffuseTextureShader( binding ) };
+#endif
+
+    EXPECT_THAT( material.diffuseMapFileName, EndsWith( "pbrt-reflectance.png" ) );
+#ifdef OTK_USE_MDL
+    EXPECT_EQ( 1U, shaderData.textureBindingCount );
+    EXPECT_EQ( 333U, shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].textureId );
+    EXPECT_EQ( make_float3( 1.0f, 1.0f, 1.0f ), shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].scale );
+    EXPECT_EQ( make_float3( 0.0f, 0.0f, 0.0f ), shaderData.textureBindings[MDL_MATERIAL_DIFFUSE_TEXTURE_BINDING_INDEX].bias );
+#endif
+    EXPECT_EQ( MaterialFlags::DIFFUSE_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesPbrtAlphaTextureParameters )
+{
+    for( const char* paramName : { "alpha", "shadowalpha", "opacity" } )
+    {
+        SCOPED_TRACE( paramName );
+        ShapeDefinition shape{ singleTriangleShape() };
+        shape.material.alphaMapFileName = "legacy-alpha.png";
+        shape.pbrtMaterial.type         = "uber";
+        addPbrtImageMapTexture( shape, paramName, "float", "alphaTexture", "pbrt-alpha.png" );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( shape ) };
+
+        EXPECT_THAT( material.alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
+        EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( shape ) );
+    }
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtCheckerboardAlphaTexture )
+{
+    const SceneDescriptionPtr scene{ parsePbrtScene( R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "checkerboard"
+            "float tex1" [ 1 ]
+            "float tex2" [ 0 ]
+            "float uscale" [ 2 ]
+            "float vscale" [ 2 ]
+        Material "uber"
+            "texture opacity" [ "alphaTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" ) };
+    ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+    const PlasticMaterial            material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+    const PbrtCheckerboardDefinition definition{ parsePbrtCheckerboardTextureKey( material.alphaMapFileName ) };
+
+    EXPECT_TRUE( isPbrtCheckerboardTextureKey( material.alphaMapFileName ) );
+    EXPECT_FLOAT_EQ( 1.0f, definition.tex1.x );
+    EXPECT_FLOAT_EQ( 0.0f, definition.tex2.x );
+    EXPECT_FLOAT_EQ( 2.0f, definition.uscale );
+    EXPECT_FLOAT_EQ( 2.0f, definition.vscale );
+    EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+}
+
+TEST( TestMaterialAdapters, fallbackMaterialUsesParsedPbrtAlphaCutouts )
+{
+    const char* const sceneTexts[] = {
+        R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "imagemap"
+            "string filename" [ "pbrt-alpha.png" ]
+        Material "matte"
+        Shape "trianglemesh"
+            "texture alpha" [ "alphaTexture" ]
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt",
+        R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "imagemap"
+            "string filename" [ "pbrt-alpha.png" ]
+        Material "plastic"
+        Shape "trianglemesh"
+            "texture shadowalpha" [ "alphaTexture" ]
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt",
+        R"pbrt(
+        WorldBegin
+        Texture "alphaTexture" "float" "imagemap"
+            "string filename" [ "pbrt-alpha.png" ]
+        Material "uber"
+            "texture opacity" [ "alphaTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt",
+    };
+
+    for( const char* sceneText : sceneTexts )
+    {
+        const SceneDescriptionPtr scene{ parsePbrtScene( sceneText ) };
+        ASSERT_EQ( 1U, scene->freeShapes.size() );
+
+        const PlasticMaterial material{ fallbackMaterialForShape( scene->freeShapes[0] ) };
+
+        EXPECT_THAT( material.alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
+        EXPECT_EQ( MaterialFlags::ALPHA_MAP, shapeMaterialFlags( scene->freeShapes[0] ) );
+    }
+}
+
 TEST( TestSceneConstruction, sceneBoundsTwoShapeScene )
 {
     SceneDescriptionPtr scene{ twoShapeScene() };
@@ -921,6 +1462,32 @@ TEST_F( TestSceneProxy, constructTriangleASForSingleTriangleMeshWithDiffuseMap )
     EXPECT_TRUE( geom.groups[0].alphaMapFileName.empty() );
     EXPECT_FALSE( geom.groups[0].diffuseMapFileName.empty() );
     EXPECT_EQ( geom.groups[0].material.flags, MaterialFlags::DIFFUSE_MAP );
+}
+
+TEST_F( TestSceneProxy, constructTriangleASUsesPbrtMaterialTextures )
+{
+    m_scene = singleTriangleWithUVsScene();
+    ShapeDefinition& shape{ m_scene->freeShapes[0] };
+    shape.material.diffuseMapFileName = "legacy-diffuse.png";
+    shape.material.alphaMapFileName   = "legacy-alpha.png";
+    shape.pbrtMaterial.type           = "uber";
+    addPbrtImageMapTexture( shape, "Kd", "color", "diffuseTexture", "pbrt-diffuse.png" );
+    addPbrtImageMapTexture( shape, "shadowalpha", "float", "alphaTexture", "pbrt-alpha.png" );
+    expectProxyBoundsAdded( m_scene->bounds, m_pageId );
+    m_proxy = m_factory->scene( m_scene );
+    const GeometryCacheEntry entry{ expectShapeFromCache( m_scene->freeShapes[0] ) };
+
+    const GeometryInstance geom{ m_proxy->createGeometry( m_fakeContext, m_stream ) };
+    OTK_ERROR_CHECK( cudaDeviceSynchronize() );
+
+    EXPECT_EQ( entry.accelBuffer, geom.accelBuffer );
+    ASSERT_EQ( 1U, geom.groups.size() );
+    EXPECT_THAT( geom.groups[0].diffuseMapFileName, EndsWith( "pbrt-diffuse.png" ) );
+    EXPECT_THAT( geom.groups[0].alphaMapFileName, EndsWith( "pbrt-alpha.png" ) );
+    EXPECT_EQ( MaterialFlags::ALPHA_MAP | MaterialFlags::DIFFUSE_MAP, geom.groups[0].material.flags );
+    ASSERT_TRUE( geom.groups[0].pbrtMaterial );
+    EXPECT_EQ( "uber", geom.groups[0].pbrtMaterial->type );
+    EXPECT_EQ( "diffuseTexture", geom.groups[0].pbrtMaterial->params.FindTexture( "Kd" ) );
 }
 
 TEST_F( TestSceneProxy, constructWholeSceneProxyForMultipleShapes )

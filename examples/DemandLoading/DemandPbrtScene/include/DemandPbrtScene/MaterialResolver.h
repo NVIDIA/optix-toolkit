@@ -19,9 +19,10 @@ struct SceneSyncState;
 
 enum class MaterialResolution
 {
-    NONE    = 0,
-    PARTIAL = 1,
-    FULL    = 2,
+    NONE             = 0,
+    SHADER_DATA_ONLY = 1,
+    PARTIAL          = 2,
+    FULL             = 3,
 };
 
 inline bool operator<( MaterialResolution lhs, MaterialResolution rhs )

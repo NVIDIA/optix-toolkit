@@ -25,6 +25,7 @@ add_executable(TestDemandPbrtSceneImpl
     TestOptixRenderer.cpp
     TestParams.cpp
     TestPbrtAlphaMapImageSource.cpp
+    TestPbrtCheckerboardImageSource.cpp
     TestPbrtScene.cpp
     TestProgramGroups.cpp
     TestIdRangePrinter.cpp
@@ -37,6 +38,9 @@ if(MSVC)
     target_compile_options(TestDemandPbrtSceneImpl PUBLIC /bigobj)
 endif()
 target_include_directories(TestDemandPbrtSceneImpl PUBLIC include)
+target_compile_definitions(TestDemandPbrtSceneImpl PRIVATE
+    DEMAND_PBRT_SCENE_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
 target_link_libraries(TestDemandPbrtSceneImpl PUBLIC
     DemandPbrtSceneImpl
     OptiXToolkit::DemandGeometry::Testing
@@ -52,5 +56,35 @@ set_target_properties(TestDemandPbrtSceneImpl PROPERTIES FOLDER Examples/DemandL
 # is reused across cases, so one process pays context init once, not per case.
 add_test( NAME TestDemandPbrtSceneImpl COMMAND TestDemandPbrtSceneImpl )
 set_tests_properties( TestDemandPbrtSceneImpl PROPERTIES LABELS DemandPbrtScene )
+
+if(OTK_USE_MDL)
+    target_sources(TestDemandPbrtSceneImpl PRIVATE
+        TestFourierBsdfEval.cpp
+        TestFourierBsdfTable.cpp
+        TestFourierBsdfTableResource.cpp
+        TestMdlBumpMap.cpp
+        TestMdlShaderCache.cpp
+    )
+    find_package(mdl CONFIG REQUIRED)
+    add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
+    target_compile_definitions(TestDemandPbrtSceneMdlSdk PRIVATE
+        DEMAND_PBRT_SCENE_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    target_link_libraries(TestDemandPbrtSceneMdlSdk PUBLIC
+        DemandPbrtSceneImpl
+        mdl::mdl_sdk
+        GTest::gmock_main)
+    if(WIN32)
+        add_custom_command(TARGET TestDemandPbrtSceneMdlSdk POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:TestDemandPbrtSceneMdlSdk>
+                $<TARGET_FILE_DIR:TestDemandPbrtSceneMdlSdk>
+            COMMAND_EXPAND_LISTS)
+    endif()
+    set_target_properties(TestDemandPbrtSceneMdlSdk PROPERTIES FOLDER Examples/DemandLoading/Tests)
+    add_test( NAME TestDemandPbrtSceneMdlSdk COMMAND TestDemandPbrtSceneMdlSdk )
+    set_tests_properties( TestDemandPbrtSceneMdlSdk PROPERTIES LABELS "DemandPbrtScene;MDL" )
+    add_subdirectory(pbrt-reference)
+endif()
 
 add_subdirectory(images)

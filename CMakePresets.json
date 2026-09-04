@@ -122,6 +122,15 @@
       }
     },
     {
+      "name": "otk-use-mdl",
+      "hidden": true,
+      "displayName": "Use NVIDIA MDL SDK for generated material support",
+      "description": "Inherit from this preset to use NVIDIA MDL SDK for generated material support",
+      "cacheVariables": {
+        "OTK_USE_MDL": true
+      }
+    },
+    {
       "name": "otk-use-openexr",
       "hidden": true,
       "displayName": "Use OpenEXR for EXR texture file formats",

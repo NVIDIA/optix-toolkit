@@ -513,6 +513,324 @@ TEST_F( TestPbrtApi, freeMeshGetsMaterial )
     EXPECT_THAT( shape.material.specularMapFileName.c_str(), EndsWith( "color2.png" ) );
 }
 
+TEST_F( TestPbrtApi, pbrtMaterialTypesArePreserved )
+{
+    const char* materialTypes[] = {
+        "matte",     "plastic", "uber", "glass",      "metal",        "mix",      "translucent",
+        "substrate", "fourier", "hair", "subsurface", "kdsubsurface", "measured", "unknown",
+    };
+
+    for( const char* materialType : materialTypes )
+    {
+        SCOPED_TRACE( materialType );
+        const std::string sceneText{ std::string( R"pbrt(
+        WorldBegin
+        Material ")pbrt" ) + materialType
+                                     + R"pbrt("
+            "rgb Kd" [ 0.1 0.2 0.3 ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" };
+        parseScene( sceneText.c_str() );
+
+        ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+        const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+        EXPECT_EQ( std::string( materialType ), material.type );
+        EXPECT_TRUE( material.namedMaterialName.empty() );
+    }
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialParametersArePreserved )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "uber"
+            "rgb Kd" [ 0.2 0.3 0.4 ]
+            "float roughness" [ 0.25 ]
+            "bool remaproughness" [ "false" ]
+            "string label" [ "coated" ]
+            "texture bumpmap" [ "bumpTexture" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_EQ( "uber", material.type );
+    EXPECT_TRUE( material.namedMaterialName.empty() );
+
+    int          floatCount{};
+    const float* roughness{ material.params.FindFloat( "roughness", &floatCount ) };
+    ASSERT_EQ( 1, floatCount );
+    ASSERT_NE( nullptr, roughness );
+    EXPECT_EQ( 0.25f, roughness[0] );
+
+    ::pbrt::Spectrum Kd{ material.params.FindOneSpectrum( "Kd", ::pbrt::Spectrum( 0.0f ) ) };
+    float            rgb[3]{};
+    Kd.ToRGB( rgb );
+    EXPECT_FLOAT_EQ( 0.2f, rgb[0] );
+    EXPECT_FLOAT_EQ( 0.3f, rgb[1] );
+    EXPECT_FLOAT_EQ( 0.4f, rgb[2] );
+
+    EXPECT_FALSE( material.params.FindOneBool( "remaproughness", true ) );
+    EXPECT_EQ( "coated", material.params.FindOneString( "label", "" ) );
+    EXPECT_EQ( "bumpTexture", material.params.FindTexture( "bumpmap" ) );
+}
+
+TEST_F( TestPbrtApi, namedPbrtMaterialIntentIsPreserved )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        MakeNamedMaterial "blueGlass"
+            "string type" [ "glass" ]
+            "rgb Kd" [ 0.1 0.2 0.3 ]
+            "float eta" [ 1.5 ]
+        NamedMaterial "blueGlass"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
+    EXPECT_EQ( Point3( 0.1f, 0.2f, 0.3f ), shape.material.Kd );
+
+    const PbrtMaterial& material{ shape.pbrtMaterial };
+    EXPECT_EQ( "glass", material.type );
+    EXPECT_EQ( "blueGlass", material.namedMaterialName );
+    EXPECT_EQ( "glass", material.params.FindOneString( "type", "" ) );
+
+    int          etaCount{};
+    const float* eta{ material.params.FindFloat( "eta", &etaCount ) };
+    ASSERT_EQ( 1, etaCount );
+    ASSERT_NE( nullptr, eta );
+    EXPECT_EQ( 1.5f, eta[0] );
+}
+
+TEST_F( TestPbrtApi, namedFourierMaterialPreservesBsdfFile )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        MakeNamedMaterial "measuredCeramic"
+            "string type" [ "fourier" ]
+            "string bsdffile" [ "bsdfs/ceramic.bsdf" ]
+        NamedMaterial "measuredCeramic"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_EQ( "fourier", material.type );
+    EXPECT_EQ( "measuredCeramic", material.namedMaterialName );
+    EXPECT_EQ( "fourier", material.params.FindOneString( "type", "" ) );
+    EXPECT_EQ( "bsdfs/ceramic.bsdf", material.params.FindOneString( "bsdffile", "" ) );
+}
+
+TEST_F( TestPbrtApi, directFourierMaterialPreservesBsdfFile )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "fourier"
+            "string bsdffile" [ "bsdfs/roughgold_alpha_0.2.bsdf" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_EQ( "fourier", material.type );
+    EXPECT_TRUE( material.namedMaterialName.empty() );
+    EXPECT_EQ( "bsdfs/roughgold_alpha_0.2.bsdf", material.params.FindOneString( "bsdffile", "" ) );
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNamedMaterialReferences )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "frontColor" "spectrum" "imagemap"
+            "string filename" [ "front.png" ]
+        MakeNamedMaterial "front"
+            "string type" [ "uber" ]
+            "texture Kd" [ "frontColor" ]
+        MakeNamedMaterial "back"
+            "string type" [ "translucent" ]
+            "rgb transmit" [ 1 1 1 ]
+        Material "mix"
+            "string namedmaterial1" [ "front" ]
+            "string namedmaterial2" [ "back" ]
+            "float amount" [ 0.25 ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterialGraph& graph{ m_scene->freeShapes[0].pbrtMaterial.graph };
+
+    ASSERT_EQ( 2U, graph.namedMaterials.size() );
+    EXPECT_EQ( "uber", graph.namedMaterials.at( "front" ).type );
+    EXPECT_EQ( "translucent", graph.namedMaterials.at( "back" ).type );
+
+    const auto texture = graph.textures.find( "spectrum:frontColor" );
+    ASSERT_NE( graph.textures.end(), texture );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_THAT( texture->second.params.FindOneFilename( "filename", "" ), EndsWith( "front.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesNestedTextureReferences )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "baseColor" "spectrum" "imagemap"
+            "string filename" [ "base.png" ]
+        Texture "scaledColor" "color" "scale"
+            "texture tex1" [ "baseColor" ]
+            "rgb tex2" [ 0.5 0.5 0.5 ]
+        Material "matte"
+            "texture Kd" [ "scaledColor" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterialGraph& graph{ m_scene->freeShapes[0].pbrtMaterial.graph };
+
+    const auto scaledTexture = graph.textures.find( "color:scaledColor" );
+    ASSERT_NE( graph.textures.end(), scaledTexture );
+    EXPECT_EQ( "scale", scaledTexture->second.type );
+    EXPECT_EQ( "baseColor", scaledTexture->second.params.FindTexture( "tex1" ) );
+
+    const auto baseTexture = graph.textures.find( "spectrum:baseColor" );
+    ASSERT_NE( graph.textures.end(), baseTexture );
+    EXPECT_EQ( "imagemap", baseTexture->second.type );
+    EXPECT_THAT( baseTexture->second.params.FindOneFilename( "filename", "" ), EndsWith( "base.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesGlossyTextureReference )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "specular" "spectrum" "imagemap"
+            "string filename" [ "specular.png" ]
+        Material "plastic"
+            "texture Ks" [ "specular" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial&      material{ m_scene->freeShapes[0].pbrtMaterial };
+    const PbrtMaterialGraph& graph{ material.graph };
+
+    EXPECT_EQ( "specular", material.params.FindTexture( "Ks" ) );
+    const auto texture = graph.textures.find( "spectrum:specular" );
+    ASSERT_NE( graph.textures.end(), texture );
+    EXPECT_EQ( "specular", texture->second.name );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_THAT( texture->second.params.FindOneFilename( "filename", "" ), EndsWith( "specular.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, pbrtMaterialGraphPreservesAxisRoughnessTextureReferences )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Texture "rough" "float" "imagemap"
+            "string filename" [ "rough.png" ]
+        Material "substrate"
+            "texture uroughness" [ "rough" ]
+            "texture vroughness" [ "rough" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial&      material{ m_scene->freeShapes[0].pbrtMaterial };
+    const PbrtMaterialGraph& graph{ material.graph };
+
+    EXPECT_EQ( "rough", material.params.FindTexture( "uroughness" ) );
+    EXPECT_EQ( "rough", material.params.FindTexture( "vroughness" ) );
+    const auto texture = graph.textures.find( "float:rough" );
+    ASSERT_NE( graph.textures.end(), texture );
+    EXPECT_EQ( "rough", texture->second.name );
+    EXPECT_EQ( "imagemap", texture->second.type );
+    EXPECT_THAT( texture->second.params.FindOneFilename( "filename", "" ), EndsWith( "rough.png" ) );
+    EXPECT_TRUE( graph.fallbackReasons.empty() );
+}
+
+TEST_F( TestPbrtApi, missingNamedMaterialReferenceIsPreservedAsFallbackReason )
+{
+    expectWarnings( 1 );
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "matte"
+            "rgb Kd" [ 0.2 0.3 0.4 ]
+        NamedMaterial "missing"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const ShapeDefinition& shape{ m_scene->freeShapes[0] };
+    EXPECT_EQ( Point3( 1.0f, 1.0f, 1.0f ), shape.material.Kd );
+
+    const PbrtMaterial& material{ shape.pbrtMaterial };
+    EXPECT_TRUE( material.type.empty() );
+    EXPECT_EQ( "missing", material.namedMaterialName );
+    EXPECT_THAT( material.graph.fallbackReasons, Contains( HasSubstr( "Missing named material 'missing'" ) ) );
+}
+
+TEST_F( TestPbrtApi, missingTextureReferenceIsPreservedAsFallbackReason )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        Material "matte"
+            "texture Kd" [ "missingColor" ]
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterial& material{ m_scene->freeShapes[0].pbrtMaterial };
+    EXPECT_THAT( material.graph.fallbackReasons, Contains( HasSubstr( "Missing texture 'missingColor'" ) ) );
+}
+
+TEST_F( TestPbrtApi, recursiveNamedMaterialReferenceIsPreservedAsFallbackReason )
+{
+    parseScene( R"pbrt(
+        WorldBegin
+        MakeNamedMaterial "a"
+            "string type" [ "mix" ]
+            "string namedmaterial1" [ "b" ]
+            "string namedmaterial2" [ "b" ]
+        MakeNamedMaterial "b"
+            "string type" [ "mix" ]
+            "string namedmaterial1" [ "a" ]
+            "string namedmaterial2" [ "a" ]
+        NamedMaterial "a"
+        Shape "trianglemesh"
+            "integer indices" [0 2 1]
+            "point P" [ 0 0 0  1 0 0  0 1 0 ]
+        WorldEnd)pbrt" );
+
+    ASSERT_EQ( 1U, m_scene->freeShapes.size() );
+    const PbrtMaterialGraph& graph{ m_scene->freeShapes[0].pbrtMaterial.graph };
+    ASSERT_EQ( 2U, graph.namedMaterials.size() );
+    EXPECT_THAT( graph.fallbackReasons, Contains( HasSubstr( "Recursive named material reference 'a'" ) ) );
+}
+
 TEST_F( TestPbrtApi, freeMeshGetsAlphaTexture )
 {
     configureMeshOneInfo( 1 );
@@ -669,7 +987,7 @@ TEST_F( TestPbrtApi, objectInstanceTransformedShape )
     const ObjectInstanceDefinition instance{ instances[0] };
     EXPECT_EQ( "object1", instance.name );
     EXPECT_EQ( pbrt::Transform(), instance.transform );
-    EXPECT_EQ( object.bounds , instance.bounds );
+    EXPECT_EQ( object.bounds, instance.bounds );
     EXPECT_EQ( instance.transform( instance.bounds ), scene->bounds );
     const Bounds3 expectedInstanceBounds{ shape.transform( m_meshBounds ) };
     EXPECT_EQ( expectedInstanceBounds, instance.bounds ) << expectedInstanceBounds << " != " << instance.bounds;

@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+Film "image" "integer xresolution" [32] "integer yresolution" [32] "string filename" ["metal.png"]
+Sampler "halton" "integer pixelsamples" [64]
+Integrator "path" "integer maxdepth" [5]
+LookAt 0 0 4  0 0 0  0 1 0
+Camera "perspective" "float fov" [30]
+
+WorldBegin
+    LightSource "infinite" "rgb L" [1 1 1]
+
+    Material "metal"
+        "rgb eta" [0 0 0]
+        "rgb k" [1 1 1]
+        "float roughness" [0.001]
+        "float uroughness" [0.001]
+        "float vroughness" [0.001]
+    Shape "trianglemesh"
+        "point P" [
+            -1 -1 0
+             1 -1 0
+             1  1 0
+            -1  1 0
+        ]
+        "integer indices" [
+            0 1 2
+            0 2 3
+        ]
+WorldEnd

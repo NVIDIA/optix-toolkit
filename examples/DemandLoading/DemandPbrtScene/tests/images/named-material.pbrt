@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+# Simple test scene for named material assignment
+
+LookAt  0       0       -3
+        0       0       0
+        0       1       0
+Camera "perspective"
+        "float fov" [ 60 ]
+
+Sampler "halton"
+    "integer pixelsamples" 16
+Integrator "path"
+Film "image"
+    "string filename" "named-material.png"
+    "integer xresolution" [640]
+    "integer yresolution" [480]
+
+#############################################
+WorldBegin
+
+    Include "light-sources.pbrt"
+
+    MakeNamedMaterial "red"
+        "rgb Kd" [ 1 0 0 ]
+
+    AttributeBegin
+        NamedMaterial "red"
+        Include "cube-geom.pbrt"
+    AttributeEnd
+
+WorldEnd

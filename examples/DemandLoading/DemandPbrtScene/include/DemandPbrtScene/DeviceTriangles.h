@@ -115,15 +115,25 @@ struct TriMeshMaterialDebugInfo
         PrimitiveMaterialRange matRange{};
         for( uint_t i = 0; i < matIdx.numPrimitiveGroups; ++i )
         {
-            if( primIdx < params.primitiveMaterials[i + matIdx.primitiveMaterialBegin].primitiveEnd )
+            const PrimitiveMaterialRange& candidate{ params.primitiveMaterials[i + matIdx.primitiveMaterialBegin] };
+            if( primIdx < candidate.primitiveEnd )
             {
-                matRange = params.primitiveMaterials[i];
+                matRange = candidate;
                 break;
             }
         }
         printf( "Instance id: %u, MaterialIndex{%u, %u}, PrimitiveMaterial{%u, %u}\n", instanceId,  //
                 matIdx.numPrimitiveGroups, matIdx.primitiveMaterialBegin,                           //
                 matRange.primitiveEnd, matRange.materialId );
+        if( params.materialStates != nullptr && matRange.materialId < params.numMaterialStates )
+        {
+            const MaterialState& state{ params.materialStates[matRange.materialId] };
+            printf( "    MaterialState: id %u, backend %u, shaderKey %u, fallbackReason %u\n",  //
+                    state.materialId,                                                          //
+                    static_cast<unsigned int>( state.backend ),                                 //
+                    state.shaderKey,                                                           //
+                    static_cast<unsigned int>( state.fallbackReason ) );                        //
+        }
         const PhongMaterial& mat{ params.realizedMaterials[matRange.materialId] };
         printf(
             "    Ka: (%g, %g, %g), "                         //

@@ -225,6 +225,7 @@ bool PbrtGeometryResolver::resolveRequestedProxyGeometries( CUstream            
             sync.realizedNormals.copyToDeviceAsync( stream );
             sync.realizedUVs.copyToDeviceAsync( stream );
         }
+        sync.materialStates.copyToDeviceAsync( stream );
         sync.materialIndices.copyToDeviceAsync( stream );
         sync.primitiveMaterials.copyToDeviceAsync( stream );
 

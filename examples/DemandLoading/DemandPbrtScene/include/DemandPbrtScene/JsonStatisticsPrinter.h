@@ -84,13 +84,43 @@ inline std::ostream& operator<<( std::ostream& str, const Json<GeometryResolverS
     return str;
 }
 
+#ifdef OTK_USE_MDL
+inline std::ostream& operator<<( std::ostream& str, const Json<MdlShaderCompileCacheStatistics>& json )
+{
+    str << '{';
+    DUMP_JSON_MEMBER( numShaderRequests ) << ',';
+    DUMP_JSON_MEMBER( numShaderCacheHits ) << ',';
+    DUMP_JSON_MEMBER( numSourceCacheHits ) << ',';
+    DUMP_JSON_MEMBER( numMaterialInstanceCacheHits ) << ',';
+    DUMP_JSON_MEMBER( numCompileRequests ) << ',';
+    DUMP_JSON_MEMBER( numCompletedCompiles ) << ',';
+    DUMP_JSON_MEMBER( numMissingShaders ) << ',';
+    DUMP_JSON_MEMBER( numQueuedShaders ) << ',';
+    DUMP_JSON_MEMBER( numCompilingShaders ) << ',';
+    DUMP_JSON_MEMBER( numReadyShaders ) << ',';
+    DUMP_JSON_MEMBER( numFailedShaders );
+    str << '}';
+    return str;
+}
+#endif
+
 inline std::ostream& operator<<( std::ostream& str, const Json<MaterialResolverStats>& json )
 {
     str << '{';
     DUMP_JSON_MEMBER( numPartialMaterialsRealized ) << ',';
     DUMP_JSON_MEMBER( numMaterialsRealized ) << ',';
     DUMP_JSON_MEMBER( numMaterialsReused ) << ',';
-    DUMP_JSON_MEMBER( numProxyMaterialsCreated );
+    DUMP_JSON_MEMBER( numProxyMaterialsCreated ) << ',';
+    DUMP_JSON_MEMBER( numRequestedMaterialPages );
+#ifdef OTK_USE_MDL
+    str << ',';
+    DUMP_JSON_MEMBER( numMdlFallbackShaders ) << ',';
+    DUMP_JSON_MEMBER( numGeneratedMdlMaterialCompileRequests ) << ',';
+    DUMP_JSON_MEMBER( numFourierBsdfTableResourcesResolved ) << ',';
+    DUMP_JSON_MEMBER( numFourierBsdfTableResourcesMissing ) << ',';
+    DUMP_JSON_MEMBER( numFourierBsdfTableResourcesInvalid ) << ',';
+    DUMP_JSON_OBJECT( mdlShaders );
+#endif
     str << '}';
     return str;
 }

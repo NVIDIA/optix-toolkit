@@ -18,6 +18,35 @@ endif()
 
 find_package(CUDAToolkit 11.1 REQUIRED)
 
+configure_file(
+    include/DemandPbrtScene/Config.h.in
+    include/DemandPbrtScene/Config.h
+    @ONLY
+)
+
+if(OTK_USE_MDL)
+    find_package(mdl CONFIG REQUIRED)
+    set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES
+        FourierMaterial.cu
+        MdlSmokeMaterial.cu
+    )
+    set(DEMAND_PBRT_SCENE_MDL_LIBRARIES mdl::mdl_sdk)
+    set(DEMAND_PBRT_SCENE_MDL_SOURCES
+        FourierBsdfTable.cpp
+        FourierBsdfTableResource.cpp
+        MdlBsdfCompiler.cpp
+        MdlShaderCache.cpp
+        include/DemandPbrtScene/FourierBsdfEval.h
+        include/DemandPbrtScene/FourierBsdfTable.h
+        include/DemandPbrtScene/FourierBsdfTableResource.h
+        include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h
+        include/DemandPbrtScene/MdlBumpMap.h
+        include/DemandPbrtScene/MdlBsdfCompiler.h
+        include/DemandPbrtScene/MdlShaderCache.h
+        include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h
+    )
+endif()
+
 embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
     OUTPUT_TARGET DemandPbrtSceneKernel
     LIBRARIES
@@ -25,11 +54,14 @@ embed_cuda(CONST HEADER DemandPbrtSceneKernelCuda.h
         OptiXToolkit::DemandLoading
         OptiXToolkit::DemandMaterial
         OptiXToolkit::ShaderUtil
+        ${DEMAND_PBRT_SCENE_MDL_LIBRARIES}
     SOURCES
         DemandPbrtScene.cu
         PhongMaterial.cu
+        ${DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES}
     INCLUDES
         include
+        ${CMAKE_CURRENT_BINARY_DIR}/include
     FOLDER Examples/DemandLoading
 )
 target_sources( DemandPbrtSceneKernelCuda
@@ -50,12 +82,14 @@ add_library(DemandPbrtSceneImpl STATIC
     Options.cpp
     OptixRenderer.cpp
     PbrtAlphaMapImageSource.cpp
+    PbrtCheckerboardImageSource.cpp
     PbrtScene.cpp
     ProgramGroups.cpp
     SceneProxy.cpp
     Statistics.cpp
     include/DemandPbrtScene/Accumulator.h
     include/DemandPbrtScene/Application.h
+    include/DemandPbrtScene/Config.h.in
     include/DemandPbrtScene/Conversions.h
     include/DemandPbrtScene/CudaContext.h
     include/DemandPbrtScene/DemandTextureCache.h
@@ -79,6 +113,7 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/OptixRenderer.h
     include/DemandPbrtScene/Params.h
     include/DemandPbrtScene/PbrtAlphaMapImageSource.h
+    include/DemandPbrtScene/PbrtCheckerboardImageSource.h
     include/DemandPbrtScene/Primitive.h
     include/DemandPbrtScene/ProgramGroups.h
     include/DemandPbrtScene/ProxyFactoryStatistics.h
@@ -97,11 +132,13 @@ add_library(DemandPbrtSceneImpl STATIC
     include/DemandPbrtScene/Timer.h
     include/DemandPbrtScene/UserInterface.h
     include/DemandPbrtScene/UserInterfaceStatistics.h
+    ${CMAKE_CURRENT_BINARY_DIR}/include/DemandPbrtScene/Config.h
+    ${DEMAND_PBRT_SCENE_MDL_SOURCES}
 )
 source_group("CMake Template Files" REGULAR_EXPRESSION "^.*\.in$")
 set_target_properties(DemandPbrtSceneImpl PROPERTIES FOLDER "Examples/DemandLoading")
 target_include_directories(DemandPbrtSceneImpl PUBLIC include)
-target_include_directories(DemandPbrtSceneImpl PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
+target_include_directories(DemandPbrtSceneImpl PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
 target_link_libraries(DemandPbrtSceneImpl PUBLIC 
     PbrtSceneLoader
     DemandPbrtSceneKernel
@@ -115,11 +152,20 @@ target_link_libraries(DemandPbrtSceneImpl PUBLIC
     OptiXToolkit::ShaderUtil
     OptiXToolkit::Util
     OptiX::OptiX
+    ${DEMAND_PBRT_SCENE_MDL_LIBRARIES}
 )
 
 add_executable(DemandPbrtScene main.cpp ReadMe.md)
 target_link_libraries(DemandPbrtScene PUBLIC DemandPbrtSceneImpl)
 set_target_properties(DemandPbrtScene PROPERTIES FOLDER "Examples/DemandLoading")
+
+if(WIN32 AND OTK_USE_MDL)
+    add_custom_command(TARGET DemandPbrtScene POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:DemandPbrtScene>
+            $<TARGET_FILE_DIR:DemandPbrtScene>
+        COMMAND_EXPAND_LISTS)
+endif()
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

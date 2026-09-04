@@ -25,36 +25,55 @@ class TestJsonStatisticsPrinter : public testing::Test
 
 void TestJsonStatisticsPrinter::SetUp()
 {
-    m_stats.numFramesRendered = 1234;
-    m_stats.geometryCache.numTraversables = 1;
-    m_stats.geometryCache.numTriangles= 2;
-    m_stats.geometryCache.numSpheres = 3;
-    m_stats.geometryCache.numNormals = 4;
-    m_stats.geometryCache.numUVs = 5;
-    m_stats.geometryCache.totalBytesRead = 6U;
-    m_stats.geometryCache.totalReadTime = 7.0;
-    m_stats.imageSourceFactory.fileSources.numImageSources = 8;
-    m_stats.imageSourceFactory.fileSources.totalTilesRead = 9;
-    m_stats.imageSourceFactory.fileSources.totalBytesRead = 10;
-    m_stats.imageSourceFactory.fileSources.totalReadTime = 11;
-    m_stats.proxyFactory.numSceneProxiesCreated = 12;
-    m_stats.proxyFactory.numShapeProxiesCreated = 13;
-    m_stats.proxyFactory.numInstanceProxiesCreated = 14;
-    m_stats.proxyFactory.numInstanceShapeProxiesCreated = 15;
-    m_stats.proxyFactory.numInstancePrimitiveProxiesCreated = 16;
-    m_stats.proxyFactory.numGeometryProxiesCreated = 17;
-    m_stats.geometry.numProxyGeometriesResolved = 18;
-    m_stats.geometry.numGeometriesRealized = 19;
-    m_stats.materials.numPartialMaterialsRealized = 20;
-    m_stats.materials.numMaterialsRealized = 21;
-    m_stats.materials.numMaterialsReused = 22;
-    m_stats.materials.numProxyMaterialsCreated = 23;
-    m_stats.scene.fileName = R"path(C:\scenes\"scene".pbrt)path";
-    m_stats.scene.parseTime = 24;
-    m_stats.scene.numFreeShapes = 25;
-    m_stats.scene.numObjects = 26;
-    m_stats.scene.numObjectShapes = 27;
-    m_stats.scene.numObjectInstances = 28;
+    m_stats.numFramesRendered                                 = 1234;
+    m_stats.geometryCache.numTraversables                     = 1;
+    m_stats.geometryCache.numTriangles                        = 2;
+    m_stats.geometryCache.numSpheres                          = 3;
+    m_stats.geometryCache.numNormals                          = 4;
+    m_stats.geometryCache.numUVs                              = 5;
+    m_stats.geometryCache.totalBytesRead                      = 6U;
+    m_stats.geometryCache.totalReadTime                       = 7.0;
+    m_stats.imageSourceFactory.fileSources.numImageSources    = 8;
+    m_stats.imageSourceFactory.fileSources.totalTilesRead     = 9;
+    m_stats.imageSourceFactory.fileSources.totalBytesRead     = 10;
+    m_stats.imageSourceFactory.fileSources.totalReadTime      = 11;
+    m_stats.proxyFactory.numSceneProxiesCreated               = 12;
+    m_stats.proxyFactory.numShapeProxiesCreated               = 13;
+    m_stats.proxyFactory.numInstanceProxiesCreated            = 14;
+    m_stats.proxyFactory.numInstanceShapeProxiesCreated       = 15;
+    m_stats.proxyFactory.numInstancePrimitiveProxiesCreated   = 16;
+    m_stats.proxyFactory.numGeometryProxiesCreated            = 17;
+    m_stats.geometry.numProxyGeometriesResolved               = 18;
+    m_stats.geometry.numGeometriesRealized                    = 19;
+    m_stats.materials.numPartialMaterialsRealized             = 20;
+    m_stats.materials.numMaterialsRealized                    = 21;
+    m_stats.materials.numMaterialsReused                      = 22;
+    m_stats.materials.numProxyMaterialsCreated                = 23;
+    m_stats.materials.numRequestedMaterialPages               = 24;
+#ifdef OTK_USE_MDL
+    m_stats.materials.numMdlFallbackShaders                   = 25;
+    m_stats.materials.numGeneratedMdlMaterialCompileRequests  = 27;
+    m_stats.materials.numFourierBsdfTableResourcesResolved    = 28;
+    m_stats.materials.numFourierBsdfTableResourcesMissing     = 29;
+    m_stats.materials.numFourierBsdfTableResourcesInvalid     = 30;
+    m_stats.materials.mdlShaders.numShaderRequests            = 29;
+    m_stats.materials.mdlShaders.numShaderCacheHits           = 30;
+    m_stats.materials.mdlShaders.numSourceCacheHits           = 31;
+    m_stats.materials.mdlShaders.numMaterialInstanceCacheHits = 32;
+    m_stats.materials.mdlShaders.numCompileRequests           = 33;
+    m_stats.materials.mdlShaders.numCompletedCompiles         = 34;
+    m_stats.materials.mdlShaders.numMissingShaders            = 35;
+    m_stats.materials.mdlShaders.numQueuedShaders             = 36;
+    m_stats.materials.mdlShaders.numCompilingShaders          = 37;
+    m_stats.materials.mdlShaders.numReadyShaders              = 38;
+    m_stats.materials.mdlShaders.numFailedShaders             = 39;
+#endif
+    m_stats.scene.fileName                                    = R"path(C:\scenes\"scene".pbrt)path";
+    m_stats.scene.parseTime                                   = 24;
+    m_stats.scene.numFreeShapes                               = 25;
+    m_stats.scene.numObjects                                  = 26;
+    m_stats.scene.numObjectShapes                             = 27;
+    m_stats.scene.numObjectInstances                          = 28;
 
     // If this is a string literal inside EXPECT_EQ it fails to compile on msvc due to the fileName JSON value escapes.
     m_expectedStatsJson =
@@ -84,7 +103,29 @@ void TestJsonStatisticsPrinter::SetUp()
             R"json("numPartialMaterialsRealized":20,)json"
             R"json("numMaterialsRealized":21,)json"
             R"json("numMaterialsReused":22,)json"
-            R"json("numProxyMaterialsCreated":23)json"
+            R"json("numProxyMaterialsCreated":23,)json"
+            R"json("numRequestedMaterialPages":24)json"
+#ifdef OTK_USE_MDL
+            R"json(,)json"
+            R"json("numMdlFallbackShaders":25,)json"
+            R"json("numGeneratedMdlMaterialCompileRequests":27,)json"
+            R"json("numFourierBsdfTableResourcesResolved":28,)json"
+            R"json("numFourierBsdfTableResourcesMissing":29,)json"
+            R"json("numFourierBsdfTableResourcesInvalid":30,)json"
+            R"json("mdlShaders":{)json"
+                R"json("numShaderRequests":29,)json"
+                R"json("numShaderCacheHits":30,)json"
+                R"json("numSourceCacheHits":31,)json"
+                R"json("numMaterialInstanceCacheHits":32,)json"
+                R"json("numCompileRequests":33,)json"
+                R"json("numCompletedCompiles":34,)json"
+                R"json("numMissingShaders":35,)json"
+                R"json("numQueuedShaders":36,)json"
+                R"json("numCompilingShaders":37,)json"
+                R"json("numReadyShaders":38,)json"
+                R"json("numFailedShaders":39)json"
+            R"json(})json"
+#endif
         R"json(},)json"
         R"json("scene":{)json"
             R"json("fileName":"C:\\scenes\\\"scene\".pbrt",)json"
@@ -100,14 +141,14 @@ void TestJsonStatisticsPrinter::SetUp()
 
 }  // namespace
 
-TEST_F(TestJsonStatisticsPrinter, printMutableStatistics)
+TEST_F( TestJsonStatisticsPrinter, printMutableStatistics )
 {
     m_output << demandPbrtScene::Json( m_stats );
 
     EXPECT_EQ( m_expectedStatsJson, m_output.str() );
 }
 
-TEST_F(TestJsonStatisticsPrinter, printConstStatistics)
+TEST_F( TestJsonStatisticsPrinter, printConstStatistics )
 {
     const demandPbrtScene::UserInterfaceStatistics stats{ m_stats };
 
@@ -148,31 +189,31 @@ TEST_F( TestJsonStatisticsPrinter, renderModePathTracing )
     EXPECT_EQ( R"json("path tracing")json", m_output.str() );
 }
 
-TEST_F(TestJsonStatisticsPrinter, printOptions)
+TEST_F( TestJsonStatisticsPrinter, printOptions )
 {
     demandPbrtScene::Options options{};
-    options.program = "DemandPbrtScene";
-    options.sceneFile = "scene.pbrt";
-    options.outFile = "out.png";
-    options.background = make_float3(1.0, 2.0, 3.0);
-    options.warmupFrames = 4;
-    options.oneShotGeometry = true;
-    options.oneShotMaterial = true;
-    options.verboseLoading = true;
+    options.program                        = "DemandPbrtScene";
+    options.sceneFile                      = "scene.pbrt";
+    options.outFile                        = "out.png";
+    options.background                     = make_float3( 1.0, 2.0, 3.0 );
+    options.warmupFrames                   = 4;
+    options.oneShotGeometry                = true;
+    options.oneShotMaterial                = true;
+    options.verboseLoading                 = true;
     options.verboseProxyGeometryResolution = true;
     options.verboseProxyMaterialResolution = true;
-    options.verboseSceneDecomposition = true;
-    options.verboseTextureCreation = true;
-    options.sortProxies = true;
-    options.sync = true;
-    options.faceForward = true;
-    options.debug = true;
-    options.oneShotDebug = true;
-    options.debugPixel = make_int2(5, 6);
-    options.renderMode = demandPbrtScene::RenderMode::PATH_TRACING;
-    options.proxyGranularity = demandPbrtScene::ProxyGranularity::COARSE;
+    options.verboseSceneDecomposition      = true;
+    options.verboseTextureCreation         = true;
+    options.sortProxies                    = true;
+    options.sync                           = true;
+    options.faceForward                    = true;
+    options.debug                          = true;
+    options.oneShotDebug                   = true;
+    options.debugPixel                     = make_int2( 5, 6 );
+    options.renderMode                     = demandPbrtScene::RenderMode::PATH_TRACING;
+    options.proxyGranularity               = demandPbrtScene::ProxyGranularity::COARSE;
 
-    m_output << demandPbrtScene::Json(options);
+    m_output << demandPbrtScene::Json( options );
 
     // clang-format off
     EXPECT_EQ(R"json({)json"

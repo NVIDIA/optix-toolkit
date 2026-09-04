@@ -26,6 +26,7 @@
 
 #include <cuda.h>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -39,6 +40,19 @@ class OptixRenderer : public Renderer
   public:
     OptixRenderer( const Options& options, int numAttributes );
     ~OptixRenderer() override = default;
+
+    class LaunchCompletion
+    {
+      public:
+        virtual ~LaunchCompletion()                         = default;
+        virtual void record( CUstream stream )               = 0;
+        virtual bool isComplete() const                      = 0;
+        virtual void wait() const                            = 0;
+    };
+    using LaunchCompletionPtr     = std::shared_ptr<LaunchCompletion>;
+    using LaunchCompletionFactory = std::function<LaunchCompletionPtr()>;
+
+    OptixRenderer( const Options& options, int numAttributes, LaunchCompletionFactory launchCompletionFactory );
 
     void initialize( CUstream stream ) override;
     void cleanup() override;
@@ -62,6 +76,12 @@ class OptixRenderer : public Renderer
         m_params[0].lookAt = value;
     }
     void setProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
+#ifdef OTK_USE_MDL
+    void setCallableProgramGroups( const std::vector<OptixProgramGroup>& value ) override;
+    void setPipelineState( OptixPipeline                         pipeline,
+                           const std::vector<OptixProgramGroup>& programGroups,
+                           const std::vector<OptixProgramGroup>& callableProgramGroups ) override;
+#endif
 
     void beforeLaunch( CUstream stream ) override;
     void launch( CUstream stream, uchar4* image ) override;
@@ -72,26 +92,59 @@ class OptixRenderer : public Renderer
   private:
     using uint_t = unsigned int;
 
+    struct PipelineState
+    {
+        PipelineState( OptixPipeline pipeline,
+                       std::vector<OptixProgramGroup> programGroups,
+                       std::vector<OptixProgramGroup> callableProgramGroups,
+                       LaunchCompletionPtr launchCompletion );
+        ~PipelineState();
+
+        PipelineState( const PipelineState& )            = delete;
+        PipelineState& operator=( const PipelineState& ) = delete;
+
+        void recordLaunchCompleteEvent( CUstream stream );
+        bool launchComplete() const;
+        void waitForLaunchComplete() const;
+
+        OptixPipeline                   pipeline{};
+        LaunchCompletionPtr             launchCompletion;
+        std::vector<OptixProgramGroup>  programGroups;
+        std::vector<OptixProgramGroup>  callableProgramGroups;
+        otk::SyncRecord<otk::EmptyData> rayGenRecord;
+        otk::SyncRecord<otk::EmptyData> missRecord;
+        otk::SyncRecord<otk::EmptyData> hitGroupRecords;
+        otk::SyncRecord<otk::EmptyData> callableRecords;
+        OptixShaderBindingTable         sbt{};
+    };
+
+    using PipelineStatePtr = std::shared_ptr<PipelineState>;
+
     void createOptixContext();
     void initPipelineOpts();
     void initializeParamsFromOptions();
-    void createPipeline();
-    void writeRayGenRecords( CUstream stream );
-    void writeMissRecords( CUstream stream );
-    void writeHitGroupRecords( CUstream stream );
-    void writeSbt();
-    void buildShaderBindingTable( CUstream stream );
+    PipelineStatePtr createPipelineState();
+    void writeRayGenRecords( CUstream stream, PipelineState& state );
+    void writeMissRecords( CUstream stream, PipelineState& state );
+    void writeHitGroupRecords( CUstream stream, PipelineState& state );
+    void writeCallableRecords( CUstream stream, PipelineState& state );
+    void writeSbt( PipelineState& state );
+    void buildShaderBindingTable( CUstream stream, PipelineState& state );
+    void activatePendingPipelineState();
+    void retirePipelineState( PipelineStatePtr state );
+    void collectRetiredPipelineStates();
+    void waitForPipelineStates();
 
     const Options&                  m_options;
     int                             m_numAttributes{};
     OptixDeviceContext              m_context{};
     OptixPipelineCompileOptions     m_pipelineCompileOptions{};
     std::vector<OptixProgramGroup>  m_programGroups;
-    OptixPipeline                   m_pipeline{};
-    otk::SyncRecord<otk::EmptyData> m_rayGenRecord{ 1 };
-    otk::SyncRecord<otk::EmptyData> m_missRecord{ 1 };
-    otk::SyncRecord<otk::EmptyData> m_hitGroupRecords{ +ProgramGroupIndex::NUM_STATIC_PROGRAM_GROUPS };
-    OptixShaderBindingTable         m_sbt{};
+    std::vector<OptixProgramGroup>  m_callableProgramGroups;
+    LaunchCompletionFactory         m_launchCompletionFactory;
+    PipelineStatePtr                m_activeState;
+    PipelineStatePtr                m_pendingState;
+    std::vector<PipelineStatePtr>   m_retiredStates;
     otk::SyncVector<Params>         m_params{ 1 };
     bool                            m_pipelineChanged{ true };
     bool                            m_sbtChanged{ true };

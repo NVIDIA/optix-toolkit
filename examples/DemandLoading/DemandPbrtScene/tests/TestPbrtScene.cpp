@@ -570,8 +570,8 @@ TEST_F( TestPbrtScene, initializeCreatesOptixResourcesForLoadedScene )
     const P3                                      expectedEye{ camera.cameraToWorld( P3( 0.0f, 0.0f, 0.0f ) ) };
     const V3 expectedDirection{ Normalize( camera.cameraToWorld( V3( 0.0f, 0.0f, 1.0f ) ) ) };
     const V3 expectedUp{ Normalize( camera.cameraToWorld( V3( 0.0f, 1.0f, 0.0f ) ) ) };
-    EXPECT_CALL( *m_renderer, setLookAt( AllOf( hasEye( expectedEye ), hasLookAt( expectedEye + expectedDirection ),
-                                                hasUp( expectedUp ) ) ) );
+    EXPECT_CALL( *m_renderer,
+                 setLookAt( AllOf( hasEye( expectedEye ), hasLookAt( expectedEye + expectedDirection ), hasUp( expectedUp ) ) ) );
     EXPECT_CALL( *m_renderer, setCamera( hasFov( camera.fov ) ) );
 
     m_scene->initialize( m_stream );
@@ -622,8 +622,8 @@ TEST_F( TestPbrtScene, initializeUsesComposedCameraTransformInsteadOfRawLookAt )
     rawLookAt.up                           = V3( 0.0f, 1.0f, 0.0f );
     m_sceneDesc->camera.defined            = true;
     m_sceneDesc->camera.cameraToWorld      = ::pbrt::Translate( V3( 10.0f, 20.0f, 30.0f ) )
-                                        * Inverse( LookAt( rawLookAt.eye, rawLookAt.lookAt, rawLookAt.up ) )
-                                        * ::pbrt::Rotate( 90.0f, V3( 0.0f, 1.0f, 0.0f ) );
+                                             * Inverse( LookAt( rawLookAt.eye, rawLookAt.lookAt, rawLookAt.up ) )
+                                             * ::pbrt::Rotate( 90.0f, V3( 0.0f, 1.0f, 0.0f ) );
     expectInitializeCreatesOptixState();
     LookAtParams actual{};
     EXPECT_CALL( *m_renderer, setLookAt( _ ) ).WillOnce( SaveArg<0>( &actual ) );
@@ -658,6 +658,8 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchSetsInitialParams )
     EXPECT_EQ( m_demandGeomContext, params.demandGeomContext );
     EXPECT_NE( float3{}, params.demandMaterialColor );
     // no realized materials yet
+    EXPECT_EQ( 0, params.numMaterialStates );
+    EXPECT_EQ( nullptr, params.materialStates );
     EXPECT_EQ( 0, params.numRealizedMaterials );
     EXPECT_EQ( nullptr, params.realizedMaterials );
     EXPECT_EQ( 0, params.numMaterialIndices );
@@ -720,7 +722,7 @@ TEST_F( TestPbrtSceneInitialized, beforeLaunchCreatesSkyboxForInfiniteLightsInPa
     m_scene->beforeLaunch( m_stream, params );
 
     ASSERT_EQ( 1, params.numInfiniteLights );
-    m_expectedInfiniteLight.skyboxTextureId = textureId;
+    m_expectedInfiniteLight.skyboxTextureId = textureId + 1U;
     EXPECT_THAT( params.infiniteLights, hasDeviceInfiniteLight( m_expectedInfiniteLight ) );
 }
 
@@ -775,10 +777,11 @@ TEST_F( TestPbrtSceneInitialized, resolvingGeometryUpdatesTopLevel )
     m_scene->beforeLaunch( m_stream, params );
 }
 
-TEST_F( TestPbrtSceneInitialized, resolvingMaterialUpdatesTopLevel )
+TEST_F( TestPbrtSceneInitialized, resolvingMaterialUpdatesTopLevelWithoutClearingAccumulator )
 {
     expectLaunchPrepareTrueAfter( m_init );
     expectNoGeometryResolvedAfter( m_init );
+    EXPECT_CALL( *m_renderer, setClearAccumulator() ).Times( 0 );
     EXPECT_CALL( *m_materialResolver, resolveRequestedProxyMaterials( m_stream, _, _ ) )
         .After( m_init )
         .WillOnce( [&]( CUstream, const FrameStopwatch&, SceneSyncState& sync ) {
@@ -802,3 +805,47 @@ TEST_F( TestPbrtSceneInitialized, resolvingMaterialUpdatesTopLevel )
     Params params{};
     m_scene->beforeLaunch( m_stream, params );
 }
+
+#ifdef OTK_USE_MDL
+TEST_F( TestPbrtSceneInitialized, resolvingMdlMaterialShaderDataUpdatesTopLevelWithoutClearingAccumulator )
+{
+    expectLaunchPrepareTrueAfter( m_init );
+    expectNoGeometryResolvedAfter( m_init );
+    EXPECT_CALL( *m_renderer, setClearAccumulator() ).Times( 0 );
+    EXPECT_CALL( *m_materialResolver, resolveRequestedProxyMaterials( m_stream, _, _ ) )
+        .After( m_init )
+        .WillOnce( [&]( CUstream, const FrameStopwatch&, SceneSyncState& sync ) {
+            OptixInstance instance{};
+            instance.instanceId        = m_fakeMaterialId;
+            instance.traversableHandle = m_fakeTriMeshTraversable;
+            instance.sbtOffset         = +HitGroupIndex::PROXY_MATERIAL_TRIANGLE;
+            sync.topLevelInstances.push_back( instance );
+            sync.mdlMaterialShaders.push_back( MdlMaterialShader{ 8U, 1U } );
+            ++sync.materialShaderDataVersion;
+            return MaterialResolution::FULL;
+        } );
+    auto isIAS =
+        AllOf( NotNull(),
+               hasInstanceBuildInput(
+                   0, hasAll( hasNumInstances( 2 ),
+                              hasDeviceInstances( hasInstance( 0, hasInstanceTraversable( m_fakeProxyTraversable ) ),
+                                                  hasInstance( 1, hasInstanceTraversable( m_fakeTriMeshTraversable ),
+                                                               hasInstanceSbtOffset( +HitGroupIndex::PROXY_MATERIAL_TRIANGLE ),
+                                                               hasInstanceId( m_fakeMaterialId ) ) ) ) ) );
+    expectCreateTopLevelTraversableAfter( isIAS, m_fakeTopLevelTraversable, m_init );
+
+    Params params{};
+    m_scene->beforeLaunch( m_stream, params );
+}
+
+TEST_F( TestPbrtSceneInitialized, resolvingMaterialShaderDataDoesNotUpdateTopLevelOrClearAccumulator )
+{
+    expectLaunchPrepareTrueAfter( m_init );
+    EXPECT_CALL( *m_materialResolver, resolveRequestedProxyMaterials( m_stream, _, _ ) ).After( m_init ).WillOnce( Return( MaterialResolution::SHADER_DATA_ONLY ) );
+    expectNoGeometryResolvedAfter( m_init );
+    EXPECT_CALL( *m_renderer, setClearAccumulator() ).Times( 0 );
+
+    Params params{};
+    EXPECT_TRUE( m_scene->beforeLaunch( m_stream, params ) );
+}
+#endif

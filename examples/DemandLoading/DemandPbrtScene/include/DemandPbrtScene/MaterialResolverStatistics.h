@@ -4,14 +4,29 @@
 
 #pragma once
 
+#include "DemandPbrtScene/Config.h"
+
+#ifdef OTK_USE_MDL
+#include "DemandPbrtScene/MdlShaderCompileCacheStatistics.h"
+#endif
+
 namespace demandPbrtScene {
 
 struct MaterialResolverStats
 {
-    unsigned int numPartialMaterialsRealized;
-    unsigned int numMaterialsRealized;
-    unsigned int numMaterialsReused;
-    unsigned int numProxyMaterialsCreated;
+    unsigned int                    numPartialMaterialsRealized;
+    unsigned int                    numMaterialsRealized;
+    unsigned int                    numMaterialsReused;
+    unsigned int                    numProxyMaterialsCreated;
+    unsigned int                    numRequestedMaterialPages;
+#ifdef OTK_USE_MDL
+    unsigned int                    numMdlFallbackShaders;
+    unsigned int                    numGeneratedMdlMaterialCompileRequests;
+    unsigned int                    numFourierBsdfTableResourcesResolved;
+    unsigned int                    numFourierBsdfTableResourcesMissing;
+    unsigned int                    numFourierBsdfTableResourcesInvalid;
+    MdlShaderCompileCacheStatistics mdlShaders;
+#endif
 };
 
-}
+}  // namespace demandPbrtScene
