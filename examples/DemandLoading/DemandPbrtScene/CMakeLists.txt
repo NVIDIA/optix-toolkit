@@ -28,22 +28,37 @@ if(OTK_USE_MDL)
     find_package(mdl CONFIG REQUIRED)
     set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES
         FourierMaterial.cu
-        MdlSmokeMaterial.cu
+        MdlMaterial.cu
     )
     set(DEMAND_PBRT_SCENE_MDL_LIBRARIES mdl::mdl_sdk)
     set(DEMAND_PBRT_SCENE_MDL_SOURCES
         FourierBsdfTable.cpp
         FourierBsdfTableResource.cpp
         MdlBsdfCompiler.cpp
+        MdlKeyBuilder.cpp
+        MdlMaterialModelBuilder.cpp
+        MdlParameterBinder.cpp
+        MdlSdkSession.cpp
         MdlShaderCache.cpp
+        MdlTextureGraphGenerator.cpp
+        MdlUtils.cpp
+        PbrtMaterialKind.cpp
         include/DemandPbrtScene/FourierBsdfEval.h
         include/DemandPbrtScene/FourierBsdfTable.h
         include/DemandPbrtScene/FourierBsdfTableResource.h
         include/DemandPbrtScene/FourierMdlMeasuredBsdfCapability.h
         include/DemandPbrtScene/MdlBumpMap.h
         include/DemandPbrtScene/MdlBsdfCompiler.h
+        include/DemandPbrtScene/MdlHandleTypes.h
+        include/DemandPbrtScene/MdlKeyBuilder.h
+        include/DemandPbrtScene/MdlMaterialModelBuilder.h
+        include/DemandPbrtScene/MdlParameterBinder.h
+        include/DemandPbrtScene/MdlSdkSession.h
         include/DemandPbrtScene/MdlShaderCache.h
         include/DemandPbrtScene/MdlShaderCompileCacheStatistics.h
+        include/DemandPbrtScene/MdlTextureGraphGenerator.h
+        include/DemandPbrtScene/MdlUtils.h
+        include/DemandPbrtScene/PbrtMaterialKind.h
     )
 endif()
 

@@ -248,7 +248,7 @@ void PbrtApiImpl::film( const std::string& type, const ParamSet& params )
         unsupportedParams.EraseInt( "yresolution" );
         if( !unsupportedParams.ToString().empty() )
         {
-            PBRT_WARNING( "Film 'image' parameters other than xresolution and yresolution are not implemented." );
+            PBRT_WARNING( "Film 'image' parameters are ignored; resolution is controlled by the window." );
         }
     }
     else
@@ -735,18 +735,15 @@ PbrtMaterialGraph PbrtApiImpl::getShapePbrtMaterialGraph( const PbrtMaterial& ma
     {
         collectNamedMaterialGraph( material.namedMaterialName, graph, materialStack, textureStack );
     }
-    collectMaterialGraphReferences( material.type, material.params, graph, materialStack, textureStack );
+    collectMaterialGraphReferences( material.params, graph, materialStack, textureStack );
     return graph;
 }
 
-void PbrtApiImpl::collectMaterialGraphReferences( const std::string&       type,
-                                                  const ::pbrt::ParamSet&  params,
-                                                  PbrtMaterialGraph&       graph,
+void PbrtApiImpl::collectMaterialGraphReferences( const ::pbrt::ParamSet&   params,
+                                                  PbrtMaterialGraph&        graph,
                                                   std::vector<std::string>& materialStack,
                                                   std::vector<std::string>& textureStack ) const
 {
-    static_cast<void>( type );
-
     for( const char* paramName : MATERIAL_TEXTURE_PARAMS )
     {
         const std::string textureName{ params.FindTexture( paramName ) };
@@ -793,7 +790,7 @@ void PbrtApiImpl::collectNamedMaterialGraph( const std::string&        name,
     }
 
     materialStack.push_back( name );
-    collectMaterialGraphReferences( type, it->second.params, graph, materialStack, textureStack );
+    collectMaterialGraphReferences( it->second.params, graph, materialStack, textureStack );
     materialStack.pop_back();
 }
 

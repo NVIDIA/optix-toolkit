@@ -12,7 +12,10 @@
 #include "DemandPbrtScene/FourierBsdfTableResource.h"
 #include "DemandPbrtScene/MaterialAdapters.h"
 #include "DemandPbrtScene/MdlBsdfCompiler.h"
+#include "DemandPbrtScene/MdlHandleTypes.h"
+#include "DemandPbrtScene/MdlSdkSession.h"
 #include "DemandPbrtScene/MdlShaderCache.h"
+#include "DemandPbrtScene/MdlUtils.h"
 #endif
 #include "DemandPbrtScene/Options.h"
 #include "DemandPbrtScene/Params.h"
@@ -64,7 +67,6 @@
 #include <mutex>
 #include <set>
 #endif
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #ifdef OTK_USE_MDL
@@ -75,12 +77,6 @@
 
 #ifdef OTK_USE_MDL
 #include <mi/mdl_sdk.h>
-
-#ifdef _WIN32
-#include <mi/base/miwindows.h>
-#else
-#include <dlfcn.h>
-#endif
 #endif
 
 #if OPTIX_VERSION < 70700
@@ -222,85 +218,6 @@ class MdlOptixModuleCache
     std::map<std::string, OptixModule> m_modules;
 };
 
-std::string describeContextMessages( const mi::neuraylib::IMdl_execution_context* context )
-{
-    if( !context )
-        return {};
-
-    std::ostringstream out;
-    for( mi::Size i = 0; i < context->get_messages_count(); ++i )
-    {
-        mi::base::Handle<const mi::neuraylib::IMessage> message( context->get_message( i ) );
-        if( message.is_valid_interface() )
-            out << message->get_string() << '\n';
-    }
-    return out.str();
-}
-
-[[noreturn]] void failMdl( const std::string& message, const mi::neuraylib::IMdl_execution_context* context = nullptr )
-{
-    const std::string contextMessages{ describeContextMessages( context ) };
-    throw std::runtime_error( contextMessages.empty() ? message : message + ":\n" + contextMessages );
-}
-
-void requireMdl( bool condition, const std::string& message, const mi::neuraylib::IMdl_execution_context* context = nullptr )
-{
-    if( !condition )
-    {
-        failMdl( message, context );
-    }
-}
-
-MdlTargetArgumentBlock captureMdlTargetArgumentBlock( const mi::neuraylib::ITarget_code*       targetCode,
-                                                      const mi::neuraylib::ICompiled_material* compiledMaterial,
-                                                      mi::neuraylib::IMdl_execution_context*   context )
-{
-    requireMdl( targetCode != nullptr, "Cannot capture MDL argument block without target code", context );
-    requireMdl( compiledMaterial != nullptr, "Cannot capture MDL argument block without a compiled material", context );
-    requireMdl( targetCode->get_callable_function_count() > 0U,
-                "Cannot capture MDL argument block without callable functions", context );
-
-    const mi::Size argumentBlockIndex{ targetCode->get_callable_function_argument_block_index( 0U ) };
-    if( argumentBlockIndex == ~mi::Size( 0 ) )
-    {
-        return MdlTargetArgumentBlock{};
-    }
-
-    mi::base::Handle<const mi::neuraylib::ITarget_argument_block> argumentBlock( targetCode->get_argument_block( argumentBlockIndex ) );
-    requireMdl( argumentBlock.is_valid_interface(), "MDL target code did not expose an argument block", context );
-
-    mi::base::Handle<const mi::neuraylib::ITarget_value_layout> layout( targetCode->get_argument_block_layout( argumentBlockIndex ) );
-    requireMdl( layout.is_valid_interface(), "MDL target code did not expose an argument block layout", context );
-
-    MdlTargetArgumentBlock result;
-    result.data.assign( argumentBlock->get_data(), argumentBlock->get_data() + argumentBlock->get_size() );
-
-    const mi::Size parameterCount{ compiledMaterial->get_parameter_count() };
-    requireMdl( layout->get_num_elements() >= parameterCount,
-                "MDL argument block layout has fewer entries than the compiled material", context );
-    for( mi::Size i = 0; i < parameterCount; ++i )
-    {
-        const char* const name = compiledMaterial->get_parameter_name( i );
-        requireMdl( name != nullptr, "MDL compiled material exposed a null parameter name", context );
-
-        const mi::neuraylib::Target_value_layout_state state{ layout->get_nested_state( i ) };
-        requireMdl( state.m_state_offs != ~mi::Uint32( 0 ),
-                    "MDL argument block layout did not expose parameter state for " + std::string{ name }, context );
-
-        mi::neuraylib::IValue::Kind kind{};
-        mi::Size                    size{};
-        const mi::Size              offset{ layout->get_layout( kind, size, state ) };
-        requireMdl( offset != ~mi::Size( 0 ),
-                    "MDL argument block layout did not expose parameter offset for " + std::string{ name }, context );
-        requireMdl( offset + size <= result.data.size(),
-                    "MDL argument block layout parameter exceeds block size for " + std::string{ name }, context );
-
-        result.parameters.push_back( MdlTargetArgumentBlockParameter{
-            name, static_cast<unsigned int>( kind ), static_cast<std::size_t>( offset ), static_cast<std::size_t>( size ) } );
-    }
-    return result;
-}
-
 bool isPtxIdentifierChar( char value )
 {
     const unsigned char ch{ static_cast<unsigned char>( value ) };
@@ -394,140 +311,44 @@ std::string generatedMdlMessage( const std::string& message, const GeneratedMdlS
     return message + " (" + generatedMdlContext( source, key ) + ")";
 }
 
-#ifdef _WIN32
-
-using MdlLibraryHandle = HMODULE;
-
-std::string lastLibraryError()
-{
-    std::ostringstream out;
-    out << "Windows error " << GetLastError();
-    return out.str();
-}
-
-MdlLibraryHandle loadMdlSdkLibrary( std::string& error )
-{
-    const char* const libraryName = "libmdl_sdk" MI_BASE_DLL_FILE_EXT;
-    MdlLibraryHandle  handle      = LoadLibraryA( libraryName );
-    if( handle )
-        return handle;
-
-    const std::string fallback = std::string( "../../../bin/" ) + libraryName;
-    handle                     = LoadLibraryA( fallback.c_str() );
-    if( handle )
-        return handle;
-
-    error = "Failed to load " + std::string( libraryName ) + ": " + lastLibraryError();
-    return nullptr;
-}
-
-void* loadMdlFactorySymbol( MdlLibraryHandle handle, std::string& error )
-{
-    void* symbol = GetProcAddress( handle, "mi_factory" );
-    if( !symbol )
-        error = "Failed to find mi_factory: " + lastLibraryError();
-    return symbol;
-}
-
-void unloadMdlSdkLibrary( MdlLibraryHandle handle )
-{
-    if( handle )
-        FreeLibrary( handle );
-}
-
-#else
-
-using MdlLibraryHandle = void*;
-
-MdlLibraryHandle loadMdlSdkLibrary( std::string& error )
-{
-    const char* const libraryName = "libmdl_sdk" MI_BASE_DLL_FILE_EXT;
-    MdlLibraryHandle  handle      = dlopen( libraryName, RTLD_LAZY );
-    if( !handle )
-        error = dlerror();
-    return handle;
-}
-
-void* loadMdlFactorySymbol( MdlLibraryHandle handle, std::string& error )
-{
-    void* symbol = dlsym( handle, "mi_factory" );
-    if( !symbol )
-        error = dlerror();
-    return symbol;
-}
-
-void unloadMdlSdkLibrary( MdlLibraryHandle handle )
-{
-    if( handle )
-        dlclose( handle );
-}
-
-#endif
-
-class MdlSdkSession
+class MdlTransaction
 {
   public:
-    MdlSdkSession()
-        : m_library( loadMdlSdkLibrary( m_error ) )
+    explicit MdlTransaction( const NeurayHandle& neuray )
+        : m_database( neuray->get_api_component<mi::neuraylib::IDatabase>() )
     {
-        if( !m_library )
-            return;
-
-        void* symbol = loadMdlFactorySymbol( m_library, m_error );
-        if( !symbol )
-            return;
-
-        m_neuray = mi::neuraylib::mi_factory<mi::neuraylib::INeuray>( symbol );
-        if( !m_neuray.is_valid_interface() )
-        {
-            mi::base::Handle<const mi::neuraylib::IVersion> version( mi::neuraylib::mi_factory<mi::neuraylib::IVersion>( symbol ) );
-            m_error = version.is_valid_interface() ? "MDL SDK library version does not match header version "
-                                                         + std::string( MI_NEURAYLIB_PRODUCT_VERSION_STRING ) :
-                                                     "MDL SDK library is incompatible with this header";
-            return;
-        }
-
-        const mi::Sint32 startResult = m_neuray->start( true );
-        if( startResult != 0 )
-        {
-            std::ostringstream out;
-            out << "Failed to start MDL SDK: " << startResult;
-            m_error = out.str();
-            return;
-        }
-
-        m_started = true;
+        requireMdl( m_database.is_valid_interface(), "Failed to get MDL database" );
+        m_scope = m_database->get_global_scope();
+        requireMdl( m_scope.is_valid_interface(), "Failed to get MDL global scope" );
+        m_transaction = m_scope->create_transaction();
+        requireMdl( m_transaction.is_valid_interface(), "Failed to create MDL transaction" );
     }
 
-    ~MdlSdkSession()
+    MdlTransaction( const MdlTransaction& )            = delete;
+    MdlTransaction& operator=( const MdlTransaction& ) = delete;
+
+    ~MdlTransaction()
     {
-        shutdown();
-        unloadMdlSdkLibrary( m_library );
+        if( m_transaction.is_valid_interface() && m_transaction->is_open() )
+        {
+            m_transaction->abort();
+        }
     }
 
-    bool isStarted() const { return m_started; }
+    const TransactionHandle& handle() const { return m_transaction; }
 
-    const std::string& error() const { return m_error; }
-
-    mi::neuraylib::INeuray* neuray() const { return m_neuray.get(); }
-
-    mi::Sint32 shutdown()
+    void commit()
     {
-        mi::Sint32 result = 0;
-        if( m_started )
-        {
-            result    = m_neuray->shutdown( true );
-            m_started = false;
-        }
-        m_neuray.reset();
-        return result;
+        requireMdl( m_transaction->commit() == 0, "Failed to commit MDL transaction" );
+        m_transaction.reset();
+        m_scope.reset();
+        m_database.reset();
     }
 
   private:
-    MdlLibraryHandle                         m_library{};
-    mi::base::Handle<mi::neuraylib::INeuray> m_neuray;
-    std::string                              m_error;
-    bool                                     m_started{ false };
+    DatabaseHandle    m_database;
+    ScopeHandle       m_scope;
+    TransactionHandle m_transaction;
 };
 
 otk::pbrt::PbrtMaterial makeSyntheticMatteMaterial( const float3& kd )
@@ -550,12 +371,12 @@ void bindGeneratedColorParameter( mi::neuraylib::IFunction_call*      materialCa
                                   const MdlShaderKey&                 key,
                                   const MdlBoundMaterialParameter&    parameter )
 {
-    mi::base::Handle<mi::neuraylib::IValue_color> value(
+    ColorValueHandle value(
         valueFactory->create_color( parameter.red, parameter.green, parameter.blue ) );
     requireMdl( value.is_valid_interface(),
                 generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " value", source, key ) );
 
-    mi::base::Handle<mi::neuraylib::IExpression_constant> expression( expressionFactory->create_constant( value.get() ) );
+    ExpressionConstantHandle expression( expressionFactory->create_constant( value.get() ) );
     requireMdl( expression.is_valid_interface(),
                 generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " expression", source, key ) );
 
@@ -571,11 +392,11 @@ void bindGeneratedFloatParameter( mi::neuraylib::IFunction_call*      materialCa
                                   const MdlShaderKey&                 key,
                                   const MdlBoundMaterialParameter&    parameter )
 {
-    mi::base::Handle<mi::neuraylib::IValue_float> value( valueFactory->create_float( parameter.value ) );
+    FloatValueHandle value( valueFactory->create_float( parameter.value ) );
     requireMdl( value.is_valid_interface(),
                 generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " value", source, key ) );
 
-    mi::base::Handle<mi::neuraylib::IExpression_constant> expression( expressionFactory->create_constant( value.get() ) );
+    ExpressionConstantHandle expression( expressionFactory->create_constant( value.get() ) );
     requireMdl( expression.is_valid_interface(),
                 generatedMdlMessage( "Failed to create generated MDL " + parameter.name + " expression", source, key ) );
 
@@ -604,7 +425,7 @@ void bindGeneratedMaterialParameters( mi::neuraylib::IFunction_call*            
     }
 }
 
-mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi::neuraylib::INeuray*      neuray,
+CompiledMaterialHandle compileGeneratedMaterial( mi::neuraylib::INeuray*      neuray,
                                                                               mi::neuraylib::ITransaction* transaction,
                                                                               mi::neuraylib::IMdl_execution_context* context,
                                                                               const GeneratedMdlSource& source,
@@ -612,16 +433,16 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
                                                                               const std::vector<MdlBoundMaterialParameter>& parameters,
                                                                               mi::Uint32 compileFlags )
 {
-    mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
+    MdlFactoryHandle mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
     requireMdl( mdlFactory.is_valid_interface(), "Failed to get MDL factory" );
 
-    mi::base::Handle<mi::neuraylib::IMdl_impexp_api> mdlImpexpApi( neuray->get_api_component<mi::neuraylib::IMdl_impexp_api>() );
+    MdlImpexpApiHandle mdlImpexpApi( neuray->get_api_component<mi::neuraylib::IMdl_impexp_api>() );
     requireMdl( mdlImpexpApi.is_valid_interface(), "Failed to get MDL import/export API" );
 
-    mi::base::Handle<const mi::IString> moduleDbName( mdlFactory->get_db_module_name( source.moduleName.c_str() ) );
+    ConstStringHandle moduleDbName( mdlFactory->get_db_module_name( source.moduleName.c_str() ) );
     requireMdl( moduleDbName.is_valid_interface(), generatedMdlMessage( "Failed to get generated MDL module DB name", source, key ) );
 
-    mi::base::Handle<const mi::neuraylib::IModule> module( transaction->access<mi::neuraylib::IModule>( moduleDbName->get_c_str() ) );
+    ModuleHandle module( transaction->access<mi::neuraylib::IModule>( moduleDbName->get_c_str() ) );
     if( !module.is_valid_interface() )
     {
         context->clear_messages();
@@ -637,34 +458,34 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
     const char* const materialDbName = module->get_material( 0 );
     requireMdl( materialDbName != nullptr, generatedMdlMessage( "Generated MDL module had no material definition", source, key ) );
 
-    mi::base::Handle<const mi::neuraylib::IFunction_definition> materialDefinition(
+    FunctionDefinitionHandle materialDefinition(
         transaction->access<mi::neuraylib::IFunction_definition>( materialDbName ) );
     requireMdl( materialDefinition.is_valid_interface(),
                 generatedMdlMessage( "Failed to access generated MDL material definition", source, key ) );
 
     mi::Sint32 callResult = 0;
-    mi::base::Handle<mi::neuraylib::IFunction_call> materialCall( materialDefinition->create_function_call( nullptr, &callResult ) );
+    FunctionCallHandle materialCall( materialDefinition->create_function_call( nullptr, &callResult ) );
     requireMdl( callResult == 0 && materialCall.is_valid_interface(),
                 generatedMdlMessage( "Failed to create generated MDL material call", source, key ) );
 
-    mi::base::Handle<mi::neuraylib::IValue_factory> valueFactory( mdlFactory->create_value_factory( transaction ) );
+    ValueFactoryHandle valueFactory( mdlFactory->create_value_factory( transaction ) );
     requireMdl( valueFactory.is_valid_interface(), generatedMdlMessage( "Failed to create MDL value factory", source, key ) );
 
-    mi::base::Handle<mi::neuraylib::IExpression_factory> expressionFactory( mdlFactory->create_expression_factory( transaction ) );
+    ExpressionFactoryHandle expressionFactory( mdlFactory->create_expression_factory( transaction ) );
     requireMdl( expressionFactory.is_valid_interface(),
                 generatedMdlMessage( "Failed to create MDL expression factory", source, key ) );
 
     bindGeneratedMaterialParameters( materialCall.get(), valueFactory.get(), expressionFactory.get(), source, key, parameters );
 
-    mi::base::Handle<mi::neuraylib::IMaterial_instance> materialInstance(
+    MaterialInstanceHandle materialInstance(
         materialCall->get_interface<mi::neuraylib::IMaterial_instance>() );
     requireMdl( materialInstance.is_valid_interface(),
                 generatedMdlMessage( "Failed to create generated MDL material instance", source, key ) );
 
-    mi::base::Handle<mi::neuraylib::IType_factory> typeFactory( mdlFactory->create_type_factory( transaction ) );
+    TypeFactoryHandle typeFactory( mdlFactory->create_type_factory( transaction ) );
     requireMdl( typeFactory.is_valid_interface(), generatedMdlMessage( "Failed to create MDL type factory", source, key ) );
 
-    mi::base::Handle<const mi::neuraylib::IType> standardMaterialType(
+    TypeHandle standardMaterialType(
         typeFactory->get_predefined_struct( mi::neuraylib::IType_struct::SID_MATERIAL ) );
     requireMdl( standardMaterialType.is_valid_interface(), generatedMdlMessage( "Failed to get MDL material type", source, key ) );
 
@@ -672,7 +493,7 @@ mi::base::Handle<mi::neuraylib::ICompiled_material> compileGeneratedMaterial( mi
     const mi::Sint32 targetTypeResult = context->set_option( "target_type", standardMaterialType.get() );
     requireMdl( targetTypeResult == 0, generatedMdlMessage( "Failed to set MDL target material type", source, key ), context );
 
-    mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial(
+    CompiledMaterialHandle compiledMaterial(
         materialInstance->create_compiled_material( compileFlags, context ) );
     requireMdl( compiledMaterial.is_valid_interface(),
                 generatedMdlMessage( "Failed to compile generated MDL material", source, key ), context );
@@ -684,7 +505,7 @@ const char* findMdlPreviewColorExpressionPath( const mi::neuraylib::ICompiled_ma
     static const char* const paths[] = { "surface.scattering.tint", "ior" };
     for( const char* path : paths )
     {
-        mi::base::Handle<const mi::neuraylib::IExpression> expression( compiledMaterial->lookup_sub_expression( path ) );
+        ConstExpressionHandle expression( compiledMaterial->lookup_sub_expression( path ) );
         if( expression.is_valid_interface() )
         {
             return path;
@@ -693,79 +514,104 @@ const char* findMdlPreviewColorExpressionPath( const mi::neuraylib::ICompiled_ma
     failMdl( "Generated MDL material has no preview color expression" );
 }
 
+ExecutionContextHandle createMdlExecutionContext( const NeurayHandle& neuray )
+{
+    MdlFactoryHandle mdlFactory( neuray->get_api_component<mi::neuraylib::IMdl_factory>() );
+    requireMdl( mdlFactory.is_valid_interface(), "Failed to get MDL factory" );
+
+    ExecutionContextHandle context( mdlFactory->create_execution_context() );
+    requireMdl( context.is_valid_interface(), "Failed to create MDL execution context" );
+    return context;
+}
+
+CompiledMaterialHandle compileMdlGroupMaterial( const NeurayHandle&          neuray,
+                                                const TransactionHandle&     transaction,
+                                                const ExecutionContextHandle& context,
+                                                const MaterialGroup&         group )
+{
+    const otk::pbrt::PbrtMaterial  syntheticMaterial{ makeSyntheticMatteMaterial( group.material.Kd ) };
+    const otk::pbrt::PbrtMaterial& material{
+        group.pbrtMaterial && !group.pbrtMaterial->type.empty() ? *group.pbrtMaterial : syntheticMaterial };
+    MdlGeneratedSourceCache   sourceCache;
+    const MdlShaderKey        key{ makeMdlShaderKey( material ) };
+    const GeneratedMdlSource& source{ sourceCache.getSource( material ) };
+    return compileGeneratedMaterial( neuray.get(), transaction.get(), context.get(), source, key,
+                                     std::vector<MdlBoundMaterialParameter>{},
+                                     mi::neuraylib::IMaterial_instance::CLASS_COMPILATION );
+}
+
+BackendHandle createMdlPtxBackend( const NeurayHandle& neuray )
+{
+    BackendApiHandle backendApi(
+        neuray->get_api_component<mi::neuraylib::IMdl_backend_api>() );
+    requireMdl( backendApi.is_valid_interface(), "Failed to get MDL backend API" );
+
+    BackendHandle backend( backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
+    requireMdl( backend.is_valid_interface(), "Failed to get MDL CUDA PTX backend" );
+    requireMdl( backend->set_option( "sm_version", "50" ) == 0, "Failed to set MDL CUDA PTX target architecture" );
+    requireMdl( backend->set_option( "visible_functions", MDL_MATERIAL_TINT_FUNCTION_NAME ) == 0,
+                "Failed to restrict MDL tint visible functions" );
+    return backend;
+}
+
+TargetCodeHandle translateMdlTint( const TransactionHandle& transaction, const CompiledMaterialHandle& compiledMaterial,
+                                   const BackendHandle& backend, const ExecutionContextHandle& context )
+{
+    const char* const expressionPath{ findMdlPreviewColorExpressionPath( compiledMaterial.get() ) };
+    context->clear_messages();
+    TargetCodeHandle targetCode( backend->translate_material_expression(
+        transaction.get(), compiledMaterial.get(), expressionPath, MDL_MATERIAL_TINT_FUNCTION_NAME, context.get() ) );
+    requireMdl( targetCode.is_valid_interface(), "Failed to translate MDL tint expression to PTX", context.get() );
+    requireMdl( targetCode->get_code_size() > 0U, "MDL generated empty PTX target code" );
+    requireMdl( targetCode->get_callable_function_count() == 1U, "MDL generated unexpected callable function count" );
+    requireMdl( std::string( targetCode->get_callable_function( 0 ) ) == MDL_MATERIAL_TINT_FUNCTION_NAME,
+                "MDL generated unexpected callable function name" );
+    return targetCode;
+}
+
+MdlMaterialTargetCode captureMdlTint( const TargetCodeHandle& targetCode, const CompiledMaterialHandle& compiledMaterial,
+                                      const ExecutionContextHandle& context )
+{
+    MdlMaterialTargetCode result;
+    result.tintPtx.assign( targetCode->get_code(), static_cast<size_t>( targetCode->get_code_size() ) );
+    result.tintArgumentBlock = captureMdlTargetArgumentBlock( targetCode.get(), compiledMaterial.get(), context.get() );
+    return result;
+}
+
+void appendMdlBsdfCallables( MdlMaterialTargetCode& result, const NeurayHandle& neuray,
+                             const TransactionHandle& transaction, const CompiledMaterialHandle& compiledMaterial,
+                             const ExecutionContextHandle& context )
+{
+    result.bsdfPtx = compileMdlBsdfCallablesToPtx( neuray.get(), transaction.get(), compiledMaterial.get(), context.get(),
+                                                   "surface.scattering", MDL_MATERIAL_BSDF_FUNCTION_NAME );
+    result.hasBsdfCallables = true;
+}
+
 MdlMaterialTargetCode compileMdlMaterialTargetCode( const MaterialGroup& group, bool includeBsdfCallables )
 {
     MdlSdkSession session;
     requireMdl( session.isStarted(), session.error() );
+    const NeurayHandle& neuray{ session.handle() };
+    MdlTransaction      transaction{ neuray };
+    const TransactionHandle& transactionHandle{ transaction.handle() };
 
-    mi::base::Handle<mi::neuraylib::IDatabase> database( session.neuray()->get_api_component<mi::neuraylib::IDatabase>() );
-    requireMdl( database.is_valid_interface(), "Failed to get MDL database" );
-
-    mi::base::Handle<mi::neuraylib::IScope> scope( database->get_global_scope() );
-    requireMdl( scope.is_valid_interface(), "Failed to get MDL global scope" );
-
-    mi::base::Handle<mi::neuraylib::ITransaction> transaction( scope->create_transaction() );
-    requireMdl( transaction.is_valid_interface(), "Failed to create MDL transaction" );
-
-    MdlMaterialTargetCode targetCode;
+    MdlMaterialTargetCode result;
     {
-        mi::base::Handle<mi::neuraylib::IMdl_factory> mdlFactory( session.neuray()->get_api_component<mi::neuraylib::IMdl_factory>() );
-        requireMdl( mdlFactory.is_valid_interface(), "Failed to get MDL factory" );
+        ExecutionContextHandle context{ createMdlExecutionContext( neuray ) };
+        CompiledMaterialHandle compiledMaterial{ compileMdlGroupMaterial( neuray, transactionHandle, context, group ) };
+        BackendHandle          backend{ createMdlPtxBackend( neuray ) };
+        TargetCodeHandle       tintTargetCode{ translateMdlTint( transactionHandle, compiledMaterial, backend, context ) };
+        result = captureMdlTint( tintTargetCode, compiledMaterial, context );
 
-        mi::base::Handle<mi::neuraylib::IMdl_execution_context> context( mdlFactory->create_execution_context() );
-        requireMdl( context.is_valid_interface(), "Failed to create MDL execution context" );
-
-        const otk::pbrt::PbrtMaterial  syntheticMaterial{ makeSyntheticMatteMaterial( group.material.Kd ) };
-        const otk::pbrt::PbrtMaterial& pbrtMaterial{
-            group.pbrtMaterial && !group.pbrtMaterial->type.empty() ? *group.pbrtMaterial : syntheticMaterial };
-        MdlGeneratedSourceCache                             sourceCache;
-        const MdlShaderKey                                  key{ makeMdlShaderKey( pbrtMaterial ) };
-        const GeneratedMdlSource&                           source{ sourceCache.getSource( pbrtMaterial ) };
-        mi::base::Handle<mi::neuraylib::ICompiled_material> compiledMaterial( compileGeneratedMaterial(
-            session.neuray(), transaction.get(), context.get(), source, key, std::vector<MdlBoundMaterialParameter>{},
-            mi::neuraylib::IMaterial_instance::CLASS_COMPILATION ) );
-        const char* const previewColorExpressionPath{ findMdlPreviewColorExpressionPath( compiledMaterial.get() ) };
-
-        mi::base::Handle<mi::neuraylib::IMdl_backend_api> backendApi(
-            session.neuray()->get_api_component<mi::neuraylib::IMdl_backend_api>() );
-        requireMdl( backendApi.is_valid_interface(), "Failed to get MDL backend API" );
-
-        mi::base::Handle<mi::neuraylib::IMdl_backend> ptxBackend(
-            backendApi->get_backend( mi::neuraylib::IMdl_backend_api::MB_CUDA_PTX ) );
-        requireMdl( ptxBackend.is_valid_interface(), "Failed to get MDL CUDA PTX backend" );
-        requireMdl( ptxBackend->set_option( "sm_version", "50" ) == 0,
-                    "Failed to set MDL CUDA PTX target architecture" );
-        requireMdl( ptxBackend->set_option( "visible_functions", MDL_MATERIAL_TINT_FUNCTION_NAME ) == 0,
-                    "Failed to restrict MDL tint visible functions" );
-
-        context->clear_messages();
-        mi::base::Handle<const mi::neuraylib::ITarget_code> tintTargetCode(
-            ptxBackend->translate_material_expression( transaction.get(), compiledMaterial.get(), previewColorExpressionPath,
-                                                       MDL_MATERIAL_TINT_FUNCTION_NAME, context.get() ) );
-        requireMdl( tintTargetCode.is_valid_interface(), "Failed to translate MDL tint expression to PTX", context.get() );
-        requireMdl( tintTargetCode->get_code_size() > 0U, "MDL generated empty PTX target code" );
-        requireMdl( tintTargetCode->get_callable_function_count() == 1U,
-                    "MDL generated unexpected callable function count" );
-        requireMdl( std::string( tintTargetCode->get_callable_function( 0 ) ) == MDL_MATERIAL_TINT_FUNCTION_NAME,
-                    "MDL generated unexpected callable function name" );
-
-        targetCode.tintPtx.assign( tintTargetCode->get_code(), static_cast<size_t>( tintTargetCode->get_code_size() ) );
-        targetCode.tintArgumentBlock =
-            captureMdlTargetArgumentBlock( tintTargetCode.get(), compiledMaterial.get(), context.get() );
         if( includeBsdfCallables )
         {
-            targetCode.bsdfPtx =
-                compileMdlBsdfCallablesToPtx( session.neuray(), transaction.get(), compiledMaterial.get(),
-                                              context.get(), "surface.scattering", MDL_MATERIAL_BSDF_FUNCTION_NAME );
-            targetCode.hasBsdfCallables = true;
+            appendMdlBsdfCallables( result, neuray, transactionHandle, compiledMaterial, context );
         }
     }
-    requireMdl( transaction->commit() == 0, "Failed to commit MDL transaction" );
-    transaction.reset();
-    scope.reset();
-    database.reset();
-    requireMdl( session.shutdown() == 0, "Failed to shut down MDL SDK" );
-    return targetCode;
+
+    transaction.commit();
+    session.close();
+    return result;
 }
 
 struct MdlMaterialBuildJob
@@ -1141,7 +987,7 @@ MdlMaterialBuildResult buildMdlMaterialPipelineState( const MdlMaterialBuildJob&
                 job.moduleCache->getOrCreate( job.optixContext, job.pipelineCompileOptions, targetCode.bsdfPtx.ptx );
         }
         result.closestHitModule = createOptixModule( job.optixContext, job.pipelineCompileOptions,
-                                                     MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
+                                                     MdlMaterialCudaText(), MdlMaterialCudaSize );
 
         result.programGroups         = job.programGroups;
         result.callableProgramGroups = job.callableProgramGroups;
@@ -1611,7 +1457,7 @@ uint_t PbrtProgramGroups::getTriangleMdlMaterialSbtOffset( MaterialFlags flags )
         const Stopwatch optixTimer;
         if( m_mdlMaterialClosestHitModule == nullptr )
         {
-            m_mdlMaterialClosestHitModule = createModule( MdlSmokeMaterialCudaText(), MdlSmokeMaterialCudaSize );
+            m_mdlMaterialClosestHitModule = createModule( MdlMaterialCudaText(), MdlMaterialCudaSize );
         }
 
         OptixProgramGroupOptions options{};

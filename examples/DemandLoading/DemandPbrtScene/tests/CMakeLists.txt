@@ -7,6 +7,7 @@ include(GoogleTest)
 include(ImageTest)
 
 add_executable(TestDemandPbrtSceneImpl
+    include/DemandPbrtScene/Testing/FourierBsdfTableWriter.h
     include/DemandPbrtScene/Testing/GeometryInstancePrinter.h
     include/DemandPbrtScene/Testing/Matchers.h
     include/DemandPbrtScene/Testing/MockDemandTextureCache.h

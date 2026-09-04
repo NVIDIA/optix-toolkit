@@ -847,185 +847,273 @@ __device__ __forceinline__ bool useMdlShader( const Params& params, uint_t mater
     return shader.callableCount >= 1U;
 }
 
+struct MdlHit
+{
+    float3 vertices[3];
+    float3 worldNormal;
+    float3 position;
+    float3 rayDirection;
+    float  rayT;
+    uint_t instanceId;
+    uint_t materialId;
+};
+
+struct MdlShading
+{
+    mi::neuraylib::Shading_state_material state;
+    mi::neuraylib::Resource_data          resourceData;
+    const TriangleUVs*                    triangleUVs;
+    float2                                uv;
+    float                                 worldSpaceTextureSize;
+    mi::neuraylib::tct_float3             textCoords[1];
+    mi::neuraylib::tct_float3             tangentU[1];
+    mi::neuraylib::tct_float3             tangentV[1];
+};
+
+__device__ __forceinline__ bool loadMdlHit( const Params& params, MdlHit& hit )
+{
+    getTriangleData( hit.vertices, hit.worldNormal );
+
+    if( triMeshMaterialDebugInfo( hit.vertices, hit.worldNormal, optixGetTriangleBarycentrics() ) )
+    {
+        return false;
+    }
+
+    hit.instanceId = optixGetInstanceId();
+    hit.materialId = getMdlMaterialId( params, hit.instanceId );
+#ifndef NDEBUG
+    if( hit.materialId >= params.numRealizedMaterials )
+    {
+        printf( "Material id %u exceeds numRealizedMaterials %u\n", hit.materialId, params.numRealizedMaterials );
+        assert( hit.materialId < params.numRealizedMaterials );
+    }
+#endif
+
+    const float3 rayOrigin{ optixGetWorldRayOrigin() };
+    hit.rayDirection = optixGetWorldRayDirection();
+    hit.rayT         = optixGetRayTmax();
+    hit.position     = rayOrigin + hit.rayT * hit.rayDirection;
+    return true;
+}
+
+__device__ __forceinline__ void initializeMdlPayload( RayPayload& prd, const MdlHit& hit )
+{
+    prd.diffuseTextureId = INVALID_TEXTURE_ID;
+    prd.material         = nullptr;
+    prd.normal           = hit.worldNormal;
+    prd.rayDistance      = hit.rayT;
+    prd.hasMdlBsdfSample = false;
+}
+
+__device__ __forceinline__ void setMdlDirectColor( RayPayload& prd, const PhongMaterial& material, const float3& normal,
+                                                   const float3& rayDirection )
+{
+    prd.normal         = normal;
+    prd.color          = phongShade( material, normal, rayDirection );
+    prd.hasDirectColor = true;
+}
+
+__device__ __forceinline__ void shadeMdlFallback( const Params& params, RayPayload& prd, const PhongMaterial& material,
+                                                  const MdlHit& hit )
+{
+    if( hasAllocatedDiffuseMap( material ) )
+    {
+        setMdlMaterialDiffuseTexturePayload( params, &prd, material, hit.worldNormal, hit.vertices, hit.instanceId, hit.rayT );
+        return;
+    }
+    setMdlDirectColor( prd, material, hit.worldNormal, hit.rayDirection );
+}
+
+__device__ __forceinline__ void initializeMdlShading( MdlShading& shading, const MdlHit& hit )
+{
+    shading.state.normal      = hit.worldNormal;
+    shading.state.geom_normal = hit.worldNormal;
+    shading.state.position    = hit.position;
+    shading.tangentU[0]       = makeMdlTangentU( hit.worldNormal );
+    shading.tangentV[0]       = makeMdlTangentV( hit.worldNormal, shading.tangentU[0] );
+    shading.state.text_coords = shading.textCoords;
+    shading.state.tangent_u   = shading.tangentU;
+    shading.state.tangent_v   = shading.tangentV;
+}
+
+__device__ __forceinline__ void prepareMdlTextureCoordinates( const Params& params, const MdlMaterialShader& shader,
+                                                              const PhongMaterial& material, const MdlHit& hit,
+                                                              MdlShading& shading )
+{
+    if( !hasMdlMaterialTextures( shader ) && !hasAllocatedDiffuseMap( material ) )
+    {
+        return;
+    }
+
+#ifndef NDEBUG
+    if( hit.instanceId >= params.numInstanceUVs )
+    {
+        printf( "Instance id %u exceeds numInstanceUVs %u\n", hit.instanceId, params.numInstanceUVs );
+        assert( hit.instanceId < params.numInstanceUVs );
+    }
+#endif
+    shading.triangleUVs = &getMdlTriangleUVArray( params.instanceUVs, hit.instanceId )[optixGetPrimitiveIndex()];
+    shading.uv = interpolateMdlUVs( *shading.triangleUVs );
+    shading.worldSpaceTextureSize = getWorldSpaceTextureSize( hit.vertices, *shading.triangleUVs );
+    shading.textCoords[0] = make_float3( shading.uv.x, shading.uv.y, 0.0f );
+}
+
+__device__ __forceinline__ void applyMdlTint( const Params& params, const MdlMaterialShader& shader,
+                                              MdlShading& shading, PhongMaterial& material )
+{
+    if( params.renderMode != RenderMode::PATH_TRACING && hasAllocatedDiffuseMap( material ) )
+    {
+        return;
+    }
+
+    mi::neuraylib::tct_float3 tint{};
+    optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
+        shader.callableBaseIndex, &tint, &shading.state, &shading.resourceData,
+        reinterpret_cast<const char*>( shader.tintArgumentBlock ) );
+    material.Kd = make_float3( tint.x, tint.y, tint.z );
+}
+
+__device__ __forceinline__ void setMdlTextureRequest( RayPayload& prd, const PhongMaterial& material, const MdlHit& hit,
+                                                      const MdlShading& shading, uint_t textureId )
+{
+    setMdlDiffuseTexturePayload( &prd, material, hit.worldNormal, hit.rayT, textureId, shading.uv,
+                                 shading.worldSpaceTextureSize );
+}
+
+__device__ __forceinline__ bool applyMdlBumpMapping( const Params& params, const MdlMaterialShader& shader,
+                                                     const MdlHit& hit, const RayPayload& prd, MdlShading& shading,
+                                                     uint_t& nonResidentTextureId )
+{
+    if( !hasMdlBumpMapTexture( shader ) )
+    {
+        return true;
+    }
+
+#ifndef NDEBUG
+    assert( shading.triangleUVs != nullptr );
+#endif
+    float3 worldVertices[3];
+    float3 worldNormals[3] = { hit.worldNormal, hit.worldNormal, hit.worldNormal };
+    float2 adjustedUVs[3];
+    for( uint_t i = 0; i < 3U; ++i )
+    {
+        worldVertices[i] = optixTransformPointFromObjectToWorldSpace( hit.vertices[i] );
+        adjustedUVs[i]   = adjustMdlUV( shading.triangleUVs->UV[i] );
+    }
+    if( params.instanceNormals != nullptr && params.instanceNormals[hit.instanceId] != nullptr )
+    {
+        const TriangleNormals& normals{ params.instanceNormals[hit.instanceId][optixGetPrimitiveIndex()] };
+        for( uint_t i = 0; i < 3U; ++i )
+        {
+            worldNormals[i] = otk::normalize( optixTransformNormalFromObjectToWorldSpace( normals.N[i] ) );
+            if( params.useFaceForward && optixIsBackFaceHit() )
+            {
+                worldNormals[i] = -worldNormals[i];
+            }
+        }
+    }
+
+    const MdlBumpDifferentialGeometry geometry{ makeMdlBumpDifferentialGeometry( worldVertices, adjustedUVs, worldNormals ) };
+    float3                            dPdx{};
+    float3                            dPdy{};
+    const float rayConeWidth{ fabsf( prd.mdlRayConeWidth + prd.mdlRayConeAngle * hit.rayT ) };
+    projectToRayDifferentialsOnSurface( rayConeWidth, hit.rayDirection, hit.worldNormal, dPdx, dPdy );
+    float2 ddx{};
+    float2 ddy{};
+    computeTexGradientsForTriangle( worldVertices[0], worldVertices[1], worldVertices[2], adjustedUVs[0], adjustedUVs[1],
+                                    adjustedUVs[2], dPdx, dPdy, ddx, ddy );
+    const float       du{ mdlBumpOffset( ddx.x, ddy.x ) };
+    const float       dv{ mdlBumpOffset( ddx.y, ddy.y ) };
+    MdlBumpMapSamples bumpSamples{};
+    if( !sampleMdlBumpMap( shader, shading.uv, ddx, ddy, du, dv, bumpSamples, nonResidentTextureId ) )
+    {
+        return false;
+    }
+
+    const MdlBumpDifferentialGeometry bumpedGeometry{
+        applyMdlBumpMap( geometry, hit.worldNormal, bumpSamples.height, bumpSamples.heightU, bumpSamples.heightV, du, dv ) };
+    shading.state.normal = mdlBumpNormal( bumpedGeometry, hit.worldNormal );
+    shading.tangentU[0]  = otk::normalize( bumpedGeometry.dpdu );
+    shading.tangentV[0]  = otk::normalize( bumpedGeometry.dpdv );
+    return true;
+}
+
+__device__ __forceinline__ bool shadeWithMdl( const Params& params, const MdlMaterialShader& shader,
+                                              const PhongMaterial& material, const MdlHit& hit,
+                                              const MdlMaterialTextureSamples& textureSamples, MdlShading& shading,
+                                              RayPayload& prd )
+{
+    if( !hasMdlBsdfCallables( shader ) || ( hasAllocatedDiffuseMap( material ) && !hasMdlDiffuseTexture( shader ) ) )
+    {
+        return false;
+    }
+
+    alignas( 16 ) char bsdfArgumentBlockStorage[MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE];
+    const char* const bsdfArgumentBlock{ makeMdlBsdfArgumentBlock( shader, textureSamples, bsdfArgumentBlockStorage ) };
+    initializeMdlBsdf( shader, shading.state, shading.resourceData, bsdfArgumentBlock );
+    prd.color = displayEncodeMdlColor( shadeMdlBsdf(
+        shader, shading.state, shading.resourceData, shading.state.normal, hit.rayDirection, textureSamples,
+        make_float2( prd.mdlBsdfSampleXi.z, prd.mdlBsdfSampleXi.w ), bsdfArgumentBlock ) );
+    prd.hasDirectColor = true;
+    prd.hasMdlBsdfSample =
+        params.renderMode == RenderMode::PATH_TRACING
+        && sampleMdlBsdf( shader, shading.state, shading.resourceData, -hit.rayDirection, prd.mdlBsdfSampleXi,
+                          textureSamples, bsdfArgumentBlock, prd.mdlBsdfSampleDirection, prd.mdlBsdfSampleThroughput );
+    return true;
+}
+
 extern "C" __global__ void __closesthit__mdlMesh()
 {
-    float3 worldNormal;
-    float3 vertices[3];
-    getTriangleData( vertices, worldNormal );
-
-    if( triMeshMaterialDebugInfo( vertices, worldNormal, optixGetTriangleBarycentrics() ) )
-    {
-        return;
-    }
-
     const Params& params{ PARAMS_VAR_NAME };
-    const uint_t  instanceId{ optixGetInstanceId() };
-    const uint_t  materialId{ getMdlMaterialId( params, instanceId ) };
-#ifndef NDEBUG
-    if( materialId >= params.numRealizedMaterials )
+    MdlHit       hit{};
+    if( !loadMdlHit( params, hit ) )
     {
-        printf( "Material id %u exceeds numRealizedMaterials %u\n", materialId, params.numRealizedMaterials );
-        assert( materialId < params.numRealizedMaterials );
-    }
-#endif
-
-    const float3      rayOrigin{ optixGetWorldRayOrigin() };
-    const float3      rayDirection{ optixGetWorldRayDirection() };
-    const float       rayT{ optixGetRayTmax() };
-    PhongMaterial     material{ params.realizedMaterials[materialId] };
-    RayPayload* const prd{ getRayPayload() };
-    MdlMaterialShader shader{};
-
-    prd->diffuseTextureId = INVALID_TEXTURE_ID;
-    prd->material         = nullptr;
-    prd->normal           = worldNormal;
-    prd->rayDistance      = rayT;
-    prd->hasMdlBsdfSample = false;
-
-    if( !useMdlShader( params, materialId, shader ) )
-    {
-        if( hasAllocatedDiffuseMap( material ) )
-        {
-            setMdlMaterialDiffuseTexturePayload( params, prd, material, worldNormal, vertices, instanceId, rayT );
-            return;
-        }
-        prd->color          = phongShade( material, worldNormal, rayDirection );
-        prd->hasDirectColor = true;
         return;
     }
 
-    mi::neuraylib::Shading_state_material state{};
-    state.normal      = worldNormal;
-    state.geom_normal = worldNormal;
-    state.position    = rayOrigin + rayT * rayDirection;
+    PhongMaterial material{ params.realizedMaterials[hit.materialId] };
+    RayPayload&   prd{ *getRayPayload() };
+    initializeMdlPayload( prd, hit );
 
-    mi::neuraylib::Resource_data resourceData{};
-    mi::neuraylib::tct_float3    tint{};
-    const bool                   hasDiffuseTexture{ hasAllocatedDiffuseMap( material ) };
-    const bool                   useMdlDiffuseTexture{ hasMdlDiffuseTexture( shader ) && hasDiffuseTexture };
-    const bool                   hasMaterialTextures{ hasMdlMaterialTextures( shader ) };
-    const TriangleUVs*           triangleUVs{};
-    float2                       uv{};
-    float                        worldSpaceTextureSize{};
-    mi::neuraylib::tct_float3    textCoords[1]{};
-    mi::neuraylib::tct_float3    tangentU[1]{};
-    mi::neuraylib::tct_float3    tangentV[1]{};
-    tangentU[0]       = makeMdlTangentU( worldNormal );
-    tangentV[0]       = makeMdlTangentV( worldNormal, tangentU[0] );
-    state.text_coords = textCoords;
-    state.tangent_u   = tangentU;
-    state.tangent_v   = tangentV;
-    if( hasMaterialTextures || hasDiffuseTexture )
+    MdlMaterialShader shader{};
+    if( !useMdlShader( params, hit.materialId, shader ) )
     {
-#ifndef NDEBUG
-        if( instanceId >= params.numInstanceUVs )
-        {
-            printf( "Instance id %u exceeds numInstanceUVs %u\n", instanceId, params.numInstanceUVs );
-            assert( instanceId < params.numInstanceUVs );
-        }
-#endif
-        triangleUVs              = &getMdlTriangleUVArray( params.instanceUVs, instanceId )[optixGetPrimitiveIndex()];
-        uv                       = interpolateMdlUVs( *triangleUVs );
-        worldSpaceTextureSize    = getWorldSpaceTextureSize( vertices, *triangleUVs );
-        textCoords[0]         = make_float3( uv.x, uv.y, 0.0f );
-    }
-    if( params.renderMode == RenderMode::PATH_TRACING || !hasDiffuseTexture )
-    {
-        optixDirectCall<void, void*, const mi::neuraylib::Shading_state_material*, const mi::neuraylib::Resource_data*, const char*>(
-            shader.callableBaseIndex, &tint, &state, &resourceData,
-            reinterpret_cast<const char*>( shader.tintArgumentBlock ) );
-        material.Kd = make_float3( tint.x, tint.y, tint.z );
+        shadeMdlFallback( params, prd, material, hit );
+        return;
     }
 
-    prd->materialCopy   = material;
-    prd->color          = phongShade( material, worldNormal, rayDirection );
-    prd->hasDirectColor = true;
+    MdlShading shading{};
+    initializeMdlShading( shading, hit );
+    prepareMdlTextureCoordinates( params, shader, material, hit, shading );
+    applyMdlTint( params, shader, shading, material );
+    prd.materialCopy = material;
+    setMdlDirectColor( prd, material, hit.worldNormal, hit.rayDirection );
 
     MdlMaterialTextureSamples textureSamples{};
     uint_t                    nonResidentTextureId{};
-    if( !sampleMdlMaterialTextures( shader, uv, textureSamples, nonResidentTextureId ) )
+    if( !sampleMdlMaterialTextures( shader, shading.uv, textureSamples, nonResidentTextureId ) )
     {
-        setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, nonResidentTextureId, uv, worldSpaceTextureSize );
+        setMdlTextureRequest( prd, material, hit, shading, nonResidentTextureId );
+        return;
+    }
+    if( !applyMdlBumpMapping( params, shader, hit, prd, shading, nonResidentTextureId ) )
+    {
+        setMdlTextureRequest( prd, material, hit, shading, nonResidentTextureId );
         return;
     }
 
-    float3 shadingNormal{ worldNormal };
-    if( hasMdlBumpMapTexture( shader ) )
-    {
-#ifndef NDEBUG
-        assert( triangleUVs != nullptr );
-#endif
-        float3 worldVertices[3];
-        float3 worldNormals[3] = { worldNormal, worldNormal, worldNormal };
-        float2 adjustedUVs[3];
-        for( uint_t i = 0; i < 3U; ++i )
-        {
-            worldVertices[i] = optixTransformPointFromObjectToWorldSpace( vertices[i] );
-            adjustedUVs[i]   = adjustMdlUV( triangleUVs->UV[i] );
-        }
-        if( params.instanceNormals != nullptr && params.instanceNormals[instanceId] != nullptr )
-        {
-            const TriangleNormals& normals{ params.instanceNormals[instanceId][optixGetPrimitiveIndex()] };
-            for( uint_t i = 0; i < 3U; ++i )
-            {
-                worldNormals[i] = otk::normalize( optixTransformNormalFromObjectToWorldSpace( normals.N[i] ) );
-                if( params.useFaceForward && optixIsBackFaceHit() )
-                {
-                    worldNormals[i] = -worldNormals[i];
-                }
-            }
-        }
-
-        const MdlBumpDifferentialGeometry geometry{ makeMdlBumpDifferentialGeometry( worldVertices, adjustedUVs, worldNormals ) };
-        float3                            dPdx{};
-        float3                            dPdy{};
-        const float rayConeWidth{ fabsf( prd->mdlRayConeWidth + prd->mdlRayConeAngle * rayT ) };
-        projectToRayDifferentialsOnSurface( rayConeWidth, rayDirection, worldNormal, dPdx, dPdy );
-        float2 ddx{};
-        float2 ddy{};
-        computeTexGradientsForTriangle( worldVertices[0], worldVertices[1], worldVertices[2], adjustedUVs[0], adjustedUVs[1],
-                                        adjustedUVs[2], dPdx, dPdy, ddx, ddy );
-        const float       du{ mdlBumpOffset( ddx.x, ddy.x ) };
-        const float       dv{ mdlBumpOffset( ddx.y, ddy.y ) };
-        MdlBumpMapSamples bumpSamples{};
-        if( !sampleMdlBumpMap( shader, uv, ddx, ddy, du, dv, bumpSamples, nonResidentTextureId ) )
-        {
-            setMdlDiffuseTexturePayload( prd, material, worldNormal, rayT, nonResidentTextureId, uv, worldSpaceTextureSize );
-            return;
-        }
-        const MdlBumpDifferentialGeometry bumpedGeometry{
-            applyMdlBumpMap( geometry, worldNormal, bumpSamples.height, bumpSamples.heightU, bumpSamples.heightV, du, dv ) };
-        shadingNormal = mdlBumpNormal( bumpedGeometry, worldNormal );
-        tangentU[0]   = otk::normalize( bumpedGeometry.dpdu );
-        tangentV[0]   = otk::normalize( bumpedGeometry.dpdv );
-    }
-    state.normal = shadingNormal;
-    prd->normal  = shadingNormal;
-    prd->color   = phongShade( material, shadingNormal, rayDirection );
-
-    if( hasMdlBsdfCallables( shader ) && ( !hasDiffuseTexture || useMdlDiffuseTexture ) )
-    {
-        alignas( 16 ) char bsdfArgumentBlockStorage[MDL_MATERIAL_ARGUMENT_BLOCK_STACK_SIZE];
-        const char* const bsdfArgumentBlock{ makeMdlBsdfArgumentBlock( shader, textureSamples, bsdfArgumentBlockStorage ) };
-        initializeMdlBsdf( shader, state, resourceData, bsdfArgumentBlock );
-        prd->color = displayEncodeMdlColor( shadeMdlBsdf( shader, state, resourceData, shadingNormal, rayDirection,
-                                                          textureSamples,
-                                                          make_float2( prd->mdlBsdfSampleXi.z, prd->mdlBsdfSampleXi.w ),
-                                                          bsdfArgumentBlock ) );
-        prd->hasDirectColor = true;
-        prd->hasMdlBsdfSample =
-            PARAMS_VAR_NAME.renderMode == RenderMode::PATH_TRACING
-            && sampleMdlBsdf( shader, state, resourceData, -rayDirection, prd->mdlBsdfSampleXi, textureSamples,
-                              bsdfArgumentBlock, prd->mdlBsdfSampleDirection, prd->mdlBsdfSampleThroughput );
-        return;
-    }
-
-    if( !hasAllocatedDiffuseMap( material ) )
+    setMdlDirectColor( prd, material, shading.state.normal, hit.rayDirection );
+    if( shadeWithMdl( params, shader, material, hit, textureSamples, shading, prd ) )
     {
         return;
     }
 
-    setMdlMaterialDiffuseTexturePayload( params, prd, material, shadingNormal, vertices, instanceId, rayT );
+    if( hasAllocatedDiffuseMap( material ) )
+    {
+        setMdlMaterialDiffuseTexturePayload( params, &prd, material, shading.state.normal, hit.vertices, hit.instanceId,
+                                             hit.rayT );
+    }
 }
 
 }  // namespace demandPbrtScene
+
