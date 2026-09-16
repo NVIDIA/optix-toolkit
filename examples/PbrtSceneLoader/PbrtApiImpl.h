@@ -124,9 +124,10 @@ private:
     PlasticMaterial getShapeMaterial( const ::pbrt::ParamSet& params ) const;
     PbrtMaterial     getShapePbrtMaterial() const;
     PbrtMaterialGraph getShapePbrtMaterialGraph( const PbrtMaterial& material ) const;
-    void              collectMaterialGraphReferences( const std::string& type, const ::pbrt::ParamSet& params,
-                                                      PbrtMaterialGraph& graph, std::vector<std::string>& materialStack,
-                                                      std::vector<std::string>& textureStack ) const;
+    void collectMaterialGraphReferences( const ::pbrt::ParamSet&   params,
+                                         PbrtMaterialGraph&        graph,
+                                         std::vector<std::string>& materialStack,
+                                         std::vector<std::string>& textureStack ) const;
     void              collectNamedMaterialGraph( const std::string& name, PbrtMaterialGraph& graph,
                                                  std::vector<std::string>& materialStack,
                                                  std::vector<std::string>& textureStack ) const;

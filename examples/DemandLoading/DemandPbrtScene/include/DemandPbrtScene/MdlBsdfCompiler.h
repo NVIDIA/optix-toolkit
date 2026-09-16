@@ -8,9 +8,9 @@
 
 #ifdef OTK_USE_MDL
 
-#include <cstddef>
+#include "DemandPbrtScene/MdlUtils.h"
+
 #include <string>
-#include <vector>
 
 namespace mi {
 namespace neuraylib {
@@ -24,20 +24,6 @@ class ITransaction;
 }  // namespace mi
 
 namespace demandPbrtScene {
-
-struct MdlTargetArgumentBlockParameter
-{
-    std::string  name;
-    unsigned int kind{};
-    std::size_t  offset{};
-    std::size_t  size{};
-};
-
-struct MdlTargetArgumentBlock
-{
-    std::vector<char>                            data;
-    std::vector<MdlTargetArgumentBlockParameter> parameters;
-};
 
 struct MdlBsdfCallablePtx
 {

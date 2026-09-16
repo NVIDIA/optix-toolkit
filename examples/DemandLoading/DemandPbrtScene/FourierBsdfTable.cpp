@@ -28,6 +28,13 @@ FourierBsdfTableLoadResult makeFailure( FourierBsdfTableLoadStatus status, const
     return result;
 }
 
+FourierBsdfTableLoadResult makeSuccess()
+{
+    FourierBsdfTableLoadResult result{};
+    result.status = FourierBsdfTableLoadStatus::SUCCESS;
+    return result;
+}
+
 std::string sectionDiagnostic( const std::string& fileName, const std::string& section )
 {
     return "Truncated Fourier BSDF table \"" + fileName + "\" while reading " + section;
@@ -155,18 +162,19 @@ std::string unsupportedDiagnostic( const std::string& fileName, const FourierBsd
     return out.str();
 }
 
-}  // namespace
-
-FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
+FourierBsdfTableLoadResult readTableHeader( const std::string& fileName,
+                                            std::ifstream&     input,
+                                            std::streamoff&    fileSize,
+                                            FourierBsdfTable&  table )
 {
-    std::ifstream input{ fileName, std::ios::binary | std::ios::ate };
+    input.open( fileName, std::ios::binary | std::ios::ate );
     if( !input )
     {
         return makeFailure( FourierBsdfTableLoadStatus::FILE_NOT_FOUND,
                             "Unable to open Fourier BSDF table file \"" + fileName + "\"" );
     }
 
-    const std::streamoff fileSize{ input.tellg() };
+    fileSize = input.tellg();
     input.seekg( 0, std::ios::beg );
 
     char header[8]{};
@@ -180,8 +188,7 @@ FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
                             "Invalid Fourier BSDF table header in \"" + fileName + "\"" );
     }
 
-    FourierBsdfTable table{};
-    int              unused{};
+    int unused{};
     if( !readInt32( input, table.flags ) || !readInt32( input, table.nMu ) || !readInt32( input, table.nCoefficients )
         || !readInt32( input, table.maxOrder ) || !readInt32( input, table.nChannels )
         || !readInt32( input, table.nBases ) || !readInt32( input, unused ) || !readInt32( input, unused )
@@ -190,7 +197,11 @@ FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
     {
         return makeFailure( FourierBsdfTableLoadStatus::TRUNCATED, sectionDiagnostic( fileName, "metadata" ) );
     }
+    return makeSuccess();
+}
 
+FourierBsdfTableLoadResult validateMetadata( const std::string& fileName, const FourierBsdfTable& table )
+{
     if( table.flags != 1 || ( table.nChannels != 1 && table.nChannels != 3 ) || table.nBases != 1 )
     {
         return makeFailure( FourierBsdfTableLoadStatus::UNSUPPORTED, unsupportedDiagnostic( fileName, table ) );
@@ -200,15 +211,29 @@ FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
         return makeFailure( FourierBsdfTableLoadStatus::MALFORMED,
                             "Malformed Fourier BSDF table \"" + fileName + "\": invalid dimensions" );
     }
+    return makeSuccess();
+}
 
+FourierBsdfTableLoadResult computeGridSize( const std::string& fileName,
+                                            const FourierBsdfTable& table,
+                                            std::size_t&            gridSize )
+{
     const std::size_t nMu{ static_cast<std::size_t>( table.nMu ) };
-    std::size_t       gridSize{};
     if( !checkedMultiply( nMu, nMu, gridSize ) )
     {
         return makeFailure( FourierBsdfTableLoadStatus::MALFORMED,
                             "Malformed Fourier BSDF table \"" + fileName + "\": dimension overflow" );
     }
+    return makeSuccess();
+}
 
+FourierBsdfTableLoadResult readArrays( std::istream&     input,
+                                       const std::string& fileName,
+                                       std::size_t        gridSize,
+                                       FourierBsdfTable&  table,
+                                       std::vector<int>&  offsetsAndLengths )
+{
+    const std::size_t nMu{ static_cast<std::size_t>( table.nMu ) };
     if( !readFloatVector( input, table.mu, nMu ) )
     {
         return makeFailure( FourierBsdfTableLoadStatus::TRUNCATED, sectionDiagnostic( fileName, "mu values" ) );
@@ -224,8 +249,7 @@ FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
         return makeFailure( FourierBsdfTableLoadStatus::MALFORMED,
                             "Malformed Fourier BSDF table \"" + fileName + "\": offset table overflow" );
     }
-    std::vector<int> offsetAndLength;
-    if( !readInt32Vector( input, offsetAndLength, offsetPairCount ) )
+    if( !readInt32Vector( input, offsetsAndLengths, offsetPairCount ) )
     {
         return makeFailure( FourierBsdfTableLoadStatus::TRUNCATED,
                             sectionDiagnostic( fileName, "coefficient offsets" ) );
@@ -234,25 +258,35 @@ FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
     {
         return makeFailure( FourierBsdfTableLoadStatus::TRUNCATED, sectionDiagnostic( fileName, "coefficients" ) );
     }
+    return makeSuccess();
+}
 
+FourierBsdfTableLoadResult validateCoefficientSpans( const std::string&      fileName,
+                                                     const std::vector<int>& offsetsAndLengths,
+                                                     std::size_t             gridSize,
+                                                     FourierBsdfTable&       table )
+{
     table.coefficientOffsets.resize( gridSize );
     table.coefficientCounts.resize( gridSize );
     table.zeroOrderCoefficients.resize( gridSize );
     for( std::size_t i = 0; i < gridSize; ++i )
     {
-        const int offset{ offsetAndLength[2U * i] };
-        const int length{ offsetAndLength[2U * i + 1U] };
+        const int offset{ offsetsAndLengths[2U * i] };
+        const int length{ offsetsAndLengths[2U * i + 1U] };
         if( offset < 0 || length < 0 || length > table.maxOrder )
         {
             return makeFailure( FourierBsdfTableLoadStatus::MALFORMED,
                                 "Malformed Fourier BSDF table \"" + fileName + "\": invalid coefficient span" );
         }
+
         std::size_t channelCoefficientCount{};
-        if( !checkedMultiply( static_cast<std::size_t>( length ), static_cast<std::size_t>( table.nChannels ), channelCoefficientCount ) )
+        if( !checkedMultiply( static_cast<std::size_t>( length ), static_cast<std::size_t>( table.nChannels ),
+                              channelCoefficientCount ) )
         {
             return makeFailure( FourierBsdfTableLoadStatus::MALFORMED,
                                 "Malformed Fourier BSDF table \"" + fileName + "\": coefficient span overflow" );
         }
+
         std::size_t spanEnd{};
         if( !checkedAdd( static_cast<std::size_t>( offset ), channelCoefficientCount, spanEnd )
             || spanEnd > table.coefficients.size() )
@@ -266,17 +300,61 @@ FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
         table.coefficientCounts[i]     = length;
         table.zeroOrderCoefficients[i] = length > 0 ? table.coefficients[static_cast<std::size_t>( offset )] : 0.0f;
     }
+    return makeSuccess();
+}
 
+void recordTrailingByteCount( std::istream& input, std::streamoff fileSize, FourierBsdfTable& table )
+{
     const std::streamoff tableEnd{ input.tellg() };
     if( tableEnd >= 0 && fileSize >= tableEnd )
     {
         table.trailingByteCount = static_cast<std::size_t>( fileSize - tableEnd );
     }
+}
 
-    FourierBsdfTableLoadResult result{};
-    result.status = FourierBsdfTableLoadStatus::SUCCESS;
-    result.table  = std::move( table );
+FourierBsdfTableLoadResult makeSuccess( FourierBsdfTable&& table )
+{
+    FourierBsdfTableLoadResult result{ makeSuccess() };
+    result.table = std::move( table );
     return result;
+}
+
+}  // namespace
+
+FourierBsdfTableLoadResult loadFourierBsdfTable( const std::string& fileName )
+{
+    std::ifstream input;
+    std::streamoff fileSize{};
+    FourierBsdfTable table{};
+    std::size_t gridSize{};
+    std::vector<int> offsetsAndLengths;
+
+    if( const FourierBsdfTableLoadResult result{ readTableHeader( fileName, input, fileSize, table ) }; !result )
+    {
+        return result;
+    }
+    if( const FourierBsdfTableLoadResult result{ validateMetadata( fileName, table ) }; !result )
+    {
+        return result;
+    }
+    if( const FourierBsdfTableLoadResult result{ computeGridSize( fileName, table, gridSize ) }; !result )
+    {
+        return result;
+    }
+    if( const FourierBsdfTableLoadResult result{ readArrays( input, fileName, gridSize, table, offsetsAndLengths ) };
+        !result )
+    {
+        return result;
+    }
+    if( const FourierBsdfTableLoadResult result{
+            validateCoefficientSpans( fileName, offsetsAndLengths, gridSize, table ) };
+        !result )
+    {
+        return result;
+    }
+
+    recordTrailingByteCount( input, fileSize, table );
+    return makeSuccess( std::move( table ) );
 }
 
 }  // namespace demandPbrtScene

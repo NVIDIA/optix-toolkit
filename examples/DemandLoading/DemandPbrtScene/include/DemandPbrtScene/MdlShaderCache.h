@@ -7,70 +7,16 @@
 #include "DemandPbrtScene/Config.h"
 
 #ifdef OTK_USE_MDL
+#include "DemandPbrtScene/MdlKeyBuilder.h"
+#include "DemandPbrtScene/MdlMaterialModelBuilder.h"
+#include "DemandPbrtScene/MdlParameterBinder.h"
 #include "DemandPbrtScene/MdlShaderCompileCacheStatistics.h"
-
-#include <OptiXToolkit/PbrtSceneLoader/SceneDescription.h>
 
 #include <cstddef>
 #include <map>
 #include <string>
-#include <vector>
 
 namespace demandPbrtScene {
-
-struct MdlShaderKey
-{
-    std::string signature;
-};
-
-bool operator==( const MdlShaderKey& lhs, const MdlShaderKey& rhs );
-bool operator!=( const MdlShaderKey& lhs, const MdlShaderKey& rhs );
-bool operator<( const MdlShaderKey& lhs, const MdlShaderKey& rhs );
-
-std::string  toString( const MdlShaderKey& key );
-MdlShaderKey makeMdlShaderKey( const otk::pbrt::PbrtMaterial& material );
-
-struct MdlMaterialInstanceKey
-{
-    MdlShaderKey sourceKey;
-    std::string  signature;
-    bool         sourceShapeProgramReusable{};
-};
-
-bool operator==( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
-bool operator!=( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
-bool operator<( const MdlMaterialInstanceKey& lhs, const MdlMaterialInstanceKey& rhs );
-
-std::string            toString( const MdlMaterialInstanceKey& key );
-MdlMaterialInstanceKey makeMdlMaterialInstanceKey( const otk::pbrt::PbrtMaterial& material );
-
-enum class MdlBoundParameterType
-{
-    COLOR,
-    FLOAT,
-};
-
-struct MdlBoundMaterialParameter
-{
-    std::string           name;
-    MdlBoundParameterType type{};
-    float                 red{};
-    float                 green{};
-    float                 blue{};
-    float                 value{};
-};
-
-std::vector<MdlBoundMaterialParameter> makeMdlBoundMaterialParameters( const otk::pbrt::PbrtMaterial& material );
-
-struct GeneratedMdlSource
-{
-    std::string              moduleName;
-    std::string              materialName;
-    std::string              source;
-    std::vector<std::string> unsupportedReasons;
-};
-
-GeneratedMdlSource generateMdlSource( const otk::pbrt::PbrtMaterial& material );
 
 enum class MdlShaderCompileState
 {
