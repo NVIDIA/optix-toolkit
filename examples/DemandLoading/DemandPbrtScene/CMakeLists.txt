@@ -25,7 +25,7 @@ configure_file(
 )
 
 if(OTK_USE_MDL)
-    find_package(mdl CONFIG REQUIRED)
+    include(FetchMdl)
     set(DEMAND_PBRT_SCENE_MDL_CUDA_SOURCES
         FourierMaterial.cu
         MdlMaterial.cu
