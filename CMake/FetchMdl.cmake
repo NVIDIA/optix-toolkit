@@ -63,25 +63,6 @@ if(NOT clang_PATH)
     set(_mdl_llvm_hash
       6f1eb4ef9885ea7ce56581000e42595f72be37901c213377c8716d160b84441fd017a0a062b188e574a6873b320d3bf2c850beb9822cf4c0025c543effb37a00
     )
-  elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux"
-      AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
-    set(_mdl_llvm_filename
-      "clang+llvm-${_mdl_llvm_version}-aarch64-linux-gnu.tar.xz"
-    )
-    set(_mdl_llvm_hash
-      7a979641def7d575bf5c9dbc0343212b31d840e65b06b89fcdf37e7835c56ba8d695a6508f13516eecc3a0ea87409e548993c64265a700e83789c9c5c8d1f88b
-    )
-  elseif(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64)$")
-    set(_mdl_llvm_version 12.0.0)
-    set(_mdl_llvm_base_url
-      "https://github.com/llvm/llvm-project/releases/download/llvmorg-${_mdl_llvm_version}"
-    )
-    set(_mdl_llvm_filename
-      "clang+llvm-${_mdl_llvm_version}-x86_64-apple-darwin.tar.xz"
-    )
-    set(_mdl_llvm_hash
-      2e74791425c12dacc201c5cfc38be7abe0ac670ddb079e75d477bf3f78d1dad442d1b4c819d67e0ba51c4474d8b7a726d4c50b7ad69d536e30edc38d1dce78b8
-    )
   else()
     message(FATAL_ERROR
       "Pre-built Clang binaries required by MDL are not available for "
