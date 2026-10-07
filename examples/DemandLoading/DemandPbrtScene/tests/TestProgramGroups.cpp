@@ -75,22 +75,25 @@ MATCHER( hasModuleTypeSphere, "" )
 MATCHER( allowsRandomVertexAccess, "" )
 {
     const bool result = ( arg->buildFlags & OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS ) == OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS;
-    const char fill = result_listener->stream()->fill();
-    if( !result )
+    if( result_listener->IsInterested() )
     {
-        *result_listener << "builtin IS module options build flags " << std::dec << arg->buildFlags << " (0x"
-                         << std::hex << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
-                         << arg->buildFlags << ") don't set OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS (0x" << std::hex
-                         << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
-                         << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ")" << std::setfill( fill );
-    }
-    else
-    {
-        *result_listener << "builtin IS module options build flags " << std::dec << arg->buildFlags << " (0x"
-                         << std::hex << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
-                         << arg->buildFlags << ") set OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS (0x" << std::hex
-                         << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
-                         << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ")" << std::setfill( fill );
+        const char fill = result_listener->stream()->fill();
+        if( !result )
+        {
+            *result_listener << "builtin IS module options build flags " << std::dec << arg->buildFlags << " (0x"
+                             << std::hex << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
+                             << arg->buildFlags << ") don't set OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS (0x" << std::hex
+                             << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
+                             << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ")" << std::setfill( fill );
+        }
+        else
+        {
+            *result_listener << "builtin IS module options build flags " << std::dec << arg->buildFlags << " (0x"
+                             << std::hex << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
+                             << arg->buildFlags << ") set OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS (0x" << std::hex
+                             << std::setw( 2 * sizeof( arg->buildFlags ) ) << std::setfill( '0' )
+                             << OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS << ")" << std::setfill( fill );
+        }
     }
     return result;
 }
