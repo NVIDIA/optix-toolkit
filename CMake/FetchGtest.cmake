@@ -28,7 +28,7 @@ endif()
 
 include(FetchContent)
 
-set( INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest" )
+set( INSTALL_GTEST ON CACHE BOOL "Enable installation of googletest" FORCE )
 
 message(VERBOSE "Finding googletest...")
 FetchContent_Declare(

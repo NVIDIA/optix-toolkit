@@ -51,9 +51,29 @@ if(NOT clang_PATH)
     set(_mdl_llvm_hash
       733bfb425af2e7e4f187fca6d9cfdf7ecc9aa846ef2c227d57fad7cc67d114bde27e49385df362cb399c4aa0e2d481890e2148756a18925b0229ad516a9f8bb4
     )
+    FetchContent_Declare(
+      mdl_7zr
+      URL https://github.com/ip7z/7zip/releases/download/26.03/7zr.exe
+      URL_HASH SHA512=211a97487c573b8611dfe3acacbd361ffd41a888a9d63c69f2a7b52cbadc686a424ea08ec88c9566e4e1365c5d6caf1825865440f79f4a751fefb27fe9f0bea9
+      DOWNLOAD_NO_EXTRACT TRUE
+    )
+    FetchContent_MakeAvailable(mdl_7zr)
+    FetchContent_Declare(
+      mdl_7zip_full
+      URL https://github.com/ip7z/7zip/releases/download/26.03/7z2603-x64.exe
+      URL_HASH SHA512=50025bab628b69f8eb35a590900093814e540ce7ffef8c676a1198e2d2a3f1dcdc44f04f92c28ca89bf6ee869fad3710786e14073c7db36281e8f7a4c495ea7f
+      DOWNLOAD_NO_EXTRACT TRUE
+      PATCH_COMMAND
+        "${mdl_7zr_SOURCE_DIR}/7zr.exe" x "<DOWNLOADED_FILE>"
+        "-o<SOURCE_DIR>" -y -bso0 -bsp0
+    )
+    FetchContent_MakeAvailable(mdl_7zip_full)
+    set(_mdl_7zip_executable "${mdl_7zip_full_SOURCE_DIR}/7z.exe")
     set(_mdl_llvm_download_options
       DOWNLOAD_NO_EXTRACT TRUE
-      PATCH_COMMAND "<DOWNLOADED_FILE>" /S "/D=<SOURCE_DIR>"
+      PATCH_COMMAND
+        "${_mdl_7zip_executable}" x "<DOWNLOADED_FILE>"
+        "-o<SOURCE_DIR>" -y -bso0 -bsp0
     )
   elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux"
       AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64)$")
@@ -75,7 +95,6 @@ if(NOT clang_PATH)
     mdl_clang
     URL "${_mdl_llvm_base_url}/${_mdl_llvm_filename}"
     URL_HASH "SHA512=${_mdl_llvm_hash}"
-    DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     ${_mdl_llvm_download_options}
   )
   FetchContent_MakeAvailable(mdl_clang)
@@ -132,6 +151,11 @@ set(MDL_TREAT_RUNTIME_DEPS_AS_BUILD_DEPS OFF CACHE BOOL
   "Treat MDL runtime dependencies as build dependencies" FORCE)
 
 function(_otk_add_mdl_subdirectory)
+  if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+      "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    )
+  endif()
   # MDL requires a toolchain file for standalone Windows builds. OTK has
   # already initialized its toolchain, so provide an inert file to satisfy
   # that check when MDL is embedded as a subdirectory.
