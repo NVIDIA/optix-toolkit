@@ -66,7 +66,6 @@ if(OTK_USE_MDL)
         TestMdlBumpMap.cpp
         TestMdlShaderCache.cpp
     )
-    find_package(mdl CONFIG REQUIRED)
     add_executable(TestDemandPbrtSceneMdlSdk TestMdlSdk.cpp)
     target_compile_definitions(TestDemandPbrtSceneMdlSdk PRIVATE
         DEMAND_PBRT_SCENE_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
