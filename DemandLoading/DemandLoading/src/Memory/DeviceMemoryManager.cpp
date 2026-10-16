@@ -15,7 +15,7 @@ static const unsigned int SAMPLER_POOL_ALLOC_SIZE = 65536;
 
 DeviceMemoryManager::DeviceMemoryManager( std::shared_ptr<Options> options )
     : m_options( options )
-    , m_samplerPool( new DeviceAllocator(), new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ), SAMPLER_POOL_ALLOC_SIZE )
+    , m_samplerPool( new DeviceAllocator(), new FixedSuballocator( sizeof( TextureSampler ), alignof( TextureSampler ) ), SAMPLER_POOL_ALLOC_SIZE, 0, 0 )
     , m_deviceContextMemory( new DeviceAllocator(), nullptr )
     , m_whiteBlackTiles( static_cast<int>( WB_NONE ), otk::TileBlockHandle{0, 0} )
 {

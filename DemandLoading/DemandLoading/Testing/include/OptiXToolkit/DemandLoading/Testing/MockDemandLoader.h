@@ -44,6 +44,7 @@ class MockDemandLoader : public demandLoading::DemandLoader
     MOCK_METHOD( const demandLoading::Options&, getOptions, () );
     MOCK_METHOD( void, enableEviction, ( bool evictionActive ) );
     MOCK_METHOD( void, setMaxTextureMemory, ( size_t maxMem ) );
+    MOCK_METHOD( size_t, getAvailableTextureMemory, (), ( const ) );
     MOCK_METHOD( const demandLoading::Options&, getOptions, (), ( const ) );
     MOCK_METHOD( void, initTexture, (CUstream, unsigned int), ( override ) );
     MOCK_METHOD( void, initUdimTexture, (CUstream, unsigned int), ( override ) );

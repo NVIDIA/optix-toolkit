@@ -621,6 +621,14 @@ void DemandLoaderImpl::setMaxTextureMemory( size_t maxMem )
     m_pageLoader->setMaxTextureMemory( maxMem );
 }
 
+size_t DemandLoaderImpl::getAvailableTextureMemory() const
+{
+    std::unique_lock<std::mutex> lock( m_mutex );
+    PagingSystem* pagingSystem = getPagingSystem();
+    size_t stagedMemory = pagingSystem->getNumStagedPages() * otk::TILE_SIZE_IN_BYTES;
+    return getDeviceMemoryManager()->getAvailableTextureTileMemory() + stagedMemory;
+}
+
 unsigned int DemandLoaderImpl::allocateTexturePages( unsigned int numTextures )
 {
     // Allocate pages for numTextures. Note: pages for all textures were reserved in the constructor of DemandLoaderImpl.

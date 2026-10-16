@@ -107,6 +107,9 @@ class DeviceMemoryManager
     size_t getTextureTileMemory() const { return m_tilePool ? m_tilePool->trackedSize() : 0; }
     size_t getTotalDeviceMemory() const { return getSamplerMemory() + getDeviceContextMemory() + getTextureTileMemory(); }
 
+    /// Return the available memory available for texture tiles without exceeding the max texture tile memory.
+    size_t getAvailableTextureTileMemory() const { return m_tilePool ? m_tilePool->allocatableSpace() : 0; }
+
   private:
     std::shared_ptr<Options> m_options;
 

@@ -70,6 +70,9 @@ class PagingSystem
     /// it holds can also be freed.
     bool freeStagedPage( PageMapping* m );
 
+    /// Get the number of staged pages (ready to be freed for reuse)
+    size_t getNumStagedPages();
+
     /// Turn eviction on/off, (allows or stops staging stale pages)
     void activateEviction( bool activate ) { m_evictionActive = activate; }
 
@@ -146,9 +149,6 @@ class PagingSystem
     // Stage pages for reuse (Remove their mappings on the host, and schedule removal of thier mappings on the device
     // the next time pushMappings is called.)
     void stageStalePages( RequestContext* requestContext, std::deque<PageMapping>& stagedMappings );
-
-    // Get the number of staged pages (ready to be freed for reuse)
-    size_t getNumStagedPages();
 
     // Allocate a PageMappingsContext in pinned memory.
     void initPageMappingsContext();
