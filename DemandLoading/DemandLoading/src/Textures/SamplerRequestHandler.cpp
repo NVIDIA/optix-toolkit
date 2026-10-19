@@ -68,7 +68,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
         }
         catch( ... )
         {
-            throw;
+            throw std::runtime_error( "Couldn't get texture for sampler id " + std::to_string( samplerId ) );
         }
     };
 
@@ -120,6 +120,8 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 
     // Allocate sampler buffer in pinned memory.
     MemoryBlockDesc pinnedBlock = m_loader->getPinnedMemoryPool()->alloc( sizeof( TextureSampler ), alignof( TextureSampler ) );
+    if( pinnedBlock.isBad() )
+        return;
     TextureSampler* pinnedSampler = reinterpret_cast<TextureSampler*>( pinnedBlock.ptr );
 
     // Copy the canonical sampler from the DemandTexture and set its CUDA texture object, which differs per device.
@@ -128,6 +130,11 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 
     // Allocate device memory for device-side sampler.
     TextureSampler* devSampler = m_loader->getDeviceMemoryManager()->allocateSampler();
+    if( reinterpret_cast<uint64_t>( devSampler ) == BAD_ADDR )
+    {
+        m_loader->getPinnedMemoryPool()->free( pinnedBlock );
+        return;
+    }
 
     // Copy sampler to device memory.
     OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),

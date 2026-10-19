@@ -140,6 +140,9 @@ class DemandLoader
     /// Set the max memory per device to be used for texture tiles, deleting memory arenas if needed
     virtual void setMaxTextureMemory( size_t maxMem ) = 0;
 
+    /// Get the available memory available for texture tiles without exceeding the max texture tile memory.
+    virtual size_t getAvailableTextureMemory() const = 0;
+
     /// Get the CUDA context associated with this demand loader
     virtual CUcontext getCudaContext() = 0;
 
