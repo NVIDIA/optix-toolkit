@@ -80,7 +80,6 @@ bool DemandPageLoaderImpl::pushMappings( CUstream stream, DeviceContext& context
         context = *m_deviceMemoryManager.allocateDeviceContext();
         invalidatePages( stream, context );
     }
-    context.requestIfResident = m_options->evictionActive;
 
     m_pagingSystem.pushMappings( context, stream );
     return true;
