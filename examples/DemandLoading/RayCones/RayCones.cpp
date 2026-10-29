@@ -276,9 +276,9 @@ void RayConesApp::keyCallback( GLFWwindow* window, int32_t key, int32_t scancode
         }
     } else if( key == GLFW_KEY_U ) {
         m_updateRayCones = static_cast<int>( !m_updateRayCones );
-    } else if( key == GLFW_KEY_P && m_projection == Projection::PINHOLE ) {
+    } else if( key == GLFW_KEY_T && m_projection == Projection::PINHOLE ) {
         m_projection = Projection::THINLENS;
-    } else if( key == GLFW_KEY_P && m_projection == Projection::THINLENS ) {
+    } else if( key == GLFW_KEY_T && m_projection == Projection::THINLENS ) {
         m_projection = Projection::PINHOLE;
     } else if( key == GLFW_KEY_O ) {
         m_lens_width *= 1.1f;
@@ -309,9 +309,10 @@ void printUsage( const char* argv0 )
     std::cout << "          J,L:            rotate camera\n";
     std::cout << "          C:              reset view\n";
     std::cout << "          +,-:            change mip bias\n";
-    std::cout << "          P:              toggle thin lens camera\n";
+    std::cout << "          T:              toggle thin lens camera\n";
     std::cout << "          U:              toggle distance-based vs. ray cones\n";
     std::cout << "          I,O:            change lens width\n";
+    std::cout << "          P:              pause texture requests\n";
     std::cout << "          X:              unload all texture tiles\n\n";
 }
 
