@@ -37,10 +37,9 @@ D_INLINE float getPixelSpan( float2 ddx, float2 ddy, float width, float height )
     return fmaxf( pixelSpanX, pixelSpanY ) + 1.0e-8f;
 }
 
-D_INLINE void fixGradients( float2& ddx, float2& ddy, int width, int height, int filterMode, bool conservative )
+D_INLINE void fixGradients( float2& ddx, float2& ddy, int width, int height, int filterMode, float maxAnisotropy, bool conservative )
 {
-    const float invAnisotropy = 1.0f / 16.0f; // FIXME: This should come from the texture
-    const float invAniso2 = invAnisotropy * invAnisotropy;
+    const float invAniso2 = 1.0f / (maxAnisotropy * maxAnisotropy);
     const float minVal = 0.99f / fmaxf(width, height);
 
     // Check if gradients are large enough
@@ -103,8 +102,6 @@ textureCubic( CUtexObject texture, int texWidth, int texHeight, int numMipLevels
     float p1 = (ddx.x * texWidth) * (ddx.x * texWidth) + (ddx.y * texHeight) * (ddx.y * texHeight);
     float p2 = (ddy.x * texWidth) * (ddy.x * texWidth) + (ddy.y * texHeight) * (ddy.y * texHeight);
     float maxGradientLengthInPixels = sqrtf( fmaxf( p1, p2 ) );
-
-    fixGradients( ddx, ddy, texWidth, texHeight, filterMode, conservativeFiltering );
 
     // Determine the blend between linear and cubic filtering
     float cubicBlend = ( filterMode == FILTER_BICUBIC ) ? 1.0f : 0.0f;

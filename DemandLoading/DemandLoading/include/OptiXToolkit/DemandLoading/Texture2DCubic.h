@@ -79,6 +79,9 @@ tex2DCubic( const DeviceContext& context, unsigned int textureId, float s, float
         ddy *= scale;
     }
 
+    // Make sure the gradients are reasonable for the texture size and filter mode.
+    fixGradients( ddx, ddy, texWidth, texHeight, filterMode, sampler->conservativeFilter, maxAnisotropy );
+
 #ifdef SPARSE_TEX_SUPPORT
     if( sampler->desc.isSparseTexture )
     {
