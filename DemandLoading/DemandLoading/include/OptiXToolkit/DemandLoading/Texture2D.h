@@ -321,18 +321,13 @@ tex2DGrad( const DeviceContext& context, unsigned int textureId, float x, float 
     y = y + (texelJitter.y / sampler->height);
 
 #ifdef SPARSE_TEX_SUPPORT
-    // If requestIfResident is false, use the predicated texture fetch to try and avoid requesting the footprint
-    *isResident = !sampler->desc.isSparseTexture;
-    if( !context.requestIfResident )
-        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy, isResident );
-
-    // Request the footprint if we don't know that it is resident (or if requestIfResident is true)
-    if( *isResident == false && sampler->desc.isSparseTexture )
+    *isResident = !sampler->desc.isSparseTexture; // dense textures are always resident
+    if( *isResident == false ) {
         *isResident = requestTexFootprint2DGrad( *sampler, context.referenceBits, context.residenceBits, x, y, ddx.x, ddx.y, ddy.x, ddy.y, 0.0f, 0.0f );
-
-    // We know the footprint is resident, but we have not yet fetched the texture, so do it now.
-    if( *isResident && context.requestIfResident )
-        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy ); // non-pedicated texture fetch
+    }
+    if( *isResident ) { // trust the residence bits
+        rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy );
+    }
 #else
     *isResident = true;
     rval = ::tex2DGrad<Sample>( sampler->texture, x, y, ddx, ddy );
@@ -390,12 +385,13 @@ tex2DLod( const DeviceContext& context, unsigned int textureId, float x, float y
     y = y + (texelJitter.y / sampler->height);
 
 #ifdef SPARSE_TEX_SUPPORT
-    *isResident = false;
-    rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod, isResident );
-
-    // Only request footprint if sample not resident, or doing eviction
-    if( sampler->desc.isSparseTexture && ( context.requestIfResident || !*isResident ) )
+    *isResident = !sampler->desc.isSparseTexture; // dense textures are always resident
+    if( *isResident == false ) {
         *isResident = requestTexFootprint2DLod( *sampler, context.referenceBits, context.residenceBits, x, y, lod );
+    }
+    if( *isResident ) { // trust the residence bits
+        rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod, isResident );
+    }
 #else
     *isResident = true;
     rval = ::tex2DLod<Sample>( sampler->texture, x, y, lod );

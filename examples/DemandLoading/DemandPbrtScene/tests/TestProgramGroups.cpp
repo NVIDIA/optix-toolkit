@@ -144,7 +144,6 @@ inline bool operator==( const DeviceContext& lhs, const DeviceContext& rhs )
         && lhs.arrayLengths      == rhs.arrayLengths
         && lhs.filledPages       == rhs.filledPages
         && lhs.invalidatedPages  == rhs.invalidatedPages
-        && lhs.requestIfResident == rhs.requestIfResident 
         && lhs.poolIndex         == rhs.poolIndex;
     // clang-format on
 }

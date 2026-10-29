@@ -132,7 +132,6 @@ std::ostream& operator<<( std::ostream& str, const DeviceContext& val )
                << ", " << val.arrayLengths       //
                << ", " << val.filledPages        //
                << ", " << val.invalidatedPages   //
-               << ", " << val.requestIfResident  //
                << ", " << val.poolIndex          //
                << "}";                           //
 }
@@ -151,7 +150,6 @@ inline bool operator==( const DeviceContext& lhs, const DeviceContext& rhs )
         && lhs.arrayLengths      == rhs.arrayLengths
         && lhs.filledPages       == rhs.filledPages
         && lhs.invalidatedPages  == rhs.invalidatedPages
-        && lhs.requestIfResident == rhs.requestIfResident 
         && lhs.poolIndex         == rhs.poolIndex;
     // clang-format on
 }

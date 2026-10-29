@@ -45,7 +45,6 @@ struct DeviceContext
     DeviceArray<unsigned int>       arrayLengths;  // 0=requestedPages, 1=stalePages, 2=evictablePages
     DeviceArray<PageMapping>        filledPages;
     DeviceArray<unsigned int>       invalidatedPages;
-    bool                            requestIfResident; 
     unsigned int                    poolIndex;  // Needed when returning copied context to pool.
 };
 
