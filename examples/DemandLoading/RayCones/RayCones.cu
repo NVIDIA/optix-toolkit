@@ -224,7 +224,9 @@ extern "C" __global__ void __raygen__rg()
             rayConeScatter( payload.geometry.curvature, ior, roughness, isTransmission, fs, payload.rayCone2 );
         }
 
+        const float maxWeight = 8.0f;
         weight = weight * bsdf * (1.0f / prob);
+        weight = clamp(weight, 0.0f, maxWeight); // clamp weight to prevent bright speckles
         rayDepth++;
         origin = payload.geometry.P;
         direction = R;
