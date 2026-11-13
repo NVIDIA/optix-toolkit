@@ -127,6 +127,15 @@ class DemandLoaderImpl : public DemandLoader
     /// Return request errors recorded since the previous call and clear them.
     std::vector<RequestError> getRequestErrors() override;
 
+    /// Record a request failure. Safe to call from worker threads. Also logs the message at level 0.
+    void reportRequestError( RequestError error );
+
+    /// Record a request failure and throw std::runtime_error. The exception means the error is already recorded.
+    void throwRequestError( RequestErrorStage         stage,
+                            unsigned int              textureId,
+                            imageSource::ImageSource* image,
+                            const std::string&        message );
+
     /// Free the given device context without pulling requests from the device.
     void freeDeviceContext( DeviceContext& dlContext ) override;
 
@@ -191,6 +200,8 @@ class DemandLoaderImpl : public DemandLoader
 
   private:
     mutable std::mutex       m_mutex;
+    std::mutex                m_requestErrorMutex; // mutext for error requests
+    std::vector<RequestError> m_requestErrors;
     std::shared_ptr<Options> m_options;
     CUcontext                m_cudaContext;  // The demand loader is for this context
     OptixDeviceContext       m_optixContext; // The optix context

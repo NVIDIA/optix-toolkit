@@ -6,6 +6,7 @@
 
 #include "Memory/DeviceMemoryManager.h"
 #include "PageTableManager.h"
+#include "DemandLoaderImpl.h"
 #include "PagingSystem.h"
 #include "ThreadPoolRequestProcessor.h"
 
@@ -114,11 +115,20 @@ class TestPagingSystem : public testing::Test
         m_options->useLruTable         = true;
 
         m_pageTableManager = std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries );
-        m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, *m_options ) );
+
+        // The request processor reports escaped exceptions to a DemandLoaderImpl. Create one on
+        // device 0 so the reference is valid. Its page table is separate from m_pageTableManager.
+        int numDevices = 0;
+        cudaGetDeviceCount( &numDevices );
+        if( numDevices > 0 )
+        {
+            OTK_ERROR_CHECK( cudaSetDevice( 0 ) );
+            OTK_ERROR_CHECK( cudaFree( nullptr ) );
+            m_loader.reset( new DemandLoaderImpl( Options() ) );
+            m_requestProcessor.reset( new ThreadPoolRequestProcessor( m_pageTableManager, *m_options, *m_loader ) );
+        }
 
         // Create per-device PagingSystem, etc.
-        int numDevices;
-        cudaGetDeviceCount( &numDevices );
         m_devices.reserve( numDevices );
         for( int deviceIndex = 0; deviceIndex < numDevices; ++deviceIndex )
         {
@@ -135,6 +145,7 @@ class TestPagingSystem : public testing::Test
   protected:
     std::shared_ptr<Options>                   m_options;
     std::shared_ptr<PageTableManager>          m_pageTableManager;
+    std::unique_ptr<DemandLoaderImpl>          m_loader;
     std::unique_ptr<RequestProcessor>          m_requestProcessor;
     std::vector<std::unique_ptr<DevicePaging>> m_devices;
     DevicePaging*                              m_firstDevice{};

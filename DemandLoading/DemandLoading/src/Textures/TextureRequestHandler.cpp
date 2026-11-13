@@ -15,13 +15,23 @@
 
 #include "WhiteBlackTileCheck.h"
 
+#include <sstream>
+#include <string>
+
 using namespace otk;
 
 namespace demandLoading {
 
 void TextureRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
 {
-   loadPage( stream, pageId, false );
+    try
+    {
+        loadPage( stream, pageId, false );
+    }
+    catch( const std::runtime_error& )
+    {
+        // Already recorded by throwRequestError. loadPage itself still throws, so a synchronous caller sees the failure.
+    }
 }
 
 void TextureRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool reloadIfResident )
@@ -101,7 +111,7 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     }
 
     // Read the tile (possibly from disk) into the transfer buffer.
-    bool satisfied;
+    bool satisfied = false;
     try
     {
         satisfied = m_texture->readTile( mipLevel, tileX, tileY, reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),
@@ -109,9 +119,11 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
     }
     catch( const std::exception& e )
     {
+        deviceMemoryManager->freeTileBlock( bh.block );
+        m_loader->freeTransferBuffer( transferBuffer, stream );
         std::stringstream ss;
         ss << "readTile call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw std::runtime_error( ss.str().c_str() );
+        m_loader->throwRequestError( RequestErrorStage::TextureTile, m_texture->getId(), m_texture->getImage().get(), ss.str() );
     }
 
     if( satisfied )
@@ -144,12 +156,23 @@ void TextureRequestHandler::fillTileRequest( CUstream stream, unsigned int pageI
         }
 
         // Copy data from transfer buffer to the sparse texture on the device
-        m_texture->fillTile( stream,
-                             mipLevel, tileX, tileY,                                     // Tile to fill
-                             reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
-                             transferBuffer.memoryType, TILE_SIZE_IN_BYTES,              // Src type and size
-                             bh.handle, bh.block.offset()                                // Dest
-                             );
+        try
+        {
+            m_texture->fillTile( stream,
+                                 mipLevel, tileX, tileY,                                     // Tile to fill
+                                 reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
+                                 transferBuffer.memoryType, TILE_SIZE_IN_BYTES,              // Src type and size
+                                 bh.handle, bh.block.offset()                                // Dest
+                                 );
+        }
+        catch( const std::exception& e )
+        {
+            deviceMemoryManager->freeTileBlock( bh.block );
+            m_loader->freeTransferBuffer( transferBuffer, stream );
+            std::stringstream ss;
+            ss << "fillTile call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
+            m_loader->throwRequestError( RequestErrorStage::TextureTile, m_texture->getId(), m_texture->getImage().get(), ss.str() );
+        }
 
         // Add a mapping for the tile, which will be sent to the device in pushMappings().
         if( useNewBlock )
@@ -196,26 +219,39 @@ void TextureRequestHandler::fillMipTailRequest( CUstream stream, unsigned int pa
     }
 
     // Read the mip tail into the transfer buffer.
-    bool satisfied;
+    bool satisfied = false;
     try
     {
         satisfied = m_texture->readMipTail( reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ), mipTailSize, stream );
     }
     catch( const std::exception& e )
     {
+        deviceMemoryManager->freeTileBlock( bh.block );
+        m_loader->freeTransferBuffer( transferBuffer, stream );
         std::stringstream ss;
         ss << "readMipTail call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw std::runtime_error( ss.str().c_str() );
+        m_loader->throwRequestError( RequestErrorStage::TextureTile, m_texture->getId(), m_texture->getImage().get(), ss.str() );
     }
 
     if( satisfied )
     {
         // Copy data from the transfer buffer to the sparse texture on the device
-        m_texture->fillMipTail( stream,
-                                reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
-                                transferBuffer.memoryType, mipTailSize,                     // Src type and size
-                                bh.handle, bh.block.offset()                                // Dest
-                                );
+        try
+        {
+            m_texture->fillMipTail( stream,
+                                    reinterpret_cast<char*>( transferBuffer.memoryBlock.ptr ),  // Src buffer
+                                    transferBuffer.memoryType, mipTailSize,                     // Src type and size
+                                    bh.handle, bh.block.offset()                                // Dest
+                                    );
+        }
+        catch( const std::exception& e )
+        {
+            deviceMemoryManager->freeTileBlock( bh.block );
+            m_loader->freeTransferBuffer( transferBuffer, stream );
+            std::stringstream ss;
+            ss << "fillMipTail call failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
+            m_loader->throwRequestError( RequestErrorStage::TextureTile, m_texture->getId(), m_texture->getImage().get(), ss.str() );
+        }
 
         // Add a mapping for the mip tail, which will be sent to the device in pushMappings().
 

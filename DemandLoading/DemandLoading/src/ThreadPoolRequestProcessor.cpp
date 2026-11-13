@@ -11,10 +11,15 @@
 #include <OptiXToolkit/Error/ErrorCheck.h>
 #include <OptiXToolkit/Error/cuErrorCheck.h>
 
+#include <string>
+
 namespace demandLoading {
 
-ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options )
-    : m_pageTableManager( std::move( pageTableManager ) )
+ThreadPoolRequestProcessor::ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager,
+                                                        const Options&                    options,
+                                                        DemandLoaderImpl&                 loader )
+    : m_loader( loader )
+    , m_pageTableManager( std::move( pageTableManager ) )
     , m_options( options )
 {
     m_requests.reset( new RequestQueue( options.maxRequestQueueSize ) );
@@ -127,6 +132,10 @@ void ThreadPoolRequestProcessor::worker()
             catch( const std::exception& e )
             {
                 std::cerr << "Error: " << e.what() << std::endl;
+                RequestError error;
+                error.stage   = RequestErrorStage::Other;
+                error.message = "Page " + std::to_string( request.pageId ) + ": " + e.what();
+                m_loader.reportRequestError( std::move( error ) );
             }
 
             // Notify the associated Ticket that the request has been filled.
