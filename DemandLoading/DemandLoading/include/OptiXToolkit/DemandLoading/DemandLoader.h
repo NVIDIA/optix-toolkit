@@ -10,6 +10,7 @@
 #include <OptiXToolkit/DemandLoading/DemandTexture.h>
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/Options.h>
+#include <OptiXToolkit/DemandLoading/RequestError.h>
 #include <OptiXToolkit/DemandLoading/Resource.h>
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
 #include <OptiXToolkit/DemandLoading/Statistics.h>
@@ -120,6 +121,11 @@ class DemandLoader
     /// Discard page requests that are pending in the host-side request queue.  Requests already
     /// being processed are unaffected.
     virtual void flushRequestQueue() = 0;
+
+    /// Return request errors recorded since the previous call and clear them.  An empty vector
+    /// means none were recorded.  Call this from the application thread after Ticket::wait(), or
+    /// after a synchronous call such as initTexture, replaceTexture, or loadTextureTile.
+    virtual std::vector<RequestError> getRequestErrors() = 0;
 
     /// Free the given device context without pulling requests from the device.
     virtual void freeDeviceContext( DeviceContext& dlContext ) = 0;

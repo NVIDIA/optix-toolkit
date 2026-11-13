@@ -485,6 +485,11 @@ void DemandLoaderImpl::flushRequestQueue()
     m_requestProcessor.flush();
 }
 
+std::vector<RequestError> DemandLoaderImpl::getRequestErrors()
+{
+    return {};
+}
+
 void DemandLoaderImpl::freeDeviceContext( DeviceContext& dlContext )
 {
     getDeviceMemoryManager()->freeDeviceContext( const_cast<DeviceContext*>( &dlContext ) );

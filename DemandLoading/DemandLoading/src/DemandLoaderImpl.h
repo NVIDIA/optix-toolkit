@@ -124,6 +124,9 @@ class DemandLoaderImpl : public DemandLoader
     /// Discard requests pending in the host-side request queue.
     void flushRequestQueue() override;
 
+    /// Return request errors recorded since the previous call and clear them.
+    std::vector<RequestError> getRequestErrors() override;
+
     /// Free the given device context without pulling requests from the device.
     void freeDeviceContext( DeviceContext& dlContext ) override;
 
