@@ -39,21 +39,24 @@ void ThreadPoolRequestProcessor::start()
 
 void ThreadPoolRequestProcessor::stop()
 {
-    std::unique_lock<std::mutex> lock( m_ticketsMutex );
-
-    if( !m_started )
-        return;
-
-    // Any threads that are waiting in RequestQueue::popOrWait will be notified when the queue is
-    // shut down.
-    m_requests->shutDown();
-    for( std::thread& thread : m_threads )
+    // Swap threads and requests with local variables
+    std::vector<std::thread>      threads;
+    std::unique_ptr<RequestQueue> requests;
     {
-        thread.join();
+        std::unique_lock<std::mutex> lock( m_ticketsMutex );
+        if( !m_started )
+            return;
+        threads.swap( m_threads );
+        requests.swap( m_requests );
+        m_started = false;
     }
-    m_requests.reset();
-    m_threads.clear();
-    m_started = false;
+
+    // Shut down the request queue and join the threads.
+    requests->shutDown();
+    for( std::thread& thread : threads )
+        thread.join();
+    // Flush the request queue to ensure all tickets are processed.
+    requests->flush();
 }
 
 void ThreadPoolRequestProcessor::flush()
@@ -101,22 +104,30 @@ void ThreadPoolRequestProcessor::worker()
         while( true )
         {
             // Pop a request from the queue, waiting if necessary until the queue is non-empty or shut down.
-            if( !m_requests->popOrWait( &request ) )
+            RequestQueue* requests = m_requests.get();
+            if( !requests || !requests->popOrWait( &request ) )
                 return;  // Exit thread when queue is shut down.
 
-            // Ask the PageTableManager for the request handler associated with the range of pages in
-            // which the request occurred.
-            RequestHandler* handler = m_pageTableManager->getRequestHandler( request.pageId );
-            OTK_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
-
-            // Use the CUDA context associated with the stream in the ticket.
             std::shared_ptr<TicketImpl>& ticket = TicketImpl::getImpl( request.ticket );
-            CUcontext                    context;
-            OTK_ERROR_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
-            OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
 
-            // Process the request.  Page table updates are accumulated in the PagingSystem.
-            handler->fillRequest( ticket->getStream(), request.pageId );
+            try
+            {
+                // Ask the PageTableManager for the request handler for the page.
+                RequestHandler* handler = m_pageTableManager->getRequestHandler( request.pageId );
+                OTK_ASSERT_MSG( handler != nullptr, "Invalid page requested (no associated handler)" );
+
+                // Use the CUDA context associated with the stream in the ticket.
+                CUcontext context;
+                OTK_ERROR_CHECK( cuStreamGetCtx( ticket->getStream(), &context ) );
+                OTK_ERROR_CHECK( cuCtxSetCurrent( context ) );
+
+                // Process the request.  Page table updates are accumulated in the PagingSystem.
+                handler->fillRequest( ticket->getStream(), request.pageId );
+            }
+            catch( const std::exception& e )
+            {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
 
             // Notify the associated Ticket that the request has been filled.
             ticket->notify();
