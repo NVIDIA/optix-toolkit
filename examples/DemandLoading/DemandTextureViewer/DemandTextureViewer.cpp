@@ -43,6 +43,11 @@ inline bool endsWith( const std::string& text, const std::string& suffix )
 
 ImageSourcePtr DemandTextureViewer::createImageSource( const std::string& textureName, bool tile, bool mipmap )
 {
+    {
+        ImageSourcePtr img = std::make_shared<imageSource::MultiCheckerImage<float4>>(40000, 2, 4, false);
+        return img;
+    }
+
     ImageSourcePtr img = imageSource::createImageSource( textureName );
     if( !img )
     {

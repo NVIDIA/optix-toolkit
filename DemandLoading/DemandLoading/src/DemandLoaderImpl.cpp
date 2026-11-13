@@ -11,6 +11,7 @@
 #include "Util/Stopwatch.h"
 #include "TicketImpl.h"
 
+#include <OptiXToolkit/DemandLoading/DemandLoadLogger.h>
 #include <OptiXToolkit/DemandLoading/DeviceContext.h>
 #include <OptiXToolkit/DemandLoading/RequestProcessor.h>
 #include <OptiXToolkit/DemandLoading/SparseTextureDevices.h>
@@ -24,6 +25,7 @@
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <string>
 
 using namespace otk;
 
@@ -124,7 +126,7 @@ std::shared_ptr<demandLoading::Options> configure( demandLoading::Options option
 DemandLoaderImpl::DemandLoaderImpl( const Options& options )
     : m_options( configure( options ) )
     , m_pageTableManager( std::make_shared<PageTableManager>( m_options->numPages, m_options->numPageTableEntries ) )
-    , m_requestProcessor( m_pageTableManager, options )
+    , m_requestProcessor( m_pageTableManager, options, *this )
     , m_pageLoader( new DemandPageLoaderImpl( m_pageTableManager, &m_requestProcessor, m_options ) )
     , m_samplerRequestHandler( this )
     , m_cascadeRequestHandler( this )
@@ -483,6 +485,35 @@ void DemandLoaderImpl::flushRequestQueue()
 {
     std::unique_lock<std::mutex> lock( m_mutex );
     m_requestProcessor.flush();
+}
+
+std::vector<RequestError> DemandLoaderImpl::getRequestErrors()
+{
+    std::lock_guard<std::mutex> lock( m_requestErrorMutex );
+    std::vector<RequestError>   errors;
+    errors.swap( m_requestErrors );
+    return errors;
+}
+
+void DemandLoaderImpl::reportRequestError( RequestError error )
+{
+    DL_LOG( 0, error.message );
+    std::lock_guard<std::mutex> lock( m_requestErrorMutex );
+    m_requestErrors.push_back( std::move( error ) );
+}
+
+void DemandLoaderImpl::throwRequestError( RequestErrorStage         stage,
+                                          unsigned int              textureId,
+                                          imageSource::ImageSource* image,
+                                          const std::string&        message )
+{
+    RequestError error;
+    error.stage     = stage;
+    error.textureId = textureId;
+    error.image     = image;
+    error.message   = message;
+    reportRequestError( error );
+    throw std::runtime_error( message );
 }
 
 void DemandLoaderImpl::freeDeviceContext( DeviceContext& dlContext )

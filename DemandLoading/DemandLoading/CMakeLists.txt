@@ -97,6 +97,7 @@ target_sources(DemandLoading
   include/OptiXToolkit/DemandLoading/LRU.h
   include/OptiXToolkit/DemandLoading/Options.h
   include/OptiXToolkit/DemandLoading/Paging.h
+  include/OptiXToolkit/DemandLoading/RequestError.h
   include/OptiXToolkit/DemandLoading/RequestFilter.h
   include/OptiXToolkit/DemandLoading/RequestProcessor.h
   include/OptiXToolkit/DemandLoading/Resource.h
