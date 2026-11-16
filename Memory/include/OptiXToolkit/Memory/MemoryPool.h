@@ -18,6 +18,7 @@
 #include <deque>
 #include <limits>
 #include <mutex>
+#include <unordered_set>
 #include <vector>
 
 #define NullAllocator HostAllocator
@@ -80,8 +81,11 @@ class MemoryPool
     {
         OTK_ERROR_CHECK( cuCtxGetCurrent( &m_context ) );
         OTK_ASSERT( m_context != nullptr );
-        p.m_allocator    = nullptr;
-        p.m_suballocator = nullptr;
+        m_allocations       = std::move( p.m_allocations );
+        m_stagedBlocks      = std::move( p.m_stagedBlocks );
+        m_directAllocations = std::move( p.m_directAllocations );
+        p.m_allocator       = nullptr;
+        p.m_suballocator    = nullptr;
     }
 
     /// Destructor
@@ -93,11 +97,16 @@ class MemoryPool
 
         try
         {
-            for( PtrSize ps : m_allocations )
+            // Free all allocations
+            if( m_allocator )
             {
-                if( m_allocator )
+                for( PtrSize ps : m_allocations )
                     m_allocator->free( ps.ptr );
+                for( void* ptr : m_directAllocations )
+                    m_allocator->free( ptr );
             }
+            m_directAllocations.clear();
+            m_allocations.clear();
             delete m_suballocator;
             delete m_allocator;
 
@@ -128,7 +137,12 @@ class MemoryPool
 
         // If no suballocator, use the allocator directly
         if( !m_suballocator )
-            return MemoryBlockDesc{reinterpret_cast<uint64_t>( m_allocator->allocate( size, stream ) ), size, 0};
+        {
+            void* ptr = m_allocator->allocate( size, stream );
+            if( ptr )
+                m_directAllocations.insert( ptr );
+            return MemoryBlockDesc{reinterpret_cast<uint64_t>( ptr ), size, 0};
+        }
 
         // Try to fill the request with the suballocator. If it fails, allocate more memory and try again.
         MemoryBlockDesc block = m_suballocator->alloc( size, alignment );
@@ -221,10 +235,12 @@ class MemoryPool
         OTK_ASSERT_CONTEXT_MATCHES_STREAM( stream );
 
         std::unique_lock<std::mutex> lock( m_mutex );
-        if( m_suballocator )
+        if( m_suballocator ) {
             m_suballocator->free( block );
-        else
+        } else {
             m_allocator->free( reinterpret_cast<void*>( block.ptr ), stream );
+            m_directAllocations.erase( reinterpret_cast<void*>( block.ptr ) );
+        }
     }
 
     /// Free a single item (used with FixedSuballocator).
@@ -382,7 +398,8 @@ class MemoryPool
     CUcontext            m_context;
     Allocator*           m_allocator;
     SubAllocator*        m_suballocator;
-    std::vector<PtrSize> m_allocations;
+    std::vector<PtrSize> m_allocations; // Allocations with suballocator
+    std::unordered_set<void*> m_directAllocations;  // Allocations without suballocator
     uint64_t             m_allocationGranularity;
     uint64_t             m_maxSize;
     uint64_t             m_headroom; // Leave at least this much memory unallocated
@@ -403,10 +420,12 @@ class MemoryPool
                     break;
             }
 
-            if( m_suballocator )
+            if( m_suballocator ) {
                 m_suballocator->free( m_stagedBlocks.front().block );
-            else
+            } else {
                 m_allocator->free( reinterpret_cast<void*>( m_stagedBlocks.front().block.ptr ) );
+                m_directAllocations.erase( reinterpret_cast<void*>( m_stagedBlocks.front().block.ptr ) );
+            }
 
             freeEvent( m_stagedBlocks.front() );
             m_stagedBlocks.pop_front();
