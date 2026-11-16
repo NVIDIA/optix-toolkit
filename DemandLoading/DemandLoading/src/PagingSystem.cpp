@@ -36,7 +36,7 @@ PagingSystem::PagingSystem( std::shared_ptr<Options> options,
     OTK_ASSERT( m_options->maxFilledPages >= m_options->maxRequestedPages );
 
     // Make the initial pushMappings event (which will be recorded when pushMappings is called)
-    m_pushMappingsEvent = std::make_shared<FutureEvent>();
+    m_pushMappingsEvent = acquireFutureEvent();
 
     initPageMappingsContext();
 
@@ -225,8 +225,12 @@ unsigned int PagingSystem::pushMappings( const DeviceContext& context, CUstream 
     OTK_ERROR_CHECK( cuEventRecord( m_pushMappingsEvent->event, stream ) );
     m_pushMappingsEvent->recorded = true;
 
-    // Make a new event for the next time pushMappings is called
-    m_pushMappingsEvent = std::make_shared<FutureEvent>();
+    // No staged list is waiting on this recording, so reuse it for the next push.
+    // Otherwise take a pooled event, creating one only when the pool is empty.
+    if( m_pushMappingsEvent.use_count() == 1 )
+        m_pushMappingsEvent->recorded = false;
+    else
+        m_pushMappingsEvent = acquireFutureEvent();
 
     // Free the current PageMappingsContext when the preceding operations on the stream are done.
     m_pinnedMemoryPool->freeAsync( m_pageMappingsContextBlock, stream);
@@ -273,9 +277,15 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
 
     while( !m_stagedPages.empty() && ( m_stagedPages[0].event->query() == CUDA_SUCCESS ) )
     {
-        // Advance to the next list if the beginning list is empty
+        // Advance to the next list if the beginning list is empty.
+        // Return the event to the pool when this list is its last owner.
         if( m_stagedPages[0].mappings.empty() )
         {
+            if( m_stagedPages[0].event.use_count() == 1 )
+            {
+                m_stagedPages[0].event->recorded = false;
+                m_freeEvents.push_back( std::move( m_stagedPages[0].event ) );
+            }
             m_stagedPages.pop_front();
             continue;
         }
@@ -302,6 +312,18 @@ bool PagingSystem::freeStagedPage( PageMapping* m )
         }
     }
     return false;
+}
+
+std::shared_ptr<PagingSystem::FutureEvent> PagingSystem::acquireFutureEvent()
+{
+    if( !m_freeEvents.empty() )
+    {
+        std::shared_ptr<FutureEvent> event = std::move( m_freeEvents.front() );
+        m_freeEvents.pop_front();
+        event->recorded = false;
+        return event;
+    }
+    return std::make_shared<FutureEvent>();
 }
 
 void PagingSystem::initPageMappingsContext()

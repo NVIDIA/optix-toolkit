@@ -120,7 +120,8 @@ class PagingSystem
         CUevent event{};
         bool    recorded = false;
     };
-    std::shared_ptr<FutureEvent> m_pushMappingsEvent = nullptr;
+    std::shared_ptr<FutureEvent>             m_pushMappingsEvent = nullptr;
+    std::deque<std::shared_ptr<FutureEvent>> m_freeEvents;
 
     // Staged tiles (tiles set as non-resident on the host, which can be freed once they are set
     // as non-resident on the device).
@@ -158,6 +159,9 @@ class PagingSystem
 
     // Push invalidated pages to device
     void pushMappingsAndInvalidations( const DeviceContext& context, CUstream stream );
+
+    // Take a FutureEvent from m_freeEvents, or create one if the pool is empty.
+    std::shared_ptr<FutureEvent> acquireFutureEvent();
 };
 
 }  // namespace demandLoading
