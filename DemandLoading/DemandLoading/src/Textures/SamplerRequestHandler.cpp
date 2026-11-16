@@ -21,6 +21,8 @@
 #include <cuda_fp16.h>
 
 #include <algorithm>
+#include <sstream>
+#include <string>
 
 using namespace otk;
 using namespace imageSource;
@@ -33,12 +35,10 @@ void SamplerRequestHandler::fillRequest( CUstream stream, unsigned int pageId )
     {
         loadPage( stream, pageId, false );
     }
-    catch( const std::runtime_error& e )
+    catch( const std::runtime_error& )
     {
-        // Report the failure (e.g. missing/unreadable image, unsupported format, or a texture too
-        // large to sample) through the logger instead of letting it propagate and terminate the
-        // worker thread.  Logged at level 0 so it is reported regardless of the configured log level.
-        DL_LOG( 0, e.what() );
+        // Already recorded by throwRequestError. Leave the page non-resident so the request can be
+        // retried, and let the worker notify the ticket.
     }
 }
 
@@ -56,24 +56,32 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
 
     // Get the texture and make sure it is open.
     unsigned int samplerId = pageIdToSamplerId( pageId, m_loader->getOptions().maxTextures );
-    auto getTextureForSamplerId = [this]( unsigned int samplerId ) {
-        try
-        {
-            return m_loader->getTexture( samplerId );
-        }
-        catch( const std::exception& bang )
-        {
-            throw std::runtime_error( "Couldn't get texture for sampler id " + std::to_string( samplerId ) + " ("
-                                      + bang.what() + ')' );
-        }
-        catch( ... )
-        {
-            throw std::runtime_error( "Couldn't get texture for sampler id " + std::to_string( samplerId ) );
-        }
-    };
+    DemandTextureImpl* texture = nullptr;
+    try
+    {
+        texture = m_loader->getTexture( samplerId );
+    }
+    catch( const std::exception& bang )
+    {
+        m_loader->throwRequestError( RequestErrorStage::Other, samplerId, nullptr,
+                                     "Couldn't get texture for sampler id " + std::to_string( samplerId ) + " ("
+                                         + bang.what() + ')' );
+    }
+    catch( ... )
+    {
+        m_loader->throwRequestError( RequestErrorStage::Other, samplerId, nullptr,
+                                     "Couldn't get texture for sampler id " + std::to_string( samplerId ) );
+    }
 
-    DemandTextureImpl* texture = getTextureForSamplerId( samplerId );
-    texture->open();
+    try
+    {
+        texture->open();
+    }
+    catch( const std::exception& e )
+    {
+        m_loader->throwRequestError( RequestErrorStage::ImageLoad, texture->getId(), texture->getImage().get(),
+                                     std::string( "ImageSource::open() failed: " ) + e.what() );
+    }
 
     // Load base color if the page is for a base color
     if( isBaseColorId( pageId, m_loader->getOptions().maxTextures ) )
@@ -100,7 +108,7 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     {
         std::stringstream ss;
         ss << "ImageSource::init() failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
-        throw std::runtime_error(ss.str().c_str());
+        m_loader->throwRequestError( RequestErrorStage::SamplerCreate, texture->getId(), texture->getImage().get(), ss.str() );
     }
 
     DL_LOG(4, "[Page " + std::to_string(pageId) + "] Texture " + std::to_string(samplerId)
@@ -121,7 +129,10 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     // Allocate sampler buffer in pinned memory.
     MemoryBlockDesc pinnedBlock = m_loader->getPinnedMemoryPool()->alloc( sizeof( TextureSampler ), alignof( TextureSampler ) );
     if( pinnedBlock.isBad() )
-        return;
+    {
+        m_loader->throwRequestError( RequestErrorStage::SamplerCreate, texture->getId(), texture->getImage().get(),
+                                     "Failed to allocate pinned memory for sampler " + std::to_string( texture->getId() ) );
+    }
     TextureSampler* pinnedSampler = reinterpret_cast<TextureSampler*>( pinnedBlock.ptr );
 
     // Copy the canonical sampler from the DemandTexture and set its CUDA texture object, which differs per device.
@@ -133,12 +144,22 @@ void SamplerRequestHandler::loadPage( CUstream stream, unsigned int pageId, bool
     if( reinterpret_cast<uint64_t>( devSampler ) == BAD_ADDR )
     {
         m_loader->getPinnedMemoryPool()->free( pinnedBlock );
-        return;
+        m_loader->throwRequestError( RequestErrorStage::SamplerCreate, texture->getId(), texture->getImage().get(),
+                                     "Failed to allocate device memory for sampler " + std::to_string( texture->getId() ) );
     }
 
     // Copy sampler to device memory.
-    OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
-                                      reinterpret_cast<CUdeviceptr>( pinnedSampler ), sizeof( TextureSampler ), stream ) );
+    try
+    {
+        OTK_ERROR_CHECK( cuMemcpyAsync( reinterpret_cast<CUdeviceptr>( devSampler ),
+                                        reinterpret_cast<CUdeviceptr>( pinnedSampler ), sizeof( TextureSampler ), stream ) );
+    }
+    catch( const std::exception& e )
+    {
+        m_loader->getPinnedMemoryPool()->free( pinnedBlock );
+        m_loader->throwRequestError( RequestErrorStage::SamplerCreate, texture->getId(), texture->getImage().get(),
+                                     std::string( "Sampler copy failed: " ) + e.what() );
+    }
 
     // Free the pinned memory buffer.  This doesn't immediately reclaim it: an event is recorded on
     // the stream, and the buffer isn't reused until all preceding operations are complete,
@@ -183,11 +204,25 @@ bool SamplerRequestHandler::fillDenseTexture( CUstream stream, unsigned int page
     OTK_ASSERT_MSG( dataPtr != nullptr, "Unable to allocate transfer buffer for dense texture." );
 
     // Read the texture data into the buffer (either a single mip level, or all mip levels)
-    bool satisfied;
-    if( info.numMipLevels == 1 && !texture->isDegenerate() )
-        satisfied = texture->readNonMipMappedData( dataPtr, bufferSize, stream );
-    else
-        satisfied = texture->readMipLevels( dataPtr, bufferSize, 0, stream );
+    bool satisfied = false;
+    try
+    {
+        if( info.numMipLevels == 1 && !texture->isDegenerate() )
+            satisfied = texture->readNonMipMappedData( dataPtr, bufferSize, stream );
+        else
+            satisfied = texture->readMipLevels( dataPtr, bufferSize, 0, stream );
+    }
+    catch( const std::exception& e )
+    {
+        if( transferBuffer.memoryBlock.size > 0 )
+            m_loader->freeTransferBuffer( transferBuffer, stream );
+        else if( transferBuffer.memoryType == CU_MEMORYTYPE_DEVICE )
+            cuMemFree( reinterpret_cast<CUdeviceptr>( dataPtr ) );
+
+        std::stringstream ss;
+        ss << "Image read failed: " << e.what() << ": " << __FILE__ << " (" << __LINE__ << ")";
+        m_loader->throwRequestError( RequestErrorStage::ImageLoad, texture->getId(), texture->getImage().get(), ss.str() );
+    }
 
     // Copy texture data from the buffer to the texture array on the device
     if( satisfied )
@@ -218,7 +253,15 @@ void SamplerRequestHandler::fillBaseColorRequest( CUstream /*stream*/, DemandTex
     // Read the base color
     float4 fBaseColor = float4{1.0f, 0.0f, 1.0f, 0.0f};
     bool hasBaseColor = false;
-    hasBaseColor = texture->readBaseColor( fBaseColor );
+    try
+    {
+        hasBaseColor = texture->readBaseColor( fBaseColor );
+    }
+    catch( const std::exception& e )
+    {
+        m_loader->throwRequestError( RequestErrorStage::ImageLoad, texture->getId(), texture->getImage().get(),
+                                     std::string( "Base color read failed: " ) + e.what() );
+    }
 
     // Store the base color as a half4 in the page table
     half4               baseColor = half4{fBaseColor.x, fBaseColor.y, fBaseColor.z, fBaseColor.w};

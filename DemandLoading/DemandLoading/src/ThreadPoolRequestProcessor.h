@@ -19,14 +19,16 @@
 
 namespace demandLoading {
 
+class DemandLoaderImpl;
 class PageTableManager;
 
 class ThreadPoolRequestProcessor : public RequestProcessor
 {
   public:
     /// Construct request processor, which uses the given PageTableManager to
-    /// find the RequestHandler associated with a range of pages.
-    ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options );
+    /// find the RequestHandler associated with a range of pages. loader receives
+    /// exceptions that escape a request handler.
+    ThreadPoolRequestProcessor( std::shared_ptr<PageTableManager> pageTableManager, const Options& options, DemandLoaderImpl& loader );
     ~ThreadPoolRequestProcessor() override = default;
 
     /// Stop processing requests, terminating threads.
@@ -45,6 +47,7 @@ class ThreadPoolRequestProcessor : public RequestProcessor
     void setTicket( unsigned int id, Ticket ticket );
 
 private:
+    DemandLoaderImpl&                 m_loader;
     std::shared_ptr<PageTableManager> m_pageTableManager;
     std::unique_ptr<RequestQueue>     m_requests;
     std::vector<std::thread>          m_threads;
